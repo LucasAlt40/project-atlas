@@ -1,4 +1,10 @@
 import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/Button';
+import { HealthBadge } from '@/features/harness/components/HealthBadge';
+import { InitializeProjectModal } from '@/features/harness/components/InitializeProjectModal';
+import { RefreshHarnessModal } from '@/features/harness/components/RefreshHarnessModal';
+import harnessStyles from '@/features/harness/components/Harness.module.css';
+import { useProjectHarness } from '@/features/harness/hooks/useProjectHarness';
 import { useT } from '@/i18n/I18nProvider';
 import { getProjectContext } from '../services/workspaceService';
 import type { ProjectContext, Workspace } from '../types';
@@ -19,6 +25,9 @@ export function ProjectContextBar({ workspace }: { workspace: Workspace }) {
   // What was loaded, and for which workspace folder; anything else is "still loading".
   const [loaded, setLoaded] = useState<{ key: string; result: Loaded } | null>(null);
   const key = `${id}\u0000${projectPath}`;
+  const harness = useProjectHarness(id, projectPath);
+  const [initializing, setInitializing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,8 +48,7 @@ export function ProjectContextBar({ workspace }: { workspace: Workspace }) {
 
   return (
     <section className={styles.context} aria-label={t('project.context')}>
-      <span aria-hidden="true">📁</span>
-      <strong>{context?.name ?? workspace.name}</strong>
+      <strong className={styles.contextName}>{context?.name ?? workspace.name}</strong>
       <span className={styles.muted} title={workspace.projectPath}>
         {t('project.path')}: {workspace.projectPath}
       </span>
@@ -61,6 +69,74 @@ export function ProjectContextBar({ workspace }: { workspace: Workspace }) {
         </span>
       )}
       {result?.error && <span className={styles.notice}>{t('project.folderMissing')}</span>}
+      <div className={harnessStyles.status} role="group" aria-label={t('harness.title')}>
+        <span className={harnessStyles.statusLabel}>{t('harness.title')}</span>
+        {harness.state.status === 'ready' && (
+          <>
+            <strong
+              className={harnessStyles.statusValue}
+              data-status={harness.state.summary.status}
+            >
+              {harness.state.summary.status === 'initialized' ? '✓' : '⚠'}{' '}
+              {t(`harness.status.${harness.state.summary.status}`)}
+            </strong>
+            {harness.state.summary.health && <HealthBadge health={harness.state.summary.health} />}
+            {harness.state.summary.status === 'initialized' &&
+              harness.state.summary.stack.length > 0 && (
+                <span className={styles.muted}>{harness.state.summary.stack.join(' · ')}</span>
+              )}
+            {harness.state.summary.status === 'initialized' ? (
+              <>
+                <Button
+                  onClick={() => {
+                    setInitializing(true);
+                  }}
+                >
+                  {t('harness.update')}
+                </Button>
+                <Button
+                  onClick={() => {
+                    setRefreshing(true);
+                  }}
+                >
+                  {t('harness.refresh')}
+                </Button>
+              </>
+            ) : (
+              <Button
+                onClick={() => {
+                  setInitializing(true);
+                }}
+              >
+                {harness.state.summary.status === 'needs_review'
+                  ? t('harness.openReview')
+                  : t('harness.initialize')}
+              </Button>
+            )}
+          </>
+        )}
+        {harness.state.status === 'error' && (
+          <span className={styles.notice}>{t('harness.loadFailed')}</span>
+        )}
+      </div>
+      {refreshing && (
+        <RefreshHarnessModal
+          workspaceId={id}
+          onClose={() => {
+            setRefreshing(false);
+          }}
+          onApplied={harness.replace}
+        />
+      )}
+      {initializing && (
+        <InitializeProjectModal
+          workspaceId={id}
+          onClose={() => {
+            setInitializing(false);
+          }}
+          onInitialized={harness.replace}
+        />
+      )}
     </section>
   );
 }

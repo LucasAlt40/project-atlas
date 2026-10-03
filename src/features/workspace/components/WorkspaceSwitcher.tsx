@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
 import { useT } from '@/i18n/I18nProvider';
 import { useWorkspace } from '../hooks/WorkspaceProvider';
@@ -52,8 +53,8 @@ export function WorkspaceSwitcher({ pickFolder }: Props) {
           setOpen((o) => !o);
         }}
       >
-        <span className={styles.switcherName}>{active?.name ?? t('workspace.switcher.none')}</span>{' '}
-        ▾
+        <span className={styles.switcherName}>{active?.name ?? t('workspace.switcher.none')}</span>
+        <Icon name="chevronDown" size={14} />
       </button>
 
       {open && (
@@ -70,7 +71,7 @@ export function WorkspaceSwitcher({ pickFolder }: Props) {
                 void select(workspace.id);
               }}
             >
-              <strong>{workspace.name}</strong>
+              <strong className={styles.menuName}>{workspace.name}</strong>
               <span className={styles.menuPath}>{workspace.projectPath}</span>
             </button>
           ))}

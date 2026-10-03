@@ -1,0 +1,144 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 1.625rem;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  color: var(--text-standard);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+.badge:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+.badge[data-mode='secure'] {
+  color: var(--success);
+}
+.title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+}
+.path {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.areas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+}
+.area {
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+.area dt {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.area dd {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: var(--space-1) 0 0;
+}
+.value {
+  color: var(--text-high);
+  font-weight: 600;
+}
+.detail {
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+.warning {
+  color: var(--warning);
+  font-size: var(--font-size-sm);
+}
+.note {
+  margin: var(--space-3) 0 0;
+  color: var(--text-dim);
+  font-size: var(--font-size-sm);
+}
+.profileRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+.profileSelect {
+  height: 1.75rem;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-void);
+  color: var(--text-high);
+  font: inherit;
+}
+
+/* Permission requests: the policy (rose) accent. */
+.approvals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.approval {
+  padding: var(--space-4);
+  border: 1px solid rgb(236 72 153 / 0.35);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(rgb(236 72 153 / 0.08), rgb(236 72 153 / 0.04)), var(--surface-2);
+}
+.approvalTitle {
+  margin: 0 0 var(--space-3);
+  color: #f9a8d4;
+  font-size: var(--font-size-lg);
+}
+.approvalFacts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+}
+.approvalFacts dt {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.approvalFacts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.command {
+  display: block;
+  margin-top: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-void);
+  color: var(--text-high);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+.approvalActions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}

@@ -4,6 +4,7 @@ import {
   type ConversationAction,
   type ConversationsState,
 } from './agentRuns';
+import type { SessionStatusEventDto } from '@/lib/tauri/commands';
 import type { ExecutionEvent, Message } from '../types';
 
 function event(overrides: Partial<ExecutionEvent>): ExecutionEvent {
@@ -276,5 +277,157 @@ describe('conversationsReducer', () => {
       sent: { userMessage: message({}), executionId: 'exec-1' },
     });
     expect(retried.sendErrors['w/a']).toBeUndefined();
+  });
+
+  describe('live process', () => {
+    const status = (
+      executionId: string,
+      state: 'running' | 'interrupting' | 'terminating' | 'exited',
+      extra: Partial<SessionStatusEventDto> = {},
+    ): ConversationAction => ({
+      type: 'processStatus',
+      event: {
+        executionId,
+        processSessionId: `ps-${executionId}`,
+        workspaceId: 'w',
+        agentId: 'a',
+        status: state,
+        userAction: null,
+        exitCode: null,
+        timestamp: 10,
+        ...extra,
+      },
+    });
+
+    it('ends a run the user stopped as cancelled, not as failed', () => {
+      const state = apply(
+        { type: 'event', event: event({ kind: 'started' }) },
+        { type: 'event', event: event({ kind: 'user_interrupted' }) },
+        { type: 'event', event: event({ kind: 'cancelled' }) },
+      );
+
+      expect(state.runs['w/a']?.status).toBe('cancelled');
+      expect(state.runs['w/a']?.failureKind).toBeNull();
+      expect(state.runs['w/a']?.activity.map((a) => a.kind)).toEqual([
+        'started',
+        'user_interrupted',
+        'cancelled',
+      ]);
+    });
+
+    it('lets a new run start after a cancelled one', () => {
+      const state = apply(
+        { type: 'event', event: event({ kind: 'cancelled' }) },
+        { type: 'event', event: event({ executionId: 'exec-2', kind: 'started' }) },
+      );
+
+      expect(state.runs['w/a']).toMatchObject({ executionId: 'exec-2', status: 'running' });
+    });
+
+    it('follows the process of each execution on its own', () => {
+      const state = apply(
+        status('exec-1', 'running'),
+        status('exec-2', 'running'),
+        status('exec-1', 'interrupting', { userAction: 'interrupted' }),
+        status('exec-1', 'exited', { userAction: 'interrupted', exitCode: 130, timestamp: 50 }),
+      );
+
+      expect(state.processes['exec-1']).toMatchObject({
+        status: 'exited',
+        userAction: 'interrupted',
+        exitCode: 130,
+        startedAt: 10,
+        endedAt: 50,
+      });
+      expect(state.processes['exec-2']).toMatchObject({ status: 'running', endedAt: null });
+    });
+  });
+
+  describe('event ordering', () => {
+    const at = (kind: ExecutionEvent['kind'], executionId = 'exec-1', extra = {}) =>
+      ({ type: 'event', event: event({ kind, executionId, ...extra }) }) as const;
+
+    it('does not take output that arrives after the end for a running answer', () => {
+      const state = apply(
+        at('started'),
+        at('failed', 'exec-1', { metadata: { failureKind: 'timeout' } }),
+        at('output_chunk', 'exec-1', { message: 'late text' }),
+      );
+
+      expect(state.runs['w/a']?.status).toBe('failed');
+      expect(state.streams['w/a']).toBeUndefined();
+      expect(state.runs['w/a']?.activity.map((e) => e.kind)).toEqual(['started', 'failed']);
+    });
+
+    it('keeps output that arrives while the execution runs', () => {
+      const state = apply(
+        at('started'),
+        at('output_chunk', 'exec-1', { message: 'hel' }),
+        at('output_chunk', 'exec-1', { message: 'lo' }),
+      );
+
+      expect(state.streams['w/a']?.text).toBe('hello');
+    });
+
+    it('keeps the first ending: a terminate then a failure is a failure, and nothing reopens it', () => {
+      const state = apply(
+        at('started'),
+        at('user_terminated'),
+        at('failed', 'exec-1', { metadata: { failureKind: 'execution_failed' } }),
+        at('completed'),
+        at('process_exited'),
+      );
+
+      const run = state.runs['w/a'];
+      expect(run?.status).toBe('failed');
+      expect(run?.failureKind).toBe('execution_failed');
+    });
+
+    it('does not bring back an older execution from a late event once another has run', () => {
+      const state = apply(
+        at('started', 'exec-1'),
+        at('completed', 'exec-1'),
+        at('started', 'exec-2'),
+        at('completed', 'exec-2'),
+        // A straggler of the first one, after the second has ended.
+        at('process_exited', 'exec-1'),
+        at('worktree_finalized', 'exec-1'),
+      );
+
+      expect(state.runs['w/a']?.executionId).toBe('exec-2');
+      expect(state.runs['w/a']?.status).toBe('completed');
+    });
+
+    it('ignores a straggler of an older execution while a newer one runs', () => {
+      const state = apply(
+        at('started', 'exec-1'),
+        at('completed', 'exec-1'),
+        at('started', 'exec-2'),
+        at('output_chunk', 'exec-1', { message: 'old' }),
+        at('failed', 'exec-1'),
+      );
+
+      expect(state.runs['w/a']?.executionId).toBe('exec-2');
+      expect(state.runs['w/a']?.status).toBe('running');
+      expect(state.streams['w/a']).toBeUndefined();
+    });
+
+    it('still picks up an execution that was already running when the app opened', () => {
+      const state = apply(at('permission', 'exec-7'));
+
+      expect(state.runs['w/a']?.executionId).toBe('exec-7');
+      expect(state.runs['w/a']?.status).toBe('running');
+    });
+
+    it('shows a worktree event after completion as part of the same, finished execution', () => {
+      const state = apply(at('started'), at('completed'), at('worktree_finalized'));
+
+      expect(state.runs['w/a']?.status).toBe('completed');
+      expect(state.runs['w/a']?.activity.map((e) => e.kind)).toEqual([
+        'started',
+        'completed',
+        'worktree_finalized',
+      ]);
+    });
   });
 });

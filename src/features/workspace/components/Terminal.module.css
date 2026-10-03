@@ -1,0 +1,194 @@
+.panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+}
+.empty {
+  flex: 1;
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--font-size-sm);
+}
+.statusRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  font-size: var(--font-size-sm);
+}
+.connection {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}
+.connection[data-state='running'] {
+  color: var(--success);
+}
+.connection[data-state='interrupting'],
+.connection[data-state='terminating'] {
+  color: var(--warning);
+}
+.badge {
+  padding: 1px var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-base);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}
+.hint {
+  margin: 0;
+  color: var(--warning);
+  font-size: var(--font-size-sm);
+}
+.error {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+.command {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.host {
+  flex: 1;
+  min-height: 96px;
+  padding: var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-void);
+  overflow: hidden;
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+.spacer {
+  flex: 1;
+}
+.tool,
+.interrupt,
+.terminate {
+  height: 1.625rem;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  color: var(--text-standard);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+.tool:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-high);
+}
+/* The normal way to stop a run: prominent. */
+.interrupt {
+  border-color: rgb(239 68 68 / 0.5);
+  background: rgb(239 68 68 / 0.16);
+  color: #fca5a5;
+}
+.interrupt:hover:not(:disabled) {
+  background: rgb(239 68 68 / 0.28);
+}
+/* The forceful way: available, but plain, so it is not what people reach for first. */
+.terminate {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-danger);
+}
+.terminate:hover:not(:disabled) {
+  border-color: rgb(239 68 68 / 0.5);
+}
+.interrupt:disabled,
+.terminate:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.check {
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+.searchRow {
+  display: flex;
+  gap: var(--space-2);
+}
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  height: 1.625rem;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-void);
+  color: var(--text-high);
+  font: inherit;
+}
+.searchInput:focus-visible {
+  border-color: var(--border-focus);
+  outline: 0;
+}
+/* The run bar and tabs of the agent card. */
+.tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.tab {
+  height: 1.75rem;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.tab:hover {
+  color: var(--text-high);
+}
+.tab[aria-selected='true'] {
+  border-bottom-color: var(--accent);
+  color: var(--text-high);
+}
+.tab:focus-visible {
+  outline-offset: -2px;
+}
+.tabPanel {
+  display: flex;
+  overflow: hidden;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.runBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-void);
+  font-size: var(--font-size-sm);
+}
+.runStep {
+  flex: 1;
+  min-width: 0;
+  color: var(--running);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  overflow-wrap: anywhere;
+}

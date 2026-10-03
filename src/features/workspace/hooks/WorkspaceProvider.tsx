@@ -21,6 +21,13 @@ import {
 import type { Workspace, WorkspaceInput } from '../types';
 import { useAgentConversations } from './useAgentConversations';
 
+/** Asks an agent's card to show a view, e.g. when its run is picked from the global list. */
+export interface FocusRequest {
+  workspaceId: string;
+  agentId: string;
+  tab: 'chat' | 'terminal' | 'details';
+}
+
 export type WorkspacesState =
   | { status: 'loading' }
   | { status: 'error'; error: unknown }
@@ -35,6 +42,7 @@ function useWorkspaceState() {
   const { catalog } = useCatalog();
   const conversations = useAgentConversations();
   const [state, setState] = useState<WorkspacesState>({ status: 'loading' });
+  const [focus, setFocus] = useState<FocusRequest | null>(null);
   const { selectedWorkspaceId, rememberWorkspace } = settings;
 
   const reload = useCallback(() => {
@@ -136,6 +144,18 @@ function useWorkspaceState() {
     [active, replace],
   );
 
+  // Shows the agent's card: its workspace (running agents elsewhere are untouched) and a view.
+  const focusAgent = useCallback(
+    async (request: FocusRequest) => {
+      await rememberWorkspace(request.workspaceId);
+      setFocus(request);
+    },
+    [rememberWorkspace],
+  );
+  const clearFocus = useCallback(() => {
+    setFocus(null);
+  }, []);
+
   const { send } = conversations;
   const sendToAgent = useCallback(
     (agentId: string, content: string) => (active ? send(active.id, agentId, content) : undefined),
@@ -154,6 +174,13 @@ function useWorkspaceState() {
     removeAgent,
     conversations: conversations.state,
     usageVersion: conversations.usageVersion,
+    terminals: conversations.hub,
+    history: conversations.history,
+    worktrees: conversations.worktrees,
+    mergeExecution: conversations.merge,
+    focus,
+    focusAgent,
+    clearFocus,
     sendToAgent,
   };
 }
@@ -169,6 +196,11 @@ const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const value = useWorkspaceState();
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
+}
+
+/** Like [`useWorkspace`], for components that also render without a provider (and then know nothing). */
+export function useOptionalWorkspace(): WorkspaceContextValue | null {
+  return useContext(WorkspaceContext);
 }
 
 export function useWorkspace(): WorkspaceContextValue {

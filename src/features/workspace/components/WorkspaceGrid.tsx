@@ -20,7 +20,7 @@ export function WorkspaceGrid({ workspace, renderAgent }: Props) {
       className={styles.grid}
       style={{
         gridTemplateColumns: `repeat(${String(workspace.layout.columns)}, minmax(0, 1fr))`,
-        gridTemplateRows: `repeat(${String(workspace.layout.rows)}, minmax(0, 1fr))`,
+        gridTemplateRows: `repeat(${String(workspace.layout.rows)}, minmax(26rem, 1fr))`,
       }}
     >
       {gridCells(workspace).map((cell) => (

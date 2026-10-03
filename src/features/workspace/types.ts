@@ -4,6 +4,7 @@ import type {
   MessageDto,
   ProjectContextDto,
   SentMessageDto,
+  StoredExecutionDto,
   WorkspaceDto,
   WorkspaceInputDto,
 } from '@/lib/tauri/commands';
@@ -16,3 +17,4 @@ export type GridPosition = GridPositionDto;
 export type Message = MessageDto;
 export type SentMessage = SentMessageDto;
 export type ExecutionEvent = ExecutionEventDto;
+export type StoredExecution = StoredExecutionDto;

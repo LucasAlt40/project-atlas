@@ -170,10 +170,12 @@ describe('WorkspacePage', () => {
       emit(executionEvent(W1, 'a1', 'exec-1', 'sending_prompt'));
       emit(executionEvent(W1, 'a1', 'exec-1', 'waiting_for_model', { model: 'sonnet' }));
     });
+    await user.click(within(card('Architect')).getByRole('tab', { name: 'Activity' }));
     const activity = within(card('Architect')).getByRole('list', { name: 'Activity' });
     expect(within(activity).getByText(/Starting Claude CLI/)).toHaveTextContent('✓');
     expect(within(activity).getByText(/Waiting for sonnet/)).toHaveTextContent('●');
     expect(statusOf('Architect')).toHaveTextContent('Waiting for model');
+    await user.click(within(card('Architect')).getByRole('tab', { name: 'Chat' }));
 
     act(() => {
       emit(executionEvent(W1, 'a1', 'exec-1', 'completed'));
@@ -212,9 +214,11 @@ describe('WorkspacePage', () => {
       emit(executionEvent(W1, 'a1', 'exec-1', 'tool_started', { tool: 'Glob' }));
       emit(executionEvent(W1, 'a1', 'exec-1', 'tool_completed', { tool: 'Glob' }));
     });
+    await user.click(within(card('Architect')).getByRole('tab', { name: 'Activity' }));
     const activity = within(card('Architect')).getByRole('list', { name: 'Activity' });
     expect(within(activity).getByText(/Receiving response/)).toBeInTheDocument();
     expect(within(activity).getByText(/Finished Glob/)).toBeInTheDocument();
+    await user.click(within(card('Architect')).getByRole('tab', { name: 'Chat' }));
     expect(statusOf('Architect')).toHaveTextContent('Running');
     expect(within(card('Developer')).queryByText(/files first/)).not.toBeInTheDocument();
 
@@ -260,6 +264,7 @@ describe('WorkspacePage', () => {
       ),
     ).toBeInTheDocument();
     expect(within(architectCard).queryByText(/RAW STDERR/)).not.toBeInTheDocument();
+    await user.click(within(card('Architect')).getByRole('tab', { name: 'Activity' }));
     const activity = within(architectCard).getByRole('list', { name: 'Activity' });
     expect(within(activity).getByText(/Sending prompt/)).toHaveTextContent('✓');
     expect(within(activity).getByText(/needs you to sign in/)).toHaveTextContent('✕');
@@ -386,6 +391,7 @@ describe('WorkspacePage', () => {
       runtimeId: 'claude',
       modelId: 'opus',
       instructions: '',
+      worktreeIsolation: true,
     });
     expect(await screen.findByRole('article', { name: 'Lead Architect' })).toBeInTheDocument();
     expect(card('Developer')).toBeInTheDocument();

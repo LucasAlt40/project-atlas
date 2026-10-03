@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { useNow } from '@/features/agents/hooks/useNow';
+import { useProjectHarness } from '@/features/harness/hooks/useProjectHarness';
 import type { Agent, Personality, RuntimeStatus } from '@/features/agents/types';
 import { TotalsView } from '@/features/usage/components/TotalsView';
 import { useAgentUsage } from '@/features/usage/hooks/useUsage';
@@ -48,6 +49,7 @@ export function AgentDetailsPanel({
   const { t, language } = useI18n();
   const usage = useAgentUsage(workspaceId, agent.id, usageVersion);
   const now = useNow(1000);
+  const harness = useProjectHarness(workspaceId);
   const capabilities = runtime?.runtime.capabilities;
   const runtimeName = runtime?.runtime.name ?? agent.runtimeId;
   const running = run?.status === 'running';
@@ -72,6 +74,20 @@ export function AgentDetailsPanel({
           </p>
         )}
       </header>
+
+      <section aria-label={t('harness.agent.title')}>
+        <h3 className={styles.heading}>{t('harness.agent.title')}</h3>
+        {harness.state.status === 'ready' && (
+          <>
+            <p>{t(`harness.agent.${harness.state.summary.status}`)}</p>
+            <p className={styles.muted}>{t('harness.agent.note')}</p>
+          </>
+        )}
+        {harness.state.status === 'loading' && <p className={styles.muted}>…</p>}
+        {harness.state.status === 'error' && (
+          <p className={styles.muted}>{t('harness.loadFailed')}</p>
+        )}
+      </section>
 
       <section aria-label={running ? t('details.currentExecution') : t('details.lastExecution')}>
         <h3 className={styles.heading}>
@@ -109,7 +125,7 @@ export function AgentDetailsPanel({
       {usage.status === 'ready' && (
         <section aria-label={t('details.usage')}>
           <h3 className={styles.heading}>{t('details.usage')}</h3>
-          <dl className={styles.rows}>
+          <dl className={styles.usageRows}>
             {(
               [
                 ['details.thisConversation', usage.summary.conversation],
@@ -117,10 +133,13 @@ export function AgentDetailsPanel({
                 ['details.thisWeek', usage.summary.week],
               ] as const
             ).map(([label, totals]) => (
-              <Row key={label} label={t(label)}>
-                <TotalsView totals={totals} />
-                <span className={styles.muted}> · {t('details.runs', { runs: totals.runs })}</span>
-              </Row>
+              <div key={label} className={styles.usageRow}>
+                <dt>{t(label)}</dt>
+                <dd>
+                  <TotalsView totals={totals} stacked />
+                  <span className={styles.runs}>{t('details.runs', { runs: totals.runs })}</span>
+                </dd>
+              </div>
             ))}
           </dl>
           <p className={styles.note}>
@@ -149,7 +168,13 @@ export function AgentDetailsPanel({
         <Row label={t('details.runtime')}>{runtimeName}</Row>
         <Row label={t('details.model')}>{agent.modelId}</Row>
         <Row label={t('details.status')}>{t(`agent.status.${status}`)}</Row>
+        <Row label={t('agent.gitIsolation')}>
+          {t(agent.worktreeIsolation ? 'agent.gitIsolation.on' : 'agent.gitIsolation.off')}
+        </Row>
       </dl>
+      <p className={styles.note}>
+        {t(agent.worktreeIsolation ? 'agent.gitIsolation.onHint' : 'agent.gitIsolation.offHint')}
+      </p>
     </Modal>
   );
 }
@@ -157,6 +182,15 @@ export function AgentDetailsPanel({
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className={styles.row}>
+      <dt>{label}</dt>
+      <dd>{children}</dd>
+    </div>
+  );
+}
+
+function Tile({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className={styles.tile}>
       <dt>{label}</dt>
       <dd>{children}</dd>
     </div>
@@ -193,11 +227,11 @@ function LastExecution({
         {formatDuration(latest.completedAt - latest.startedAt)}
         {metrics ? ` · ${t('details.runtimeReported')}` : ''}
       </p>
-      <dl className={styles.rows}>
-        <Row label={t('details.input')}>{tokens(metrics?.inputTokens)}</Row>
-        <Row label={t('details.output')}>{tokens(metrics?.outputTokens)}</Row>
-        <Row label={t('details.total')}>{tokens(metrics?.totalTokens)}</Row>
-        <Row label={t('details.cost')}>{cost}</Row>
+      <dl className={styles.tiles}>
+        <Tile label={t('details.input')}>{tokens(metrics?.inputTokens)}</Tile>
+        <Tile label={t('details.output')}>{tokens(metrics?.outputTokens)}</Tile>
+        <Tile label={t('details.total')}>{tokens(metrics?.totalTokens)}</Tile>
+        <Tile label={t('details.cost')}>{cost}</Tile>
       </dl>
     </>
   );
@@ -221,15 +255,13 @@ function QuotaBar({
         ? t('details.window.seven_day')
         : t('details.window.other', { id: window.id });
   return (
-    <div className={styles.quota}>
+    <div
+      className={styles.quota}
+      data-level={percent >= 90 ? 'high' : percent >= 70 ? 'mid' : 'low'}
+    >
       <div className={styles.quotaHead}>
-        <span>{label}</span>
-        <span>
-          {t('details.quotaUsed', { percent })}
-          {window.resetsAt !== null
-            ? ` · ${t('details.quotaResets', { when: formatReset(window.resetsAt, now, language) })}`
-            : ''}
-        </span>
+        <span className={styles.quotaLabel}>{label}</span>
+        <span className={styles.quotaPercent}>{t('details.quotaUsed', { percent })}</span>
       </div>
       <div
         className={styles.bar}
@@ -241,6 +273,11 @@ function QuotaBar({
       >
         <div className={styles.barFill} style={{ width: `${String(Math.min(100, percent))}%` }} />
       </div>
+      {window.resetsAt !== null && (
+        <span className={styles.quotaReset}>
+          {t('details.quotaResets', { when: formatReset(window.resetsAt, now, language) })}
+        </span>
+      )}
     </div>
   );
 }

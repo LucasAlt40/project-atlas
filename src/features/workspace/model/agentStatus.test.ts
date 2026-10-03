@@ -10,6 +10,7 @@ const run = (
   status: 'running',
   startedAt: 0,
   failureKind: null,
+  pendingApprovalId: null,
   receiving: false,
   activity: lastKind ? [{ id: 'x', kind: lastKind, timestamp: 1, metadata: {} }] : [],
   ...overrides,
@@ -50,5 +51,23 @@ describe('agentStatus', () => {
     );
     expect(agentStatus(undefined, runtime('not_installed'))).toBe('unavailable');
     expect(agentStatus(undefined, runtime('unavailable'))).toBe('unavailable');
+  });
+
+  it('says stopping from the interrupt until the process is gone, then cancelled', () => {
+    const process = (status: 'running' | 'interrupting' | 'terminating' | 'exited') => ({
+      processSessionId: 'ps',
+      status,
+      userAction: null,
+      exitCode: null,
+      startedAt: 0,
+      endedAt: null,
+    });
+
+    expect(agentStatus(run({}), undefined, process('running'))).toBe('running');
+    expect(agentStatus(run({}), undefined, process('interrupting'))).toBe('stopping');
+    expect(agentStatus(run({}), undefined, process('terminating'))).toBe('stopping');
+    expect(agentStatus(run({ status: 'cancelled' }), undefined, process('exited'))).toBe(
+      'cancelled',
+    );
   });
 });

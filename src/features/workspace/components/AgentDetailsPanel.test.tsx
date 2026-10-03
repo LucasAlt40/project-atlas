@@ -210,7 +210,8 @@ describe('Agent details and usage', () => {
       'aria-valuenow',
       '7',
     );
-    expect(within(quota).getByText(/50% used · resets in 2 hours/)).toBeInTheDocument();
+    expect(within(quota).getByText('50% used')).toBeInTheDocument();
+    expect(within(quota).getByText(/resets in 2 hours/)).toBeInTheDocument();
     expect(
       within(quota).getByText('Reported by the provider through Claude CLI.'),
     ).toBeInTheDocument();
@@ -324,5 +325,41 @@ describe('Agent details and usage', () => {
     const dialog = screen.getByRole('dialog', { name: 'Workspace usage' });
     expect(within(dialog).getByText('This month').nextSibling).toHaveTextContent('$9.00');
     expect(within(dialog).getByText(/Atlas tracked\./)).toBeInTheDocument();
+  });
+});
+
+describe('Agent project context', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('says the project’s Harness is loaded and that it is shared and grants nothing', async () => {
+    const user = userEvent.setup();
+    show(undefined, {
+      harness: {
+        status: 'initialized',
+        projectName: 'Atlas',
+        stack: [],
+        version: 1,
+        initializedAt: 1,
+        hasAtlasDir: true,
+        problem: null,
+      },
+    });
+
+    const panel = await openDetails(user, 'Architect');
+
+    const context = within(panel).getByRole('region', { name: 'Project Context' });
+    expect(await within(context).findByText('Harness: Loaded')).toBeVisible();
+    expect(within(context).getByText(/grants no permissions/)).toBeVisible();
+  });
+
+  it('says when there is no Harness', async () => {
+    const user = userEvent.setup();
+    show();
+
+    const panel = await openDetails(user, 'Architect');
+
+    expect(await within(panel).findByText('Harness: Not initialized')).toBeVisible();
   });
 });

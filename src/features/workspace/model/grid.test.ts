@@ -6,6 +6,12 @@ const workspace = (placements: Workspace['layout']['agentPlacements']): Workspac
   name: 'W',
   projectPath: '/p',
   description: null,
+  security: {
+    filesystem: { scope: 'project_only', write: 'allowed' },
+    processes: { mode: 'allowed', allowedCommands: ['git', 'npm'] },
+    network: { mode: 'denied' },
+    git: { read: 'allowed', write: 'allowed', destructive: 'approval_required' },
+  },
   createdAt: 1,
   updatedAt: 1,
   layout: { rows: 2, columns: 2, agentPlacements: placements },

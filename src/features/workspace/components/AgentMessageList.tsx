@@ -29,13 +29,16 @@ export function AgentMessageList({ messages, liveText }: Props) {
           key={message.id}
           className={styles.message}
           data-role={message.role}
-          data-failed={message.failed}
+          data-failed={message.failed && message.failureKind !== 'cancelled'}
         >
           {message.role === 'user' ? (
             <p className={styles.userText}>{message.content}</p>
           ) : (
             <div className={styles.answer}>
-              {message.failed ? (
+              {message.failureKind === 'cancelled' ? (
+                // Stopped by the user: not a failure, so no "failed" wording.
+                <p>{t('chat.cancelled')}</p>
+              ) : message.failed ? (
                 // The core sends a failure code; the words are ours, in the user's language.
                 <p>
                   {t('chat.failedPrefix')} {failureMessage(t, message.failureKind)}

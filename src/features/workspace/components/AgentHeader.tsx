@@ -9,6 +9,8 @@ interface Props {
   runtimeName: string;
   providerName: string | null;
   modelId: string;
+  /** Each execution works in its own Git worktree. */
+  gitIsolation: boolean;
   status: AgentStatus;
   onOpenDetails: () => void;
   onEdit: () => void;
@@ -25,6 +27,7 @@ export function AgentHeader({
   runtimeName,
   providerName,
   modelId,
+  gitIsolation,
   status,
   onOpenDetails,
   onEdit,
@@ -46,6 +49,13 @@ export function AgentHeader({
             {providerName ? ` · ${providerName}` : ''}
           </span>
           <span className={styles.meta}>{modelId}</span>
+          <span
+            className={styles.meta}
+            title={t(gitIsolation ? 'agent.gitIsolation.onHint' : 'agent.gitIsolation.offHint')}
+          >
+            {t('agent.gitIsolation')}:{' '}
+            {t(gitIsolation ? 'agent.gitIsolation.on' : 'agent.gitIsolation.off')}
+          </span>
           <StatusBadge status={status} />
         </button>
         <span className={styles.headerActions}>

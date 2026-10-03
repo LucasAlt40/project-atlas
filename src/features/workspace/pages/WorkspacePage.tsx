@@ -15,8 +15,14 @@ import { WorkspaceUsageChip } from '../components/WorkspaceUsageChip';
 import { useWorkspace } from '../hooks/WorkspaceProvider';
 import { agentStatus } from '../model/agentStatus';
 import { MAX_WORKSPACE_AGENTS, canAddAgent } from '../model/grid';
-import { runKey } from '../model/agentRuns';
+import { runKey, type ConversationsState } from '../model/agentRuns';
 import styles from '../components/Workspace.module.css';
+
+/** The live process of the agent's latest run, if it has one. */
+function processOf(conversations: ConversationsState, key: string) {
+  const run = conversations.runs[key];
+  return run ? conversations.processes[run.executionId] : undefined;
+}
 
 /**
  * The active workspace: its project, its agents laid out on the grid, and a chat per agent. All
@@ -151,11 +157,24 @@ export function WorkspacePage() {
           const key = runKey(active.id, agentId);
           return (
             <AgentCard
+              workspaceId={active.id}
               agent={agent}
               personality={personalities.find((p) => p.id === agent.personalityId)}
               runtime={runtimeOf(agent.runtimeId)}
+              workspaceName={active.name}
               messages={conversations.messages[key] ?? []}
+              history={workspace.history.filter(
+                (e) => e.workspaceId === active.id && e.agentId === agentId,
+              )}
+              focusTab={
+                workspace.focus?.workspaceId === active.id && workspace.focus.agentId === agentId
+                  ? workspace.focus.tab
+                  : undefined
+              }
+              onFocusHandled={workspace.clearFocus}
               run={conversations.runs[key]}
+              process={processOf(conversations, key)}
+              terminals={workspace.terminals}
               liveText={conversations.streams[key]?.text}
               sendError={conversations.sendErrors[key]}
               onSend={(content) => {
@@ -186,6 +205,7 @@ export function WorkspacePage() {
           status={agentStatus(
             conversations.runs[runKey(active.id, details.id)],
             runtimeOf(details.runtimeId),
+            processOf(conversations, runKey(active.id, details.id)),
           )}
           usageVersion={workspace.usageVersion}
           onClose={() => {
