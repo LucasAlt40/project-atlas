@@ -97,9 +97,42 @@ WorkspacePage → WorkspaceProvider / useCatalog → feature services
 - **Progress**: see "Workspace" below. No streaming yet.
 - **Persistence**: custom personalities and agents live in `config.json` in the app data directory
   (atomic writes; an unreadable file is set aside, not overwritten). Agents saved before V0.3 with a
-  `providerId` still load. Execution history is in memory only.
+  `providerId` still load. Conversations and ended executions are persisted too (V0.6, [ADR 0008](adr/0008-conversation-and-execution-history.md));
+  terminal output is not.
 - **Navigation**: Workspace, Agents, Personalities, Settings (`src/app/navigation.ts`); `AppShell` shows the workspace
   switcher and language toggle in its header. No router yet.
+
+## Live shell and process control (V0.6.x)
+
+An execution that runs a CLI runtime runs in a real PTY and has a _process session_; the agent card has **Chat / Activity /
+Terminal** views, and the user can interrupt (Ctrl+C) or terminate the process behind an execution. The core owns the PTY,
+the PID and the signals (`infrastructure/pty.rs`, `application/sessions.rs`); the webview only names an execution (with its
+workspace and agent) and listens to `execution:output` / `execution:status`. It controls a process the guard already
+authorized and starts nothing. See [ADR 0007](adr/0007-live-shell-and-process-control.md). Ended executions and conversations
+are kept (`application/history.rs`) and shown in the agent card's _Executions_ tab and the Execution Inspector; the header lists
+running agents of every workspace. See [ADR 0008](adr/0008-conversation-and-execution-history.md).
+
+## Git worktree isolation (V0.6.x)
+
+Agents have `worktreeIsolation` (on by default). An isolated execution runs in its own Git worktree and branch under the app's
+data folder, never in the project's checkout; `WorktreeService` (use case) drives `WorktreeManager` (port, Git adapter in
+`infrastructure/git_worktree.rs`) and hands the runtime only a working directory. When the execution ends the work is committed
+on its branch, measured by Git and, if the agent's `git.write` policy allows it and nothing is in the way, merged; otherwise it
+is kept with a recommendation, and merging needs the user's explicit action (`merge_execution`). See
+[ADR 0009](adr/0009-git-worktree-isolation.md).
+
+## Project Harness (V0.7)
+
+Atlas can turn a project into one it knows: `Initialize Project` analyses the repository deterministically (no code is run),
+lets the user review the findings, and writes a versionable `.atlas/` Harness into the project. Executions then receive it
+as prompt context through `HarnessContextBuilder`; runtimes and worktrees never know it exists. It is context, never
+permission. See [ADR 0010](adr/0010-project-harness.md).
+
+V0.7.1 makes that context trustworthy: every statement carries evidence and provenance (fact, inference, user), an optional
+model-assisted semantic analysis proposes findings that must cite what it was shown, contradictions are recorded rather
+than resolved silently, refresh shows a diff and never overwrites the user's own knowledge, and agents receive a compact
+summary separating what is known, inferred, told by the user and unknown. See
+[ADR 0011](adr/0011-harness-knowledge-model.md).
 
 ## Workspaces, project context and agent chat (V0.5)
 
@@ -248,3 +281,8 @@ A frontend router and global store are intentionally absent until a second scree
 - [0003 — Deny-by-default command permissions](adr/0003-command-permissions.md)
 - [0004 — Providers, runtimes and models](adr/0004-runtimes.md)
 - [0005 — Workspaces, usage and localization](adr/0005-workspaces-usage-i18n.md)
+- [0007 — Live shell and process control](adr/0007-live-shell-and-process-control.md)
+- [0008 — Conversation and execution history](adr/0008-conversation-and-execution-history.md)
+- [0009 — Git worktree isolation](adr/0009-git-worktree-isolation.md)
+- [0010 — Project Harness](adr/0010-project-harness.md)
+- [0011 — Harness knowledge model, evidence and semantic analysis](adr/0011-harness-knowledge-model.md)
