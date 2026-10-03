@@ -1,0 +1,60 @@
+/* Design tokens. Components consume these; they never hardcode colors or spacing. */
+:root {
+  color-scheme: light dark;
+
+  --color-bg: #ffffff;
+  --color-text: #15171a;
+  --color-text-muted: #5b6370;
+  --color-border: #e1e4e8;
+  --color-accent: #3b5bdb;
+  --color-accent-contrast: #ffffff;
+  --color-danger: #c92a2a;
+  --color-success: #2b8a3e;
+  --color-surface: #f6f7f9;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+
+  --radius-md: 6px;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font-size-sm: 0.875rem;
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 2rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #14161a;
+    --color-text: #e8eaed;
+    --color-text-muted: #9aa3b0;
+    --color-border: #2a2e35;
+    --color-accent: #748ffc;
+    --color-accent-contrast: #101215;
+    --color-danger: #ff8787;
+    --color-success: #69db7c;
+    --color-surface: #1b1e23;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+}

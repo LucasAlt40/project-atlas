@@ -1,0 +1,39 @@
+[package]
+name = "atlas"
+version = "0.1.0"
+description = "Project Atlas - AI-powered development orchestration"
+edition = "2021"
+rust-version = "1.90"
+publish = false
+license = "MIT"
+repository = "https://github.com/LucasAlt40/project-atlas"
+
+[lib]
+name = "atlas_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri-plugin-dialog = "2"
+
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

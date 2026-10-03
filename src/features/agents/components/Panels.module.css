@@ -1,0 +1,160 @@
+.steps,
+.history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  list-style: none;
+}
+.symbol {
+  display: inline-block;
+  width: 1.5em;
+}
+.done {
+  color: var(--color-success);
+}
+.active {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+.pending {
+  color: var(--color-text-muted);
+}
+.result {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.success {
+  margin: 0 0 var(--space-3);
+  color: var(--color-success);
+  font-weight: 600;
+}
+.output {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  white-space: pre-wrap;
+}
+.historyItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.muted {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+.error {
+  margin: 0;
+  color: var(--color-danger);
+}
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.agentName {
+  margin: 0;
+  font-size: var(--font-size-lg);
+}
+.subheading {
+  margin: var(--space-3) 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  font-size: 1rem;
+}
+.task {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.failed {
+  color: var(--color-danger);
+}
+.failure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.prompt {
+  margin-top: var(--space-2);
+  color: var(--color-text-muted);
+}
+.metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+.metadata div {
+  display: flex;
+  gap: var(--space-1);
+}
+.metadata dt::after {
+  content: ':';
+}
+.metadata dd {
+  margin: 0;
+}
+.agentList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.agentRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.agentRow p {
+  margin: 0;
+}
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.linkButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.danger {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-danger);
+  font: inherit;
+  cursor: pointer;
+}
+.confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+}
