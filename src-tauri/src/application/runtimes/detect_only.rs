@@ -8,6 +8,7 @@ use crate::domain::runtime::{
     AuthState, Authentication, ModelInfo, ProviderRef, RuntimeCapabilities, RuntimeInfo,
     RuntimeNotice, Transport,
 };
+use crate::domain::security::ToolAccess;
 
 /// A CLI runtime Atlas can detect but cannot run tasks with yet. It does not pretend to
 /// know the tool's models or sign-in state.
@@ -43,6 +44,12 @@ impl DetectOnlyRuntime {
                     usage_metrics: false,
                     cost_metrics: false,
                     quota_metrics: false,
+                    interactive_terminal: false,
+                    interrupt: false,
+                    terminal_input: false,
+                    terminal_resize: false,
+                    text_only: false,
+                    tool_access: ToolAccess::NONE,
                 },
                 model_hint: None,
             },
@@ -116,11 +123,14 @@ mod tests {
                 &RuntimeRequest {
                     model_id: "m".to_owned(),
                     prompt: crate::application::prompt::Prompt {
+                        harness: None,
                         system: String::new(),
                         context: String::new(),
                         instruction: String::new(),
                     },
                     working_dir: std::path::PathBuf::new(),
+                    scope: crate::application::process::ExecutionScope::for_tests(),
+                    text_only: false,
                 },
                 &|_| {}
             ),

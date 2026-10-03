@@ -19,15 +19,28 @@ use application::app_info::AppInfoService;
 use application::chat::ChatService;
 use application::config::ConfigRepository;
 use application::executions::ExecutionService;
+use application::harness::context::HarnessContextBuilder;
+use application::harness::semantic::RuntimeSemanticFactory;
+use application::harness::{HarnessService, HarnessStore};
+use application::history::ConversationHistory;
 use application::lifecycle::AgentLifecycle;
 use application::personalities::PersonalityService;
 use application::process::ProcessRunner;
-use application::runtimes::RuntimeRegistry;
+use application::runtimes::{RuntimeRegistry, RUNTIME_PROGRAMS};
+use application::security::{
+    ApprovalBroker, AuditLog, GuardedProcessRunner, NoSandbox, PermissionSink, SecurityOverview,
+    SecurityService,
+};
+use application::sessions::{SessionRegistry, SessionSink};
 use application::settings::SettingsService;
 use application::usage::UsageLedger;
 use application::usage_reports::UsageReporter;
 use application::workspace::WorkspaceService;
-use infrastructure::{FsProjectInspector, JsonConfigStore, SystemProcessRunner};
+use application::worktree::{WorktreeLayout, WorktreeService};
+use infrastructure::{
+    FsHarnessStore, FsProjectInspector, FsProjectScanner, GitWorktreeManager, JsonConfigStore,
+    SystemProcessRunner,
+};
 use platform::OsPlatform;
 use state::AppState;
 use tauri::Manager;
@@ -36,14 +49,25 @@ use tauri::Manager;
 ///
 /// # Panics
 ///
-/// Panics if the Tauri runtime fails to start.
+/// Panics if the Tauri runtime fails to build.
 pub fn run() {
+    let consent = commands::exit::ExitConsent::default();
     tauri::Builder::default()
         // Native folder picker only (granted as `dialog:allow-open` in the capability file).
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
-            app.manage(build_state(&data_dir));
+            let sink = Arc::new(commands::events::TauriPermissionSink {
+                app: app.handle().clone(),
+            });
+            let sessions: Arc<dyn SessionSink> = Arc::new(commands::events::TauriSessionSink {
+                app: app.handle().clone(),
+            });
+            let progress: Arc<dyn application::harness::semantic::HarnessProgress> =
+                Arc::new(commands::events::TauriHarnessProgress {
+                    app: app.handle().clone(),
+                });
+            app.manage(build_state(&data_dir, sink, sessions, Some(progress)));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -70,19 +94,58 @@ pub fn run() {
             commands::settings::select_workspace,
             commands::chat::send_message,
             commands::chat::list_messages,
+            commands::chat::list_executions,
             commands::usage::get_agent_usage,
             commands::usage::get_workspace_usage,
+            commands::security::get_workspace_security,
+            commands::security::get_agent_permissions,
+            commands::security::set_agent_permission_profile,
+            commands::security::list_pending_approvals,
+            commands::security::resolve_approval,
+            commands::terminal::get_execution_terminal,
+            commands::terminal::execution_interrupt,
+            commands::terminal::execution_terminate,
+            commands::terminal::execution_terminal_input,
+            commands::terminal::execution_terminal_resize,
+            commands::worktree::list_execution_worktrees,
+            commands::worktree::merge_execution,
+            commands::harness::analyze_project,
+            commands::harness::initialize_project,
+            commands::harness::get_project_harness,
+            commands::harness::refresh_project_harness,
         ])
-        .run(context())
-        .expect("error while running Project Atlas");
+        .build(context())
+        .expect("error while building Project Atlas")
+        .run(move |app, event| commands::exit::on_run_event(app, &event, &consent));
 }
 
-fn build_state(data_dir: &Path) -> AppState {
+#[allow(clippy::too_many_lines)]
+fn build_state(
+    data_dir: &Path,
+    permission_sink: Arc<dyn PermissionSink>,
+    session_sink: Arc<dyn SessionSink>,
+    harness_progress: Option<Arc<dyn application::harness::semantic::HarnessProgress>>,
+) -> AppState {
     let app_info = AppInfoService::new(env!("CARGO_PKG_VERSION").to_owned(), Arc::new(OsPlatform));
     let config = Arc::new(ConfigRepository::load(Box::new(JsonConfigStore::new(
         data_dir.join("config.json"),
     ))));
-    let runner: Arc<dyn ProcessRunner> = Arc::new(SystemProcessRunner::new());
+    // Every process the core starts goes through the guard: the system runner is never handed
+    // to a runtime directly. The policy it applies is derived from stored workspaces and agents.
+    let security = Arc::new(SecurityService::new(config.clone()));
+    let approvals = Arc::new(ApprovalBroker::new());
+    let audit = Arc::new(AuditLog::with_sink(permission_sink));
+    // The runner publishes each terminal process it starts here; the same registry is what the
+    // terminal commands control. A session exists only for a process the guard let start.
+    let sessions = Arc::new(SessionRegistry::with_sink(session_sink));
+    let runner: Arc<dyn ProcessRunner> = Arc::new(GuardedProcessRunner::new(
+        Arc::new(SystemProcessRunner::new().with_sessions(sessions.clone())),
+        security.clone(),
+        approvals.clone(),
+        audit.clone(),
+        Arc::new(NoSandbox),
+        RUNTIME_PROGRAMS.map(str::to_owned).to_vec(),
+    ));
     let runtimes = Arc::new(RuntimeRegistry::with_default_runtimes(&runner));
     let personalities = Arc::new(PersonalityService::new(config.clone()));
     let agents = Arc::new(AgentService::new(
@@ -95,19 +158,69 @@ fn build_state(data_dir: &Path) -> AppState {
         agents.clone(),
         Arc::new(FsProjectInspector),
     ));
-    let executions = Arc::new(ExecutionService::new(
-        agents.clone(),
-        personalities.clone(),
-        runtimes.clone(),
-        workspaces.clone(),
+    // Conversations and ended executions come back after a restart. A run the previous session
+    // never saw end is answered as interrupted, and new ids continue after the stored ones.
+    let history = Arc::new(ConversationHistory::new(config.clone()));
+    history.recover_interrupted();
+    // Isolated executions work in Git worktrees kept in the app's data folder. Git is run by
+    // Atlas itself, not by an agent, so it does not go through the guard; the manager is the
+    // only thing that runs it (see ADR 0009). What a worktree's execution may do is still
+    // decided by the guard, with the worktree as its project.
+    let layout = WorktreeLayout::new(data_dir.join("worktrees"));
+    let git = runner
+        .locate("git")
+        .unwrap_or_else(|| std::path::PathBuf::from("git"));
+    let worktrees = Arc::new(WorktreeService::new(
+        Arc::new(GitWorktreeManager::new(git, layout.clone())),
+        layout,
+        config.clone(),
+        security.clone(),
     ));
+    // A worktree whose execution the previous session never saw end is kept, and said to have
+    // been cut short; one whose merge succeeded but whose folder could not be removed is
+    // tried again.
+    worktrees.recover_interrupted();
+    worktrees.cleanup_pending();
+    // New ids continue after every stored execution *and* every worktree still around, so a
+    // branch or folder is never reused.
+    // The Harness lives in the project's own `.atlas/`; Atlas keeps no copy of it. The context
+    // builder hands agents its text, and nothing else (runtimes, worktrees) knows about it.
+    let harness_store: Arc<dyn HarnessStore> = Arc::new(FsHarnessStore);
+    let harness = Arc::new(
+        HarnessService::new(
+            workspaces.clone(),
+            Arc::new(FsProjectScanner::default()),
+            harness_store.clone(),
+        )
+        .with_semantic(Arc::new(RuntimeSemanticFactory {
+            agents: agents.clone(),
+            runtimes: runtimes.clone(),
+            progress: harness_progress,
+        })),
+    );
+    let first_id = worktrees.next_execution_number(history.next_execution_number());
+    let executions = Arc::new(
+        ExecutionService::new(
+            agents.clone(),
+            personalities.clone(),
+            runtimes.clone(),
+            workspaces.clone(),
+            audit,
+        )
+        .with_sessions(sessions.clone())
+        .with_worktrees(worktrees.clone())
+        .with_harness(Arc::new(HarnessContextBuilder::new(harness_store)))
+        .with_first_id(first_id),
+    );
     let ledger = Arc::new(UsageLedger::new(config.clone()));
+    let config_for_overview = config.clone();
     let settings = Arc::new(SettingsService::new(config));
-    let chat = ChatService::new(
+    let chat = ChatService::with_history(
         agents.clone(),
         executions,
         workspaces.clone(),
         ledger.clone(),
+        history,
     );
     let lifecycle = AgentLifecycle::new(
         agents.clone(),
@@ -117,6 +230,11 @@ fn build_state(data_dir: &Path) -> AppState {
         settings.clone(),
     );
     let usage = UsageReporter::new(ledger, chat.clone(), agents.clone());
+    let overview = Arc::new(SecurityOverview::new(
+        security,
+        config_for_overview,
+        runtimes.clone(),
+    ));
     AppState {
         app_info,
         personalities,
@@ -127,6 +245,11 @@ fn build_state(data_dir: &Path) -> AppState {
         chat,
         lifecycle,
         usage,
+        security: overview,
+        approvals,
+        sessions,
+        worktrees,
+        harness,
     }
 }
 

@@ -91,6 +91,7 @@ mod tests {
                         columns: 2,
                         agent_placements: vec![],
                     },
+                    security: crate::domain::security::SecurityPolicy::default(),
                 });
                 Ok(())
             })

@@ -20,6 +20,9 @@ the complete final answer as a last message that stands on its own, without rely
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Prompt {
     pub system: String,
+    /// The project's Harness, already rendered by `HarnessContextBuilder`. Context only: it sits
+    /// below the Atlas rules in `system` and cannot grant anything. `None` if there is none.
+    pub harness: Option<String>,
     pub context: String,
     pub instruction: String,
 }
@@ -27,8 +30,12 @@ pub struct Prompt {
 impl Prompt {
     /// The whole prompt as one text, with clearly labelled sections.
     pub fn combined(&self) -> String {
+        let harness = self
+            .harness
+            .as_ref()
+            .map_or_else(String::new, |text| format!("PROJECT HARNESS\n\n{text}\n\n"));
         format!(
-            "SYSTEM / PERSONALITY\n\n{}\n\nPROJECT CONTEXT\n\n{}\n\nUSER INSTRUCTION\n\n{}\n",
+            "SYSTEM / PERSONALITY\n\n{}\n\n{harness}PROJECT CONTEXT\n\n{}\n\nUSER INSTRUCTION\n\n{}\n",
             self.system, self.context, self.instruction
         )
     }
@@ -41,6 +48,7 @@ impl PromptBuilder {
     pub fn build(
         personality: &PersonalityProfile,
         project: &ProjectContext,
+        harness: Option<&str>,
         agent: &Agent,
         task: &Task,
     ) -> Prompt {
@@ -70,6 +78,7 @@ impl PromptBuilder {
 
         Prompt {
             system,
+            harness: harness.map(str::to_owned),
             context,
             instruction,
         }
@@ -98,6 +107,7 @@ mod tests {
                 path: "/atlas".to_owned(),
                 technologies: vec!["Tauri 2".to_owned(), "Rust".to_owned()],
             },
+            None,
             &Agent {
                 id: "a".to_owned(),
                 name: "A".to_owned(),
@@ -105,6 +115,8 @@ mod tests {
                 runtime_id: "x".to_owned(),
                 model_id: "m".to_owned(),
                 instructions: instructions.to_owned(),
+                permission_profile_id: None,
+                worktree_isolation: false,
                 created_at: 0,
             },
             &Task {
@@ -143,5 +155,21 @@ mod tests {
         let context = combined.find("PROJECT CONTEXT").unwrap();
         let instruction = combined.find("USER INSTRUCTION").unwrap();
         assert!(system < context && context < instruction);
+    }
+
+    #[test]
+    fn the_harness_sits_between_the_atlas_rules_and_the_project_context() {
+        let mut prompt = build("Be brief.");
+        prompt.harness = Some("Project: Transport ERP".to_owned());
+
+        let combined = prompt.combined();
+        let rules = combined.find("read-only").unwrap();
+        let harness = combined.find("PROJECT HARNESS").unwrap();
+        let context = combined.find("PROJECT CONTEXT").unwrap();
+        let task = combined.find("USER INSTRUCTION").unwrap();
+        assert!(rules < harness && harness < context && context < task);
+        assert!(combined.contains("Project: Transport ERP"));
+        // Without a Harness there is no such section at all.
+        assert!(!build("x").combined().contains("PROJECT HARNESS"));
     }
 }

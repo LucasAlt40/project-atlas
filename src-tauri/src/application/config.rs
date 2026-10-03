@@ -5,9 +5,12 @@ use serde::{Deserialize, Serialize};
 
 use super::errors::AppError;
 use crate::domain::agent::Agent;
+use crate::domain::conversation::Message;
+use crate::domain::execution::StoredExecution;
 use crate::domain::personality::PersonalityProfile;
 use crate::domain::usage::{QuotaInfo, UsageRecord};
 use crate::domain::workspace::Workspace;
+use crate::domain::worktree::ExecutionWorktree;
 
 pub const DEFAULT_LANGUAGE: &str = "pt-BR";
 
@@ -55,6 +58,16 @@ pub struct UserConfig {
     /// The last quota each runtime reported, by runtime id.
     #[serde(default)]
     pub quotas: BTreeMap<String, QuotaInfo>,
+    /// Every agent's conversations, oldest first (bounded per conversation; see `history`).
+    #[serde(default)]
+    pub messages: Vec<Message>,
+    /// The executions that ended, oldest first. Raw terminal output is never stored.
+    #[serde(default)]
+    pub executions: Vec<StoredExecution>,
+    /// The Git worktree of every execution that ran isolated, oldest first. Written when the
+    /// worktree is created (not when the execution ends) so a crash cannot lose track of it.
+    #[serde(default)]
+    pub worktrees: Vec<ExecutionWorktree>,
 }
 
 /// Port: durable storage for [`UserConfig`]. Implemented in `infrastructure/`.
@@ -90,6 +103,11 @@ impl ConfigRepository {
 
     pub fn agents(&self) -> Vec<Agent> {
         self.lock().agents.clone()
+    }
+
+    /// Reads the stored config without copying it.
+    pub fn read<T>(&self, read: impl FnOnce(&UserConfig) -> T) -> T {
+        read(&self.lock())
     }
 
     /// A copy of everything stored.
@@ -194,6 +212,8 @@ mod tests {
             runtime_id: "x".to_owned(),
             model_id: "m".to_owned(),
             instructions: String::new(),
+            permission_profile_id: None,
+            worktree_isolation: true,
             created_at: 1,
         }
     }

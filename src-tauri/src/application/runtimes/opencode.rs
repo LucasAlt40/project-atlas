@@ -7,16 +7,18 @@ use serde_json::Value;
 use super::{
     cli, Detection, ModelRuntime, RuntimeError, RuntimeEvent, RuntimeOutput, RuntimeRequest,
 };
-use crate::application::process::{ProcessOutput, ProcessRunner, ProcessSpec};
+use crate::application::process::{ProcessContext, ProcessOutput, ProcessRunner, ProcessSpec};
 use crate::domain::runtime::{
     AuthKind, AuthState, Authentication, ModelInfo, ProviderRef, RuntimeCapabilities, RuntimeInfo,
     Transport,
 };
+use crate::domain::security::ToolAccess;
 use crate::domain::usage::{UsageMetrics, UsageSource};
 
 const PROGRAM: &str = "opencode";
 const LIST_TIMEOUT: Duration = Duration::from_secs(30);
-const RUN_TIMEOUT: Duration = Duration::from_secs(300);
+/// Idle limit: silence from the CLI (long thinking or a slow tool) for this long ends the run.
+const RUN_TIMEOUT: Duration = Duration::from_secs(900);
 
 /// Runtime for the `OpenCode` CLI.
 ///
@@ -24,9 +26,12 @@ const RUN_TIMEOUT: Duration = Duration::from_secs(300);
 /// - run: `opencode run --agent plan -m <model> --format json`, prompt on stdin, answer in `text`
 ///   events
 ///
-/// `--agent plan` is `OpenCode`'s built-in read-only agent. Without it a plain `opencode run`
-/// edits files and runs shell commands on its own (verified), so it is required for Atlas's
-/// read-only rule. Atlas also never passes `--auto`.
+/// `--agent plan` is `OpenCode`'s planning agent: it denies the `edit` tool. Without it a plain
+/// `opencode run` edits files on its own (verified). It is *not* a sandbox, though: the plan
+/// agent's permission table is `* -> allow` plus `edit -> deny`, so `OpenCode`'s shell and web
+/// tools remain available to it. That is `OpenCode`'s own permission model, an extra
+/// restriction layer that Atlas does not assume equals its own policy; see `tool_access` below
+/// and ADR 0006. Atlas also never passes `--auto`.
 pub struct OpenCodeRuntime {
     runner: Arc<dyn ProcessRunner>,
 }
@@ -56,6 +61,23 @@ impl ModelRuntime for OpenCodeRuntime {
                 usage_metrics: true,
                 cost_metrics: true,
                 quota_metrics: false,
+                // Runs attached to a terminal. `opencode run` takes its message from the command
+                // line and ignores a terminal's stdin (verified), so the terminal is read-only.
+                interactive_terminal: true,
+                interrupt: true,
+                terminal_input: false,
+                terminal_resize: true,
+                text_only: false,
+                // `--agent plan` denies OpenCode's `edit` tool, but its permission table still
+                // allows everything else (`* -> allow`, checked with `opencode agent list`):
+                // the shell and web tools can write files and reach the network. Atlas cannot
+                // narrow that without changing how OpenCode is launched, so it is reported as
+                // it is.
+                tool_access: ToolAccess {
+                    filesystem_write: true,
+                    process_execution: true,
+                    network: true,
+                },
             },
             model_hint: None,
         }
@@ -108,6 +130,12 @@ impl ModelRuntime for OpenCodeRuntime {
         progress: &dyn Fn(RuntimeEvent),
     ) -> Result<RuntimeOutput, RuntimeError> {
         progress(RuntimeEvent::Starting);
+        if request.text_only {
+            // OpenCode's shell and web tools cannot be switched off from here.
+            return Err(RuntimeError::InvalidRequest(
+                "OpenCode cannot run without tools".to_owned(),
+            ));
+        }
         cli::validate_model_id(&request.model_id)?;
         if self.runner.locate(PROGRAM).is_none() {
             return Err(RuntimeError::NotInstalled);
@@ -120,22 +148,33 @@ impl ModelRuntime for OpenCodeRuntime {
         }
 
         // OpenCode has no system-prompt flag, so everything goes in as one labelled prompt.
+        let args = [
+            "run",
+            "--agent",
+            "plan",
+            "-m",
+            &request.model_id,
+            "--format",
+            "json",
+        ]
+        .map(str::to_owned)
+        .to_vec();
+        let delivery = cli::deliver_prompt(
+            self.runner.as_ref(),
+            PROGRAM,
+            args,
+            request.prompt.combined(),
+            false,
+        );
         let spec = ProcessSpec {
             program: PROGRAM.to_owned(),
-            args: [
-                "run",
-                "--agent",
-                "plan",
-                "-m",
-                &request.model_id,
-                "--format",
-                "json",
-            ]
-            .map(str::to_owned)
-            .to_vec(),
-            stdin: Some(request.prompt.combined()),
+            args: delivery.args,
+            stdin: delivery.stdin,
             cwd: Some(request.working_dir.clone()),
+            env: Vec::new(),
             timeout: RUN_TIMEOUT,
+            context: ProcessContext::Runtime(request.scope.clone()),
+            terminal: delivery.terminal,
         };
         let emitted_text = Cell::new(false);
         let output = cli::execute(self.runner.as_ref(), &spec, progress, &|line| {
@@ -264,7 +303,7 @@ fn parse_run_output(output: &ProcessOutput, model_id: &str) -> Result<RuntimeOut
     }
 
     if error.is_some() || output.exit_code != Some(0) {
-        let details = error.unwrap_or_else(|| output.stderr.trim().to_owned());
+        let details = error.unwrap_or_else(|| cli::diagnostics(output));
         return Err(cli::classify_failure(&details, model_id));
     }
     let join = |texts: Vec<String>| {
@@ -298,7 +337,7 @@ mod tests {
 
     use super::*;
     use crate::application::process::fake::{ok, FakeProcessRunner};
-    use crate::application::process::ProcessError;
+    use crate::application::process::{ProcessError, TerminalRequest};
     use crate::application::prompt::Prompt;
     use crate::application::runtimes::inspect;
     use crate::domain::runtime::{Availability, ModelDiscovery};
@@ -328,11 +367,14 @@ mod tests {
         RuntimeRequest {
             model_id: model.to_owned(),
             prompt: Prompt {
+                harness: None,
                 system: "SYS".to_owned(),
                 context: "CTX".to_owned(),
                 instruction: "INS".to_owned(),
             },
             working_dir: PathBuf::from("/atlas"),
+            scope: crate::application::process::ExecutionScope::for_tests(),
+            text_only: false,
         }
     }
 
@@ -371,7 +413,7 @@ mod tests {
     }
 
     #[test]
-    fn runs_the_selected_model_with_the_prompt_on_stdin() {
+    fn runs_the_selected_model_in_a_terminal_with_the_prompt_as_the_last_argument() {
         let fake = runner(ok(EVENTS));
         let stages = RefCell::new(Vec::new());
 
@@ -402,12 +444,16 @@ mod tests {
                 "-m",
                 "opencode/big-pickle",
                 "--format",
-                "json"
+                "json",
+                "--",
+                &request("opencode/big-pickle").prompt.combined(),
             ]
         );
         assert_eq!(run.cwd, Some(PathBuf::from("/atlas")));
-        let stdin = run.stdin.as_deref().unwrap();
-        assert!(stdin.contains("SYS") && stdin.contains("CTX") && stdin.contains("INS"));
+        assert_eq!(run.stdin, None);
+        assert_eq!(run.terminal, Some(TerminalRequest::new(false)));
+        let prompt = run.args.last().unwrap();
+        assert!(prompt.contains("SYS") && prompt.contains("CTX") && prompt.contains("INS"));
         assert!(!run.args.iter().any(|a| a == "--auto"));
     }
 
@@ -587,8 +633,9 @@ mod tests {
     #[test]
     #[ignore = "needs OpenCode installed and a free model; makes a real model call"]
     fn real_opencode_answers_through_the_system_runner() {
+        // Through the real guard, like the app: the scope's project folder is the temp dir.
         let runner: Arc<dyn ProcessRunner> =
-            Arc::new(crate::infrastructure::SystemProcessRunner::new());
+            crate::application::security::testutil::guarded_system_runner(&std::env::temp_dir());
         let runtime = OpenCodeRuntime::new(runner);
 
         let status = inspect(&runtime);

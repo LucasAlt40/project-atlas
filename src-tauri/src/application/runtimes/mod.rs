@@ -8,13 +8,14 @@ use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use super::process::ProcessRunner;
+use super::process::{ExecutionScope, ProcessRunner};
 use super::prompt::Prompt;
 use crate::domain::execution::{ExecutionFailure, FailureKind};
 use crate::domain::runtime::{
     Authentication, Availability, ModelDiscovery, ModelInfo, RuntimeInfo, RuntimeNotice,
     RuntimeStatus,
 };
+use crate::domain::security::Reason;
 use crate::domain::usage::{QuotaInfo, UsageMetrics};
 
 pub use claude::ClaudeRuntime;
@@ -27,6 +28,12 @@ pub struct RuntimeRequest {
     pub model_id: String,
     pub prompt: Prompt,
     pub working_dir: PathBuf,
+    /// Which execution this is. The runtime hands it to the process port unchanged; it neither
+    /// reads policy from it nor can widen it.
+    pub scope: ExecutionScope,
+    /// The runtime must not be given any tool: it may only answer from the prompt. Used when
+    /// the prompt is the whole of what the model may see (semantic analysis).
+    pub text_only: bool,
 }
 
 /// A runtime's answer, normalized: provider-specific output formats stop here.
@@ -101,6 +108,8 @@ pub trait ModelRuntime: Send + Sync {
 /// Runtime errors, normalized so the UI never needs to know which runtime produced them.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RuntimeError {
+    /// Atlas's security policy refused to start the runtime.
+    PermissionDenied(Reason),
     NotInstalled,
     Unavailable(String),
     AuthenticationRequired,
@@ -115,6 +124,9 @@ impl RuntimeError {
     /// A message that is fine to show as the primary error in the UI.
     pub fn user_message(&self) -> String {
         match self {
+            Self::PermissionDenied(_) => {
+                "Atlas's security policy did not allow this execution.".to_owned()
+            }
             Self::NotInstalled => {
                 "The AI runtime is not installed or could not be found on this machine.".to_owned()
             }
@@ -125,7 +137,7 @@ impl RuntimeError {
             Self::ModelUnavailable(model) => {
                 format!("The model \"{model}\" is not available from this runtime.")
             }
-            Self::Timeout => "The runtime did not respond in time.".to_owned(),
+            Self::Timeout => "The runtime stopped responding (no output for too long).".to_owned(),
             Self::ExecutionFailed(_) => "The runtime could not complete the request.".to_owned(),
             Self::Unavailable(reason) | Self::InvalidRequest(reason) => reason.clone(),
             Self::UnexpectedResponse(_) => {
@@ -136,6 +148,7 @@ impl RuntimeError {
 
     fn kind(&self) -> FailureKind {
         match self {
+            Self::PermissionDenied(_) => FailureKind::PermissionDenied,
             Self::NotInstalled => FailureKind::RuntimeNotInstalled,
             Self::Unavailable(_) => FailureKind::RuntimeUnavailable,
             Self::AuthenticationRequired => FailureKind::AuthenticationRequired,
@@ -154,6 +167,7 @@ impl RuntimeError {
             {
                 Some(details.clone())
             }
+            Self::PermissionDenied(reason) => Some(reason.as_str().to_owned()),
             _ => None,
         };
         ExecutionFailure {
@@ -171,6 +185,10 @@ impl fmt::Display for RuntimeError {
 }
 
 impl std::error::Error for RuntimeError {}
+
+/// The programs of the runtimes in [`RuntimeRegistry::with_default_runtimes`]: the only ones the
+/// process port starts on Atlas's own behalf. Adding a runtime means adding its program here.
+pub const RUNTIME_PROGRAMS: [&str; 5] = ["opencode", "claude", "codex", "gemini", "antigravity"];
 
 /// All known runtimes, in display order.
 pub struct RuntimeRegistry {
@@ -316,6 +334,7 @@ pub mod fake {
         AuthKind, AuthState, Authentication, ModelInfo, ProviderRef, RuntimeCapabilities,
         RuntimeInfo, Transport,
     };
+    use crate::domain::security::ToolAccess;
 
     /// Runtime with a scripted answer; records the requests it receives.
     pub struct FakeRuntime {
@@ -327,7 +346,13 @@ pub mod fake {
         pub barrier: Option<std::sync::Arc<std::sync::Barrier>>,
         /// Pieces of live output reported (as `Output` events) before the answer.
         pub chunks: Vec<String>,
+        /// What the "agent" does in its working directory before answering (writes files…).
+        pub work: Option<Work>,
+        /// Whether it can be run with every tool off.
+        pub text_only: bool,
     }
+
+    pub type Work = Box<dyn Fn(&RuntimeRequest) + Send + Sync>;
 
     impl FakeRuntime {
         pub fn new(id: &str, answer: Result<&str, RuntimeError>) -> Self {
@@ -342,7 +367,14 @@ pub mod fake {
                 requests: Mutex::new(Vec::new()),
                 barrier: None,
                 chunks: Vec::new(),
+                work: None,
+                text_only: true,
             }
+        }
+
+        pub fn with_work(mut self, work: impl Fn(&RuntimeRequest) + Send + Sync + 'static) -> Self {
+            self.work = Some(Box::new(work));
+            self
         }
 
         pub fn with_usage(mut self, usage: crate::domain::usage::UsageMetrics) -> Self {
@@ -354,6 +386,11 @@ pub mod fake {
 
         pub fn with_chunks(mut self, chunks: &[&str]) -> Self {
             self.chunks = chunks.iter().map(|c| (*c).to_owned()).collect();
+            self
+        }
+
+        pub fn without_text_only(mut self) -> Self {
+            self.text_only = false;
             self
         }
 
@@ -382,6 +419,12 @@ pub mod fake {
                     usage_metrics: true,
                     cost_metrics: true,
                     quota_metrics: false,
+                    interactive_terminal: false,
+                    interrupt: false,
+                    terminal_input: false,
+                    terminal_resize: false,
+                    text_only: self.text_only,
+                    tool_access: ToolAccess::NONE,
                 },
                 model_hint: None,
             }
@@ -422,6 +465,9 @@ pub mod fake {
                 barrier.wait();
             }
             self.requests.lock().unwrap().push(request.clone());
+            if let Some(work) = &self.work {
+                work(request);
+            }
             self.answer.clone()
         }
     }

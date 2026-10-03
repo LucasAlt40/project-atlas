@@ -8,6 +8,7 @@ use super::errors::{AppError, ErrorCode};
 use super::projects::{project_context, ProjectInspector};
 use super::support::{new_id, now_ms};
 use crate::domain::project::ProjectContext;
+use crate::domain::security::SecurityPolicy;
 use crate::domain::workspace::{AgentPlacement, Workspace, WorkspaceLayout};
 
 const MAX_NAME_LEN: usize = 80;
@@ -89,6 +90,7 @@ impl WorkspaceService {
                 columns: DEFAULT_COLUMNS,
                 agent_placements: Vec::new(),
             },
+            security: SecurityPolicy::default(),
         };
         self.config.modify(|config| {
             config.workspaces.push(workspace.clone());
@@ -302,6 +304,7 @@ mod tests {
                 runtime_id: "fake".to_owned(),
                 model_id: "m1".to_owned(),
                 instructions: String::new(),
+                worktree_isolation: Some(false),
             })
             .unwrap()
             .id

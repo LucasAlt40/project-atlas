@@ -8,6 +8,7 @@ use super::personalities::PersonalityService;
 use super::runtimes::RuntimeRegistry;
 use super::support::{new_id, now_ms};
 use crate::domain::agent::Agent;
+use crate::domain::security::PermissionProfile;
 
 const MAX_NAME_LEN: usize = 80;
 
@@ -19,6 +20,10 @@ pub struct CreateAgentRequest {
     pub runtime_id: String,
     pub model_id: String,
     pub instructions: String,
+    /// Whether executions run in their own Git worktree. Left out, a new agent gets `true` and
+    /// an edited agent keeps what it had.
+    #[serde(default)]
+    pub worktree_isolation: Option<bool>,
 }
 
 /// Use case: create agents from a personality + provider + model + instructions, and
@@ -63,6 +68,8 @@ impl AgentService {
             runtime_id: request.runtime_id,
             model_id,
             instructions: request.instructions.trim().to_owned(),
+            permission_profile_id: None,
+            worktree_isolation: request.worktree_isolation.unwrap_or(true),
             created_at: now_ms(),
         };
         self.config.add_agent(agent.clone())?;
@@ -91,6 +98,29 @@ impl AgentService {
                 .instructions
                 .trim()
                 .clone_into(&mut agent.instructions);
+            if let Some(isolation) = request.worktree_isolation {
+                agent.worktree_isolation = isolation;
+            }
+            Ok(agent.clone())
+        })
+    }
+
+    /// Points the agent at another permission profile. Profiles are defined by Atlas; the agent
+    /// only names one, and the workspace's policy still bounds what it grants.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the profile is unknown, the agent does not exist, or saving fails.
+    pub fn set_permission_profile(&self, id: &str, profile_id: &str) -> Result<Agent, AppError> {
+        let profile = PermissionProfile::parse(profile_id)
+            .ok_or_else(|| AppError::new(ErrorCode::PermissionProfileInvalid))?;
+        self.config.modify(|config| {
+            let agent = config
+                .agents
+                .iter_mut()
+                .find(|a| a.id == id)
+                .ok_or_else(|| AppError::new(ErrorCode::AgentNotFound))?;
+            agent.permission_profile_id = Some(profile.id().to_owned());
             Ok(agent.clone())
         })
     }
@@ -171,6 +201,7 @@ mod tests {
             runtime_id: runtime_id.to_owned(),
             model_id: model_id.to_owned(),
             instructions: "  Be brief. ".to_owned(),
+            worktree_isolation: None,
         }
     }
 
@@ -244,6 +275,58 @@ mod tests {
     }
 
     #[test]
+    fn new_agents_isolate_their_executions_in_worktrees_unless_told_otherwise() {
+        let service = service();
+
+        let default = service.create(request("claude", "sonnet")).unwrap();
+        let off = service
+            .create(CreateAgentRequest {
+                worktree_isolation: Some(false),
+                ..request("claude", "sonnet")
+            })
+            .unwrap();
+
+        assert!(default.worktree_isolation);
+        assert!(!off.worktree_isolation);
+    }
+
+    #[test]
+    fn editing_changes_isolation_only_when_asked_to() {
+        let service = service();
+        let agent = service.create(request("claude", "sonnet")).unwrap();
+
+        let kept = service
+            .update(&agent.id, request("claude", "sonnet"))
+            .unwrap();
+        let off = service
+            .update(
+                &agent.id,
+                CreateAgentRequest {
+                    worktree_isolation: Some(false),
+                    ..request("claude", "sonnet")
+                },
+            )
+            .unwrap();
+        let still_off = service
+            .update(&agent.id, request("claude", "sonnet"))
+            .unwrap();
+
+        assert!(kept.worktree_isolation);
+        assert!(!off.worktree_isolation);
+        assert!(!still_off.worktree_isolation);
+    }
+
+    #[test]
+    fn agents_saved_before_isolation_existed_are_isolated() {
+        let old = r#"{"id":"a","name":"A","personalityId":"architect","runtimeId":"claude",
+            "modelId":"m","instructions":"","createdAt":1}"#;
+
+        let agent: crate::domain::agent::Agent = serde_json::from_str(old).unwrap();
+
+        assert!(agent.worktree_isolation);
+    }
+
+    #[test]
     fn edits_an_agent_keeping_its_identity() {
         let service = service();
         let created = service
@@ -259,6 +342,7 @@ mod tests {
                     runtime_id: "claude".to_owned(),
                     model_id: "sonnet".to_owned(),
                     instructions: " New ".to_owned(),
+                    worktree_isolation: None,
                 },
             )
             .unwrap();

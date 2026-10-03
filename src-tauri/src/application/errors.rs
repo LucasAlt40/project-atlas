@@ -28,7 +28,39 @@ pub enum ErrorCode {
     ProjectFolderRequired,
     ProjectFolderNotFound,
     MessageEmpty,
+    ApprovalNotFound,
+    ExecutionNotFound,
+    ExecutionNotRunning,
+    TerminalInputUnsupported,
+    TerminalInputInvalid,
+    ProcessControlFailed,
+    PermissionProfileInvalid,
+    /// The agent needs Git worktree isolation and the project is not a Git repository.
+    GitRepositoryRequired,
+    GitUnavailable,
+    /// No base branch to start a worktree from (detached HEAD, no commits).
+    WorktreeBaseUnavailable,
+    WorktreeNotFound,
+    WorktreeInvalidState,
+    WorktreeBusy,
+    WorktreeFailed,
+    /// The agent's policy does not let Atlas merge.
+    MergeNotAllowed,
     LanguageUnsupported,
+    ProjectNotFound,
+    ProjectNotDirectory,
+    ProjectAlreadyInitialized,
+    /// `.atlas/` exists but its manifest cannot be read or is not a version Atlas understands.
+    HarnessInvalid,
+    HarnessNotInitialized,
+    /// The model's answer was not the structured findings Atlas asked for.
+    SemanticAnalysisFailed,
+    /// The agent's runtime cannot be run without tools, so it cannot read evidence safely.
+    SemanticUnsupported,
+    ProjectAnalysisFailed,
+    HarnessGenerationFailed,
+    /// The project path is relative or tries to leave its folder.
+    UnsafeProjectPath,
     StorageFailed,
 }
 

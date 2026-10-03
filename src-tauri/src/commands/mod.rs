@@ -6,11 +6,16 @@ pub mod agents;
 pub mod app;
 pub mod chat;
 pub mod events;
+pub mod exit;
+pub mod harness;
 pub mod personalities;
 pub mod runtimes;
+pub mod security;
 pub mod settings;
+pub mod terminal;
 pub mod usage;
 pub mod workspace;
+pub mod worktree;
 
 #[cfg(test)]
 mod tests;

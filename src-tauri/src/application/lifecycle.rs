@@ -151,6 +151,7 @@ mod tests {
                         runtime_id: "rt".to_owned(),
                         model_id: "m1".to_owned(),
                         instructions: String::new(),
+                        worktree_isolation: Some(false),
                     })
                     .unwrap()
                     .id
@@ -181,6 +182,7 @@ mod tests {
             personalities,
             runtimes,
             workspaces.clone(),
+            Arc::new(crate::application::security::AuditLog::default()),
         ));
         let ledger = Arc::new(UsageLedger::new(config.clone()));
         let settings = Arc::new(SettingsService::new(config));

@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use super::security::SecurityPolicy;
+
 /// A cell of the workspace grid. Independent of the agent so layouts can later be saved,
 /// swapped or resized without touching agents.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -59,4 +61,8 @@ pub struct Workspace {
     pub created_at: u64,
     pub updated_at: u64,
     pub layout: WorkspaceLayout,
+    /// What agents may do here. Stored per workspace; profiles and runtimes only narrow it.
+    /// Files written before V0.6 have none and get the default.
+    #[serde(default)]
+    pub security: SecurityPolicy,
 }

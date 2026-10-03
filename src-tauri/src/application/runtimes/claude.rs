@@ -8,15 +8,17 @@ use serde_json::Value;
 use super::{
     cli, Detection, ModelRuntime, RuntimeError, RuntimeEvent, RuntimeOutput, RuntimeRequest,
 };
-use crate::application::process::{ProcessOutput, ProcessRunner, ProcessSpec};
+use crate::application::process::{ProcessContext, ProcessOutput, ProcessRunner, ProcessSpec};
 use crate::domain::runtime::{
     AuthKind, AuthState, Authentication, ModelInfo, ProviderRef, RuntimeCapabilities, RuntimeInfo,
     RuntimeNotice, Transport,
 };
+use crate::domain::security::ToolAccess;
 use crate::domain::usage::{QuotaInfo, QuotaWindow, UsageMetrics, UsageSource};
 
 const PROGRAM: &str = "claude";
-const RUN_TIMEOUT: Duration = Duration::from_secs(300);
+/// Idle limit: silence from the CLI (long thinking or a slow tool) for this long ends the run.
+const RUN_TIMEOUT: Duration = Duration::from_secs(900);
 /// The only tools a Claude run may use: reading and searching the project. Everything that
 /// writes or executes (Edit, Write, Bash…) is not available, which is how Atlas's read-only
 /// rule is enforced for this runtime.
@@ -34,6 +36,8 @@ const READ_ONLY_TOOLS: &str = "Read,Grep,Glob";
 ///
 /// The prompt goes on stdin as one text (even though the CLI also has
 /// `--append-system-prompt`): multi-line arguments are rejected for `.cmd` shims on Windows.
+/// When the run is attached to a terminal (see `cli::deliver_prompt`) it is the last argument
+/// instead, because `claude -p` ignores a terminal's stdin.
 pub struct ClaudeRuntime {
     runner: Arc<dyn ProcessRunner>,
 }
@@ -87,6 +91,15 @@ impl ModelRuntime for ClaudeRuntime {
                 cost_metrics: true,
                 // The CLI forwards the provider's rate-limit windows with each run.
                 quota_metrics: true,
+                // Runs attached to a terminal. `claude -p` reads its prompt from the command
+                // line and ignores a terminal's stdin (verified), so the terminal is read-only.
+                interactive_terminal: true,
+                interrupt: true,
+                terminal_input: false,
+                terminal_resize: true,
+                text_only: true,
+                // `--tools Read,Grep,Glob`: no edit, no shell, no web tool.
+                tool_access: ToolAccess::NONE,
             },
             model_hint: Some("claude_alias".to_owned()),
         }
@@ -133,25 +146,41 @@ impl ModelRuntime for ClaudeRuntime {
             return Err(RuntimeError::NotInstalled);
         }
 
+        let args = [
+            "-p",
+            "--output-format",
+            "stream-json",
+            "--verbose",
+            "--include-partial-messages",
+            "--model",
+            &request.model_id,
+            "--tools",
+            // An empty list turns every tool off: the model can only answer from the prompt.
+            if request.text_only {
+                ""
+            } else {
+                READ_ONLY_TOOLS
+            },
+            "--no-session-persistence",
+        ]
+        .map(str::to_owned)
+        .to_vec();
+        let delivery = cli::deliver_prompt(
+            self.runner.as_ref(),
+            PROGRAM,
+            args,
+            request.prompt.combined(),
+            false,
+        );
         let spec = ProcessSpec {
             program: PROGRAM.to_owned(),
-            args: [
-                "-p",
-                "--output-format",
-                "stream-json",
-                "--verbose",
-                "--include-partial-messages",
-                "--model",
-                &request.model_id,
-                "--tools",
-                READ_ONLY_TOOLS,
-                "--no-session-persistence",
-            ]
-            .map(str::to_owned)
-            .to_vec(),
-            stdin: Some(request.prompt.combined()),
+            args: delivery.args,
+            stdin: delivery.stdin,
             cwd: Some(request.working_dir.clone()),
+            env: Vec::new(),
             timeout: RUN_TIMEOUT,
+            context: ProcessContext::Runtime(request.scope.clone()),
+            terminal: delivery.terminal,
         };
         let stream = ClaudeStream::default();
         let output = cli::execute(self.runner.as_ref(), &spec, progress, &|line| {
@@ -302,7 +331,7 @@ fn parse_run_output(output: &ProcessOutput, model_id: &str) -> Result<RuntimeOut
                 "Claude did not return a result object.".to_owned(),
             ))
         } else {
-            Err(cli::classify_failure(output.stderr.trim(), model_id))
+            Err(cli::classify_failure(&cli::diagnostics(output), model_id))
         };
     };
 
@@ -341,7 +370,7 @@ mod tests {
 
     use super::*;
     use crate::application::process::fake::{ok, FakeProcessRunner};
-    use crate::application::process::ProcessError;
+    use crate::application::process::{ProcessError, TerminalRequest};
     use crate::application::prompt::Prompt;
     use crate::application::runtimes::inspect;
     use crate::domain::runtime::{Availability, ModelDiscovery};
@@ -372,11 +401,14 @@ mod tests {
         RuntimeRequest {
             model_id: model.to_owned(),
             prompt: Prompt {
+                harness: None,
                 system: "SYS".to_owned(),
                 context: "CTX".to_owned(),
                 instruction: "INS".to_owned(),
             },
             working_dir: PathBuf::from("/atlas"),
+            scope: crate::application::process::ExecutionScope::for_tests(),
+            text_only: false,
         }
     }
 
@@ -422,7 +454,7 @@ mod tests {
     }
 
     #[test]
-    fn runs_read_only_with_the_selected_model_and_prompt_on_stdin() {
+    fn runs_read_only_with_the_selected_model_in_a_terminal_with_the_prompt_as_the_last_argument() {
         let fake = runner(true, output(0, SUCCESS));
 
         let result = ClaudeRuntime::new(fake.clone())
@@ -447,12 +479,37 @@ mod tests {
                 "sonnet",
                 "--tools",
                 "Read,Grep,Glob",
-                "--no-session-persistence"
+                "--no-session-persistence",
+                "--",
+                &request("sonnet").prompt.combined(),
             ]
         );
         assert_eq!(run.cwd, Some(PathBuf::from("/atlas")));
-        let stdin = run.stdin.as_deref().unwrap();
-        assert!(stdin.contains("SYS") && stdin.contains("CTX") && stdin.contains("INS"));
+        // A terminal has no stdin channel for a prompt. It is read-only: `claude -p` ignores it.
+        assert_eq!(run.stdin, None);
+        assert_eq!(run.terminal, Some(TerminalRequest::new(false)));
+        let prompt = run.args.last().unwrap();
+        assert!(prompt.contains("SYS") && prompt.contains("CTX") && prompt.contains("INS"));
+    }
+
+    #[test]
+    fn a_failed_run_in_a_terminal_is_classified_from_its_merged_output() {
+        // In a terminal stderr is part of stdout: the lines that are not JSON events are the
+        // diagnosis.
+        let fake = runner(
+            true,
+            Ok(ProcessOutput {
+                exit_code: Some(1),
+                stdout: "Failed to authenticate. API Error: 401\n".to_owned(),
+                stderr: String::new(),
+            }),
+        );
+
+        let error = ClaudeRuntime::new(fake)
+            .execute(&request("sonnet"), &|_| {})
+            .unwrap_err();
+
+        assert_eq!(error, RuntimeError::AuthenticationRequired);
     }
 
     #[test]
@@ -612,8 +669,9 @@ mod tests {
     #[test]
     #[ignore = "needs the Claude CLI installed; makes a real model call when signed in"]
     fn real_claude_runs_or_reports_authentication_required() {
+        // Through the real guard, like the app: the scope's project folder is the temp dir.
         let runner: Arc<dyn ProcessRunner> =
-            Arc::new(crate::infrastructure::SystemProcessRunner::new());
+            crate::application::security::testutil::guarded_system_runner(&std::env::temp_dir());
         let runtime = ClaudeRuntime::new(runner);
 
         let status = inspect(&runtime);

@@ -45,8 +45,25 @@ fn window() -> (tauri::App<MockRuntime>, WebviewWindow<MockRuntime>) {
             super::settings::select_workspace,
             super::chat::send_message,
             super::chat::list_messages,
+            super::chat::list_executions,
             super::usage::get_agent_usage,
             super::usage::get_workspace_usage,
+            super::security::get_workspace_security,
+            super::security::get_agent_permissions,
+            super::security::set_agent_permission_profile,
+            super::security::list_pending_approvals,
+            super::security::resolve_approval,
+            super::terminal::get_execution_terminal,
+            super::terminal::execution_interrupt,
+            super::terminal::execution_terminate,
+            super::terminal::execution_terminal_input,
+            super::terminal::execution_terminal_resize,
+            super::worktree::list_execution_worktrees,
+            super::worktree::merge_execution,
+            super::harness::analyze_project,
+            super::harness::initialize_project,
+            super::harness::get_project_harness,
+            super::harness::refresh_project_harness,
         ])
         .build(crate::context())
         .expect("failed to build mock app");
@@ -88,6 +105,8 @@ fn create_agent(window: &WebviewWindow<MockRuntime>) -> Value {
         json!({ "request": {
             "name": "Architecture Expert", "personalityId": "architect",
             "runtimeId": "fake", "modelId": "m1", "instructions": "Be brief.",
+            // The fake project folder is not a Git repository.
+            "worktreeIsolation": false,
         }}),
     )
     .unwrap()
@@ -251,6 +270,58 @@ fn workspaces_are_created_renamed_inspected_and_deleted() {
 }
 
 #[test]
+fn the_harness_commands_report_status_and_validate_the_workspace() {
+    let (_app, window) = window();
+    let created = create_workspace(&window, "Atlas", "/atlas");
+    let id = created["id"].clone();
+
+    let status = invoke(&window, "get_project_harness", json!({ "workspaceId": id })).unwrap();
+    assert_eq!(status["status"], "not_initialized");
+
+    let analysis = invoke(&window, "analyze_project", json!({ "workspaceId": id })).unwrap();
+    assert_eq!(analysis["existing"]["status"], "not_initialized");
+    assert_eq!(analysis["partial"], false);
+
+    let initialized = invoke(
+        &window,
+        "initialize_project",
+        json!({ "workspaceId": id, "input": { "mode": "create", "purpose": "ERP" } }),
+    )
+    .unwrap();
+    assert_eq!(initialized["summary"]["status"], "initialized");
+    let again = invoke(
+        &window,
+        "initialize_project",
+        json!({ "workspaceId": id, "input": { "mode": "create" } }),
+    )
+    .unwrap_err();
+    assert_eq!(again["code"], "project_already_initialized");
+
+    let refreshed = invoke(
+        &window,
+        "refresh_project_harness",
+        json!({ "workspaceId": id }),
+    )
+    .unwrap();
+    // Without `confirm` a refresh only reports what would change.
+    assert_eq!(refreshed["applied"], serde_json::Value::Null);
+    let applied = invoke(
+        &window,
+        "refresh_project_harness",
+        json!({ "workspaceId": id, "confirm": true }),
+    )
+    .unwrap();
+    assert_eq!(applied["applied"]["summary"]["status"], "initialized");
+    let missing = invoke(
+        &window,
+        "analyze_project",
+        json!({ "workspaceId": "ghost" }),
+    )
+    .unwrap_err();
+    assert_eq!(missing["code"], "workspace_not_found");
+}
+
+#[test]
 fn agent_placement_is_per_workspace_and_leaves_the_agent_alone() {
     let (_app, window) = window();
     let (a, b) = (
@@ -322,6 +393,7 @@ fn settings_default_to_portuguese_and_persist_language_and_selected_workspace() 
 }
 
 #[test]
+#[allow(clippy::too_many_lines)]
 fn send_message_returns_at_once_the_answer_arrives_as_events_and_usage_is_unavailable_not_zero() {
     let (app, window) = window();
     let ws = create_workspace(&window, "Atlas", "/atlas");
@@ -393,6 +465,30 @@ fn send_message_returns_at_once_the_answer_arrives_as_events_and_usage_is_unavai
     .unwrap();
     assert_eq!(other, json!([]));
 
+    // The ended execution is kept with its timeline, and only for its own workspace.
+    let ended = invoke(
+        &window,
+        "list_executions",
+        json!({ "workspaceId": ws["id"], "agentId": agent["id"] }),
+    )
+    .unwrap();
+    assert_eq!(ended.as_array().unwrap().len(), 1);
+    assert_eq!(ended[0]["id"], execution_id);
+    assert_eq!(ended[0]["status"], "completed");
+    assert_eq!(
+        ended[0]["events"].as_array().unwrap().last().unwrap()["kind"],
+        "completed"
+    );
+    assert_eq!(
+        invoke(
+            &window,
+            "list_executions",
+            json!({ "workspaceId": "elsewhere" })
+        )
+        .unwrap(),
+        json!([])
+    );
+
     // The fake runtime reported no usage: one observed run, but no numbers (not zeros).
     let usage = invoke(
         &window,
@@ -437,4 +533,317 @@ fn send_message_to_an_unknown_workspace_is_a_coded_error() {
     .unwrap_err();
 
     assert_eq!(error["code"], "workspace_not_found");
+}
+
+#[test]
+fn security_is_visible_per_workspace_and_agent_and_approvals_are_explicit() {
+    let (_app, window) = window();
+    let ws = create_workspace(&window, "Atlas", "/atlas");
+    let agent = create_agent(&window);
+
+    // The workspace's policy: project folder only, developer-level ceiling, network off.
+    let security = invoke(
+        &window,
+        "get_workspace_security",
+        json!({ "workspaceId": ws["id"] }),
+    )
+    .unwrap();
+    assert_eq!(security["projectPath"], "/atlas");
+    assert_eq!(security["label"], "developer");
+    assert_eq!(security["policy"]["filesystem"]["scope"], "project_only");
+    assert_eq!(security["policy"]["network"]["mode"], "denied");
+    assert_eq!(
+        security["policy"]["git"]["destructive"],
+        "approval_required"
+    );
+    assert_eq!(
+        invoke(
+            &window,
+            "get_workspace_security",
+            json!({ "workspaceId": "ghost" })
+        )
+        .unwrap_err()["code"],
+        "workspace_not_found"
+    );
+
+    // A new agent is read-only until someone picks another profile.
+    let ask = || {
+        invoke(
+            &window,
+            "get_agent_permissions",
+            json!({ "workspaceId": ws["id"], "agentId": agent["id"] }),
+        )
+        .unwrap()
+    };
+    let before = ask();
+    assert_eq!(before["profile"], "read_only");
+    assert_eq!(
+        before["availableProfiles"],
+        json!(["read_only", "developer"])
+    );
+    assert_eq!(before["policy"]["processes"]["mode"], "denied");
+    assert_eq!(before["policy"]["filesystem"]["write"], "denied");
+
+    let updated = invoke(
+        &window,
+        "set_agent_permission_profile",
+        json!({ "agentId": agent["id"], "profileId": "developer" }),
+    )
+    .unwrap();
+    assert_eq!(updated["permissionProfileId"], "developer");
+    let after = ask();
+    assert_eq!(after["policy"]["processes"]["mode"], "allowed");
+    // The fake runtime's own tools can neither write nor run commands, which narrows the
+    // profile: the runtime cannot be given more than it can do.
+    assert_eq!(after["effective"]["processes"]["mode"], "denied");
+    assert_eq!(after["effective"]["filesystem"]["write"], "denied");
+    assert_eq!(after["unenforced"], json!([]));
+
+    assert_eq!(
+        invoke(
+            &window,
+            "set_agent_permission_profile",
+            json!({ "agentId": agent["id"], "profileId": "root" })
+        )
+        .unwrap_err()["code"],
+        "permission_profile_invalid"
+    );
+
+    // Nothing waits, and an answer to nothing is a coded error, not a silent success.
+    assert_eq!(
+        invoke(&window, "list_pending_approvals", json!({})).unwrap(),
+        json!([])
+    );
+    assert_eq!(
+        invoke(
+            &window,
+            "resolve_approval",
+            json!({ "approvalId": "approval-1", "approve": true })
+        )
+        .unwrap_err()["code"],
+        "approval_not_found"
+    );
+}
+
+fn assert_sink<T: crate::application::security::PermissionSink>() {}
+
+#[test]
+fn permission_decisions_reach_the_webview_as_execution_progress() {
+    use crate::domain::security::{
+        DecisionSource, PermissionAction, PermissionEvent, PermissionOutcome, Reason,
+    };
+
+    let event = PermissionEvent {
+        timestamp: 7,
+        execution_id: "exec-1".to_owned(),
+        workspace_id: "ws-1".to_owned(),
+        task_id: "task-1".to_owned(),
+        agent_id: "agent-1".to_owned(),
+        action: PermissionAction::RunProcess,
+        target: "npm test".to_owned(),
+        cwd: Some("/atlas".to_owned()),
+        decision: PermissionOutcome::ApprovalRequested,
+        source: DecisionSource::Policy,
+        reason: Some(Reason::NotInAllowedList),
+        approval_id: Some("approval-3".to_owned()),
+        notes: vec![],
+    };
+
+    let progress = super::events::permission_progress(&event);
+
+    let json = serde_json::to_value(&progress).unwrap();
+    assert_eq!(json["kind"], "permission");
+    assert_eq!(
+        (
+            &json["executionId"],
+            &json["workspaceId"],
+            &json["agentId"],
+            &json["taskId"]
+        ),
+        (
+            &json!("exec-1"),
+            &json!("ws-1"),
+            &json!("agent-1"),
+            &json!("task-1")
+        )
+    );
+    assert_eq!(json["metadata"]["decision"], "approval_requested");
+    assert_eq!(json["metadata"]["action"], "run_process");
+    assert_eq!(json["metadata"]["source"], "policy");
+    assert_eq!(json["metadata"]["reason"], "not_in_allowed_list");
+    assert_eq!(json["metadata"]["target"], "npm test");
+    assert_eq!(json["metadata"]["cwd"], "/atlas");
+    assert_eq!(json["metadata"]["approvalId"], "approval-3");
+    // The adapter the app registers is a sink that only forwards this.
+    assert_sink::<super::events::TauriPermissionSink<MockRuntime>>();
+}
+
+fn assert_session_sink<T: crate::application::sessions::SessionSink>() {}
+
+#[test]
+fn terminal_commands_are_allowed_by_capability_and_answer_for_unknown_executions() {
+    let (_app, window) = window();
+    let ids = json!({ "workspaceId": "ws", "agentId": "a", "executionId": "exec-9" });
+
+    // No terminal for these ids: an absent value, not an error.
+    assert_eq!(
+        invoke(&window, "get_execution_terminal", ids.clone()).unwrap(),
+        Value::Null
+    );
+    // Controlling a process that is not there is a coded error, the same for "never existed" and
+    // "belongs to someone else".
+    for command in ["execution_interrupt", "execution_terminate"] {
+        assert_eq!(
+            invoke(&window, command, ids.clone()).unwrap_err()["code"],
+            "execution_not_found",
+            "{command}"
+        );
+    }
+    let with = |extra: Value| {
+        let mut body = ids.clone();
+        body.as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        body
+    };
+    assert_eq!(
+        invoke(
+            &window,
+            "execution_terminal_input",
+            with(json!({ "data": "x" }))
+        )
+        .unwrap_err()["code"],
+        "execution_not_found"
+    );
+    assert_eq!(
+        invoke(
+            &window,
+            "execution_terminal_resize",
+            with(json!({ "cols": 80, "rows": 24 }))
+        )
+        .unwrap_err()["code"],
+        "execution_not_found"
+    );
+    assert_session_sink::<super::events::TauriSessionSink<MockRuntime>>();
+}
+
+#[test]
+fn the_webview_can_only_name_a_session_never_address_a_process() {
+    // Nothing in the commands' parameters is an OS notion: no pid, signal, program or command.
+    let (_app, window) = window();
+    let ids =
+        json!({ "workspaceId": "ws", "agentId": "a", "executionId": "e", "pid": 1, "signal": 9 });
+
+    // Extra fields are not part of the contract and change nothing.
+    assert_eq!(
+        invoke(&window, "execution_terminate", ids).unwrap_err()["code"],
+        "execution_not_found"
+    );
+}
+
+#[test]
+fn agents_isolate_executions_in_worktrees_by_default_and_can_say_otherwise() {
+    let (_app, window) = window();
+    let body = |extra: Value| {
+        let mut request = json!({
+            "name": "A", "personalityId": "architect", "runtimeId": "fake",
+            "modelId": "m1", "instructions": "",
+        });
+        request
+            .as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        json!({ "request": request })
+    };
+
+    let default = invoke(&window, "create_agent", body(json!({}))).unwrap();
+    let off = invoke(
+        &window,
+        "create_agent",
+        body(json!({ "worktreeIsolation": false })),
+    )
+    .unwrap();
+
+    assert_eq!(default["worktreeIsolation"], true);
+    assert_eq!(off["worktreeIsolation"], false);
+}
+
+#[test]
+fn an_isolated_agent_in_a_project_without_git_fails_instead_of_using_the_checkout() {
+    let (_app, window) = window();
+    let ws = create_workspace(&window, "Atlas", "/atlas");
+    let agent = invoke(
+        &window,
+        "create_agent",
+        json!({ "request": {
+            "name": "A", "personalityId": "architect", "runtimeId": "fake",
+            "modelId": "m1", "instructions": "",
+        }}),
+    )
+    .unwrap();
+    invoke(
+        &window,
+        "add_agent_to_workspace",
+        json!({ "workspaceId": ws["id"], "agentId": agent["id"] }),
+    )
+    .unwrap();
+
+    invoke(
+        &window,
+        "send_message",
+        json!({ "request": { "workspaceId": ws["id"], "agentId": agent["id"], "content": "go" } }),
+    )
+    .unwrap();
+    let messages = (0..100)
+        .find_map(|_| {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            let messages = invoke(&window, "list_messages", json!({})).unwrap();
+            (messages.as_array().unwrap().len() == 2).then_some(messages)
+        })
+        .expect("the failure is answered");
+
+    assert_eq!(messages[1]["failed"], true);
+    assert_eq!(messages[1]["failureKind"], "git_repository_required");
+}
+
+#[test]
+fn worktrees_can_be_listed_and_merging_an_unknown_one_is_refused() {
+    let (_app, window) = window();
+
+    assert_eq!(
+        invoke(&window, "list_execution_worktrees", json!({})).unwrap(),
+        json!([])
+    );
+    assert_eq!(
+        invoke(
+            &window,
+            "merge_execution",
+            json!({ "workspaceId": "ws", "agentId": "a", "executionId": "exec-1" })
+        )
+        .unwrap_err()["code"],
+        "worktree_not_found"
+    );
+}
+
+#[test]
+fn the_webview_has_no_command_that_runs_programs_or_addresses_processes() {
+    // The surface is the allow-list in build.rs plus the capability file: each of these would
+    // be a way around the guard, and none exists.
+    let (_app, window) = window();
+
+    for command in [
+        "kill_process",
+        "run_shell",
+        "execute_command",
+        "run_command",
+        "spawn_process",
+        "run_git",
+        "remove_worktree",
+        "delete_branch",
+    ] {
+        assert!(
+            invoke(&window, command, json!({ "pid": 1, "command": "id" })).is_err(),
+            "{command} must not exist"
+        );
+    }
 }

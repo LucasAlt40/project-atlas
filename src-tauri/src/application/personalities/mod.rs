@@ -292,6 +292,8 @@ mod tests {
                 runtime_id: "x".to_owned(),
                 model_id: "m".to_owned(),
                 instructions: String::new(),
+                permission_profile_id: None,
+                worktree_isolation: false,
                 created_at: 1,
             })
             .unwrap();

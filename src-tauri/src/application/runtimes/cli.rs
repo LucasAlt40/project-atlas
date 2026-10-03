@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use super::{RuntimeError, RuntimeEvent};
 use crate::application::process::{
-    ProcessError, ProcessEvent, ProcessOutput, ProcessRunner, ProcessSpec,
+    ProcessError, ProcessEvent, ProcessOutput, ProcessRunner, ProcessSpec, TerminalRequest,
 };
 
 const PROBE_TIMEOUT: Duration = Duration::from_secs(10);
@@ -19,13 +19,7 @@ pub fn capture(
     args: &[&str],
     timeout: Option<Duration>,
 ) -> Result<ProcessOutput, ProcessError> {
-    let spec = ProcessSpec {
-        program: program.to_owned(),
-        args: args.iter().map(|a| (*a).to_owned()).collect(),
-        stdin: None,
-        cwd: None,
-        timeout: timeout.unwrap_or(PROBE_TIMEOUT),
-    };
+    let spec = ProcessSpec::probe(program, args, timeout.unwrap_or(PROBE_TIMEOUT));
     runner.run(&spec, &|_| {})
 }
 
@@ -60,6 +54,70 @@ pub fn version(runner: &dyn ProcessRunner, program: &str) -> Option<String> {
         })
 }
 
+/// How a prompt reaches a CLI that is run non-interactively.
+pub struct PromptDelivery {
+    pub args: Vec<String>,
+    pub stdin: Option<String>,
+    pub terminal: Option<TerminalRequest>,
+}
+
+/// Decides how to run a CLI whose prompt is `prompt`: attached to a terminal, so the user can
+/// watch and control the live process, or (when that is not possible) through pipes as before.
+///
+/// A terminal's input is the keyboard, and `claude -p` / `opencode run` do not read it, so in a
+/// terminal the prompt goes as the last argument, after `--` so that text starting with `-`
+/// is never taken for an option. `args` must not end with an option that takes several values.
+/// `terminal_input` is the runtime's own `terminal_input` capability.
+pub fn deliver_prompt(
+    runner: &dyn ProcessRunner,
+    program: &str,
+    mut args: Vec<String>,
+    prompt: String,
+    terminal_input: bool,
+) -> PromptDelivery {
+    if !terminal_fits(runner, program, &prompt) {
+        return PromptDelivery {
+            args,
+            stdin: Some(prompt),
+            terminal: None,
+        };
+    }
+    args.push("--".to_owned());
+    args.push(prompt);
+    PromptDelivery {
+        args,
+        stdin: None,
+        terminal: Some(TerminalRequest::new(terminal_input)),
+    }
+}
+
+/// On Windows an npm `.cmd` shim runs through `cmd.exe`, which cannot take a multi-line
+/// argument; such a run keeps using pipes (it has no live terminal).
+fn terminal_fits(runner: &dyn ProcessRunner, program: &str, prompt: &str) -> bool {
+    if !cfg!(windows) || !prompt.contains(['\n', '\r']) {
+        return true;
+    }
+    !runner.locate(program).is_some_and(|path| {
+        path.extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("cmd") || ext.eq_ignore_ascii_case("bat"))
+    })
+}
+
+/// What a failed run left for people to read. A pipe run has a separate stderr; in a terminal
+/// the two streams are one, so the lines that are not the runtime's own JSON events are used.
+pub fn diagnostics(output: &ProcessOutput) -> String {
+    if !output.stderr.trim().is_empty() {
+        return output.stderr.trim().to_owned();
+    }
+    output
+        .stdout
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('{'))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 /// Executes a runtime's CLI call, translating process events into runtime progress and
 /// process errors into normalized runtime errors. `on_line` receives each stdout line as it
 /// is written, so a runtime can turn its tool's stream into live [`RuntimeEvent`]s. Every CLI runtime goes through here, so
@@ -77,6 +135,7 @@ pub fn execute(
             ProcessEvent::StdoutLine(line) => on_line(&line),
         })
         .map_err(|error| match error {
+            ProcessError::PermissionDenied(reason) => RuntimeError::PermissionDenied(reason),
             ProcessError::NotFound => RuntimeError::NotInstalled,
             ProcessError::Timeout => RuntimeError::Timeout,
             ProcessError::Spawn(details) | ProcessError::Io(details) => {

@@ -7,6 +7,7 @@ pub enum TaskStatus {
     Running,
     Completed,
     Failed,
+    Cancelled,
 }
 
 /// What the user wants done. A task is *not* an execution: it can be attempted many times.

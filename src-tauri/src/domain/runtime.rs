@@ -1,5 +1,7 @@
 use serde::Serialize;
 
+use super::security::ToolAccess;
+
 /// Who provides the AI capability (Anthropic, `OpenCode`, `OpenAI`…). A runtime is how Atlas
 /// reaches that provider on this machine.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -50,6 +52,22 @@ pub struct RuntimeCapabilities {
     pub cost_metrics: bool,
     /// The runtime or provider reports quota (how much of an allowance is used).
     pub quota_metrics: bool,
+    /// An execution runs attached to a real terminal (PTY) that the UI can show.
+    pub interactive_terminal: bool,
+    /// The user can interrupt (Ctrl+C) the running process through that terminal.
+    pub interrupt: bool,
+    /// The process reads manual input from the terminal. `false` for the runtimes Atlas runs
+    /// non-interactively (`claude -p`, `opencode run`): they ignore a terminal's stdin, so
+    /// their terminal is read-only.
+    pub terminal_input: bool,
+    /// The terminal's size can change while the process runs.
+    pub terminal_resize: bool,
+    /// Can run with every tool off, answering only from the prompt (needed to show it evidence
+    /// without giving it the filesystem, as semantic analysis does).
+    pub text_only: bool,
+    /// What the runtime's own tools can do as Atlas launches it. Facts about the external tool:
+    /// `true` means Atlas cannot stop the tool from doing it.
+    pub tool_access: ToolAccess,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
