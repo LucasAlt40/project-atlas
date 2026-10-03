@@ -20,6 +20,13 @@ tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-dialog = "2"
+portable-pty = "0.9.0"
+serde_norway = "0.9.42"
+
+[target.'cfg(unix)'.dependencies]
+# Same crate (and version) `portable-pty` already uses; the `signal` feature adds the safe
+# `killpg`, so stopping a process group needs no `unsafe` here.
+nix = { version = "0.28", features = ["signal"] }
 
 [dev-dependencies]
 tauri = { version = "2", features = ["test"] }
