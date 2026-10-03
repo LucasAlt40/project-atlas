@@ -1,19 +1,23 @@
 use std::collections::BTreeMap;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
+use super::security::PermissionEvent;
 use super::task::Task;
 use super::usage::{QuotaInfo, UsageMetrics};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecutionStatus {
     Running,
     Completed,
     Failed,
+    /// The user stopped it (interrupt or terminate). Not a failure: nothing went wrong.
+    /// A timeout stays a `Failed` execution with `FailureKind::Timeout`.
+    Cancelled,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FailureKind {
     RuntimeNotInstalled,
@@ -24,6 +28,17 @@ pub enum FailureKind {
     ExecutionFailed,
     InvalidRequest,
     UnexpectedResponse,
+    /// Atlas's security policy refused to start the runtime.
+    PermissionDenied,
+    /// Only used to word the assistant message of a cancelled execution; a cancelled
+    /// execution itself has no failure.
+    Cancelled,
+    /// Atlas was closed while the execution ran; recorded when it starts again.
+    AppClosed,
+    /// The agent asks for Git worktree isolation and the project is not a Git repository.
+    GitRepositoryRequired,
+    /// The worktree could not be created (no base branch, Git failed, a name was taken…).
+    WorktreeFailed,
 }
 
 impl FailureKind {
@@ -38,12 +53,17 @@ impl FailureKind {
             Self::ExecutionFailed => "execution_failed",
             Self::InvalidRequest => "invalid_request",
             Self::UnexpectedResponse => "unexpected_response",
+            Self::PermissionDenied => "permission_denied",
+            Self::Cancelled => "cancelled",
+            Self::AppClosed => "app_closed",
+            Self::GitRepositoryRequired => "git_repository_required",
+            Self::WorktreeFailed => "worktree_failed",
         }
     }
 }
 
 /// Why an execution failed: a message safe to show, plus optional technical details.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExecutionFailure {
     pub kind: FailureKind,
     pub message: String,
@@ -76,6 +96,8 @@ pub struct Execution {
     pub usage: Option<UsageMetrics>,
     /// Provider quota the runtime reported alongside, if any.
     pub quota: Option<QuotaInfo>,
+    /// Every permission decision made for this execution, in order: the security audit trail.
+    pub permission_events: Vec<PermissionEvent>,
 }
 
 impl Execution {
@@ -97,6 +119,7 @@ impl Execution {
             metadata: BTreeMap::new(),
             usage: None,
             quota: None,
+            permission_events: Vec::new(),
             status: ExecutionStatus::Running,
             started_at,
             completed_at: None,
@@ -123,6 +146,11 @@ impl Execution {
         self.quota = quota;
     }
 
+    pub fn cancel(&mut self, at: u64) {
+        self.status = ExecutionStatus::Cancelled;
+        self.completed_at = Some(at);
+    }
+
     pub fn fail(&mut self, failure: ExecutionFailure, at: u64) {
         self.status = ExecutionStatus::Failed;
         self.completed_at = Some(at);
@@ -140,7 +168,7 @@ pub struct ExecutionRecord {
 /// What happened during an execution, in the order it happens. Only events a runtime can
 /// really report are emitted: `OutputChunk` (the `message` is a piece of the live answer) and
 /// the `Tool*` kinds appear only for runtimes whose tool streams them.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecutionEventKind {
     Started,
@@ -150,13 +178,33 @@ pub enum ExecutionEventKind {
     OutputChunk,
     ToolStarted,
     ToolCompleted,
+    /// A permission decision: the `metadata` carries `decision`, `action`, `target`, `source`
+    /// and, when there is one, `reason`, `cwd` and `approvalId`.
+    Permission,
     Completed,
     Failed,
+    /// The process behind the execution got a terminal: `metadata` has `processSessionId`.
+    TerminalConnected,
+    /// The user asked the process to stop (Ctrl+C). A user action, not an agent action.
+    UserInterrupted,
+    /// The user forced the process to end.
+    UserTerminated,
+    /// The process ended: `metadata` has `exitCode` (when known) and `durationMs`.
+    ProcessExited,
+    /// The execution ended because the user stopped it.
+    Cancelled,
+    /// The execution's isolated worktree exists: `metadata` has `baseBranch`, `branch` and
+    /// `worktreePath`.
+    WorktreeCreated,
+    /// The work of the execution was examined (and merged, if allowed): `metadata` has
+    /// `worktreeStatus`, `mergeStatus` and, when known, `filesChanged`, `blockReason` and
+    /// `recommendation`.
+    WorktreeFinalized,
 }
 
 /// Progress notification emitted while an execution runs. Carries both ids so a listener
 /// can keep several agents' executions apart.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExecutionEvent {
     pub execution_id: String,
@@ -172,4 +220,27 @@ pub struct ExecutionEvent {
     /// Extra facts: `runtime` / `model` / `tool` names for the matching steps, `failureKind` on
     /// failure, runtime-reported values on completion.
     pub metadata: BTreeMap<String, String>,
+}
+
+/// What Atlas keeps of an execution after it ends: enough to list it and open it again. The
+/// answer lives in the conversation (the assistant message with the same `execution_id`) and
+/// the raw terminal output is never kept (ADR 0007), so neither is repeated here.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoredExecution {
+    pub id: String,
+    pub workspace_id: String,
+    pub agent_id: String,
+    pub status: ExecutionStatus,
+    /// What the user asked.
+    pub task: String,
+    pub started_at: u64,
+    pub completed_at: Option<u64>,
+    pub runtime_id: String,
+    pub model_id: String,
+    pub failure: Option<ExecutionFailure>,
+    pub metadata: BTreeMap<String, String>,
+    pub usage: Option<UsageMetrics>,
+    /// The timeline, without streamed answer text. The tail is kept when it is too long.
+    pub events: Vec<ExecutionEvent>,
 }

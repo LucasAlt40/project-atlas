@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt;
 use std::sync::{Arc, Mutex};
 
@@ -6,13 +6,15 @@ use serde::{Deserialize, Serialize};
 
 use super::agents::AgentService;
 use super::errors::{AppError, ErrorCode};
-use super::executions::{ExecutionObserver, ExecutionService, RunAgentRequest};
+use super::executions::{ExecutionError, ExecutionObserver, ExecutionService, RunAgentRequest};
+use super::history::ConversationHistory;
 use super::support::{new_id, now_ms};
 use super::usage::UsageLedger;
 use super::workspace::WorkspaceService;
 use crate::domain::conversation::{Message, MessageRole};
 use crate::domain::execution::{
-    ExecutionEvent, ExecutionEventKind, ExecutionRecord, ExecutionStatus, FailureKind,
+    ExecutionEvent, ExecutionEventKind, ExecutionFailure, ExecutionRecord, ExecutionStatus,
+    FailureKind, StoredExecution,
 };
 use crate::domain::usage::UsageRecord;
 
@@ -79,25 +81,43 @@ struct Inner {
     executions: Arc<ExecutionService>,
     workspaces: Arc<WorkspaceService>,
     ledger: Arc<UsageLedger>,
-    messages: Mutex<Vec<Message>>,
+    history: Arc<ConversationHistory>,
     busy: Mutex<HashSet<(String, String)>>,
 }
 
 /// Use case: chat with an agent in a workspace. Sits above [`ExecutionService`]: a user message
 /// starts an execution, and its outcome becomes the assistant message. A conversation belongs to
 /// one agent in one workspace, so the same agent has separate conversations in different
-/// workspaces. Conversations are in memory.
+/// workspaces. Conversations and ended executions are kept by [`ConversationHistory`].
 #[derive(Clone)]
 pub struct ChatService {
     inner: Arc<Inner>,
 }
 
 impl ChatService {
+    /// A chat whose history is forgotten when the app ends.
+    #[cfg(test)]
     pub fn new(
         agents: Arc<AgentService>,
         executions: Arc<ExecutionService>,
         workspaces: Arc<WorkspaceService>,
         ledger: Arc<UsageLedger>,
+    ) -> Self {
+        Self::with_history(
+            agents,
+            executions,
+            workspaces,
+            ledger,
+            Arc::new(ConversationHistory::in_memory()),
+        )
+    }
+
+    pub fn with_history(
+        agents: Arc<AgentService>,
+        executions: Arc<ExecutionService>,
+        workspaces: Arc<WorkspaceService>,
+        ledger: Arc<UsageLedger>,
+        history: Arc<ConversationHistory>,
     ) -> Self {
         Self {
             inner: Arc::new(Inner {
@@ -105,7 +125,7 @@ impl ChatService {
                 executions,
                 workspaces,
                 ledger,
-                messages: Mutex::new(Vec::new()),
+                history,
                 busy: Mutex::new(HashSet::new()),
             }),
         }
@@ -113,15 +133,16 @@ impl ChatService {
 
     /// Messages, oldest first, optionally narrowed to a workspace and/or an agent.
     pub fn messages(&self, workspace_id: Option<&str>, agent_id: Option<&str>) -> Vec<Message> {
-        self.inner
-            .messages
-            .lock()
-            .expect("messages lock poisoned")
-            .iter()
-            .filter(|m| workspace_id.is_none_or(|id| m.workspace_id == id))
-            .filter(|m| agent_id.is_none_or(|id| m.agent_id == id))
-            .cloned()
-            .collect()
+        self.inner.history.messages(workspace_id, agent_id)
+    }
+
+    /// Ended executions, newest first, optionally narrowed to a workspace and/or an agent.
+    pub fn executions(
+        &self,
+        workspace_id: Option<&str>,
+        agent_id: Option<&str>,
+    ) -> Vec<StoredExecution> {
+        self.inner.history.executions(workspace_id, agent_id)
     }
 
     /// The executions that have messages in this agent's conversation in the workspace.
@@ -143,22 +164,14 @@ impl ChatService {
         })
     }
 
-    /// Deletes every conversation of the workspace.
+    /// Deletes every conversation and execution of the workspace.
     pub fn discard_workspace(&self, workspace_id: &str) {
-        self.inner
-            .messages
-            .lock()
-            .expect("messages lock poisoned")
-            .retain(|m| m.workspace_id != workspace_id);
+        self.inner.history.discard_workspace(workspace_id);
     }
 
-    /// Deletes the agent's conversations in every workspace.
+    /// Deletes the agent's conversations and executions in every workspace.
     pub fn discard_agent(&self, agent_id: &str) {
-        self.inner
-            .messages
-            .lock()
-            .expect("messages lock poisoned")
-            .retain(|m| m.agent_id != agent_id);
+        self.inner.history.discard_agent(agent_id);
     }
 
     /// Records the user's message and reserves the execution it starts. The agent has not
@@ -223,10 +236,7 @@ pub struct AgentLock {
 
 impl Inner {
     fn push(&self, message: Message) {
-        self.messages
-            .lock()
-            .expect("messages lock poisoned")
-            .push(message);
+        self.history.push_message(message);
     }
 }
 
@@ -273,6 +283,7 @@ impl PendingRun {
     /// then records and announces the assistant message. Progress events go to `observer` as they
     /// happen.
     pub fn run(self, observer: &dyn ChatObserver) {
+        let timeline = Timeline::new(observer);
         let result = self.inner.executions.run_with_id(
             self.execution_id.clone(),
             RunAgentRequest {
@@ -281,7 +292,7 @@ impl PendingRun {
                 agent_id: self.agent_id.clone(),
                 description: self.content.clone(),
             },
-            observer,
+            &timeline,
         );
 
         let (content, failure_kind) = match &result {
@@ -291,6 +302,11 @@ impl PendingRun {
                     ExecutionStatus::Completed => {
                         (record.execution.result.clone().unwrap_or_default(), None)
                     }
+                    // Stopped by the user: not a failure, but worded like one's absence.
+                    ExecutionStatus::Cancelled => (
+                        "Execution cancelled.".to_owned(),
+                        Some(FailureKind::Cancelled),
+                    ),
                     ExecutionStatus::Failed | ExecutionStatus::Running => {
                         let failure = record.execution.failure.as_ref();
                         (
@@ -323,6 +339,10 @@ impl PendingRun {
             }
         };
 
+        self.inner
+            .history
+            .record_execution(self.stored(&result, timeline.into_events()));
+
         let assistant = Message {
             id: new_id("msg"),
             workspace_id: self.workspace_id.clone(),
@@ -336,6 +356,56 @@ impl PendingRun {
         };
         self.inner.push(assistant.clone());
         observer.on_message(&assistant);
+    }
+
+    /// What is kept of the execution once it has ended.
+    fn stored(
+        &self,
+        result: &Result<ExecutionRecord, ExecutionError>,
+        events: Vec<ExecutionEvent>,
+    ) -> StoredExecution {
+        match result {
+            Ok(record) => {
+                let execution = &record.execution;
+                StoredExecution {
+                    id: execution.id.clone(),
+                    workspace_id: self.workspace_id.clone(),
+                    agent_id: self.agent_id.clone(),
+                    status: execution.status,
+                    task: self.content.clone(),
+                    started_at: execution.started_at,
+                    completed_at: execution.completed_at,
+                    runtime_id: execution.runtime_id.clone(),
+                    model_id: execution.model_id.clone(),
+                    failure: execution.failure.clone(),
+                    metadata: execution.metadata.clone(),
+                    usage: execution.usage.clone(),
+                    events,
+                }
+            }
+            Err(error) => {
+                let now = now_ms();
+                StoredExecution {
+                    id: self.execution_id.clone(),
+                    workspace_id: self.workspace_id.clone(),
+                    agent_id: self.agent_id.clone(),
+                    status: ExecutionStatus::Failed,
+                    task: self.content.clone(),
+                    started_at: now,
+                    completed_at: Some(now),
+                    runtime_id: String::new(),
+                    model_id: String::new(),
+                    failure: Some(ExecutionFailure {
+                        kind: FailureKind::InvalidRequest,
+                        message: error.to_string(),
+                        details: None,
+                    }),
+                    metadata: BTreeMap::new(),
+                    usage: None,
+                    events,
+                }
+            }
+        }
     }
 
     /// Remembers what the execution consumed, exactly as the runtime reported it.
@@ -360,6 +430,37 @@ impl PendingRun {
             // Losing a usage entry must not fail the conversation.
             eprintln!("could not record usage: {error}");
         }
+    }
+}
+
+/// Passes progress on to the real observer while keeping the timeline, so it can be stored
+/// when the execution ends. Streamed answer text is not kept: it becomes the assistant message.
+struct Timeline<'a> {
+    next: &'a dyn ChatObserver,
+    events: Mutex<Vec<ExecutionEvent>>,
+}
+
+impl<'a> Timeline<'a> {
+    fn new(next: &'a dyn ChatObserver) -> Self {
+        Self {
+            next,
+            events: Mutex::new(Vec::new()),
+        }
+    }
+
+    fn into_events(self) -> Vec<ExecutionEvent> {
+        self.events.into_inner().unwrap_or_default()
+    }
+}
+
+impl ExecutionObserver for Timeline<'_> {
+    fn on_event(&self, event: &ExecutionEvent) {
+        if event.kind != ExecutionEventKind::OutputChunk {
+            if let Ok(mut events) = self.events.lock() {
+                events.push(event.clone());
+            }
+        }
+        self.next.on_event(event);
     }
 }
 
@@ -409,6 +510,7 @@ mod tests {
     struct Fixture {
         chat: ChatService,
         ledger: Arc<UsageLedger>,
+        store: Arc<MemoryStore>,
         workspaces: Arc<WorkspaceService>,
         agent_ids: Vec<String>,
         workspace_id: String,
@@ -416,7 +518,8 @@ mod tests {
 
     /// One agent per fake runtime, all in one workspace on `/atlas`.
     fn fixture(runtimes: Vec<FakeRuntime>) -> Fixture {
-        let config = Arc::new(ConfigRepository::load(Box::<MemoryStore>::default()));
+        let store = Arc::new(MemoryStore::default());
+        let config = Arc::new(ConfigRepository::load(Box::new(store.clone())));
         let personalities = Arc::new(PersonalityService::new(config.clone()));
         let ids: Vec<String> = runtimes.iter().map(|r| r.id.clone()).collect();
         let registry = Arc::new(RuntimeRegistry::new(
@@ -440,6 +543,7 @@ mod tests {
                         runtime_id: runtime_id.clone(),
                         model_id: "m1".to_owned(),
                         instructions: String::new(),
+                        worktree_isolation: Some(false),
                     })
                     .unwrap()
                     .id
@@ -463,11 +567,19 @@ mod tests {
             personalities,
             registry,
             workspaces.clone(),
+            Arc::new(crate::application::security::AuditLog::default()),
         ));
-        let ledger = Arc::new(UsageLedger::new(config));
+        let ledger = Arc::new(UsageLedger::new(config.clone()));
         Fixture {
-            chat: ChatService::new(agents, executions, workspaces.clone(), ledger.clone()),
+            chat: ChatService::with_history(
+                agents,
+                executions,
+                workspaces.clone(),
+                ledger.clone(),
+                Arc::new(ConversationHistory::new(config.clone())),
+            ),
             ledger,
+            store,
             workspaces,
             agent_ids,
             workspace_id,
@@ -491,6 +603,45 @@ mod tests {
             currency: Some("USD".to_owned()),
             source: UsageSource::RuntimeReported,
         }
+    }
+
+    #[test]
+    fn the_conversation_and_the_ended_execution_are_still_there_after_a_restart() {
+        let f = fixture(vec![FakeRuntime::new("rt", Ok("The answer."))]);
+        let agent = &f.agent_ids[0];
+        let (sent, pending) = f.chat.send(request(&f, agent, "Analyze auth")).unwrap();
+        pending.run(&Collector::default());
+
+        let restarted =
+            ConversationHistory::new(Arc::new(ConfigRepository::load(Box::new(f.store.clone()))));
+        let messages = restarted.messages(Some(&f.workspace_id), Some(agent));
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[1].content, "The answer.");
+        let ended = restarted.executions(Some(&f.workspace_id), Some(agent));
+        assert_eq!(ended.len(), 1);
+        assert_eq!(ended[0].id, sent.execution_id);
+        assert_eq!(ended[0].task, "Analyze auth");
+        assert_eq!(ended[0].status, ExecutionStatus::Completed);
+        assert_eq!(ended[0].runtime_id, "rt");
+        let kinds: Vec<_> = ended[0].events.iter().map(|e| e.kind).collect();
+        assert_eq!(kinds.first(), Some(&ExecutionEventKind::Started));
+        assert_eq!(kinds.last(), Some(&ExecutionEventKind::Completed));
+        assert_eq!(restarted.next_execution_number(), 2);
+    }
+
+    #[test]
+    fn a_failed_run_is_kept_as_failed_with_its_reason() {
+        let f = fixture(vec![FakeRuntime::new("rt", Err(RuntimeError::Timeout))]);
+        let agent = &f.agent_ids[0];
+        let (_, pending) = f.chat.send(request(&f, agent, "Do it")).unwrap();
+        pending.run(&Collector::default());
+
+        let ended = f.chat.executions(Some(&f.workspace_id), Some(agent));
+        assert_eq!(ended[0].status, ExecutionStatus::Failed);
+        assert_eq!(
+            ended[0].failure.as_ref().unwrap().kind,
+            FailureKind::Timeout
+        );
     }
 
     #[test]
@@ -786,7 +937,10 @@ mod tests {
     #[allow(clippy::too_many_lines)]
     fn real_workspace_usage_from_both_runtimes() {
         use crate::application::process::ProcessRunner;
-        use crate::application::runtimes::inspect;
+        use crate::application::runtimes::{inspect, RUNTIME_PROGRAMS};
+        use crate::application::security::{
+            ApprovalBroker, AuditLog, GuardedProcessRunner, NoSandbox, SecurityService,
+        };
         use crate::application::usage_reports::UsageReporter;
         use crate::domain::usage::UsageWindows;
         use crate::infrastructure::{FsProjectInspector, JsonConfigStore, SystemProcessRunner};
@@ -799,16 +953,27 @@ mod tests {
             .display()
             .to_string();
 
-        let runner: Arc<dyn ProcessRunner> = Arc::new(SystemProcessRunner::new());
+        let load = || {
+            Arc::new(ConfigRepository::load(Box::new(JsonConfigStore::new(
+                dir.join("config.json"),
+            ))))
+        };
+        // Through the real guard, like the app: it reads the same config the services write.
+        let first_config = load();
+        let runner: Arc<dyn ProcessRunner> = Arc::new(GuardedProcessRunner::new(
+            Arc::new(SystemProcessRunner::new()),
+            Arc::new(SecurityService::new(first_config.clone())),
+            Arc::new(ApprovalBroker::new()),
+            Arc::new(AuditLog::default()),
+            Arc::new(NoSandbox),
+            RUNTIME_PROGRAMS.map(str::to_owned).to_vec(),
+        ));
         let registry = Arc::new(RuntimeRegistry::with_default_runtimes(&runner));
         let opencode_model = inspect(registry.find("opencode").unwrap().as_ref()).available_models
             [0]
         .id
         .clone();
-        let build = |registry: &Arc<RuntimeRegistry>| {
-            let config = Arc::new(ConfigRepository::load(Box::new(JsonConfigStore::new(
-                dir.join("config.json"),
-            ))));
+        let build = |config: Arc<ConfigRepository>, registry: &Arc<RuntimeRegistry>| {
             let personalities = Arc::new(PersonalityService::new(config.clone()));
             let agents = Arc::new(AgentService::new(
                 config.clone(),
@@ -825,8 +990,9 @@ mod tests {
                 personalities,
                 registry.clone(),
                 workspaces.clone(),
+                Arc::new(crate::application::security::AuditLog::default()),
             ));
-            let ledger = Arc::new(UsageLedger::new(config));
+            let ledger = Arc::new(UsageLedger::new(config.clone()));
             let chat = ChatService::new(
                 agents.clone(),
                 executions,
@@ -835,7 +1001,7 @@ mod tests {
             );
             (agents, workspaces, ledger, chat)
         };
-        let (agents, workspaces, ledger, chat) = build(&registry);
+        let (agents, workspaces, ledger, chat) = build(first_config, &registry);
         let workspace = workspaces
             .create(&WorkspaceInput {
                 name: "Atlas".to_owned(),
@@ -855,6 +1021,7 @@ mod tests {
                     runtime_id: runtime.to_owned(),
                     model_id: model.to_owned(),
                     instructions: String::new(),
+                    worktree_isolation: Some(false),
                 })
                 .unwrap()
                 .id
@@ -906,7 +1073,7 @@ mod tests {
 
         // A restart: a new service on the same config.json still has the workspace, the agents
         // and the recorded usage (conversations are in memory and start empty).
-        let (agents2, workspaces2, ledger2, chat2) = build(&registry);
+        let (agents2, workspaces2, ledger2, chat2) = build(load(), &registry);
         assert_eq!(workspaces2.list().len(), 1);
         assert_eq!(
             workspaces2
