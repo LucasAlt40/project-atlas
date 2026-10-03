@@ -1,5 +1,11 @@
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import type { ExecutionEventDto, MessageDto } from './commands';
+import type {
+  ExecutionEventDto,
+  HarnessProgressDto,
+  MessageDto,
+  SessionStatusEventDto,
+  TerminalChunkDto,
+} from './commands';
 
 /**
  * Typed contract of the events the Rust core emits to the webview. Like `CommandMap`,
@@ -8,6 +14,12 @@ import type { ExecutionEventDto, MessageDto } from './commands';
 export interface EventMap {
   /** Progress of a running execution; mirrors `commands::events`. */
   'execution:progress': ExecutionEventDto;
+  /** A piece of a process's raw terminal output; mirrors `commands::events`. */
+  'execution:output': TerminalChunkDto;
+  /** A process changed state (running, interrupting, terminating, exited). */
+  'execution:status': SessionStatusEventDto;
+  /** What the agent analysing a project is doing. */
+  'harness:progress': HarnessProgressDto;
   /** A message was added to a conversation; mirrors `commands::events`. */
   'conversation:message': MessageDto;
 }

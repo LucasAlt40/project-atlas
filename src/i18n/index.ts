@@ -25,8 +25,12 @@ export type Translate = (key: TranslationKey, params?: TranslateParams) => strin
 export function createTranslator(language: Language): Translate {
   const dictionary = DICTIONARIES[language];
   return (key, params) =>
-    dictionary[key].replace(/\{(\w+)\}/g, (placeholder, name: string) => {
-      const value = params?.[name];
-      return value === undefined ? placeholder : String(value);
-    });
+    // A missing key must never take the whole UI down: show the key instead.
+    ((dictionary[key] as string | undefined) ?? key).replace(
+      /\{(\w+)\}/g,
+      (placeholder, name: string) => {
+        const value = params?.[name];
+        return value === undefined ? placeholder : String(value);
+      },
+    );
 }

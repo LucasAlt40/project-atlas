@@ -21,6 +21,16 @@ export function errorMessage(t: Translate, error: unknown): string {
   return t('error.generic');
 }
 
+/** The technical reason behind a coded error, when the core gave one. */
+export function errorDetail(error: unknown): string | undefined {
+  const appError = isAppError(error)
+    ? error
+    : error instanceof Error && 'appError' in error && isAppError(error.appError)
+      ? error.appError
+      : undefined;
+  return appError?.detail ?? undefined;
+}
+
 const FAILURE_KINDS: readonly FailureKindDto[] = [
   'runtime_not_installed',
   'runtime_unavailable',
@@ -30,6 +40,11 @@ const FAILURE_KINDS: readonly FailureKindDto[] = [
   'execution_failed',
   'invalid_request',
   'unexpected_response',
+  'permission_denied',
+  'cancelled',
+  'app_closed',
+  'git_repository_required',
+  'worktree_failed',
 ];
 
 /** Words why an execution failed, from its failure kind. */
