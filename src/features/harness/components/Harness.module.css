@@ -1,0 +1,308 @@
+.modal,
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+}
+.heading {
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.muted {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ok {
+  color: var(--success, #22c55e);
+}
+.maybe {
+  color: var(--text-muted);
+}
+.tag {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+}
+.warning {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid rgb(234 179 8 / 0.4);
+  border-radius: var(--radius-sm);
+  background: rgb(234 179 8 / 0.08);
+  font-size: var(--font-size-sm);
+}
+.error {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid rgb(239 68 68 / 0.3);
+  border-radius: var(--radius-sm);
+  background: rgb(239 68 68 / 0.08);
+  color: var(--color-danger);
+}
+.existing {
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+.existing p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.value {
+  width: 8rem;
+  height: 1.625rem;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-void);
+  color: var(--text-high);
+  font: inherit;
+  font-size: var(--font-size-sm);
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.control {
+  padding: var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-void);
+  color: var(--text-high);
+  font: inherit;
+  resize: vertical;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+/* The Harness line of the project card. */
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.statusLabel {
+  color: var(--text-muted);
+}
+.statusValue[data-status='initialized'] {
+  color: var(--success, #22c55e);
+}
+.statusValue[data-status='not_initialized'],
+.statusValue[data-status='needs_review'] {
+  color: var(--warning, #eab308);
+}
+
+.findingRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.rowTools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+.linkButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--info);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+.linkButton:hover,
+.linkButton[aria-pressed='true'] {
+  text-decoration: underline;
+}
+.evidence {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--border-subtle);
+  font-size: var(--font-size-sm);
+}
+.evidence div {
+  display: flex;
+  gap: var(--space-2);
+}
+.evidence dt {
+  min-width: 6rem;
+  color: var(--text-muted);
+}
+.evidence dd {
+  margin: 0;
+}
+.sources {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.field {
+  margin-left: var(--space-2);
+  color: var(--text-muted);
+}
+.conflict {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.claims {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding-left: var(--space-4);
+}
+.claims li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.diffAdded {
+  color: var(--success, #22c55e);
+}
+.diffRemoved {
+  color: var(--color-danger);
+}
+.health {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 0.6875rem;
+}
+.health[data-health='healthy'] {
+  color: var(--success, #22c55e);
+}
+.health[data-health='conflicted'] {
+  color: var(--color-danger);
+}
+.health[data-health='needs_review'],
+.health[data-health='partial'],
+.health[data-health='stale'] {
+  color: var(--warning, #eab308);
+}
+
+.blocker {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-5);
+  background: rgb(0 0 0 / 0.72);
+  backdrop-filter: blur(3px);
+}
+.blockerCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: min(36rem, 100%);
+  max-height: 100%;
+  padding: var(--space-5);
+  overflow-y: auto;
+  border: 1px solid var(--border-focus);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  box-shadow: var(--shadow-overlay);
+}
+.phase {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--running);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+.pulse {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentcolor;
+  animation: harness-pulse 1.2s ease-in-out infinite;
+}
+@keyframes harness-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+.narration {
+  margin: 0;
+  max-height: 9rem;
+  overflow-y: auto;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  white-space: pre-wrap;
+}
+.errorText {
+  margin: 0;
+}
+.detail {
+  max-height: 10rem;
+  margin: var(--space-2) 0 0;
+  overflow: auto;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+}
+
+.pre {
+  white-space: pre-wrap;
+}
