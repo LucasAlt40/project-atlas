@@ -1,22 +1,28 @@
 .button {
-  padding: var(--space-2) var(--space-5);
-  border: 1px solid var(--color-accent);
-  border-radius: var(--radius-md);
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 1.875rem;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--text-high);
   font: inherit;
-  font-weight: 600;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  letter-spacing: 0.01em;
   cursor: pointer;
 }
 .button:hover {
-  filter: brightness(1.1);
+  background: var(--accent-hover);
 }
 .button:focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--accent-soft);
   outline-offset: 2px;
 }
 .button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  filter: none;
 }

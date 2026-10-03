@@ -6,7 +6,8 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-5);
-  background: rgb(0 0 0 / 0.45);
+  background: rgb(0 0 0 / 0.55);
+  backdrop-filter: blur(2px);
 }
 .backdrop[data-placement='side'] {
   justify-content: flex-end;
@@ -22,14 +23,16 @@
   max-height: 100%;
   padding: var(--space-5);
   overflow-y: auto;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-bg);
+  border: 1px solid var(--border-focus);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  box-shadow: var(--shadow-overlay);
 }
 .backdrop[data-placement='side'] .dialog {
   width: min(26rem, 100%);
   border-radius: 0;
   border-width: 0 0 0 1px;
+  background: var(--surface-1);
 }
 .close {
   position: absolute;
@@ -37,10 +40,10 @@
   right: var(--space-3);
   border: 0;
   background: transparent;
-  color: var(--color-text-muted);
+  color: var(--text-muted);
   font: inherit;
   cursor: pointer;
 }
 .close:hover {
-  color: var(--color-text);
+  color: var(--text-high);
 }

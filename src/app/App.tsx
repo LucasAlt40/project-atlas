@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
+import { SidebarFooter } from '@/components/layout/SidebarFooter';
 import { CatalogProvider } from '@/features/agents/hooks/useCatalog';
 import { LanguageSwitch } from '@/features/settings/components/LanguageSwitch';
 import { SettingsProvider } from '@/features/settings/hooks/SettingsProvider';
+import { ActiveExecutions } from '@/features/workspace/components/ActiveExecutions';
 import { WorkspaceSwitcher } from '@/features/workspace/components/WorkspaceSwitcher';
 import { WorkspaceProvider } from '@/features/workspace/hooks/WorkspaceProvider';
 import { useT } from '@/i18n/I18nProvider';
@@ -36,14 +38,20 @@ function Shell() {
   return (
     <NavigationContext.Provider value={navigation}>
       <AppShell
-        items={SCREENS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
+        items={SCREENS.map(({ id, labelKey, icon }) => ({ id, label: t(labelKey), icon }))}
         navLabel={t('nav.main')}
         activeId={active.id}
         onNavigate={(id) => {
           navigation.navigate(id);
         }}
         workspaceSwitcher={<WorkspaceSwitcher />}
-        trailing={<LanguageSwitch />}
+        sidebarFooter={<SidebarFooter />}
+        trailing={
+          <>
+            <ActiveExecutions />
+            <LanguageSwitch />
+          </>
+        }
       >
         <ActiveScreen />
       </AppShell>
