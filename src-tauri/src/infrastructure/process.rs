@@ -10,6 +10,8 @@ use std::time::{Duration, Instant};
 use crate::application::process::{
     ProcessError, ProcessEvent, ProcessOutput, ProcessRunner, ProcessSpec,
 };
+use crate::application::sessions::SessionRegistry;
+use std::sync::Arc;
 
 /// Output beyond this is drained and dropped, so a chatty tool cannot exhaust memory.
 const MAX_OUTPUT_BYTES: u64 = 8 * 1024 * 1024;
@@ -22,6 +24,9 @@ const INPUT_GRACE: Duration = Duration::from_millis(50);
 /// inherit the PATH of the user's shell.
 pub struct SystemProcessRunner {
     search_dirs: Vec<PathBuf>,
+    /// Where processes that run in a terminal publish their live session (see
+    /// [`crate::application::sessions`]). Without one they still run, just unobserved.
+    sessions: Option<Arc<SessionRegistry>>,
 }
 
 impl SystemProcessRunner {
@@ -51,7 +56,25 @@ impl SystemProcessRunner {
                 dirs.push(PathBuf::from(fixed));
             }
         }
-        Self { search_dirs: dirs }
+        Self {
+            search_dirs: dirs,
+            sessions: None,
+        }
+    }
+
+    /// Looks in `dir` before anywhere else, so tests can put a stand-in CLI first.
+    #[cfg(test)]
+    #[must_use]
+    pub fn with_first_search_dir(mut self, dir: PathBuf) -> Self {
+        self.search_dirs.insert(0, dir);
+        self
+    }
+
+    /// Lets processes started in a terminal be watched and controlled through `sessions`.
+    #[must_use]
+    pub fn with_sessions(mut self, sessions: Arc<SessionRegistry>) -> Self {
+        self.sessions = Some(sessions);
+        self
     }
 
     fn path_for_children(&self) -> OsString {
@@ -138,9 +161,21 @@ impl ProcessRunner for SystemProcessRunner {
         on_event: &dyn Fn(ProcessEvent),
     ) -> Result<ProcessOutput, ProcessError> {
         let executable = self.locate(&spec.program).ok_or(ProcessError::NotFound)?;
+        if let Some(request) = spec.terminal {
+            return super::pty::run_in_terminal(
+                &executable,
+                &self.path_for_children(),
+                spec,
+                request,
+                self.sessions.as_ref(),
+                on_event,
+            );
+        }
         let mut command = Command::new(executable);
         command
             .args(&spec.args)
+            // First, so nothing in `spec.env` can replace the search path set below.
+            .envs(spec.env.iter().map(|(k, v)| (k, v)))
             .env("PATH", self.path_for_children())
             .env("NO_COLOR", "1")
             .stdin(if spec.stdin.is_some() {
@@ -170,24 +205,11 @@ impl ProcessRunner for SystemProcessRunner {
             .take()
             .map(|s| thread::spawn(move || read_capped(s)));
 
-        // Written on a thread: a prompt larger than the pipe buffer must not block the
-        // timeout loop below.
-        let (written_tx, written_rx) = mpsc::channel();
-        match (spec.stdin.clone(), child.stdin.take()) {
-            (Some(input), Some(mut pipe)) => {
-                thread::spawn(move || {
-                    // A tool that exits early closes the pipe; its exit status tells the story.
-                    let _ = pipe.write_all(input.as_bytes());
-                    drop(pipe);
-                    let _ = written_tx.send(());
-                });
-            }
-            _ => {
-                let _ = written_tx.send(());
-            }
-        }
+        let written_rx = write_stdin(spec.stdin.clone(), child.stdin.take());
 
-        let deadline = Instant::now() + spec.timeout;
+        // An idle limit, not a wall-clock one: every line of output restarts it, so an agent
+        // that is still working (and streaming) is never cut off.
+        let mut deadline = Instant::now() + spec.timeout;
         let mut input_reported = false;
         let status = loop {
             if !input_reported && written_rx.try_recv().is_ok() {
@@ -198,6 +220,7 @@ impl ProcessRunner for SystemProcessRunner {
             // channel is closed (stdout ended) fall back to plain polling.
             match line_rx.recv_timeout(POLL_INTERVAL) {
                 Ok(line) => {
+                    deadline = Instant::now() + spec.timeout;
                     // Output means the tool has its input (or does not need it): report that
                     // first, so listeners see the events in order.
                     if !input_reported {
@@ -256,11 +279,8 @@ mod tests {
 
     fn spec(program: &str, args: &[&str], stdin: Option<&str>, timeout: Duration) -> ProcessSpec {
         ProcessSpec {
-            program: program.to_owned(),
-            args: args.iter().map(|a| (*a).to_owned()).collect(),
             stdin: stdin.map(str::to_owned),
-            cwd: None,
-            timeout,
+            ..ProcessSpec::probe(program, args, timeout)
         }
     }
 
@@ -370,5 +390,92 @@ mod tests {
 
         assert_eq!(result, Err(ProcessError::Timeout));
         assert!(started.elapsed() < Duration::from_secs(5));
+    }
+}
+
+/// Runs on every OS: the child is this very test binary, which prints the arguments it was
+/// started with. A shell would have interpreted (and often removed or split) the hostile text;
+/// direct execution delivers each argument whole.
+/// Writes the prompt on a thread: one larger than the pipe buffer must not block the timeout
+/// loop. The returned channel signals once the input has been written (or there was none).
+fn write_stdin(
+    input: Option<String>,
+    pipe: Option<std::process::ChildStdin>,
+) -> mpsc::Receiver<()> {
+    let (written_tx, written_rx) = mpsc::channel();
+    match (input, pipe) {
+        (Some(input), Some(mut pipe)) => {
+            thread::spawn(move || {
+                // A tool that exits early closes the pipe; its exit status tells the story.
+                let _ = pipe.write_all(input.as_bytes());
+                drop(pipe);
+                let _ = written_tx.send(());
+            });
+        }
+        _ => {
+            let _ = written_tx.send(());
+        }
+    }
+    written_rx
+}
+
+#[cfg(test)]
+mod argument_integrity {
+    use super::*;
+
+    const HOSTILE: [&str; 6] = [
+        "; touch atlas-pwned",
+        "& echo pwned",
+        "$(touch atlas-pwned)",
+        "`touch atlas-pwned`",
+        "a && b || c",
+        "with \"quotes\" and spaces",
+    ];
+
+    /// The child side. Ignored so normal runs skip it; the test below starts it on purpose.
+    #[test]
+    #[ignore = "helper started by arguments_reach_the_child_whole"]
+    fn print_my_arguments() {
+        println!("<<<ARGS");
+        for arg in std::env::args() {
+            println!("{arg}");
+        }
+        println!("ARGS>>>");
+    }
+
+    #[test]
+    fn arguments_reach_the_child_whole_and_no_shell_runs_them() {
+        let exe = std::env::current_exe().unwrap();
+        let mut args = vec![
+            "--ignored".to_owned(),
+            "--nocapture".to_owned(),
+            "--exact".to_owned(),
+            "infrastructure::process::argument_integrity::print_my_arguments".to_owned(),
+        ];
+        args.extend(HOSTILE.iter().map(|a| (*a).to_owned()));
+        let spec = ProcessSpec {
+            args,
+            ..ProcessSpec::probe(exe.to_str().unwrap(), &[], Duration::from_secs(30))
+        };
+
+        let output = SystemProcessRunner::new().run(&spec, &|_| {}).unwrap();
+
+        let printed: Vec<&str> = output
+            .stdout
+            .lines()
+            .skip_while(|l| *l != "<<<ARGS")
+            .skip(1)
+            .take_while(|l| *l != "ARGS>>>")
+            .collect();
+        for hostile in HOSTILE {
+            assert!(
+                printed.contains(&hostile),
+                "{hostile:?} was altered: {printed:?}"
+            );
+        }
+        assert!(
+            !std::path::Path::new("atlas-pwned").exists(),
+            "an argument was run as a command"
+        );
     }
 }
