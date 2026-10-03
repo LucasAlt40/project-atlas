@@ -3,7 +3,6 @@
   flex-direction: column;
   gap: var(--space-4);
   max-width: 960px;
-  margin: 0 auto;
 }
 .header {
   display: flex;
@@ -12,13 +11,14 @@
 }
 .title {
   margin: 0;
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-xl);
 }
 .muted {
   margin: 0;
-  color: var(--color-text-muted);
+  color: var(--text-muted);
   font-size: var(--font-size-sm);
 }
 .error {
+  margin: 0;
   color: var(--color-danger);
 }

@@ -38,6 +38,8 @@ export function AgentForm({
   const [runtimeId, setRuntimeId] = useState(initial?.runtimeId ?? '');
   const [modelId, setModelId] = useState(initial?.modelId ?? '');
   const [instructions, setInstructions] = useState(initial?.instructions ?? '');
+  // On by default: an agent works in an isolated Git worktree unless the user opts out.
+  const [worktreeIsolation, setWorktreeIsolation] = useState(initial?.worktreeIsolation ?? true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -47,7 +49,7 @@ export function AgentForm({
     event.preventDefault();
     setSaving(true);
     setError(null);
-    onSubmit({ name, personalityId, runtimeId, modelId, instructions })
+    onSubmit({ name, personalityId, runtimeId, modelId, instructions, worktreeIsolation })
       .then(onSaved)
       .catch((e: unknown) => {
         setError(errorMessage(t, e));
@@ -136,6 +138,26 @@ export function AgentForm({
           }}
         />
       </div>
+
+      <fieldset className={styles.field}>
+        <legend className={styles.label}>{t('agents.form.isolation')}</legend>
+        <label className={styles.checkRow} htmlFor="agent-isolation">
+          <input
+            id="agent-isolation"
+            type="checkbox"
+            checked={worktreeIsolation}
+            onChange={(e) => {
+              setWorktreeIsolation(e.target.checked);
+            }}
+          />
+          <span>{t('agents.form.isolationLabel')}</span>
+        </label>
+        {worktreeIsolation ? (
+          <p className={styles.hint}>{t('agents.form.isolationOn')}</p>
+        ) : (
+          <p className={styles.warning}>{t('agents.form.isolationOff')}</p>
+        )}
+      </fieldset>
 
       {error && (
         <p role="alert" className={styles.error}>

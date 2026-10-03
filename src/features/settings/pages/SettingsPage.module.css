@@ -3,34 +3,46 @@
   flex-direction: column;
   gap: var(--space-5);
   max-width: 640px;
-  margin: 0 auto;
 }
 .title {
   margin: 0;
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-xl);
 }
 .field {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
 }
 .label,
 .heading {
   margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .control {
   max-width: 20rem;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-text);
+  height: 2rem;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-void);
+  color: var(--text-high);
   font: inherit;
+}
+.control:focus-visible {
+  border-color: var(--border-focus);
+  outline: 0;
 }
 .help {
   margin: 0;
-  color: var(--color-text-muted);
+  color: var(--text-dim);
   font-size: var(--font-size-sm);
 }

@@ -32,6 +32,37 @@ describe('AgentsPage', () => {
     ).toBeInTheDocument();
   });
 
+  it('isolates executions in Git worktrees by default, says so, and lets the user opt out', async () => {
+    const user = userEvent.setup();
+    show({ onAgentCreated: vi.fn() }, []);
+    vi.mocked(createAgent).mockResolvedValue(architect);
+
+    await user.click(await screen.findByRole('button', { name: 'Create agent' }));
+    const form = screen.getByRole('form', { name: 'Create agent' });
+    const isolation = within(form).getByRole('checkbox', {
+      name: 'Always work in an isolated Git worktree',
+    });
+    expect(isolation).toBeChecked();
+    expect(
+      within(form).getByText(
+        'Each execution works in its own worktree and does not modify the project’s main checkout directly.',
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(isolation);
+    expect(
+      within(form).getByText('With this off, the agent may work directly in the project folder.'),
+    ).toBeInTheDocument();
+
+    await user.type(within(form).getByLabelText('Name'), 'Architecture Expert');
+    await user.selectOptions(within(form).getByLabelText('Personality'), 'architect');
+    await user.selectOptions(await within(form).findByLabelText('AI Provider'), 'opencode');
+    await user.selectOptions(within(form).getByLabelText('Model'), 'opencode/big-pickle');
+    await user.click(within(form).getByRole('button', { name: 'Create Agent' }));
+
+    expect(createAgent).toHaveBeenCalledWith(expect.objectContaining({ worktreeIsolation: false }));
+  });
+
   it('creates an agent from a personality, provider and discovered model', async () => {
     const user = userEvent.setup();
     const onAgentCreated = vi.fn();
@@ -55,6 +86,8 @@ describe('AgentsPage', () => {
       runtimeId: 'opencode',
       modelId: 'opencode/big-pickle',
       instructions: 'Be brief.',
+      // On unless the user turned it off.
+      worktreeIsolation: true,
     });
     expect(onAgentCreated).toHaveBeenCalledWith(architect);
     expect(screen.queryByRole('form', { name: 'Create agent' })).not.toBeInTheDocument();

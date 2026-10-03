@@ -88,10 +88,13 @@
   padding: 0;
   border: 0;
   background: none;
-  color: var(--color-accent);
+  color: var(--accent-soft);
   font: inherit;
-  text-decoration: underline;
+  text-decoration: none;
   cursor: pointer;
+}
+.linkButton:hover {
+  text-decoration: underline;
 }
 .danger {
   padding: var(--space-1) var(--space-3);

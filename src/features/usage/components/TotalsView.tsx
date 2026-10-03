@@ -9,9 +9,12 @@ import { formatCost, formatTokens } from '../model/format';
 export function TotalsView({
   totals,
   showTokens = true,
+  stacked = false,
 }: {
   totals: UsageTotalsDto;
   showTokens?: boolean;
+  /** Cost above tokens, one per line, instead of one line separated by dots. */
+  stacked?: boolean;
 }) {
   const { t, language } = useI18n();
   const partial = (reported: number) =>
@@ -27,7 +30,7 @@ export function TotalsView({
       </span>
       {showTokens && (
         <>
-          {' · '}
+          {stacked ? null : ' · '}
           <span data-metric="tokens">
             {totals.totalTokens !== null
               ? `${formatTokens(totals.totalTokens, language)} ${t('details.tokens').toLowerCase()}${partial(totals.runsWithTokens)}`
