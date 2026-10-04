@@ -301,13 +301,13 @@ mod tests {
 
     #[test]
     fn the_project_and_everything_below_it_is_inside() {
-        let root = "/Users/lucas/dev/lontano";
+        let root = "/Users/lucas/dev/acme";
         for ok in [
-            "/Users/lucas/dev/lontano",
-            "/Users/lucas/dev/lontano/",
-            "/Users/lucas/dev/lontano/src",
-            "/Users/lucas/dev/lontano/tests/a/b.rs",
-            "/Users/lucas/dev/lontano/./src//x",
+            "/Users/lucas/dev/acme",
+            "/Users/lucas/dev/acme/",
+            "/Users/lucas/dev/acme/src",
+            "/Users/lucas/dev/acme/tests/a/b.rs",
+            "/Users/lucas/dev/acme/./src//x",
         ] {
             assert!(inside(P, root, ok), "{ok}");
         }
@@ -315,7 +315,7 @@ mod tests {
 
     #[test]
     fn everything_else_is_outside() {
-        let root = "/Users/lucas/dev/lontano";
+        let root = "/Users/lucas/dev/acme";
         for bad in [
             "/Users/lucas/Documents",
             "/Users/lucas/.ssh",
@@ -389,13 +389,13 @@ mod tests {
 
     #[test]
     fn windows_paths_accept_both_separators_and_ignore_case() {
-        let root = r"C:\Users\Lucas\dev\Lontano";
-        assert!(inside(W, root, r"C:\Users\Lucas\dev\Lontano\src"));
-        assert!(inside(W, root, "c:/users/lucas/DEV/lontano/src/main.rs"));
-        assert!(inside(W, root, r"C:\Users\Lucas\dev\Lontano\a\..\b"));
-        assert!(!inside(W, root, r"C:\Users\Lucas\dev\Lontano\..\other"));
+        let root = r"C:\Users\Lucas\dev\Acme";
+        assert!(inside(W, root, r"C:\Users\Lucas\dev\Acme\src"));
+        assert!(inside(W, root, "c:/users/lucas/DEV/acme/src/main.rs"));
+        assert!(inside(W, root, r"C:\Users\Lucas\dev\Acme\a\..\b"));
+        assert!(!inside(W, root, r"C:\Users\Lucas\dev\Acme\..\other"));
         assert!(!inside(W, root, r"C:\Users\Lucas\Documents"));
-        assert!(!inside(W, root, r"D:\Users\Lucas\dev\Lontano"));
+        assert!(!inside(W, root, r"D:\Users\Lucas\dev\Acme"));
     }
 
     #[test]

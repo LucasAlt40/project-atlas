@@ -88,7 +88,7 @@ export const ptBR: Record<TranslationKey, string> = {
   'workspace.form.createTitle': 'Criar workspace',
   'workspace.form.editTitle': 'Editar workspace',
   'workspace.form.name': 'Nome',
-  'workspace.form.namePlaceholder': 'Lontano ERP',
+  'workspace.form.namePlaceholder': 'Acme ERP',
   'workspace.form.folder': 'Pasta do projeto',
   'workspace.form.folderPlaceholder': 'Nenhuma pasta selecionada',
   'workspace.form.selectFolder': 'Selecionar pasta',

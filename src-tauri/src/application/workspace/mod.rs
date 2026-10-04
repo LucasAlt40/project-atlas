@@ -320,10 +320,10 @@ mod tests {
 
         let created = f
             .service
-            .create(&input("  Lontano ERP ", " /dev/erp "))
+            .create(&input("  Acme ERP ", " /dev/erp "))
             .unwrap();
 
-        assert_eq!(created.name, "Lontano ERP");
+        assert_eq!(created.name, "Acme ERP");
         assert_eq!(created.project_path, "/dev/erp");
         assert_eq!(created.description.as_deref(), Some("ERP system"));
         assert_eq!((created.layout.rows, created.layout.columns), (2, 2));

@@ -74,8 +74,8 @@ mod tests {
 
     #[test]
     fn names_the_project_after_its_folder() {
-        assert_eq!(folder_name("/home/lucas/dev/lontano"), "lontano");
-        assert_eq!(folder_name("/home/lucas/dev/lontano/"), "lontano");
+        assert_eq!(folder_name("/home/lucas/dev/acme"), "acme");
+        assert_eq!(folder_name("/home/lucas/dev/acme/"), "acme");
     }
 
     #[test]

@@ -32,7 +32,7 @@ describe('App', () => {
   it('is in Portuguese by default, with the workspace as the first and main screen', async () => {
     mockBackend({
       language: 'pt-BR',
-      workspaces: [workspace('w1', 'Lontano ERP', '/dev/lontano')],
+      workspaces: [workspace('w1', 'Acme ERP', '/dev/acme')],
       selectedWorkspaceId: 'w1',
     });
     render(<App />);
@@ -48,7 +48,7 @@ describe('App', () => {
       'page',
     );
     expect(
-      await screen.findByRole('button', { name: /^Workspace: Lontano ERP/ }),
+      await screen.findByRole('button', { name: /^Workspace: Acme ERP/ }),
     ).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: '+ Adicionar agente' })).toBeInTheDocument();
     expect(screen.getAllByRole('banner')[0]).toHaveTextContent('Atlas');
@@ -58,7 +58,7 @@ describe('App', () => {
     const user = userEvent.setup();
     mockBackend({
       language: 'pt-BR',
-      workspaces: [workspace('w1', 'Lontano ERP', '/dev/lontano')],
+      workspaces: [workspace('w1', 'Acme ERP', '/dev/acme')],
       selectedWorkspaceId: 'w1',
     });
     render(<App />);
@@ -71,7 +71,7 @@ describe('App', () => {
     expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Project context' })).toBeInTheDocument();
     // Names the user chose are not translated.
-    expect(screen.getAllByText('Lontano ERP').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Acme ERP').length).toBeGreaterThan(0);
   });
 
   it('shows the translated Agents, Personalities and Settings screens', async () => {
@@ -101,9 +101,9 @@ describe('App', () => {
   it('guides a first-time user to create a workspace with the native folder picker', async () => {
     const user = userEvent.setup();
     mockBackend({ language: 'en-US', workspaces: [] });
-    vi.mocked(pickFolder).mockResolvedValue('/Users/lucas/dev/lontano');
+    vi.mocked(pickFolder).mockResolvedValue('/Users/lucas/dev/acme');
     vi.mocked(createWorkspace).mockResolvedValue(
-      workspace('w1', 'lontano', '/Users/lucas/dev/lontano'),
+      workspace('w1', 'acme', '/Users/lucas/dev/acme'),
     );
     render(<App />);
 
@@ -114,11 +114,11 @@ describe('App', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Create' }));
 
     expect(createWorkspace).toHaveBeenCalledWith({
-      name: 'lontano',
-      projectPath: '/Users/lucas/dev/lontano',
+      name: 'acme',
+      projectPath: '/Users/lucas/dev/acme',
       description: '',
     });
-    expect(await screen.findByRole('heading', { name: 'lontano' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'acme' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Welcome to Atlas' })).not.toBeInTheDocument();
   });
 

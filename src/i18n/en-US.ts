@@ -89,7 +89,7 @@ export const enUS = {
   'workspace.form.createTitle': 'Create Workspace',
   'workspace.form.editTitle': 'Edit Workspace',
   'workspace.form.name': 'Name',
-  'workspace.form.namePlaceholder': 'Lontano ERP',
+  'workspace.form.namePlaceholder': 'Acme ERP',
   'workspace.form.folder': 'Project folder',
   'workspace.form.folderPlaceholder': 'No folder selected',
   'workspace.form.selectFolder': 'Select folder',

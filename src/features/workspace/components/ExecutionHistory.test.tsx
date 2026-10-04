@@ -35,7 +35,7 @@ function show(options: Parameters<typeof mockBackend>[0] = {}) {
     agents: [architect, developer],
     workspaces: [
       workspace('w1', 'Atlas', '/dev/atlas', ['a1']),
-      workspace('w2', 'Lontano', '/dev/lontano', ['a2']),
+      workspace('w2', 'Acme', '/dev/acme', ['a2']),
     ],
     selectedWorkspaceId: 'w1',
     ...options,
@@ -298,7 +298,7 @@ describe('active executions in the header', () => {
     expect(within(list).getAllByRole('button')).toHaveLength(2);
 
     // The run in the other workspace is opened: its workspace is shown, nothing is stopped.
-    await user.click(within(list).getByRole('button', { name: 'Open Developer in Lontano' }));
+    await user.click(within(list).getByRole('button', { name: 'Open Developer in Acme' }));
     await waitFor(() => {
       expect(screen.getByRole('article', { name: 'Developer' })).toBeInTheDocument();
     });

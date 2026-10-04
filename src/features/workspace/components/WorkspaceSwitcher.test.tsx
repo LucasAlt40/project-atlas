@@ -27,7 +27,7 @@ vi.mock('../services/workspaceService');
 
 const architect = agent('a1', 'Architect');
 const developer = agent('a2', 'Developer');
-const erp = workspace('w1', 'Lontano ERP', '/dev/lontano', ['a1']);
+const erp = workspace('w1', 'Acme ERP', '/dev/acme', ['a1']);
 const atlas = workspace('w2', 'Atlas', '/dev/atlas', ['a2']);
 
 function mount(options: Parameters<typeof mockBackend>[0] = {}, pickFolder = vi.fn()) {
@@ -59,14 +59,14 @@ describe('WorkspaceSwitcher', () => {
     mount();
 
     await waitFor(() => {
-      expect(switcher()).toHaveTextContent('Lontano ERP');
+      expect(switcher()).toHaveTextContent('Acme ERP');
     });
     await user.click(switcher());
 
     const menu = screen.getByRole('listbox', { name: 'Workspace' });
     const options = within(menu).getAllByRole('option');
     expect(options.map((o) => o.textContent)).toEqual([
-      'Lontano ERP/dev/lontano',
+      'Acme ERP/dev/acme',
       'Atlas/dev/atlas',
     ]);
     expect(options[0]).toHaveAttribute('aria-selected', 'true');
@@ -106,8 +106,8 @@ describe('WorkspaceSwitcher', () => {
 
   it('creates a workspace with the folder picker and opens it', async () => {
     const user = userEvent.setup();
-    const created = workspace('w3', 'lontano-new', '/Users/lucas/dev/lontano-new');
-    const pick = mount({}, vi.fn().mockResolvedValue('/Users/lucas/dev/lontano-new'));
+    const created = workspace('w3', 'acme-new', '/Users/lucas/dev/acme-new');
+    const pick = mount({}, vi.fn().mockResolvedValue('/Users/lucas/dev/acme-new'));
     vi.mocked(createWorkspace).mockResolvedValue(created);
 
     await user.click(await screen.findByRole('button', { name: /^Workspace:/ }));
@@ -121,15 +121,15 @@ describe('WorkspaceSwitcher', () => {
     expect(pick).toHaveBeenCalled();
     // The folder's name is suggested as the workspace name.
     expect(createWorkspace).toHaveBeenCalledWith({
-      name: 'lontano-new',
-      projectPath: '/Users/lucas/dev/lontano-new',
+      name: 'acme-new',
+      projectPath: '/Users/lucas/dev/acme-new',
       description: 'ERP system',
     });
     await waitFor(() => {
       expect(selectWorkspace).toHaveBeenCalledWith('w3');
     });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(switcher()).toHaveTextContent('lontano-new');
+    expect(switcher()).toHaveTextContent('acme-new');
   });
 
   it('explains an invalid project folder in words', async () => {
@@ -177,7 +177,7 @@ describe('WorkspaceSwitcher', () => {
 
     await user.click(await screen.findByRole('button', { name: /^Workspace:/ }));
     await user.click(screen.getByRole('button', { name: 'Manage Workspaces' }));
-    await user.click(screen.getByRole('button', { name: 'Edit Lontano ERP' }));
+    await user.click(screen.getByRole('button', { name: 'Edit Acme ERP' }));
     const dialog = screen.getByRole('dialog', { name: 'Edit Workspace' });
     await user.clear(within(dialog).getByLabelText('Name'));
     await user.type(within(dialog).getByLabelText('Name'), 'ERP renamed');
@@ -201,7 +201,7 @@ describe('WorkspaceSwitcher', () => {
 
     await user.click(await screen.findByRole('button', { name: /^Workspace:/ }));
     await user.click(screen.getByRole('button', { name: 'Manage Workspaces' }));
-    await user.click(screen.getByRole('button', { name: 'Delete Lontano ERP' }));
+    await user.click(screen.getByRole('button', { name: 'Delete Acme ERP' }));
     expect(deleteWorkspace).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Confirm delete' }));
 
@@ -236,7 +236,7 @@ describe('WorkspaceSwitcher', () => {
     // The same agent is placed in both workspaces: conversations and runs must not mix.
     mount({
       workspaces: [
-        workspace('w1', 'Lontano ERP', '/dev/lontano', ['a1']),
+        workspace('w1', 'Acme ERP', '/dev/acme', ['a1']),
         workspace('w2', 'Atlas', '/dev/atlas', ['a1']),
       ],
     });
@@ -274,7 +274,7 @@ describe('WorkspaceSwitcher', () => {
 
     // Back in the first workspace the result is there.
     await user.click(switcher());
-    await user.click(screen.getByRole('option', { name: /Lontano ERP/ }));
+    await user.click(screen.getByRole('option', { name: /Acme ERP/ }));
     expect(await screen.findByText('Done in the ERP workspace')).toBeInTheDocument();
     expect(within(card('Architect')).getByRole('status')).toHaveTextContent('Completed');
     expect(screen.getByText('Long task')).toBeInTheDocument();
