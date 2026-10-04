@@ -167,6 +167,7 @@ fn build_stack(claude_script: Option<&str>, runtime_id: &str, model_id: &str) ->
                     model_id: model_id.to_owned(),
                     instructions: String::new(),
                     worktree_isolation: Some(false),
+                    result_contract: None,
                 })
                 .unwrap()
                 .id

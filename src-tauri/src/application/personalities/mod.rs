@@ -8,6 +8,7 @@ use super::config::ConfigRepository;
 use super::errors::{AppError, ErrorCode};
 use super::support::new_id;
 use crate::domain::personality::{PersonalityProfile, PersonalitySource};
+use crate::domain::result_contract::ResultContract;
 
 use builtin::builtin_personalities;
 
@@ -72,6 +73,7 @@ impl PersonalityService {
             behavior: Vec::new(),
             tags: fields.tags,
             source: PersonalitySource::Custom,
+            suggested_contract: ResultContract::general(),
         };
         self.config.add_personality(personality.clone())?;
         Ok(personality)
@@ -100,6 +102,7 @@ impl PersonalityService {
             behavior: Vec::new(),
             tags: fields.tags,
             source: current.source,
+            suggested_contract: current.suggested_contract.clone(),
         };
         self.config.modify(|config| {
             match current.source {
@@ -239,7 +242,16 @@ mod tests {
         let all = service().list();
 
         let ids: Vec<_> = all.iter().map(|p| p.id.as_str()).collect();
-        assert_eq!(ids, ["architect", "developer", "qa"]);
+        assert_eq!(
+            ids,
+            [
+                "architect",
+                "developer",
+                "qa",
+                "architecture-validator",
+                "bug-fixer"
+            ]
+        );
         assert!(all.iter().all(|p| p.source == PersonalitySource::Builtin));
         assert!(all
             .iter()
@@ -274,7 +286,7 @@ mod tests {
             .create(&request("N", " "))
             .unwrap_err()
             .is(ErrorCode::InstructionsRequired));
-        assert_eq!(service.list().len(), 3);
+        assert_eq!(service.list().len(), 5);
     }
 
     fn input(name: &str) -> CreatePersonalityRequest {
@@ -294,6 +306,7 @@ mod tests {
                 instructions: String::new(),
                 permission_profile_id: None,
                 worktree_isolation: false,
+                result_contract: crate::domain::result_contract::ResultContract::default(),
                 created_at: 1,
             })
             .unwrap();
@@ -312,7 +325,7 @@ mod tests {
         assert_eq!(updated.system_instructions, "New instructions");
         assert_eq!(updated.source, PersonalitySource::Custom);
         assert_eq!(service.find(&created.id), Some(updated));
-        assert_eq!(service.list().len(), 4);
+        assert_eq!(service.list().len(), 6);
     }
 
     #[test]
@@ -327,10 +340,19 @@ mod tests {
             "the old behaviour summary no longer applies"
         );
         let names: Vec<_> = service.list().into_iter().map(|p| p.name).collect();
-        assert_eq!(names, ["Architect", "My Developer", "QA"]);
+        assert_eq!(
+            names,
+            [
+                "Architect",
+                "My Developer",
+                "QA",
+                "Architecture & Code Validator",
+                "Bug Fixer"
+            ]
+        );
         // Editing again replaces the copy instead of stacking another one.
         service.update("developer", &input("Again")).unwrap();
-        assert_eq!(service.list().len(), 3);
+        assert_eq!(service.list().len(), 5);
         assert_eq!(service.find("developer").unwrap().name, "Again");
     }
 
@@ -361,7 +383,7 @@ mod tests {
         service.delete(&created.id).unwrap();
 
         assert!(service.find(&created.id).is_none());
-        assert_eq!(service.list().len(), 3);
+        assert_eq!(service.list().len(), 5);
         assert!(service
             .delete(&created.id)
             .unwrap_err()
@@ -376,14 +398,20 @@ mod tests {
         service.delete("qa").unwrap();
         service.delete("architect").unwrap();
         let ids: Vec<_> = service.list().into_iter().map(|p| p.id).collect();
-        assert_eq!(ids, ["developer"]);
+        assert_eq!(ids, ["developer", "architecture-validator", "bug-fixer"]);
 
         let restored = service.restore_defaults().unwrap();
 
         let names: Vec<_> = restored.iter().map(|p| p.name.as_str()).collect();
         assert_eq!(
             names,
-            ["Architect", "Developer", "QA"],
+            [
+                "Architect",
+                "Developer",
+                "QA",
+                "Architecture & Code Validator",
+                "Bug Fixer"
+            ],
             "removed ones are back and edits are undone"
         );
     }
@@ -397,7 +425,7 @@ mod tests {
         service.restore_defaults().unwrap();
 
         assert!(service.find(&mine.id).is_some());
-        assert_eq!(service.list().len(), 4);
+        assert_eq!(service.list().len(), 6);
     }
 
     #[test]

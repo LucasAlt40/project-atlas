@@ -2,14 +2,19 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use super::interaction::InteractionDetection;
 use super::security::PermissionEvent;
 use super::task::Task;
+use super::task_context::ContextRecord;
 use super::usage::{QuotaInfo, UsageMetrics};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecutionStatus {
     Running,
+    /// The agent needs a person before it can go on. Not completed (it produced no result) and
+    /// not failed (nothing went wrong): the step is paused, and an answer starts it again.
+    WaitingForInput,
     Completed,
     Failed,
     /// The user stopped it (interrupt or terminate). Not a failure: nothing went wrong.
@@ -24,6 +29,8 @@ pub enum FailureKind {
     RuntimeUnavailable,
     AuthenticationRequired,
     ModelUnavailable,
+    /// The provider refused for now: too many requests or the free allowance is used up.
+    RateLimited,
     Timeout,
     ExecutionFailed,
     InvalidRequest,
@@ -49,6 +56,7 @@ impl FailureKind {
             Self::RuntimeUnavailable => "runtime_unavailable",
             Self::AuthenticationRequired => "authentication_required",
             Self::ModelUnavailable => "model_unavailable",
+            Self::RateLimited => "rate_limited",
             Self::Timeout => "timeout",
             Self::ExecutionFailed => "execution_failed",
             Self::InvalidRequest => "invalid_request",
@@ -98,6 +106,10 @@ pub struct Execution {
     pub quota: Option<QuotaInfo>,
     /// Every permission decision made for this execution, in order: the security audit trail.
     pub permission_events: Vec<PermissionEvent>,
+    /// How the Harness context of the prompt was chosen. `None` when the project has no Harness.
+    pub context: Option<ContextRecord>,
+    /// What the execution is waiting for, while it is `WaitingForInput`.
+    pub interaction: Option<InteractionDetection>,
 }
 
 impl Execution {
@@ -120,6 +132,8 @@ impl Execution {
             usage: None,
             quota: None,
             permission_events: Vec::new(),
+            context: None,
+            interaction: None,
             status: ExecutionStatus::Running,
             started_at,
             completed_at: None,
@@ -141,6 +155,26 @@ impl Execution {
         self.status = ExecutionStatus::Completed;
         self.completed_at = Some(at);
         self.result = Some(result);
+        self.metadata = metadata;
+        self.usage = usage;
+        self.quota = quota;
+    }
+
+    /// The runtime answered, but the answer is a request for a person rather than a result. The
+    /// answer is kept (it is what the person is replying to); no result exists yet.
+    pub fn wait_for_input(
+        &mut self,
+        text: String,
+        interaction: InteractionDetection,
+        metadata: BTreeMap<String, String>,
+        usage: Option<UsageMetrics>,
+        quota: Option<QuotaInfo>,
+        at: u64,
+    ) {
+        self.status = ExecutionStatus::WaitingForInput;
+        self.completed_at = Some(at);
+        self.result = Some(text);
+        self.interaction = Some(interaction);
         self.metadata = metadata;
         self.usage = usage;
         self.quota = quota;
@@ -183,6 +217,9 @@ pub enum ExecutionEventKind {
     Permission,
     Completed,
     Failed,
+    /// The agent stopped to ask a person: `metadata` has `interactionKind`, `source` and
+    /// `confidence`; the question is the event's `message`.
+    InteractionDetected,
     /// The process behind the execution got a terminal: `metadata` has `processSessionId`.
     TerminalConnected,
     /// The user asked the process to stop (Ctrl+C). A user action, not an agent action.
@@ -241,6 +278,30 @@ pub struct StoredExecution {
     pub failure: Option<ExecutionFailure>,
     pub metadata: BTreeMap<String, String>,
     pub usage: Option<UsageMetrics>,
+    /// What the execution asked, when it ended waiting for a person.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub interaction: Option<InteractionDetection>,
+    /// How the Harness context of the prompt was chosen (mode and counts, not the text, which is
+    /// the prompt). Absent for executions from before V0.8 and for projects without a Harness.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<ContextRecord>,
+    /// The workflow step this execution ran as, when it was one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow: Option<WorkflowLink>,
     /// The timeline, without streamed answer text. The tail is kept when it is too long.
     pub events: Vec<ExecutionEvent>,
+}
+
+/// Where an execution sits in a workflow run, so the Execution Inspector can say so: the
+/// breadcrumb *Workflow > Password Recovery > Backend > Execution #42*.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowLink {
+    pub workflow_id: String,
+    pub workflow_name: String,
+    pub workflow_execution_id: String,
+    pub node_id: String,
+    pub node_label: String,
+    pub attempt: u32,
+    pub iteration: u32,
 }

@@ -44,6 +44,7 @@ const DRAIN_TIMEOUT: Duration = Duration::from_millis(500);
 const TERMINATE_GRACE: Duration = Duration::from_secs(2);
 /// After a process exits on its own: how long what it left behind gets to react to the
 /// terminal's hang-up before the rest of its group is ended.
+#[cfg(unix)]
 const LEFTOVER_GRACE: Duration = Duration::from_millis(100);
 const CTRL_C: u8 = 0x03;
 
@@ -114,6 +115,7 @@ impl PtyShared {
     /// given to someone else while a group with that id has members, and with none left the
     /// signal finds nothing. Called right after the exit, so there is no window for reuse.
     /// (A process that left the group with `setsid` is out of reach; see ADR 0007.)
+    #[cfg_attr(not(unix), allow(clippy::unused_self))]
     fn end_leftovers(&self) {
         #[cfg(unix)]
         {

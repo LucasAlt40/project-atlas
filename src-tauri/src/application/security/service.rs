@@ -288,6 +288,7 @@ mod tests {
                     instructions: String::new(),
                     permission_profile_id: profile.map(str::to_owned),
                     worktree_isolation: false,
+                    result_contract: crate::domain::result_contract::ResultContract::default(),
                     created_at: 1,
                 });
                 Ok(())

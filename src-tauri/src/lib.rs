@@ -21,7 +21,7 @@ use application::config::ConfigRepository;
 use application::executions::ExecutionService;
 use application::harness::context::HarnessContextBuilder;
 use application::harness::semantic::RuntimeSemanticFactory;
-use application::harness::{HarnessService, HarnessStore};
+use application::harness::{HarnessService, HarnessStore, ProjectScanner};
 use application::history::ConversationHistory;
 use application::lifecycle::AgentLifecycle;
 use application::personalities::PersonalityService;
@@ -35,11 +35,15 @@ use application::sessions::{SessionRegistry, SessionSink};
 use application::settings::SettingsService;
 use application::usage::UsageLedger;
 use application::usage_reports::UsageReporter;
+use application::workflow::chat_runner::ChatStepRunner;
+use application::workflow::integration::IntegrationService;
+use application::workflow::orchestrator::Orchestrator;
+use application::workflow::service::WorkflowService;
 use application::workspace::WorkspaceService;
 use application::worktree::{WorktreeLayout, WorktreeService};
 use infrastructure::{
     FsHarnessStore, FsProjectInspector, FsProjectScanner, GitWorktreeManager, JsonConfigStore,
-    SystemProcessRunner,
+    SystemIdeLauncher, SystemProcessRunner,
 };
 use platform::OsPlatform;
 use state::AppState;
@@ -55,6 +59,8 @@ pub fn run() {
     tauri::Builder::default()
         // Native folder picker only (granted as `dialog:allow-open` in the capability file).
         .plugin(tauri_plugin_dialog::init())
+        // System notifications (granted as `notification:default`): an agent waiting for the person.
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
             let sink = Arc::new(commands::events::TauriPermissionSink {
@@ -81,6 +87,7 @@ pub fn run() {
             commands::agents::list_agents,
             commands::agents::create_agent,
             commands::agents::update_agent,
+            commands::agents::set_agent_result_contract,
             commands::agents::delete_agent,
             commands::workspace::list_workspaces,
             commands::workspace::create_workspace,
@@ -113,6 +120,31 @@ pub fn run() {
             commands::harness::initialize_project,
             commands::harness::get_project_harness,
             commands::harness::refresh_project_harness,
+            commands::harness::preview_task_context,
+            commands::workflow::list_workflows,
+            commands::workflow::get_workflow,
+            commands::workflow::list_workflow_templates,
+            commands::workflow::select_workflow_template,
+            commands::workflow::create_workflow,
+            commands::workflow::create_workflow_from_template,
+            commands::workflow::update_workflow,
+            commands::workflow::delete_workflow,
+            commands::workflow::validate_workflow,
+            commands::workflow::start_workflow,
+            commands::workflow::pause_workflow,
+            commands::workflow::resume_workflow,
+            commands::workflow::cancel_workflow,
+            commands::workflow::answer_workflow_interaction,
+            commands::workflow::list_pending_interactions,
+            commands::workflow::get_workflow_execution,
+            commands::workflow::list_workflow_executions,
+            commands::workflow::get_workflow_changes,
+            commands::workflow::get_workflow_diff,
+            commands::workflow::apply_workflow_changes,
+            commands::workflow::keep_workflow_changes,
+            commands::workflow::discard_workflow_changes,
+            commands::workflow::list_ides,
+            commands::workflow::open_workflow_in_ide,
         ])
         .build(context())
         .expect("error while building Project Atlas")
@@ -186,17 +218,21 @@ fn build_state(
     // The Harness lives in the project's own `.atlas/`; Atlas keeps no copy of it. The context
     // builder hands agents its text, and nothing else (runtimes, worktrees) knows about it.
     let harness_store: Arc<dyn HarnessStore> = Arc::new(FsHarnessStore);
+    let scanner: Arc<dyn ProjectScanner> = Arc::new(FsProjectScanner::default());
+    // One builder serves the runs and the previews, so that a preview is what a run would use.
+    let context_builder = Arc::new(
+        HarnessContextBuilder::new(harness_store.clone())
+            .with_scanner(scanner.clone())
+            .with_fingerprint_cache(std::time::Duration::from_secs(5)),
+    );
     let harness = Arc::new(
-        HarnessService::new(
-            workspaces.clone(),
-            Arc::new(FsProjectScanner::default()),
-            harness_store.clone(),
-        )
-        .with_semantic(Arc::new(RuntimeSemanticFactory {
-            agents: agents.clone(),
-            runtimes: runtimes.clone(),
-            progress: harness_progress,
-        })),
+        HarnessService::new(workspaces.clone(), scanner.clone(), harness_store.clone())
+            .with_context_builder(context_builder.clone())
+            .with_semantic(Arc::new(RuntimeSemanticFactory {
+                agents: agents.clone(),
+                runtimes: runtimes.clone(),
+                progress: harness_progress,
+            })),
     );
     let first_id = worktrees.next_execution_number(history.next_execution_number());
     let executions = Arc::new(
@@ -209,15 +245,24 @@ fn build_state(
         )
         .with_sessions(sessions.clone())
         .with_worktrees(worktrees.clone())
-        .with_harness(Arc::new(HarnessContextBuilder::new(harness_store)))
+        .with_policies(security.clone())
+        .with_harness(context_builder)
         .with_first_id(first_id),
     );
     let ledger = Arc::new(UsageLedger::new(config.clone()));
     let config_for_overview = config.clone();
+    // Workflow definitions and runs live in the same config store. A run the previous session
+    // never saw end is marked interrupted: nothing is resumed or called finished on its own.
+    let workflows = Arc::new(WorkflowService::new(
+        config.clone(),
+        agents.clone(),
+        workspaces.clone(),
+    ));
+    workflows.recover_interrupted();
     let settings = Arc::new(SettingsService::new(config));
     let chat = ChatService::with_history(
         agents.clone(),
-        executions,
+        executions.clone(),
         workspaces.clone(),
         ledger.clone(),
         history,
@@ -228,7 +273,25 @@ fn build_state(
         workspaces.clone(),
         ledger.clone(),
         settings.clone(),
-    );
+    )
+    .with_workflows(workflows.clone());
+    // A workflow step is an execution like any other: it goes through the chat layer, so
+    // through the agent's worktree policy, the task context, the runtimes and the guard.
+    let orchestrator = Arc::new(Orchestrator::new(
+        workflows.clone(),
+        Arc::new(
+            ChatStepRunner::new(chat.clone(), sessions.clone(), approvals.clone())
+                .with_shared_worktrees(worktrees.clone(), workspaces.clone(), executions),
+        ),
+    ));
+    // What becomes of a run's code (review, apply, keep, discard, open in an editor): Git and the
+    // worktree service decide; the editor is launched by Atlas from a fixed list.
+    let integration = Arc::new(IntegrationService::new(
+        workflows.clone(),
+        worktrees.clone(),
+        workspaces.clone(),
+        Arc::new(SystemIdeLauncher::system()),
+    ));
     let usage = UsageReporter::new(ledger, chat.clone(), agents.clone());
     let overview = Arc::new(SecurityOverview::new(
         security,
@@ -250,6 +313,9 @@ fn build_state(
         sessions,
         worktrees,
         harness,
+        workflows,
+        orchestrator,
+        integration,
     }
 }
 

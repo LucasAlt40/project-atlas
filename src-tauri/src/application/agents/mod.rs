@@ -8,6 +8,7 @@ use super::personalities::PersonalityService;
 use super::runtimes::RuntimeRegistry;
 use super::support::{new_id, now_ms};
 use crate::domain::agent::Agent;
+use crate::domain::result_contract::{ContractError, ResultContract};
 use crate::domain::security::PermissionProfile;
 
 const MAX_NAME_LEN: usize = 80;
@@ -24,6 +25,10 @@ pub struct CreateAgentRequest {
     /// an edited agent keeps what it had.
     #[serde(default)]
     pub worktree_isolation: Option<bool>,
+    /// What the agent promises to say at the end of a step. Left out, a new agent is `general`
+    /// and an edited agent keeps what it had.
+    #[serde(default)]
+    pub result_contract: Option<ResultContract>,
 }
 
 /// Use case: create agents from a personality + provider + model + instructions, and
@@ -61,6 +66,10 @@ impl AgentService {
     /// runtime cannot run tasks yet, or the agent cannot be saved.
     pub fn create(&self, request: CreateAgentRequest) -> Result<Agent, AppError> {
         let (name, model_id) = self.validate(&request)?;
+        let result_contract = match request.result_contract.clone() {
+            Some(contract) => Self::checked_contract(contract)?,
+            None => ResultContract::general(),
+        };
         let agent = Agent {
             id: new_id("agent"),
             name,
@@ -70,6 +79,7 @@ impl AgentService {
             instructions: request.instructions.trim().to_owned(),
             permission_profile_id: None,
             worktree_isolation: request.worktree_isolation.unwrap_or(true),
+            result_contract,
             created_at: now_ms(),
         };
         self.config.add_agent(agent.clone())?;
@@ -84,6 +94,11 @@ impl AgentService {
     /// Fails if the agent does not exist, the new settings are invalid, or saving fails.
     pub fn update(&self, id: &str, request: CreateAgentRequest) -> Result<Agent, AppError> {
         let (name, model_id) = self.validate(&request)?;
+        let result_contract = request
+            .result_contract
+            .clone()
+            .map(Self::checked_contract)
+            .transpose()?;
         self.config.modify(|config| {
             let agent = config
                 .agents
@@ -100,6 +115,9 @@ impl AgentService {
                 .clone_into(&mut agent.instructions);
             if let Some(isolation) = request.worktree_isolation {
                 agent.worktree_isolation = isolation;
+            }
+            if let Some(contract) = result_contract {
+                agent.result_contract = contract;
             }
             Ok(agent.clone())
         })
@@ -125,6 +143,29 @@ impl AgentService {
         })
     }
 
+    /// Sets what the agent promises to say at the end of a step. The contract only describes the
+    /// result a workflow can route on: it grants nothing.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the contract is malformed, the agent does not exist, or saving fails.
+    pub fn set_result_contract(
+        &self,
+        id: &str,
+        contract: ResultContract,
+    ) -> Result<Agent, AppError> {
+        let contract = Self::checked_contract(contract)?;
+        self.config.modify(|config| {
+            let agent = config
+                .agents
+                .iter_mut()
+                .find(|a| a.id == id)
+                .ok_or_else(|| AppError::new(ErrorCode::AgentNotFound))?;
+            agent.result_contract = contract;
+            Ok(agent.clone())
+        })
+    }
+
     /// Deletes the agent's configuration only; see `AgentLifecycle` (in `application::lifecycle`) for the clean-up that
     /// goes with it.
     ///
@@ -139,6 +180,21 @@ impl AgentService {
                 return Err(AppError::new(ErrorCode::AgentNotFound));
             }
             Ok(())
+        })
+    }
+
+    fn checked_contract(contract: ResultContract) -> Result<ResultContract, AppError> {
+        contract.normalized().map_err(|error| {
+            AppError::new(ErrorCode::ResultContractInvalid).with(
+                "reason",
+                match error {
+                    ContractError::InvalidId => "invalid_id",
+                    ContractError::DuplicateId => "duplicate_id",
+                    ContractError::EmptyLabel => "empty_label",
+                    ContractError::TooMany => "too_many",
+                    ContractError::WrongOutcomeCount => "wrong_outcome_count",
+                },
+            )
         })
     }
 
@@ -202,6 +258,7 @@ mod tests {
             model_id: model_id.to_owned(),
             instructions: "  Be brief. ".to_owned(),
             worktree_isolation: None,
+            result_contract: None,
         }
     }
 
@@ -282,6 +339,7 @@ mod tests {
         let off = service
             .create(CreateAgentRequest {
                 worktree_isolation: Some(false),
+                result_contract: None,
                 ..request("claude", "sonnet")
             })
             .unwrap();
@@ -303,6 +361,7 @@ mod tests {
                 &agent.id,
                 CreateAgentRequest {
                     worktree_isolation: Some(false),
+                    result_contract: None,
                     ..request("claude", "sonnet")
                 },
             )
@@ -343,6 +402,7 @@ mod tests {
                     model_id: "sonnet".to_owned(),
                     instructions: " New ".to_owned(),
                     worktree_isolation: None,
+                    result_contract: None,
                 },
             )
             .unwrap();
@@ -401,5 +461,37 @@ mod tests {
             service.delete(&created.id),
             Err(e) if e.is(ErrorCode::AgentNotFound)
         ));
+    }
+
+    #[test]
+    fn a_contract_is_saved_with_the_agent_and_kept_when_an_edit_says_nothing_about_it() {
+        use crate::domain::result_contract::ContractKind;
+        let service = service();
+        let mut create = request("claude", "sonnet");
+        create.result_contract = Some(ResultContract::preset(ContractKind::Validation));
+        let agent = service.create(create).unwrap();
+        assert_eq!(agent.result_contract.kind, ContractKind::Validation);
+        assert_eq!(agent.result_contract.outcomes.len(), 2);
+
+        // An edit without a contract changes nothing about it...
+        let edited = service
+            .update(&agent.id, request("claude", "sonnet"))
+            .unwrap();
+        assert_eq!(edited.result_contract, agent.result_contract);
+        // ... and one with a contract replaces it.
+        let mut change = request("claude", "sonnet");
+        change.result_contract = Some(ResultContract::general());
+        let general = service.update(&agent.id, change).unwrap();
+        assert!(!general.result_contract.requires_outcome());
+
+        // A malformed contract is refused and nothing is saved.
+        let mut bad = request("claude", "sonnet");
+        bad.result_contract = Some(ResultContract {
+            kind: ContractKind::Custom,
+            outcomes: vec![],
+        });
+        let error = service.create(bad).unwrap_err();
+        assert!(error.is(ErrorCode::ResultContractInvalid));
+        assert_eq!(service.list().len(), 1);
     }
 }

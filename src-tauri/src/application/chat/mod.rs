@@ -6,7 +6,9 @@ use serde::{Deserialize, Serialize};
 
 use super::agents::AgentService;
 use super::errors::{AppError, ErrorCode};
-use super::executions::{ExecutionError, ExecutionObserver, ExecutionService, RunAgentRequest};
+use super::executions::{
+    ExecutionError, ExecutionObserver, ExecutionService, RunAgentRequest, StepOptions,
+};
 use super::history::ConversationHistory;
 use super::support::{new_id, now_ms};
 use super::usage::UsageLedger;
@@ -14,8 +16,9 @@ use super::workspace::WorkspaceService;
 use crate::domain::conversation::{Message, MessageRole};
 use crate::domain::execution::{
     ExecutionEvent, ExecutionEventKind, ExecutionFailure, ExecutionRecord, ExecutionStatus,
-    FailureKind, StoredExecution,
+    FailureKind, StoredExecution, WorkflowLink,
 };
+use crate::domain::interaction::InteractionDetection;
 use crate::domain::usage::UsageRecord;
 
 /// Port: everything the UI wants to hear about while a message is being answered. The Tauri
@@ -30,6 +33,35 @@ pub struct SendMessageRequest {
     pub workspace_id: String,
     pub agent_id: String,
     pub content: String,
+}
+
+/// A step of a workflow run to be done by an agent. The workflow engine decides *that* it runs;
+/// everything else about the run is the same as for a message.
+#[derive(Debug, Clone)]
+pub struct WorkflowStepRequest {
+    pub workspace_id: String,
+    pub agent_id: String,
+    /// What the conversation shows as the request.
+    pub display_task: String,
+    /// The instruction sent to the agent.
+    pub instruction: String,
+    /// What the Task Context is selected for.
+    pub context_query: String,
+    pub link: WorkflowLink,
+    /// The primary worktree of the workflow run, when it has one.
+    pub shared_worktree: Option<String>,
+}
+
+/// How a run ended, as much as a caller driving it needs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RunSummary {
+    pub status: ExecutionStatus,
+    /// The agent's answer, when it completed.
+    pub result: Option<String>,
+    /// Why it failed, when it did.
+    pub failure: Option<String>,
+    /// What it asked, when it ended waiting for a person.
+    pub interaction: Option<InteractionDetection>,
 }
 
 /// What the caller gets back immediately, before the agent has answered.
@@ -221,10 +253,40 @@ impl ChatService {
                 workspace_id: request.workspace_id,
                 agent_id: request.agent_id,
                 content: content.to_owned(),
+                instruction: content.to_owned(),
+                context_query: None,
+                shared_worktree: None,
+                workflow: None,
+                announce: None,
                 execution_id,
                 _busy: busy,
             },
         ))
+    }
+
+    /// Records the request of a workflow step in the agent's conversation and reserves its
+    /// execution, exactly as [`Self::send`] does for a message, so the step is an execution like
+    /// any other: it shows in history, in the Execution Inspector and in usage.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the agent or workspace is unknown, or the agent is busy in that workspace (the
+    /// caller waits and tries again: an agent never runs two executions at once).
+    pub fn send_workflow_step(
+        &self,
+        step: WorkflowStepRequest,
+    ) -> Result<(SentMessage, PendingRun), ChatError> {
+        let (sent, mut pending) = self.send(SendMessageRequest {
+            workspace_id: step.workspace_id,
+            agent_id: step.agent_id,
+            content: step.display_task,
+        })?;
+        pending.instruction = step.instruction;
+        pending.context_query = Some(step.context_query);
+        pending.workflow = Some(step.link);
+        pending.shared_worktree = step.shared_worktree;
+        pending.announce = Some(sent.user_message.clone());
+        Ok((sent, pending))
     }
 }
 
@@ -273,7 +335,16 @@ pub struct PendingRun {
     inner: Arc<Inner>,
     workspace_id: String,
     agent_id: String,
+    /// What the conversation shows as the request.
     content: String,
+    /// What the agent is sent (the message itself, unless this is a workflow step).
+    instruction: String,
+    /// What the Task Context is chosen for, when it is not the instruction.
+    context_query: Option<String>,
+    shared_worktree: Option<String>,
+    workflow: Option<WorkflowLink>,
+    /// A message nobody was told about yet (a workflow step's request).
+    announce: Option<Message>,
     execution_id: String,
     _busy: BusyGuard,
 }
@@ -282,24 +353,41 @@ impl PendingRun {
     /// Runs the execution through [`ExecutionService`] (blocking), records what it consumed,
     /// then records and announces the assistant message. Progress events go to `observer` as they
     /// happen.
-    pub fn run(self, observer: &dyn ChatObserver) {
+    pub fn run(self, observer: &dyn ChatObserver) -> RunSummary {
+        if let Some(message) = &self.announce {
+            observer.on_message(message);
+        }
         let timeline = Timeline::new(observer);
-        let result = self.inner.executions.run_with_id(
-            self.execution_id.clone(),
-            RunAgentRequest {
-                task_id: new_id("task"),
-                workspace_id: self.workspace_id.clone(),
-                agent_id: self.agent_id.clone(),
-                description: self.content.clone(),
-            },
-            &timeline,
-        );
+        let request = RunAgentRequest {
+            task_id: new_id("task"),
+            workspace_id: self.workspace_id.clone(),
+            agent_id: self.agent_id.clone(),
+            description: self.instruction.clone(),
+        };
+        let options = StepOptions {
+            context_query: self.context_query.as_deref(),
+            shared_worktree: self.shared_worktree.as_deref(),
+            // A workflow step that asks a person something waits for the answer; in a
+            // conversation the person just replies.
+            detect_interaction: self.workflow.is_some(),
+        };
+        let result = if options.context_query.is_some() || options.detect_interaction {
+            self.inner
+                .executions
+                .run_step(self.execution_id.clone(), request, options, &timeline)
+        } else {
+            self.inner
+                .executions
+                .run_with_id(self.execution_id.clone(), request, &timeline)
+        };
+        let summary = Self::summarize(&result);
 
         let (content, failure_kind) = match &result {
             Ok(record) => {
                 self.record_usage(record);
                 match record.execution.status {
-                    ExecutionStatus::Completed => {
+                    // The question the person is asked is the agent's last message.
+                    ExecutionStatus::Completed | ExecutionStatus::WaitingForInput => {
                         (record.execution.result.clone().unwrap_or_default(), None)
                     }
                     // Stopped by the user: not a failure, but worded like one's absence.
@@ -356,6 +444,24 @@ impl PendingRun {
         };
         self.inner.push(assistant.clone());
         observer.on_message(&assistant);
+        summary
+    }
+
+    fn summarize(result: &Result<ExecutionRecord, ExecutionError>) -> RunSummary {
+        match result {
+            Ok(record) => RunSummary {
+                status: record.execution.status,
+                result: record.execution.result.clone(),
+                failure: record.execution.failure.as_ref().map(|f| f.message.clone()),
+                interaction: record.execution.interaction.clone(),
+            },
+            Err(error) => RunSummary {
+                status: ExecutionStatus::Failed,
+                result: None,
+                failure: Some(error.to_string()),
+                interaction: None,
+            },
+        }
     }
 
     /// What is kept of the execution once it has ended.
@@ -380,6 +486,9 @@ impl PendingRun {
                     failure: execution.failure.clone(),
                     metadata: execution.metadata.clone(),
                     usage: execution.usage.clone(),
+                    interaction: execution.interaction.clone(),
+                    context: execution.context.clone(),
+                    workflow: self.workflow.clone(),
                     events,
                 }
             }
@@ -402,6 +511,9 @@ impl PendingRun {
                     }),
                     metadata: BTreeMap::new(),
                     usage: None,
+                    interaction: None,
+                    context: None,
+                    workflow: self.workflow.clone(),
                     events,
                 }
             }
@@ -419,7 +531,11 @@ impl PendingRun {
             model_id: execution.model_id.clone(),
             started_at: execution.started_at,
             completed_at: execution.completed_at.unwrap_or(execution.started_at),
-            succeeded: execution.status == ExecutionStatus::Completed,
+            // Waiting for a person is not a failure: the runtime did what it was asked.
+            succeeded: matches!(
+                execution.status,
+                ExecutionStatus::Completed | ExecutionStatus::WaitingForInput
+            ),
             metrics: execution.usage.clone(),
         };
         let quota = execution
@@ -544,6 +660,7 @@ mod tests {
                         model_id: "m1".to_owned(),
                         instructions: String::new(),
                         worktree_isolation: Some(false),
+                        result_contract: None,
                     })
                     .unwrap()
                     .id
@@ -1022,6 +1139,7 @@ mod tests {
                     model_id: model.to_owned(),
                     instructions: String::new(),
                     worktree_isolation: Some(false),
+                    result_contract: None,
                 })
                 .unwrap()
                 .id

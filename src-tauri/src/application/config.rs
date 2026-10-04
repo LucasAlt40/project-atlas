@@ -9,6 +9,7 @@ use crate::domain::conversation::Message;
 use crate::domain::execution::StoredExecution;
 use crate::domain::personality::PersonalityProfile;
 use crate::domain::usage::{QuotaInfo, UsageRecord};
+use crate::domain::workflow::{Workflow, WorkflowExecution};
 use crate::domain::workspace::Workspace;
 use crate::domain::worktree::ExecutionWorktree;
 
@@ -68,6 +69,13 @@ pub struct UserConfig {
     /// worktree is created (not when the execution ends) so a crash cannot lose track of it.
     #[serde(default)]
     pub worktrees: Vec<ExecutionWorktree>,
+    /// Workflow definitions. Kept apart from the runs of them: a definition is edited, a run is
+    /// history.
+    #[serde(default)]
+    pub workflows: Vec<Workflow>,
+    /// Runs of workflows, oldest first, each with the snapshot of the definition it started from.
+    #[serde(default)]
+    pub workflow_executions: Vec<WorkflowExecution>,
 }
 
 /// Port: durable storage for [`UserConfig`]. Implemented in `infrastructure/`.
@@ -214,6 +222,7 @@ mod tests {
             instructions: String::new(),
             permission_profile_id: None,
             worktree_isolation: true,
+            result_contract: crate::domain::result_contract::ResultContract::default(),
             created_at: 1,
         }
     }

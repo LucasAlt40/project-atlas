@@ -305,6 +305,7 @@ mod tests {
                 model_id: "m1".to_owned(),
                 instructions: String::new(),
                 worktree_isolation: Some(false),
+                result_contract: None,
             })
             .unwrap()
             .id

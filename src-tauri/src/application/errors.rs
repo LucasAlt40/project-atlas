@@ -29,12 +29,20 @@ pub enum ErrorCode {
     ProjectFolderNotFound,
     MessageEmpty,
     ApprovalNotFound,
+    /// The question the answer is for does not exist.
+    InteractionNotFound,
+    /// The question was already answered or cancelled.
+    InteractionNotPending,
+    /// The answer is empty, too long, or not one of the question's options.
+    InteractionAnswerInvalid,
     ExecutionNotFound,
     ExecutionNotRunning,
     TerminalInputUnsupported,
     TerminalInputInvalid,
     ProcessControlFailed,
     PermissionProfileInvalid,
+    /// The result contract has a malformed or repeated outcome id, no label, or too many outcomes.
+    ResultContractInvalid,
     /// The agent needs Git worktree isolation and the project is not a Git repository.
     GitRepositoryRequired,
     GitUnavailable,
@@ -61,6 +69,20 @@ pub enum ErrorCode {
     HarnessGenerationFailed,
     /// The project path is relative or tries to leave its folder.
     UnsafeProjectPath,
+    WorkflowNotFound,
+    /// The workflow did not pass validation and cannot start. The UI lists what is wrong.
+    WorkflowInvalid,
+    /// The workflow has a run in progress: it cannot be edited or deleted until that ends.
+    WorkflowRunning,
+    WorkflowTemplateNotFound,
+    WorkflowExecutionNotFound,
+    /// The run is not in a state that allows what was asked (pausing a finished run…).
+    WorkflowStateInvalid,
+    /// The run has no code in a worktree that the asked-for action applies to.
+    IntegrationNotAvailable,
+    IdeUnknown,
+    IdeNotInstalled,
+    IdeLaunchFailed,
     StorageFailed,
 }
 

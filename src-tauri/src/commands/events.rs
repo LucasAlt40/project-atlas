@@ -5,10 +5,12 @@ use crate::application::executions::ExecutionObserver;
 use crate::application::security::PermissionSink;
 use crate::application::sessions::SessionSink;
 use crate::application::support::now_ms;
+use crate::application::workflow::runner::WorkflowObserver;
 use crate::domain::conversation::Message;
 use crate::domain::execution::{ExecutionEvent, ExecutionEventKind};
 use crate::domain::security::PermissionEvent;
 use crate::domain::terminal::{SessionStatusEvent, TerminalChunk};
+use crate::domain::workflow::WorkflowEvent;
 
 /// Progress of an execution; the payload's `kind` says which step. One channel for every
 /// execution: listeners tell executions apart by `executionId` and `agentId`.
@@ -45,6 +47,41 @@ impl<R: Runtime> ExecutionObserver for TauriEventObserver<R> {
 impl<R: Runtime> ChatObserver for TauriEventObserver<R> {
     fn on_message(&self, message: &Message) {
         self.emit(CONVERSATION_MESSAGE_EVENT, message);
+    }
+}
+
+/// Adapter: tells the webview about a workflow run. Each event goes out under its own name
+/// (`workflow:node_started`…) carrying ids, not state: the UI reads the run again. The steps'
+/// executions report through the same observer as any execution (`execution:progress`,
+/// `conversation:message`).
+pub struct TauriWorkflowObserver<R: Runtime> {
+    pub app: AppHandle<R>,
+}
+
+impl<R: Runtime> ExecutionObserver for TauriWorkflowObserver<R> {
+    fn on_event(&self, event: &ExecutionEvent) {
+        TauriEventObserver {
+            app: self.app.clone(),
+        }
+        .on_event(event);
+    }
+}
+
+impl<R: Runtime> ChatObserver for TauriWorkflowObserver<R> {
+    fn on_message(&self, message: &Message) {
+        TauriEventObserver {
+            app: self.app.clone(),
+        }
+        .on_message(message);
+    }
+}
+
+impl<R: Runtime> WorkflowObserver for TauriWorkflowObserver<R> {
+    fn on_workflow_event(&self, event: &WorkflowEvent) {
+        let name = event.kind.wire_name();
+        if let Err(error) = self.app.emit(&name, event) {
+            eprintln!("failed to emit {name}: {error}");
+        }
     }
 }
 

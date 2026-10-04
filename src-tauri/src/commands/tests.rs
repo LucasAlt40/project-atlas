@@ -32,6 +32,7 @@ fn window() -> (tauri::App<MockRuntime>, WebviewWindow<MockRuntime>) {
             super::agents::list_agents,
             super::agents::create_agent,
             super::agents::update_agent,
+            super::agents::set_agent_result_contract,
             super::agents::delete_agent,
             super::workspace::list_workspaces,
             super::workspace::create_workspace,
@@ -64,6 +65,31 @@ fn window() -> (tauri::App<MockRuntime>, WebviewWindow<MockRuntime>) {
             super::harness::initialize_project,
             super::harness::get_project_harness,
             super::harness::refresh_project_harness,
+            super::harness::preview_task_context,
+            super::workflow::list_workflows,
+            super::workflow::get_workflow,
+            super::workflow::list_workflow_templates,
+            super::workflow::select_workflow_template,
+            super::workflow::create_workflow,
+            super::workflow::create_workflow_from_template,
+            super::workflow::update_workflow,
+            super::workflow::delete_workflow,
+            super::workflow::validate_workflow,
+            super::workflow::start_workflow,
+            super::workflow::pause_workflow,
+            super::workflow::resume_workflow,
+            super::workflow::cancel_workflow,
+            super::workflow::answer_workflow_interaction,
+            super::workflow::list_pending_interactions,
+            super::workflow::get_workflow_execution,
+            super::workflow::list_workflow_executions,
+            super::workflow::get_workflow_changes,
+            super::workflow::get_workflow_diff,
+            super::workflow::apply_workflow_changes,
+            super::workflow::keep_workflow_changes,
+            super::workflow::discard_workflow_changes,
+            super::workflow::list_ides,
+            super::workflow::open_workflow_in_ide,
         ])
         .build(crate::context())
         .expect("failed to build mock app");
@@ -148,7 +174,7 @@ fn personalities_can_be_created_edited_deleted_and_restored() {
     assert_eq!(edited["name"], "My QA");
     invoke(&window, "delete_personality", json!({ "id": "developer" })).unwrap();
     let restored = invoke(&window, "restore_default_personalities", json!({})).unwrap();
-    assert_eq!(restored.as_array().unwrap().len(), 4);
+    assert_eq!(restored.as_array().unwrap().len(), 6);
     assert_eq!(restored[2]["name"], "QA");
 }
 
@@ -218,6 +244,33 @@ fn agents_can_be_edited_and_deleted() {
         (edited["id"].clone(), edited["name"].clone()),
         (agent["id"].clone(), json!("Renamed"))
     );
+    assert_eq!(edited["resultContract"]["kind"], "general");
+    let contracted = invoke(
+        &window,
+        "set_agent_result_contract",
+        json!({ "agentId": agent["id"], "contract": {
+            "kind": "validation",
+            "outcomes": [
+                { "id": "pass", "label": "Pass", "description": "" },
+                { "id": "fail", "label": "Fail" },
+            ],
+        }}),
+    )
+    .unwrap();
+    assert_eq!(contracted["resultContract"]["outcomes"][1]["id"], "fail");
+    for bad in [
+        json!({ "kind": "validation", "outcomes": [{ "id": "a", "label": "A" }, { "id": "a", "label": "B" }] }),
+        json!({ "kind": "custom", "outcomes": [{ "id": "Not Valid", "label": "A" }] }),
+        json!({ "kind": "general", "outcomes": [{ "id": "x", "label": "X" }] }),
+    ] {
+        let refused = invoke(
+            &window,
+            "set_agent_result_contract",
+            json!({ "agentId": agent["id"], "contract": bad }),
+        )
+        .unwrap_err();
+        assert_eq!(refused["code"], "result_contract_invalid");
+    }
     let blocked = invoke(&window, "delete_personality", json!({ "id": "qa" })).unwrap_err();
     assert_eq!(blocked["code"], "personality_in_use");
     assert_eq!(blocked["params"]["agents"], "Renamed");
@@ -844,6 +897,368 @@ fn the_webview_has_no_command_that_runs_programs_or_addresses_processes() {
         assert!(
             invoke(&window, command, json!({ "pid": 1, "command": "id" })).is_err(),
             "{command} must not exist"
+        );
+    }
+}
+
+// ---- workflows ---------------------------------------------------------------------------------
+
+/// A workspace with one agent per role a template uses, on the fake runtime, without worktrees
+/// (the fake project folder is not a Git repository).
+fn workflow_workspace(window: &WebviewWindow<MockRuntime>, isolation: bool) -> Value {
+    let ws = create_workspace(window, "Atlas", "/atlas");
+    for personality in [
+        "architect",
+        "developer",
+        "qa",
+        "architecture-validator",
+        "bug-fixer",
+    ] {
+        let agent = invoke(
+            window,
+            "create_agent",
+            json!({ "request": {
+                "name": personality, "personalityId": personality, "runtimeId": "fake",
+                "modelId": "m1", "instructions": "", "worktreeIsolation": isolation,
+            }}),
+        )
+        .unwrap();
+        // Not placed on the grid (it holds four): templates fall back to the catalog.
+        drop(agent);
+    }
+    ws
+}
+
+fn wait_for_execution(window: &WebviewWindow<MockRuntime>, id: &Value, status: &str) -> Value {
+    (0..200)
+        .find_map(|_| {
+            std::thread::sleep(std::time::Duration::from_millis(25));
+            let run = invoke(
+                window,
+                "get_workflow_execution",
+                json!({ "executionId": id }),
+            )
+            .unwrap();
+            (run["status"] == status).then_some(run)
+        })
+        .unwrap_or_else(|| panic!("the run never became {status}"))
+}
+
+#[test]
+#[allow(clippy::too_many_lines)]
+fn a_workflow_runs_through_the_execution_layer_and_is_followed_with_events() {
+    let (app, window) = window();
+    let ws = workflow_workspace(&window, false);
+    let (tx, rx) = std::sync::mpsc::channel();
+    for name in [
+        "workflow:started",
+        "workflow:node_started",
+        "workflow:node_completed",
+        "workflow:artifact_created",
+        "workflow:completed",
+    ] {
+        let tx = tx.clone();
+        app.listen(name, move |event| {
+            tx.send((
+                name,
+                serde_json::from_str::<Value>(event.payload()).unwrap(),
+            ))
+            .unwrap();
+        });
+    }
+
+    // Automatic: the task picks a template, which builds a workflow from the workspace's agents.
+    let template = invoke(
+        &window,
+        "select_workflow_template",
+        json!({ "task": "Implementar recuperação de senha" }),
+    )
+    .unwrap();
+    assert_eq!(template, "software_feature");
+    let templates = invoke(&window, "list_workflow_templates", json!({})).unwrap();
+    assert_eq!(templates.as_array().unwrap().len(), 8);
+    let built = invoke(
+        &window,
+        "create_workflow_from_template",
+        json!({ "workspaceId": ws["id"], "templateId": "feature_basic", "mode": "automatic" }),
+    )
+    .unwrap();
+    assert_eq!(built["missingRoles"], json!([]));
+    let workflow = built["workflow"].clone();
+    assert_eq!(workflow["mode"], "automatic");
+    assert_eq!(workflow["version"], 1);
+    assert_eq!(workflow["status"], "ready");
+    let report = invoke(
+        &window,
+        "validate_workflow",
+        json!({ "workflow": workflow }),
+    )
+    .unwrap();
+    assert_eq!(report, json!({ "valid": true, "issues": [] }));
+
+    let run = invoke(
+        &window,
+        "start_workflow",
+        json!({ "workflowId": workflow["id"], "task": "Implementar recuperação de senha" }),
+    )
+    .unwrap();
+    assert_eq!(run["status"], "running");
+    assert_eq!(run["workflowVersion"], 1);
+    let done = wait_for_execution(&window, &run["id"], "completed");
+
+    // Architect, Developer, QA each ran as an ordinary execution.
+    let nodes = done["nodes"].as_object().unwrap();
+    for id in ["architect", "developer", "qa", "done"] {
+        assert_eq!(nodes[id]["status"], "completed", "{id}");
+    }
+    let executions = invoke(
+        &window,
+        "list_executions",
+        json!({ "workspaceId": ws["id"] }),
+    )
+    .unwrap();
+    let executions = executions.as_array().unwrap();
+    assert_eq!(executions.len(), 3);
+    for execution in executions {
+        assert_eq!(execution["workflow"]["workflowExecutionId"], run["id"]);
+        assert_eq!(execution["status"], "completed");
+        // The harness text comes from the execution layer: the context is recorded as usual.
+        assert!(execution["workflow"]["nodeLabel"].is_string());
+    }
+    // The step's request and its answer are in the agent's conversation, like any execution.
+    let messages = invoke(&window, "list_messages", json!({ "workspaceId": ws["id"] })).unwrap();
+    assert_eq!(messages.as_array().unwrap().len(), 6);
+    // Without a structured result the agent's text is kept as a summary artifact.
+    assert_eq!(done["state"]["artifacts"].as_array().unwrap().len(), 3);
+
+    let mut names = Vec::new();
+    while let Ok((name, payload)) = rx.try_recv() {
+        assert_eq!(payload["executionId"], run["id"]);
+        assert_eq!(payload["workspaceId"], ws["id"]);
+        names.push(name);
+    }
+    assert_eq!(names.first(), Some(&"workflow:started"));
+    assert_eq!(names.last(), Some(&"workflow:completed"));
+    assert_eq!(
+        names
+            .iter()
+            .filter(|n| **n == "workflow:node_started")
+            .count(),
+        3
+    );
+
+    // Listing and reading what was saved.
+    let listed = invoke(
+        &window,
+        "list_workflows",
+        json!({ "workspaceId": ws["id"] }),
+    )
+    .unwrap();
+    assert_eq!(listed.as_array().unwrap().len(), 1);
+    let runs = invoke(
+        &window,
+        "list_workflow_executions",
+        json!({ "workspaceId": ws["id"], "workflowId": workflow["id"] }),
+    )
+    .unwrap();
+    assert_eq!(runs[0]["id"], run["id"]);
+}
+
+#[test]
+fn a_workflow_step_of_an_isolated_agent_in_a_project_without_git_fails_and_never_runs_in_the_checkout(
+) {
+    let (_app, window) = window();
+    let ws = workflow_workspace(&window, true);
+    let built = invoke(
+        &window,
+        "create_workflow_from_template",
+        json!({ "workspaceId": ws["id"], "templateId": "feature_basic", "mode": "custom" }),
+    )
+    .unwrap();
+
+    let run = invoke(
+        &window,
+        "start_workflow",
+        json!({ "workflowId": built["workflow"]["id"], "task": "go" }),
+    )
+    .unwrap();
+    let failed = wait_for_execution(&window, &run["id"], "failed");
+
+    assert_eq!(failed["failure"]["code"], "node_failed");
+    assert_eq!(failed["nodes"]["architect"]["status"], "failed");
+    assert_eq!(failed["nodes"]["developer"]["status"], "blocked");
+    let executions = invoke(&window, "list_executions", json!({})).unwrap();
+    assert_eq!(executions.as_array().unwrap().len(), 1);
+    assert_eq!(executions[0]["failure"]["kind"], "git_repository_required");
+    assert_eq!(executions[0]["workflow"]["nodeId"], "architect");
+}
+
+#[test]
+fn workflow_commands_report_coded_errors_and_the_run_cannot_be_started_when_invalid() {
+    let (_app, window) = window();
+    let ws = create_workspace(&window, "Atlas", "/atlas");
+
+    let unknown = invoke(
+        &window,
+        "start_workflow",
+        json!({ "workflowId": "nope", "task": "x" }),
+    )
+    .unwrap_err();
+    assert_eq!(unknown["code"], "workflow_not_found");
+    let template = invoke(
+        &window,
+        "create_workflow_from_template",
+        json!({ "workspaceId": ws["id"], "templateId": "ghost", "mode": "custom" }),
+    )
+    .unwrap_err();
+    assert_eq!(template["code"], "workflow_template_not_found");
+
+    // No agents exist: the template is built with empty nodes and says which roles are missing.
+    let built = invoke(
+        &window,
+        "create_workflow_from_template",
+        json!({ "workspaceId": ws["id"], "templateId": "feature_basic", "mode": "custom" }),
+    )
+    .unwrap();
+    assert_eq!(
+        built["missingRoles"],
+        json!(["architect", "developer", "qa"])
+    );
+    assert_eq!(built["workflow"]["status"], "draft");
+    let invalid = invoke(
+        &window,
+        "start_workflow",
+        json!({ "workflowId": built["workflow"]["id"], "task": "x" }),
+    )
+    .unwrap_err();
+    assert_eq!(invalid["code"], "workflow_invalid");
+
+    let report = invoke(
+        &window,
+        "validate_workflow",
+        json!({ "workflow": built["workflow"] }),
+    )
+    .unwrap();
+    assert_eq!(report["valid"], false);
+    assert_eq!(report["issues"][0]["code"], "missing_agent");
+    assert_eq!(report["issues"][0]["nodeId"], "architect");
+
+    invoke(
+        &window,
+        "delete_workflow",
+        json!({ "workflowId": built["workflow"]["id"] }),
+    )
+    .unwrap();
+    assert_eq!(
+        invoke(
+            &window,
+            "list_workflows",
+            json!({ "workspaceId": ws["id"] })
+        )
+        .unwrap(),
+        json!([])
+    );
+    let gone = invoke(&window, "cancel_workflow", json!({ "executionId": "nope" })).unwrap_err();
+    assert_eq!(gone["code"], "workflow_execution_not_found");
+}
+
+#[test]
+fn workflows_can_be_composed_by_hand_and_versioned() {
+    let (_app, window) = window();
+    let ws = create_workspace(&window, "Atlas", "/atlas");
+    let agent = create_agent(&window);
+    let node = |id: &str| json!({ "id": id, "type": "agent", "agentId": agent["id"], "label": id });
+    let created = invoke(
+        &window,
+        "create_workflow",
+        json!({ "request": {
+            "workspaceId": ws["id"], "name": "By hand", "mode": "custom",
+            "nodes": [node("a"), { "id": "e", "type": "end", "label": "Done", "outcome": "done" }],
+            "edges": [{ "id": "a-e", "sourceNodeId": "a", "targetNodeId": "e" }],
+        }}),
+    )
+    .unwrap();
+    assert_eq!(created["version"], 1);
+    assert_eq!(created["status"], "ready");
+
+    let mut moved = created.clone();
+    moved["nodes"][0]["position"] = json!({ "x": 5.0, "y": 6.0 });
+    let moved = invoke(&window, "update_workflow", json!({ "workflow": moved })).unwrap();
+    assert_eq!(moved["version"], 1, "moving a node is not a new version");
+
+    let mut changed = moved.clone();
+    changed["nodes"][0]["retryPolicy"] = json!({ "maxRetries": 2 });
+    let changed = invoke(&window, "update_workflow", json!({ "workflow": changed })).unwrap();
+    assert_eq!(changed["version"], 2);
+    assert_eq!(changed["nodes"][0]["retryPolicy"]["maxRetries"], 2);
+}
+
+#[test]
+fn the_webview_cannot_reach_a_workflow_command_that_runs_or_edits_anything_outside_the_guard() {
+    // Workflows add use cases, not authority: no command takes a program, a path or an approval.
+    let (_app, window) = window();
+    for command in [
+        "run_workflow_node",
+        "approve_workflow_node",
+        "set_workflow_permissions",
+        "run_workflow_shell",
+        "write_workflow_file",
+    ] {
+        assert!(
+            invoke(&window, command, json!({})).is_err(),
+            "{command} must not exist"
+        );
+    }
+}
+
+#[test]
+fn preview_task_context_is_reachable_from_the_webview() {
+    let (_app, window) = window();
+    let ws = create_workspace(&window, "Atlas", "/atlas");
+    let result = invoke(
+        &window,
+        "preview_task_context",
+        json!({ "workspaceId": ws["id"], "request": { "task": "x" } }),
+    );
+    // Whatever it answers, it must not be refused by the capability.
+    if let Err(error) = result {
+        assert!(!error.to_string().contains("not allowed"), "{error}");
+    }
+}
+
+#[test]
+fn the_commands_about_a_runs_code_are_reachable_and_take_only_a_run_never_a_path_or_a_program() {
+    let (_app, window) = window();
+
+    // Editors come from a fixed list; the run is the only thing the webview names.
+    let ides = invoke(&window, "list_ides", json!({})).unwrap();
+    assert_eq!(ides[0]["id"], "vscode");
+    for (command, body) in [
+        ("get_workflow_changes", json!({ "executionId": "nope" })),
+        (
+            "get_workflow_diff",
+            json!({ "executionId": "nope", "file": "a.txt" }),
+        ),
+        ("apply_workflow_changes", json!({ "executionId": "nope" })),
+        ("keep_workflow_changes", json!({ "executionId": "nope" })),
+        ("discard_workflow_changes", json!({ "executionId": "nope" })),
+        (
+            "open_workflow_in_ide",
+            json!({ "executionId": "nope", "ideId": "vscode" }),
+        ),
+    ] {
+        let error = invoke(&window, command, body).unwrap_err();
+        assert_eq!(error["code"], "workflow_execution_not_found", "{command}");
+    }
+    for forbidden in [
+        "merge_workflow",
+        "open_path_in_ide",
+        "run_in_worktree",
+        "force_apply_workflow_changes",
+    ] {
+        assert!(
+            invoke(&window, forbidden, json!({ "path": "/" })).is_err(),
+            "{forbidden}"
         );
     }
 }

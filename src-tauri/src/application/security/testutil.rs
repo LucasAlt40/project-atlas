@@ -76,6 +76,7 @@ pub fn guarded_system_runner(
                 instructions: String::new(),
                 permission_profile_id: None,
                 worktree_isolation: false,
+                result_contract: crate::domain::result_contract::ResultContract::default(),
                 created_at: 1,
             });
             Ok(())

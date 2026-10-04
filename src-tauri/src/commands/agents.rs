@@ -4,6 +4,7 @@ use crate::application::errors::AppError;
 
 use crate::application::agents::CreateAgentRequest;
 use crate::domain::agent::Agent;
+use crate::domain::result_contract::ResultContract;
 use crate::domain::workspace::Workspace;
 use crate::state::AppState;
 
@@ -30,6 +31,17 @@ pub fn update_agent(
     request: CreateAgentRequest,
 ) -> Result<Agent, AppError> {
     state.agents.update(&id, request)
+}
+
+/// Changes what an agent promises to say at the end of a step (its result contract).
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command]
+pub fn set_agent_result_contract(
+    state: State<'_, AppState>,
+    agent_id: String,
+    contract: ResultContract,
+) -> Result<Agent, AppError> {
+    state.agents.set_result_contract(&agent_id, contract)
 }
 
 /// Deletes an agent together with its workspace positions and conversations. Returns the

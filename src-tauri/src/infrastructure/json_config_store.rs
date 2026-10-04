@@ -102,6 +102,7 @@ mod tests {
                 instructions: "i".to_owned(),
                 permission_profile_id: None,
                 worktree_isolation: false,
+                result_contract: crate::domain::result_contract::ResultContract::default(),
                 created_at: 5,
             }],
             builtin_overrides: vec![PersonalityProfile {
@@ -112,6 +113,7 @@ mod tests {
                 behavior: vec![],
                 tags: vec![],
                 source: PersonalitySource::Builtin,
+                suggested_contract: crate::domain::result_contract::ResultContract::default(),
             }],
             hidden_builtins: vec!["qa".to_owned()],
             workspaces: vec![Workspace {
@@ -150,6 +152,9 @@ mod tests {
                 changes: None,
                 validation: Validation::NotRun,
                 recommendation: Some(Recommendation::Review),
+                workflow_execution_id: None,
+                shared_with: None,
+                end_commit: None,
             }],
             ..UserConfig::default()
         };

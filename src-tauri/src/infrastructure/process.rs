@@ -63,7 +63,7 @@ impl SystemProcessRunner {
     }
 
     /// Looks in `dir` before anywhere else, so tests can put a stand-in CLI first.
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     #[must_use]
     pub fn with_first_search_dir(mut self, dir: PathBuf) -> Self {
         self.search_dirs.insert(0, dir);

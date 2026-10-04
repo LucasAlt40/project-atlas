@@ -5,6 +5,7 @@ use super::chat::{AgentLock, ChatService};
 use super::errors::{AppError, ErrorCode};
 use super::settings::SettingsService;
 use super::usage::UsageLedger;
+use super::workflow::service::WorkflowService;
 use super::workspace::WorkspaceService;
 use crate::domain::workspace::Workspace;
 
@@ -17,6 +18,8 @@ pub struct AgentLifecycle {
     workspaces: Arc<WorkspaceService>,
     ledger: Arc<UsageLedger>,
     settings: Arc<SettingsService>,
+    /// Workflows belong to a workspace and go with it.
+    workflows: Option<Arc<WorkflowService>>,
 }
 
 impl AgentLifecycle {
@@ -33,7 +36,15 @@ impl AgentLifecycle {
             workspaces,
             ledger,
             settings,
+            workflows: None,
         }
+    }
+
+    /// Also discards a workspace's workflows (and refuses to delete one that has a run going).
+    #[must_use]
+    pub fn with_workflows(mut self, workflows: Arc<WorkflowService>) -> Self {
+        self.workflows = Some(workflows);
+        self
     }
 
     /// Deletes the agent, its place in every workspace and its conversations, and returns the
@@ -64,6 +75,13 @@ impl AgentLifecycle {
         if self.workspaces.get(workspace_id).is_none() {
             return Err(AppError::new(ErrorCode::WorkspaceNotFound));
         }
+        if self
+            .workflows
+            .as_ref()
+            .is_some_and(|w| w.has_active_execution(workspace_id))
+        {
+            return Err(AppError::new(ErrorCode::WorkspaceBusy));
+        }
         let mut locks = Vec::new();
         for agent in self.agents.list() {
             locks.push(
@@ -76,6 +94,9 @@ impl AgentLifecycle {
         self.settings.clear_selection_if(workspace_id)?;
         self.ledger.forget_workspace(workspace_id)?;
         self.chat.discard_workspace(workspace_id);
+        if let Some(workflows) = &self.workflows {
+            workflows.discard_workspace(workspace_id)?;
+        }
         Ok(self.workspaces.list())
     }
 
@@ -152,6 +173,7 @@ mod tests {
                         model_id: "m1".to_owned(),
                         instructions: String::new(),
                         worktree_isolation: Some(false),
+                        result_contract: None,
                     })
                     .unwrap()
                     .id

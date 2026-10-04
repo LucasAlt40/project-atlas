@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use super::result_contract::ResultContract;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PersonalitySource {
@@ -21,4 +23,8 @@ pub struct PersonalityProfile {
     #[serde(default)]
     pub tags: Vec<String>,
     pub source: PersonalitySource,
+    /// The contract new agents of this personality start from. A suggestion for the editor:
+    /// the agent can change it, and it never applies to an agent by itself.
+    #[serde(default)]
+    pub suggested_contract: ResultContract,
 }

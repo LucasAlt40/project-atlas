@@ -210,6 +210,9 @@ impl ConversationHistory {
                     }),
                     metadata: std::collections::BTreeMap::new(),
                     usage: None,
+                    interaction: None,
+                    context: None,
+                    workflow: None,
                     events: vec![ExecutionEvent {
                         execution_id,
                         workspace_id: String::new(),
@@ -285,6 +288,9 @@ mod tests {
             failure: None,
             metadata: std::collections::BTreeMap::new(),
             usage: None,
+            interaction: None,
+            context: None,
+            workflow: None,
             events: Vec::new(),
         }
     }

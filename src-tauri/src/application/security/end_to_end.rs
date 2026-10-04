@@ -129,6 +129,7 @@ fn agent(stack: &Stack, runtime: &str, model: &str) -> String {
             model_id: model.to_owned(),
             instructions: String::new(),
             worktree_isolation: Some(false),
+            result_contract: None,
         })
         .unwrap()
         .id
@@ -323,6 +324,7 @@ fn an_isolated_run_is_launched_audited_and_held_to_its_worktree_not_the_checkout
             model_id: "sonnet".to_owned(),
             instructions: String::new(),
             worktree_isolation: None,
+            result_contract: None,
         })
         .unwrap();
     assert!(

@@ -8,20 +8,25 @@ use serde::Deserialize;
 
 use super::agents::AgentService;
 use super::errors::{AppError, ErrorCode};
-use super::harness::context::{HarnessContextBuilder, HarnessLoad};
+use super::harness::context::{HarnessContextBuilder, TaskContextLoad};
+use super::interaction::{should_pause, InteractionDetector, InteractionSignals, LayeredDetector};
 use super::personalities::PersonalityService;
 use super::process::ExecutionScope;
 use super::prompt::PromptBuilder;
 use super::runtimes::{RuntimeError, RuntimeEvent, RuntimeOutput, RuntimeRegistry, RuntimeRequest};
-use super::security::AuditLog;
+use super::security::{AuditLog, PolicyResolver};
 use super::sessions::SessionRegistry;
 use super::support::now_ms;
 use super::workspace::WorkspaceService;
 use super::worktree::{RunOutcome, WorktreeError, WorktreeService};
 use crate::domain::execution::{
     Execution, ExecutionEvent, ExecutionEventKind, ExecutionFailure, ExecutionRecord,
+    ExecutionStatus,
 };
+use crate::domain::interaction::InteractionDetection;
+use crate::domain::security::{Permission, ToolAccess};
 use crate::domain::task::{Task, TaskStatus};
+use crate::domain::task_context::{ContextMode, ContextRecord};
 use crate::domain::terminal::UserAction;
 use crate::domain::worktree::Validation;
 
@@ -29,6 +34,19 @@ use crate::domain::worktree::Validation;
 /// forwards these to the webview; tests collect them.
 pub trait ExecutionObserver: Send + Sync {
     fn on_event(&self, event: &ExecutionEvent);
+}
+
+/// Whether an execution may edit files, and what stops it when it may not. The runtime's
+/// capability and the agent's permission are different things and are told apart.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EditAccess {
+    Allowed,
+    /// The agent's policy does not allow writing files.
+    PolicyDenied,
+    /// The agent may write, but not outside an isolated worktree, and it has none.
+    NotIsolated,
+    /// The agent may write, but its runtime cannot be launched with file-editing tools.
+    RuntimeCannotEdit,
 }
 
 /// What to run: which agent, in which workspace (whose project folder is the working
@@ -40,6 +58,19 @@ pub struct RunAgentRequest {
     pub workspace_id: String,
     pub agent_id: String,
     pub description: String,
+}
+
+/// How a workflow step differs from a message: where its Task Context comes from, the worktree it
+/// shares, and whether an answer that is a request for a person pauses it instead of ending it.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct StepOptions<'a> {
+    /// The text the Task Context is selected for, when it differs from the instruction itself.
+    pub context_query: Option<&'a str>,
+    /// The primary worktree of the workflow run the step works in.
+    pub shared_worktree: Option<&'a str>,
+    /// Look at the answer for a request for a person. Only workflow steps ask for this: in a
+    /// conversation the person simply replies.
+    pub detect_interaction: bool,
 }
 
 /// The request was not acceptable, so no execution was created. Runtime problems are not
@@ -100,6 +131,11 @@ pub struct ExecutionService {
     /// Where the project's Harness is read from, at the project's own root. Without it prompts
     /// carry no Harness.
     harness: Option<Arc<HarnessContextBuilder>>,
+    /// Where an agent's policy is read from, to tell whether its execution may edit files.
+    /// Without it no execution ever gets file-editing tools.
+    policies: Option<Arc<dyn PolicyResolver>>,
+    /// Decides whether an answer is a request for a person (see [`StepOptions`]).
+    interactions: Arc<dyn InteractionDetector>,
     next_id: AtomicU64,
 }
 
@@ -120,6 +156,8 @@ impl ExecutionService {
             sessions: Arc::default(),
             worktrees: None,
             harness: None,
+            policies: None,
+            interactions: Arc::new(LayeredDetector),
             next_id: AtomicU64::new(1),
         }
     }
@@ -144,6 +182,91 @@ impl ExecutionService {
     pub fn with_harness(mut self, harness: Arc<HarnessContextBuilder>) -> Self {
         self.harness = Some(harness);
         self
+    }
+
+    /// Lets an execution that works in an isolated worktree edit files when the agent's policy
+    /// allows writing there (never otherwise, and never outside the worktree).
+    #[must_use]
+    pub fn with_policies(mut self, policies: Arc<dyn PolicyResolver>) -> Self {
+        self.policies = Some(policies);
+        self
+    }
+
+    /// Whether this execution may be given file-editing tools, and if not, why. Three things
+    /// must all hold: the runtime can be launched with such tools (a capability of the runtime,
+    /// never a rule about which runtime it is), the agent's own policy (workspace ceiling and
+    /// permission profile) allows file writes, and the agent works in an isolated worktree (so
+    /// an edit can never reach the project's checkout). Anything unknown is a no.
+    fn edit_access(
+        &self,
+        execution: &Execution,
+        agent: &crate::domain::agent::Agent,
+        task_id: &str,
+        runtime_can_edit: bool,
+    ) -> EditAccess {
+        let Some(policies) = &self.policies else {
+            return EditAccess::PolicyDenied;
+        };
+        let scope = ExecutionScope {
+            workspace_id: execution.workspace_id.clone(),
+            agent_id: agent.id.clone(),
+            execution_id: execution.id.clone(),
+            task_id: task_id.to_owned(),
+            runtime_access: ToolAccess::NONE,
+            isolated: agent.worktree_isolation,
+        };
+        // Whether the policy would allow it, whatever the runtime can do.
+        let policy_allows = policies
+            .resolve(&scope)
+            .is_ok_and(|resolved| resolved.agent_policy.filesystem.write == Permission::Allowed);
+        Self::decide_edit(runtime_can_edit, policy_allows, agent.worktree_isolation)
+    }
+
+    fn decide_edit(runtime_can_edit: bool, policy_allows: bool, isolated: bool) -> EditAccess {
+        if !policy_allows {
+            EditAccess::PolicyDenied
+        } else if !isolated {
+            EditAccess::NotIsolated
+        } else if !runtime_can_edit {
+            EditAccess::RuntimeCannotEdit
+        } else {
+            EditAccess::Allowed
+        }
+    }
+
+    /// Whether a step of this agent would edit files, decided before the step exists (so a
+    /// workflow can tell a writing step from a reading one). `false` for anything unknown.
+    pub fn would_write(&self, workspace_id: &str, agent_id: &str) -> bool {
+        let (Some(policies), Some(agent)) = (&self.policies, self.agents.find(agent_id)) else {
+            return false;
+        };
+        let Some(runtime) = self.runtimes.find(&agent.runtime_id) else {
+            return false;
+        };
+        // The policy is the agent's own: it does not depend on a worktree that is not made yet.
+        let scope = ExecutionScope {
+            workspace_id: workspace_id.to_owned(),
+            agent_id: agent.id.clone(),
+            execution_id: String::new(),
+            task_id: String::new(),
+            runtime_access: ToolAccess::NONE,
+            isolated: false,
+        };
+        let policy_allows = policies
+            .resolve(&scope)
+            .is_ok_and(|resolved| resolved.agent_policy.filesystem.write == Permission::Allowed);
+        Self::decide_edit(
+            runtime.info().capabilities.file_edit,
+            policy_allows,
+            agent.worktree_isolation,
+        ) == EditAccess::Allowed
+    }
+
+    /// Whether the agent works in an isolated worktree.
+    pub fn is_isolated(&self, agent_id: &str) -> bool {
+        self.agents
+            .find(agent_id)
+            .is_some_and(|a| a.worktree_isolation)
     }
 
     /// Numbers new executions from `first`, so ids never repeat those stored by an earlier run.
@@ -172,6 +295,50 @@ impl ExecutionService {
         request: RunAgentRequest,
         observer: &dyn ExecutionObserver,
     ) -> Result<ExecutionRecord, ExecutionError> {
+        self.run_for_context(id, request, None, None, observer)
+    }
+
+    /// Like [`Self::run_with_id`], for callers (workflow steps) whose instruction carries more
+    /// than what the Harness context should be chosen for: `context_query` is the text the Task
+    /// Context is selected for, when it differs from the instruction itself.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::run_with_id`].
+    pub fn run_for_context(
+        &self,
+        id: String,
+        request: RunAgentRequest,
+        context_query: Option<&str>,
+        shared_worktree: Option<&str>,
+        observer: &dyn ExecutionObserver,
+    ) -> Result<ExecutionRecord, ExecutionError> {
+        let options = StepOptions {
+            context_query,
+            shared_worktree,
+            detect_interaction: false,
+        };
+        self.run_step(id, request, options, observer)
+    }
+
+    /// [`Self::run_for_context`] with every way a workflow step differs from a message.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::run_with_id`].
+    #[allow(clippy::too_many_lines)]
+    pub fn run_step(
+        &self,
+        id: String,
+        request: RunAgentRequest,
+        options: StepOptions<'_>,
+        observer: &dyn ExecutionObserver,
+    ) -> Result<ExecutionRecord, ExecutionError> {
+        let StepOptions {
+            context_query,
+            shared_worktree,
+            detect_interaction,
+        } = options;
         let description = request.description.trim();
         if description.is_empty() {
             return Err(ExecutionError::EmptyTask);
@@ -231,11 +398,23 @@ impl ExecutionService {
 
         // The Harness belongs to the project, not to a worktree: it is read at the project's own
         // root before the path is swapped for the worktree's, and reaches the agent as prompt
-        // text only. The runtime and the worktree never see `.atlas/`.
-        let harness = self.load_harness(&emitter, &project.path);
+        // text only. The runtime and the worktree never see `.atlas/`. What the agent is told of
+        // it is chosen for the task; the whole Harness context is only a recorded fallback.
+        let (harness, task_aware, context) = self.load_harness(
+            &emitter,
+            &project.path,
+            context_query.unwrap_or(description),
+        );
+        execution.context = context;
         let mut project = project;
         let working_dir = if agent.worktree_isolation {
-            match self.start_worktree(&emitter, &execution, &agent.id, &project.path) {
+            match self.start_worktree(
+                &emitter,
+                &execution,
+                &agent.id,
+                &project.path,
+                shared_worktree,
+            ) {
                 Ok(dir) => dir,
                 Err(error) => {
                     return Ok(self.abandon(emitter, execution, task, &error));
@@ -245,8 +424,26 @@ impl ExecutionService {
             project.path.clone().into()
         };
         project.path = working_dir.to_string_lossy().into_owned();
-        let prompt =
-            PromptBuilder::build(&personality, &project, harness.as_deref(), &agent, &task);
+        let access = self.edit_access(
+            &execution,
+            &agent,
+            &task.id,
+            runtime.info().capabilities.file_edit,
+        );
+        if access == EditAccess::RuntimeCannotEdit {
+            // Not a permission problem: the agent may write, this runtime cannot be asked to.
+            emitter.log("The agent may edit files, but its runtime does not support file editing");
+        }
+        let can_edit = access == EditAccess::Allowed;
+        let prompt = PromptBuilder::build_with_access(
+            &personality,
+            &project,
+            harness.as_deref(),
+            task_aware,
+            &agent,
+            &task,
+            can_edit,
+        );
         execution.prompt = prompt.combined();
 
         // The ids the process port uses to find the policy itself. Nothing here decides what
@@ -256,7 +453,16 @@ impl ExecutionService {
             agent_id: agent.id.clone(),
             execution_id: execution.id.clone(),
             task_id: task.id.clone(),
-            runtime_access: runtime.info().capabilities.tool_access,
+            // What the runtime's tools can do *as launched for this execution*: file edits only
+            // when they were granted above, which the guard checks against the policy again.
+            runtime_access: if can_edit {
+                ToolAccess {
+                    filesystem_write: true,
+                    ..ToolAccess::NONE
+                }
+            } else {
+                runtime.info().capabilities.tool_access
+            },
             isolated: agent.worktree_isolation,
         };
         let runtime_request = RuntimeRequest {
@@ -265,18 +471,96 @@ impl ExecutionService {
             working_dir,
             scope,
             text_only: false,
+            allow_edits: can_edit,
         };
         let outcome = runtime.execute(&runtime_request, &|stage| {
             emitter.runtime_event(stage, &runtime_name, &agent.model_id);
         });
 
-        self.conclude(outcome, &emitter, &mut execution, &mut task);
+        let outcome = match outcome {
+            Ok(output) if detect_interaction => {
+                match self.interaction_in(runtime.as_ref(), &output) {
+                    Some(interaction) => {
+                        Self::pause_for_input(
+                            &emitter,
+                            &mut execution,
+                            &mut task,
+                            output,
+                            interaction,
+                        );
+                        None
+                    }
+                    None => Some(Ok(output)),
+                }
+            }
+            other => Some(other),
+        };
+        if let Some(outcome) = outcome {
+            self.conclude(outcome, &emitter, &mut execution, &mut task);
+        }
         if agent.worktree_isolation {
-            self.finalize_worktree(&emitter, &execution);
+            if shared_worktree.is_some() {
+                self.finish_shared_step(&emitter, &execution);
+            } else {
+                self.finalize_worktree(&emitter, &execution);
+            }
         }
         self.attach_audit(&mut execution, emitter.logs.into_inner());
 
         Ok(ExecutionRecord { task, execution })
+    }
+
+    /// Whether the answer is a request for a person worth pausing for: the runtime adapter's own
+    /// signal first, then the generic detector. Below its confidence bar nothing pauses.
+    fn interaction_in(
+        &self,
+        runtime: &dyn crate::application::runtimes::ModelRuntime,
+        output: &RuntimeOutput,
+    ) -> Option<InteractionDetection> {
+        runtime
+            .detect_interaction(output)
+            .filter(should_pause)
+            .or_else(|| {
+                let found = self
+                    .interactions
+                    .detect(&InteractionSignals { text: &output.text });
+                should_pause(&found).then_some(found)
+            })
+    }
+
+    /// The agent stopped to ask a person: the execution is neither completed nor failed. Its
+    /// answer is kept (it is what the person replies to), and no result exists yet.
+    fn pause_for_input(
+        emitter: &Emitter<'_>,
+        execution: &mut Execution,
+        task: &mut Task,
+        output: RuntimeOutput,
+        interaction: InteractionDetection,
+    ) {
+        let kind = interaction.kind.map_or("clarification", |k| k.as_str());
+        emitter.emit_with(
+            ExecutionEventKind::InteractionDetected,
+            interaction.question.clone(),
+            [
+                ("interactionKind".to_owned(), kind.to_owned()),
+                (
+                    "source".to_owned(),
+                    format!("{:?}", interaction.source).to_ascii_lowercase(),
+                ),
+                ("confidence".to_owned(), interaction.confidence.to_string()),
+            ]
+            .into(),
+        );
+        execution.wait_for_input(
+            output.text,
+            interaction,
+            output.metadata,
+            output.usage,
+            output.quota,
+            now_ms(),
+        );
+        // A task waiting for a person is still being worked on.
+        task.status = TaskStatus::Running;
     }
 
     /// Creates the execution's worktree and announces it, or says why it cannot be: no worktree
@@ -287,17 +571,23 @@ impl ExecutionService {
         execution: &Execution,
         agent_id: &str,
         project_path: &str,
+        shared_worktree: Option<&str>,
     ) -> Result<std::path::PathBuf, WorktreeError> {
         let worktrees = self
             .worktrees
             .as_ref()
             .ok_or(WorktreeError::GitUnavailable)?;
-        let prepared = worktrees.prepare(
-            &execution.workspace_id,
-            agent_id,
-            &execution.id,
-            std::path::Path::new(project_path),
-        )?;
+        let prepared = match shared_worktree {
+            Some(primary) => {
+                worktrees.attach(&execution.workspace_id, agent_id, &execution.id, primary)?
+            }
+            None => worktrees.prepare(
+                &execution.workspace_id,
+                agent_id,
+                &execution.id,
+                std::path::Path::new(project_path),
+            )?,
+        };
         emitter.emit_with(
             ExecutionEventKind::WorktreeCreated,
             format!("Isolated worktree on {}", prepared.worktree.branch_name),
@@ -306,25 +596,59 @@ impl ExecutionService {
         Ok(prepared.working_dir)
     }
 
-    /// The project's Harness as prompt text, noting in the execution's log what became of it.
-    fn load_harness(&self, emitter: &Emitter<'_>, project_path: &str) -> Option<String> {
+    /// The project's Harness as prompt text, chosen for the task, noting in the execution's log
+    /// what became of it. Also says whether the text is a Task Context and how it was chosen.
+    fn load_harness(
+        &self,
+        emitter: &Emitter<'_>,
+        project_path: &str,
+        task: &str,
+    ) -> (Option<String>, bool, Option<ContextRecord>) {
         let note = |text: &str| emitter.logs.borrow_mut().push(text.to_owned());
-        match self.harness.as_ref()?.build(project_path) {
-            HarnessLoad::Loaded { text, omitted } => {
+        let Some(builder) = self.harness.as_ref() else {
+            return (None, false, None);
+        };
+        match builder.build_for_task(project_path, task) {
+            TaskContextLoad::Ready(context) => {
                 note("Project Harness loaded");
-                if !omitted.is_empty() {
+                let record = context.record();
+                let task_aware = context.mode == ContextMode::TaskAware;
+                if task_aware {
                     note(&format!(
-                        "Project Harness context trimmed to its budget; omitted: {}",
-                        omitted.join(", ")
+                        "Task context selected from the Harness: {} of {} characters, {} item(s) \
+                         included, {} left out",
+                        record.selected_context_characters,
+                        record.total_harness_characters,
+                        record.selected_items,
+                        record.omitted_items
                     ));
+                    if context.truncated {
+                        note(&format!(
+                            "Task context trimmed to its budget; omitted: {}",
+                            context
+                                .omitted
+                                .iter()
+                                .map(|g| format!("{} {}", g.count, g.area.label()))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        ));
+                    }
+                } else {
+                    note(&format!(
+                        "Task context could not be built ({}); the whole Harness context was used",
+                        context.fallback_reason.as_deref().unwrap_or("unknown")
+                    ));
+                    if context.truncated {
+                        note("Project Harness context trimmed to its budget");
+                    }
                 }
-                Some(text)
+                (Some(context.text), task_aware, Some(record))
             }
-            HarnessLoad::Invalid => {
+            TaskContextLoad::Invalid => {
                 note("Project Harness is invalid and was ignored");
-                None
+                (None, false, None)
             }
-            HarnessLoad::Missing => None,
+            TaskContextLoad::Missing => (None, false, None),
         }
     }
 
@@ -351,6 +675,28 @@ impl ExecutionService {
         task.status = TaskStatus::Failed;
         self.attach_audit(&mut execution, emitter.logs.into_inner());
         ExecutionRecord { task, execution }
+    }
+
+    /// A step of a workflow ended: what it left in the shared worktree is saved, and nothing
+    /// is merged (the workflow's worktree is decided once, when the run ends).
+    fn finish_shared_step(&self, emitter: &Emitter<'_>, execution: &Execution) {
+        let Some(worktrees) = &self.worktrees else {
+            return;
+        };
+        // A step waiting for a person keeps what it did in the shared worktree, exactly as a
+        // finished one does: the answer starts it again from there.
+        let outcome = if execution.status == ExecutionStatus::WaitingForInput {
+            RunOutcome::Completed
+        } else {
+            RunOutcome::from(execution.status)
+        };
+        if let Some(lease) = worktrees.finish_step(&execution.id, outcome) {
+            emitter.emit_with(
+                ExecutionEventKind::WorktreeFinalized,
+                "Step saved in the workflow's worktree".to_owned(),
+                WorktreeService::event_metadata(&lease),
+            );
+        }
     }
 
     /// Looks at what the execution left in its worktree and, where the policy and the facts
@@ -496,6 +842,11 @@ impl Emitter<'_> {
         }
     }
 
+    /// A line in the execution's log, with no event.
+    fn log(&self, message: &str) {
+        self.logs.borrow_mut().push(message.to_owned());
+    }
+
     fn emit(&self, kind: ExecutionEventKind, message: String) {
         self.emit_with(kind, message, BTreeMap::new());
     }
@@ -531,6 +882,17 @@ impl Emitter<'_> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn editing_needs_the_runtimes_capability_and_the_agents_permission_and_isolation() {
+        let decide = ExecutionService::decide_edit;
+        assert_eq!(decide(true, true, true), EditAccess::Allowed);
+        // Each missing piece is its own reason: a limit of the runtime is not a permission denial.
+        assert_eq!(decide(false, true, true), EditAccess::RuntimeCannotEdit);
+        assert_eq!(decide(true, false, true), EditAccess::PolicyDenied);
+        assert_eq!(decide(false, false, true), EditAccess::PolicyDenied);
+        assert_eq!(decide(true, true, false), EditAccess::NotIsolated);
+    }
+
     use std::sync::Mutex;
 
     use super::*;
@@ -611,6 +973,7 @@ mod tests {
                 model_id: "m1".to_owned(),
                 instructions: "Be brief.".to_owned(),
                 worktree_isolation: Some(false),
+                result_contract: None,
             })
             .unwrap()
             .id
@@ -636,6 +999,96 @@ mod tests {
             request(f, agent_id, description),
             events,
         )
+    }
+
+    fn run_as_step(
+        f: &Fixture,
+        agent_id: &str,
+        detect_interaction: bool,
+        events: &Collector,
+    ) -> ExecutionRecord {
+        f.service
+            .run_step(
+                f.service.next_execution_id(),
+                request(f, agent_id, "Implement the users API"),
+                StepOptions {
+                    detect_interaction,
+                    ..StepOptions::default()
+                },
+                events,
+            )
+            .unwrap()
+    }
+
+    #[test]
+    fn a_workflow_step_that_ends_asking_a_person_is_waiting_and_not_completed() {
+        let f = fixture(vec![(
+            "rt-a",
+            Ok("I read both modules.\n\nWhich API should I use?"),
+        )]);
+        let agent_id = create_agent(&f, "rt-a");
+        let events = Collector::default();
+
+        let record = run_as_step(&f, &agent_id, true, &events);
+
+        assert_eq!(record.execution.status, ExecutionStatus::WaitingForInput);
+        assert_eq!(record.task.status, TaskStatus::Running);
+        assert!(record.execution.failure.is_none());
+        let asked = record.execution.interaction.as_ref().unwrap();
+        assert_eq!(asked.question, "Which API should I use?");
+        assert!(asked.context.contains("both modules"));
+        // The question stays as the answer the person replies to; there is no result as such.
+        assert!(record
+            .execution
+            .result
+            .as_deref()
+            .unwrap()
+            .contains("Which API"));
+        let kinds: Vec<_> = events.0.lock().unwrap().iter().map(|e| e.kind).collect();
+        assert!(kinds.contains(&ExecutionEventKind::InteractionDetected));
+        assert!(!kinds.contains(&ExecutionEventKind::Completed));
+    }
+
+    #[test]
+    fn a_report_that_merely_mentions_a_question_still_completes() {
+        for text in [
+            "I checked whether this approach would work. It does.",
+            "Question? Anyway, I completed the implementation.",
+            "Done. The endpoint is tested.\n\nWould you like me to also add docs?",
+        ] {
+            let f = fixture(vec![("rt-a", Ok(text))]);
+            let agent_id = create_agent(&f, "rt-a");
+            let record = run_as_step(&f, &agent_id, true, &Collector::default());
+            assert_eq!(
+                record.execution.status,
+                ExecutionStatus::Completed,
+                "{text}"
+            );
+            assert!(record.execution.interaction.is_none());
+        }
+    }
+
+    #[test]
+    fn in_a_conversation_a_question_is_just_an_answer() {
+        let f = fixture(vec![("rt-a", Ok("Which API should I use?"))]);
+        let agent_id = create_agent(&f, "rt-a");
+
+        let record = run_as_step(&f, &agent_id, false, &Collector::default());
+
+        assert_eq!(record.execution.status, ExecutionStatus::Completed);
+    }
+
+    #[test]
+    fn a_result_closing_the_answer_means_it_finished_whatever_it_asks() {
+        let f = fixture(vec![(
+            "rt-a",
+            Ok("Should I also add tests?\n```atlas-result\n{\"outcome\":\"implemented\"}\n```"),
+        )]);
+        let agent_id = create_agent(&f, "rt-a");
+
+        let record = run_as_step(&f, &agent_id, true, &Collector::default());
+
+        assert_eq!(record.execution.status, ExecutionStatus::Completed);
     }
 
     #[test]
@@ -878,6 +1331,7 @@ mod tests {
                 model_id: "m1".to_owned(),
                 instructions: String::new(),
                 worktree_isolation: Some(isolation),
+                result_contract: None,
             })
             .unwrap();
         f.agents
@@ -1235,6 +1689,144 @@ mod tests {
             .logs
             .iter()
             .any(|l| l == "Project Harness loaded"));
+        // This Harness holds no checked knowledge to choose from, so the whole of it was used,
+        // and the execution says so rather than running with a silent substitute.
+        let context = record.execution.context.clone().unwrap();
+        assert_eq!(context.mode, ContextMode::Fallback);
+        assert_eq!(
+            context.fallback_reason.as_deref(),
+            Some("harness_without_knowledge")
+        );
+        assert!(record
+            .execution
+            .logs
+            .iter()
+            .any(|l| l.contains("Task context could not be built (harness_without_knowledge)")));
+    }
+
+    fn knowledge_store() -> Arc<MemoryHarnessStore> {
+        use crate::application::harness::manifest::render_knowledge;
+        use crate::domain::harness::{
+            AnalysisInfo, Confidence, Finding, FindingCategory, HarnessKnowledge, Origin,
+            KNOWLEDGE_VERSION,
+        };
+        let manifest = "version: 1\nproject: {id: p, name: Transport ERP, initializedAt: 1}\n\
+            repository: {type: git, root: .}\nstack: {languages: [TypeScript]}\n\
+            context: {generated: true}\nharness: {version: 1}\n";
+        let finding = |category, key: &str, label: &str, source: &str| {
+            Finding::new(
+                category,
+                key,
+                "true",
+                Confidence::High,
+                Origin::Fact,
+                source,
+                "",
+            )
+            .with_label(label)
+        };
+        let knowledge = HarnessKnowledge {
+            version: KNOWLEDGE_VERSION,
+            analysis: AnalysisInfo::default(),
+            findings: vec![
+                finding(
+                    FindingCategory::Framework,
+                    "nestjs",
+                    "NestJS 10",
+                    "package.json",
+                ),
+                finding(
+                    FindingCategory::Framework,
+                    "angular",
+                    "Angular 18",
+                    "package.json",
+                ),
+                finding(
+                    FindingCategory::Ci,
+                    "gha",
+                    "GitHub Actions",
+                    ".github/workflows/ci.yml",
+                ),
+            ],
+            conflicts: vec![],
+        };
+        Arc::new(MemoryHarnessStore::with(&[
+            ("project.yaml", manifest),
+            (
+                "knowledge/findings.yaml",
+                &render_knowledge(&knowledge).unwrap(),
+            ),
+            (
+                "context/constraints.md",
+                "# Constraints\n\nNever change the infrastructure layer.",
+            ),
+        ]))
+    }
+
+    #[test]
+    fn the_agent_is_told_the_part_of_the_harness_its_task_needs() {
+        let f = fixture(vec![("rt-a", Ok("done"))]);
+        let f = Fixture {
+            service: f
+                .service
+                .with_harness(Arc::new(HarnessContextBuilder::new(knowledge_store()))),
+            ..f
+        };
+        let agent_id = create_agent(&f, "rt-a");
+
+        let record = run(&f, &agent_id, "Fix CI pipeline", &Collector::default()).unwrap();
+
+        let sent = f.runtimes[0].requests.lock().unwrap()[0].clone();
+        assert!(sent.prompt.task_aware);
+        let combined = sent.prompt.combined();
+        // The rules, then the task context, then the task; the whole Harness is not repeated.
+        assert!(combined.find("read-only").unwrap() < combined.find("TASK CONTEXT").unwrap());
+        assert!(
+            combined.find("TASK CONTEXT").unwrap() < combined.find("USER INSTRUCTION").unwrap()
+        );
+        assert!(!combined.contains("PROJECT HARNESS"));
+        let text = sent.prompt.harness.unwrap();
+        assert!(text.contains("GitHub Actions"));
+        assert!(text.contains("Never change the infrastructure layer"));
+        assert!(!text.contains("Angular 18"));
+        assert!(text.contains("grants no permissions"));
+
+        let context = record.execution.context.clone().unwrap();
+        assert_eq!(context.mode, ContextMode::TaskAware);
+        assert_eq!(context.selected_context_characters, text.chars().count());
+        assert!(context.selected_items > 0 && context.omitted_items > 0);
+        assert!(context.selected_context_characters < context.total_harness_characters);
+        assert!(record
+            .execution
+            .logs
+            .iter()
+            .any(|l| l.starts_with("Task context selected from the Harness")));
+    }
+
+    #[test]
+    fn a_task_the_analysis_cannot_read_still_runs_with_the_whole_harness_context_and_says_so() {
+        let f = fixture(vec![("rt-a", Ok("done"))]);
+        let f = Fixture {
+            service: f
+                .service
+                .with_harness(Arc::new(HarnessContextBuilder::new(knowledge_store()))),
+            ..f
+        };
+        let agent_id = create_agent(&f, "rt-a");
+
+        let record = run(&f, &agent_id, "???", &Collector::default()).unwrap();
+
+        let sent = f.runtimes[0].requests.lock().unwrap()[0].clone();
+        assert!(!sent.prompt.task_aware);
+        assert!(sent.prompt.combined().contains("PROJECT HARNESS"));
+        let text = sent.prompt.harness.unwrap();
+        assert!(text.contains("Angular 18") && text.contains("NestJS 10"));
+        let context = record.execution.context.unwrap();
+        assert_eq!(context.mode, ContextMode::Fallback);
+        assert_eq!(
+            context.fallback_reason.as_deref(),
+            Some("task_without_signals")
+        );
     }
 
     #[test]
