@@ -28,7 +28,9 @@ use crate::application::worktree::{
     Assessment, BaseInfo, BaseReadiness, MergeOutcome, NewWorktree, WorktreeError, WorktreeLayout,
     WorktreeManager,
 };
-use crate::domain::worktree::MAX_LISTED_FILES;
+use crate::domain::worktree::{
+    FileChange, FileChangeStatus, MAX_CHANGESET_FILES, MAX_LISTED_FILES,
+};
 
 const GIT_TIMEOUT: Duration = Duration::from_secs(120);
 const MAX_OUTPUT_BYTES: usize = 8 * 1024 * 1024;
@@ -259,6 +261,21 @@ impl GitWorktreeManager {
         }
     }
 
+    /// A file name to look at: relative, inside the repository, and not something Git would read
+    /// as an option or as a pathspec with magic in it.
+    fn require_plain_path(file: &str) -> Result<(), WorktreeError> {
+        let bad = file.is_empty()
+            || file.len() > 400
+            || file.starts_with(['/', '-', ':', '~'])
+            || file.contains(['\0', '\n', '\\', '*', '?', '[', ']'])
+            || file.split('/').any(|part| part == ".." || part == ".");
+        if bad {
+            Err(WorktreeError::InvalidIdentifier(file.to_owned()))
+        } else {
+            Ok(())
+        }
+    }
+
     /// `path` must be inside the worktree folder, spelled without `..`.
     fn require_inside_root(&self, path: &Path) -> Result<(), WorktreeError> {
         let inside = path.starts_with(self.layout.root())
@@ -336,6 +353,79 @@ fn nul_separated(output: &Output) -> Vec<String> {
         .filter(|part| !part.is_empty())
         .map(|part| String::from_utf8_lossy(part).into_owned())
         .collect()
+}
+
+/// NUL-separated fields exactly as printed, empty ones kept (`--numstat -z` has them).
+fn nul_separated_raw(output: &Output) -> Vec<String> {
+    let mut parts: Vec<String> = output
+        .stdout
+        .split(|b| *b == 0)
+        .map(|part| String::from_utf8_lossy(part).into_owned())
+        .collect();
+    // The output ends with a NUL, which leaves one empty field after it.
+    if parts.last().is_some_and(String::is_empty) {
+        parts.pop();
+    }
+    parts
+}
+
+/// Joins `--name-status -z` (what happened to each path) with `--numstat -z` (how many lines).
+fn parse_changes(status: &[String], numstat: &[String]) -> Vec<FileChange> {
+    let mut counts: std::collections::HashMap<String, (Option<u32>, Option<u32>)> =
+        std::collections::HashMap::new();
+    let mut index = 0;
+    while index < numstat.len() {
+        let mut fields = numstat[index].splitn(3, '\t');
+        let (added, deleted, path) = (fields.next(), fields.next(), fields.next());
+        let number = |text: Option<&str>| text.and_then(|t| t.parse::<u32>().ok());
+        let (adds, dels) = (number(added), number(deleted));
+        match path {
+            // A rename: the path is empty here and the old and the new one follow.
+            Some("") => {
+                if let Some(new) = numstat.get(index + 2) {
+                    counts.insert(new.clone(), (adds, dels));
+                }
+                index += 3;
+            }
+            Some(path) => {
+                counts.insert(path.to_owned(), (adds, dels));
+                index += 1;
+            }
+            None => index += 1,
+        }
+    }
+    let mut changes = Vec::new();
+    let mut index = 0;
+    while index < status.len() && changes.len() < MAX_CHANGESET_FILES {
+        let code = status[index].as_str();
+        let renamed = code.starts_with('R') || code.starts_with('C');
+        let (old_path, path) = if renamed {
+            (
+                status.get(index + 1).cloned(),
+                status.get(index + 2).cloned(),
+            )
+        } else {
+            (None, status.get(index + 1).cloned())
+        };
+        index += if renamed { 3 } else { 2 };
+        let Some(path) = path else { break };
+        let kind = match code.chars().next() {
+            Some('A' | 'C') => FileChangeStatus::Added,
+            Some('D') => FileChangeStatus::Deleted,
+            Some('R') => FileChangeStatus::Renamed,
+            _ => FileChangeStatus::Modified,
+        };
+        let (additions, deletions) = counts.get(&path).copied().unwrap_or((None, None));
+        changes.push(FileChange {
+            binary: additions.is_none() && deletions.is_none(),
+            path,
+            old_path,
+            status: kind,
+            additions,
+            deletions,
+        });
+    }
+    changes
 }
 
 fn head(branch: &str) -> String {
@@ -451,6 +541,80 @@ impl WorktreeManager for GitWorktreeManager {
             toplevel,
             ["diff", "--no-color", "--no-ext-diff", &range, "--"],
         )?;
+        let mut text = String::from_utf8_lossy(&output.stdout).into_owned();
+        if text.len() > max_bytes {
+            let mut cut = max_bytes;
+            while !text.is_char_boundary(cut) {
+                cut -= 1;
+            }
+            text.truncate(cut);
+        }
+        Ok(text)
+    }
+
+    fn head_commit(&self, path: &Path) -> Result<String, WorktreeError> {
+        Ok(self.run_ok(path, ["rev-parse", "HEAD"])?.text())
+    }
+
+    fn changed_files(
+        &self,
+        path: &Path,
+        from: &str,
+        to: &str,
+    ) -> Result<Vec<FileChange>, WorktreeError> {
+        Self::require_commit_id(from)?;
+        Self::require_commit_id(to)?;
+        if from == to {
+            return Ok(Vec::new());
+        }
+        let status = self.run_ok(
+            path,
+            [
+                "diff",
+                "--name-status",
+                "-z",
+                "-M",
+                "--no-ext-diff",
+                from,
+                to,
+                "--",
+            ],
+        )?;
+        let numstat = self.run_ok(
+            path,
+            [
+                "diff",
+                "--numstat",
+                "-z",
+                "-M",
+                "--no-ext-diff",
+                from,
+                to,
+                "--",
+            ],
+        )?;
+        Ok(parse_changes(
+            &nul_separated_raw(&status),
+            &nul_separated_raw(&numstat),
+        ))
+    }
+
+    fn diff_between(
+        &self,
+        path: &Path,
+        from: &str,
+        to: &str,
+        file: Option<&str>,
+        max_bytes: usize,
+    ) -> Result<String, WorktreeError> {
+        Self::require_commit_id(from)?;
+        Self::require_commit_id(to)?;
+        let mut args: Vec<&str> = vec!["diff", "--no-color", "--no-ext-diff", "-M", from, to, "--"];
+        if let Some(file) = file {
+            Self::require_plain_path(file)?;
+            args.push(file);
+        }
+        let output = self.run_ok(path, args)?;
         let mut text = String::from_utf8_lossy(&output.stdout).into_owned();
         if text.len() > max_bytes {
             let mut cut = max_bytes;

@@ -113,6 +113,7 @@ impl Env {
                         instructions: String::new(),
                         permission_profile_id: Some("developer".to_owned()),
                         worktree_isolation: true,
+                        result_contract: crate::domain::result_contract::ResultContract::default(),
                         created_at: 1,
                     });
                 }
@@ -1299,4 +1300,441 @@ fn new_execution_ids_continue_after_every_worktree_still_around_even_without_his
             .next_execution_number(5),
         5
     );
+}
+
+// ---- a workflow's shared worktree ---------------------------------------------------------------
+
+mod shared {
+    #![allow(clippy::assert_is_empty)]
+    use super::*;
+    use crate::domain::worktree::FileChangeStatus;
+
+    /// The primary worktree of a workflow run, as the orchestrator opens it.
+    fn open(env: &Env, id: &str) -> Prepared {
+        let prepared = env.prepare(id);
+        env.service.mark_workflow(id, "wfx-1").unwrap();
+        prepared
+    }
+
+    fn step(env: &Env, agent: &str, id: &str, primary: &str) -> Prepared {
+        env.service.attach(WORKSPACE, agent, id, primary).unwrap()
+    }
+
+    #[test]
+    fn a_later_step_sees_what_an_earlier_one_wrote_because_they_share_one_worktree() {
+        let env = Env::new(Permission::Allowed);
+        let primary = open(&env, "exec-1");
+
+        let developer = step(&env, "agent-2", "exec-2", "exec-1");
+        write(
+            &developer.working_dir,
+            "src/foo.ts",
+            "export const x = 1;\n",
+        );
+        env.service
+            .finish_step("exec-2", RunOutcome::Completed)
+            .unwrap();
+
+        let validator = step(&env, "agent-3", "exec-3", "exec-1");
+        assert_eq!(validator.working_dir, developer.working_dir);
+        assert_eq!(validator.working_dir, primary.working_dir);
+        assert_eq!(
+            fs::read_to_string(validator.working_dir.join("src/foo.ts")).unwrap(),
+            "export const x = 1;\n",
+            "the second agent reads the file the first one wrote"
+        );
+        env.service
+            .finish_step("exec-3", RunOutcome::Completed)
+            .unwrap();
+
+        // The first step's delta names the file; the read-only step changed nothing.
+        let first = env.service.step_delta("exec-2").unwrap();
+        assert_eq!(first.files.len(), 1);
+        assert_eq!(first.files[0].path, "src/foo.ts");
+        assert_eq!(first.files[0].status, FileChangeStatus::Added);
+        assert_eq!(first.files[0].additions, Some(1));
+        assert!(first.uncommitted.is_empty());
+        assert!(env.service.step_delta("exec-3").unwrap().files.is_empty());
+        // And the project's own checkout has not been touched.
+        assert!(!env.project.path().join("src/foo.ts").exists());
+    }
+
+    #[test]
+    fn every_step_gets_a_lease_of_its_own_on_the_same_folder_and_branch() {
+        let env = Env::new(Permission::Allowed);
+        let primary = open(&env, "exec-1");
+
+        let lease = step(&env, "agent-2", "exec-2", "exec-1").worktree;
+
+        assert_eq!(lease.worktree_path, primary.worktree.worktree_path);
+        assert_eq!(lease.branch_name, primary.worktree.branch_name);
+        assert_eq!(lease.shared_with.as_deref(), Some("exec-1"));
+        assert_eq!(lease.workflow_execution_id.as_deref(), Some("wfx-1"));
+        assert_eq!(lease.status, WorktreeStatus::Active);
+        // A lease is never merged, so a step cannot deliver work on its own.
+        env.service
+            .finish_step("exec-2", RunOutcome::Completed)
+            .unwrap();
+        assert!(matches!(
+            env.service.merge("exec-2"),
+            Err(WorktreeError::InvalidState(_))
+        ));
+        // Nor can it be attached to something that is not a workflow's worktree.
+        let plain = env.prepare("exec-9");
+        assert!(matches!(
+            env.service.attach(
+                WORKSPACE,
+                "agent-2",
+                "exec-10",
+                &plain.worktree.execution_id
+            ),
+            Err(WorktreeError::InvalidState(_))
+        ));
+        assert!(matches!(
+            env.service.attach(WORKSPACE, "agent-2", "exec-2", "exec-1"),
+            Err(WorktreeError::Collision(_))
+        ));
+        assert!(matches!(
+            env.service
+                .attach("other-workspace", "agent-2", "exec-11", "exec-1"),
+            Err(WorktreeError::InvalidState(_))
+        ));
+    }
+
+    #[test]
+    fn the_end_of_a_run_waits_for_the_user_even_when_the_policy_would_allow_a_merge() {
+        let env = Env::new(Permission::Allowed);
+        open(&env, "exec-1");
+        let developer = step(&env, "agent-2", "exec-2", "exec-1");
+        write(&developer.working_dir, "feature.txt", "done\n");
+        env.service
+            .finish_step("exec-2", RunOutcome::Completed)
+            .unwrap();
+        let before = env.main_branch_head();
+
+        let closed = env
+            .service
+            .close_shared("exec-1", RunOutcome::Completed, Validation::NotRun)
+            .unwrap();
+
+        assert_eq!(closed.merge_status, MergeStatus::Pending);
+        assert_eq!(closed.status, WorktreeStatus::Completed);
+        assert_eq!(env.main_branch_head(), before, "nothing was merged");
+        assert!(!env.project.path().join("feature.txt").exists());
+        assert!(
+            Path::new(&closed.worktree_path).is_dir(),
+            "the worktree is kept"
+        );
+
+        // The user's explicit decision applies it.
+        let merged = env.service.merge("exec-1").unwrap();
+        assert_eq!(merged.merge_status, MergeStatus::Merged);
+        assert_eq!(
+            fs::read_to_string(env.project.path().join("feature.txt")).unwrap(),
+            "done\n"
+        );
+    }
+
+    #[test]
+    fn a_run_that_changed_nothing_leaves_nothing_behind() {
+        let env = Env::new(Permission::Allowed);
+        let primary = open(&env, "exec-1");
+        let reader = step(&env, "agent-2", "exec-2", "exec-1");
+        env.service
+            .finish_step("exec-2", RunOutcome::Completed)
+            .unwrap();
+
+        let closed = env
+            .service
+            .close_shared("exec-1", RunOutcome::Completed, Validation::NotRun)
+            .unwrap();
+
+        assert_eq!(closed.merge_status, MergeStatus::NothingToMerge);
+        assert_eq!(closed.status, WorktreeStatus::Cleaned);
+        assert!(!primary.working_dir.exists());
+        drop(reader);
+    }
+
+    #[test]
+    fn a_cancelled_or_failed_run_keeps_its_work_and_can_never_be_applied() {
+        let env = Env::new(Permission::Allowed);
+        open(&env, "exec-1");
+        let developer = step(&env, "agent-2", "exec-2", "exec-1");
+        write(&developer.working_dir, "half.txt", "partial\n");
+        env.service
+            .finish_step("exec-2", RunOutcome::Ended)
+            .unwrap();
+
+        let closed = env
+            .service
+            .close_shared("exec-1", RunOutcome::Ended, Validation::NotRun)
+            .unwrap();
+
+        assert_eq!(closed.status, WorktreeStatus::Failed);
+        assert_eq!(closed.merge_status, MergeStatus::Blocked);
+        assert_eq!(
+            closed.block_reason,
+            Some(BlockReason::ExecutionNotCompleted)
+        );
+        assert!(Path::new(&closed.worktree_path).join("half.txt").is_file());
+        assert!(matches!(
+            env.service.merge("exec-1"),
+            Err(WorktreeError::InvalidState(_))
+        ));
+        // It can still be looked at.
+        let changes = env.service.change_set("exec-1").unwrap();
+        assert_eq!(changes.files_changed, 1);
+        assert!(env
+            .service
+            .diff("exec-1", None, 10_000)
+            .unwrap()
+            .contains("+partial"));
+    }
+
+    #[test]
+    fn a_dirty_checkout_blocks_applying_and_changes_nothing() {
+        let env = Env::new(Permission::Allowed);
+        open(&env, "exec-1");
+        let developer = step(&env, "agent-2", "exec-2", "exec-1");
+        write(&developer.working_dir, "feature.txt", "x\n");
+        env.service
+            .finish_step("exec-2", RunOutcome::Completed)
+            .unwrap();
+        write(
+            env.project.path(),
+            "README.md",
+            "# edited by the user, not committed\n",
+        );
+
+        let closed = env
+            .service
+            .close_shared("exec-1", RunOutcome::Completed, Validation::NotRun)
+            .unwrap();
+
+        assert_eq!(closed.merge_status, MergeStatus::Blocked);
+        assert_eq!(closed.block_reason, Some(BlockReason::BaseDirty));
+        assert_eq!(
+            fs::read_to_string(env.project.path().join("README.md")).unwrap(),
+            "# edited by the user, not committed\n",
+            "the user's work is untouched"
+        );
+        assert!(!env.project.path().join("feature.txt").exists());
+    }
+
+    #[test]
+    fn a_conflict_is_reported_and_the_checkout_is_left_as_it_was() {
+        let env = Env::new(Permission::Allowed);
+        open(&env, "exec-1");
+        let developer = step(&env, "agent-2", "exec-2", "exec-1");
+        write(
+            &developer.working_dir,
+            "shared.txt",
+            "line 1\nCHANGED BY WORKFLOW\nline 3\n",
+        );
+        env.service
+            .finish_step("exec-2", RunOutcome::Completed)
+            .unwrap();
+        // Meanwhile the user committed a different change to the same line.
+        write(
+            env.project.path(),
+            "shared.txt",
+            "line 1\nCHANGED BY USER\nline 3\n",
+        );
+        git(
+            env.project.path(),
+            &["commit", "--quiet", "-am", "user edit"],
+        );
+        let head = env.main_branch_head();
+
+        let closed = env
+            .service
+            .close_shared("exec-1", RunOutcome::Completed, Validation::NotRun)
+            .unwrap();
+
+        assert_eq!(closed.merge_status, MergeStatus::Conflict);
+        assert_eq!(closed.changes.as_ref().unwrap().conflicts, ["shared.txt"]);
+        assert_eq!(env.main_branch_head(), head);
+        assert!(git(env.project.path(), &["status", "--porcelain"]).is_empty());
+        // Applying says the same and does not force anything.
+        assert_eq!(
+            env.service.merge("exec-1").unwrap().merge_status,
+            MergeStatus::Conflict
+        );
+    }
+
+    #[test]
+    fn a_policy_that_denies_git_writes_keeps_the_changes_uncommitted_and_cannot_be_applied() {
+        let env = Env::new(Permission::Denied);
+        open(&env, "exec-1");
+        let developer = step(&env, "agent-2", "exec-2", "exec-1");
+        write(&developer.working_dir, "wip.txt", "x\n");
+
+        env.service
+            .finish_step("exec-2", RunOutcome::Completed)
+            .unwrap();
+        let delta = env.service.step_delta("exec-2").unwrap();
+        assert!(delta.files.is_empty());
+        assert_eq!(delta.uncommitted, ["wip.txt"]);
+
+        let closed = env
+            .service
+            .close_shared("exec-1", RunOutcome::Completed, Validation::NotRun)
+            .unwrap();
+        assert_eq!(closed.block_reason, Some(BlockReason::UncommittedChanges));
+        assert_eq!(
+            env.service.change_set("exec-1").unwrap().uncommitted,
+            ["wip.txt"]
+        );
+        assert!(matches!(
+            env.service.merge("exec-1"),
+            Err(WorktreeError::PolicyDenied)
+        ));
+    }
+
+    #[test]
+    fn the_change_set_comes_from_git_with_renames_deletions_and_counts() {
+        let env = Env::new(Permission::Allowed);
+        open(&env, "exec-1");
+        let developer = step(&env, "agent-2", "exec-2", "exec-1");
+        let dir = &developer.working_dir;
+        fs::rename(dir.join("README.md"), dir.join("docs.md")).unwrap();
+        fs::remove_file(dir.join("shared.txt")).unwrap();
+        write(dir, "src/new.ts", "a\nb\nc\n");
+        fs::write(dir.join("logo.bin"), [0u8, 159, 146, 150, 0, 1, 2]).unwrap();
+        env.service
+            .finish_step("exec-2", RunOutcome::Completed)
+            .unwrap();
+
+        let set = env.service.change_set("exec-1").unwrap();
+
+        let by = |path: &str| set.files.iter().find(|f| f.path == path).unwrap();
+        assert_eq!(set.files_changed, 4);
+        assert_eq!(by("docs.md").status, FileChangeStatus::Renamed);
+        assert_eq!(by("docs.md").old_path.as_deref(), Some("README.md"));
+        assert_eq!(by("shared.txt").status, FileChangeStatus::Deleted);
+        assert_eq!(by("shared.txt").deletions, Some(3));
+        assert_eq!(by("src/new.ts").status, FileChangeStatus::Added);
+        assert_eq!(by("src/new.ts").additions, Some(3));
+        assert!(by("logo.bin").binary);
+        assert_eq!((set.additions, set.deletions), (3, 3));
+        assert_eq!(set.base_revision, env.main_branch_head());
+        assert_ne!(set.current_revision, set.base_revision);
+        assert!(set.uncommitted.is_empty());
+    }
+
+    #[test]
+    fn only_plain_relative_paths_can_be_asked_for_a_diff() {
+        let env = Env::new(Permission::Allowed);
+        open(&env, "exec-1");
+        let developer = step(&env, "agent-2", "exec-2", "exec-1");
+        write(&developer.working_dir, "a.txt", "x\n");
+        env.service
+            .finish_step("exec-2", RunOutcome::Completed)
+            .unwrap();
+
+        assert!(env
+            .service
+            .diff("exec-1", Some("a.txt"), 1000)
+            .unwrap()
+            .contains("+x"));
+        for bad in [
+            "../outside",
+            "/etc/passwd",
+            "--output=/tmp/pwned",
+            "-p",
+            ":(top)a.txt",
+            "a/../../b",
+            "*.txt",
+            "a\nb",
+            "",
+        ] {
+            assert!(
+                env.service.diff("exec-1", Some(bad), 1000).is_err(),
+                "{bad:?} must be refused"
+            );
+        }
+        assert!(!Path::new("/tmp/pwned").exists());
+    }
+
+    #[test]
+    fn a_workflow_worktree_survives_a_restart_and_can_be_picked_up_again() {
+        let env = Env::new(Permission::Allowed);
+        let primary = open(&env, "exec-1");
+        let developer = step(&env, "agent-2", "exec-2", "exec-1");
+        write(&developer.working_dir, "kept.txt", "work in progress\n");
+
+        // The app closes with the run going: the worktree is kept, recorded as cut short.
+        let restarted = env.restarted();
+        restarted.recover_interrupted();
+        assert_eq!(
+            restarted.get("exec-1").unwrap().status,
+            WorktreeStatus::Failed
+        );
+        assert!(primary.working_dir.join("kept.txt").is_file());
+        assert_eq!(
+            restarted.get("exec-2").unwrap().status,
+            WorktreeStatus::Failed
+        );
+
+        // Resuming the run reuses it: no second worktree.
+        let reopened = restarted.reopen("exec-1").unwrap();
+        assert_eq!(reopened.status, WorktreeStatus::Active);
+        assert_eq!(reopened.worktree_path, primary.worktree.worktree_path);
+        let again = restarted
+            .attach(WORKSPACE, "agent-2", "exec-3", "exec-1")
+            .unwrap();
+        assert!(again.working_dir.join("kept.txt").is_file());
+        assert_eq!(restarted.list(None, None).len(), 3);
+    }
+
+    #[test]
+    fn reopening_refuses_a_worktree_that_is_not_the_workflows_own() {
+        let env = Env::new(Permission::Allowed);
+        env.prepare("exec-1"); // not marked as a workflow's
+        env.restarted().recover_interrupted();
+        assert!(matches!(
+            env.restarted().reopen("exec-1"),
+            Err(WorktreeError::InvalidState(_))
+        ));
+    }
+
+    #[test]
+    fn discarding_removes_the_folder_but_keeps_the_branch_so_nothing_is_lost() {
+        let env = Env::new(Permission::Allowed);
+        open(&env, "exec-1");
+        let developer = step(&env, "agent-2", "exec-2", "exec-1");
+        write(&developer.working_dir, "feature.txt", "x\n");
+        env.service
+            .finish_step("exec-2", RunOutcome::Completed)
+            .unwrap();
+        let closed = env
+            .service
+            .close_shared("exec-1", RunOutcome::Completed, Validation::NotRun)
+            .unwrap();
+
+        let discarded = env.service.discard_shared("exec-1").unwrap();
+
+        assert_eq!(discarded.status, WorktreeStatus::Cleaned);
+        assert!(!Path::new(&closed.worktree_path).exists());
+        let branches = git(env.project.path(), &["branch", "--list", "atlas/*"]);
+        assert!(branches.contains("atlas/exec-000001"), "{branches}");
+        assert!(env.service.editor_folder("exec-1").is_none());
+        assert!(!env.project.path().join("feature.txt").exists());
+        // And a worktree that is still in use, or a plain execution's, cannot be discarded.
+        open(&env, "exec-5");
+        assert!(env.service.discard_shared("exec-5").is_err());
+        env.prepare("exec-7");
+        assert!(env.service.discard_shared("exec-7").is_err());
+    }
+
+    #[test]
+    fn the_editor_folder_is_only_ever_a_folder_atlas_made() {
+        let env = Env::new(Permission::Allowed);
+        let primary = open(&env, "exec-1");
+        assert_eq!(
+            env.service.editor_folder("exec-1"),
+            Some(primary.working_dir)
+        );
+        assert!(env.service.editor_folder("exec-404").is_none());
+    }
 }

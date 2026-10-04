@@ -109,6 +109,74 @@ pub struct ExecutionWorktree {
     /// What Atlas recommends doing next, as a stable code the UI words.
     #[serde(default)]
     pub recommendation: Option<Recommendation>,
+    /// The workflow run this worktree belongs to, when it is a workflow's. A workflow has one
+    /// worktree for all its steps (the *primary*); each step also has a record of its own
+    /// (a *lease*, see `shared_with`) so that the security layer can tell who is working in it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow_execution_id: Option<String>,
+    /// For a step's lease: the execution id of the workflow's primary worktree. The lease has
+    /// the same folder and branch and is never merged or removed on its own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shared_with: Option<String>,
+    /// For a lease: the commit the worktree was at when the step finished.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub end_commit: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FileChangeStatus {
+    Added,
+    Modified,
+    Deleted,
+    Renamed,
+}
+
+/// One file changed, as Git reports it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileChange {
+    pub path: String,
+    /// For a rename: where it was.
+    #[serde(default)]
+    pub old_path: Option<String>,
+    pub status: FileChangeStatus,
+    /// `None` for a binary file.
+    #[serde(default)]
+    pub additions: Option<u32>,
+    #[serde(default)]
+    pub deletions: Option<u32>,
+    #[serde(default)]
+    pub binary: bool,
+}
+
+/// What a worktree holds compared with where it started, measured by Git and never by an agent.
+/// The diff text is not kept: it is read from Git when asked for.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangeSet {
+    /// The commit the worktree started from.
+    pub base_revision: String,
+    /// The commit it is at now.
+    pub current_revision: String,
+    /// At most [`MAX_CHANGESET_FILES`].
+    pub files: Vec<FileChange>,
+    pub files_changed: u32,
+    pub additions: u32,
+    pub deletions: u32,
+    /// Files with changes that are not in a commit yet (Git writes denied, or work in progress).
+    pub uncommitted: Vec<String>,
+    /// Milliseconds since the Unix epoch.
+    pub captured_at: u64,
+}
+
+pub const MAX_CHANGESET_FILES: usize = 500;
+
+impl ChangeSet {
+    #[cfg(test)]
+    pub fn is_empty(&self) -> bool {
+        self.files_changed == 0 && self.uncommitted.is_empty()
+    }
 }
 
 fn default_validation() -> Validation {

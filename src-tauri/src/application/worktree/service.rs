@@ -13,8 +13,8 @@ use crate::application::support::now_ms;
 use crate::domain::execution::ExecutionStatus;
 use crate::domain::security::{Permission, ToolAccess};
 use crate::domain::worktree::{
-    BlockReason, ExecutionWorktree, MergeStatus, Recommendation, Validation, WorktreeChanges,
-    WorktreeStatus,
+    BlockReason, ChangeSet, ExecutionWorktree, FileChange, MergeStatus, Recommendation, Validation,
+    WorktreeChanges, WorktreeStatus, MAX_CHANGESET_FILES,
 };
 
 /// A worktree ready for a runtime.
@@ -43,6 +43,18 @@ impl From<ExecutionStatus> for RunOutcome {
     }
 }
 
+/// What a step changed in a workflow's worktree.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StepDelta {
+    /// Where the worktree was when the step began.
+    pub from: String,
+    /// Where it was when the step ended.
+    pub to: Option<String>,
+    pub files: Vec<FileChange>,
+    /// Still not in a commit.
+    pub uncommitted: Vec<String>,
+}
+
 /// What to do with the work once it has been measured.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Decision {
@@ -56,12 +68,16 @@ enum Decision {
 
 /// Everything the decision is based on. Plain facts, so the rules can be read (and tested) in
 /// one place.
+#[allow(clippy::struct_excessive_bools)] // plain facts, read in one place
 struct Facts<'a> {
     outcome: RunOutcome,
     validation: Validation,
     git_write: Permission,
     /// The user is explicitly asking for the merge: that answers "approval required".
     approved_by_user: bool,
+    /// Atlas may merge on its own when the policy allows it. A workflow's worktree never is:
+    /// the user decides what enters the project.
+    automatic: bool,
     /// The worktree is the folder Atlas made for this execution and is on its branch.
     consistent: bool,
     uncommitted: bool,
@@ -108,7 +124,9 @@ fn decide(facts: &Facts<'_>) -> Decision {
         }
         None => return Decision::Blocked(BlockReason::Undetermined, Recommendation::Review),
     }
-    if facts.git_write == Permission::ApprovalRequired && !facts.approved_by_user {
+    if (facts.git_write == Permission::ApprovalRequired || !facts.automatic)
+        && !facts.approved_by_user
+    {
         let recommendation = if assessment.commits_behind > 0 {
             Recommendation::Review
         } else {
@@ -277,6 +295,9 @@ impl WorktreeService {
             changes: None,
             validation: Validation::NotRun,
             recommendation: None,
+            workflow_execution_id: None,
+            shared_with: None,
+            end_commit: None,
         };
         self.config.modify(|config| {
             config.worktrees.push(record.clone());
@@ -321,10 +342,18 @@ impl WorktreeService {
 
     /// The Git permission the agent's policy gives. Anything unknown is `Denied`.
     fn git_write(&self, worktree: &ExecutionWorktree) -> Permission {
+        self.git_write_of(
+            &worktree.workspace_id,
+            &worktree.agent_id,
+            &worktree.execution_id,
+        )
+    }
+
+    fn git_write_of(&self, workspace_id: &str, agent_id: &str, execution_id: &str) -> Permission {
         let scope = ExecutionScope {
-            workspace_id: worktree.workspace_id.clone(),
-            agent_id: worktree.agent_id.clone(),
-            execution_id: worktree.execution_id.clone(),
+            workspace_id: workspace_id.to_owned(),
+            agent_id: agent_id.to_owned(),
+            execution_id: execution_id.to_owned(),
             task_id: String::new(),
             runtime_access: ToolAccess::NONE,
             isolated: false,
@@ -346,9 +375,20 @@ impl WorktreeService {
         outcome: RunOutcome,
         validation: Validation,
     ) -> Option<ExecutionWorktree> {
+        self.finalize_with(execution_id, outcome, validation, true)
+    }
+
+    /// [`Self::finalize`], saying whether Atlas may merge on its own.
+    pub fn finalize_with(
+        &self,
+        execution_id: &str,
+        outcome: RunOutcome,
+        validation: Validation,
+        automatic: bool,
+    ) -> Option<ExecutionWorktree> {
         let _busy = self.begin(execution_id).ok()?;
         let worktree = self.get(execution_id)?;
-        let evaluated = self.evaluate(&worktree, outcome, validation, false);
+        let evaluated = self.evaluate(&worktree, outcome, validation, false, automatic);
         self.apply(execution_id, evaluated, outcome).ok()
     }
 
@@ -378,7 +418,13 @@ impl WorktreeService {
         if self.git_write(&worktree) == Permission::Denied {
             return Err(WorktreeError::PolicyDenied);
         }
-        let evaluated = self.evaluate(&worktree, RunOutcome::Completed, worktree.validation, true);
+        let evaluated = self.evaluate(
+            &worktree,
+            RunOutcome::Completed,
+            worktree.validation,
+            true,
+            true,
+        );
         self.apply(execution_id, evaluated, RunOutcome::Completed)
     }
 
@@ -396,6 +442,7 @@ impl WorktreeService {
         outcome: RunOutcome,
         validation: Validation,
         approved_by_user: bool,
+        automatic: bool,
     ) -> Evaluated {
         let path = Path::new(&worktree.worktree_path);
         let toplevel = Path::new(&worktree.repository_path);
@@ -427,6 +474,7 @@ impl WorktreeService {
             validation,
             git_write,
             approved_by_user,
+            automatic,
             consistent,
             uncommitted,
             assessment: assessment.as_ref(),
@@ -614,6 +662,347 @@ impl WorktreeService {
         if let Err(error) = result {
             eprintln!("could not save recovered worktrees: {error:?}");
         }
+    }
+
+    // ---- a workflow's shared worktree -------------------------------------------------------
+    //
+    // One workflow run has one worktree for all its steps, so that what the Developer writes is
+    // what the Validator and QA read. It is an ordinary worktree (the *primary*, made by
+    // `prepare`) plus one *lease* per step: a record with the step's own execution id that
+    // points at the same folder, so the security layer still knows which agent is working in it.
+    // Leases are never merged or removed; the primary is decided once, when the run ends, and
+    // never merged without the user.
+
+    /// Of these agents, the one whose Git policy is the strictest (denied before approval
+    /// required before allowed; the first among equals).
+    pub fn strictest_git_agent(&self, workspace_id: &str, agent_ids: &[String]) -> Option<String> {
+        let rank = |permission: Permission| match permission {
+            Permission::Denied => 0,
+            Permission::ApprovalRequired => 1,
+            Permission::Allowed => 2,
+        };
+        agent_ids
+            .iter()
+            .min_by_key(|agent| rank(self.git_write_of(workspace_id, agent, "")))
+            .cloned()
+    }
+
+    /// Marks a worktree as the primary one of a workflow run.
+    ///
+    /// # Errors
+    ///
+    /// Fails if there is no such worktree.
+    pub fn mark_workflow(&self, execution_id: &str, run_id: &str) -> Result<(), WorktreeError> {
+        self.update(execution_id, |w| {
+            w.workflow_execution_id = Some(run_id.to_owned());
+        })
+    }
+
+    /// Lets a step work in the workflow's worktree: a lease with the step's execution id.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the primary is not an active workflow worktree of the same workspace, or the
+    /// step already has a record.
+    pub fn attach(
+        &self,
+        workspace_id: &str,
+        agent_id: &str,
+        step_execution_id: &str,
+        primary_id: &str,
+    ) -> Result<Prepared, WorktreeError> {
+        WorktreeLayout::execution_number(step_execution_id)?;
+        let primary = self
+            .get(primary_id)
+            .ok_or_else(|| WorktreeError::NotFound(primary_id.to_owned()))?;
+        let usable = primary.workspace_id == workspace_id
+            && primary.shared_with.is_none()
+            && primary.workflow_execution_id.is_some()
+            && primary.status == WorktreeStatus::Active
+            && self.layout.is_worktree_of(
+                Path::new(&primary.worktree_path),
+                &primary.workspace_id,
+                &primary.execution_id,
+            );
+        if !usable {
+            return Err(WorktreeError::InvalidState(
+                "not an active workflow worktree".to_owned(),
+            ));
+        }
+        if self.get(step_execution_id).is_some() {
+            return Err(WorktreeError::Collision(step_execution_id.to_owned()));
+        }
+        let working_dir = PathBuf::from(&primary.working_dir);
+        let here = self
+            .manager
+            .head_commit(Path::new(&primary.worktree_path))
+            .unwrap_or_else(|_| primary.base_commit.clone());
+        let lease = ExecutionWorktree {
+            execution_id: step_execution_id.to_owned(),
+            agent_id: agent_id.to_owned(),
+            base_commit: here,
+            status: WorktreeStatus::Active,
+            merge_status: MergeStatus::NotEvaluated,
+            block_reason: None,
+            changes: None,
+            recommendation: None,
+            shared_with: Some(primary_id.to_owned()),
+            end_commit: None,
+            created_at: now_ms(),
+            ..primary
+        };
+        self.config.modify(|config| {
+            config.worktrees.push(lease.clone());
+            Ok(())
+        })?;
+        Ok(Prepared {
+            working_dir,
+            worktree: lease,
+        })
+    }
+
+    /// A step ended: what it left in the worktree is committed (so the next step starts from a
+    /// clean tree and the work is recoverable), and the lease records where the worktree got to.
+    /// Never merges; the primary decides that, at the end of the run.
+    pub fn finish_step(
+        &self,
+        step_execution_id: &str,
+        outcome: RunOutcome,
+    ) -> Option<ExecutionWorktree> {
+        let lease = self.get(step_execution_id)?;
+        let path = Path::new(&lease.worktree_path);
+        if self.git_write(&lease) != Permission::Denied
+            && self
+                .layout
+                .is_worktree_of(path, &lease.workspace_id, lease.shared_with.as_deref()?)
+        {
+            let message = format!("Atlas: step {step_execution_id}");
+            let _ = self.manager.commit_all(path, &message);
+        }
+        let end = self.manager.head_commit(path).ok();
+        self.update(step_execution_id, |w| {
+            w.status = match outcome {
+                RunOutcome::Completed => WorktreeStatus::Completed,
+                RunOutcome::Ended => WorktreeStatus::Failed,
+            };
+            w.end_commit = end;
+            w.clone()
+        })
+        .ok()
+    }
+
+    /// What a step changed in the shared worktree, by Git: the files between where the worktree
+    /// was when the step began and where it was when it ended, and anything still uncommitted.
+    pub fn step_delta(&self, step_execution_id: &str) -> Option<StepDelta> {
+        let lease = self.get(step_execution_id)?;
+        lease.shared_with.as_ref()?;
+        let path = Path::new(&lease.worktree_path);
+        let files = lease
+            .end_commit
+            .as_ref()
+            .and_then(|end| {
+                self.manager
+                    .changed_files(path, &lease.base_commit, end)
+                    .ok()
+            })
+            .unwrap_or_default();
+        let uncommitted = self.manager.get_status(path).unwrap_or_default();
+        Some(StepDelta {
+            from: lease.base_commit,
+            to: lease.end_commit,
+            files,
+            uncommitted,
+        })
+    }
+
+    /// Makes a workflow worktree usable again after the app was closed in the middle of a run:
+    /// it was recorded as cut short (kept, never merged); the run now goes on in it.
+    ///
+    /// # Errors
+    ///
+    /// Fails if it is not a workflow's primary worktree, or its folder or branch is not what
+    /// Atlas made.
+    pub fn reopen(&self, primary_id: &str) -> Result<ExecutionWorktree, WorktreeError> {
+        let _busy = self.begin(primary_id)?;
+        let primary = self
+            .get(primary_id)
+            .ok_or_else(|| WorktreeError::NotFound(primary_id.to_owned()))?;
+        let path = Path::new(&primary.worktree_path);
+        let consistent = primary.shared_with.is_none()
+            && primary.workflow_execution_id.is_some()
+            && path.is_dir()
+            && self
+                .layout
+                .is_worktree_of(path, &primary.workspace_id, &primary.execution_id)
+            && self.manager.get_branch(path).as_deref() == Ok(primary.branch_name.as_str());
+        if !consistent {
+            return Err(WorktreeError::InvalidState(
+                "the workflow worktree is no longer what Atlas made".to_owned(),
+            ));
+        }
+        self.update(primary_id, |w| {
+            w.status = WorktreeStatus::Active;
+            w.merge_status = MergeStatus::NotEvaluated;
+            w.block_reason = None;
+            w.recommendation = None;
+            w.clone()
+        })
+    }
+
+    /// The run is over: look at what the worktree holds and decide what can be done with it. Never
+    /// merges by itself: with changes, the answer is "waiting for the user" (or blocked, with the
+    /// reason); with none, the empty worktree goes.
+    pub fn close_shared(
+        &self,
+        primary_id: &str,
+        outcome: RunOutcome,
+        validation: Validation,
+    ) -> Option<ExecutionWorktree> {
+        self.finalize_with(primary_id, outcome, validation, false)
+    }
+
+    /// Everything the worktree holds compared with where the workflow started, from Git.
+    ///
+    /// # Errors
+    ///
+    /// Fails if there is no such worktree or Git cannot read it.
+    pub fn change_set(&self, primary_id: &str) -> Result<ChangeSet, WorktreeError> {
+        let primary = self
+            .get(primary_id)
+            .ok_or_else(|| WorktreeError::NotFound(primary_id.to_owned()))?;
+        let path = Path::new(&primary.worktree_path);
+        if !path.is_dir() {
+            // Merged and removed, or discarded: the branch (if it is still there) is the record.
+            return Err(WorktreeError::InvalidState(
+                "the worktree is gone".to_owned(),
+            ));
+        }
+        let head = self.manager.head_commit(path)?;
+        let files: Vec<FileChange> =
+            self.manager
+                .changed_files(path, &primary.base_commit, &head)?;
+        let all = files.len();
+        let additions = files.iter().filter_map(|f| f.additions).sum();
+        let deletions = files.iter().filter_map(|f| f.deletions).sum();
+        let mut listed = files;
+        listed.truncate(MAX_CHANGESET_FILES);
+        Ok(ChangeSet {
+            base_revision: primary.base_commit,
+            current_revision: head,
+            files_changed: u32::try_from(all).unwrap_or(u32::MAX),
+            files: listed,
+            additions,
+            deletions,
+            uncommitted: self.manager.get_status(path).unwrap_or_default(),
+            captured_at: now_ms(),
+        })
+    }
+
+    /// The real diff of the workflow's worktree, of one file when `file` is given.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::change_set`]; and if `file` is not a plain relative path.
+    pub fn diff(
+        &self,
+        primary_id: &str,
+        file: Option<&str>,
+        max_bytes: usize,
+    ) -> Result<String, WorktreeError> {
+        let primary = self
+            .get(primary_id)
+            .ok_or_else(|| WorktreeError::NotFound(primary_id.to_owned()))?;
+        let path = Path::new(&primary.worktree_path);
+        let head = self.manager.head_commit(path)?;
+        self.manager
+            .diff_between(path, &primary.base_commit, &head, file, max_bytes)
+    }
+
+    /// The diff between two commits of the run, read in the project's repository: for changes
+    /// that were applied and whose worktree is gone.
+    ///
+    /// # Errors
+    ///
+    /// Fails if there is no such worktree record, or Git cannot produce the diff.
+    pub fn diff_revisions(
+        &self,
+        primary_id: &str,
+        from: &str,
+        to: &str,
+        file: Option<&str>,
+        max_bytes: usize,
+    ) -> Result<String, WorktreeError> {
+        let primary = self
+            .get(primary_id)
+            .ok_or_else(|| WorktreeError::NotFound(primary_id.to_owned()))?;
+        self.manager.diff_between(
+            Path::new(&primary.repository_path),
+            from,
+            to,
+            file,
+            max_bytes,
+        )
+    }
+
+    /// The user's explicit "discard": the worktree folder goes (never forced, so anything Git
+    /// considers unclean stays) and the work is no longer offered. The *branch is kept*: nothing
+    /// Atlas does deletes commits that were not merged, so the work can still be recovered
+    /// with Git.
+    ///
+    /// # Errors
+    ///
+    /// Fails if it is not a finished workflow primary worktree, it was merged, or Git refuses
+    /// to remove the folder.
+    pub fn discard_shared(&self, primary_id: &str) -> Result<ExecutionWorktree, WorktreeError> {
+        let _busy = self.begin(primary_id)?;
+        let primary = self
+            .get(primary_id)
+            .ok_or_else(|| WorktreeError::NotFound(primary_id.to_owned()))?;
+        let removable = primary.shared_with.is_none()
+            && primary.workflow_execution_id.is_some()
+            && !matches!(
+                primary.status,
+                WorktreeStatus::Active | WorktreeStatus::Creating | WorktreeStatus::Cleaned
+            )
+            && primary.merge_status != MergeStatus::Merged;
+        if !removable {
+            return Err(WorktreeError::InvalidState(format!(
+                "{:?} / {:?}",
+                primary.status, primary.merge_status
+            )));
+        }
+        let path = Path::new(&primary.worktree_path);
+        if path.exists() {
+            if !self
+                .layout
+                .is_worktree_of(path, &primary.workspace_id, &primary.execution_id)
+            {
+                return Err(WorktreeError::OutsideRoot(path.display().to_string()));
+            }
+            self.manager
+                .remove(Path::new(&primary.repository_path), path)?;
+        }
+        self.update(primary_id, |w| {
+            w.status = WorktreeStatus::Cleaned;
+            w.merge_status = MergeStatus::Blocked;
+            w.block_reason = None;
+            w.recommendation = None;
+            w.clone()
+        })
+    }
+
+    /// The folder to open in an editor for this worktree: the project's folder inside it. Only
+    /// a folder Atlas made, and only while it exists.
+    pub fn editor_folder(&self, primary_id: &str) -> Option<PathBuf> {
+        let primary = self.get(primary_id)?;
+        let path = Path::new(&primary.worktree_path);
+        let folder = PathBuf::from(&primary.working_dir);
+        (path.is_dir()
+            && folder.is_dir()
+            && self
+                .layout
+                .is_worktree_of(path, &primary.workspace_id, &primary.execution_id))
+        .then_some(folder)
     }
 
     /// The facts about a worktree as the strings an execution event carries.

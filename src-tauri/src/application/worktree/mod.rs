@@ -22,10 +22,11 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 pub use layout::WorktreeLayout;
-pub use service::{RunOutcome, WorktreeService};
+pub use service::{RunOutcome, StepDelta, WorktreeService};
 
 use super::errors::{AppError, ErrorCode};
 use crate::domain::execution::FailureKind;
+use crate::domain::worktree::FileChange;
 
 /// Why a worktree operation did not happen.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -212,6 +213,41 @@ pub trait WorktreeManager: Send + Sync {
         toplevel: &Path,
         base_branch: &str,
         branch: &str,
+        max_bytes: usize,
+    ) -> Result<String, WorktreeError>;
+
+    /// The commit a worktree (or checkout) is at.
+    ///
+    /// # Errors
+    ///
+    /// Fails if Git cannot read it.
+    fn head_commit(&self, path: &Path) -> Result<String, WorktreeError>;
+
+    /// The files that differ between two commits (renames detected), with the lines added and
+    /// removed in each, as Git counts them.
+    ///
+    /// # Errors
+    ///
+    /// Fails if either is not a commit id or Git cannot compare them.
+    fn changed_files(
+        &self,
+        path: &Path,
+        from: &str,
+        to: &str,
+    ) -> Result<Vec<FileChange>, WorktreeError>;
+
+    /// The unified diff between two commits, of one file when `file` is given, cut at
+    /// `max_bytes`. Read from Git whenever it is needed; never stored.
+    ///
+    /// # Errors
+    ///
+    /// Fails if either is not a commit id, `file` is not a plain relative path, or Git fails.
+    fn diff_between(
+        &self,
+        path: &Path,
+        from: &str,
+        to: &str,
+        file: Option<&str>,
         max_bytes: usize,
     ) -> Result<String, WorktreeError>;
 
