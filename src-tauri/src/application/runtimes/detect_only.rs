@@ -49,6 +49,7 @@ impl DetectOnlyRuntime {
                     terminal_input: false,
                     terminal_resize: false,
                     text_only: false,
+                    file_edit: false,
                     tool_access: ToolAccess::NONE,
                 },
                 model_hint: None,
@@ -124,6 +125,7 @@ mod tests {
                     model_id: "m".to_owned(),
                     prompt: crate::application::prompt::Prompt {
                         harness: None,
+                        task_aware: false,
                         system: String::new(),
                         context: String::new(),
                         instruction: String::new(),
@@ -131,6 +133,7 @@ mod tests {
                     working_dir: std::path::PathBuf::new(),
                     scope: crate::application::process::ExecutionScope::for_tests(),
                     text_only: false,
+                    allow_edits: false,
                 },
                 &|_| {}
             ),

@@ -43,6 +43,13 @@ impl OpenCodeRuntime {
 }
 
 impl ModelRuntime for OpenCodeRuntime {
+    fn detect_interaction(
+        &self,
+        output: &RuntimeOutput,
+    ) -> Option<crate::domain::interaction::InteractionDetection> {
+        cli::detection_from_asking_tool(output)
+    }
+
     fn info(&self) -> RuntimeInfo {
         RuntimeInfo {
             id: "opencode".to_owned(),
@@ -68,6 +75,7 @@ impl ModelRuntime for OpenCodeRuntime {
                 terminal_input: false,
                 terminal_resize: true,
                 text_only: false,
+                file_edit: false,
                 // `--agent plan` denies OpenCode's `edit` tool, but its permission table still
                 // allows everything else (`* -> allow`, checked with `opencode agent list`):
                 // the shell and web tools can write files and reach the network. Atlas cannot
@@ -279,6 +287,15 @@ fn parse_run_output(output: &ProcessOutput, model_id: &str) -> Result<RuntimeOut
     let mut all_texts = Vec::new();
     let mut texts_after_last_tool = Vec::new();
     let mut error: Option<String> = None;
+    let mut metadata = std::collections::BTreeMap::new();
+    // How the run ended: the tool call it stopped on, when that call failed and nothing was
+    // written after it. OpenCode then exits 0 although the work was cut short.
+    let mut stopped_on_tool: Option<String> = None;
+    let rejected = output
+        .stdout
+        .lines()
+        .find(|line| line.contains("permission requested") && line.contains("auto-rejecting"))
+        .map(|line| line.trim_start_matches(['!', ' ']).to_owned());
     for event in output
         .stdout
         .lines()
@@ -289,10 +306,25 @@ fn parse_run_output(output: &ProcessOutput, model_id: &str) -> Result<RuntimeOut
                 if let Some(text) = event["part"]["text"].as_str() {
                     let text = text.trim().to_owned();
                     all_texts.push(text.clone());
+                    if !text.is_empty() {
+                        // It wrote something after the failed call: the run went on.
+                        stopped_on_tool = None;
+                    }
                     texts_after_last_tool.push(text);
                 }
             }
-            Some("tool_use") => texts_after_last_tool.clear(),
+            Some("tool_use") => {
+                texts_after_last_tool.clear();
+                let state = &event["part"]["state"];
+                if let Some(tool) = event["part"]["tool"].as_str() {
+                    cli::note_asking_tool(&mut metadata, tool, &state["input"]);
+                }
+                stopped_on_tool = (state["status"] == "error").then(|| {
+                    let tool = event["part"]["tool"].as_str().unwrap_or("tool");
+                    let why = state["error"].as_str().unwrap_or("it failed");
+                    format!("{tool}: {why}")
+                });
+            }
             Some("error") => {
                 let name = event["error"]["name"].as_str().unwrap_or("Error");
                 let message = event["error"]["data"]["message"].as_str().unwrap_or("");
@@ -306,6 +338,17 @@ fn parse_run_output(output: &ProcessOutput, model_id: &str) -> Result<RuntimeOut
         let details = error.unwrap_or_else(|| cli::diagnostics(output));
         return Err(cli::classify_failure(&details, model_id));
     }
+    if let Some(call) = stopped_on_tool.filter(|_| !metadata.contains_key(cli::ASKED_TOOL)) {
+        // The model's last act was a tool call that failed, and it wrote nothing after it: the
+        // work was cut short, so what it said before is not an answer.
+        let cause = match rejected {
+            Some(why) => format!("{why} ({call})"),
+            None => call,
+        };
+        return Err(RuntimeError::ExecutionFailed(format!(
+            "OpenCode stopped after a tool call failed, with the work unfinished: {cause}"
+        )));
+    }
     let join = |texts: Vec<String>| {
         texts
             .into_iter()
@@ -318,13 +361,17 @@ fn parse_run_output(output: &ProcessOutput, model_id: &str) -> Result<RuntimeOut
         text = join(all_texts);
     }
     if text.is_empty() {
+        // It asked through a tool and wrote nothing: the question is the answer.
+        text = metadata.get(cli::ASKED_INPUT).cloned().unwrap_or_default();
+    }
+    if text.is_empty() {
         return Err(RuntimeError::UnexpectedResponse(
             "OpenCode finished without producing any text.".to_owned(),
         ));
     }
     Ok(RuntimeOutput {
         text,
-        metadata: std::collections::BTreeMap::new(),
+        metadata,
         usage: usage_of(&output.stdout),
         quota: None,
     })
@@ -368,6 +415,7 @@ mod tests {
             model_id: model.to_owned(),
             prompt: Prompt {
                 harness: None,
+                task_aware: false,
                 system: "SYS".to_owned(),
                 context: "CTX".to_owned(),
                 instruction: "INS".to_owned(),
@@ -375,6 +423,7 @@ mod tests {
             working_dir: PathBuf::from("/atlas"),
             scope: crate::application::process::ExecutionScope::for_tests(),
             text_only: false,
+            allow_edits: false,
         }
     }
 
@@ -569,6 +618,45 @@ mod tests {
         );
     }
 
+    fn run_output(stdout: String) -> ProcessOutput {
+        ProcessOutput {
+            stdout,
+            ..ok("").unwrap()
+        }
+    }
+
+    #[test]
+    fn a_run_that_ends_on_a_failed_tool_call_is_cut_short_and_not_an_answer() {
+        let stdout = [
+            r#"{"type":"text","part":{"text":"I'll analyze the payment system."}}"#,
+            "! permission requested: external_directory (/Users/me/Library/*); auto-rejecting",
+            r#"{"type":"tool_use","part":{"tool":"bash","state":{"status":"error","error":"The user rejected permission to use this specific tool call."}}}"#,
+            r#"{"type":"step_finish","part":{}}"#,
+        ]
+        .join("\n");
+
+        let result = parse_run_output(&run_output(stdout), "m");
+
+        let Err(RuntimeError::ExecutionFailed(details)) = result else {
+            panic!("expected the run to count as cut short: {result:?}");
+        };
+        assert!(details.contains("external_directory"));
+        assert!(details.contains("bash"));
+    }
+
+    #[test]
+    fn a_failed_tool_call_followed_by_an_answer_is_still_an_answer() {
+        let stdout = [
+            r#"{"type":"tool_use","part":{"tool":"read","state":{"status":"error","error":"no such file"}}}"#,
+            r#"{"type":"text","part":{"text":"It does not exist, so I did X."}}"#,
+        ]
+        .join("\n");
+
+        let result = parse_run_output(&run_output(stdout), "m").unwrap();
+
+        assert_eq!(result.text, "It does not exist, so I did X.");
+    }
+
     #[test]
     fn falls_back_to_everything_written_when_nothing_follows_the_last_tool() {
         let only_narration = [
@@ -659,5 +747,17 @@ mod tests {
 
         let missing = runtime.execute(&request("nope/nope"), &|_| {});
         assert!(matches!(missing, Err(RuntimeError::ModelUnavailable(_))));
+    }
+
+    #[test]
+    fn a_call_to_the_question_tool_is_a_request_for_the_person_and_not_a_cut_short_run() {
+        let stdout = concat!(
+            r#"{"type":"tool_use","part":{"tool":"question","state":{"status":"error","error":"denied","#,
+            r#""input":{"questions":[{"question":"Qual banco?","options":[{"label":"Postgres"}]}]}}}}"#,
+        );
+        let out = parse_run_output(&run_output(stdout.to_owned()), "p/m").unwrap();
+        let found = cli::detection_from_asking_tool(&out).expect("a structured signal");
+        assert_eq!(found.question, "Qual banco?");
+        assert_eq!(found.options[0].label, "Postgres");
     }
 }

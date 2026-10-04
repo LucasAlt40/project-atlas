@@ -23,6 +23,10 @@ const RUN_TIMEOUT: Duration = Duration::from_secs(900);
 /// writes or executes (Edit, Write, Bash…) is not available, which is how Atlas's read-only
 /// rule is enforced for this runtime.
 const READ_ONLY_TOOLS: &str = "Read,Grep,Glob";
+/// Plus the two that create and change files, for an execution whose policy allows file writes
+/// and that works in an isolated worktree (`RuntimeRequest::allow_edits`). Still no shell, no web:
+/// `Bash`, `WebFetch` and the rest stay off.
+const EDIT_TOOLS: &str = "Read,Grep,Glob,Edit,Write";
 
 /// Runtime for the Claude CLI (Claude Code), using the user's existing sign-in.
 ///
@@ -72,6 +76,13 @@ impl ClaudeRuntime {
 }
 
 impl ModelRuntime for ClaudeRuntime {
+    fn detect_interaction(
+        &self,
+        output: &RuntimeOutput,
+    ) -> Option<crate::domain::interaction::InteractionDetection> {
+        cli::detection_from_asking_tool(output)
+    }
+
     fn info(&self) -> RuntimeInfo {
         RuntimeInfo {
             id: "claude".to_owned(),
@@ -98,6 +109,7 @@ impl ModelRuntime for ClaudeRuntime {
                 terminal_input: false,
                 terminal_resize: true,
                 text_only: true,
+                file_edit: true,
                 // `--tools Read,Grep,Glob`: no edit, no shell, no web tool.
                 tool_access: ToolAccess::NONE,
             },
@@ -146,7 +158,15 @@ impl ModelRuntime for ClaudeRuntime {
             return Err(RuntimeError::NotInstalled);
         }
 
-        let args = [
+        let tools = if request.text_only {
+            // An empty list turns every tool off: the model can only answer from the prompt.
+            ""
+        } else if request.allow_edits {
+            EDIT_TOOLS
+        } else {
+            READ_ONLY_TOOLS
+        };
+        let mut args = [
             "-p",
             "--output-format",
             "stream-json",
@@ -155,16 +175,16 @@ impl ModelRuntime for ClaudeRuntime {
             "--model",
             &request.model_id,
             "--tools",
-            // An empty list turns every tool off: the model can only answer from the prompt.
-            if request.text_only {
-                ""
-            } else {
-                READ_ONLY_TOOLS
-            },
+            tools,
             "--no-session-persistence",
         ]
         .map(str::to_owned)
         .to_vec();
+        if request.allow_edits && !request.text_only {
+            // The run is not interactive, so a tool that needs to ask is refused. File edits
+            // inside the working directory (the isolated worktree) are what was granted.
+            args.extend(["--permission-mode".to_owned(), "acceptEdits".to_owned()]);
+        }
         let delivery = cli::deliver_prompt(
             self.runner.as_ref(),
             PROGRAM,
@@ -346,6 +366,32 @@ fn parse_run_output(output: &ProcessOutput, model_id: &str) -> Result<RuntimeOut
     }
 
     let mut metadata = BTreeMap::new();
+    // A tool that asks the person was called: `-p` has nobody to answer it, so the CLI reports
+    // it as denied. That is a structured signal, whatever language the agent wrote in.
+    for denial in result["permission_denials"]
+        .as_array()
+        .into_iter()
+        .flatten()
+    {
+        if let Some(tool) = denial["tool_name"].as_str() {
+            cli::note_asking_tool(&mut metadata, tool, &denial["tool_input"]);
+        }
+    }
+    for value in output
+        .stdout
+        .lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+        .filter(|value| value["type"] == "assistant")
+    {
+        for block in value["message"]["content"].as_array().into_iter().flatten() {
+            if let Some(tool) = block["name"]
+                .as_str()
+                .filter(|_| block["type"] == "tool_use")
+            {
+                cli::note_asking_tool(&mut metadata, tool, &block["input"]);
+            }
+        }
+    }
     for (key, source) in [
         ("costUsd", "total_cost_usd"),
         ("durationMs", "duration_ms"),
@@ -402,6 +448,7 @@ mod tests {
             model_id: model.to_owned(),
             prompt: Prompt {
                 harness: None,
+                task_aware: false,
                 system: "SYS".to_owned(),
                 context: "CTX".to_owned(),
                 instruction: "INS".to_owned(),
@@ -409,6 +456,7 @@ mod tests {
             working_dir: PathBuf::from("/atlas"),
             scope: crate::application::process::ExecutionScope::for_tests(),
             text_only: false,
+            allow_edits: false,
         }
     }
 
@@ -663,6 +711,48 @@ mod tests {
         assert_eq!(cost_only.cost, Some(0.5));
     }
 
+    /// The tools a run is launched with follow the request: read-only by default, files only when
+    /// the execution service granted edits, nothing at all for a text-only run. A shell and the
+    /// web are never among them.
+    #[test]
+    fn tools_follow_what_the_execution_was_granted_and_never_include_a_shell() {
+        let runner = Arc::new(FakeProcessRunner::new(&["claude"], |_| ok("")));
+        let runtime = ClaudeRuntime::new(runner.clone() as Arc<dyn ProcessRunner>);
+        let tools = |edit: bool, text_only: bool| {
+            let mut req = request("sonnet");
+            req.allow_edits = edit;
+            req.text_only = text_only;
+            let _ = runtime.execute(&req, &|_| {});
+            let call = runner
+                .calls
+                .lock()
+                .unwrap()
+                .clone()
+                .into_iter()
+                .rev()
+                .find(|c| c.args.contains(&"--tools".to_owned()))
+                .unwrap();
+            let at = call.args.iter().position(|a| a == "--tools").unwrap();
+            (
+                call.args[at + 1].clone(),
+                call.args.contains(&"--permission-mode".to_owned()),
+            )
+        };
+
+        assert_eq!(tools(false, false), ("Read,Grep,Glob".to_owned(), false));
+        assert_eq!(
+            tools(true, false),
+            ("Read,Grep,Glob,Edit,Write".to_owned(), true)
+        );
+        assert_eq!(tools(true, true), (String::new(), false));
+        for edit in [false, true] {
+            let (list, _) = tools(edit, false);
+            for forbidden in ["Bash", "WebFetch", "WebSearch", "Task", "NotebookEdit"] {
+                assert!(!list.contains(forbidden), "{forbidden}");
+            }
+        }
+    }
+
     /// Uses the real Claude CLI. It needs Claude installed; the full round trip also needs a
     /// signed-in session. Without one, this verifies the real "authentication required"
     /// behaviour instead. Run with `cargo test real_claude -- --ignored --nocapture`.
@@ -694,5 +784,22 @@ mod tests {
             println!("NOTE: Claude is not signed in here, so only the failure path was verified");
             assert_eq!(result, Err(RuntimeError::AuthenticationRequired));
         }
+    }
+
+    #[test]
+    fn a_denied_plan_approval_tool_is_a_structured_request_for_the_person() {
+        let stdout = concat!(
+            r#"{"type":"result","subtype":"success","is_error":false,"result":"Plano pronto.","#,
+            r#""permission_denials":[{"tool_name":"ExitPlanMode","tool_use_id":"t1","#,
+            r##""tool_input":{"plan":"# Plan\n1. Do it"}}]}"##
+        );
+        let out = parse_run_output(&output(0, stdout).unwrap(), "m").unwrap();
+        let found = cli::detection_from_asking_tool(&out).expect("a structured signal");
+        assert_eq!(found.confidence, 95);
+        assert_eq!(
+            found.kind,
+            Some(crate::domain::interaction::InteractionKind::Approval)
+        );
+        assert!(found.document.contains("1. Do it"));
     }
 }

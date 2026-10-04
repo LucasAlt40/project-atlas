@@ -65,6 +65,10 @@ pub struct RuntimeCapabilities {
     /// Can run with every tool off, answering only from the prompt (needed to show it evidence
     /// without giving it the filesystem, as semantic analysis does).
     pub text_only: bool,
+    /// Can be launched with tools that create and edit files (and only those: no shell, no
+    /// network). Whether an execution gets them is decided per execution, from the agent's
+    /// policy and whether it works in an isolated worktree; see `RuntimeRequest::allow_edits`.
+    pub file_edit: bool,
     /// What the runtime's own tools can do as Atlas launches it. Facts about the external tool:
     /// `true` means Atlas cannot stop the tool from doing it.
     pub tool_access: ToolAccess,

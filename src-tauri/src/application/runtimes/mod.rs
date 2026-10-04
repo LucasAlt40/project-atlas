@@ -1,6 +1,8 @@
+mod antigravity;
 mod claude;
 mod cli;
 mod detect_only;
+mod gemini;
 mod opencode;
 
 use std::collections::BTreeMap;
@@ -11,6 +13,7 @@ use std::sync::Arc;
 use super::process::{ExecutionScope, ProcessRunner};
 use super::prompt::Prompt;
 use crate::domain::execution::{ExecutionFailure, FailureKind};
+use crate::domain::interaction::InteractionDetection;
 use crate::domain::runtime::{
     Authentication, Availability, ModelDiscovery, ModelInfo, RuntimeInfo, RuntimeNotice,
     RuntimeStatus,
@@ -18,7 +21,9 @@ use crate::domain::runtime::{
 use crate::domain::security::Reason;
 use crate::domain::usage::{QuotaInfo, UsageMetrics};
 
+pub use antigravity::AntigravityRuntime;
 pub use claude::ClaudeRuntime;
+pub use gemini::GeminiRuntime;
 pub use opencode::OpenCodeRuntime;
 
 /// Everything a runtime needs to answer one task. The runtime does not decide what the
@@ -34,6 +39,10 @@ pub struct RuntimeRequest {
     /// The runtime must not be given any tool: it may only answer from the prompt. Used when
     /// the prompt is the whole of what the model may see (semantic analysis).
     pub text_only: bool,
+    /// The execution may create and edit files in its working directory (and nothing else): set
+    /// by the execution service only when the agent's policy allows file writes and the agent
+    /// works in an isolated worktree. A runtime that cannot ignores it.
+    pub allow_edits: bool,
 }
 
 /// A runtime's answer, normalized: provider-specific output formats stop here.
@@ -103,6 +112,14 @@ pub trait ModelRuntime: Send + Sync {
         request: &RuntimeRequest,
         progress: &dyn Fn(RuntimeEvent),
     ) -> Result<RuntimeOutput, RuntimeError>;
+
+    /// Whether this answer is the runtime's own way of asking a person something (a tool's
+    /// approval event, a question tool…). The adapter is the only place that may know a tool's
+    /// protocol; the orchestrator never does. The default knows none, and the generic detector
+    /// (the `atlas-interaction` block, then conservative text analysis) takes over.
+    fn detect_interaction(&self, _output: &RuntimeOutput) -> Option<InteractionDetection> {
+        None
+    }
 }
 
 /// Runtime errors, normalized so the UI never needs to know which runtime produced them.
@@ -114,6 +131,8 @@ pub enum RuntimeError {
     Unavailable(String),
     AuthenticationRequired,
     ModelUnavailable(String),
+    /// The provider answered "too many requests" (HTTP 429, a usage limit). Worth trying again later.
+    RateLimited(String),
     Timeout,
     ExecutionFailed(String),
     InvalidRequest(String),
@@ -137,6 +156,11 @@ impl RuntimeError {
             Self::ModelUnavailable(model) => {
                 format!("The model \"{model}\" is not available from this runtime.")
             }
+            Self::RateLimited(_) => {
+                "The provider is rate-limiting this model (too many requests or its free allowance is \
+                 used up). Wait a while and try again, or pick another model."
+                    .to_owned()
+            }
             Self::Timeout => "The runtime stopped responding (no output for too long).".to_owned(),
             Self::ExecutionFailed(_) => "The runtime could not complete the request.".to_owned(),
             Self::Unavailable(reason) | Self::InvalidRequest(reason) => reason.clone(),
@@ -153,6 +177,7 @@ impl RuntimeError {
             Self::Unavailable(_) => FailureKind::RuntimeUnavailable,
             Self::AuthenticationRequired => FailureKind::AuthenticationRequired,
             Self::ModelUnavailable(_) => FailureKind::ModelUnavailable,
+            Self::RateLimited(_) => FailureKind::RateLimited,
             Self::Timeout => FailureKind::Timeout,
             Self::ExecutionFailed(_) => FailureKind::ExecutionFailed,
             Self::InvalidRequest(_) => FailureKind::InvalidRequest,
@@ -162,7 +187,9 @@ impl RuntimeError {
 
     pub fn into_failure(self) -> ExecutionFailure {
         let details = match &self {
-            Self::ExecutionFailed(details) | Self::UnexpectedResponse(details)
+            Self::ExecutionFailed(details)
+            | Self::UnexpectedResponse(details)
+            | Self::RateLimited(details)
                 if !details.is_empty() =>
             {
                 Some(details.clone())
@@ -187,8 +214,9 @@ impl fmt::Display for RuntimeError {
 impl std::error::Error for RuntimeError {}
 
 /// The programs of the runtimes in [`RuntimeRegistry::with_default_runtimes`]: the only ones the
-/// process port starts on Atlas's own behalf. Adding a runtime means adding its program here.
-pub const RUNTIME_PROGRAMS: [&str; 5] = ["opencode", "claude", "codex", "gemini", "antigravity"];
+/// process port starts on Atlas's own behalf. Adding a runtime means adding its program here (the
+/// Antigravity CLI installs as `agy`).
+pub const RUNTIME_PROGRAMS: [&str; 5] = ["opencode", "claude", "codex", "gemini", "agy"];
 
 /// All known runtimes, in display order.
 pub struct RuntimeRegistry {
@@ -200,8 +228,8 @@ impl RuntimeRegistry {
         Self { runtimes }
     }
 
-    /// The runtimes Atlas knows about. `OpenCode` and Claude CLI can run tasks; the rest are
-    /// detected only.
+    /// The runtimes Atlas knows about. Every one can run tasks except Codex, which is detected
+    /// only.
     pub fn with_default_runtimes(runner: &Arc<dyn ProcessRunner>) -> Self {
         let detect_only = |id: &str, name: &str, provider: (&str, &str), program: &str| {
             Arc::new(detect_only::DetectOnlyRuntime::new(
@@ -216,13 +244,8 @@ impl RuntimeRegistry {
             Arc::new(OpenCodeRuntime::new(runner.clone())),
             Arc::new(ClaudeRuntime::new(runner.clone())),
             detect_only("codex", "Codex CLI", ("openai", "OpenAI"), "codex"),
-            detect_only("gemini", "Gemini CLI", ("google", "Google"), "gemini"),
-            detect_only(
-                "antigravity",
-                "Antigravity CLI",
-                ("google", "Google"),
-                "antigravity",
-            ),
+            Arc::new(GeminiRuntime::new(runner.clone())),
+            Arc::new(AntigravityRuntime::new(runner.clone())),
         ])
     }
 
@@ -424,6 +447,7 @@ pub mod fake {
                     terminal_input: false,
                     terminal_resize: false,
                     text_only: self.text_only,
+                    file_edit: false,
                     tool_access: ToolAccess::NONE,
                 },
                 model_hint: None,
@@ -498,10 +522,10 @@ mod tests {
     }
 
     #[test]
-    fn registers_opencode_and_claude_that_can_execute() {
+    fn registers_the_runtimes_that_can_execute() {
         let registry = registry();
 
-        for id in ["opencode", "claude"] {
+        for id in ["opencode", "claude", "gemini", "antigravity"] {
             let info = registry.find(id).unwrap().info();
             assert!(info.capabilities.non_interactive_execution, "{id}");
         }

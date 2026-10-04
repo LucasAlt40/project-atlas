@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use super::{RuntimeError, RuntimeEvent};
+use super::{RuntimeError, RuntimeEvent, RuntimeOutput};
 use crate::application::process::{
     ProcessError, ProcessEvent, ProcessOutput, ProcessRunner, ProcessSpec, TerminalRequest,
 };
@@ -91,6 +91,46 @@ pub fn deliver_prompt(
     }
 }
 
+/// The longest prompt that still fits on a command line (the operating system's limit for one
+/// argument is about 128 KB on Linux and 32 KB on Windows).
+const MAX_PROMPT_ARGUMENT_BYTES: usize = if cfg!(windows) { 30_000 } else { 120_000 };
+
+/// Like [`deliver_prompt`], for a CLI that only takes its prompt as the value of an option
+/// (`agy --prompt=…`, `gemini --prompt=…`) and does not read it from stdin. The `=` form keeps a
+/// prompt that starts with `-` from being taken for another option. The run is attached to a
+/// terminal (read-only, `terminal_input` off) so the user can watch it.
+///
+/// # Errors
+///
+/// Fails when the prompt cannot be passed as one argument: it is too long, or it is multi-line
+/// for an npm `.cmd` shim on Windows.
+pub fn deliver_prompt_option(
+    runner: &dyn ProcessRunner,
+    program: &str,
+    option: &str,
+    mut args: Vec<String>,
+    prompt: &str,
+) -> Result<PromptDelivery, RuntimeError> {
+    if prompt.len() > MAX_PROMPT_ARGUMENT_BYTES {
+        return Err(RuntimeError::InvalidRequest(format!(
+            "The prompt is too large to pass to {program} on the command line ({} KB; the limit is {} KB).",
+            prompt.len() / 1000,
+            MAX_PROMPT_ARGUMENT_BYTES / 1000
+        )));
+    }
+    if !terminal_fits(runner, program, prompt) {
+        return Err(RuntimeError::Unavailable(format!(
+            "{program} is an npm .cmd shim, which cannot take a multi-line prompt as an argument on Windows."
+        )));
+    }
+    args.push(format!("{option}={prompt}"));
+    Ok(PromptDelivery {
+        args,
+        stdin: None,
+        terminal: Some(TerminalRequest::new(false)),
+    })
+}
+
 /// On Windows an npm `.cmd` shim runs through `cmd.exe`, which cannot take a multi-line
 /// argument; such a run keeps using pipes (it has no live terminal).
 fn terminal_fits(runner: &dyn ProcessRunner, program: &str, prompt: &str) -> bool {
@@ -161,11 +201,25 @@ pub fn validate_model_id(model_id: &str) -> Result<(), RuntimeError> {
     }
 }
 
+/// Whether `code` appears as a number of its own (not inside a longer one, like a timestamp).
+fn has_status_code(text: &str, code: &str) -> bool {
+    text.split(|c: char| !c.is_ascii_digit()).any(|n| n == code)
+}
+
 /// Classifies failure text common to CLI tools.
 pub fn classify_failure(details: &str, model_id: &str) -> RuntimeError {
     let lower = details.to_lowercase();
     let has = |needles: &[&str]| needles.iter().any(|n| lower.contains(n));
     if has(&[
+        "rate limit",
+        "rate_limit",
+        "ratelimit",
+        "too many requests",
+        "freeusagelimit",
+    ]) || has_status_code(&lower, "429")
+    {
+        RuntimeError::RateLimited(details.chars().take(MAX_DETAILS_CHARS).collect())
+    } else if has(&[
         "authenticate",
         "authentication",
         "unauthorized",
@@ -193,9 +247,134 @@ pub fn classify_failure(details: &str, model_id: &str) -> RuntimeError {
     }
 }
 
+/// Tools through which a CLI agent asks a person itself, by name. A call to one of these is a
+/// structured signal that needs no reading of the agent's prose, in any language.
+const ASKING_TOOLS: [&str; 5] = [
+    "ExitPlanMode",
+    "AskUserQuestion",
+    "question",
+    "plan_exit",
+    "ask_question",
+];
+
+/// Metadata keys an adapter fills when the run called one of [`ASKING_TOOLS`].
+pub(super) const ASKED_TOOL: &str = "askedTool";
+pub(super) const ASKED_INPUT: &str = "askedInput";
+
+/// Records, in the output's metadata, the first call to a tool that asks a person.
+pub(super) fn note_asking_tool(
+    metadata: &mut std::collections::BTreeMap<String, String>,
+    tool: &str,
+    input: &serde_json::Value,
+) {
+    if ASKING_TOOLS.contains(&tool) && !metadata.contains_key(ASKED_TOOL) {
+        metadata.insert(ASKED_TOOL.to_owned(), tool.to_owned());
+        metadata.insert(ASKED_INPUT.to_owned(), input.to_string());
+    }
+}
+
+/// The detection for a run that called a tool that asks a person: the plan or the question the
+/// call carried, falling back to the agent's own message.
+pub(super) fn detection_from_asking_tool(
+    output: &RuntimeOutput,
+) -> Option<crate::domain::interaction::InteractionDetection> {
+    use crate::application::interaction::clip;
+    use crate::domain::interaction::{
+        decision_options, DetectionSource, InteractionDetection, InteractionKind,
+        InteractionOption, MAX_CONTEXT, MAX_DOCUMENT, MAX_OPTION, MAX_OPTIONS, MAX_QUESTION,
+    };
+    let tool = output.metadata.get(ASKED_TOOL)?;
+    let input: serde_json::Value = output
+        .metadata
+        .get(ASKED_INPUT)
+        .and_then(|raw| serde_json::from_str(raw).ok())
+        .unwrap_or_default();
+    let plan = matches!(tool.as_str(), "ExitPlanMode" | "plan_exit");
+    let first = input["questions"].get(0).unwrap_or(&input);
+    let question = first["question"]
+        .as_str()
+        .or_else(|| first["header"].as_str())
+        .map_or_else(
+            || {
+                if plan {
+                    "Approve this plan?".to_owned()
+                } else {
+                    output.text.lines().last().unwrap_or_default().to_owned()
+                }
+            },
+            str::to_owned,
+        );
+    let document = input["plan"].as_str().unwrap_or(&output.text);
+    let kind = if plan {
+        InteractionKind::Approval
+    } else {
+        InteractionKind::Clarification
+    };
+    let options: Vec<InteractionOption> = if plan {
+        decision_options(kind)
+    } else {
+        first["options"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|o| o["label"].as_str().or_else(|| o.as_str()))
+            .take(MAX_OPTIONS)
+            .map(|label| InteractionOption::new(&clip(label, MAX_OPTION), &clip(label, MAX_OPTION)))
+            .collect()
+    };
+    Some(InteractionDetection {
+        detected: true,
+        kind: Some(kind),
+        confidence: 95,
+        question: clip(&question, MAX_QUESTION),
+        context: clip(&output.text, MAX_CONTEXT),
+        document: clip(document, MAX_DOCUMENT),
+        options,
+        source: DetectionSource::Adapter,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_rate_limit_is_told_apart_from_other_failures() {
+        let opencode =
+            "APIError: Error from provider (Console): Rate limit exceeded. Please try again later.";
+        assert!(matches!(
+            classify_failure(opencode, "m"),
+            RuntimeError::RateLimited(_)
+        ));
+        assert!(matches!(
+            classify_failure("HTTP 429 from the provider", "m"),
+            RuntimeError::RateLimited(_)
+        ));
+        // A number that merely contains 429 is not a status code.
+        assert!(matches!(
+            classify_failure("failed at 1791142900 and 14290", "m"),
+            RuntimeError::ExecutionFailed(_)
+        ));
+    }
+
+    #[test]
+    fn a_prompt_option_keeps_a_dashed_prompt_from_acting_as_an_option() {
+        use crate::application::process::fake::{ok, FakeProcessRunner};
+        let runner = FakeProcessRunner::new(&["agy"], |_| ok(""));
+
+        let delivery =
+            deliver_prompt_option(&runner, "agy", "--prompt", vec!["-x".to_owned()], "--help")
+                .unwrap();
+
+        assert_eq!(delivery.args, ["-x", "--prompt=--help"]);
+        assert_eq!(delivery.stdin, None);
+        assert_eq!(delivery.terminal, Some(TerminalRequest::new(false)));
+        let huge = "x".repeat(MAX_PROMPT_ARGUMENT_BYTES + 1);
+        assert!(matches!(
+            deliver_prompt_option(&runner, "agy", "--prompt", Vec::new(), &huge),
+            Err(RuntimeError::InvalidRequest(_))
+        ));
+    }
 
     #[test]
     fn rejects_model_ids_that_could_act_as_options() {
