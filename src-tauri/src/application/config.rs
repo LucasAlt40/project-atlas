@@ -114,13 +114,63 @@ fn grant_developer_to_unset_agents(config: &mut UserConfig) -> bool {
     changed
 }
 
+/// Workflows saved before routing read the agent's declared outcome tested `result.status`, which
+/// only says whether the step ran (`success`/`failed`), so an edge on `pass` or `fail` could never
+/// fire and the run ended with no route. Where the source agent declares that outcome, the edge
+/// now tests `result.outcome`, and the workflow becomes a new version, so a run that failed on
+/// the old routes can go on under the corrected ones. Returns whether anything changed.
+fn route_edges_on_declared_outcomes(config: &mut UserConfig) -> bool {
+    let mut changed = false;
+    for workflow in &mut config.workflows {
+        let mut edited = false;
+        let sources: Vec<(String, Option<String>)> = workflow
+            .nodes
+            .iter()
+            .map(|n| (n.id.clone(), n.agent_id().map(str::to_owned)))
+            .collect();
+        for edge in &mut workflow.edges {
+            let Some(condition) = edge.condition.as_mut() else {
+                continue;
+            };
+            if condition.field != "result.status" {
+                continue;
+            }
+            let Some(value) = condition.value.as_deref() else {
+                continue;
+            };
+            let declared = sources
+                .iter()
+                .find(|(id, _)| *id == edge.source_node_id)
+                .and_then(|(_, agent_id)| agent_id.as_deref())
+                .and_then(|agent_id| config.agents.iter().find(|a| a.id == agent_id))
+                .is_some_and(|agent| {
+                    agent
+                        .result_contract
+                        .outcomes
+                        .iter()
+                        .any(|o| o.id.eq_ignore_ascii_case(value))
+                });
+            if declared {
+                "result.outcome".clone_into(&mut condition.field);
+                edited = true;
+            }
+        }
+        if edited {
+            workflow.version += 1;
+            changed = true;
+        }
+    }
+    changed
+}
+
 impl ConfigRepository {
     pub fn load(store: Box<dyn ConfigStore>) -> Self {
         let mut config = store.load().unwrap_or_else(|error| {
             eprintln!("could not load user config, starting empty: {error}");
             UserConfig::default()
         });
-        if grant_developer_to_unset_agents(&mut config) {
+        let outcomes_routed = route_edges_on_declared_outcomes(&mut config);
+        if grant_developer_to_unset_agents(&mut config) || outcomes_routed {
             if let Err(error) = store.save(&config) {
                 eprintln!("could not save the migrated agent permissions: {error}");
             }
@@ -270,6 +320,41 @@ mod tests {
             profiles,
             [Some("developer".to_owned()), Some("read_only".to_owned())]
         );
+    }
+
+    #[test]
+    fn status_edges_on_a_declared_outcome_are_routed_on_the_outcome() {
+        use crate::application::workflow::test_support::{agent as node, when, workflow};
+        use crate::domain::result_contract::Outcome;
+        let mut validator = agent();
+        validator.result_contract.outcomes = ["pass", "fail"]
+            .map(|id| Outcome {
+                id: id.to_owned(),
+                label: id.to_owned(),
+                description: String::new(),
+            })
+            .to_vec();
+        let mut config = UserConfig {
+            agents: vec![validator],
+            workflows: vec![workflow(
+                vec![node("v", "a"), node("next", "a")],
+                vec![when("v", "next", "fail"), when("v", "next", "success")],
+            )],
+            ..UserConfig::default()
+        };
+
+        assert!(route_edges_on_declared_outcomes(&mut config));
+
+        let fields: Vec<_> = config.workflows[0]
+            .edges
+            .iter()
+            .map(|e| e.condition.as_ref().unwrap().field.as_str())
+            .collect();
+        assert_eq!(fields, ["result.outcome", "result.status"]);
+        assert_eq!(config.workflows[0].version, 2);
+        // Run again, nothing is left to migrate.
+        assert!(!route_edges_on_declared_outcomes(&mut config));
+        assert_eq!(config.workflows[0].version, 2);
     }
 
     #[test]
