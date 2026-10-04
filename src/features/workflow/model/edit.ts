@@ -69,7 +69,8 @@ export function addConditionNode(workflow: Workflow, label: string): Workflow {
     id,
     type: 'condition',
     label,
-    condition: { field: 'result.status', operator: 'equals', value: 'pass' },
+    // The verdict a step declared (`pass`, `approved`…), not whether the step ran.
+    condition: { field: 'result.outcome', operator: 'equals', value: 'pass' },
     priority: 0,
     loopPolicy: null,
     position: nextPosition(workflow),

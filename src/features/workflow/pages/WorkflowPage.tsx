@@ -486,6 +486,8 @@ export function WorkflowPage() {
                   onOpenExecution={openExecution}
                   ides={space.ides}
                   busy={space.integrating}
+                  recovery={space.recovery}
+                  onResume={() => void space.resume()}
                   code={{
                     review: () => {
                       setReviewing(true);

@@ -5,6 +5,7 @@ import type {
   ChangeSet,
   Ide,
   PendingInteraction,
+  RecoveryPlan,
   TemplateWorkflow,
   ValidationReport,
   Workflow,
@@ -68,6 +69,11 @@ export async function pauseWorkflow(executionId: string): Promise<void> {
 
 export async function resumeWorkflow(executionId: string): Promise<void> {
   await invokeCommand('resume_workflow', { executionId });
+}
+
+/** Where a failed run would go on from; `null` for a run that did not fail. */
+export function getRecovery(executionId: string): Promise<RecoveryPlan | null> {
+  return invokeCommand('get_workflow_recovery', { executionId });
 }
 
 export async function cancelWorkflow(executionId: string): Promise<void> {

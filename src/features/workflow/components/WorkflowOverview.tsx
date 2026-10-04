@@ -10,9 +10,10 @@ import {
 } from '../model/status';
 import { issueMessage } from '../model/validation';
 import { useState } from 'react';
-import type { Ide, ValidationReport, Workflow, WorkflowRun } from '../types';
+import type { Ide, RecoveryPlan, ValidationReport, Workflow, WorkflowRun } from '../types';
 import { DeliveryPanel, type CodeActions } from './DeliveryPanel';
 import { FileLine, HandoffList } from './HandoffView';
+import { RecoveryPanel, VerdictList } from './RecoveryPanel';
 import { SharedStatePanel } from './SharedStatePanel';
 import styles from './Workflow.module.css';
 
@@ -24,13 +25,25 @@ interface RunProps {
   /** An action on the code is going on. */
   busy: boolean;
   code: CodeActions;
+  /** Where a failed run would go on from (`null` when it did not fail, or nothing is known). */
+  recovery: RecoveryPlan | null;
+  onResume: () => void;
 }
 
 type Tab = 'overview' | 'handoffs' | 'changes';
 const TABS: readonly Tab[] = ['overview', 'handoffs', 'changes'];
 
 /** What is going on in a run right now, and what has come out of it so far. */
-export function RunOverview({ run, agentName, onOpenExecution, ides, busy, code }: RunProps) {
+export function RunOverview({
+  run,
+  agentName,
+  onOpenExecution,
+  ides,
+  busy,
+  code,
+  recovery,
+  onResume,
+}: RunProps) {
   const { t } = useI18n();
   const [tab, setTab] = useState<Tab>('overview');
   const progress = runProgress(run);
@@ -124,6 +137,13 @@ export function RunOverview({ run, agentName, onOpenExecution, ides, busy, code 
           {failureText(t, run)}
         </p>
       )}
+      <VerdictList run={run} />
+      {run.status === 'failed' && recovery && (
+        <RecoveryPanel run={run} plan={recovery} busy={busy} onResume={onResume} />
+      )}
+      {run.recoveries.length > 0 && (
+        <p className={styles.muted}>{t('workflow.recovery.count', { n: run.recoveries.length })}</p>
+      )}
       <p>
         <strong>
           {t('workflow.progress', { done: progress.completed, total: progress.total })}
@@ -135,12 +155,23 @@ export function RunOverview({ run, agentName, onOpenExecution, ides, busy, code 
           const status = state?.status ?? 'pending';
           const view = NODE_STATUS_VIEW[status];
           const loop = looping.find((l) => l.node.id === node.id);
+          const outcome = state?.facts['result.outcome'];
+          const lastRecovery = run.recoveries.at(-1);
+          const completedAt = state?.attempts.at(-1)?.completedAt;
+          const reused =
+            status === 'completed' &&
+            lastRecovery !== undefined &&
+            completedAt !== null &&
+            completedAt !== undefined &&
+            completedAt <= lastRecovery.at;
           return (
             <li key={node.id}>
               <span aria-hidden="true">{view.symbol}</span> {node.label}{' '}
               <span className={styles.muted}>
                 {t(view.label)}
+                {outcome && ` · ${t('workflow.node.outcome', { outcome: outcome.toUpperCase() })}`}
                 {loop && ` · ${t('workflow.node.loop', { n: loop.iteration, max: loop.max })}`}
+                {reused && ` · ${t('workflow.node.reused')}`}
               </span>
             </li>
           );

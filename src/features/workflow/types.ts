@@ -5,6 +5,8 @@ import type {
   FileChangeDto,
   IdeDto,
   PendingInteractionDto,
+  RecoveryPlanDto,
+  RecoveryRecordDto,
   WorkflowIntegrationDto,
   ArtifactDto,
   ConditionDto,
@@ -30,6 +32,8 @@ export type Workflow = WorkflowDto;
 export type WorkflowNode = WorkflowNodeDto;
 export type WorkflowEdge = WorkflowEdgeDto;
 export type WorkflowRun = WorkflowExecutionDto;
+export type RecoveryPlan = RecoveryPlanDto;
+export type RecoveryRecord = RecoveryRecordDto;
 export type WorkflowRunStatus = WorkflowExecutionStatusDto;
 export type NodeStatus = NodeStatusDto;
 export type NodeState = NodeStateDto;

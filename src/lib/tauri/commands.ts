@@ -139,8 +139,13 @@ export interface CommandMap {
   /** Returns at once; progress arrives as `workflow:*` events. */
   start_workflow: { args: { workflowId: string; task: string }; result: WorkflowExecutionDto };
   pause_workflow: { args: { executionId: string }; result: null };
-  /** Resumes a paused run, or picks up one the app's shutdown interrupted. */
+  /**
+   * Resumes a paused run, picks up one the app's shutdown interrupted, or picks a failed one up
+   * at its Recovery Point (steps that completed are not run again).
+   */
   resume_workflow: { args: { executionId: string }; result: null };
+  /** Where a failed run would go on from. `null` for a run that did not fail. Changes nothing. */
+  get_workflow_recovery: { args: { executionId: string }; result: RecoveryPlanDto | null };
   cancel_workflow: { args: { executionId: string }; result: null };
   /**
    * The person's answer to a question a step asked. Checked against the question; it is given back
@@ -1680,10 +1685,38 @@ export interface WorkflowExecutionDto {
   integration: WorkflowIntegrationDto;
   /** Every question the run's steps asked a person, answered or not: the audit trail. */
   interactions: PendingInteractionDto[];
+  /** Each time the run was picked up again after failing. */
+  recoveries: RecoveryRecordDto[];
   events: WorkflowEventDto[];
   startedAt: number;
   updatedAt: number;
   completedAt: number | null;
+}
+
+/** A retry runs the same step again; a resume goes on from a step that completed. */
+export type RecoveryKindDto = 'retry' | 'resume';
+
+export type RecoveryProblemDto =
+  'not_recoverable' | 'no_route' | 'loop_limit' | 'recovery_required' | 'code_settled';
+
+export interface RecoveryPlanDto {
+  kind: RecoveryKindDto;
+  failureNodeId: string | null;
+  lastCompletedNodeId: string | null;
+  /** The Recovery Point: the steps that run next. */
+  restartNodeIds: string[];
+  /** Steps that completed and are kept as they are. */
+  reusedNodeIds: string[];
+  problem: RecoveryProblemDto | null;
+}
+
+export interface RecoveryRecordDto {
+  at: number;
+  kind: RecoveryKindDto;
+  failure: WorkflowFailureDto | null;
+  restartedNodeIds: string[];
+  reusedNodeIds: string[];
+  workflowVersion: number;
 }
 
 /** Where an execution sits in a workflow run (for the inspector's breadcrumb). */

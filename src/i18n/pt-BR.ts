@@ -900,6 +900,7 @@ export const ptBR: Record<TranslationKey, string> = {
   'error.workflow_template_not_found': 'Esse modelo de workflow não existe.',
   'error.workflow_execution_not_found': 'Esta execução de workflow não existe mais.',
   'error.workflow_state_invalid': 'A execução do workflow não está em um estado que permita isso.',
+  'error.workflow_not_recoverable': 'A execução do workflow não pode ser retomada agora.',
   'workflow.title': 'Workflow',
   'workflow.noWorkspace': 'Crie um workspace para montar workflows.',
   'workflow.select': 'Workflow',
@@ -1027,12 +1028,39 @@ export const ptBR: Record<TranslationKey, string> = {
     'O workflow ficou sem etapas sem chegar a um fim com sucesso.',
   'workflow.failure.no_route_matched':
     '{node} terminou, mas o resultado não corresponde a nenhuma de suas rotas.',
-  'workflow.failure.no_route_outcome':
-    '{node} retornou o resultado "{outcome}", mas nenhuma rota do workflow corresponde a esse resultado.',
   'workflow.failure.ended_in_failure': 'O workflow chegou a um fim que significa falha.',
   'workflow.failure.invalid_workflow': 'O workflow não é válido.',
   'workflow.failure.internal_error': 'Um erro interno interrompeu o workflow.',
   'workflow.overview': 'Visão geral do workflow',
+  'workflow.failure.no_route_outcome':
+    '{node} terminou com o resultado "{outcome}" (o passo em si rodou bem), mas o workflow não tem rota para esse resultado.',
+  'workflow.verdict': 'Resultado de um passo',
+  'workflow.verdict.outcome': 'Resultado: {outcome}',
+  'workflow.verdict.findings': '{n} achado(s):',
+  'workflow.verdict.next': 'Próximo passo: {node}',
+  'workflow.verdict.noRoute':
+    'Nenhuma rota do workflow corresponde a este resultado: adicione uma no editor e retome a execução.',
+  'workflow.node.outcome': 'resultado {outcome}',
+  'workflow.node.reused': 'reutilizado, não rodou de novo',
+  'workflow.recovery.title': 'Esta execução pode ser retomada',
+  'workflow.recovery.lastCompleted': 'Último passo concluído: {node}',
+  'workflow.recovery.stoppedAt': 'Parou em: {node}',
+  'workflow.recovery.resume': 'Continua a partir de: {nodes}',
+  'workflow.recovery.retry': 'Repete o passo que falhou: {nodes}',
+  'workflow.recovery.kept': 'Mantidos sem refazer: {nodes}',
+  'workflow.recovery.button': 'Retomar de onde parou',
+  'workflow.recovery.count': 'Retomada {n} vez(es)',
+  'workflow.recovery.cannot': 'Esta execução ainda não pode ser retomada',
+  'workflow.recovery.problem.no_route':
+    'O workflow não tem rota para o resultado desse passo. Adicione uma no editor e volte aqui.',
+  'workflow.recovery.problem.loop_limit':
+    'O ciclo chegou ao limite de passagens. Aumente o limite no editor e volte aqui.',
+  'workflow.recovery.problem.recovery_required':
+    'O worktree desta execução não existe mais ou foi alterado. O Atlas não o recria sozinho: inicie uma nova execução.',
+  'workflow.recovery.problem.code_settled':
+    'O código desta execução já foi aplicado ou descartado.',
+  'workflow.recovery.problem.not_recoverable':
+    'A execução terminou onde devia terminar, ou não tem por onde continuar.',
   'workflow.overview.status': 'Status',
   'workflow.overview.current': 'Atual',
   'workflow.overview.agents': 'Agentes ativos',
@@ -1099,6 +1127,13 @@ export const ptBR: Record<TranslationKey, string> = {
   'workflow.edge.pass': 'O resultado é pass',
   'workflow.edge.fail': 'O resultado é fail',
   'workflow.edge.custom': 'Uma condição…',
+  'workflow.field.result.outcome': 'resultado declarado pelo agente (pass, fail, approved…)',
+  'workflow.field.result.status': 'status relatado pelo agente, não o resultado',
+  'workflow.field.result.summary': 'resumo',
+  'workflow.field.result.next_action': 'próxima ação sugerida',
+  'workflow.field.result.findings': 'quantidade de achados',
+  'workflow.field.result.matched': 'resultado de uma condição',
+  'workflow.field.validation.status': 'status da validação',
   'workflow.condition.field': 'Campo',
   'workflow.condition.operator': 'Operador',
   'workflow.condition.value': 'Valor',

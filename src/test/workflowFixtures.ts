@@ -211,6 +211,7 @@ export function run(
     changes: null,
     integration: noIntegration(),
     interactions: [],
+    recoveries: [],
     events: [],
     startedAt: 1_000,
     updatedAt: 2_000,

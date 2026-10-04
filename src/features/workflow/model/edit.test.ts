@@ -49,7 +49,7 @@ describe('workflow edits', () => {
     const next = addEndNode(addConditionNode(base(), 'Condition'), 'Failed', 'failed');
     expect(next.nodes.find((n) => n.id === 'condition')).toMatchObject({
       type: 'condition',
-      condition: { field: 'result.status', operator: 'equals' },
+      condition: { field: 'result.outcome', operator: 'equals' },
     });
     expect(next.nodes.find((n) => n.id === 'failed')).toMatchObject({
       type: 'end',

@@ -16,12 +16,13 @@ import {
   templates,
   workflowEvent,
 } from '@/test/workflowFixtures';
-import type { WorkflowDto, WorkflowExecutionDto } from '@/lib/tauri/commands';
+import type { RecoveryPlanDto, WorkflowDto, WorkflowExecutionDto } from '@/lib/tauri/commands';
 import {
   cancelWorkflow,
   createFromTemplate,
   createWorkflow,
   deleteWorkflow,
+  getRecovery,
   getRun,
   listIdes,
   listRuns,
@@ -58,6 +59,7 @@ interface Setup {
   runs?: WorkflowExecutionDto[];
   language?: string;
   validation?: ValidationReport;
+  recovery?: RecoveryPlanDto | null;
 }
 
 function show(setup: Setup = {}) {
@@ -75,6 +77,7 @@ function show(setup: Setup = {}) {
   vi.mocked(getRun).mockImplementation((id) =>
     Promise.resolve(runs.find((r) => r.id === id) ?? null),
   );
+  vi.mocked(getRecovery).mockResolvedValue(setup.recovery ?? null);
   vi.mocked(listTemplates).mockResolvedValue(templates);
   vi.mocked(listIdes).mockResolvedValue([{ id: 'vscode', name: 'Visual Studio Code' }]);
   vi.mocked(selectTemplate).mockResolvedValue('software_feature');
@@ -589,6 +592,111 @@ describe('Workflow page', () => {
       expect(
         within(side()).getByText('A step it depends on failed or was cancelled.'),
       ).toBeInTheDocument();
+    });
+
+    describe('a verdict and recovery', () => {
+      const failedOnVerdict = () =>
+        run(
+          w,
+          'failed',
+          {
+            architect: nodeState('completed', { attempts: [attempt('exec-1')] }),
+            developer: nodeState('completed', {
+              attempts: [attempt('exec-2')],
+              facts: { 'result.status': 'success', 'result.outcome': 'fail' },
+              unrouted: true,
+            }),
+            qa: nodeState('blocked', { reason: 'not_reached' }),
+          },
+          {
+            failure: { code: 'no_route_matched', nodeId: 'developer', detail: 'fail' },
+            state: {
+              ...run(w, 'failed', {}).state,
+              validationResults: [
+                {
+                  nodeId: 'developer',
+                  executionId: 'exec-2',
+                  status: 'success',
+                  outcome: 'fail',
+                  summary: 'The webhook is not atomic.',
+                  findings: [
+                    {
+                      severity: 'high',
+                      category: 'Transactions',
+                      title: 'Missing transaction boundary',
+                      file: 'src/payment.ts',
+                      line: 142,
+                      description: '',
+                      evidence: '',
+                      recommendation: '',
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        );
+
+      it('shows a fail the step concluded as a result with its findings, not as a broken step', async () => {
+        const user = userEvent.setup();
+        show({ runs: [failedOnVerdict()] });
+
+        await user.selectOptions(await screen.findByLabelText('Runs'), 'wfx-1');
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+          'Developer ended with the result "fail" (the step itself ran well), but the workflow has no route for that result.',
+        );
+        expect(screen.getByText(/Result: FAIL/)).toBeInTheDocument();
+        expect(screen.getByText(/Missing transaction boundary/)).toBeInTheDocument();
+        expect(screen.getByText(/src\/payment\.ts:142/)).toBeInTheDocument();
+        expect(
+          screen.getByText(/No route of the workflow matches this result/),
+        ).toBeInTheDocument();
+      });
+
+      it('offers to resume where the graph says, naming what is kept and what runs next', async () => {
+        const user = userEvent.setup();
+        show({
+          runs: [failedOnVerdict()],
+          recovery: {
+            kind: 'resume',
+            failureNodeId: 'developer',
+            lastCompletedNodeId: 'developer',
+            restartNodeIds: ['bug-fixer'],
+            reusedNodeIds: ['architect', 'developer'],
+            problem: null,
+          },
+        });
+
+        await user.selectOptions(await screen.findByLabelText('Runs'), 'wfx-1');
+
+        expect(await screen.findByText('This run can be resumed')).toBeInTheDocument();
+        expect(screen.getByText('Goes on from: Bug Fixer')).toBeInTheDocument();
+        expect(screen.getByText('Kept, not redone: Architect, Developer')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Resume where it stopped' }));
+        expect(resumeWorkflow).toHaveBeenCalledWith('wfx-1');
+      });
+
+      it('says why a run cannot be resumed yet and offers no button', async () => {
+        const user = userEvent.setup();
+        show({
+          runs: [failedOnVerdict()],
+          recovery: {
+            kind: 'resume',
+            failureNodeId: 'developer',
+            lastCompletedNodeId: 'developer',
+            restartNodeIds: [],
+            reusedNodeIds: ['architect', 'developer'],
+            problem: 'no_route',
+          },
+        });
+
+        await user.selectOptions(await screen.findByLabelText('Runs'), 'wfx-1');
+
+        expect(await screen.findByText('This run cannot be resumed yet')).toBeInTheDocument();
+        expect(screen.getByText(/Add one in the editor and come back/)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Resume where it stopped' })).toBeNull();
+      });
     });
 
     it('says a loop reached its limit, and which attempt each node is on', async () => {

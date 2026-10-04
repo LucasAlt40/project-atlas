@@ -90,7 +90,7 @@ export function ConditionEditor({
         >
           {KNOWN_FIELDS.map((field) => (
             <option key={field} value={field}>
-              {field}
+              {field} · {t(`workflow.field.${field}` as TranslationKey)}
             </option>
           ))}
         </select>
@@ -510,7 +510,7 @@ export function EdgeInspector({
       label = '';
     } else if (next === 'custom') {
       condition = edge.condition ?? {
-        field: outcomes.length > 0 ? 'result.outcome' : 'result.status',
+        field: 'result.outcome',
         operator: 'equals',
         value: '',
       };

@@ -9,6 +9,7 @@ import {
   createWorkflow,
   deleteWorkflow,
   discardChanges,
+  getRecovery,
   getRun,
   keepChanges,
   listIdes,
@@ -27,6 +28,7 @@ import {
 import { isActiveRun } from '../types';
 import type {
   Ide,
+  RecoveryPlan,
   ValidationReport,
   Workflow,
   WorkflowEvent,
@@ -284,6 +286,27 @@ export function useWorkflows(workspaceId: string | undefined) {
   const activeRun = runsOfSelected.find((run) => isActiveRun(run));
   const shownRun = runs.find((run) => run.id === shownRunId && run.workflowId === selectedId);
 
+  // A run that failed says where it would go on from (read again when the run or the saved
+  // workflow changes: the plan is worked out under the workflow as it is saved).
+  const [recovery, setRecovery] = useState<{ of: string; plan: RecoveryPlan | null }>();
+  const failedRunId = shownRun?.status === 'failed' ? shownRun.id : undefined;
+  const failedRunStamp = shownRun?.updatedAt;
+  const savedWorkflow = draft?.saved;
+  useEffect(() => {
+    if (!failedRunId) return;
+    let cancelled = false;
+    getRecovery(failedRunId)
+      .then((plan) => {
+        if (!cancelled) setRecovery({ of: failedRunId, plan });
+      })
+      .catch(() => {
+        if (!cancelled) setRecovery({ of: failedRunId, plan: null });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [failedRunId, failedRunStamp, savedWorkflow]);
+
   // The editor checks the draft with the core as it changes.
   const present = draft?.present;
   useEffect(() => {
@@ -407,6 +430,14 @@ export function useWorkflows(workspaceId: string | undefined) {
       const target = shownRun ?? activeRun;
       if (!target) return;
       await guard(async () => {
+        if (action === 'resume' && target.status === 'failed' && draft) {
+          // A run goes on under the workflow as it is saved: edits made to fix it are saved first.
+          if (draft.present !== draft.saved) {
+            const saved = await updateWorkflow(draft.present);
+            upsert(saved);
+            dispatch({ type: 'saved', workflow: saved });
+          }
+        }
         if (action === 'pause') await pauseWorkflow(target.id);
         else if (action === 'resume') await resumeWorkflow(target.id);
         else await cancelWorkflow(target.id);
@@ -414,7 +445,7 @@ export function useWorkflows(workspaceId: string | undefined) {
         if (fresh) setRuns((current) => current.map((r) => (r.id === fresh.id ? fresh : r)));
       });
     },
-    [shownRun, activeRun, guard],
+    [shownRun, activeRun, guard, draft, upsert],
   );
 
   /** The user's decision about the run's code. What comes back is the run as the core now has it. */
@@ -485,6 +516,7 @@ export function useWorkflows(workspaceId: string | undefined) {
     validation,
     activeRun,
     shownRun,
+    recovery: recovery && recovery.of === shownRun?.id ? recovery.plan : null,
     error,
     clearError: () => {
       setError(undefined);
