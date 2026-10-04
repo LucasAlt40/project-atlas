@@ -18,6 +18,7 @@ import { activityLabel } from '../model/activity';
 import type { AgentRun } from '../model/agentRuns';
 import type { AgentStatus } from '../model/agentStatus';
 import styles from './Details.module.css';
+import { AgentPermissions } from './AgentPermissions';
 import { StatusBadge } from './StatusBadge';
 
 interface Props {
@@ -74,6 +75,11 @@ export function AgentDetailsPanel({
           </p>
         )}
       </header>
+
+      <section aria-label={t('permissions.title')}>
+        <h3 className={styles.heading}>{t('permissions.title')}</h3>
+        <AgentPermissions workspaceId={workspaceId} agentId={agent.id} runtimeName={runtimeName} />
+      </section>
 
       <section aria-label={t('harness.agent.title')}>
         <h3 className={styles.heading}>{t('harness.agent.title')}</h3>

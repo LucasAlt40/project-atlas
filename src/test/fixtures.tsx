@@ -27,6 +27,7 @@ import {
   addAgentToWorkspace,
   createWorkspace,
   deleteWorkspace,
+  getAgentPermissions,
   getExecutionTerminal,
   getProjectContext,
   getProjectHarness,
@@ -40,6 +41,7 @@ import {
   previewTaskContext,
   removeAgentFromWorkspace,
   sendMessage,
+  setAgentPermissionProfile,
   subscribeToExecutionEvents,
   subscribeToHarnessProgress,
   subscribeToMessages,
@@ -54,7 +56,9 @@ import type {
   Workspace,
 } from '@/features/workspace/types';
 import type {
+  AgentPermissionsDto,
   AgentUsageSummaryDto,
+  SecurityPolicyDto,
   ExecutionWorktreeDto,
   HarnessProgressDto,
   HarnessSummaryDto,
@@ -258,6 +262,8 @@ export interface Backend {
   analysis?: ProjectAnalysisDto;
   /** What previewing a task's context answers (by default: the project has no Harness). */
   taskContext?: TaskContextPreviewDto;
+  /** The permission profile of every agent (by default: `read_only`, as a new agent has). */
+  profile?: 'read_only' | 'developer';
 }
 
 /** A task context chosen for "Add password recovery endpoint": three items in, two out. */
@@ -481,6 +487,31 @@ export function emitSessionStatus(event: SessionStatusEventDto): void {
 }
 
 /** Scripts every service. Anything not given is empty / default. */
+/** What the core answers for an agent's permissions: read only, or the developer profile. */
+export function agentPermissions(
+  workspaceId: string,
+  agentId: string,
+  profile: 'read_only' | 'developer',
+): AgentPermissionsDto {
+  const write = profile === 'developer' ? 'allowed' : 'denied';
+  const policy: SecurityPolicyDto = {
+    filesystem: { scope: 'project_only', write },
+    processes: { mode: write, allowedCommands: [] },
+    network: { mode: 'denied' },
+    git: { read: 'allowed', write, destructive: 'denied' },
+  };
+  return {
+    workspaceId,
+    agentId,
+    profile,
+    availableProfiles: ['read_only', 'developer'],
+    policy,
+    effective: policy,
+    runtimeAccess: { filesystemWrite: true, processExecution: true, network: true },
+    unenforced: [],
+  };
+}
+
 export function mockBackend(backend: Backend = {}): void {
   const settings = {
     language: backend.language ?? 'en-US',
@@ -513,6 +544,10 @@ export function mockBackend(backend: Backend = {}): void {
   vi.mocked(previewTaskContext).mockResolvedValue(
     backend.taskContext ?? { status: 'missing', context: null },
   );
+  vi.mocked(getAgentPermissions).mockImplementation((workspaceId, agentId) =>
+    Promise.resolve(agentPermissions(workspaceId, agentId, backend.profile ?? 'read_only')),
+  );
+  vi.mocked(setAgentPermissionProfile).mockResolvedValue(agent('a', 'a'));
   vi.mocked(getAgentUsage).mockResolvedValue(backend.agentUsage ?? emptyAgentUsage());
   vi.mocked(getWorkspaceUsage).mockResolvedValue(backend.workspaceUsage ?? emptyWorkspaceUsage());
   vi.mocked(subscribeToExecutionEvents).mockImplementation((handler) => {

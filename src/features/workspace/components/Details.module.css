@@ -181,3 +181,14 @@
 .quota[data-level='high'] .barFill {
   background: var(--danger);
 }
+
+.select {
+  max-width: 60%;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-void);
+  color: var(--text-high);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}

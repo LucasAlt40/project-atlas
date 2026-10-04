@@ -16,7 +16,7 @@ import {
   workspace,
 } from '@/test/fixtures';
 import type { AgentUsageSummaryDto, UsageRecordDto } from '@/lib/tauri/commands';
-import { sendMessage } from '../services/workspaceService';
+import { sendMessage, setAgentPermissionProfile } from '../services/workspaceService';
 import { WorkspacePage } from '../pages/WorkspacePage';
 
 vi.mock('@/features/agents/services/catalogService');
@@ -71,6 +71,33 @@ describe('Agent details and usage', () => {
     expect(within(panel).getAllByText('sonnet').length).toBeGreaterThan(0);
     expect(within(panel).getAllByText('Ready').length).toBeGreaterThan(0);
     expect(getAgentUsage).toHaveBeenCalledWith('w1', 'a1');
+  });
+
+  it('shows an agent as read only until it is given the developer profile', async () => {
+    const user = userEvent.setup();
+    show();
+
+    const panel = await openDetails(user, 'Developer');
+
+    const profile = await within(panel).findByRole('combobox', { name: 'Profile' });
+    expect(profile).toHaveValue('read_only');
+    expect(within(panel).getByText(/cannot edit files/)).toBeInTheDocument();
+
+    await user.selectOptions(profile, 'developer');
+
+    expect(setAgentPermissionProfile).toHaveBeenCalledWith('a2', 'developer');
+  });
+
+  it('does not say the agent is read only once it may write', async () => {
+    const user = userEvent.setup();
+    show(emptyAgentUsage(), { profile: 'developer' });
+
+    const panel = await openDetails(user, 'Developer');
+
+    expect(await within(panel).findByRole('combobox', { name: 'Profile' })).toHaveValue(
+      'developer',
+    );
+    expect(within(panel).queryByText(/cannot edit files/)).not.toBeInTheDocument();
   });
 
   it('says "not reported" rather than showing zeros when nothing was reported', async () => {

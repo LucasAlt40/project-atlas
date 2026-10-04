@@ -571,6 +571,8 @@ export const ptBR: Record<TranslationKey, string> = {
   'permissions.runtimeLimits': 'Limites de {runtime}: não pode {what}.',
   'permissions.unenforced':
     '⚠ As ferramentas do próprio {runtime} podem {what}. O Atlas não consegue restringir isso de fora da CLI.',
+  'permissions.readOnlyHint':
+    'Este agente não pode editar arquivos. Escolha Desenvolvedor para permitir que ele escreva, dentro do worktree isolado.',
   'permission.reason.unknown_scope': 'O workspace ou o agente não é conhecido pelo Atlas.',
   'permission.reason.project_unavailable': 'A pasta do projeto não está disponível.',
   'permission.reason.shell_not_permitted': 'Shells nunca são executados.',

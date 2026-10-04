@@ -566,6 +566,8 @@ export const enUS = {
   'permissions.runtimeLimits': '{runtime} limits: it cannot {what}.',
   'permissions.unenforced':
     '⚠ {runtime}’s own tools can {what}. Atlas cannot restrict that from outside the CLI.',
+  'permissions.readOnlyHint':
+    'This agent cannot edit files. Choose Developer to let it write, inside its isolated worktree.',
   'permission.reason.unknown_scope': 'The workspace or agent is not known to Atlas.',
   'permission.reason.project_unavailable': 'The project folder is not available.',
   'permission.reason.shell_not_permitted': 'Shells are never run.',
