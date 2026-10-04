@@ -64,8 +64,19 @@ WorkspacePage → WorkspaceProvider / useCatalog → feature services
   required / ready; `authentication`; `modelDiscovery`: discovered / unsupported / unavailable / failed).
   Adding a runtime = one file in `application/runtimes/` plus one line in
   `RuntimeRegistry::with_default_runtimes`. Nothing in agents, prompts, executions, commands or the UI changes.
-- **Runtimes today**: `OpenCodeRuntime` and `ClaudeRuntime` execute tasks. Codex, Gemini and Antigravity are
-  `DetectOnlyRuntime`s (`nonInteractiveExecution: false`), so agents cannot be created for them yet.
+- **Runtimes today**: `OpenCodeRuntime`, `ClaudeRuntime`, `GeminiRuntime` and `AntigravityRuntime` execute
+  tasks. Codex is a `DetectOnlyRuntime` (`nonInteractiveExecution: false`), so agents cannot be created for it yet.
+- **Antigravity CLI** (program `agy`, not `antigravity`): models from `agy models` (`id<TAB>name`, the reasoning
+  effort is part of the id); runs `agy --output-format stream-json --model <id> --prompt=<prompt>` in a terminal
+  (`-p` takes a value and ignores stdin, so the prompt is an option value, never stdin). A headless run denies
+  every tool that would need a prompt (verified: file writes and shell), so the default is read-only;
+  `allow_edits` adds `--mode accept-edits`. `--dangerously-skip-permissions` is never used. There is no flag to
+  restrict tools (so `text_only` is off and `toolAccess` is reported open: the user's `settings.json` may allow
+  commands) and no sign-in status command (reported `unknown`; a run that fails for it is classified).
+- **Gemini CLI**: `gemini --output-format stream-json --model <model> --approval-mode default|auto_edit
+  --skip-trust --prompt=<prompt>`; headless runs cannot use tools that need approval, so `default` is read-only
+  and `allow_edits` uses `auto_edit` (`--yolo` is never used). No model list or sign-in status. Google ended the
+  CLI for individual accounts (`IneligibleTierError`), which is reported as unavailable and points to Antigravity.
 - **OpenCode**: models from `opencode models`; `opencode run --agent plan -m <model> --format json`, prompt on
   stdin. `--agent plan` (OpenCode's built-in read-only agent) is what makes the run read-only: a plain
   `opencode run` was verified to create files and run shell commands without asking.
@@ -133,6 +144,57 @@ model-assisted semantic analysis proposes findings that must cite what it was sh
 than resolved silently, refresh shows a diff and never overwrites the user's own knowledge, and agents receive a compact
 summary separating what is known, inferred, told by the user and unknown. See
 [ADR 0011](adr/0011-harness-knowledge-model.md).
+
+V0.8 makes the context **task-aware**: instead of the whole Harness, an agent is told the part its task needs, chosen by
+deterministic rules (a small tag lexicon, areas, categories, paths and keywords; no model, no embeddings) and explainable
+item by item. Constraints and decisions are never left out, inference stays inference, stale knowledge is told as outdated,
+and what was left out is named. If a selection cannot be made the whole Harness context is used and the execution records
+why. A preview shows the context before the run. See [ADR 0012](adr/0012-task-aware-context.md).
+
+## Workflows: engine, orchestrator and visual graph (V0.9)
+
+A task can now run as a **workflow** — a graph of agent steps, conditions and ends — instead of one agent. Four
+separate concerns (see [ADR 0013](adr/0013-workflow-engine-and-orchestrator.md)):
+
+```text
+domain/workflow, domain/orchestration     the model: Workflow, Node, Edge, Condition, WorkflowExecution, shared state,
+                                          Artifact, Decision, AgentResult — no behaviour that needs I/O
+application/workflow/graph.rs             links, cycles (SCC), reachability
+application/workflow/validation.rs        every rule that makes a graph runnable (bounded loops, agents exist, …)
+application/workflow/engine.rs            the Workflow Engine: a pure state machine (ready / dispatch / complete / route /
+                                          retry / block / skip / pause / cancel / interrupt)
+application/workflow/orchestrator.rs      drives a run: StepRunner port, threads, approvals watch, persistence, events
+application/workflow/chat_runner.rs       the real StepRunner: a step is an execution through ChatService
+application/workflow/service.rs           definitions (versioned), runs (snapshots), recovery of interrupted runs
+application/workflow/templates.rs         deterministic templates and the automatic selector
+application/orchestration/                result parser, handoff into shared state, the per-step brief
+commands/workflow.rs                      thin Tauri adapter (15 commands, `workflow:*` events)
+features/workflow (frontend)              page, canvas (React Flow as presentation only), inspector, overview
+```
+
+A step goes through `ChatService::send_workflow_step`, so it is an ordinary execution: the agent's worktree policy, the
+Harness (Task Context selected for the step's own work), the runtime registry and the permission guard all apply, and the
+execution appears in history and in the Execution Inspector with a _Workflow › name › step › Execution #n_ breadcrumb.
+Nothing in a workflow can run a process or approve anything.
+
+Steps hand results to each other as explicit **handoffs**, share **one worktree per run** (what the Developer writes is what the
+Validator reads), and the run's code is measured by Git and kept apart from the run's own status: a run can complete while its code is
+still only in the isolated worktree, and only an explicit user decision (apply, keep, discard, open in an editor) changes that. See
+[ADR 0014](adr/0014-handoff-shared-worktree-and-code-integration.md).
+
+An agent can declare a **result contract** (outcomes such as `pass`/`fail` or `approved`/`changes_requested`); steps route on the
+structured `result.outcome`, never on free text, and a step that must conclude and does not fails instead of being read as a pass.
+Steps that write take the run's worktree exclusively; readers share it. See
+[ADR 0015](adr/0015-result-contracts-outcomes-and-worktree-lock.md).
+
+## Human in the loop (V0.9.3)
+
+An agent that stops to ask a person is **waiting**, not done ([ADR 0016](adr/0016-human-in-the-loop.md)).
+`ExecutionStatus`, `NodeStatus` and the run each have a `WaitingForInput` state; the question is a
+`PendingInteraction` persisted with the run. The detector (adapter signal → `atlas-interaction` block →
+conservative text analysis) lives in `application/interaction`; the orchestrator pauses the run, takes the
+answer through `answer_workflow_interaction`, and starts the step again from it in the same worktree. The UI
+shows "Action required" in the header and on the run; answering never applies code to the project.
 
 ## Workspaces, project context and agent chat (V0.5)
 
@@ -285,4 +347,9 @@ A frontend router and global store are intentionally absent until a second scree
 - [0008 — Conversation and execution history](adr/0008-conversation-and-execution-history.md)
 - [0009 — Git worktree isolation](adr/0009-git-worktree-isolation.md)
 - [0010 — Project Harness](adr/0010-project-harness.md)
-- [0011 — Harness knowledge model, evidence and semantic analysis](adr/0011-harness-knowledge-model.md)
+- [0011 — Harness knowledge model, evidence, semantic analysis, verification and staleness](adr/0011-harness-knowledge-model.md)
+- [0012 — Task-aware context](adr/0012-task-aware-context.md)
+- [0013 — Workflow Engine and Orchestrator](adr/0013-workflow-engine-and-orchestrator.md)
+- [0014 — Handoff, the run's shared worktree and code integration](adr/0014-handoff-shared-worktree-and-code-integration.md)
+- [0015 — Result contracts, outcomes and the shared worktree's lock](adr/0015-result-contracts-outcomes-and-worktree-lock.md)
+- [0016 — Human in the loop: an agent waiting for a person](adr/0016-human-in-the-loop.md)

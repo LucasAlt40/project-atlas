@@ -105,7 +105,8 @@ unchanged. Atlas can therefore go from Angular 18 to 21 without losing business 
 ## Context building
 
 `HarnessContextBuilder` produces a compact _Project Context Summary_ under a budget (default 6 000 characters). Items are
-kept by priority — constraints/decisions, architecture, stack, modules, conventions, business, testing, the rest — and
+kept by priority — constraints/decisions (never dropped: each is capped on its own), verified facts and stack,
+what may be outdated and conflicts, architecture, modules, conventions, testing, inferences, business, unknowns — and
 what is omitted is named in the text and logged on the execution. Each item keeps its area so a later task-aware filter
 can select items without changing storage (not implemented). The text begins by stating it is context, not authority.
 Layers, outermost first: global user context → project Harness → workspace context → personality → execution context →
@@ -116,4 +117,61 @@ task. The Security Policy is not a layer: it is enforced by the process guard an
 - Semantic analysis only works through runtimes that can run without tools (Claude); it is not tracked in usage.
 - Conventions, modules and data flow beyond the listed rules come only from the model, always as medium/low inferences.
 - Conflict detection covers fact-vs-model, docs-vs-fact versions and user-vs-new-fact; not every possible contradiction.
-- `Stale` is not detected; refresh is user-initiated. Business context is never inferred.
+- Staleness is detected by comparing relevant files and folders, not by understanding the change: an edit to an ordinary
+  source file is invisible to it, and a relevant change marks only the findings whose evidence lives there (the rest of
+  the Harness still says the project changed). Refresh is user-initiated. Business context is never inferred.
+- Nothing is verified by running a command in V0.7.2; `command_execution` exists in the model for a later version.
+
+## V0.7.2 — Verification, staleness and negative knowledge
+
+The Harness must be able to say what it knows, how it knows, when, and whether that may still hold.
+
+**Provenance and verification are different axes.** `origin` says who made a statement (`fact` read from a repository
+file, `inference`, `user_confirmed`, `user_corrected`); `verification` says whether it was _checked_
+(`unverified` | `verified` + `verifiedAt` + `method` | `stale`). A fact is verified by the very repository file it is read
+from (`repository_file`); an inference is `unverified` until something checks it. `command_execution` is reserved for a
+future version that runs a command on request; V0.7.2 never runs anything to obtain a verification. The user vouching for
+an inference makes it `user_confirmed` with `originalOrigin: inference` — it never becomes a fact. A correction replaces
+the value, so the earlier verification no longer applies. Knowledge written before V0.7.2 is read as it was: its facts
+are stamped verified at the analysis time.
+
+**Evidence is not optional for analysis.** Any non-generated finding without at least one evidence source is rejected
+(counted in `semantic.rejected`), never downgraded to low confidence.
+
+**Unknown vs not found** (`negative.rs`). _Not found_ is a bounded search that came back empty (database, test framework,
+CI, infrastructure) and says where it looked and that it is not proof of absence. _Unknown_ is what nothing available can
+establish (production deployment, whether commands work, whether an inferred architecture is still enforced). The
+context says "Not found: …" / "Unknown: …" under WHAT WE DON'T KNOW and never states absence or turns either into a
+fact.
+
+**Project fingerprint** (`fingerprint.rs`). Stored in `knowledge/findings.yaml` (`analysis.fingerprint`) as one digest
+plus per-part digests, so a later check can name what changed. Parts: manifests and lockfiles, configuration
+(`tsconfig*`, `vite.config.*`, `angular.json`, `tauri.conf.json`, linters, toolchains), CI and containers
+(`.github/workflows`, `Dockerfile`, compose, `docker/`), `README*`, and the _existence_ of folders up to two levels deep.
+Ordinary source files are not parts: editing `Button.tsx` is not relevant, adding `src/infrastructure/` is. Digests are
+FNV-1a over line-ending-normalised text (stable across platforms and Rust versions; not a security boundary), paths use
+`/`, links are never followed, secrets (`.env`, keys) and generated folders (`node_modules`, `target`, `dist`, `.git`…)
+are excluded, and nothing is executed. Files that are not analysed (lockfiles, config) are only digested by the scanner
+(first 4 MiB).
+
+**Staleness.** `summarize` and the context builder compare the stored fingerprint with the project as it is now. A
+change marks as `stale` only the findings whose evidence path equals, contains or is contained by a changed path; user
+statements are never marked (they are not claims about the repository). Stale knowledge is moved to WHAT MAY BE OUTDATED
+in the context, with its last verified date, and HARNESS STATUS says the project changed. Nothing is deleted or
+rewritten: staleness is computed on read. A Harness without a fingerprint is `NeedsReview` (`no_fingerprint`), not stale,
+because nothing says whether it changed. If the project cannot be scanned, staleness is not claimed.
+
+**Health precedence**, strongest first: `Stale > Conflicted > Partial > NeedsReview > Healthy`. Stale outranks the rest
+because its other judgements describe a project that no longer exists as analysed, and refreshing is the first step
+(it may dissolve them); every reason is still listed. `Healthy` means not stale, no unresolved conflict, a complete
+analysis and no relevant inference waiting for confirmation.
+
+**Refresh and human knowledge** are unchanged: refresh previews first (now with the relevant changes), writes only after
+confirmation, with backups, and never overwrites `business.md`, `constraints.md` or `decisions.md` or the user's
+corrections, confirmations and exclusions. After an applied refresh the new fingerprint is stored and the Harness is no
+longer stale. Contradictions between repository evidence and the user's knowledge stay conflicts for the user to decide.
+
+**Context shape.** `HARNESS STATUS` (last analysed, stale/conflict notes) → WHAT WE KNOW (verified facts only; a fact
+without verification is told as a candidate) → WHAT WE INFER (always "not verified") → WHAT THE USER TOLD US
+(confirmations say "inferred by Atlas, confirmed by the user") → WHAT WE DON'T KNOW → WHAT MAY BE OUTDATED. The builder
+takes an optional `ProjectScanner` to fingerprint the project at run time; without it no staleness is claimed.
