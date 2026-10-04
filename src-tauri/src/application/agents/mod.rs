@@ -77,7 +77,10 @@ impl AgentService {
             runtime_id: request.runtime_id,
             model_id,
             instructions: request.instructions.trim().to_owned(),
-            permission_profile_id: None,
+            // A new agent may edit files (in its isolated worktree, and only as far as the
+            // workspace's policy allows). Unset still means the most restrictive profile, for
+            // agents saved before this default existed.
+            permission_profile_id: Some(PermissionProfile::Developer.id().to_owned()),
             worktree_isolation: request.worktree_isolation.unwrap_or(true),
             result_contract,
             created_at: now_ms(),

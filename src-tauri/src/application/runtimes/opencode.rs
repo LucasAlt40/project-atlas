@@ -75,7 +75,9 @@ impl ModelRuntime for OpenCodeRuntime {
                 terminal_input: false,
                 terminal_resize: true,
                 text_only: false,
-                file_edit: false,
+                // `--agent build` (OpenCode's default agent) has the edit tool; `--agent plan` denies it.
+                // Whether an execution gets it is decided per execution, like every runtime.
+                file_edit: true,
                 // `--agent plan` denies OpenCode's `edit` tool, but its permission table still
                 // allows everything else (`* -> allow`, checked with `opencode agent list`):
                 // the shell and web tools can write files and reach the network. Atlas cannot
@@ -156,10 +158,13 @@ impl ModelRuntime for OpenCodeRuntime {
         }
 
         // OpenCode has no system-prompt flag, so everything goes in as one labelled prompt.
+        // `plan` is its read-only agent; `build` can edit files, and is used only when the
+        // execution was granted that (see `RuntimeRequest::allow_edits`).
+        let agent = if request.allow_edits { "build" } else { "plan" };
         let args = [
             "run",
             "--agent",
-            "plan",
+            agent,
             "-m",
             &request.model_id,
             "--format",
@@ -459,6 +464,24 @@ mod tests {
         assert_eq!(status.model_discovery, ModelDiscovery::Failed);
         assert_eq!(status.available_models, []);
         assert!(status.discovery_error.is_some());
+    }
+
+    #[test]
+    fn the_build_agent_that_can_edit_is_used_only_when_the_execution_may_edit() {
+        let run = |allow_edits: bool| {
+            let fake = runner(ok(r#"{"type":"text","part":{"text":"done"}}"#));
+            let mut edit = request("opencode/big-pickle");
+            edit.allow_edits = allow_edits;
+            OpenCodeRuntime::new(fake.clone())
+                .execute(&edit, &|_| {})
+                .unwrap();
+            let calls = fake.calls.lock().unwrap();
+            let args = calls.last().unwrap().args.clone();
+            args[args.iter().position(|a| a == "--agent").unwrap() + 1].clone()
+        };
+
+        assert_eq!(run(false), "plan");
+        assert_eq!(run(true), "build");
     }
 
     #[test]

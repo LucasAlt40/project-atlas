@@ -619,7 +619,8 @@ fn security_is_visible_per_workspace_and_agent_and_approvals_are_explicit() {
         "workspace_not_found"
     );
 
-    // A new agent is read-only until someone picks another profile.
+    // A new agent may edit and run development commands (the workspace's policy still bounds
+    // it); it can be switched to read-only.
     let ask = || {
         invoke(
             &window,
@@ -629,28 +630,29 @@ fn security_is_visible_per_workspace_and_agent_and_approvals_are_explicit() {
         .unwrap()
     };
     let before = ask();
-    assert_eq!(before["profile"], "read_only");
+    assert_eq!(before["profile"], "developer");
     assert_eq!(
         before["availableProfiles"],
         json!(["read_only", "developer"])
     );
-    assert_eq!(before["policy"]["processes"]["mode"], "denied");
-    assert_eq!(before["policy"]["filesystem"]["write"], "denied");
+    assert_eq!(before["policy"]["processes"]["mode"], "allowed");
+    assert_eq!(before["policy"]["filesystem"]["write"], "allowed");
+    // The fake runtime's own tools can neither write nor run commands, which narrows the
+    // profile: the runtime cannot be given more than it can do.
+    assert_eq!(before["effective"]["processes"]["mode"], "denied");
+    assert_eq!(before["effective"]["filesystem"]["write"], "denied");
+    assert_eq!(before["unenforced"], json!([]));
 
     let updated = invoke(
         &window,
         "set_agent_permission_profile",
-        json!({ "agentId": agent["id"], "profileId": "developer" }),
+        json!({ "agentId": agent["id"], "profileId": "read_only" }),
     )
     .unwrap();
-    assert_eq!(updated["permissionProfileId"], "developer");
+    assert_eq!(updated["permissionProfileId"], "read_only");
     let after = ask();
-    assert_eq!(after["policy"]["processes"]["mode"], "allowed");
-    // The fake runtime's own tools can neither write nor run commands, which narrows the
-    // profile: the runtime cannot be given more than it can do.
-    assert_eq!(after["effective"]["processes"]["mode"], "denied");
-    assert_eq!(after["effective"]["filesystem"]["write"], "denied");
-    assert_eq!(after["unenforced"], json!([]));
+    assert_eq!(after["policy"]["processes"]["mode"], "denied");
+    assert_eq!(after["policy"]["filesystem"]["write"], "denied");
 
     assert_eq!(
         invoke(
