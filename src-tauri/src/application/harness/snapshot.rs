@@ -1,5 +1,29 @@
 use std::collections::BTreeMap;
 
+/// Folders that are generated, vendored or huge: they are noted by name but never entered.
+pub const IGNORED_DIRS: &[&str] = &[
+    "node_modules",
+    ".git",
+    "dist",
+    "build",
+    "target",
+    "bin",
+    "obj",
+    "coverage",
+    "vendor",
+    ".cache",
+    ".next",
+    ".nuxt",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".gradle",
+    ".idea",
+    ".vscode",
+    ".turbo",
+    ".atlas",
+];
+
 /// What a scanner saw of a project: names of entries and the text of a few well-known manifest
 /// files. The analyzer works only from this, so it can be tested without a disk and never runs
 /// anything.
@@ -15,6 +39,9 @@ pub struct ScanSnapshot {
     pub git_head: Option<String>,
     /// A limit (depth or entry count) stopped the scan early.
     pub truncated: bool,
+    /// Content digests of relevant files whose text is not in `files` (lockfiles, configuration,
+    /// CI, docs), by relative path. Never of secrets. See [`super::fingerprint`].
+    pub hashes: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

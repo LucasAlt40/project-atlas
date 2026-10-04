@@ -321,6 +321,16 @@ fn architecture(findings: &[Finding]) -> String {
     )
 }
 
+/// How agents working in this project hand a plan to people. It is Atlas's own rule, not
+/// something found in the repository, and it is stated here so every agent reads it.
+const WORKING_AGREEMENTS: &str = "## Working agreements (Atlas)\n\n\
+- **Plans are mandatory documents.** An agent that proposes or is asked for a plan, design or \
+analysis before implementing must write it in full as Markdown in its message (Atlas shows it to \
+the person, highlighted, with the notification) and, if it can create files, also save it as \
+`docs/plans/<short-name>.md`.\n\
+- A plan is approved by the person in Atlas before implementation starts; approval lets the agent \
+continue in its isolated worktree and never applies anything to the project.\n";
+
 fn conventions(findings: &[Finding]) -> String {
     let conventions = section(
         findings,
@@ -344,7 +354,7 @@ fn conventions(findings: &[Finding]) -> String {
     };
     format!(
         "# Development Conventions\n\nOnly what was observed or read in the project's documents. Anything not listed is not known.\n\n\
-         {none}{practices}{conventions}{tooling}## Git\n\n{branch}"
+         {none}{practices}{conventions}{tooling}## Git\n\n{branch}\n{WORKING_AGREEMENTS}"
     )
 }
 

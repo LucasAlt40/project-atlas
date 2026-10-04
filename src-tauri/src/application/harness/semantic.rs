@@ -574,6 +574,7 @@ impl SemanticModel for RuntimeSemanticModel {
                 }
                 .to_owned(),
                 harness: None,
+                task_aware: false,
                 context: String::new(),
                 instruction: prompt.to_owned(),
             },
@@ -587,6 +588,7 @@ impl SemanticModel for RuntimeSemanticModel {
                 isolated: false,
             },
             text_only: self.text_only,
+            allow_edits: false,
         };
         runtime
             .execute(&request, &|event| match event {
@@ -874,6 +876,7 @@ mod tests {
                 model_id: "m1".to_owned(),
                 instructions: String::new(),
                 worktree_isolation: None,
+                result_contract: None,
             })
             .unwrap();
         Rig {

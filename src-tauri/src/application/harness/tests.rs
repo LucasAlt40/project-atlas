@@ -232,6 +232,10 @@ fn initializing_writes_generated_knowledge_and_the_users_own_files() {
         .unwrap();
 
     assert_eq!(outcome.summary.status, HarnessStatus::Initialized);
+    // The plan rule is written into every Harness, explicitly.
+    let conventions = f.store.get("context/conventions.md").unwrap();
+    assert!(conventions.contains("Plans are mandatory documents"));
+    assert!(conventions.contains("docs/plans/<short-name>.md"));
     assert!(outcome.summary.stack.contains(&"Angular 18".to_owned()));
     for path in [
         "project.yaml",
@@ -971,6 +975,7 @@ fn block<'a>(text: &'a str, heading: &str) -> &'a str {
         "WHAT WE INFER",
         "WHAT THE USER TOLD US",
         "WHAT WE DON'T KNOW",
+        "WHAT MAY BE OUTDATED",
         "Omitted because",
     ]
     .iter()
@@ -1014,7 +1019,7 @@ fn the_context_separates_what_we_know_infer_were_told_and_dont_know() {
     assert!(!know.contains("Clean architecture"));
     let infer = block(&text, "WHAT WE INFER");
     assert!(infer.contains("Possible architecture: Clean architecture"));
-    assert!(infer.contains("medium confidence; evidence: src/domain"));
+    assert!(infer.contains("medium confidence; not verified; evidence: src/domain"));
     let told = block(&text, "WHAT THE USER TOLD US");
     assert!(told.contains("Purpose: ERP for transport management"));
     assert!(told.contains("Constraints: Keep the public API stable"));
@@ -1051,8 +1056,8 @@ fn the_users_confirmations_and_corrections_are_attributed_to_them() {
     let (text, _) = loaded(&f);
 
     let told = block(&text, "WHAT THE USER TOLD US");
-    assert!(told.contains("Clean architecture (confirmed)"));
-    assert!(told.contains("Angular 19 (corrected)"));
+    assert!(told.contains("Clean architecture (inferred by Atlas, confirmed by the user)"));
+    assert!(told.contains("Angular 19 (corrected by the user)"));
     assert!(!text.contains("Angular 18"));
     assert!(!text.contains("WHAT WE INFER"));
 }
@@ -1089,26 +1094,26 @@ fn conflicts_and_partial_analysis_are_part_of_what_we_dont_know() {
 }
 
 #[test]
-fn a_small_budget_keeps_constraints_and_architecture_first_and_names_what_was_left_out() {
+fn a_small_budget_keeps_constraints_and_decisions_first_and_names_what_was_left_out() {
     let f = fixture_with(&[], layered_project());
     init(&f, input(InitMode::Create));
 
     let tight =
-        HarnessContextBuilder::new(f.store.clone()).with_budget(ContextBudget { max_chars: 1_000 });
+        HarnessContextBuilder::new(f.store.clone()).with_budget(ContextBudget { max_chars: 700 });
     let HarnessLoad::Loaded { text, omitted } = tight.build("/erp") else {
         panic!("expected a loaded harness");
     };
 
     assert!(text.contains("Keep the public API stable"));
     assert!(text.contains("Do not migrate it"));
-    assert!(text.contains("Possible architecture"));
-    assert!(!omitted.is_empty());
+    assert!(!text.contains("Possible architecture"));
+    assert!(omitted.contains(&"architecture".to_owned()));
     assert!(text.contains(&format!(
         "Omitted because of the size limit (ask or read the code if needed): {}",
         omitted.join(", ")
     )));
     assert!(!text.contains("Commands (observed, not run)"));
-    assert!(text.chars().count() < 1_400);
+    assert!(text.chars().count() < 1_500);
 }
 
 #[test]
@@ -1433,4 +1438,525 @@ fn a_failure_always_comes_with_its_reason() {
     let detail = report.error_detail.as_deref().unwrap();
     assert!(detail.contains("not the expected JSON"));
     assert!(detail.contains("It began: Sorry, I could not access the files."));
+}
+
+// ---- V0.7.2: verification, staleness, negative knowledge ----
+
+use super::knowledge::apply_choices;
+use super::manifest::{parse_knowledge, parse_manifest};
+use crate::domain::harness::{ChangeKind, GapKind, VerificationMethod, VerificationStatus};
+
+fn stored(f: &Fixture) -> crate::domain::harness::HarnessKnowledge {
+    parse_knowledge(&f.store.get("knowledge/findings.yaml").unwrap()).unwrap()
+}
+
+fn changed_manifest() -> ScanSnapshot {
+    angular_21()
+}
+
+fn loaded_live(f: &Fixture) -> String {
+    let builder = HarnessContextBuilder::new(f.store.clone()).with_scanner(f.scanner.clone());
+    match builder.build("/erp") {
+        HarnessLoad::Loaded { text, .. } => text,
+        other => panic!("expected a loaded harness, got {other:?}"),
+    }
+}
+
+#[test]
+fn facts_are_verified_by_the_repository_and_inferences_are_not_verified() {
+    let f = fixture_with(&[], layered_project());
+    init(&f, input(InitMode::Create));
+
+    let knowledge = stored(&f);
+
+    let fact = knowledge
+        .findings
+        .iter()
+        .find(|x| x.id == "framework:angular")
+        .unwrap();
+    assert_eq!(fact.origin, Origin::Fact);
+    assert_eq!(fact.verification.status, VerificationStatus::Verified);
+    assert_eq!(
+        fact.verification.method,
+        Some(VerificationMethod::RepositoryFile)
+    );
+    assert!(fact.verification.verified_at.is_some());
+    let inference = knowledge
+        .findings
+        .iter()
+        .find(|x| x.id == "architecture:clean_architecture")
+        .unwrap();
+    assert_eq!(inference.origin, Origin::Inference);
+    assert_eq!(
+        inference.verification.status,
+        VerificationStatus::Unverified
+    );
+    assert!(inference.verification.method.is_none());
+}
+
+#[test]
+fn nothing_is_verified_by_running_a_command() {
+    let f = fixture();
+    init(&f, input(InitMode::Create));
+
+    assert!(stored(&f)
+        .findings
+        .iter()
+        .all(|x| x.verification.method != Some(VerificationMethod::CommandExecution)));
+}
+
+#[test]
+fn confirming_an_inference_keeps_what_it_was_and_never_makes_it_a_fact() {
+    let f = fixture_with(&[], layered_project());
+    let mut request = input(InitMode::Create);
+    request
+        .confirmed
+        .push("architecture:clean_architecture".to_owned());
+    request
+        .corrections
+        .insert("framework:angular".to_owned(), "19".to_owned());
+    init(&f, request);
+
+    let analysis = analyze(&f);
+    let manifest = parse_manifest(&f.store.get("project.yaml").unwrap()).unwrap();
+    let effective = apply_choices(
+        &analysis.findings,
+        &manifest.excluded,
+        &manifest.corrections,
+        &manifest.confirmed,
+    );
+
+    let confirmed = effective
+        .iter()
+        .find(|x| x.id == "architecture:clean_architecture")
+        .unwrap();
+    assert_eq!(confirmed.origin, Origin::UserConfirmed);
+    assert_eq!(confirmed.original_origin, Some(Origin::Inference));
+    assert_ne!(confirmed.verification.status, VerificationStatus::Verified);
+    let corrected = effective
+        .iter()
+        .find(|x| x.id == "framework:angular")
+        .unwrap();
+    assert_eq!(corrected.origin, Origin::UserCorrected);
+    assert_eq!(corrected.original_origin, Some(Origin::Fact));
+    assert_eq!(
+        corrected.verification.status,
+        VerificationStatus::Unverified
+    );
+}
+
+#[test]
+fn a_healthy_harness_stays_healthy_while_nothing_relevant_changes() {
+    let f = fixture();
+    init(&f, input(InitMode::Create));
+    assert_eq!(
+        f.service
+            .get(&f.workspace_id)
+            .unwrap()
+            .health
+            .unwrap()
+            .state,
+        HealthState::Healthy
+    );
+
+    // An ordinary source file is not something the Harness's knowledge depends on.
+    let mut edited = angular_project();
+    edited.file("src/components/Button.tsx", Some("export {}"));
+    f.scanner.set(edited);
+
+    let summary = f.service.get(&f.workspace_id).unwrap();
+
+    assert_eq!(summary.health.unwrap().state, HealthState::Healthy);
+    assert!(summary.staleness.is_none());
+}
+
+#[test]
+fn a_relevant_change_makes_the_harness_stale_and_says_what_changed() {
+    let f = fixture();
+    init(&f, input(InitMode::Create));
+    let mut changed = changed_manifest();
+    changed.dir("src");
+    changed.dir("src/infrastructure");
+    changed.file("Dockerfile", Some("FROM node"));
+    f.scanner.set(changed);
+
+    let summary = f.service.get(&f.workspace_id).unwrap();
+
+    let health = summary.health.unwrap();
+    assert_eq!(health.state, HealthState::Stale);
+    assert!(health.reasons.contains(&"project_changed".to_owned()));
+    let staleness = summary.staleness.unwrap();
+    let listed: Vec<(&str, ChangeKind)> = staleness
+        .changes
+        .iter()
+        .map(|c| (c.path.as_str(), c.kind))
+        .collect();
+    assert!(listed.contains(&("package.json", ChangeKind::Modified)));
+    assert!(listed.contains(&("Dockerfile", ChangeKind::Added)));
+    assert!(listed.contains(&("src/infrastructure", ChangeKind::Added)));
+    assert_eq!(staleness.analyzed_at, summary.analyzed_at.unwrap());
+    let stats = summary.stats.unwrap();
+    assert!(stats.stale > 0);
+}
+
+#[test]
+fn stale_wins_over_a_conflict_but_keeps_every_reason() {
+    let f = fixture_with(&[], with_readme("Angular 17"));
+    init(&f, input(InitMode::Create));
+    assert_eq!(
+        f.service
+            .get(&f.workspace_id)
+            .unwrap()
+            .health
+            .unwrap()
+            .state,
+        HealthState::Conflicted
+    );
+    let mut changed = with_readme("Angular 17");
+    changed.file("Cargo.toml", Some("[package]"));
+    f.scanner.set(changed);
+
+    let health = f.service.get(&f.workspace_id).unwrap().health.unwrap();
+
+    assert_eq!(health.state, HealthState::Stale);
+    assert_eq!(health.reasons, ["project_changed", "unresolved_conflicts"]);
+}
+
+#[test]
+fn stale_changes_nothing_on_disk_and_does_not_forget_what_the_user_said() {
+    let f = fixture();
+    init(&f, input(InitMode::Create));
+    let before = f.store.files.lock().unwrap().clone();
+    f.scanner.set(changed_manifest());
+
+    let summary = f.service.get(&f.workspace_id).unwrap();
+    let analysis = f.service.analyze(&f.workspace_id, None).unwrap();
+
+    assert_eq!(summary.health.unwrap().state, HealthState::Stale);
+    assert_eq!(*f.store.files.lock().unwrap(), before);
+    assert!(f
+        .store
+        .get("context/decisions.md")
+        .unwrap()
+        .contains("Do not migrate it"));
+    assert!(analysis
+        .findings
+        .iter()
+        .any(|x| x.id == "framework:angular"));
+}
+
+#[test]
+fn refreshing_a_stale_harness_records_the_new_fingerprint_and_ends_the_staleness() {
+    let f = fixture();
+    init(&f, input(InitMode::Create));
+    let old = stored(&f).analysis.fingerprint.unwrap();
+    f.scanner.set(changed_manifest());
+    let preview = f.service.refresh(&f.workspace_id, false).unwrap();
+    assert!(preview.staleness.is_some());
+    assert!(preview.applied.is_none());
+    // Nothing is updated until the user confirms.
+    assert_eq!(stored(&f).analysis.fingerprint.unwrap(), old);
+
+    f.service.refresh(&f.workspace_id, true).unwrap();
+
+    let new = stored(&f).analysis.fingerprint.unwrap();
+    assert_ne!(new.digest, old.digest);
+    let summary = f.service.get(&f.workspace_id).unwrap();
+    assert!(summary.staleness.is_none());
+    assert_eq!(summary.health.unwrap().state, HealthState::Healthy);
+}
+
+#[test]
+fn a_harness_without_a_fingerprint_is_not_claimed_current() {
+    let f = fixture();
+    init(&f, input(InitMode::Create));
+    let text = f.store.get("knowledge/findings.yaml").unwrap();
+    let mut knowledge = parse_knowledge(&text).unwrap();
+    knowledge.analysis.fingerprint = None;
+    f.store.files.lock().unwrap().insert(
+        "knowledge/findings.yaml".to_owned(),
+        crate::application::harness::manifest::render_knowledge(&knowledge).unwrap(),
+    );
+
+    let health = f.service.get(&f.workspace_id).unwrap().health.unwrap();
+
+    assert_eq!(health.state, HealthState::NeedsReview);
+    assert!(health.reasons.contains(&"no_fingerprint".to_owned()));
+}
+
+#[test]
+fn a_finding_without_real_evidence_is_rejected_not_downgraded() {
+    let f = fixture_with(&[], layered_project());
+    *f.factory.answer.lock().unwrap() = Ok(r#"{"findings":[{"category":"framework","key":"redux","value":"Redux","confidence":"high","reason":"state","evidence":["src/store/never-sent.ts"]}]}"#.to_owned());
+
+    let analysis = f
+        .service
+        .analyze(&f.workspace_id, semantic("a1").as_ref())
+        .unwrap();
+
+    assert!(analysis.findings.iter().all(|x| !x.value.contains("Redux")));
+    assert!(analysis.analysis.semantic.rejected >= 1);
+}
+
+#[test]
+fn what_was_not_found_is_worded_apart_from_what_is_unknown_and_never_as_absence() {
+    let f = fixture();
+    init(&f, input(InitMode::Create));
+
+    let analysis = analyze(&f);
+
+    let db = analysis
+        .gaps
+        .iter()
+        .find(|g| g.subject == "database")
+        .unwrap();
+    assert_eq!(db.kind, GapKind::NotFound);
+    assert!(db.statement.contains("not proof"));
+    let deploy = analysis
+        .gaps
+        .iter()
+        .find(|g| g.subject == "deployment")
+        .unwrap();
+    assert_eq!(deploy.kind, GapKind::Unknown);
+    let text = loaded_live(&f);
+    let unknown = block(&text, "WHAT WE DON'T KNOW");
+    assert!(unknown.contains("Not found: No database technology was found"));
+    assert!(unknown.contains("Unknown: Production deployment"));
+    assert!(unknown.contains("never executed"));
+    assert!(!text.to_lowercase().contains("does not use"));
+}
+
+#[test]
+fn unknowns_never_appear_as_facts_and_facts_are_told_as_verified() {
+    let f = fixture_with(&[], layered_project());
+    init(&f, input(InitMode::Create));
+
+    let text = loaded_live(&f);
+
+    let know = block(&text, "WHAT WE KNOW");
+    assert!(text.contains("WHAT WE KNOW (verified"));
+    assert!(!know.contains("Not found"));
+    assert!(!know.contains("Unknown"));
+    assert!(!know.contains("Clean architecture"));
+    assert!(block(&text, "WHAT WE INFER").contains("not verified"));
+    assert!(text.contains("Last analyzed: "));
+}
+
+#[test]
+fn what_the_project_changed_under_is_outdated_not_known_and_the_rest_is_still_known() {
+    let f = fixture_with(&[], layered_project());
+    init(&f, input(InitMode::Create));
+    f.scanner.set({
+        let mut s = layered_project();
+        s.files.insert(
+            "package.json".to_owned(),
+            r#"{"dependencies":{"@angular/core":"^21.0.0"}}"#.to_owned(),
+        );
+        s
+    });
+
+    let text = loaded_live(&f);
+
+    assert!(text.contains("HARNESS STATUS"));
+    assert!(text.contains("STALE: the project changed since"));
+    assert!(text.contains("package.json"));
+    let outdated = block(&text, "WHAT MAY BE OUTDATED");
+    assert!(outdated.contains("Angular 18"));
+    assert!(outdated.contains("last verified "));
+    assert!(!block(&text, "WHAT WE KNOW").contains("Angular 18"));
+    // The user's own words are not claims about the repository: they stay.
+    assert!(block(&text, "WHAT THE USER TOLD US").contains("Keep the public API stable"));
+}
+
+#[test]
+fn constraints_and_decisions_are_never_cut_by_the_budget() {
+    let f = fixture_with(&[], layered_project());
+    init(&f, input(InitMode::Create));
+    let tiny =
+        HarnessContextBuilder::new(f.store.clone()).with_budget(ContextBudget { max_chars: 1 });
+
+    let HarnessLoad::Loaded { text, omitted } = tiny.build("/erp") else {
+        panic!("expected a loaded harness");
+    };
+
+    assert!(text.contains("Keep the public API stable"));
+    assert!(text.contains("Do not migrate it"));
+    assert!(!omitted.contains(&"constraints".to_owned()));
+    assert!(!omitted.contains(&"decisions".to_owned()));
+    assert!(!omitted.is_empty());
+}
+
+#[test]
+fn the_date_is_told_in_utc_without_a_date_library() {
+    use super::context::format_date;
+    assert_eq!(format_date(0), "1970-01-01 00:00 UTC");
+    assert_eq!(format_date(1_791_058_440_000), "2026-10-03 20:14 UTC");
+}
+
+// ---- the whole flow on a real folder ----
+
+/// Initialize -> change the project on disk -> stale -> refresh (preview, then confirm), with the
+/// real scanner and the real `.atlas/` store: what the user's own files keep, and what a
+/// confirmation of an inference leaves behind.
+#[test]
+fn on_a_real_folder_a_changed_dependency_makes_it_stale_and_a_confirmed_refresh_cures_it() {
+    use crate::infrastructure::{FsHarnessStore, FsProjectScanner};
+    let dir = std::env::temp_dir().join(format!("atlas-e2e-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    for d in ["src/domain", "src/application", "src/infrastructure"] {
+        std::fs::create_dir_all(dir.join(d)).unwrap();
+    }
+    std::fs::write(
+        dir.join("package.json"),
+        r#"{"dependencies":{"@angular/core":"^18.1.0"},"scripts":{"test":"vitest"}}"#,
+    )
+    .unwrap();
+    let path = std::fs::canonicalize(&dir)
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+    let config = Arc::new(ConfigRepository::load(Box::<MemoryStore>::default()));
+    let agents = Arc::new(AgentService::new(
+        config.clone(),
+        Arc::new(PersonalityService::new(config.clone())),
+        Arc::new(RuntimeRegistry::new(vec![])),
+    ));
+    let workspaces = Arc::new(WorkspaceService::new(
+        config,
+        agents,
+        Arc::new(FakeInspector::with(&[(path.as_str(), &[])])),
+    ));
+    let workspace = workspaces
+        .create(&WorkspaceInput {
+            name: "E2E".to_owned(),
+            project_path: path.clone(),
+            description: None,
+        })
+        .unwrap();
+    let service = HarnessService::new(
+        workspaces,
+        Arc::new(FsProjectScanner::default()),
+        Arc::new(FsHarnessStore),
+    );
+    let mut request = input(InitMode::Create);
+    request
+        .confirmed
+        .push("architecture:clean_architecture".to_owned());
+
+    // Case 1: a new project becomes a healthy Harness.
+    service.initialize(&workspace.id, request).unwrap();
+    let healthy = service.get(&workspace.id).unwrap();
+    assert_eq!(healthy.health.unwrap().state, HealthState::Healthy);
+
+    // Case 2: a relevant dependency changes on disk.
+    std::fs::write(
+        dir.join("package.json"),
+        r#"{"dependencies":{"@angular/core":"^21.0.0"},"scripts":{"test":"vitest"}}"#,
+    )
+    .unwrap();
+    let stale = service.get(&workspace.id).unwrap();
+    assert_eq!(stale.health.unwrap().state, HealthState::Stale);
+    assert_eq!(stale.staleness.unwrap().changes[0].path, "package.json");
+
+    // Case 3: the user's own decision survives the refresh.
+    let decisions = dir.join(".atlas/context/decisions.md");
+    let kept = std::fs::read_to_string(&decisions).unwrap();
+    assert!(kept.contains("Do not migrate it"));
+    let preview = service.refresh(&workspace.id, false).unwrap();
+    assert!(preview.staleness.is_some() && preview.applied.is_none());
+    assert_eq!(preview.diff.changed[0].after.as_deref(), Some("Angular 21"));
+    assert_eq!(std::fs::read_to_string(&decisions).unwrap(), kept);
+    service.refresh(&workspace.id, true).unwrap();
+    assert_eq!(std::fs::read_to_string(&decisions).unwrap(), kept);
+    let cured = service.get(&workspace.id).unwrap();
+    assert!(cured.staleness.is_none());
+    assert_eq!(cured.health.unwrap().state, HealthState::Healthy);
+
+    // Case 4: the confirmed inference is the user's word and still remembers being an inference.
+    let knowledge = parse_knowledge(
+        &std::fs::read_to_string(dir.join(".atlas/knowledge/findings.yaml")).unwrap(),
+    )
+    .unwrap();
+    let manifest =
+        parse_manifest(&std::fs::read_to_string(dir.join(".atlas/project.yaml")).unwrap()).unwrap();
+    let effective = apply_choices(
+        &knowledge.findings,
+        &manifest.excluded,
+        &manifest.corrections,
+        &manifest.confirmed,
+    );
+    let architecture = effective
+        .iter()
+        .find(|x| x.id == "architecture:clean_architecture")
+        .unwrap();
+    assert_eq!(architecture.origin, Origin::UserConfirmed);
+    assert_eq!(architecture.original_origin, Some(Origin::Inference));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+// ---- previewing a task's context ----
+
+use crate::domain::task_context::{ContextMode, EntryOutcome, PreviewStatus, TaskContextRequest};
+
+fn preview_request(f: &Fixture, task: &str) -> TaskContextRequest {
+    TaskContextRequest {
+        task: task.to_owned(),
+        workspace_id: f.workspace_id.clone(),
+        agent_id: "a1".to_owned(),
+    }
+}
+
+#[test]
+fn the_preview_shows_what_a_run_would_use_and_changes_nothing() {
+    let f = fixture_with(&[], layered_project());
+    init(&f, input(InitMode::Create));
+    let before = f.store.files.lock().unwrap().clone();
+    let f = Fixture {
+        service: f
+            .service
+            .with_context_builder(Arc::new(HarnessContextBuilder::new(f.store.clone()))),
+        ..f
+    };
+
+    let preview = f
+        .service
+        .preview_task_context(&preview_request(&f, "Add an endpoint to the orders module"))
+        .unwrap();
+
+    assert_eq!(preview.status, PreviewStatus::Ready);
+    let context = preview.context.unwrap();
+    assert_eq!(context.mode, ContextMode::TaskAware);
+    assert!(context
+        .entries
+        .iter()
+        .any(|e| e.outcome == EntryOutcome::Included));
+    // Every candidate carries the reason for its outcome.
+    assert!(context
+        .entries
+        .iter()
+        .all(|e| e.reason.score >= 0 || !e.reason.penalties.is_empty()));
+    assert!(context.text.contains("Keep the public API stable"));
+    assert_eq!(*f.store.files.lock().unwrap(), before);
+}
+
+#[test]
+fn the_preview_of_a_project_without_a_harness_says_so_and_an_unknown_workspace_fails() {
+    let f = fixture();
+    let f = Fixture {
+        service: f
+            .service
+            .with_context_builder(Arc::new(HarnessContextBuilder::new(f.store.clone()))),
+        ..f
+    };
+
+    let preview = f
+        .service
+        .preview_task_context(&preview_request(&f, "Fix the build"))
+        .unwrap();
+    assert_eq!(preview.status, PreviewStatus::Missing);
+    assert_eq!(preview.context, None);
+
+    let mut request = preview_request(&f, "Fix the build");
+    request.workspace_id = "nope".to_owned();
+    assert!(f.service.preview_task_context(&request).is_err());
 }

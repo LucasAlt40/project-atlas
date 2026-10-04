@@ -53,6 +53,55 @@ impl Origin {
     }
 }
 
+/// Whether a statement was *checked*, as opposed to merely read or concluded. Orthogonal to
+/// [`Origin`]: an inference is `Unverified` until something confirms it; a fact read from a
+/// manifest is `Verified` by that very file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VerificationStatus {
+    /// Nobody and nothing checked it. The default: a statement is not verified until proven.
+    #[default]
+    Unverified,
+    /// Checked by `method` at `verified_at`.
+    Verified,
+    /// Was verified, but the project changed where its evidence lives, so it may no longer hold.
+    Stale,
+}
+
+/// How a statement was checked.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VerificationMethod {
+    /// The statement is what a repository file says (`package.json` lists the dependency).
+    RepositoryFile,
+    /// Atlas ran the command and it succeeded. Reserved: V0.7.2 never runs commands.
+    CommandExecution,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Verification {
+    pub status: VerificationStatus,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verified_at: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub method: Option<VerificationMethod>,
+}
+
+impl Verification {
+    pub fn verified(method: VerificationMethod, at: Option<u64>) -> Self {
+        Self {
+            status: VerificationStatus::Verified,
+            verified_at: at,
+            method: Some(method),
+        }
+    }
+
+    pub fn is_unverified(&self) -> bool {
+        self.status == VerificationStatus::Unverified
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FindingCategory {
@@ -109,6 +158,14 @@ pub struct Finding {
     pub value: String,
     pub confidence: Confidence,
     pub origin: Origin,
+    /// What the user's word replaced: a confirmed inference stays recognisable as one
+    /// (`origin: user_confirmed`, `original_origin: inference`), never becoming a fact.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub original_origin: Option<Origin>,
+    /// Whether the statement was checked. Facts read from a repository file are verified by it;
+    /// everything else is unverified until something checks it.
+    #[serde(default)]
+    pub verification: Verification,
     /// Why this is concluded, for inferences.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
@@ -144,6 +201,12 @@ impl Finding {
             value: value.to_owned(),
             confidence,
             origin,
+            original_origin: None,
+            verification: if origin == Origin::Fact {
+                Verification::verified(VerificationMethod::RepositoryFile, None)
+            } else {
+                Verification::default()
+            },
             reason: None,
             by_model: false,
             evidence: vec![Evidence::new(
@@ -151,6 +214,11 @@ impl Finding {
                 Some(field).filter(|f| !f.is_empty() && *f != source),
             )],
         }
+    }
+
+    /// Statements from analysis must point at something real; one that cannot is never kept.
+    pub fn has_valid_evidence(&self) -> bool {
+        !self.evidence.is_empty() && self.evidence.iter().all(|e| !e.source.trim().is_empty())
     }
 
     #[must_use]
@@ -218,6 +286,88 @@ pub struct AnalysisInfo {
     pub semantic: SemanticReport,
     #[serde(default)]
     pub analyzed_at: u64,
+    /// The relevant state of the project when this was analysed. `None` in a Harness from
+    /// before V0.7.2, whose staleness therefore cannot be known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fingerprint: Option<ProjectFingerprint>,
+}
+
+/// A cheap, deterministic digest of the parts of a project that Harness knowledge depends on
+/// (manifests, lockfiles, configuration, CI, docs and the folder structure), kept with the
+/// parts so a later check can say *what* changed, not only that something did.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectFingerprint {
+    /// One digest over every part.
+    pub digest: String,
+    /// Project-relative part (`package.json`, `dir:src/domain`) -> its digest.
+    pub parts: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ChangeKind {
+    Added,
+    Removed,
+    Modified,
+}
+
+/// One relevant change in the project since the Harness was analysed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RelevantChange {
+    /// A file, or a folder (`src/domain`, without the internal `dir:` marker).
+    pub path: String,
+    pub kind: ChangeKind,
+}
+
+/// The project changed in relevant ways since the Harness was analysed. Nothing is deleted
+/// because of it: the knowledge stays, and says it may be outdated.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Staleness {
+    pub analyzed_at: u64,
+    /// At most [`MAX_LISTED_CHANGES`], in path order.
+    pub changes: Vec<RelevantChange>,
+    /// How many changes there are in all.
+    pub total_changes: usize,
+}
+
+/// How many changes a [`Staleness`] lists.
+pub const MAX_LISTED_CHANGES: usize = 20;
+
+/// What is missing from the Harness, and why it is missing. The two kinds are never the same
+/// statement: *not found* is a bounded search that came back empty; *unknown* is the absence of
+/// any search that could tell.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GapKind {
+    /// Atlas looked, in the stated scope, and did not find it. Not proof that it does not exist.
+    NotFound,
+    /// Nothing available could establish it.
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Gap {
+    pub kind: GapKind,
+    /// What it is about, as a stable key (`database`, `commands`, `business_rules`).
+    pub subject: String,
+    /// One honest sentence.
+    pub statement: String,
+}
+
+/// What a Harness holds, counted for a glance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KnowledgeStats {
+    pub findings: usize,
+    pub verified: usize,
+    pub inferred: usize,
+    pub user: usize,
+    pub stale: usize,
+    pub unknown: usize,
 }
 
 /// One side of a [`Conflict`].
@@ -267,7 +417,7 @@ pub enum HealthState {
     Partial,
     /// Evidence contradicts itself and nobody decided.
     Conflicted,
-    /// The project changed a lot since the analysis. Reserved: not detected yet.
+    /// The project changed in relevant ways since the analysis (see [`Staleness`]).
     Stale,
 }
 
@@ -275,8 +425,8 @@ pub enum HealthState {
 #[serde(rename_all = "camelCase")]
 pub struct HarnessHealth {
     pub state: HealthState,
-    /// Machine-readable reasons (`unresolved_conflicts`, `partial_analysis`,
-    /// `unconfirmed_inferences`, `legacy_harness`) for the UI to word.
+    /// Machine-readable reasons (`project_changed`, `unresolved_conflicts`, `partial_analysis`,
+    /// `unconfirmed_inferences`, `legacy_harness`, `no_fingerprint`) for the UI to word.
     pub reasons: Vec<String>,
 }
 
@@ -321,6 +471,8 @@ pub struct ProjectAnalysis {
     pub path: String,
     pub findings: Vec<Finding>,
     pub conflicts: Vec<Conflict>,
+    /// What is not known, and what was looked for and not found.
+    pub gaps: Vec<Gap>,
     /// The scan or the sampling hit a limit and did not see everything.
     pub partial: bool,
     pub scanned_entries: usize,
@@ -367,6 +519,15 @@ pub struct HarnessSummary {
     pub problem: Option<String>,
     /// How far the Harness can be trusted. `None` when there is no valid Harness.
     pub health: Option<HarnessHealth>,
+    /// When the project last analysed (ms since the epoch), if the knowledge says.
+    #[serde(default)]
+    pub analyzed_at: Option<u64>,
+    /// Present when the project changed in relevant ways since the analysis.
+    #[serde(default)]
+    pub staleness: Option<Staleness>,
+    /// Counts of what the Harness holds (verified, inferred, ...). `None` without knowledge.
+    #[serde(default)]
+    pub stats: Option<KnowledgeStats>,
 }
 
 impl HarnessSummary {
@@ -380,6 +541,9 @@ impl HarnessSummary {
             has_atlas_dir,
             problem: None,
             health: None,
+            analyzed_at: None,
+            staleness: None,
+            stats: None,
         }
     }
 }
@@ -469,6 +633,8 @@ pub struct InitializeOutcome {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefreshOutcome {
+    /// Why the Harness is stale, when it is.
+    pub staleness: Option<Staleness>,
     pub diff: HarnessDiff,
     pub conflicts: Vec<Conflict>,
     pub applied: Option<InitializeOutcome>,

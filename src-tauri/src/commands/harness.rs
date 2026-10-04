@@ -5,6 +5,7 @@ use crate::domain::harness::{
     HarnessSummary, InitializeInput, InitializeOutcome, ProjectAnalysis, RefreshOutcome,
     SemanticRequest,
 };
+use crate::domain::task_context::{TaskContextPreview, TaskContextRequest};
 use crate::state::AppState;
 
 /// Reads the workspace's project (structure and well-known manifests only; nothing is run) and
@@ -57,4 +58,15 @@ pub fn refresh_project_harness(
     state
         .harness
         .refresh(&workspace_id, confirm.unwrap_or(false))
+}
+
+/// What an agent would be told for a task, chosen from the workspace's Harness, with the reason
+/// for each choice. Inspection only: nothing is written and nothing runs.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command]
+pub fn preview_task_context(
+    state: State<'_, AppState>,
+    request: TaskContextRequest,
+) -> Result<TaskContextPreview, AppError> {
+    state.harness.preview_task_context(&request)
 }

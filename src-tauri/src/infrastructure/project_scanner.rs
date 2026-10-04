@@ -3,33 +3,11 @@ use std::fs;
 use std::path::{Component, Path};
 
 use crate::application::errors::{AppError, ErrorCode};
+use crate::application::harness::fingerprint::{digest_text, is_relevant_file, MAX_HASHED_BYTES};
 use crate::application::harness::sampler::looks_secret_path;
-use crate::application::harness::snapshot::{ScanEntry, ScanSnapshot};
+use crate::application::harness::snapshot::{ScanEntry, ScanSnapshot, IGNORED_DIRS};
 use crate::application::harness::ProjectScanner;
 
-/// Folders that are generated, vendored or huge: they are noted by name but never entered.
-pub const IGNORED_DIRS: &[&str] = &[
-    "node_modules",
-    ".git",
-    "dist",
-    "build",
-    "target",
-    "bin",
-    "obj",
-    "coverage",
-    "vendor",
-    ".cache",
-    ".next",
-    ".nuxt",
-    ".venv",
-    "venv",
-    "__pycache__",
-    ".gradle",
-    ".idea",
-    ".vscode",
-    ".turbo",
-    ".atlas",
-];
 const MAX_HEAD_BYTES: u64 = 1024;
 
 /// The scan's bounds. They are internal knobs, not user settings; hitting `max_entries` makes
@@ -175,6 +153,12 @@ impl ProjectScanner for FsProjectScanner {
                             .flatten();
                     if content.is_some() {
                         read += 1;
+                    } else if is_relevant_file(&rel) {
+                        // Lockfiles, configuration, CI and docs are not analysed, only digested
+                        // so a later check can tell whether they changed.
+                        if let Some(hash) = hash_file(&child.path()) {
+                            snapshot.hashes.insert(rel.clone(), hash);
+                        }
                     }
                     snapshot.entries.push(ScanEntry {
                         path: rel.clone(),
@@ -267,6 +251,21 @@ fn read_small(path: &Path, max_bytes: u64) -> Option<String> {
         return None;
     }
     fs::read_to_string(path).ok()
+}
+
+/// A digest of the first bytes of a regular file (checked without following links).
+fn hash_file(path: &Path) -> Option<String> {
+    let meta = fs::symlink_metadata(path).ok()?;
+    if !meta.is_file() {
+        return None;
+    }
+    let mut bytes = Vec::new();
+    std::io::Read::read_to_end(
+        &mut std::io::Read::take(fs::File::open(path).ok()?, MAX_HASHED_BYTES as u64),
+        &mut bytes,
+    )
+    .ok()?;
+    Some(digest_text(&String::from_utf8_lossy(&bytes)))
 }
 
 /// The first line of `.git/HEAD`. `.git` was listed as a real folder, not a link.
@@ -444,6 +443,38 @@ mod tests {
 
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].id, "architecture:unknown");
+    }
+
+    #[test]
+    fn the_fingerprint_digests_lockfiles_and_ignores_secrets_generated_folders_and_links() {
+        use crate::application::harness::fingerprint::compute;
+        let base = [
+            ("package.json", r#"{"name":"x"}"#),
+            ("package-lock.json", "{\"lock\":1}"),
+            ("src/domain/a.ts", "export {}"),
+        ];
+        let dir = project("fp-a", &base);
+        let before = compute(&scan(&dir));
+        assert!(before.parts.contains_key("package-lock.json"));
+
+        // Secrets, generated folders and ordinary source edits are not part of it.
+        fs::write(dir.join(".env"), "TOKEN=1").unwrap();
+        fs::create_dir_all(dir.join("node_modules/x")).unwrap();
+        fs::write(dir.join("node_modules/x/package.json"), "{}").unwrap();
+        fs::write(dir.join("src/domain/a.ts"), "export const a = 1").unwrap();
+        assert_eq!(before, compute(&scan(&dir)));
+
+        // A link, even to a manifest outside the project, is not read and changes nothing.
+        #[cfg(unix)]
+        {
+            let outside = project("fp-out", &[("Cargo.toml", "[package]")]);
+            std::os::unix::fs::symlink(outside.join("Cargo.toml"), dir.join("Cargo.toml")).unwrap();
+            assert_eq!(before, compute(&scan(&dir)));
+        }
+
+        // A lockfile change is.
+        fs::write(dir.join("package-lock.json"), "{\"lock\":2}").unwrap();
+        assert_ne!(before.digest, compute(&scan(&dir)).digest);
     }
 }
 

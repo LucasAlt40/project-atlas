@@ -3,12 +3,14 @@
 
 use std::collections::BTreeMap;
 
-use super::knowledge;
+use super::fingerprint::{drift, Drift};
+use super::knowledge::{self, stamp_verification};
+use super::negative;
 use crate::application::errors::{AppError, ErrorCode};
 use crate::domain::harness::{
     Finding, FindingCategory, HarnessKnowledge, HarnessManifest, HarnessStatus, HarnessSummary,
     ManifestContext, ManifestHarness, ManifestProject, ManifestRepository, ManifestStack,
-    HARNESS_VERSION, KNOWLEDGE_VERSION,
+    ProjectFingerprint, HARNESS_VERSION, KNOWLEDGE_VERSION,
 };
 
 /// A manifest bigger than this is not a manifest.
@@ -60,8 +62,10 @@ pub fn parse_knowledge(text: &str) -> Result<HarnessKnowledge, AppError> {
     if text.len() > MAX_KNOWLEDGE_BYTES {
         return Err(AppError::new(ErrorCode::HarnessInvalid).with_detail("knowledge is too large"));
     }
-    let knowledge: HarnessKnowledge = serde_norway::from_str(text)
+    let mut knowledge: HarnessKnowledge = serde_norway::from_str(text)
         .map_err(|e| AppError::new(ErrorCode::HarnessInvalid).with_detail(e.to_string()))?;
+    // Facts written before V0.7.2 carry no verification: they were read from the repository.
+    stamp_verification(&mut knowledge.findings, knowledge.analysis.analyzed_at);
     if knowledge.version != KNOWLEDGE_VERSION {
         return Err(
             AppError::new(ErrorCode::HarnessInvalid).with_detail(format!(
@@ -84,10 +88,13 @@ pub fn render_knowledge(knowledge: &HarnessKnowledge) -> Result<String, AppError
 }
 
 /// What a manifest (and its knowledge), or their absence, say about the project's Harness.
+/// `current` is the project's fingerprint now, if it could be read: with it the summary can say
+/// whether the Harness is stale.
 pub fn summarize(
     manifest: Option<&str>,
     knowledge_text: Option<&str>,
     has_atlas_dir: bool,
+    current: Option<&ProjectFingerprint>,
 ) -> HarnessSummary {
     let Some(text) = manifest else {
         return HarnessSummary::not_initialized(has_atlas_dir);
@@ -97,7 +104,22 @@ pub fn summarize(
             // Knowledge that cannot be read counts as missing: the Harness still works, but
             // is marked as needing a look.
             let parsed = knowledge_text.and_then(|t| parse_knowledge(t).ok());
+            let state = parsed
+                .as_ref()
+                .map_or(Drift::Unchecked, |k| drift(&k.analysis, current));
+            let (summary_stats, staleness) = parsed.as_ref().map_or((None, None), |k| {
+                let effective = knowledge::effective_findings(k, &m, &state);
+                let gaps = negative::gaps(&effective, &k.analysis);
+                let staleness = match &state {
+                    Drift::Changed(s) => Some(s.clone()),
+                    _ => None,
+                };
+                (Some(knowledge::stats(&effective, &gaps)), staleness)
+            });
             HarnessSummary {
+                analyzed_at: parsed.as_ref().map(|k| k.analysis.analyzed_at),
+                staleness,
+                stats: summary_stats,
                 status: HarnessStatus::Initialized,
                 project_name: Some(m.project.name.clone()),
                 stack: stack_labels(&m.stack),
@@ -105,7 +127,7 @@ pub fn summarize(
                 initialized_at: Some(m.project.initialized_at),
                 has_atlas_dir,
                 problem: None,
-                health: Some(knowledge::health(parsed.as_ref(), &m)),
+                health: Some(knowledge::health(parsed.as_ref(), &m, &state)),
             }
         }
         Err(_) => HarnessSummary {

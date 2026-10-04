@@ -6,9 +6,11 @@
 
 use std::collections::BTreeMap;
 
+use super::fingerprint::{touches, Drift};
 use crate::domain::harness::{
-    label_for, Confidence, Evidence, Finding, FindingCategory, FindingChange, HarnessDiff,
-    HarnessHealth, HarnessKnowledge, HarnessManifest, HealthState, Origin, UserKnowledge,
+    label_for, Confidence, Evidence, Finding, FindingCategory, FindingChange, Gap, HarnessDiff,
+    HarnessHealth, HarnessKnowledge, HarnessManifest, HealthState, KnowledgeStats, Origin,
+    Staleness, UserKnowledge, Verification, VerificationMethod, VerificationStatus,
 };
 
 /// Applies the user's review to raw findings: unticked ones go, corrections replace the value
@@ -29,6 +31,9 @@ pub fn apply_choices(
                 .map(|v| v.trim())
                 .filter(|v| !v.is_empty());
             if let Some(value) = correction {
+                f.original_origin = Some(f.original_origin.unwrap_or(f.origin));
+                // What was verified was Atlas's value, not the user's.
+                f.verification = Verification::default();
                 f.reason = Some(format!("Corrected by the user (Atlas found: {})", f.value));
                 f.evidence.push(Evidence::new("user", Some("correction")));
                 f.value = value.to_owned();
@@ -36,6 +41,9 @@ pub fn apply_choices(
                 f.confidence = Confidence::High;
                 f.origin = Origin::UserCorrected;
             } else if confirmed.contains(&f.id) && f.origin == Origin::Inference {
+                // The user vouches for it; it does not become a fact, and stays recognisable as
+                // what Atlas inferred.
+                f.original_origin = Some(Origin::Inference);
                 f.origin = Origin::UserConfirmed;
                 f.evidence.push(Evidence::new("user", Some("confirmation")));
             }
@@ -57,7 +65,90 @@ fn needs_confirmation(f: &Finding) -> bool {
         )
 }
 
-pub fn health(knowledge: Option<&HarnessKnowledge>, manifest: &HarnessManifest) -> HarnessHealth {
+/// Stamps the time a fact was read from the repository onto findings that do not carry one
+/// (fresh analyses, and knowledge written before V0.7.2, whose facts were read the same way).
+pub fn stamp_verification(findings: &mut [Finding], analyzed_at: u64) {
+    for f in findings {
+        if f.origin == Origin::Fact && f.verification.is_unverified() {
+            f.verification = Verification::verified(VerificationMethod::RepositoryFile, None);
+        }
+        if f.verification.status == VerificationStatus::Verified
+            && f.verification.verified_at.is_none()
+            && analyzed_at > 0
+        {
+            f.verification.verified_at = Some(analyzed_at);
+        }
+    }
+}
+
+/// Marks what the project's changes put in doubt. A finding is affected when the changed files
+/// or folders are where its evidence lives. The user's own words are never marked: they are
+/// not claims about the repository. Nothing is removed.
+pub fn mark_stale(findings: &mut [Finding], staleness: &Staleness) {
+    for f in findings {
+        if f.origin.is_user() || f.origin == Origin::Generated {
+            continue;
+        }
+        if f.evidence.iter().any(|e| touches(&e.source, staleness)) {
+            f.verification.status = VerificationStatus::Stale;
+        }
+    }
+}
+
+/// The findings as the user left them, with what the project's changes put in doubt marked.
+pub fn effective_findings(
+    knowledge: &HarnessKnowledge,
+    manifest: &HarnessManifest,
+    drift: &Drift,
+) -> Vec<Finding> {
+    let mut effective = apply_choices(
+        &knowledge.findings,
+        &manifest.excluded,
+        &manifest.corrections,
+        &manifest.confirmed,
+    );
+    if let Drift::Changed(staleness) = drift {
+        mark_stale(&mut effective, staleness);
+    }
+    effective
+}
+
+/// Counts for a glance. `stale` findings count only as stale, not as verified.
+pub fn stats(effective: &[Finding], gaps: &[Gap]) -> KnowledgeStats {
+    let mut stats = KnowledgeStats {
+        unknown: gaps.len(),
+        ..KnowledgeStats::default()
+    };
+    for f in effective
+        .iter()
+        .filter(|f| f.origin != Origin::Generated && f.category != FindingCategory::Environment)
+    {
+        stats.findings += 1;
+        if f.verification.status == VerificationStatus::Stale {
+            stats.stale += 1;
+        } else if f.origin.is_user() {
+            stats.user += 1;
+        } else if f.verification.status == VerificationStatus::Verified {
+            stats.verified += 1;
+        } else {
+            stats.inferred += 1;
+        }
+    }
+    stats
+}
+
+/// How far the Harness can be trusted.
+///
+/// Precedence, strongest first: **Stale > Conflicted > Partial > `NeedsReview` > Healthy**. A stale
+/// Harness outranks the rest because its other judgements (its conflicts, its gaps) describe a
+/// project that no longer exists as analysed; refreshing is the first step and may dissolve them.
+/// Every reason is still listed. `Healthy` means: not stale, no unresolved conflict, a complete
+/// analysis and nothing important waiting for the user's confirmation.
+pub fn health(
+    knowledge: Option<&HarnessKnowledge>,
+    manifest: &HarnessManifest,
+    drift: &Drift,
+) -> HarnessHealth {
     let Some(knowledge) = knowledge else {
         return HarnessHealth {
             state: HealthState::NeedsReview,
@@ -74,17 +165,23 @@ pub fn health(knowledge: Option<&HarnessKnowledge>, manifest: &HarnessManifest) 
     let mut state = HealthState::Healthy;
     let mut raise = |new: HealthState, reason: &str| {
         reasons.push(reason.to_owned());
-        // Conflicted > Partial > NeedsReview > Healthy.
         let rank = |s: HealthState| match s {
+            HealthState::Stale => 4,
             HealthState::Conflicted => 3,
             HealthState::Partial => 2,
-            HealthState::NeedsReview | HealthState::Stale => 1,
+            HealthState::NeedsReview => 1,
             HealthState::Healthy => 0,
         };
         if rank(new) > rank(state) {
             state = new;
         }
     };
+    match drift {
+        Drift::Changed(_) => raise(HealthState::Stale, "project_changed"),
+        // Knowledge from before fingerprints: nothing says it still holds.
+        Drift::Unknown => raise(HealthState::NeedsReview, "no_fingerprint"),
+        Drift::Current | Drift::Unchecked => {}
+    }
     let unresolved = knowledge
         .conflicts
         .iter()
@@ -436,7 +533,7 @@ mod tests {
             }],
         };
 
-        let h = health(Some(&knowledge), &manifest);
+        let h = health(Some(&knowledge), &manifest, &Drift::Current);
 
         assert_eq!(h.state, HealthState::Conflicted);
         assert_eq!(
@@ -460,6 +557,9 @@ mod tests {
             analysis: AnalysisInfo::default(),
             ..knowledge
         };
-        assert_eq!(health(Some(&weak), &manifest).state, HealthState::Healthy);
+        assert_eq!(
+            health(Some(&weak), &manifest, &Drift::Current).state,
+            HealthState::Healthy
+        );
     }
 }

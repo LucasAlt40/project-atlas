@@ -16,13 +16,17 @@
 pub mod analyzer;
 pub mod consistency;
 pub mod context;
+pub mod fingerprint;
 pub mod generator;
 pub mod knowledge;
 pub mod manifest;
+pub mod negative;
 pub mod sampler;
 pub mod secrets;
 pub mod semantic;
 pub mod snapshot;
+pub mod task_context;
+pub mod taxonomy;
 #[cfg(test)]
 mod tests;
 
@@ -31,8 +35,10 @@ use std::sync::{Arc, Mutex};
 
 use self::analyzer::{AnalysisInput, AnalysisOutput, DeterministicAnalyzer, ProjectAnalyzer};
 use self::consistency::ConsistencyInput;
+use self::context::{HarnessContextBuilder, TaskContextLoad};
+use self::fingerprint::{drift, Drift};
 use self::generator::{read_user_files, user_files, ExistingUserFiles};
-use self::knowledge::{apply_choices, diff};
+use self::knowledge::{apply_choices, diff, stamp_verification};
 use self::manifest::{build_manifest, parse_knowledge, parse_manifest, summarize};
 use self::sampler::{Purpose, SampleFile, SampleLimits};
 use self::semantic::{Mode, SemanticAnalyzer, SemanticModelFactory};
@@ -43,9 +49,11 @@ use super::workspace::WorkspaceService;
 use crate::domain::harness::UserKnowledge;
 use crate::domain::harness::{
     AnalysisInfo, Conflict, Finding, HarnessFile, HarnessKnowledge, HarnessManifest, HarnessStatus,
-    HarnessSummary, InitMode, InitializeInput, InitializeOutcome, ProjectAnalysis, RefreshOutcome,
-    SemanticReport, SemanticRequest, SemanticStatus, WriteReport, KNOWLEDGE_VERSION,
+    HarnessSummary, InitMode, InitializeInput, InitializeOutcome, Origin, ProjectAnalysis,
+    ProjectFingerprint, RefreshOutcome, SemanticReport, SemanticRequest, SemanticStatus,
+    WriteReport, KNOWLEDGE_VERSION,
 };
+use crate::domain::task_context::{PreviewStatus, TaskContextPreview, TaskContextRequest};
 
 /// Port: reads a project folder safely and reports what it saw. Implemented in `infrastructure/`.
 ///
@@ -114,6 +122,7 @@ struct AnalysisState {
 
 impl AnalysisState {
     /// Deterministic facts first: where both say the same thing, the facts' version stands.
+    /// A statement that points at no real evidence is never kept, whoever made it.
     fn raw_findings(&self) -> Vec<Finding> {
         let mut all = self.deterministic.clone();
         for f in &self.semantic {
@@ -121,6 +130,8 @@ impl AnalysisState {
                 all.push(f.clone());
             }
         }
+        all.retain(|f| f.origin == Origin::Generated || f.has_valid_evidence());
+        stamp_verification(&mut all, self.info.analyzed_at);
         all
     }
 }
@@ -134,6 +145,9 @@ pub struct HarnessService {
     semantic: Option<Arc<dyn SemanticModelFactory>>,
     limits: SampleLimits,
     pending: Mutex<HashMap<String, AnalysisState>>,
+    /// Chooses what a task is told of the Harness. Shared with the execution service so that a
+    /// preview shows what a run would use.
+    context: Option<Arc<HarnessContextBuilder>>,
 }
 
 /// The user's choices about the findings, as stored in the manifest.
@@ -158,7 +172,48 @@ impl HarnessService {
             semantic: None,
             limits: SampleLimits::default(),
             pending: Mutex::new(HashMap::new()),
+            context: None,
         }
+    }
+
+    /// The builder that previews a task's context.
+    #[must_use]
+    pub fn with_context_builder(mut self, builder: Arc<HarnessContextBuilder>) -> Self {
+        self.context = Some(builder);
+        self
+    }
+
+    /// What an agent would be told for `request.task`, chosen from the workspace's Harness, with
+    /// the reason for every choice. Reads only what a run reads; changes nothing.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the workspace does not exist.
+    pub fn preview_task_context(
+        &self,
+        request: &TaskContextRequest,
+    ) -> Result<TaskContextPreview, AppError> {
+        let path = self.project_path(&request.workspace_id)?;
+        let Some(builder) = &self.context else {
+            return Ok(TaskContextPreview {
+                status: PreviewStatus::Missing,
+                context: None,
+            });
+        };
+        Ok(match builder.build_for_task(&path, &request.task) {
+            TaskContextLoad::Ready(context) => TaskContextPreview {
+                status: PreviewStatus::Ready,
+                context: Some(*context),
+            },
+            TaskContextLoad::Missing => TaskContextPreview {
+                status: PreviewStatus::Missing,
+                context: None,
+            },
+            TaskContextLoad::Invalid => TaskContextPreview {
+                status: PreviewStatus::Invalid,
+                context: None,
+            },
+        })
     }
 
     /// Lets an analysis ask a model (opt-in, per request) to read the selected evidence.
@@ -204,6 +259,15 @@ impl HarnessService {
             .flatten()
     }
 
+    /// The project's relevant state right now. `None` when it cannot be read: staleness is then
+    /// simply not claimed.
+    fn current_fingerprint(&self, path: &str) -> Option<ProjectFingerprint> {
+        self.scanner
+            .scan(path)
+            .ok()
+            .map(|snapshot| fingerprint::compute(&snapshot))
+    }
+
     fn summary_at(&self, path: &str) -> HarnessSummary {
         let has_dir = self.store.has_atlas_dir(path);
         match self.store.read_manifest(path) {
@@ -211,6 +275,7 @@ impl HarnessService {
                 text.as_deref(),
                 self.knowledge_text(path).as_deref(),
                 has_dir,
+                self.current_fingerprint(path).as_ref(),
             ),
             Err(_) => HarnessSummary {
                 problem: Some("harness_invalid".to_owned()),
@@ -281,6 +346,7 @@ impl HarnessService {
             sampled_files: bundle.file_paths(),
             semantic: SemanticReport::default(),
             analyzed_at: now_ms(),
+            fingerprint: Some(fingerprint::compute(&snapshot)),
         };
         let mut found = Vec::new();
         let mut suggestions = UserKnowledge::default();
@@ -304,6 +370,10 @@ impl HarnessService {
             info.semantic = previous.analysis.semantic.clone();
             found = carried_over(previous, &snapshot);
         }
+        // Whatever a model proposed must point at evidence that exists.
+        let proposed = found.len();
+        found.retain(Finding::has_valid_evidence);
+        info.semantic.rejected += proposed - found.len();
         if info.semantic.status == SemanticStatus::NotRun {
             info.semantic.sent_files = Vec::new();
         }
@@ -387,6 +457,15 @@ impl HarnessService {
         let analysis = ProjectAnalysis {
             project_name: state.project_name.clone(),
             path: path.clone(),
+            gaps: negative::gaps(
+                &apply_choices(
+                    &raw,
+                    &choices.excluded,
+                    &choices.corrections,
+                    &choices.confirmed,
+                ),
+                &state.info,
+            ),
             findings: raw.clone(),
             conflicts,
             partial: state.info.partial,
@@ -533,6 +612,12 @@ impl HarnessService {
             .map(|k| diff(&k.findings, &raw))
             .unwrap_or_default();
         let conflicts = Self::conflicts(&state, knowledge.as_ref(), &choices.corrections);
+        let staleness = knowledge.as_ref().and_then(|k| {
+            match drift(&k.analysis, state.info.fingerprint.as_ref()) {
+                Drift::Changed(s) => Some(s),
+                _ => None,
+            }
+        });
         let applied = if confirm {
             // The user's own files are passed as they are, so nothing of theirs changes.
             let (current, _) = read_user_files(&self.user_files(&path));
@@ -548,6 +633,7 @@ impl HarnessService {
             None
         };
         Ok(RefreshOutcome {
+            staleness,
             diff: changes,
             conflicts,
             applied,
