@@ -69,6 +69,7 @@ describe('PersonalitiesPage', () => {
       tags: ['ddd'],
       source: 'custom',
       suggestedContract: { kind: 'general', outcomes: [] },
+      suggestedPermissionProfile: 'developer',
     });
 
     await user.click(await screen.findByRole('button', { name: 'New personality' }));

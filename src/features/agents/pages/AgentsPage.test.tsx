@@ -97,6 +97,8 @@ describe('AgentsPage', () => {
       worktreeIsolation: true,
       // What the Architect personality suggests, since the user changed nothing.
       resultContract: { kind: 'review', outcomes: expect.any(Array) as unknown },
+      // What the Architect personality suggests for permissions, since the user changed nothing.
+      permissionProfileId: 'developer',
     });
     expect(onAgentCreated).toHaveBeenCalledWith(architect);
     expect(screen.queryByRole('form', { name: 'Create agent' })).not.toBeInTheDocument();
@@ -222,6 +224,30 @@ describe('AgentsPage', () => {
       expect(sent?.resultContract?.outcomes.map((o) => o.id)).toEqual(['pass', 'fail']);
     });
 
+    it('suggests the permission profile from the personality and lets the user override it', async () => {
+      const user = userEvent.setup();
+      const form = await fillAndOpen(user, 'qa');
+
+      // The QA personality suggests read only.
+      expect(within(form).getByLabelText('Permissions')).toHaveValue('read_only');
+      expect(within(form).getByText(/Suggested by the QA personality/)).toBeInTheDocument();
+
+      await user.selectOptions(within(form).getByLabelText('Permissions'), 'developer');
+      expect(within(form).queryByText(/Suggested by the QA personality/)).not.toBeInTheDocument();
+      await user.click(within(form).getByRole('button', { name: 'Create Agent' }));
+
+      expect(vi.mocked(createAgent).mock.calls[0]?.[0].permissionProfileId).toBe('developer');
+    });
+
+    it('sends the suggested profile when the user does not touch it', async () => {
+      const user = userEvent.setup();
+      const form = await fillAndOpen(user, 'qa');
+
+      await user.click(within(form).getByRole('button', { name: 'Create Agent' }));
+
+      expect(vi.mocked(createAgent).mock.calls[0]?.[0].permissionProfileId).toBe('read_only');
+    });
+
     it('lets a preset be narrowed, but never emptied', async () => {
       const user = userEvent.setup();
       const form = await fillAndOpen(user, 'qa');
@@ -297,6 +323,30 @@ describe('AgentsPage', () => {
       await user.click(within(panel).getByRole('button', { name: 'Save agent' }));
 
       expect(vi.mocked(updateAgent).mock.calls[0]?.[1].resultContract?.outcomes).toHaveLength(1);
+    });
+
+    it("keeps an existing agent's profile on edit unless the user changes it", async () => {
+      const user = userEvent.setup();
+      const validator = {
+        ...agent('agent-9', 'Validator', 'opencode', 'opencode/big-pickle'),
+        personalityId: 'qa',
+        permissionProfileId: 'developer',
+      };
+      show({}, [validator]);
+      vi.mocked(updateAgent).mockResolvedValue(validator);
+
+      await user.click(await screen.findByRole('button', { name: 'Edit Validator' }));
+      const panel = screen.getByRole('form', { name: 'Edit Validator' });
+      // Its own profile, not what the QA personality suggests.
+      expect(within(panel).getByLabelText('Permissions')).toHaveValue('developer');
+      await user.click(within(panel).getByRole('button', { name: 'Save agent' }));
+      expect(vi.mocked(updateAgent).mock.calls[0]?.[1]).not.toHaveProperty('permissionProfileId');
+
+      await user.click(await screen.findByRole('button', { name: 'Edit Validator' }));
+      const again = screen.getByRole('form', { name: 'Edit Validator' });
+      await user.selectOptions(within(again).getByLabelText('Permissions'), 'read_only');
+      await user.click(within(again).getByRole('button', { name: 'Save agent' }));
+      expect(vi.mocked(updateAgent).mock.calls[1]?.[1].permissionProfileId).toBe('read_only');
     });
 
     it('tells a runtime that cannot edit files apart from a permission', async () => {

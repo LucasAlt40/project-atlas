@@ -541,6 +541,8 @@ export interface PersonalityDto {
   source: PersonalitySourceDto;
   /** The contract a new agent of this personality starts from (a suggestion only). */
   suggestedContract: ResultContractDto;
+  /** The permission profile a new agent of this personality starts from (a suggestion only). */
+  suggestedPermissionProfile: string;
 }
 
 /** Mirrors `application::personalities::CreatePersonalityRequest`. */
@@ -673,6 +675,8 @@ export interface CreateAgentRequestDto {
   worktreeIsolation?: boolean;
   /** Left out: a new agent is `general`, an edited one keeps its contract. */
   resultContract?: ResultContractDto;
+  /** Left out: a new agent starts from its personality's suggestion, an edited one keeps its profile. */
+  permissionProfileId?: string;
 }
 
 /** Mirrors `domain::workspace::GridPosition`. */

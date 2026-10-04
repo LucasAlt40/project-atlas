@@ -96,6 +96,7 @@ export const architectPersonality: Personality = {
   tags: ['architecture'],
   source: 'builtin',
   suggestedContract: { kind: 'review', outcomes: reviewOutcomes },
+  suggestedPermissionProfile: 'developer',
 };
 
 export const qaPersonality: Personality = {
@@ -107,6 +108,7 @@ export const qaPersonality: Personality = {
   tags: [],
   source: 'builtin',
   suggestedContract: { kind: 'validation', outcomes: validationOutcomes },
+  suggestedPermissionProfile: 'read_only',
 };
 
 export const personalities: Personality[] = [architectPersonality, qaPersonality];

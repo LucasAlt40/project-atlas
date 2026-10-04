@@ -1,5 +1,6 @@
 import { useState, type SyntheticEvent } from 'react';
 import { Button } from '@/components/ui/Button';
+import type { TranslationKey } from '@/i18n';
 import { errorMessage } from '@/i18n/messages';
 import { useT } from '@/i18n/I18nProvider';
 import type { RuntimesState } from '../hooks/useCatalog';
@@ -8,6 +9,22 @@ import type { Agent, CreateAgentInput, Personality } from '../types';
 import styles from './Form.module.css';
 import { ResultContractEditor } from './ResultContractEditor';
 import { RuntimePicker } from './RuntimePicker';
+
+const PROFILES: { id: string; label: TranslationKey; hint: TranslationKey }[] = [
+  {
+    id: 'developer',
+    label: 'security.profile.developer',
+    hint: 'agents.form.permissionDeveloperHint',
+  },
+  {
+    id: 'read_only',
+    label: 'security.profile.read_only',
+    hint: 'agents.form.permissionReadOnlyHint',
+  },
+];
+
+/** What a personality suggests for a new agent; the editor starts from it, the user decides. */
+const FALLBACK_PROFILE = 'developer';
 
 interface Props {
   personalities: Personality[];
@@ -50,6 +67,18 @@ export function AgentForm({
     initial?.resultContract ?? suggestion(initialPersonalityId),
   );
   const [contractTouched, setContractTouched] = useState(initial !== undefined);
+  const profileSuggestion = (id: string) =>
+    personalities.find((p) => p.id === id)?.suggestedPermissionProfile ?? FALLBACK_PROFILE;
+  // A new agent starts from what its personality suggests, until the user chooses; an existing
+  // one keeps its own (an agent saved without a profile reads as read only).
+  const [profile, setProfile] = useState(
+    initial
+      ? (initial.permissionProfileId ?? 'read_only')
+      : profileSuggestion(initialPersonalityId),
+  );
+  const [profileTouched, setProfileTouched] = useState(initial !== undefined);
+  // Whether the user picked a profile in this form: an edit that did not leaves the agent's own.
+  const [profileChanged, setProfileChanged] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -70,6 +99,8 @@ export function AgentForm({
       instructions,
       worktreeIsolation,
       resultContract: contract,
+      // An edit that does not touch it leaves the agent's profile as it is.
+      ...(initial && !profileChanged ? {} : { permissionProfileId: profile }),
     })
       .then(onSaved)
       .catch((e: unknown) => {
@@ -110,6 +141,7 @@ export function AgentForm({
           onChange={(e) => {
             setPersonalityId(e.target.value);
             if (!contractTouched) setContract(suggestion(e.target.value));
+            if (!profileTouched) setProfile(profileSuggestion(e.target.value));
           }}
         >
           <option value="">{t('agents.form.selectPersonality')}</option>
@@ -171,6 +203,39 @@ export function AgentForm({
           setContract(next);
         }}
       />
+
+      <div className={styles.field}>
+        <label htmlFor="agent-permissions" className={styles.label}>
+          {t('agents.form.permissions')}
+        </label>
+        <select
+          id="agent-permissions"
+          className={styles.control}
+          value={profile}
+          onChange={(e) => {
+            setProfileTouched(true);
+            setProfileChanged(true);
+            setProfile(e.target.value);
+          }}
+        >
+          {PROFILES.map((option) => (
+            <option key={option.id} value={option.id}>
+              {t(option.label)}
+            </option>
+          ))}
+        </select>
+        <p className={styles.hint}>
+          {t(
+            PROFILES.find((option) => option.id === profile)?.hint ??
+              'agents.form.permissionDeveloperHint',
+          )}
+        </p>
+        {!initial && !profileTouched && personality && (
+          <p className={styles.hint}>
+            {t('agents.form.permissionSuggested', { personality: personality.name })}
+          </p>
+        )}
+      </div>
 
       <fieldset className={styles.field}>
         <legend className={styles.label}>{t('agents.form.isolation')}</legend>

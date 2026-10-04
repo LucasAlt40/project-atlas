@@ -706,6 +706,13 @@ export const enUS = {
   'failure.git_repository_required':
     'This execution requires Git worktree isolation, but the selected project is not a Git repository. Add Git to the project, or turn off Git isolation for this agent.',
   'failure.worktree_failed': 'The isolated Git worktree for this execution could not be created.',
+  'agents.form.permissions': 'Permissions',
+  'agents.form.permissionDeveloperHint':
+    'May edit files and run development commands, in its isolated worktree. The workspace policy still limits it.',
+  'agents.form.permissionReadOnlyHint':
+    'Reads and analyzes only: it cannot edit files or run commands.',
+  'agents.form.permissionSuggested':
+    'Suggested by the {personality} personality. You can change it.',
   'agents.form.isolation': 'Execution isolation',
   'agents.form.isolationLabel': 'Always work in an isolated Git worktree',
   'agents.form.isolationOn':

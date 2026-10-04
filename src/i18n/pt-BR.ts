@@ -714,6 +714,13 @@ export const ptBR: Record<TranslationKey, string> = {
   'failure.git_repository_required':
     'Esta execução exige isolamento por Git worktree, mas o projeto selecionado não é um repositório Git. Adicione Git ao projeto ou desative o isolamento Git deste agente.',
   'failure.worktree_failed': 'Não foi possível criar o Git worktree isolado desta execução.',
+  'agents.form.permissions': 'Permissões',
+  'agents.form.permissionDeveloperHint':
+    'Pode editar arquivos e executar comandos de desenvolvimento, no worktree isolado. A política do workspace continua limitando.',
+  'agents.form.permissionReadOnlyHint':
+    'Apenas lê e analisa: não edita arquivos nem executa comandos.',
+  'agents.form.permissionSuggested':
+    'Sugerido pela personalidade {personality}. Você pode alterar.',
   'agents.form.isolation': 'Isolamento de execução',
   'agents.form.isolationLabel': 'Sempre trabalhar em um Git worktree isolado',
   'agents.form.isolationOn':
