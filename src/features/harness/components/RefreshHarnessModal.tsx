@@ -8,6 +8,7 @@ import { refreshProjectHarness } from '@/features/workspace/services/workspaceSe
 import { ConflictsPanel } from './ConflictsPanel';
 import { ErrorBox, type Problem } from './ErrorBox';
 import { DiffView } from './DiffView';
+import { StaleNotice } from './StaleNotice';
 import styles from './Harness.module.css';
 
 interface Props {
@@ -74,6 +75,7 @@ export function RefreshHarnessModal({ workspaceId, onClose, onApplied }: Props) 
         {state.name === 'failed' && <ErrorBox problem={state.problem} />}
         {state.name === 'preview' && (
           <>
+            {state.outcome.staleness && <StaleNotice staleness={state.outcome.staleness} />}
             <DiffView diff={state.outcome.diff} />
             <ConflictsPanel conflicts={state.outcome.conflicts} />
             <p className={styles.muted}>{t('harness.refresh.applyNote')}</p>

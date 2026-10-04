@@ -8,6 +8,8 @@ export type AgentStatus =
   | 'waiting'
   | 'responding'
   | 'waiting_approval'
+  /** The agent asked a person something and has no result until it is answered. */
+  | 'waiting_for_input'
   | 'stopping'
   | 'completed'
   | 'cancelled'
@@ -41,6 +43,7 @@ export function agentStatus(
   if (run?.status === 'failed') {
     return run.failureKind === 'authentication_required' ? 'authentication_required' : 'failed';
   }
+  if (run?.status === 'waiting_for_input') return 'waiting_for_input';
   if (run?.status === 'completed') return 'completed';
   if (run?.status === 'cancelled') return 'cancelled';
   switch (runtime?.availability) {

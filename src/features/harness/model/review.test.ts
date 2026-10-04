@@ -40,6 +40,7 @@ describe('project review model', () => {
           value: 'unknown',
           confidence: 'low',
           origin: 'generated',
+          verification: { status: 'unverified' },
           evidence: [{ source: 'directory structure' }],
           byModel: false,
         },

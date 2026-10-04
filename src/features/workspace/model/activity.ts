@@ -23,7 +23,13 @@ export function toActivityEntry(event: ExecutionEvent, index: number): ActivityE
 
 /** The execution is over: nothing more will happen to it. */
 export function isTerminal(kind: ExecutionEvent['kind']): boolean {
-  return kind === 'completed' || kind === 'failed' || kind === 'cancelled';
+  // Asking a person ends the execution too: it will not go on by itself, an answer starts a new one.
+  return (
+    kind === 'completed' ||
+    kind === 'failed' ||
+    kind === 'cancelled' ||
+    kind === 'interaction_detected'
+  );
 }
 
 /** Something the *user* did (as opposed to the agent, the runtime or the process). */

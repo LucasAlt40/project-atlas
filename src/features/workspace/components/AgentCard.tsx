@@ -3,6 +3,7 @@ import type { Agent, Personality, RuntimeStatus } from '@/features/agents/types'
 import { errorMessage } from '@/i18n/messages';
 import { useT } from '@/i18n/I18nProvider';
 import type { TranslationKey } from '@/i18n';
+import type { WorkflowLinkDto } from '@/lib/tauri/commands';
 import type { AgentRun, ProcessState } from '../model/agentRuns';
 import { agentStatus } from '../model/agentStatus';
 import type { TerminalHub } from '../model/terminalHub';
@@ -46,6 +47,8 @@ interface Props {
   sendError: unknown;
   onSend: (content: string) => void;
   onOpenDetails: () => void;
+  /** Takes the user to the workflow run an inspected execution belongs to. */
+  onOpenWorkflow?: (link: WorkflowLinkDto) => void;
   onEdit: () => void;
   onRemove: () => void;
 }
@@ -73,6 +76,7 @@ export function AgentCard({
   sendError,
   onSend,
   onOpenDetails,
+  onOpenWorkflow,
   onEdit,
   onRemove,
 }: Props) {
@@ -226,6 +230,7 @@ export function AgentCard({
           onClose={() => {
             setInspected(null);
           }}
+          {...(onOpenWorkflow ? { onOpenWorkflow } : {})}
         />
       )}
       {sendError !== undefined && (
@@ -233,7 +238,13 @@ export function AgentCard({
           {errorMessage(t, sendError)}
         </p>
       )}
-      <AgentComposer agentName={agent.name} disabled={run?.status === 'running'} onSend={onSend} />
+      <AgentComposer
+        workspaceId={workspaceId}
+        agentId={agent.id}
+        agentName={agent.name}
+        disabled={run?.status === 'running'}
+        onSend={onSend}
+      />
     </article>
   );
 }

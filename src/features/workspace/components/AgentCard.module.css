@@ -18,6 +18,9 @@
 .card[data-status='waiting_approval'] {
   border-color: rgb(236 72 153 / 0.45);
 }
+.card[data-status='waiting_for_input'] {
+  border-color: var(--warning);
+}
 .header {
   display: flex;
   flex-direction: column;
@@ -83,6 +86,9 @@
 }
 .status[data-status='waiting_approval'] {
   color: var(--policy);
+}
+.status[data-status='waiting_for_input'] {
+  color: var(--warning);
 }
 .status[data-status='failed'],
 .status[data-status='authentication_required'],

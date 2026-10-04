@@ -28,6 +28,9 @@
   background: var(--surface-2);
   box-shadow: var(--shadow-overlay);
 }
+.dialog[data-size='wide'] {
+  width: min(76rem, 100%);
+}
 .backdrop[data-placement='side'] .dialog {
   width: min(26rem, 100%);
   border-radius: 0;

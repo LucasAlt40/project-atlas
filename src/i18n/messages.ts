@@ -36,6 +36,7 @@ const FAILURE_KINDS: readonly FailureKindDto[] = [
   'runtime_unavailable',
   'authentication_required',
   'model_unavailable',
+  'rate_limited',
   'timeout',
   'execution_failed',
   'invalid_request',

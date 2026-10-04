@@ -8,11 +8,13 @@ interface Props {
   onClose: () => void;
   /** `side` slides in from the right (details panels); `center` is a classic dialog. */
   placement?: 'center' | 'side';
+  /** `wide` for content that needs room, such as a diff. */
+  size?: 'normal' | 'wide';
   children: ReactNode;
 }
 
 /** A dialog over the app. Closes on Escape or a click on the backdrop. */
-export function Modal({ label, onClose, placement = 'center', children }: Props) {
+export function Modal({ label, onClose, placement = 'center', size = 'normal', children }: Props) {
   const t = useT();
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -32,7 +34,13 @@ export function Modal({ label, onClose, placement = 'center', children }: Props)
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className={styles.dialog} role="dialog" aria-modal="true" aria-label={label}>
+      <div
+        className={styles.dialog}
+        data-size={size}
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+      >
         <button
           type="button"
           className={styles.close}

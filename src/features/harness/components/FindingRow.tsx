@@ -1,7 +1,8 @@
 import { useId, useState } from 'react';
-import { useT } from '@/i18n/I18nProvider';
+import { useI18n, useT } from '@/i18n/I18nProvider';
 import type { TranslationKey } from '@/i18n';
 import type { FindingDto } from '@/lib/tauri/commands';
+import { formatAnalyzed } from './StaleNotice';
 import styles from './Harness.module.css';
 
 const ARCHITECTURE_KEYS = new Set([
@@ -34,9 +35,19 @@ export function ConfidenceTag({ finding }: { finding: FindingDto }) {
  * user) and the files or folders it rests on. This is what lets the user trust, or doubt, it.
  */
 export function EvidenceDetails({ finding }: { finding: FindingDto }) {
-  const t = useT();
+  const { t, language } = useI18n();
+  const { verification } = finding;
   return (
     <dl className={styles.evidence}>
+      <div>
+        <dt>{t('harness.verification.label')}</dt>
+        <dd data-verification={verification.status}>
+          {t(`harness.verification.${verification.status}`)}
+          {verification.status === 'verified' && verification.method
+            ? ` ${t(`harness.verification.method.${verification.method}`)}`
+            : ''}
+        </dd>
+      </div>
       <div>
         <dt>{t('harness.evidence.confidence')}</dt>
         <dd>{t(`harness.confidence.${finding.confidence}`)}</dd>
@@ -48,6 +59,18 @@ export function EvidenceDetails({ finding }: { finding: FindingDto }) {
           {finding.byModel ? ` · ${t('harness.evidence.byModel')}` : ''}
         </dd>
       </div>
+      {finding.originalOrigin && (
+        <div>
+          <dt>{t('harness.evidence.originalOrigin')}</dt>
+          <dd>{t(`harness.origin.${finding.originalOrigin}`)}</dd>
+        </div>
+      )}
+      {verification.verifiedAt !== undefined && (
+        <div>
+          <dt>{t('harness.evidence.lastVerified')}</dt>
+          <dd>{formatAnalyzed(verification.verifiedAt, language)}</dd>
+        </div>
+      )}
       {finding.byModel && (
         <div>
           <dt>{t('harness.evidence.value')}</dt>

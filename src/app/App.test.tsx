@@ -42,14 +42,12 @@ describe('App', () => {
       within(nav)
         .getAllByRole('button')
         .map((b) => b.textContent),
-    ).toEqual(['Workspace', 'Agentes', 'Personalidades', 'Configurações']);
+    ).toEqual(['Workspace', 'Workflow', 'Agentes', 'Personalidades', 'Configurações']);
     expect(within(nav).getByRole('button', { name: 'Workspace' })).toHaveAttribute(
       'aria-current',
       'page',
     );
-    expect(
-      await screen.findByRole('button', { name: /^Workspace: Acme ERP/ }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^Workspace: Acme ERP/ })).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: '+ Adicionar agente' })).toBeInTheDocument();
     expect(screen.getAllByRole('banner')[0]).toHaveTextContent('Atlas');
   });
@@ -91,7 +89,11 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Personalidades' }));
     expect(await screen.findByRole('heading', { name: 'Personalidades' })).toBeInTheDocument();
     // Built-in descriptions are translated; the instructions are the prompt and stay as written.
-    expect(screen.getByText('Perfil de agente focado em arquitetura.')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Pergunta: o que deve ser construído e como? Decide a arquitetura, as fronteiras e os contratos antes de qualquer implementação.',
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByText('Identifica fronteiras')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Configurações' }));
@@ -102,9 +104,7 @@ describe('App', () => {
     const user = userEvent.setup();
     mockBackend({ language: 'en-US', workspaces: [] });
     vi.mocked(pickFolder).mockResolvedValue('/Users/lucas/dev/acme');
-    vi.mocked(createWorkspace).mockResolvedValue(
-      workspace('w1', 'acme', '/Users/lucas/dev/acme'),
-    );
+    vi.mocked(createWorkspace).mockResolvedValue(workspace('w1', 'acme', '/Users/lucas/dev/acme'));
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: 'Welcome to Atlas' })).toBeInTheDocument();

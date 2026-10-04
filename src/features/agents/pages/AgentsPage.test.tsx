@@ -10,6 +10,13 @@ vi.mock('@/features/settings/services/settingsService');
 vi.mock('@/features/usage/services/usageService');
 vi.mock('@/features/workspace/services/workspaceService');
 
+/** The element at `index`, or a failed test: the lists here are small and known. */
+function at(list: HTMLElement[], index: number): HTMLElement {
+  const element = list[index];
+  if (!element) throw new Error(`no element at ${String(index)}`);
+  return element;
+}
+
 const architect = agent('agent-1', 'Architecture Expert', 'opencode', 'opencode/big-pickle');
 
 function show(props: Parameters<typeof AgentsPage>[0] = {}, agents = [architect]) {
@@ -88,6 +95,8 @@ describe('AgentsPage', () => {
       instructions: 'Be brief.',
       // On unless the user turned it off.
       worktreeIsolation: true,
+      // What the Architect personality suggests, since the user changed nothing.
+      resultContract: { kind: 'review', outcomes: expect.any(Array) as unknown },
     });
     expect(onAgentCreated).toHaveBeenCalledWith(architect);
     expect(screen.queryByRole('form', { name: 'Create agent' })).not.toBeInTheDocument();
@@ -184,5 +193,119 @@ describe('AgentsPage', () => {
     await user.click(screen.getByRole('button', { name: 'Confirm delete' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('still working');
     expect(screen.getByText('Architecture Expert')).toBeInTheDocument();
+  });
+
+  describe('result contract', () => {
+    async function fillAndOpen(user: ReturnType<typeof userEvent.setup>, personality: string) {
+      show({ startCreating: {} }, []);
+      vi.mocked(createAgent).mockResolvedValue(architect);
+      const form = await screen.findByRole('form', { name: 'Create agent' });
+      await user.type(within(form).getByLabelText('Name'), 'Validator');
+      await user.selectOptions(within(form).getByLabelText('Personality'), personality);
+      await user.selectOptions(await within(form).findByLabelText('AI Provider'), 'opencode');
+      await user.selectOptions(within(form).getByLabelText('Model'), 'opencode/big-pickle');
+      return form;
+    }
+
+    it('starts from what the personality suggests and sends exactly the outcomes chosen', async () => {
+      const user = userEvent.setup();
+      const form = await fillAndOpen(user, 'qa');
+
+      expect(within(form).getByLabelText('Result contract')).toHaveValue('validation');
+      const allowed = within(form).getByRole('group', { name: 'Allowed outcomes' });
+      expect(within(allowed).getByRole('checkbox', { name: /pass/ })).toBeChecked();
+      expect(within(allowed).getByRole('checkbox', { name: /fail/ })).toBeChecked();
+      await user.click(within(form).getByRole('button', { name: 'Create Agent' }));
+
+      const sent = vi.mocked(createAgent).mock.calls[0]?.[0];
+      expect(sent?.resultContract?.kind).toBe('validation');
+      expect(sent?.resultContract?.outcomes.map((o) => o.id)).toEqual(['pass', 'fail']);
+    });
+
+    it('lets a preset be narrowed, but never emptied', async () => {
+      const user = userEvent.setup();
+      const form = await fillAndOpen(user, 'qa');
+      const allowed = within(form).getByRole('group', { name: 'Allowed outcomes' });
+
+      await user.click(within(allowed).getByRole('checkbox', { name: /fail/ }));
+      await user.click(within(allowed).getByRole('checkbox', { name: /pass/ }));
+
+      expect(within(form).getByRole('alert')).toHaveTextContent('Declare at least one outcome.');
+      await user.click(within(form).getByRole('button', { name: 'Create Agent' }));
+      expect(createAgent).not.toHaveBeenCalled();
+    });
+
+    it('defines custom outcomes with stable ids and refuses duplicates', async () => {
+      const user = userEvent.setup();
+      const form = await fillAndOpen(user, 'qa');
+      await user.selectOptions(within(form).getByLabelText('Result contract'), 'custom');
+
+      const custom = within(form).getByRole('group', { name: 'Custom outcomes' });
+      // Turning a preset into a custom contract keeps what it had.
+      expect(
+        within(custom)
+          .getAllByLabelText('ID')
+          .map((i) => (i as HTMLInputElement).value),
+      ).toEqual(['pass', 'fail']);
+      await user.click(within(form).getByRole('button', { name: '+ Add outcome' }));
+      const ids = within(custom).getAllByLabelText('ID');
+      const labels = within(custom).getAllByLabelText('Label');
+      await user.type(at(ids, 2), 'fail');
+      await user.type(at(labels, 2), 'Failed again');
+      expect(within(form).getByRole('alert')).toHaveTextContent('Two outcomes use the same ID.');
+      await user.click(within(form).getByRole('button', { name: 'Create Agent' }));
+      expect(createAgent).not.toHaveBeenCalled();
+
+      await user.clear(at(ids, 2));
+      await user.type(at(ids, 2), 'blocked');
+      await user.click(within(form).getByRole('button', { name: 'Create Agent' }));
+      const sent = vi.mocked(createAgent).mock.calls[0]?.[0];
+      expect(sent?.resultContract).toMatchObject({ kind: 'custom' });
+      expect(sent?.resultContract?.outcomes.map((o) => o.id)).toEqual(['pass', 'fail', 'blocked']);
+    });
+
+    it('rejects an id that is not stable-looking', async () => {
+      const user = userEvent.setup();
+      const form = await fillAndOpen(user, 'qa');
+      await user.selectOptions(within(form).getByLabelText('Result contract'), 'custom');
+      const custom = within(form).getByRole('group', { name: 'Custom outcomes' });
+      await user.clear(at(within(custom).getAllByLabelText('ID'), 0));
+      await user.type(at(within(custom).getAllByLabelText('ID'), 0), 'Not Valid');
+
+      expect(within(form).getByRole('alert')).toHaveTextContent('Outcome IDs use lowercase');
+    });
+
+    it('says an agent is general when it declares nothing, and keeps an existing contract on edit', async () => {
+      const user = userEvent.setup();
+      const validator = {
+        ...agent('agent-9', 'Validator', 'opencode', 'opencode/big-pickle'),
+        personalityId: 'qa',
+        resultContract: {
+          kind: 'validation' as const,
+          outcomes: [{ id: 'pass', label: 'Pass', description: '' }],
+        },
+      };
+      show({}, [validator]);
+      vi.mocked(updateAgent).mockResolvedValue(validator);
+
+      await user.click(await screen.findByRole('button', { name: 'Edit Validator' }));
+      const panel = screen.getByRole('form', { name: 'Edit Validator' });
+      expect(within(panel).getByLabelText('Result contract')).toHaveValue('validation');
+      // Changing the personality does not overwrite the agent's own contract.
+      await user.selectOptions(within(panel).getByLabelText('Personality'), 'architect');
+      expect(within(panel).getByLabelText('Result contract')).toHaveValue('validation');
+      await user.click(within(panel).getByRole('button', { name: 'Save agent' }));
+
+      expect(vi.mocked(updateAgent).mock.calls[0]?.[1].resultContract?.outcomes).toHaveLength(1);
+    });
+
+    it('tells a runtime that cannot edit files apart from a permission', async () => {
+      const user = userEvent.setup();
+      const form = await fillAndOpen(user, 'architect');
+
+      expect(
+        within(form).getByText('This runtime does not support file editing.'),
+      ).toBeInTheDocument();
+    });
   });
 });

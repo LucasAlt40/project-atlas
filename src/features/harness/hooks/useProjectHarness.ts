@@ -30,6 +30,17 @@ export function useProjectHarness(workspaceId: string, projectPath = '') {
     };
   }, [workspaceId, key, version]);
 
+  // The project may have changed while Atlas was in the background: look again on return.
+  useEffect(() => {
+    const onFocus = () => {
+      setVersion((v) => v + 1);
+    };
+    window.addEventListener('focus', onFocus);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+    };
+  }, []);
+
   const reload = useCallback(() => {
     setVersion((v) => v + 1);
   }, []);

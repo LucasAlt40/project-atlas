@@ -1,0 +1,139 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 2px solid var(--warning);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+.title {
+  margin: 0;
+  font-size: var(--font-size-md);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--warning);
+}
+.who {
+  margin: 0;
+  font-weight: 600;
+}
+.reason {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+.question {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--warning);
+  background: var(--surface-base);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.document {
+  max-height: 40vh;
+  overflow: auto;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-base);
+}
+.document summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.context {
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+.context p {
+  margin: var(--space-1) 0 0;
+  white-space: pre-wrap;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.input {
+  width: 100%;
+  resize: vertical;
+  padding: var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-base);
+  color: var(--text-standard);
+  font: inherit;
+}
+.note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+.error {
+  margin: 0;
+  color: var(--danger);
+}
+.footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+/* The header indicator: one place that cannot be overlooked from any screen. */
+.indicator {
+  position: relative;
+}
+.indicatorButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--warning);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--warning);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.indicatorButton:hover,
+.indicatorButton:focus-visible {
+  background: var(--surface-1);
+}
+.indicatorList {
+  position: absolute;
+  right: 0;
+  z-index: 20;
+  min-width: 260px;
+  margin: var(--space-1) 0 0;
+  padding: var(--space-1);
+  list-style: none;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+.indicatorItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-standard);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.indicatorItem:hover,
+.indicatorItem:focus-visible {
+  background: var(--surface-base);
+}
+.indicatorMeta {
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}

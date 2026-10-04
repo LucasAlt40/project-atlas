@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { TranslationKey } from '@/i18n';
+import type { PendingInteractionDto, WorkflowLinkDto } from '@/lib/tauri/commands';
 import { factsFromStored, runFromStored, shortId } from '../model/inspection';
 import type { Message, StoredExecution } from '../types';
 import { AgentActivity } from './AgentActivity';
@@ -19,19 +20,60 @@ interface Props {
   messages: Message[];
   context: ExecutionContext;
   onClose: () => void;
+  /** Takes the user to the workflow run this execution is a step of (when it is one). */
+  onOpenWorkflow?: (link: WorkflowLinkDto) => void;
+  /** The question this execution asked, as its workflow run kept it. */
+  asked?: PendingInteractionDto;
 }
 
 /**
  * One execution that has ended, in detail: facts, timeline and conversation. Its terminal was
  * live only, so that tab says so instead of showing an empty screen.
  */
-export function ExecutionInspector({ execution, messages, context, onClose }: Props) {
+export function ExecutionInspector({
+  execution,
+  messages,
+  context,
+  onClose,
+  onOpenWorkflow,
+  asked,
+}: Props) {
   const { t } = useI18n();
   const [tab, setTab] = useState<Tab>('details');
   const mine = messages.filter((message) => message.executionId === execution.id);
 
   return (
     <Modal label={t('inspector.title', { id: shortId(execution.id) })} onClose={onClose}>
+      {execution.workflow && (
+        <nav className={styles.breadcrumb} aria-label={t('inspector.breadcrumb')}>
+          <ol>
+            <li>
+              {onOpenWorkflow ? (
+                <button
+                  type="button"
+                  className={styles.crumbLink}
+                  onClick={() => {
+                    if (execution.workflow) onOpenWorkflow(execution.workflow);
+                  }}
+                >
+                  {t('inspector.breadcrumb.workflow')}
+                </button>
+              ) : (
+                t('inspector.breadcrumb.workflow')
+              )}
+            </li>
+            <li>{execution.workflow.workflowName}</li>
+            <li>
+              {execution.workflow.nodeLabel}
+              {execution.workflow.attempt > 1 &&
+                ` (${t('inspector.breadcrumb.attempt', { attempt: execution.workflow.attempt })})`}
+            </li>
+            <li aria-current="page">
+              {t('inspector.breadcrumb.execution', { id: shortId(execution.id) })}
+            </li>
+          </ol>
+        </nav>
+      )}
       <h2>{t('inspector.title', { id: shortId(execution.id) })}</h2>
       <div className={styles.tabs} role="tablist" aria-label={t('inspector.tabs')}>
         {TABS.map((name) => (
@@ -51,7 +93,11 @@ export function ExecutionInspector({ execution, messages, context, onClose }: Pr
       </div>
       <div role="tabpanel">
         {tab === 'details' && (
-          <ExecutionDetails facts={factsFromStored(execution)} context={context} />
+          <ExecutionDetails
+            facts={factsFromStored(execution)}
+            context={context}
+            {...(asked ? { asked } : {})}
+          />
         )}
         {tab === 'activity' && <AgentActivity run={runFromStored(execution)} />}
         {tab === 'chat' &&

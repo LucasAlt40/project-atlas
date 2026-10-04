@@ -97,6 +97,61 @@ describe('Workspace Harness status', () => {
     expect(badge).toHaveAccessibleName(/Part of the project could not be analysed/);
   });
 
+  it('says the Harness is stale, what changed, that nothing was deleted, and offers a refresh', async () => {
+    const user = userEvent.setup();
+    show({
+      harness: {
+        ...initialized,
+        health: { state: 'stale', reasons: ['project_changed'] },
+        analyzedAt: Date.UTC(2026, 9, 3, 20, 14),
+        stats: { findings: 29, verified: 18, inferred: 7, user: 0, stale: 3, unknown: 4 },
+        staleness: {
+          analyzedAt: Date.UTC(2026, 9, 3, 20, 14),
+          totalChanges: 7,
+          changes: [
+            { path: 'package.json', kind: 'modified' },
+            { path: 'src-tauri/Cargo.toml', kind: 'modified' },
+          ],
+        },
+      },
+    });
+
+    const notice = await screen.findByRole('status', { name: 'Harness stale' });
+    expect(notice).toHaveTextContent('7 relevant project changes detected');
+    expect(within(notice).getByText('package.json')).toBeVisible();
+    expect(within(notice).getByText('… and 5 more')).toBeVisible();
+    expect(notice).toHaveTextContent('Nothing was deleted');
+    expect(await screen.findByLabelText(/Health: Stale/)).toHaveTextContent('Stale');
+    expect(
+      screen.getByText(/29 findings · 18 verified · 7 inferred · 3 may be outdated/),
+    ).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled();
+
+    vi.mocked(refreshProjectHarness).mockResolvedValue({
+      staleness: {
+        analyzedAt: 1,
+        totalChanges: 1,
+        changes: [{ path: 'package.json', kind: 'modified' }],
+      },
+      diff: { added: [], removed: [], changed: [], unchanged: [] },
+      conflicts: [],
+      applied: null,
+    });
+    await user.click(screen.getByRole('button', { name: 'Refresh' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText(/1 relevant project change detected/)).toBeVisible();
+    // Previewing writes nothing: only an explicit confirmation does.
+    expect(vi.mocked(refreshProjectHarness)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(refreshProjectHarness)).toHaveBeenCalledWith('w1', false);
+  });
+
+  it('does not claim staleness for a current Harness', async () => {
+    show({ harness: { ...initialized, health: { state: 'healthy', reasons: [] } } });
+
+    expect(await screen.findByLabelText(/Health: Healthy/)).toBeVisible();
+    expect(screen.queryByRole('status', { name: 'Harness stale' })).not.toBeInTheDocument();
+  });
+
   it('refresh previews the changes first and applies them only on confirmation', async () => {
     const user = userEvent.setup();
     show({ harness: initialized });
@@ -110,6 +165,7 @@ describe('Workspace Harness status', () => {
     };
     vi.mocked(refreshProjectHarness).mockImplementation((_id, confirm) =>
       Promise.resolve({
+        staleness: null,
         diff,
         conflicts: [],
         applied: confirm
@@ -145,6 +201,7 @@ describe('Workspace Harness status', () => {
     const user = userEvent.setup();
     show({ harness: initialized });
     vi.mocked(refreshProjectHarness).mockResolvedValue({
+      staleness: null,
       diff: { added: [], removed: [], changed: [], unchanged: [] },
       conflicts: [
         {

@@ -3,8 +3,10 @@ import { Button } from '@/components/ui/Button';
 import { errorMessage } from '@/i18n/messages';
 import { useT } from '@/i18n/I18nProvider';
 import type { RuntimesState } from '../hooks/useCatalog';
+import { contractProblem, GENERAL_CONTRACT, type ResultContract } from '../model/contract';
 import type { Agent, CreateAgentInput, Personality } from '../types';
 import styles from './Form.module.css';
+import { ResultContractEditor } from './ResultContractEditor';
 import { RuntimePicker } from './RuntimePicker';
 
 interface Props {
@@ -40,16 +42,35 @@ export function AgentForm({
   const [instructions, setInstructions] = useState(initial?.instructions ?? '');
   // On by default: an agent works in an isolated Git worktree unless the user opts out.
   const [worktreeIsolation, setWorktreeIsolation] = useState(initial?.worktreeIsolation ?? true);
+  // A new agent starts from what its personality suggests, until the user chooses otherwise;
+  // an existing one keeps its own.
+  const suggestion = (id: string): ResultContract =>
+    personalities.find((p) => p.id === id)?.suggestedContract ?? GENERAL_CONTRACT;
+  const [contract, setContract] = useState<ResultContract>(
+    initial?.resultContract ?? suggestion(initialPersonalityId),
+  );
+  const [contractTouched, setContractTouched] = useState(initial !== undefined);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const personality = personalities.find((p) => p.id === personalityId);
+  const runtime =
+    runtimes.status === 'ready' ? runtimes.runtimes.find((r) => r.runtime.id === runtimeId) : null;
 
   function submit(event: SyntheticEvent) {
     event.preventDefault();
+    if (contractProblem(contract)) return;
     setSaving(true);
     setError(null);
-    onSubmit({ name, personalityId, runtimeId, modelId, instructions, worktreeIsolation })
+    onSubmit({
+      name,
+      personalityId,
+      runtimeId,
+      modelId,
+      instructions,
+      worktreeIsolation,
+      resultContract: contract,
+    })
       .then(onSaved)
       .catch((e: unknown) => {
         setError(errorMessage(t, e));
@@ -88,6 +109,7 @@ export function AgentForm({
           value={personalityId}
           onChange={(e) => {
             setPersonalityId(e.target.value);
+            if (!contractTouched) setContract(suggestion(e.target.value));
           }}
         >
           <option value="">{t('agents.form.selectPersonality')}</option>
@@ -118,6 +140,9 @@ export function AgentForm({
           onModelChange={setModelId}
         />
       )}
+      {runtime && !runtime.runtime.capabilities.fileEdit && (
+        <p className={styles.hint}>{t('agents.form.noFileEdit')}</p>
+      )}
       <div>
         <Button type="button" onClick={onRefreshRuntimes}>
           {t('agents.form.redetect')}
@@ -138,6 +163,14 @@ export function AgentForm({
           }}
         />
       </div>
+
+      <ResultContractEditor
+        contract={contract}
+        onChange={(next) => {
+          setContractTouched(true);
+          setContract(next);
+        }}
+      />
 
       <fieldset className={styles.field}>
         <legend className={styles.label}>{t('agents.form.isolation')}</legend>

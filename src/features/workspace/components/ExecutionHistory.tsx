@@ -6,7 +6,13 @@ import { shortId, splitByDay } from '../model/inspection';
 import type { StoredExecution } from '../types';
 import styles from './Inspector.module.css';
 
-const SYMBOL = { completed: '✓', failed: '✕', cancelled: '⊘', running: '●' } as const;
+const SYMBOL = {
+  completed: '✓',
+  failed: '✕',
+  cancelled: '⊘',
+  running: '●',
+  waiting_for_input: '?',
+} as const;
 
 interface Props {
   /** Newest first. */
@@ -25,9 +31,11 @@ export function ExecutionHistory({ executions, runtimeName, onOpen }: Props) {
   const outcome = (execution: StoredExecution) =>
     execution.status === 'cancelled'
       ? t('executions.cancelledByUser')
-      : execution.status === 'failed'
-        ? `${t('executions.failed')} · ${failureMessage(t, execution.failure?.kind)}`
-        : t('executions.completed');
+      : execution.status === 'waiting_for_input'
+        ? t('executions.waitingForInput')
+        : execution.status === 'failed'
+          ? `${t('executions.failed')} · ${failureMessage(t, execution.failure?.kind)}`
+          : t('executions.completed');
   const group = (title: string, items: StoredExecution[]) =>
     items.length > 0 && (
       <section aria-label={title}>

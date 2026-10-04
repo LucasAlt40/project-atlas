@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react';
+import { WorkflowPage } from '@/features/workflow/pages/WorkflowPage';
 import { SettingsPage } from '@/features/settings/pages/SettingsPage';
 import { WorkspacePage } from '@/features/workspace/pages/WorkspacePage';
 import type { IconName } from '@/components/ui/Icon';
@@ -20,6 +21,7 @@ export interface Screen {
  */
 export const SCREENS: readonly [Screen, ...Screen[]] = [
   { id: 'workspace', labelKey: 'nav.workspace', icon: 'workspace', component: WorkspacePage },
+  { id: 'workflow', labelKey: 'nav.workflow', icon: 'workflow', component: WorkflowPage },
   { id: 'agents', labelKey: 'nav.agents', icon: 'agents', component: AgentsScreen },
   {
     id: 'personalities',

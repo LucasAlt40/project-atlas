@@ -54,6 +54,7 @@ const modelFinding = (extra: Partial<FindingDto> = {}): FindingDto => ({
   value: 'Order handling',
   confidence: 'medium',
   origin: 'inference',
+  verification: { status: 'unverified' },
   reason: 'orders.service.ts lives in application',
   evidence: [{ source: 'src/application/orders.service.ts' }],
   byModel: true,
@@ -119,6 +120,7 @@ describe('InitializeProjectModal', () => {
       value: 'true',
       confidence: 'high',
       origin: 'fact',
+      verification: { status: 'verified', method: 'repository_file' },
       evidence: [{ source: '.env', field: '.env detected' }],
       byModel: false,
     });
@@ -185,6 +187,7 @@ describe('InitializeProjectModal', () => {
     expect(within(fact).getByText('High confidence')).toBeVisible();
     expect(within(fact).getByText('Read from the repository')).toBeVisible();
     expect(within(fact).getByText('package.json')).toBeVisible();
+    expect(within(fact).getByText('Verified by a repository file')).toBeVisible();
     // An inference from a model: its reason and the files it cites.
     await user.click(
       within(form).getByRole('button', { name: 'Show evidence for orders: Order handling' }),
@@ -196,6 +199,8 @@ describe('InitializeProjectModal', () => {
     expect(within(inference).getByText(/Inferred · proposed by a model/)).toBeVisible();
     expect(within(inference).getByText('orders.service.ts lives in application')).toBeVisible();
     expect(within(inference).getByText('src/application/orders.service.ts')).toBeVisible();
+    expect(within(inference).getByText('Unverified')).toBeVisible();
+    expect(within(inference).queryByText('Last verified')).not.toBeInTheDocument();
   });
 
   it('a low-confidence guess starts unticked and cannot be mistaken for a fact', async () => {

@@ -1,4 +1,8 @@
-import type { UsageMetricsDto } from '@/lib/tauri/commands';
+import type {
+  ContextRecordDto,
+  InteractionDetectionDto,
+  UsageMetricsDto,
+} from '@/lib/tauri/commands';
 import type { StoredExecution } from '../types';
 import { toActivityEntry } from './activity';
 import type { AgentRun, ProcessState } from './agentRuns';
@@ -49,6 +53,10 @@ export interface ExecutionFacts {
   process: 'running' | 'stopping' | 'exited' | 'none';
   exitCode: string | null;
   stoppedBy: StoppedBy | null;
+  /** How the Harness context of its prompt was chosen (absent without a Harness). */
+  context: ContextRecordDto | null;
+  /** What it asked, when it is waiting for a person. */
+  interaction: InteractionDetectionDto | null;
 }
 
 export function factsFromStored(execution: StoredExecution): ExecutionFacts {
@@ -68,6 +76,8 @@ export function factsFromStored(execution: StoredExecution): ExecutionFacts {
     process: exited || hadTerminal ? 'exited' : 'none',
     exitCode: exited?.metadata.exitCode ?? null,
     stoppedBy: stoppedByOf(execution),
+    context: execution.context ?? null,
+    interaction: execution.interaction ?? null,
   };
 }
 
@@ -102,6 +112,8 @@ export function factsFromRun(
       process?.userAction === 'interrupted' || process?.userAction === 'terminated'
         ? process.userAction
         : null,
+    context: null,
+    interaction: null,
   };
 }
 

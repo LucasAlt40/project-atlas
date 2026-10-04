@@ -3,7 +3,8 @@ import { useNow } from '@/features/agents/hooks/useNow';
 import { formatCost, formatDuration, formatTokens } from '@/features/usage/model/format';
 import { useI18n } from '@/i18n/I18nProvider';
 import { failureMessage } from '@/i18n/messages';
-import type { RuntimeCapabilitiesDto } from '@/lib/tauri/commands';
+import type { TranslationKey } from '@/i18n';
+import type { PendingInteractionDto, RuntimeCapabilitiesDto } from '@/lib/tauri/commands';
 import type { ExecutionFacts } from '../model/inspection';
 import { shortId } from '../model/inspection';
 import { GitDetails } from './GitDetails';
@@ -36,9 +37,12 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 export function ExecutionDetails({
   facts,
   context,
+  asked,
 }: {
   facts: ExecutionFacts;
   context: ExecutionContext;
+  /** The question this execution asked, as its workflow run kept it (with the answer, once given). */
+  asked?: PendingInteractionDto;
 }) {
   const { t, language } = useI18n();
   const now = useNow(1000);
@@ -81,6 +85,37 @@ export function ExecutionDetails({
           {facts.task}
         </p>
       )}
+      {facts.status === 'waiting_for_input' && facts.interaction && (
+        <section className={styles.waiting} aria-label={t('interaction.inspector.waiting')}>
+          <h3>{t('interaction.inspector.waiting').toUpperCase()}</h3>
+          <dl className={styles.facts}>
+            <Fact label={t('interaction.inspector.reason')}>
+              {facts.interaction.kind
+                ? t(`interaction.kind.${facts.interaction.kind}` as TranslationKey)
+                : '—'}
+            </Fact>
+            <Fact label={t('interaction.inspector.question')}>{facts.interaction.question}</Fact>
+            {facts.interaction.context && (
+              <Fact label={t('interaction.context')}>{facts.interaction.context}</Fact>
+            )}
+            <Fact label={t('interaction.inspector.when')}>
+              {time(facts.endedAt ?? facts.startedAt)}
+            </Fact>
+            <Fact label={t('interaction.inspector.how')}>
+              {t(`interaction.source.${facts.interaction.source}` as TranslationKey)}
+            </Fact>
+            {asked?.status === 'answered' && (
+              <Fact label={t('interaction.inspector.answer')}>
+                {asked.answer ?? asked.choice ?? '—'}
+                {asked.answeredAt !== null && ` (${time(asked.answeredAt)})`}
+              </Fact>
+            )}
+            {asked?.status === 'cancelled' && (
+              <Fact label={t('interaction.inspector.answer')}>{t('interaction.cancelled')}</Fact>
+            )}
+          </dl>
+        </section>
+      )}
       <dl className={styles.facts}>
         <Fact label={t('inspector.status')}>{status}</Fact>
         <Fact label={t('inspector.workspace')}>{context.workspaceName}</Fact>
@@ -96,6 +131,24 @@ export function ExecutionDetails({
           <Fact label={t('inspector.duration')}>{formatDuration(end - facts.startedAt)}</Fact>
         )}
         <Fact label={t('inspector.process')}>{processText}</Fact>
+        {facts.context && (
+          <Fact label={t('details.context')}>
+            <span>
+              {facts.context.mode === 'fallback'
+                ? t('details.context.fallback', { reason: facts.context.fallbackReason ?? '—' })
+                : t('details.context.task_aware')}
+            </span>
+            <br />
+            <span>
+              {t('details.context.summary', {
+                selected: facts.context.selectedContextCharacters.toLocaleString(language),
+                total: facts.context.totalHarnessCharacters.toLocaleString(language),
+                items: facts.context.selectedItems,
+                omitted: facts.context.omittedItems,
+              })}
+            </span>
+          </Fact>
+        )}
         {facts.stoppedBy && (
           <Fact label={t('inspector.status')}>{t(`inspector.stoppedBy.${facts.stoppedBy}`)}</Fact>
         )}

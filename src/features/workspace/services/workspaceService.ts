@@ -12,6 +12,7 @@ import type {
   RefreshOutcomeDto,
   SemanticRequestDto,
   SessionStatusEventDto,
+  TaskContextPreviewDto,
   TerminalChunkDto,
   TerminalSnapshotDto,
   PendingApprovalDto,
@@ -95,6 +96,18 @@ export function refreshProjectHarness(
   confirm = false,
 ): Promise<RefreshOutcomeDto> {
   return invokeCommand('refresh_project_harness', { workspaceId, confirm });
+}
+
+/**
+ * What an agent would be told for this task, chosen from the project's Harness, with the reason
+ * for each choice. Inspection only.
+ */
+export function previewTaskContext(
+  workspaceId: string,
+  agentId: string,
+  task: string,
+): Promise<TaskContextPreviewDto> {
+  return invokeCommand('preview_task_context', { request: { task, workspaceId, agentId } });
 }
 
 export interface SendMessageInput {

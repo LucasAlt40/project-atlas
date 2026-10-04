@@ -1,5 +1,6 @@
 const PATHS = {
   workspace: 'M3 4h18v12H3zM8 20h8M12 16v4',
+  workflow: 'M5 4h5v5H5zM14 15h5v5h-5zM7.5 9v3a2 2 0 0 0 2 2H14.5M16.5 15v-1',
   agents:
     'M12 4v3M7 7h10a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2zM9.5 12h.01M14.5 12h.01M9 20h6',
   personalities: 'M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM5 20a7 7 0 0 1 14 0',

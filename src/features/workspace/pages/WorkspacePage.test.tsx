@@ -392,6 +392,7 @@ describe('WorkspacePage', () => {
       modelId: 'opus',
       instructions: '',
       worktreeIsolation: true,
+      resultContract: { kind: 'general', outcomes: [] },
     });
     expect(await screen.findByRole('article', { name: 'Lead Architect' })).toBeInTheDocument();
     expect(card('Developer')).toBeInTheDocument();

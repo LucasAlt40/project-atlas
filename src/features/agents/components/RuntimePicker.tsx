@@ -15,6 +15,7 @@ interface Props {
 /** Hint codes the core may send for the model field, and their text. */
 const MODEL_HINTS: Record<string, TranslationKey> = {
   claude_alias: 'runtime.hint.claude_alias',
+  gemini_model: 'runtime.hint.gemini_model',
 };
 
 type UnselectableReason = 'notInstalled' | 'unavailable' | 'notSupported';

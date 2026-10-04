@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { HarnessStats } from '@/features/harness/components/HarnessStats';
 import { HealthBadge } from '@/features/harness/components/HealthBadge';
+import { StaleNotice } from '@/features/harness/components/StaleNotice';
 import { InitializeProjectModal } from '@/features/harness/components/InitializeProjectModal';
 import { RefreshHarnessModal } from '@/features/harness/components/RefreshHarnessModal';
 import harnessStyles from '@/features/harness/components/Harness.module.css';
@@ -119,6 +121,19 @@ export function ProjectContextBar({ workspace }: { workspace: Workspace }) {
           <span className={styles.notice}>{t('harness.loadFailed')}</span>
         )}
       </div>
+      {harness.state.status === 'ready' && harness.state.summary.status === 'initialized' && (
+        <>
+          {harness.state.summary.stats && (
+            <HarnessStats
+              stats={harness.state.summary.stats}
+              analyzedAt={harness.state.summary.analyzedAt}
+            />
+          )}
+          {harness.state.summary.staleness && (
+            <StaleNotice staleness={harness.state.summary.staleness} />
+          )}
+        </>
+      )}
       {refreshing && (
         <RefreshHarnessModal
           workspaceId={id}

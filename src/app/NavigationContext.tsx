@@ -1,10 +1,10 @@
 import { createContext, useContext } from 'react';
 
 /** A hint for the target screen about what the user came to do. */
-export interface NavigationIntent {
-  type: 'create-agent';
-  personalityId?: string;
-}
+export type NavigationIntent =
+  | { type: 'create-agent'; personalityId?: string }
+  /** Show a workflow, and one of its runs when `executionId` is given. */
+  | { type: 'open-workflow'; workflowId: string; executionId?: string };
 
 export interface Navigation {
   navigate: (screenId: string, intent?: NavigationIntent) => void;

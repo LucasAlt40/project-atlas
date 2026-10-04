@@ -183,6 +183,13 @@ export function WorkspacePage() {
               onOpenDetails={() => {
                 setDetailsId(agentId);
               }}
+              onOpenWorkflow={(link) => {
+                navigate('workflow', {
+                  type: 'open-workflow',
+                  workflowId: link.workflowId,
+                  executionId: link.workflowExecutionId,
+                });
+              }}
               onEdit={() => {
                 setAdding(false);
                 setEditingId(agentId);

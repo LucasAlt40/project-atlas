@@ -37,6 +37,7 @@ import {
   listExecutionWorktrees,
   listMessages,
   listWorkspaces,
+  previewTaskContext,
   removeAgentFromWorkspace,
   sendMessage,
   subscribeToExecutionEvents,
@@ -60,6 +61,8 @@ import type {
   InitializeOutcomeDto,
   ProjectAnalysisDto,
   SessionStatusEventDto,
+  TaskContextDto,
+  TaskContextPreviewDto,
   TerminalChunkDto,
   TerminalSnapshotDto,
   UsageTotalsDto,
@@ -71,6 +74,15 @@ import type {
  * in the test file with `vi.mock`), and a render that mounts the real providers.
  */
 
+const validationOutcomes = [
+  { id: 'pass', label: 'Pass', description: 'Validation passed.' },
+  { id: 'fail', label: 'Fail', description: 'Validation failed.' },
+];
+const reviewOutcomes = [
+  { id: 'approved', label: 'Approved', description: 'The work is approved.' },
+  { id: 'changes_requested', label: 'Changes requested', description: 'The work needs changes.' },
+];
+
 export const architectPersonality: Personality = {
   id: 'architect',
   name: 'Architect',
@@ -79,6 +91,7 @@ export const architectPersonality: Personality = {
   behavior: ['Analyzes architecture', 'Identifies boundaries'],
   tags: ['architecture'],
   source: 'builtin',
+  suggestedContract: { kind: 'review', outcomes: reviewOutcomes },
 };
 
 export const qaPersonality: Personality = {
@@ -89,6 +102,7 @@ export const qaPersonality: Personality = {
   behavior: ['Validates behavior'],
   tags: [],
   source: 'builtin',
+  suggestedContract: { kind: 'validation', outcomes: validationOutcomes },
 };
 
 export const personalities: Personality[] = [architectPersonality, qaPersonality];
@@ -107,6 +121,7 @@ const capabilities = {
   terminalInput: false,
   terminalResize: true,
   textOnly: false,
+  fileEdit: false,
   toolAccess: { filesystemWrite: false, processExecution: false, network: false },
 };
 
@@ -156,6 +171,7 @@ export function agent(id: string, name: string, runtimeId = 'claude', modelId = 
     instructions: '',
     permissionProfileId: null,
     worktreeIsolation: true,
+    resultContract: { kind: 'general', outcomes: [] },
     createdAt: 1,
   };
 }
@@ -240,6 +256,95 @@ export interface Backend {
   harness?: HarnessSummaryDto;
   /** What analysing the project finds (by default: Angular on a Git repository). */
   analysis?: ProjectAnalysisDto;
+  /** What previewing a task's context answers (by default: the project has no Harness). */
+  taskContext?: TaskContextPreviewDto;
+}
+
+/** A task context chosen for "Add password recovery endpoint": three items in, two out. */
+export function taskContext(overrides: Partial<TaskContextDto> = {}): TaskContextDto {
+  const item = (id: string, label: string, area: TaskContextDto['includedAreas'][number]) => ({
+    id,
+    block: 'infer' as const,
+    kind: 'finding' as const,
+    area,
+    category: null,
+    label,
+    content: label,
+    provenance: 'inference' as const,
+    verification: 'unverified' as const,
+    confidence: 'medium' as const,
+    evidence: [{ source: 'src/auth/password-reset.ts' }],
+    sourceFindingId: id,
+    tags: [],
+  });
+  const reason = {
+    score: 0,
+    matchedAreas: [],
+    matchedTags: [],
+    matchedCategories: [],
+    matchedPaths: [],
+    matchedKeywords: [],
+    alwaysIncluded: null,
+    penalties: [],
+  };
+  return {
+    mode: 'task_aware',
+    fallbackReason: null,
+    signals: {
+      keywords: ['password', 'recovery', 'endpoint'],
+      areas: ['business', 'modules'],
+      baselineAreas: ['architecture', 'conventions', 'testing'],
+      tags: ['authentication', 'password', 'api', 'backend'],
+      intent: 'add',
+      technologies: [],
+    },
+    text: 'This context was selected from the project’s Harness based on the current task.',
+    entries: [
+      {
+        item: item('module:auth', 'Authentication module', 'modules'),
+        reason: {
+          ...reason,
+          score: 120,
+          matchedTags: ['authentication'],
+          matchedAreas: ['modules'],
+          matchedPaths: ['src/auth/password-reset.ts'],
+        },
+        outcome: 'included',
+      },
+      {
+        item: item('architecture:clean', 'Clean Architecture', 'architecture'),
+        reason: { ...reason, score: 25, matchedAreas: ['architecture'] },
+        outcome: 'included',
+      },
+      {
+        item: {
+          ...item('constraints', 'Constraints', 'constraints'),
+          kind: 'constraint' as const,
+          block: 'user' as const,
+        },
+        reason: { ...reason, score: 100, alwaysIncluded: 'constraint' },
+        outcome: 'included',
+      },
+      {
+        item: item('module:billing', 'Billing module', 'modules'),
+        reason,
+        outcome: 'not_relevant',
+      },
+      {
+        item: item('module:maps', 'Maps module', 'modules'),
+        reason: { ...reason, penalties: ['layer_mismatch'] },
+        outcome: 'not_relevant',
+      },
+    ],
+    includedAreas: ['architecture', 'constraints', 'modules'],
+    excludedAreas: [],
+    selectedChars: 1984,
+    fullHarnessChars: 5800,
+    budgetChars: 6000,
+    truncated: false,
+    omitted: [],
+    ...overrides,
+  };
 }
 
 export function harnessSummary(overrides: Partial<HarnessSummaryDto> = {}): HarnessSummaryDto {
@@ -250,6 +355,9 @@ export function harnessSummary(overrides: Partial<HarnessSummaryDto> = {}): Harn
     version: null,
     initializedAt: null,
     hasAtlasDir: false,
+    analyzedAt: null,
+    staleness: null,
+    stats: null,
     problem: null,
     health: null,
     ...overrides,
@@ -275,6 +383,7 @@ export function projectAnalysis(overrides: Partial<ProjectAnalysisDto> = {}): Pr
     value,
     confidence: 'high',
     origin: 'fact',
+    verification: { status: 'verified', method: 'repository_file' },
     evidence: [{ source: 'package.json', field: key }],
     byModel: false,
     ...extra,
@@ -293,9 +402,11 @@ export function projectAnalysis(overrides: Partial<ProjectAnalysisDto> = {}): Pr
       finding('architecture', 'layered', 'Layered', 'possible', {
         confidence: 'medium',
         origin: 'inference',
+        verification: { status: 'unverified' },
       }),
     ],
     conflicts: [],
+    gaps: [],
     partial: false,
     scannedEntries: 42,
     analysis: {
@@ -399,6 +510,9 @@ export function mockBackend(backend: Backend = {}): void {
   });
   vi.mocked(getProjectHarness).mockResolvedValue(backend.harness ?? harnessSummary());
   vi.mocked(analyzeProject).mockResolvedValue(backend.analysis ?? projectAnalysis());
+  vi.mocked(previewTaskContext).mockResolvedValue(
+    backend.taskContext ?? { status: 'missing', context: null },
+  );
   vi.mocked(getAgentUsage).mockResolvedValue(backend.agentUsage ?? emptyAgentUsage());
   vi.mocked(getWorkspaceUsage).mockResolvedValue(backend.workspaceUsage ?? emptyWorkspaceUsage());
   vi.mocked(subscribeToExecutionEvents).mockImplementation((handler) => {

@@ -71,3 +71,30 @@
   color: var(--color-warning, var(--text-standard));
   font-size: var(--font-size-sm);
 }
+.outcomeRows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.outcomeRow {
+  display: grid;
+  grid-template-columns: minmax(6rem, 1fr) minmax(6rem, 1fr) minmax(8rem, 2fr) auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+.addButton,
+.removeButton {
+  padding: 0 var(--space-3);
+  height: 2rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-void);
+  color: var(--text-standard);
+  font: inherit;
+  cursor: pointer;
+}
+.addButton:focus-visible,
+.removeButton:focus-visible {
+  border-color: var(--border-focus);
+  outline: 0;
+}

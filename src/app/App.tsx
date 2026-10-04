@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { SidebarFooter } from '@/components/layout/SidebarFooter';
 import { CatalogProvider } from '@/features/agents/hooks/useCatalog';
+import { useAttentionNotifications } from '@/features/workflow/hooks/useAttentionNotifications';
+import { ActionRequired } from '@/features/workflow/components/ActionRequired';
 import { LanguageSwitch } from '@/features/settings/components/LanguageSwitch';
 import { SettingsProvider } from '@/features/settings/hooks/SettingsProvider';
 import { ActiveExecutions } from '@/features/workspace/components/ActiveExecutions';
@@ -35,6 +37,11 @@ function Shell() {
     [location.intent],
   );
 
+  // An agent asks while the app is behind: notify, and take the person to it on return.
+  useAttentionNotifications((target) => {
+    navigation.navigate('workflow', { type: 'open-workflow', ...target });
+  });
+
   return (
     <NavigationContext.Provider value={navigation}>
       <AppShell
@@ -48,6 +55,7 @@ function Shell() {
         sidebarFooter={<SidebarFooter />}
         trailing={
           <>
+            <ActionRequired />
             <ActiveExecutions />
             <LanguageSwitch />
           </>

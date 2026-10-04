@@ -19,3 +19,15 @@ class NoopResizeObserver {
   }
 }
 if (!('ResizeObserver' in globalThis)) vi.stubGlobal('ResizeObserver', NoopResizeObserver);
+
+// The graph library reads layout that jsdom does not have: sizes, the transform matrix, and
+// the bounding box of SVG elements. Nodes are given an initial size, so none of it matters
+// to what the tests check.
+class NoopDOMMatrixReadOnly {
+  m22 = 1;
+  constructor(transform?: string) {
+    const scale = /scale\(([\d.]+)\)/.exec(transform ?? '');
+    if (scale?.[1]) this.m22 = Number(scale[1]);
+  }
+}
+if (!('DOMMatrixReadOnly' in globalThis)) vi.stubGlobal('DOMMatrixReadOnly', NoopDOMMatrixReadOnly);

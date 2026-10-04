@@ -15,7 +15,7 @@ export function runKey(workspaceId: string, agentId: string): string {
  */
 export interface AgentRun {
   executionId: string;
-  status: 'running' | 'completed' | 'failed' | 'cancelled';
+  status: 'running' | 'waiting_for_input' | 'completed' | 'failed' | 'cancelled';
   /** Milliseconds since the Unix epoch when the run started. */
   startedAt: number;
   activity: ActivityEntry[];
@@ -119,6 +119,8 @@ function statusAfter(current: AgentRun['status'], event: ExecutionEvent): AgentR
       return 'failed';
     case 'cancelled':
       return 'cancelled';
+    case 'interaction_detected':
+      return 'waiting_for_input';
     default:
       return current;
   }
