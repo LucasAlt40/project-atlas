@@ -247,6 +247,63 @@ fn usage_of(result: &Value) -> Option<UsageMetrics> {
     })
 }
 
+/// A failed tool step as one line: the tool, what it was given, and why it failed. A refusal
+/// for lack of permission says how to allow it, since a run that cannot prompt cannot be
+/// approved from Atlas.
+fn describe_failed_tool(step: &Value) -> String {
+    let info = &step["tool_info"];
+    let name = step["tool_name"].as_str().unwrap_or("a tool");
+    let target = ["CommandLine", "TargetFile", "AbsolutePath"]
+        .iter()
+        .find_map(|key| info["parameters"][key].as_str())
+        .map(|target| format!(" ({})", target.chars().take(200).collect::<String>()))
+        .unwrap_or_default();
+    let reason = info["error"]["message"]
+        .as_str()
+        .and_then(|message| message.lines().next())
+        .unwrap_or("it failed");
+    let hint = if reason.contains("permission") {
+        " To allow it, add a rule under permissions.allow in the Antigravity settings.json (for example command(find))."
+    } else {
+        ""
+    };
+    format!("{name}{target}: {reason}.{hint}")
+}
+
+/// How the run ended: the tool call it stopped on, when that call failed (typically refused for
+/// a permission a headless run cannot ask for) and the agent wrote nothing after it. The CLI then
+/// still reports success, but the work was cut short, so what it said before is not an answer.
+/// A question put to the person is not a failure.
+fn stopped_on_failed_tool(events: &[Value]) -> Option<String> {
+    let steps = || {
+        events
+            .iter()
+            .filter(|value| value["event"] == "step_update")
+            .map(|value| &value["step_update"])
+    };
+    if steps().any(|step| step["tool_name"].as_str().is_some_and(cli::is_asking_tool)) {
+        return None;
+    }
+    let mut stopped_on_tool = None;
+    for step in steps() {
+        match step["step_type"].as_str() {
+            Some("agent_response")
+                if step["text_delta"]
+                    .as_str()
+                    .is_some_and(|text| !text.trim().is_empty()) =>
+            {
+                stopped_on_tool = None;
+            }
+            Some("tool") if step["state"] == "ERROR" => {
+                stopped_on_tool = Some(describe_failed_tool(step));
+            }
+            Some("tool") => stopped_on_tool = None,
+            _ => {}
+        }
+    }
+    stopped_on_tool
+}
+
 /// Reads the `result` event that ends the stream. Its `response` is the concluding message;
 /// when it is empty the text streamed before it is what the agent said.
 fn parse_run_output(output: &ProcessOutput, model_id: &str) -> Result<RuntimeOutput, RuntimeError> {
@@ -278,6 +335,12 @@ fn parse_run_output(output: &ProcessOutput, model_id: &str) -> Result<RuntimeOut
             response
         };
         return Err(cli::classify_failure(&details, model_id));
+    }
+
+    if let Some(call) = stopped_on_failed_tool(&events) {
+        return Err(RuntimeError::ExecutionFailed(format!(
+            "Antigravity stopped after a tool call failed, with the work unfinished: {call}"
+        )));
     }
 
     let streamed: String = events
@@ -519,8 +582,8 @@ mod tests {
 
     #[test]
     fn a_run_refused_a_permission_it_cannot_ask_for_says_so() {
+        // The refusal left no failed tool step in the stream, only the CLI's own note.
         let stream = [
-            r#"{"event":"step_update","step_update":{"step_type":"tool","state":"ERROR","tool_name":"write_to_file"}}"#,
             r#"jetski: no output produced — a tool required the "write_file" permission that headless mode cannot prompt for"#,
             r#"{"event":"result","result":{"status":"SUCCESS","response":"","denied_actions":[{"action":"write_file","display_name":"WriteToFile"}]}}"#,
         ]
@@ -534,6 +597,42 @@ mod tests {
             matches!(&error, RuntimeError::ExecutionFailed(d) if d.contains("write_file") && d.contains("headless")),
             "{error:?}"
         );
+    }
+
+    #[test]
+    fn a_run_that_ends_on_a_refused_tool_call_is_cut_short_and_not_an_answer() {
+        let stream = [
+            r#"{"event":"step_update","step_update":{"step_type":"agent_response","state":"DONE","text_delta":"I will inspect the files.\n"}}"#,
+            r#"{"event":"step_update","step_update":{"step_type":"tool","state":"ERROR","tool_name":"run_command","tool_info":{"parameters":{"CommandLine":"find src -type f"},"error":{"type":"TOOL_ERROR","message":"permission check failed: user denied permission to run command:\nfind src -type f"}}}}"#,
+            r#"{"event":"result","result":{"status":"SUCCESS","response":"I will inspect the files.\n","denied_actions":[{"action":"command"}]}}"#,
+        ]
+        .join("\n");
+
+        let error = AntigravityRuntime::new(runner(output(0, &stream)))
+            .execute(&request("m"), &|_| {})
+            .unwrap_err();
+
+        let RuntimeError::ExecutionFailed(details) = error else {
+            panic!("expected a cut short run");
+        };
+        assert!(details.contains("run_command") && details.contains("find src -type f"));
+        assert!(details.contains("permissions.allow"));
+    }
+
+    #[test]
+    fn a_failed_tool_call_followed_by_an_answer_is_still_an_answer() {
+        let stream = [
+            r#"{"event":"step_update","step_update":{"step_type":"tool","state":"ERROR","tool_name":"view_file","tool_info":{"error":{"message":"no such file"}}}}"#,
+            r#"{"event":"step_update","step_update":{"step_type":"agent_response","state":"DONE","text_delta":"It does not exist."}}"#,
+            r#"{"event":"result","result":{"status":"SUCCESS","response":"It does not exist."}}"#,
+        ]
+        .join("\n");
+
+        let result = AntigravityRuntime::new(runner(output(0, &stream)))
+            .execute(&request("m"), &|_| {})
+            .unwrap();
+
+        assert_eq!(result.text, "It does not exist.");
     }
 
     #[test]

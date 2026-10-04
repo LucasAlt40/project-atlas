@@ -261,6 +261,11 @@ const ASKING_TOOLS: [&str; 5] = [
 pub(super) const ASKED_TOOL: &str = "askedTool";
 pub(super) const ASKED_INPUT: &str = "askedInput";
 
+/// Whether `tool` is one through which a CLI agent asks a person.
+pub(super) fn is_asking_tool(tool: &str) -> bool {
+    ASKING_TOOLS.contains(&tool)
+}
+
 /// Records, in the output's metadata, the first call to a tool that asks a person.
 pub(super) fn note_asking_tool(
     metadata: &mut std::collections::BTreeMap<String, String>,
