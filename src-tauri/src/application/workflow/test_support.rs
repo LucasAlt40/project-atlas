@@ -140,6 +140,17 @@ pub fn done(status: &str) -> StepCompletion {
     }
 }
 
+/// A step that ran well and concluded `outcome` (its own verdict, not a status of the run).
+pub fn concluded(outcome: &str) -> StepCompletion {
+    StepCompletion::Completed {
+        facts: BTreeMap::from([
+            ("result.status".to_owned(), "success".to_owned()),
+            ("result.outcome".to_owned(), outcome.to_owned()),
+        ]),
+        summary: Some(format!("concluded {outcome}")),
+    }
+}
+
 pub fn failed(message: &str) -> StepCompletion {
     StepCompletion::Failed {
         message: message.to_owned(),
@@ -178,8 +189,27 @@ impl Sim {
         WorkflowEngine::new(&self.workflow.clone()).start(&mut self.exec, at);
     }
 
-    pub fn run(&mut self, mut script: impl FnMut(&str, usize) -> StepCompletion) {
+    pub fn run(&mut self, script: impl FnMut(&str, usize) -> StepCompletion) {
         self.start();
+        self.pump(script);
+    }
+
+    /// Picks the failed run up again at its Recovery Point (on the definition the simulation
+    /// holds now) and runs it on.
+    pub fn resume(
+        &mut self,
+        script: impl FnMut(&str, usize) -> StepCompletion,
+    ) -> Result<crate::domain::workflow::RecoveryPlan, crate::domain::workflow::RecoveryProblem>
+    {
+        let at = self.tick();
+        self.exec.workflow = self.workflow.clone();
+        let workflow = self.workflow.clone();
+        let (plan, _) = WorkflowEngine::new(&workflow).resume_failed(&mut self.exec, at)?;
+        self.pump(script);
+        Ok(plan)
+    }
+
+    fn pump(&mut self, mut script: impl FnMut(&str, usize) -> StepCompletion) {
         let workflow = self.workflow.clone();
         let engine = WorkflowEngine::new(&workflow);
         for _ in 0..200 {

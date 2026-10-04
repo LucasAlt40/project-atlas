@@ -138,6 +138,12 @@ pub trait StepRunner: Send + Sync {
         false
     }
 
+    /// Whether the worktree of a finished run is still there and still what Atlas made, so a
+    /// run that failed can go on in it. Looks only; changes nothing.
+    fn workspace_usable(&self, _primary_execution_id: &str) -> bool {
+        false
+    }
+
     /// The run is over: decides what can be done with its code. Never applies it.
     fn close_workspace(&self, _primary_execution_id: &str, _end: RunEnd) -> Option<WorkspaceClose> {
         None

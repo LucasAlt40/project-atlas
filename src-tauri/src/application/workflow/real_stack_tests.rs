@@ -712,3 +712,149 @@ fn real_workflow_pauses_when_the_claude_cli_asks_and_goes_on_after_the_answer() 
     assert!(done.status.is_final());
     assert_eq!(done.nodes["developer"].attempts.len(), 2);
 }
+
+// ---- a failed run goes on in the worktree it had -------------------------------------------------
+
+/// Writes into the directory it is run in (the run's worktree): the developer a file, the fixer
+/// another one; QA fails until it sees the fixer's file.
+const WRITING_CLAUDE: &str = r#"#!/bin/sh
+status=success
+case "$*" in
+  *"Current step: developer"*) echo implemented > feature.txt ;;
+  *"Current step: fixer"*) echo repaired > repaired.txt ;;
+  *"Current step: QA"*) if [ -f repaired.txt ]; then status=pass; else status=fail; fi ;;
+esac
+printf '{"type":"system","subtype":"init"}\r\n'
+printf '{"type":"result","subtype":"success","is_error":false,"duration_ms":5,"num_turns":1,"result":"Did it.\\n```atlas-result\\n{\\"status\\":\\"%s\\",\\"summary\\":\\"step done with %s\\"}\\n```","total_cost_usd":0.001}\r\n' "$status" "$status"
+"#;
+
+#[test]
+fn a_failed_run_resumes_in_the_same_worktree_keeping_its_files_and_never_touching_the_project() {
+    let s = stack_with(Some(WRITING_CLAUDE), "sonnet", true);
+    let workflow = s.workflow(
+        vec![
+            agent("developer", "developer"),
+            agent("QA", "qa"),
+            end("done", EndOutcome::Done),
+        ],
+        vec![edge("developer", "QA"), when("QA", "done", "pass")],
+    );
+    let run = s
+        .workflows
+        .start(&workflow.id, "Build the feature")
+        .unwrap();
+    s.orchestrator
+        .run(&run.id, Arc::new(Collector::default()))
+        .unwrap();
+
+    // QA failed and nothing routes its `fail`: the run stops, its code waits in its worktree.
+    let failed = s.workflows.execution(&run.id).unwrap();
+    assert_eq!(failed.status, WorkflowExecutionStatus::Failed);
+    let primary = failed.integration.worktree_execution_id.clone().unwrap();
+    let worktrees = s.worktrees.as_ref().unwrap();
+    let before = worktrees.get(&primary).unwrap();
+    assert!(std::path::Path::new(&before.worktree_path)
+        .join("feature.txt")
+        .exists());
+    assert!(!s.project.join("feature.txt").exists());
+
+    // The route is added; the run goes on from the fixer, in the same worktree.
+    let mut edited = s.workflows.get(&workflow.id).unwrap();
+    let mut fixer = agent("fixer", "fixer");
+    if let NodeKind::Agent(a) = &mut fixer.kind {
+        a.agent_id = s.agent("fixer");
+    }
+    edited.nodes.push(fixer);
+    let qa = edited.nodes.iter().position(|n| n.id == "QA").unwrap();
+    edited.nodes[qa] = with_loop(edited.nodes[qa].clone(), "qa_bug_fix", 3);
+    edited.edges.push(when("QA", "fixer", "fail"));
+    edited.edges.push(edge("fixer", "QA"));
+    s.workflows.update(edited).unwrap();
+    s.orchestrator
+        .resume_failed(&run.id, Arc::new(Collector::default()))
+        .unwrap();
+
+    let done = s.workflows.execution(&run.id).unwrap();
+    assert_eq!(
+        done.status,
+        WorkflowExecutionStatus::Completed,
+        "{:?}",
+        done.failure
+    );
+    assert_eq!(done.nodes["developer"].attempts.len(), 1, "not run again");
+    assert_eq!(done.nodes["QA"].attempts.len(), 2);
+    assert_eq!(done.nodes["fixer"].attempts.len(), 1);
+    // The same worktree and branch, with what the developer wrote and what the fixer added.
+    assert_eq!(
+        done.integration.worktree_execution_id.as_deref(),
+        Some(primary.as_str())
+    );
+    assert_eq!(
+        done.integration.branch.as_deref(),
+        Some(before.branch_name.as_str())
+    );
+    let path = std::path::Path::new(&before.worktree_path);
+    assert!(path.join("feature.txt").exists());
+    assert!(path.join("repaired.txt").exists());
+    let changes = done.changes.expect("the code of the run");
+    let files: Vec<_> = changes.files.iter().map(|f| f.path.as_str()).collect();
+    assert!(
+        files.contains(&"feature.txt") && files.contains(&"repaired.txt"),
+        "{files:?}"
+    );
+    // Resuming is not applying: the project is as it was and the user still decides.
+    assert!(!s.project.join("feature.txt").exists());
+    assert!(!s.project.join("repaired.txt").exists());
+    assert_ne!(
+        done.integration.status,
+        crate::domain::workflow::IntegrationStatus::Integrated
+    );
+}
+
+#[test]
+fn a_failed_run_whose_worktree_is_gone_asks_for_recovery_instead_of_recreating_it() {
+    let s = stack_with(Some(WRITING_CLAUDE), "sonnet", true);
+    let workflow = s.workflow(
+        vec![
+            agent("developer", "developer"),
+            agent("QA", "qa"),
+            end("done", EndOutcome::Done),
+        ],
+        vec![edge("developer", "QA"), when("QA", "done", "pass")],
+    );
+    let run = s
+        .workflows
+        .start(&workflow.id, "Build the feature")
+        .unwrap();
+    s.orchestrator
+        .run(&run.id, Arc::new(Collector::default()))
+        .unwrap();
+    let failed = s.workflows.execution(&run.id).unwrap();
+    let primary = failed.integration.worktree_execution_id.clone().unwrap();
+    let worktree = s.worktrees.as_ref().unwrap().get(&primary).unwrap();
+    fs::remove_dir_all(&worktree.worktree_path).unwrap();
+
+    let mut edited = s.workflows.get(&workflow.id).unwrap();
+    let mut fixer = agent("fixer", "fixer");
+    if let NodeKind::Agent(a) = &mut fixer.kind {
+        a.agent_id = s.agent("fixer");
+    }
+    edited.nodes.push(fixer);
+    let qa = edited.nodes.iter().position(|n| n.id == "QA").unwrap();
+    edited.nodes[qa] = with_loop(edited.nodes[qa].clone(), "qa_bug_fix", 3);
+    edited.edges.push(when("QA", "fixer", "fail"));
+    edited.edges.push(edge("fixer", "QA"));
+    s.workflows.update(edited).unwrap();
+
+    let plan = s.orchestrator.recovery_plan(&run.id).unwrap();
+    assert_eq!(
+        plan.problem,
+        Some(crate::domain::workflow::RecoveryProblem::RecoveryRequired)
+    );
+    let error = s
+        .orchestrator
+        .resume_failed(&run.id, Arc::new(Collector::default()))
+        .unwrap_err();
+    assert!(error.is(crate::application::errors::ErrorCode::WorkflowNotRecoverable));
+    assert_eq!(s.workflows.execution(&run.id).unwrap(), failed);
+}

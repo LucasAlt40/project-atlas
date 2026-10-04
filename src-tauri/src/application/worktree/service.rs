@@ -815,6 +815,24 @@ impl WorktreeService {
         })
     }
 
+    /// Whether the workflow's worktree is still there and still what Atlas made: the folder
+    /// exists, belongs to this run and is on its branch. Looks only; changes nothing.
+    pub fn can_reopen(&self, primary_id: &str) -> bool {
+        self.get(primary_id)
+            .is_some_and(|primary| self.is_reopenable(&primary))
+    }
+
+    fn is_reopenable(&self, primary: &ExecutionWorktree) -> bool {
+        let path = Path::new(&primary.worktree_path);
+        primary.shared_with.is_none()
+            && primary.workflow_execution_id.is_some()
+            && path.is_dir()
+            && self
+                .layout
+                .is_worktree_of(path, &primary.workspace_id, &primary.execution_id)
+            && self.manager.get_branch(path).as_deref() == Ok(primary.branch_name.as_str())
+    }
+
     /// Makes a workflow worktree usable again after the app was closed in the middle of a run:
     /// it was recorded as cut short (kept, never merged); the run now goes on in it.
     ///
@@ -827,15 +845,7 @@ impl WorktreeService {
         let primary = self
             .get(primary_id)
             .ok_or_else(|| WorktreeError::NotFound(primary_id.to_owned()))?;
-        let path = Path::new(&primary.worktree_path);
-        let consistent = primary.shared_with.is_none()
-            && primary.workflow_execution_id.is_some()
-            && path.is_dir()
-            && self
-                .layout
-                .is_worktree_of(path, &primary.workspace_id, &primary.execution_id)
-            && self.manager.get_branch(path).as_deref() == Ok(primary.branch_name.as_str());
-        if !consistent {
+        if !self.is_reopenable(&primary) {
             return Err(WorktreeError::InvalidState(
                 "the workflow worktree is no longer what Atlas made".to_owned(),
             ));

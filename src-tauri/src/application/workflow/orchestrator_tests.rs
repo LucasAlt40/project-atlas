@@ -2187,3 +2187,241 @@ fn a_step_that_ends_without_an_outcome_on_a_question_asks_the_person_instead_of_
         WorkflowExecutionStatus::Completed
     );
 }
+
+// ---- recovery -------------------------------------------------------------------------------------
+
+/// The workflow as a user could have saved it: the validator's `fail` has no route yet.
+fn without_a_route_for_fail(env: &Env) -> crate::domain::workflow::Workflow {
+    env.workflow(
+        vec![
+            agent("architect", "architect"),
+            agent("developer", "developer"),
+            with_loop(agent("validator", "validator"), "architecture_fix", 3),
+            agent("qa", "qa"),
+            end("done", EndOutcome::Done),
+        ],
+        vec![
+            edge("architect", "developer"),
+            edge("developer", "validator"),
+            on_outcome("validator", "qa", "pass"),
+            on_outcome("qa", "done", "pass"),
+        ],
+    )
+}
+
+/// The same workflow, edited: a Bug Fixer takes the validator's `fail` and goes back to it.
+fn with_the_missing_route(
+    env: &Env,
+    mut workflow: crate::domain::workflow::Workflow,
+) -> crate::domain::workflow::Workflow {
+    let mut fixer = agent("fixer", "fixer");
+    if let crate::domain::workflow::NodeKind::Agent(a) = &mut fixer.kind {
+        a.agent_id = env.agents["fixer"].clone();
+    }
+    workflow.nodes.push(fixer);
+    workflow
+        .edges
+        .push(on_outcome("validator", "fixer", "fail"));
+    workflow.edges.push(edge("fixer", "validator"));
+    env.service.update(workflow).unwrap()
+}
+
+fn started_count(runner: &Arc<Scripted>, node: &str) -> usize {
+    runner.started().iter().filter(|n| *n == node).count()
+}
+
+const SEEN_BY_VALIDATOR: &str = r#","findings":[{"severity":"high","category":"Transactions","title":"Missing transaction boundary","description":"The webhook writes donation and payment apart","file":"src/payment.ts","line":142,"evidence":"payment.ts:142","recommendation":"Wrap both writes in one transaction"}]"#;
+
+#[test]
+fn a_validator_fail_with_no_route_fails_the_run_naming_the_step_and_keeping_its_findings() {
+    let env = env();
+    env.declare_validation_outcomes();
+    let workflow = without_a_route_for_fail(&env);
+    let runner = Scripted::new();
+    runner.script("validator", vec![outcome("fail", SEEN_BY_VALIDATOR)]);
+
+    let (exec, _) = env.run(&runner, &workflow.id);
+
+    assert_eq!(exec.status, WorkflowExecutionStatus::Failed);
+    let failure = exec.failure.as_ref().unwrap();
+    assert_eq!(failure.code, FailureCode::NoRouteMatched);
+    assert_eq!(failure.node_id.as_deref(), Some("validator"));
+    assert_eq!(failure.detail.as_deref(), Some("fail"));
+    // The step ran well: its verdict is not a technical failure, and its findings are kept.
+    assert_eq!(exec.nodes["validator"].status, NodeStatus::Completed);
+    assert_eq!(exec.state.validation_results[0].findings.len(), 1);
+}
+
+#[test]
+fn a_failed_run_resumes_at_its_recovery_point_in_the_same_run_without_redoing_finished_steps() {
+    let env = env();
+    env.declare_validation_outcomes();
+    let workflow = without_a_route_for_fail(&env);
+    let runner = Scripted::new();
+    runner.script(
+        "architect",
+        vec![ok(
+            "success",
+            r#","decisions":[{"title":"Atomic webhook","decision":"One transaction per charge","rationale":"idempotency"}]"#,
+        )],
+    );
+    runner.script("validator", vec![outcome("fail", SEEN_BY_VALIDATOR)]);
+    let (failed, _) = env.run(&runner, &workflow.id);
+    assert_eq!(failed.status, WorkflowExecutionStatus::Failed);
+
+    // Nothing to resume into yet: the workflow still has no route for `fail`.
+    let orchestrator = env.orchestrator(&runner);
+    let plan = orchestrator.recovery_plan(&failed.id).unwrap();
+    assert_eq!(
+        plan.problem,
+        Some(crate::domain::workflow::RecoveryProblem::NoRoute)
+    );
+    assert!(orchestrator
+        .resume_failed(&failed.id, Arc::new(Collector::default()))
+        .unwrap_err()
+        .is(ErrorCode::WorkflowNotRecoverable));
+    assert_eq!(env.service.execution(&failed.id).unwrap(), failed);
+
+    // The user adds the route; the run is picked up from the Bug Fixer.
+    let edited = with_the_missing_route(&env, env.service.get(&workflow.id).unwrap());
+    let plan = orchestrator.recovery_plan(&failed.id).unwrap();
+    assert_eq!(plan.problem, None);
+    assert_eq!(plan.restart_node_ids, ["fixer"]);
+    assert_eq!(plan.last_completed_node_id.as_deref(), Some("validator"));
+    assert_eq!(
+        plan.reused_node_ids,
+        ["architect", "developer", "validator"]
+    );
+
+    runner.script("validator", vec![outcome("pass", "")]);
+    runner.script("qa", vec![outcome("pass", "")]);
+    orchestrator
+        .resume_failed(&failed.id, Arc::new(Collector::default()))
+        .unwrap();
+
+    let exec = env.service.execution(&failed.id).unwrap();
+    assert_eq!(exec.status, WorkflowExecutionStatus::Completed);
+    assert_eq!(exec.workflow_version, edited.version);
+    assert!(exec.failure.is_none());
+    assert_eq!(exec.recoveries.len(), 1);
+    assert_eq!(exec.recoveries[0].restarted_node_ids, ["fixer"]);
+    // Each step ran as many times as its place in the story asks, and the finished ones not again.
+    assert_eq!(started_count(&runner, "architect"), 1);
+    assert_eq!(started_count(&runner, "developer"), 1);
+    assert_eq!(started_count(&runner, "validator"), 2);
+    assert_eq!(started_count(&runner, "fixer"), 1);
+    assert_eq!(started_count(&runner, "qa"), 1);
+    assert_eq!(exec.nodes["validator"].attempts.len(), 2);
+
+    // The Bug Fixer was told what the validator found, from the run's own record.
+    let fixer = &runner.requests_for("fixer")[0].instruction;
+    assert!(fixer.contains("Implement password recovery"), "the task");
+    assert!(fixer.contains("Missing transaction boundary"));
+    assert!(fixer.contains("src/payment.ts:142"));
+    assert!(fixer.contains("Outcome: fail"));
+    assert!(fixer.contains("One transaction per charge") || fixer.contains("Atomic webhook"));
+    // And the validator that looks again is told what the fixer did.
+    let again = &runner.requests_for("validator")[1].instruction;
+    assert!(
+        again.contains("fixer"),
+        "the fixer's handoff reaches the validator"
+    );
+    assert!(
+        again.contains("Missing transaction boundary"),
+        "the earlier findings"
+    );
+}
+
+#[test]
+fn a_technical_failure_is_retried_on_the_same_step_and_the_earlier_ones_are_kept() {
+    let env = env();
+    env.declare_validation_outcomes();
+    let workflow = without_a_route_for_fail(&env);
+    let runner = Scripted::new();
+    runner.script(
+        "developer",
+        vec![fail("the runtime crashed"), ok("success", "")],
+    );
+    runner.script("validator", vec![outcome("pass", "")]);
+    runner.script("qa", vec![outcome("pass", "")]);
+    let (failed, _) = env.run(&runner, &workflow.id);
+    assert_eq!(failed.status, WorkflowExecutionStatus::Failed);
+    assert_eq!(
+        failed.failure.as_ref().unwrap().code,
+        FailureCode::NodeFailed
+    );
+
+    let orchestrator = env.orchestrator(&runner);
+    let plan = orchestrator.recovery_plan(&failed.id).unwrap();
+    assert_eq!(plan.kind, crate::domain::workflow::RecoveryKind::Retry);
+    orchestrator
+        .resume_failed(&failed.id, Arc::new(Collector::default()))
+        .unwrap();
+
+    let exec = env.service.execution(&failed.id).unwrap();
+    assert_eq!(exec.status, WorkflowExecutionStatus::Completed);
+    assert_eq!(started_count(&runner, "architect"), 1);
+    assert_eq!(started_count(&runner, "developer"), 2);
+}
+
+#[test]
+fn only_a_run_that_failed_can_be_resumed_this_way_and_only_when_nothing_else_of_it_is_going() {
+    let env = env();
+    env.declare_validation_outcomes();
+    let workflow = without_a_route_for_fail(&env);
+    let runner = Scripted::new();
+    runner.script("validator", vec![outcome("pass", "")]);
+    runner.script("qa", vec![outcome("pass", "")]);
+    let (done, _) = env.run(&runner, &workflow.id);
+    let orchestrator = env.orchestrator(&runner);
+    assert!(orchestrator.recovery_plan(&done.id).is_none());
+    assert!(orchestrator
+        .resume_failed(&done.id, Arc::new(Collector::default()))
+        .unwrap_err()
+        .is(ErrorCode::WorkflowStateInvalid));
+}
+
+#[test]
+fn a_failed_run_survives_a_restart_and_resumes_from_what_was_saved() {
+    let env = env();
+    env.declare_validation_outcomes();
+    let workflow = without_a_route_for_fail(&env);
+    let runner = Scripted::new();
+    runner.script("validator", vec![outcome("fail", SEEN_BY_VALIDATOR)]);
+    let (failed, _) = env.run(&runner, &workflow.id);
+    with_the_missing_route(&env, env.service.get(&workflow.id).unwrap());
+
+    // The app closes and opens again: everything comes from the store.
+    let config = Arc::new(ConfigRepository::load(Box::new(env.store.clone())));
+    let personalities = Arc::new(PersonalityService::new(config.clone()));
+    let runtimes = Arc::new(RuntimeRegistry::new(vec![Arc::new(FakeRuntime::new(
+        "rt",
+        Ok("x"),
+    ))]));
+    let agents = Arc::new(AgentService::new(config.clone(), personalities, runtimes));
+    let workspaces = Arc::new(WorkspaceService::new(
+        config.clone(),
+        agents.clone(),
+        Arc::new(FakeInspector::with(&[("/atlas", &["Rust"])])),
+    ));
+    let restarted = Arc::new(WorkflowService::new(config, agents, workspaces));
+    restarted.recover_interrupted();
+    assert_eq!(
+        restarted.execution(&failed.id).unwrap().status,
+        WorkflowExecutionStatus::Failed
+    );
+
+    let runner = Scripted::new();
+    runner.script("validator", vec![outcome("pass", "")]);
+    runner.script("qa", vec![outcome("pass", "")]);
+    Orchestrator::new(restarted.clone(), Arc::new(runner.clone()))
+        .with_poll(Duration::from_millis(5))
+        .resume_failed(&failed.id, Arc::new(Collector::default()))
+        .unwrap();
+
+    assert_eq!(
+        restarted.execution(&failed.id).unwrap().status,
+        WorkflowExecutionStatus::Completed
+    );
+    assert_eq!(runner.started(), ["fixer", "validator", "qa"]);
+}

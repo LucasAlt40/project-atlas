@@ -16,8 +16,8 @@ use crate::application::support::{new_id, now_ms};
 use crate::application::workspace::WorkspaceService;
 use crate::domain::result_contract::ResultContract;
 use crate::domain::workflow::{
-    Viewport, Workflow, WorkflowEdge, WorkflowExecution, WorkflowExecutionStatus, WorkflowMode,
-    WorkflowNode, WorkflowStatus,
+    NodeState, Viewport, Workflow, WorkflowEdge, WorkflowExecution, WorkflowExecutionStatus,
+    WorkflowMode, WorkflowNode, WorkflowStatus,
 };
 
 /// Finished runs kept per workspace; the oldest go first.
@@ -361,6 +361,39 @@ impl WorkflowService {
             Ok(())
         })?;
         Ok(execution)
+    }
+
+    /// Lets a failed run go on under the workflow as it stands now, when the user has edited it
+    /// since the run began (a route added, a loop limit raised…). Only when nothing the run has
+    /// done is taken away: every step it knows is still there, of the same kind, and the new
+    /// definition is valid. Otherwise the run keeps the snapshot it started from.
+    pub fn adopt_current_definition(&self, exec: &mut WorkflowExecution) -> bool {
+        let Some(current) = self.get(&exec.workflow_id) else {
+            return false;
+        };
+        if current.version == exec.workflow_version || !self.validate(&current).valid {
+            return false;
+        }
+        let compatible =
+            exec.nodes
+                .keys()
+                .all(|id| match (exec.workflow.node(id), current.node(id)) {
+                    (Some(old), Some(new)) => {
+                        std::mem::discriminant(&old.kind) == std::mem::discriminant(&new.kind)
+                    }
+                    _ => false,
+                });
+        if !compatible {
+            return false;
+        }
+        for node in &current.nodes {
+            exec.nodes
+                .entry(node.id.clone())
+                .or_insert_with(NodeState::pending);
+        }
+        exec.workflow_version = current.version;
+        exec.workflow = current;
+        true
     }
 
     pub fn execution(&self, id: &str) -> Option<WorkflowExecution> {

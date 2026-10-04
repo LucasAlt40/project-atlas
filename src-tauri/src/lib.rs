@@ -137,6 +137,7 @@ pub fn run() {
             commands::workflow::answer_workflow_interaction,
             commands::workflow::list_pending_interactions,
             commands::workflow::get_workflow_execution,
+            commands::workflow::get_workflow_recovery,
             commands::workflow::list_workflow_executions,
             commands::workflow::get_workflow_changes,
             commands::workflow::get_workflow_diff,

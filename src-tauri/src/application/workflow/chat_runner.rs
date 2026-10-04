@@ -199,6 +199,12 @@ impl StepRunner for ChatStepRunner {
             .is_some_and(|worktrees| worktrees.reopen(primary_execution_id).is_ok())
     }
 
+    fn workspace_usable(&self, primary_execution_id: &str) -> bool {
+        self.worktrees
+            .as_ref()
+            .is_some_and(|worktrees| worktrees.can_reopen(primary_execution_id))
+    }
+
     fn close_workspace(&self, primary_execution_id: &str, end: RunEnd) -> Option<WorkspaceClose> {
         let worktrees = self.worktrees.as_ref()?;
         let outcome = match end {

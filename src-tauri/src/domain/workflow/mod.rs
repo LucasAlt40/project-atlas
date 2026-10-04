@@ -16,9 +16,9 @@ pub use condition::{Condition, ConditionError, ConditionOperator, Facts, KNOWN_F
 pub use edge::WorkflowEdge;
 #[allow(unused_imports)]
 pub use execution::{
-    AttemptStatus, FailureCode, NodeAttempt, NodeState, NodeStatus, WorkflowEvent,
-    WorkflowEventKind, WorkflowExecution, WorkflowExecutionStatus, WorkflowFailure,
-    DEFAULT_MAX_PARALLEL_STEPS,
+    AttemptStatus, FailureCode, NodeAttempt, NodeState, NodeStatus, RecoveryKind, RecoveryPlan,
+    RecoveryProblem, RecoveryRecord, WorkflowEvent, WorkflowEventKind, WorkflowExecution,
+    WorkflowExecutionStatus, WorkflowFailure, DEFAULT_MAX_PARALLEL_STEPS,
 };
 #[allow(unused_imports)]
 pub use handoff::{AgentHandoff, HandoffArtifact, HandoffDecision, HandoffKind, HandoffValidation};

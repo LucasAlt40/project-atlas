@@ -164,7 +164,9 @@ fn workflow_context(exec: &WorkflowExecution, graph: &Graph<'_>, node_id: &str) 
     let verdicts: Vec<_> = state
         .validation_results
         .iter()
-        .filter(|v| v.node_id != node_id && v.status != ResultStatus::Pass)
+        .filter(|v| {
+            v.node_id != node_id && (v.status != ResultStatus::Pass || !v.findings.is_empty())
+        })
         .collect();
     if !verdicts.is_empty() {
         let _ = writeln!(text, "\nReports to act on:");
@@ -180,6 +182,29 @@ fn workflow_context(exec: &WorkflowExecution, graph: &Graph<'_>, node_id: &str) 
             for finding in verdict.findings.iter().take(MAX_FINDINGS) {
                 let _ = writeln!(text, "    * {}", finding_line(finding));
             }
+        }
+    }
+
+    // A step that looks again (after a fix) knows what it found the last time, and is told to
+    // judge the work as it stands now, not to repeat that.
+    if let Some(earlier) = state
+        .validation_results
+        .iter()
+        .rfind(|v| v.node_id == node_id)
+    {
+        let _ = writeln!(
+            text,
+            "\nYour previous report on this task (judge the work as it stands now; do not repeat \
+             it, say what is fixed and what is not):"
+        );
+        let _ = writeln!(
+            text,
+            "- outcome {} — {}",
+            earlier.outcome.as_deref().unwrap_or("none"),
+            clip(&earlier.summary, 240)
+        );
+        for finding in earlier.findings.iter().take(MAX_FINDINGS) {
+            let _ = writeln!(text, "    * {}", finding_line(finding));
         }
     }
 

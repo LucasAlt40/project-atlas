@@ -11,7 +11,9 @@ use crate::application::workflow::service::NewWorkflow;
 use crate::application::workflow::templates::{Role, TemplateInfo};
 use crate::application::workflow::validation::ValidationReport;
 use crate::domain::interaction::{InteractionAnswer, PendingInteraction};
-use crate::domain::workflow::{Workflow, WorkflowExecution, WorkflowExecutionStatus, WorkflowMode};
+use crate::domain::workflow::{
+    RecoveryPlan, Workflow, WorkflowExecution, WorkflowExecutionStatus, WorkflowMode,
+};
 use crate::domain::worktree::ChangeSet;
 use crate::state::AppState;
 
@@ -110,7 +112,7 @@ pub fn start_workflow<R: Runtime>(
     task: String,
 ) -> Result<WorkflowExecution, AppError> {
     let execution = state.workflows.start(&workflow_id, &task)?;
-    drive(&app, &state, execution.id.clone(), false);
+    drive(&app, &state, execution.id.clone(), Drive::Fresh);
     Ok(execution)
 }
 
@@ -129,7 +131,8 @@ pub fn pause_workflow<R: Runtime>(
     )
 }
 
-/// Resumes a paused run, or picks up one the app's shutdown interrupted.
+/// Resumes a paused run, picks up one the app's shutdown interrupted, or picks a failed one up at
+/// its Recovery Point (see `get_workflow_recovery`).
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command]
 pub fn resume_workflow<R: Runtime>(
@@ -137,14 +140,29 @@ pub fn resume_workflow<R: Runtime>(
     state: State<'_, AppState>,
     execution_id: String,
 ) -> Result<(), AppError> {
-    let interrupted = state
+    let status = state
         .workflows
         .execution(&execution_id)
         .ok_or_else(|| AppError::new(ErrorCode::WorkflowExecutionNotFound))?
-        .status
-        == WorkflowExecutionStatus::Interrupted;
-    if interrupted {
-        drive(&app, &state, execution_id, true);
+        .status;
+    if status == WorkflowExecutionStatus::Interrupted {
+        drive(&app, &state, execution_id, Drive::Interrupted);
+        return Ok(());
+    }
+    if status == WorkflowExecutionStatus::Failed {
+        // Refused here, not on the thread: the user hears why a run cannot go on.
+        if let Some(problem) = state
+            .orchestrator
+            .recovery_plan(&execution_id)
+            .and_then(|plan| plan.problem)
+        {
+            let reason = serde_json::to_value(problem)
+                .ok()
+                .and_then(|v| v.as_str().map(str::to_owned))
+                .unwrap_or_default();
+            return Err(AppError::new(ErrorCode::WorkflowNotRecoverable).with("reason", reason));
+        }
+        drive(&app, &state, execution_id, Drive::Failed);
         return Ok(());
     }
     state.orchestrator.control(
@@ -152,6 +170,18 @@ pub fn resume_workflow<R: Runtime>(
         Control::Resume,
         &TauriWorkflowObserver { app },
     )
+}
+
+/// Where a failed run would go on from: the step it stopped at, the last that completed, the
+/// steps that run next and the ones kept as they are. `None` for a run that did not fail. Looks
+/// only; changes nothing.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command]
+pub fn get_workflow_recovery(
+    state: State<'_, AppState>,
+    execution_id: String,
+) -> Option<RecoveryPlan> {
+    state.orchestrator.recovery_plan(&execution_id)
 }
 
 /// Cancels the whole run: what has not started is cancelled, running steps are stopped, and
@@ -191,7 +221,7 @@ pub fn answer_workflow_interaction<R: Runtime>(
     )?;
     if delivery == AnswerDelivery::Recorded {
         // The app was closed since the question was asked: the run is picked up from the answer.
-        drive(&app, &state, execution_id, true);
+        drive(&app, &state, execution_id, Drive::Interrupted);
     }
     Ok(())
 }
@@ -235,21 +265,28 @@ pub fn list_workflow_executions(
         .executions(&workspace_id, workflow_id.as_deref())
 }
 
+#[derive(Clone, Copy)]
+enum Drive {
+    Fresh,
+    Interrupted,
+    Failed,
+}
+
 /// Hands the run to the orchestrator on a blocking thread: a step can take minutes, and the
 /// window must not wait for it.
 fn drive<R: Runtime>(
     app: &AppHandle<R>,
     state: &State<'_, AppState>,
     execution_id: String,
-    resume: bool,
+    how: Drive,
 ) {
     let orchestrator = state.orchestrator.clone();
     let observer = Arc::new(TauriWorkflowObserver { app: app.clone() });
     tauri::async_runtime::spawn_blocking(move || {
-        let result = if resume {
-            orchestrator.resume_interrupted(&execution_id, observer)
-        } else {
-            orchestrator.run(&execution_id, observer)
+        let result = match how {
+            Drive::Interrupted => orchestrator.resume_interrupted(&execution_id, observer),
+            Drive::Failed => orchestrator.resume_failed(&execution_id, observer),
+            Drive::Fresh => orchestrator.run(&execution_id, observer),
         };
         if let Err(error) = result {
             eprintln!("workflow run {execution_id} could not be driven: {error}");

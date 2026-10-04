@@ -267,6 +267,63 @@ pub struct WorkflowEvent {
     pub metadata: BTreeMap<String, String>,
 }
 
+/// How a failed run goes on. They are different things: a *retry* runs the same step again (it
+/// failed technically), a *resume* goes on from a step that completed, along the route its result
+/// takes, without running again anything that already finished.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryKind {
+    Retry,
+    Resume,
+}
+
+/// Why a failed run cannot be picked up (yet). Stable codes the UI words.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryProblem {
+    /// The run ended where it was meant to end (an end node), or has nowhere to go on from.
+    NotRecoverable,
+    /// The step's result still matches none of the workflow's routes: the workflow needs one.
+    NoRoute,
+    /// The loop is still at its limit: raise it in the workflow first.
+    LoopLimit,
+    /// The run's worktree is gone or no longer what Atlas made, so what the earlier steps wrote
+    /// cannot be relied on. Nothing is recreated behind the user's back.
+    RecoveryRequired,
+    /// The run's code was already applied or discarded: the steps would work on something else.
+    CodeSettled,
+}
+
+/// Where a failed run would go on from, worked out from the graph and the states of the steps.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecoveryPlan {
+    pub kind: RecoveryKind,
+    /// The step that stopped the run.
+    pub failure_node_id: Option<String>,
+    /// The last step that completed, for the user to read the story by.
+    pub last_completed_node_id: Option<String>,
+    /// The Recovery Point: the steps that run next.
+    pub restart_node_ids: Vec<String>,
+    /// Steps that completed and are kept as they are.
+    pub reused_node_ids: Vec<String>,
+    #[serde(default)]
+    pub problem: Option<RecoveryProblem>,
+}
+
+/// A time a failed run was picked up again. Kept with the run, so the history says which steps
+/// were not run again.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecoveryRecord {
+    pub at: u64,
+    pub kind: RecoveryKind,
+    pub failure: Option<WorkflowFailure>,
+    pub restarted_node_ids: Vec<String>,
+    pub reused_node_ids: Vec<String>,
+    pub workflow_version: u32,
+}
+
 /// One run of a workflow. Definition and run are kept apart: the run holds the snapshot of the
 /// definition it started from, so editing the definition never changes a run in progress.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -300,6 +357,9 @@ pub struct WorkflowExecution {
     /// Every question the run's steps asked a person, answered or not: the audit trail.
     #[serde(default)]
     pub interactions: Vec<PendingInteraction>,
+    /// Each time the run was picked up again after failing.
+    #[serde(default)]
+    pub recoveries: Vec<RecoveryRecord>,
     #[serde(default)]
     pub events: Vec<WorkflowEvent>,
     pub started_at: u64,
@@ -337,6 +397,7 @@ impl WorkflowExecution {
             changes: None,
             integration: WorkflowIntegration::default(),
             interactions: Vec::new(),
+            recoveries: Vec::new(),
             events: Vec::new(),
             started_at: at,
             updated_at: at,

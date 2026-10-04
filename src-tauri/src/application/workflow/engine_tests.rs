@@ -995,3 +995,199 @@ fn shared_state_serialises_deterministically() {
     assert_eq!(sim.exec.state.completed_agents.len(), 4);
     assert!(sim.exec.state.active_agents.is_empty());
 }
+
+// ---- recovery -------------------------------------------------------------------------------
+
+/// Architect -> Developer -> Validator; the validator's `pass` goes to the end.
+fn unrouted_fail() -> crate::domain::workflow::Workflow {
+    workflow(
+        vec![
+            agent("architect", "a1"),
+            agent("dev", "a2"),
+            with_loop(agent("validator", "a3"), "fix", 3),
+            end("done", EndOutcome::Done),
+        ],
+        vec![
+            edge("architect", "dev"),
+            edge("dev", "validator"),
+            on_outcome("validator", "done", "pass"),
+        ],
+    )
+}
+
+/// The same, with the missing route and the Bug Fixer that loops back.
+fn routed_fail() -> crate::domain::workflow::Workflow {
+    let mut w = unrouted_fail();
+    w.nodes.push(agent("fixer", "a4"));
+    w.edges.push(on_outcome("validator", "fixer", "fail"));
+    w.edges.push(edge("fixer", "validator"));
+    w
+}
+
+fn count(sim: &Sim, node: &str) -> usize {
+    sim.started.iter().filter(|n| *n == node).count()
+}
+
+#[test]
+fn a_fail_outcome_with_no_route_fails_the_run_and_names_the_step() {
+    let mut sim = Sim::new(unrouted_fail());
+    sim.run(|_, _| concluded("fail"));
+    assert_eq!(sim.ended(), WorkflowExecutionStatus::Failed);
+    let failure = sim.exec.failure.as_ref().unwrap();
+    assert_eq!(failure.code, FailureCode::NoRouteMatched);
+    assert_eq!(failure.node_id.as_deref(), Some("validator"));
+    assert_eq!(failure.detail.as_deref(), Some("fail"));
+    // The step itself ran well: the verdict is not a technical failure.
+    assert_eq!(sim.status_of("validator"), NodeStatus::Completed);
+}
+
+#[test]
+fn resuming_after_a_route_is_added_goes_on_without_running_finished_steps_again() {
+    let mut sim = Sim::new(unrouted_fail());
+    sim.run(|_, _| concluded("fail"));
+    sim.workflow = routed_fail();
+    sim.exec.nodes.insert(
+        "fixer".to_owned(),
+        crate::domain::workflow::NodeState::pending(),
+    );
+
+    let plan = sim
+        .resume(|node, n| match (node, n) {
+            ("validator", _) => concluded("pass"),
+            _ => concluded("fixed"),
+        })
+        .expect("a route exists now");
+
+    assert_eq!(plan.kind, crate::domain::workflow::RecoveryKind::Resume);
+    assert_eq!(plan.restart_node_ids, ["fixer"]);
+    assert_eq!(plan.reused_node_ids, ["architect", "dev", "validator"]);
+    assert_eq!(sim.ended(), WorkflowExecutionStatus::Completed);
+    assert_eq!(count(&sim, "architect"), 1);
+    assert_eq!(count(&sim, "dev"), 1);
+    assert_eq!(count(&sim, "fixer"), 1);
+    assert_eq!(count(&sim, "validator"), 2);
+    assert_eq!(sim.exec.recoveries.len(), 1);
+    assert!(sim.exec.failure.is_none());
+}
+
+#[test]
+fn a_resume_with_still_no_route_says_so_and_leaves_the_run_as_it_was() {
+    let mut sim = Sim::new(unrouted_fail());
+    sim.run(|_, _| concluded("fail"));
+    let before = sim.exec.clone();
+    let problem = sim.resume(|_, _| concluded("pass")).unwrap_err();
+    assert_eq!(problem, crate::domain::workflow::RecoveryProblem::NoRoute);
+    assert_eq!(sim.exec, before);
+}
+
+#[test]
+fn a_technical_failure_is_retried_on_the_same_step_and_nothing_else_runs_again() {
+    let mut sim = Sim::new(unrouted_fail());
+    sim.run(|node, _| match node {
+        "dev" => failed("the runtime crashed"),
+        _ => concluded("pass"),
+    });
+    assert_eq!(
+        sim.exec.failure.as_ref().unwrap().code,
+        FailureCode::NodeFailed
+    );
+
+    let plan = sim.resume(|_, _| concluded("pass")).expect("a retry");
+
+    assert_eq!(plan.kind, crate::domain::workflow::RecoveryKind::Retry);
+    assert_eq!(plan.restart_node_ids, ["dev"]);
+    assert_eq!(sim.ended(), WorkflowExecutionStatus::Completed);
+    assert_eq!(count(&sim, "architect"), 1);
+    assert_eq!(count(&sim, "dev"), 2);
+}
+
+#[test]
+fn a_loop_that_reached_its_limit_resumes_only_when_the_limit_was_raised() {
+    let mut sim = Sim::new(routed_fail());
+    sim.run(|node, _| match node {
+        "validator" => concluded("fail"),
+        _ => concluded("fixed"),
+    });
+    assert_eq!(
+        sim.exec.failure.as_ref().unwrap().code,
+        FailureCode::MaxIterationsReached
+    );
+    assert_eq!(count(&sim, "validator"), 3);
+    assert_eq!(
+        sim.resume(|_, _| concluded("pass")).unwrap_err(),
+        crate::domain::workflow::RecoveryProblem::LoopLimit
+    );
+
+    for node in &mut sim.workflow.nodes {
+        if let Some(policy) = node.loop_policy.as_mut() {
+            policy.max_iterations = 5;
+        }
+    }
+    sim.resume(|node, _| match node {
+        "validator" => concluded("pass"),
+        _ => concluded("fixed"),
+    })
+    .expect("room for another pass");
+    assert_eq!(sim.ended(), WorkflowExecutionStatus::Completed);
+    assert_eq!(count(&sim, "architect"), 1);
+}
+
+#[test]
+fn a_run_that_reached_a_failing_end_cannot_be_resumed() {
+    let mut w = unrouted_fail();
+    w.nodes.push(end("broken", EndOutcome::Failed));
+    w.edges.push(on_outcome("validator", "broken", "fail"));
+    let mut sim = Sim::new(w);
+    sim.run(|_, _| concluded("fail"));
+    assert_eq!(sim.ended(), WorkflowExecutionStatus::Failed);
+    assert_eq!(
+        sim.resume(|_, _| concluded("pass")).unwrap_err(),
+        crate::domain::workflow::RecoveryProblem::NotRecoverable
+    );
+}
+
+// ---- routing on what the agent concluded ---------------------------------------------------------
+
+fn qa_by_outcome() -> crate::domain::workflow::Workflow {
+    workflow(
+        vec![
+            agent("qa", "a1"),
+            agent("fixer", "a2"),
+            end("done", EndOutcome::Done),
+        ],
+        vec![
+            on_outcome("qa", "done", "approved"),
+            on_outcome("qa", "fixer", "changes_requested"),
+            edge("fixer", "done"),
+        ],
+    )
+}
+
+#[test]
+fn an_outcome_goes_along_the_route_that_names_it_whatever_the_execution_status_says() {
+    for (concluded_as, fixer_runs) in [("approved", 0), ("changes_requested", 1)] {
+        let mut sim = Sim::new(qa_by_outcome());
+        sim.run(|_, _| concluded(concluded_as));
+        // Both steps ran well (`success`): what decided the road was the verdict.
+        assert_eq!(sim.exec.nodes["qa"].facts["result.status"], "success");
+        assert_eq!(count(&sim, "fixer"), fixer_runs, "{concluded_as}");
+        assert_eq!(sim.ended(), WorkflowExecutionStatus::Completed);
+    }
+}
+
+#[test]
+fn an_outcome_the_workflow_does_not_route_fails_the_run_instead_of_completing_it() {
+    let mut sim = Sim::new(qa_by_outcome());
+    sim.run(|_, _| concluded("fail"));
+    assert_eq!(sim.ended(), WorkflowExecutionStatus::Failed);
+    assert_eq!(
+        sim.exec.failure.as_ref().unwrap().code,
+        FailureCode::NoRouteMatched
+    );
+    // `status` is not the verdict: an edge on it never stands in for one.
+    let mut w = qa_by_outcome();
+    w.edges.push(when("qa", "done", "fail"));
+    let mut sim = Sim::new(w);
+    sim.run(|_, _| concluded("fail"));
+    assert_eq!(sim.ended(), WorkflowExecutionStatus::Failed);
+}

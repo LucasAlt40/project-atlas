@@ -27,8 +27,9 @@ use crate::domain::interaction::{
 };
 use crate::domain::workflow::Workflow;
 use crate::domain::workflow::{
-    AttemptStatus, EndOutcome, Facts, FailureCode, NodeAttempt, NodeKind, NodeStatus,
-    WorkflowEvent, WorkflowEventKind, WorkflowExecution, WorkflowExecutionStatus, WorkflowFailure,
+    AttemptStatus, EndOutcome, Facts, FailureCode, NodeAttempt, NodeKind, NodeStatus, RecoveryKind,
+    RecoveryPlan, RecoveryProblem, RecoveryRecord, WorkflowEvent, WorkflowEventKind,
+    WorkflowExecution, WorkflowExecutionStatus, WorkflowFailure,
 };
 
 /// A node that is ready and could start now.
@@ -670,6 +671,201 @@ impl<'a> WorkflowEngine<'a> {
         self.refresh_shared(exec);
         self.settle_into(exec, at, &mut events);
         events
+    }
+
+    /// Where a failed run would go on from, worked out from the graph and what the steps
+    /// reported; `None` for a run that did not fail. Nothing here knows a role: a step whose
+    /// result has a route goes along it, whoever the step is.
+    pub fn recovery_plan(&self, exec: &WorkflowExecution) -> Option<RecoveryPlan> {
+        if exec.status != WorkflowExecutionStatus::Failed {
+            return None;
+        }
+        let failure = exec.failure.as_ref()?;
+        let order: Vec<&str> = self
+            .graph
+            .workflow
+            .nodes
+            .iter()
+            .map(|n| n.id.as_str())
+            .collect();
+        let completed_at = |id: &str| {
+            exec.node_state(id)
+                .and_then(|s| s.last_attempt())
+                .and_then(|a| a.completed_at)
+        };
+        let reused: Vec<String> = order
+            .iter()
+            .filter(|id| {
+                exec.node_state(id)
+                    .is_some_and(|s| s.status == NodeStatus::Completed && !s.attempts.is_empty())
+            })
+            .map(|id| (*id).to_owned())
+            .collect();
+        let last_completed = reused
+            .iter()
+            .max_by_key(|id| completed_at(id).unwrap_or(0))
+            .cloned();
+        let mut plan = RecoveryPlan {
+            kind: RecoveryKind::Resume,
+            failure_node_id: failure.node_id.clone(),
+            last_completed_node_id: last_completed,
+            restart_node_ids: Vec::new(),
+            reused_node_ids: reused,
+            problem: None,
+        };
+        match failure.code {
+            FailureCode::NodeFailed => {
+                plan.kind = RecoveryKind::Retry;
+                plan.restart_node_ids = order
+                    .iter()
+                    .filter(|id| {
+                        exec.node_state(id)
+                            .is_some_and(|s| s.status == NodeStatus::Failed && !s.routed)
+                    })
+                    .map(|id| (*id).to_owned())
+                    .collect();
+            }
+            FailureCode::NoRouteMatched => {
+                if let Some(id) = failure.node_id.as_deref() {
+                    let facts = exec.node_state(id).map(|s| s.facts.clone());
+                    plan.restart_node_ids = facts.map_or_else(Vec::new, |facts| {
+                        self.graph
+                            .out_links(id)
+                            .filter(|l| !l.failure_route)
+                            .filter(|l| l.condition.as_ref().is_none_or(|c| c.evaluate(&facts)))
+                            .map(|l| l.target.clone())
+                            .collect()
+                    });
+                    if plan.restart_node_ids.is_empty() {
+                        plan.problem = Some(RecoveryProblem::NoRoute);
+                    }
+                }
+            }
+            FailureCode::MaxIterationsReached => {
+                let room = failure.node_id.as_deref().is_some_and(|id| {
+                    let used = exec.node_state(id).map_or(0, |s| s.iterations);
+                    self.graph
+                        .workflow
+                        .node(id)
+                        .and_then(|n| n.loop_policy.as_ref())
+                        .is_none_or(|p| used < p.max_iterations)
+                });
+                if room {
+                    plan.restart_node_ids = failure.node_id.iter().cloned().collect();
+                } else {
+                    plan.problem = Some(RecoveryProblem::LoopLimit);
+                }
+            }
+            _ => {}
+        }
+        if plan.restart_node_ids.is_empty() && plan.problem.is_none() {
+            plan.problem = Some(RecoveryProblem::NotRecoverable);
+        }
+        Some(plan)
+    }
+
+    /// Picks a failed run up again at its Recovery Point. Steps that completed stay completed and
+    /// do not run again; the steps the failure left blocked wait for their turn again. A retry
+    /// runs the failed step itself again; a resume goes along the route the last result takes.
+    ///
+    /// # Errors
+    ///
+    /// Says why the run cannot go on (see [`RecoveryProblem`]); the run is left as it was.
+    pub fn resume_failed(
+        &self,
+        exec: &mut WorkflowExecution,
+        at: u64,
+    ) -> Result<(RecoveryPlan, Events), RecoveryProblem> {
+        let plan = self
+            .recovery_plan(exec)
+            .ok_or(RecoveryProblem::NotRecoverable)?;
+        if let Some(problem) = plan.problem {
+            return Err(problem);
+        }
+        let failure = exec.failure.take();
+        exec.recoveries.push(RecoveryRecord {
+            at,
+            kind: plan.kind,
+            failure: failure.clone(),
+            restarted_node_ids: plan.restart_node_ids.clone(),
+            reused_node_ids: plan.reused_node_ids.clone(),
+            workflow_version: exec.workflow_version,
+        });
+        exec.status = WorkflowExecutionStatus::Running;
+        exec.cancel_requested = false;
+        exec.completed_at = None;
+        // What the failure left unreached waits for its turn again.
+        for state in exec.nodes.values_mut() {
+            if matches!(state.status, NodeStatus::Blocked | NodeStatus::Cancelled)
+                && (state.attempts.is_empty() || state.reason.as_deref() == Some(MAX_ITERATIONS))
+            {
+                state.status = NodeStatus::Pending;
+                state.reason = None;
+            }
+        }
+        let mut events = vec![exec.record(
+            WorkflowEventKind::Resumed,
+            None,
+            "Workflow picked up again after a failure",
+            meta(&[
+                (
+                    "kind",
+                    match plan.kind {
+                        RecoveryKind::Retry => "retry",
+                        RecoveryKind::Resume => "resume",
+                    }
+                    .to_owned(),
+                ),
+                ("from", plan.restart_node_ids.join(",")),
+            ]),
+            at,
+        )];
+        match (plan.kind, failure.as_ref().map(|f| f.code)) {
+            (RecoveryKind::Retry, _) => {
+                for id in &plan.restart_node_ids {
+                    if let Some(state) = exec.nodes.get_mut(id) {
+                        state.status = NodeStatus::Ready;
+                        state.reason = None;
+                        state.failed_attempts = 0;
+                        state.continuing = true;
+                    }
+                    events.push(exec.record(
+                        WorkflowEventKind::NodeReady,
+                        Some(id),
+                        "Ready to run again",
+                        BTreeMap::new(),
+                        at,
+                    ));
+                }
+            }
+            (RecoveryKind::Resume, Some(FailureCode::NoRouteMatched)) => {
+                if let Some(id) = plan.failure_node_id.as_deref() {
+                    let facts = exec
+                        .nodes
+                        .get_mut(id)
+                        .map(|s| {
+                            s.unrouted = false;
+                            s.facts.clone()
+                        })
+                        .unwrap_or_default();
+                    self.route(exec, id, &facts, at, &mut events);
+                }
+            }
+            (RecoveryKind::Resume, _) => {
+                for id in &plan.restart_node_ids {
+                    let activated = exec
+                        .node_state(id)
+                        .map(|s| s.activated_edges.clone())
+                        .unwrap_or_default();
+                    if !activated.is_empty() && self.satisfied(exec, id, &activated) {
+                        self.make_ready(exec, id, at, &mut events);
+                    }
+                }
+            }
+        }
+        self.refresh_shared(exec);
+        self.settle_into(exec, at, &mut events);
+        Ok((plan, events))
     }
 
     /// Ends the run as failed for a reason outside the graph (an invalid definition, an

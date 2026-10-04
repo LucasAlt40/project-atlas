@@ -22,7 +22,7 @@ use crate::application::errors::{AppError, ErrorCode};
 use crate::application::interaction::detect_unfinished_question;
 use crate::application::orchestration::brief;
 use crate::application::orchestration::handoff::{
-    build_handoff, record_handoff, record_result, HandoffSource, StepReport,
+    build_handoff, record_handoff, record_result, result_kept, HandoffSource, StepReport,
 };
 use crate::application::orchestration::result_parser::{parse_with_contract, OutcomeProblem};
 use crate::application::support::now_ms;
@@ -34,8 +34,9 @@ use crate::domain::interaction::{
 use crate::domain::orchestration::ArtifactType;
 use crate::domain::result_contract::ResultContract;
 use crate::domain::workflow::{
-    FailureCode, IntegrationStatus, WorkflowEvent, WorkflowEventKind, WorkflowExecution,
-    WorkflowExecutionStatus, WorkflowFailure,
+    FailureCode, IntegrationStatus, RecoveryKind, RecoveryPlan, RecoveryProblem, WorkflowEvent,
+    WorkflowEventKind, WorkflowExecution, WorkflowExecutionStatus, WorkflowFailure,
+    WorkflowIntegration,
 };
 
 /// What the user can ask of a run in progress.
@@ -226,6 +227,138 @@ impl Orchestrator {
         }
         let workflow = exec.workflow.clone();
         let events = WorkflowEngine::new(&workflow).resume_interrupted(&mut exec, now_ms());
+        self.workflows.save_execution(&exec)?;
+        announce(observer.as_ref(), &events);
+        self.run(execution_id, observer)
+    }
+
+    /// Where a failed run would go on from, for the UI to say before the user asks: the step it
+    /// stopped at, the last one that completed, the Recovery Point and what is kept. Looks only;
+    /// changes nothing. `None` for a run that did not fail.
+    pub fn recovery_plan(&self, execution_id: &str) -> Option<RecoveryPlan> {
+        let mut exec = self.workflows.execution(execution_id)?;
+        if exec.status != WorkflowExecutionStatus::Failed {
+            return None;
+        }
+        self.workflows.adopt_current_definition(&mut exec);
+        let workflow = exec.workflow.clone();
+        let mut plan = WorkflowEngine::new(&workflow).recovery_plan(&exec)?;
+        if plan.problem.is_none() {
+            plan.problem = self.code_problem(&exec);
+        }
+        Some(plan)
+    }
+
+    /// Whether what the earlier steps wrote is still there to go on from.
+    fn code_problem(&self, exec: &WorkflowExecution) -> Option<RecoveryProblem> {
+        let primary = exec.integration.worktree_execution_id.as_deref()?;
+        match exec.integration.status {
+            // A run that changed nothing has nothing to lose: it gets a new worktree.
+            IntegrationStatus::NotApplicable | IntegrationStatus::NoChanges => None,
+            IntegrationStatus::Integrated | IntegrationStatus::Discarded => {
+                Some(RecoveryProblem::CodeSettled)
+            }
+            _ if self.runner.workspace_usable(primary) => None,
+            _ => Some(RecoveryProblem::RecoveryRequired),
+        }
+    }
+
+    /// Picks a failed run up again where the graph says it should go on, in the same run and the
+    /// same worktree: steps that completed are not run again. Blocks until the run ends.
+    ///
+    /// Nothing is applied to the project: the run's code stays in its worktree and is looked at
+    /// again when the run ends, as for any run.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the run is unknown, did not fail, another run of its workflow is going, or it
+    /// cannot go on (the error says why).
+    pub fn resume_failed(
+        &self,
+        execution_id: &str,
+        observer: Arc<dyn WorkflowObserver>,
+    ) -> Result<(), AppError> {
+        let mut exec = self
+            .workflows
+            .execution(execution_id)
+            .ok_or_else(|| AppError::new(ErrorCode::WorkflowExecutionNotFound))?;
+        if exec.status != WorkflowExecutionStatus::Failed {
+            return Err(AppError::new(ErrorCode::WorkflowStateInvalid));
+        }
+        if self.workflows.active_execution(&exec.workflow_id).is_some() {
+            return Err(AppError::new(ErrorCode::WorkflowRunning));
+        }
+        self.workflows.adopt_current_definition(&mut exec);
+        let workflow = exec.workflow.clone();
+        let engine = WorkflowEngine::new(&workflow);
+        let not_recoverable = |problem: RecoveryProblem| {
+            let reason = serde_json::to_value(problem)
+                .ok()
+                .and_then(|v| v.as_str().map(str::to_owned))
+                .unwrap_or_default();
+            AppError::new(ErrorCode::WorkflowNotRecoverable).with("reason", reason)
+        };
+        let plan = engine
+            .recovery_plan(&exec)
+            .ok_or_else(|| not_recoverable(RecoveryProblem::NotRecoverable))?;
+        if let Some(problem) = plan.problem.or_else(|| self.code_problem(&exec)) {
+            return Err(not_recoverable(problem));
+        }
+        // The run goes on in the worktree it had; one that held nothing is simply given again.
+        match exec.integration.status {
+            IntegrationStatus::NoChanges => {
+                exec.integration = WorkflowIntegration::default();
+            }
+            IntegrationStatus::NotApplicable => {}
+            _ => {
+                let primary = exec
+                    .integration
+                    .worktree_execution_id
+                    .clone()
+                    .unwrap_or_default();
+                if !self.runner.reopen_workspace(&primary) {
+                    return Err(not_recoverable(RecoveryProblem::RecoveryRequired));
+                }
+                exec.integration.status = IntegrationStatus::InProgress;
+                exec.integration.can_apply = false;
+                exec.integration.block_reason = None;
+                exec.integration.conflicts.clear();
+                exec.integration.message = None;
+                exec.integration.updated_at = now_ms();
+            }
+        }
+        let at = now_ms();
+        let (plan, mut events) = engine
+            .resume_failed(&mut exec, at)
+            .map_err(not_recoverable)?;
+        // A step whose result found no route could not hand anything over then; the route it
+        // takes now carries what it concluded (its findings first of all).
+        if let Some(node_id) = plan
+            .failure_node_id
+            .as_deref()
+            .filter(|_| plan.kind == RecoveryKind::Resume)
+        {
+            let attempt = exec
+                .node_state(node_id)
+                .and_then(|s| s.last_attempt())
+                .cloned();
+            let result = result_kept(&exec, node_id);
+            for link in engine.taken_links(&exec, node_id) {
+                let handoff = build_handoff(
+                    &exec,
+                    &HandoffSource {
+                        link: &link,
+                        execution_id: attempt.as_ref().map_or("", |a| a.execution_id.as_str()),
+                        iteration: attempt.as_ref().map_or(1, |a| a.iteration),
+                        result: Some(&result),
+                        delta: None,
+                        failure: None,
+                    },
+                    at,
+                );
+                events.push(record_handoff(&mut exec, handoff, at));
+            }
+        }
         self.workflows.save_execution(&exec)?;
         announce(observer.as_ref(), &events);
         self.run(execution_id, observer)

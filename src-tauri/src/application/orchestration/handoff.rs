@@ -7,7 +7,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::application::workflow::graph::{Graph, Link};
 use crate::application::worktree::StepDelta;
 use crate::domain::orchestration::{
-    AgentResult, Artifact, ArtifactType, Decision, OverlapWarning, ResultStatus, ValidationEntry,
+    AgentResult, Artifact, ArtifactType, Decision, DecisionDraft, OverlapWarning, ResultStatus,
+    ValidationEntry,
 };
 use crate::domain::workflow::{
     AgentHandoff, HandoffArtifact, HandoffDecision, HandoffKind, HandoffValidation, WorkflowEvent,
@@ -332,6 +333,43 @@ pub fn build_handoff(
         reported_files: result.map(|r| r.touched_files.clone()).unwrap_or_default(),
         validation,
         failure: source.failure.map(str::to_owned),
+    }
+}
+
+/// What a step that finished earlier said, put back together from what the run kept of it (its
+/// facts, decisions and touched files), for a handoff the step could not give at the time: the
+/// run was picked up again after the step's result found no route. Nothing is invented; what the
+/// run did not keep stays empty.
+pub fn result_kept(exec: &WorkflowExecution, node_id: &str) -> AgentResult {
+    let facts = exec
+        .node_state(node_id)
+        .map(|s| s.facts.clone())
+        .unwrap_or_default();
+    let fact = |key: &str| facts.get(key).cloned().filter(|v| !v.is_empty());
+    AgentResult {
+        status: fact("result.status").map_or(ResultStatus::Unknown, |s| ResultStatus::parse(&s)),
+        outcome: fact("result.outcome"),
+        summary: fact("result.summary").unwrap_or_default(),
+        next_action: fact("result.next_action"),
+        decisions: exec
+            .state
+            .decisions
+            .iter()
+            .filter(|d| d.source_node_id == node_id)
+            .map(|d| DecisionDraft {
+                title: d.title.clone(),
+                decision: d.decision.clone(),
+                rationale: d.rationale.clone(),
+            })
+            .collect(),
+        touched_files: exec
+            .state
+            .touched_files
+            .get(node_id)
+            .map(|files| files.iter().cloned().collect())
+            .unwrap_or_default(),
+        structured: true,
+        ..AgentResult::default()
     }
 }
 

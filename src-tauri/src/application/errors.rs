@@ -78,6 +78,9 @@ pub enum ErrorCode {
     WorkflowExecutionNotFound,
     /// The run is not in a state that allows what was asked (pausing a finished run…).
     WorkflowStateInvalid,
+    /// A failed run cannot be picked up again (`reason` says why: no route for its result, the
+    /// loop limit, its worktree is gone…).
+    WorkflowNotRecoverable,
     /// The run has no code in a worktree that the asked-for action applies to.
     IntegrationNotAvailable,
     IdeUnknown,
