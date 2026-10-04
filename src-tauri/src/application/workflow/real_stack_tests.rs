@@ -163,6 +163,7 @@ fn stack_with(stand_in: Option<&str>, model: &str, git: bool) -> Stack {
     .map(|(key, personality)| {
         let agent = agents
             .create(CreateAgentRequest {
+                permission_profile_id: None,
                 name: key.to_owned(),
                 personality_id: personality.to_owned(),
                 runtime_id: "claude".to_owned(),

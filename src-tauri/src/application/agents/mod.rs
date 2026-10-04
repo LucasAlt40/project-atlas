@@ -29,6 +29,10 @@ pub struct CreateAgentRequest {
     /// and an edited agent keeps what it had.
     #[serde(default)]
     pub result_contract: Option<ResultContract>,
+    /// The permission profile (`developer`, `read_only`). Left out, a new agent starts from what
+    /// its personality suggests and an edited agent keeps what it had.
+    #[serde(default)]
+    pub permission_profile_id: Option<String>,
 }
 
 /// Use case: create agents from a personality + provider + model + instructions, and
@@ -70,6 +74,7 @@ impl AgentService {
             Some(contract) => Self::checked_contract(contract)?,
             None => ResultContract::general(),
         };
+        let profile = self.starting_profile(&request)?;
         let agent = Agent {
             id: new_id("agent"),
             name,
@@ -77,10 +82,8 @@ impl AgentService {
             runtime_id: request.runtime_id,
             model_id,
             instructions: request.instructions.trim().to_owned(),
-            // A new agent may edit files (in its isolated worktree, and only as far as the
-            // workspace's policy allows). Unset still means the most restrictive profile, for
-            // agents saved before this default existed.
-            permission_profile_id: Some(PermissionProfile::Developer.id().to_owned()),
+            // Always explicit: an unset profile means the most restrictive one.
+            permission_profile_id: Some(profile.id().to_owned()),
             worktree_isolation: request.worktree_isolation.unwrap_or(true),
             result_contract,
             created_at: now_ms(),
@@ -102,6 +105,11 @@ impl AgentService {
             .clone()
             .map(Self::checked_contract)
             .transpose()?;
+        let profile = request
+            .permission_profile_id
+            .as_deref()
+            .map(Self::checked_profile)
+            .transpose()?;
         self.config.modify(|config| {
             let agent = config
                 .agents
@@ -121,6 +129,9 @@ impl AgentService {
             }
             if let Some(contract) = result_contract {
                 agent.result_contract = contract;
+            }
+            if let Some(profile) = profile {
+                agent.permission_profile_id = Some(profile.id().to_owned());
             }
             Ok(agent.clone())
         })
@@ -201,6 +212,27 @@ impl AgentService {
         })
     }
 
+    fn checked_profile(id: &str) -> Result<PermissionProfile, AppError> {
+        PermissionProfile::parse(id)
+            .ok_or_else(|| AppError::new(ErrorCode::PermissionProfileInvalid))
+    }
+
+    /// The profile a new agent starts with: the one asked for, else what its personality
+    /// suggests, else the developer profile. Never "unset", which means read only.
+    fn starting_profile(
+        &self,
+        request: &CreateAgentRequest,
+    ) -> Result<PermissionProfile, AppError> {
+        if let Some(id) = &request.permission_profile_id {
+            return Self::checked_profile(id);
+        }
+        Ok(self
+            .personalities
+            .find(&request.personality_id)
+            .and_then(|p| PermissionProfile::parse(&p.suggested_permission_profile))
+            .unwrap_or(PermissionProfile::Developer))
+    }
+
     /// Checks a create/update request and returns the cleaned name and model id.
     fn validate(&self, request: &CreateAgentRequest) -> Result<(String, String), AppError> {
         let name = request.name.trim();
@@ -262,6 +294,7 @@ mod tests {
             instructions: "  Be brief. ".to_owned(),
             worktree_isolation: None,
             result_contract: None,
+            permission_profile_id: None,
         }
     }
 
@@ -288,6 +321,49 @@ mod tests {
         assert_ne!(open_code.id, claude.id);
         assert_eq!(service.list(), [open_code.clone(), claude]);
         assert_eq!(service.find(&open_code.id), Some(open_code));
+    }
+
+    #[test]
+    fn a_new_agent_starts_from_its_personalitys_suggested_profile_unless_one_is_chosen() {
+        let service = service();
+        let create = |personality: &str, profile: Option<&str>| {
+            let mut r = request("claude", "sonnet");
+            r.personality_id = personality.to_owned();
+            r.permission_profile_id = profile.map(str::to_owned);
+            service.create(r).map(|a| a.permission_profile_id)
+        };
+
+        assert_eq!(create("developer", None), Ok(Some("developer".to_owned())));
+        assert_eq!(
+            create("architecture-validator", None),
+            Ok(Some("read_only".to_owned()))
+        );
+        // The user's choice wins over the suggestion, both ways.
+        assert_eq!(
+            create("architecture-validator", Some("developer")),
+            Ok(Some("developer".to_owned()))
+        );
+        assert_eq!(
+            create("developer", Some("read_only")),
+            Ok(Some("read_only".to_owned()))
+        );
+        assert!(create("developer", Some("root"))
+            .unwrap_err()
+            .is(ErrorCode::PermissionProfileInvalid));
+    }
+
+    #[test]
+    fn editing_an_agent_changes_its_profile_only_when_one_is_given() {
+        let service = service();
+        let agent = service.create(request("claude", "sonnet")).unwrap();
+        let mut edit = request("claude", "sonnet");
+
+        let kept = service.update(&agent.id, edit.clone()).unwrap();
+        edit.permission_profile_id = Some("read_only".to_owned());
+        let changed = service.update(&agent.id, edit).unwrap();
+
+        assert_eq!(kept.permission_profile_id.as_deref(), Some("developer"));
+        assert_eq!(changed.permission_profile_id.as_deref(), Some("read_only"));
     }
 
     #[test]
@@ -341,6 +417,7 @@ mod tests {
         let default = service.create(request("claude", "sonnet")).unwrap();
         let off = service
             .create(CreateAgentRequest {
+                permission_profile_id: None,
                 worktree_isolation: Some(false),
                 result_contract: None,
                 ..request("claude", "sonnet")
@@ -363,6 +440,7 @@ mod tests {
             .update(
                 &agent.id,
                 CreateAgentRequest {
+                    permission_profile_id: None,
                     worktree_isolation: Some(false),
                     result_contract: None,
                     ..request("claude", "sonnet")
@@ -399,6 +477,7 @@ mod tests {
             .update(
                 &created.id,
                 CreateAgentRequest {
+                    permission_profile_id: None,
                     name: " Renamed ".to_owned(),
                     personality_id: "qa".to_owned(),
                     runtime_id: "claude".to_owned(),
@@ -439,6 +518,7 @@ mod tests {
             .update(
                 &created.id,
                 CreateAgentRequest {
+                    permission_profile_id: None,
                     name: " ".into(),
                     ..request("claude", "sonnet")
                 }

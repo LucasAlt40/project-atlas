@@ -967,6 +967,7 @@ mod tests {
     fn create_agent(f: &Fixture, runtime_id: &str) -> String {
         f.agents
             .create(CreateAgentRequest {
+                permission_profile_id: None,
                 name: format!("{runtime_id} agent"),
                 personality_id: "architect".to_owned(),
                 runtime_id: runtime_id.to_owned(),
@@ -1325,6 +1326,7 @@ mod tests {
         let agent = f
             .agents
             .create(CreateAgentRequest {
+                permission_profile_id: None,
                 name: "Dev".to_owned(),
                 personality_id: "architect".to_owned(),
                 runtime_id: "rt-a".to_owned(),

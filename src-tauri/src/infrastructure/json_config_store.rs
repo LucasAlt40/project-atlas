@@ -114,6 +114,7 @@ mod tests {
                 tags: vec![],
                 source: PersonalitySource::Builtin,
                 suggested_contract: crate::domain::result_contract::ResultContract::default(),
+                suggested_permission_profile: "developer".to_owned(),
             }],
             hidden_builtins: vec!["qa".to_owned()],
             workspaces: vec![Workspace {

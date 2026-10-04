@@ -160,6 +160,7 @@ mod tests {
                 tags: vec![],
                 source: PersonalitySource::Builtin,
                 suggested_contract: crate::domain::result_contract::ResultContract::default(),
+                suggested_permission_profile: "developer".to_owned(),
             },
             &ProjectContext {
                 name: "Project Atlas".to_owned(),

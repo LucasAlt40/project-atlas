@@ -299,6 +299,7 @@ mod tests {
     fn agent(f: &Fixture, n: usize) -> String {
         f.agents
             .create(CreateAgentRequest {
+                permission_profile_id: None,
                 name: format!("Agent {n}"),
                 personality_id: "architect".to_owned(),
                 runtime_id: "fake".to_owned(),

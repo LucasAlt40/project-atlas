@@ -27,4 +27,13 @@ pub struct PersonalityProfile {
     /// the agent can change it, and it never applies to an agent by itself.
     #[serde(default)]
     pub suggested_contract: ResultContract,
+    /// The permission profile new agents of this personality start from (`developer` or
+    /// `read_only`). A suggestion for the editor, like the contract: the agent can change it, and
+    /// it never applies to an agent by itself.
+    #[serde(default = "default_suggested_profile")]
+    pub suggested_permission_profile: String,
+}
+
+fn default_suggested_profile() -> String {
+    "developer".to_owned()
 }

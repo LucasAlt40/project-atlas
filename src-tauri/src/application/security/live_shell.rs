@@ -161,6 +161,7 @@ fn build_stack(claude_script: Option<&str>, runtime_id: &str, model_id: &str) ->
         .map(|name| {
             agents
                 .create(CreateAgentRequest {
+                    permission_profile_id: None,
                     name: name.to_owned(),
                     personality_id: "architect".to_owned(),
                     runtime_id: runtime_id.to_owned(),

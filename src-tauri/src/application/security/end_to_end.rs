@@ -123,6 +123,7 @@ fn agent(stack: &Stack, runtime: &str, model: &str) -> String {
     stack
         .agents
         .create(CreateAgentRequest {
+            permission_profile_id: None,
             name: runtime.to_owned(),
             personality_id: "architect".to_owned(),
             runtime_id: runtime.to_owned(),
@@ -318,6 +319,7 @@ fn an_isolated_run_is_launched_audited_and_held_to_its_worktree_not_the_checkout
     let agent_id = s
         .agents
         .create(CreateAgentRequest {
+            permission_profile_id: None,
             name: "isolated".to_owned(),
             personality_id: "architect".to_owned(),
             runtime_id: "claude".to_owned(),

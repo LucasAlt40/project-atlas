@@ -74,6 +74,7 @@ impl PersonalityService {
             tags: fields.tags,
             source: PersonalitySource::Custom,
             suggested_contract: ResultContract::general(),
+            suggested_permission_profile: "developer".to_owned(),
         };
         self.config.add_personality(personality.clone())?;
         Ok(personality)
@@ -103,6 +104,7 @@ impl PersonalityService {
             tags: fields.tags,
             source: current.source,
             suggested_contract: current.suggested_contract.clone(),
+            suggested_permission_profile: current.suggested_permission_profile.clone(),
         };
         self.config.modify(|config| {
             match current.source {

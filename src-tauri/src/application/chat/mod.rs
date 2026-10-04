@@ -654,6 +654,7 @@ mod tests {
             .map(|runtime_id| {
                 agents
                     .create(CreateAgentRequest {
+                        permission_profile_id: None,
                         name: format!("{runtime_id} agent"),
                         personality_id: "architect".to_owned(),
                         runtime_id: runtime_id.clone(),
@@ -1133,6 +1134,7 @@ mod tests {
         let create = |name: &str, runtime: &str, model: &str| {
             agents
                 .create(CreateAgentRequest {
+                    permission_profile_id: None,
                     name: name.to_owned(),
                     personality_id: "architect".to_owned(),
                     runtime_id: runtime.to_owned(),

@@ -18,6 +18,7 @@ fn preset(
         tags: tags.iter().map(|s| (*s).to_owned()).collect(),
         source: PersonalitySource::Builtin,
         suggested_contract: suggested_contract(id),
+        suggested_permission_profile: suggested_permission_profile(id).to_owned(),
     }
 }
 
@@ -44,6 +45,16 @@ fn suggested_contract(personality_id: &str) -> ResultContract {
             ],
         },
         _ => ResultContract::general(),
+    }
+}
+
+/// The permission profile an agent of a built-in personality starts from. Most roles work on
+/// code or write their plan as a document, so they may edit; the validator only reads and
+/// judges. Only a starting point for the agent editor: the user decides.
+fn suggested_permission_profile(personality_id: &str) -> &'static str {
+    match personality_id {
+        "architecture-validator" => "read_only",
+        _ => "developer",
     }
 }
 

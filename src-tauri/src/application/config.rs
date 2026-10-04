@@ -97,12 +97,34 @@ pub struct ConfigRepository {
     config: Mutex<UserConfig>,
 }
 
+/// Agents saved before permission profiles could be chosen have none, which reads as the most
+/// restrictive profile. They get the developer profile once, written down, so every agent can
+/// edit and the user can change each one. The workspace's policy still bounds it. Returns whether
+/// anything changed.
+fn grant_developer_to_unset_agents(config: &mut UserConfig) -> bool {
+    let mut changed = false;
+    for agent in config
+        .agents
+        .iter_mut()
+        .filter(|agent| agent.permission_profile_id.is_none())
+    {
+        agent.permission_profile_id = Some("developer".to_owned());
+        changed = true;
+    }
+    changed
+}
+
 impl ConfigRepository {
     pub fn load(store: Box<dyn ConfigStore>) -> Self {
-        let config = store.load().unwrap_or_else(|error| {
+        let mut config = store.load().unwrap_or_else(|error| {
             eprintln!("could not load user config, starting empty: {error}");
             UserConfig::default()
         });
+        if grant_developer_to_unset_agents(&mut config) {
+            if let Err(error) = store.save(&config) {
+                eprintln!("could not save the migrated agent permissions: {error}");
+            }
+        }
         Self {
             store,
             config: Mutex::new(config),
@@ -225,6 +247,29 @@ mod tests {
             result_contract: crate::domain::result_contract::ResultContract::default(),
             created_at: 1,
         }
+    }
+
+    #[test]
+    fn agents_saved_without_a_profile_get_the_developer_profile_once_and_keep_a_chosen_one() {
+        let store = MemoryStore::default();
+        let mut stored = UserConfig::default();
+        let mut chosen = agent();
+        chosen.id = "b".to_owned();
+        chosen.permission_profile_id = Some("read_only".to_owned());
+        stored.agents = vec![agent(), chosen];
+        store.save(&stored).unwrap();
+
+        let repo = ConfigRepository::load(Box::new(store));
+
+        let profiles: Vec<_> = repo
+            .agents()
+            .iter()
+            .map(|a| a.permission_profile_id.clone())
+            .collect();
+        assert_eq!(
+            profiles,
+            [Some("developer".to_owned()), Some("read_only".to_owned())]
+        );
     }
 
     #[test]

@@ -870,6 +870,7 @@ mod tests {
         let agents = Arc::new(AgentService::new(config, personalities, runtimes.clone()));
         let agent = agents
             .create(CreateAgentRequest {
+                permission_profile_id: None,
                 name: "Analyst".to_owned(),
                 personality_id: "architect".to_owned(),
                 runtime_id: "fake".to_owned(),

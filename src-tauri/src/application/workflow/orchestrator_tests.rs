@@ -311,6 +311,7 @@ fn env() -> Env {
     ] {
         let agent = agents
             .create(CreateAgentRequest {
+                permission_profile_id: None,
                 name: format!("{key} agent"),
                 personality_id: personality.to_owned(),
                 runtime_id: "rt".to_owned(),
@@ -1435,6 +1436,7 @@ fn a_template_never_creates_agents_and_reports_the_roles_it_could_not_fill() {
         .id;
     agents
         .create(CreateAgentRequest {
+            permission_profile_id: None,
             name: "Arch".to_owned(),
             personality_id: "architect".to_owned(),
             runtime_id: "rt".to_owned(),

@@ -167,6 +167,7 @@ mod tests {
             .map(|i| {
                 agents
                     .create(CreateAgentRequest {
+                        permission_profile_id: None,
                         name: format!("Agent {i}"),
                         personality_id: "architect".to_owned(),
                         runtime_id: "rt".to_owned(),
