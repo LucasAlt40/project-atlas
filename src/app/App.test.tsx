@@ -49,7 +49,7 @@ describe('App', () => {
     );
     expect(await screen.findByRole('button', { name: /^Workspace: Acme ERP/ })).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: '+ Adicionar agente' })).toBeInTheDocument();
-    expect(screen.getAllByRole('banner')[0]).toHaveTextContent('Atlas');
+    expect(screen.getByRole('complementary')).toHaveTextContent('Atlas');
   });
 
   it('switches the whole UI to English from the header without a restart, and remembers it', async () => {

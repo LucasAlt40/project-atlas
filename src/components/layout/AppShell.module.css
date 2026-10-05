@@ -1,58 +1,46 @@
+/* The sidebar runs the full height and carries the brand; the header only holds where you are. */
 .shell {
   display: flex;
-  flex-direction: column;
   height: 100%;
   background: var(--surface-void);
-}
-.header {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: var(--space-4);
-  height: var(--topbar-height);
-  padding: 0 var(--space-4);
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--surface-void);
-}
-.brand {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-width: calc(var(--rail-width) - var(--space-4) * 2);
-}
-.brandName {
-  color: var(--text-high);
-  font-size: var(--font-size-base);
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-.trailing {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-left: auto;
-}
-.body {
-  display: flex;
-  flex: 1;
-  min-height: 0;
 }
 .rail {
   display: flex;
   flex: none;
   flex-direction: column;
-  width: var(--rail-width);
-  padding: var(--space-3) var(--space-2);
-  border-right: 1px solid var(--border-subtle);
+  gap: var(--space-4);
+  width: 16rem;
+  background: var(--surface-void);
+  box-shadow: 1px 0 8px rgb(0 0 0 / 0.4);
+  z-index: 2;
+}
+.brandBar {
+  display: flex;
+  align-items: center;
+  height: var(--topbar-height);
+  padding: 0 var(--space-4);
   background: var(--surface-1);
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.brandName {
+  color: var(--text-high);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.switcherSlot {
+  padding: 0 var(--space-3);
 }
 .nav {
   display: flex;
   flex-direction: column;
   gap: 2px;
   margin: 0;
-  padding: 0;
+  padding: 0 var(--space-3);
   list-style: none;
 }
 .link {
@@ -60,43 +48,42 @@
   align-items: center;
   gap: var(--space-3);
   width: 100%;
-  height: 2rem;
-  padding: 0 var(--space-3);
+  height: 2.5rem;
+  padding: 0 var(--space-4);
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-lg);
   background: transparent;
   color: var(--text-muted);
   font: inherit;
   font-weight: 500;
   text-align: left;
+  white-space: nowrap;
   cursor: pointer;
 }
+.link svg {
+  flex: none;
+}
 .link:hover {
-  background: var(--surface-2);
+  background: var(--surface-1);
   color: var(--text-high);
 }
 .link[aria-current='page'] {
-  background: var(--accent-tint);
-  box-shadow: inset 2px 0 0 var(--accent);
-  color: var(--text-high);
+  background: var(--surface-2);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.3);
+  color: var(--accent-soft);
+}
+.linkLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .railFooter {
-  margin-top: auto;
-  padding: var(--space-3);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--surface-base);
+  margin: auto var(--space-3) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
   font-family: var(--font-mono);
   font-size: 0.6875rem;
   color: var(--text-muted);
-}
-.main {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  padding: var(--space-4);
-  overflow: auto;
-  background: var(--surface-base);
 }
 .footerName {
   display: block;
@@ -106,4 +93,93 @@
   display: block;
   margin-top: 2px;
   color: var(--text-dim);
+}
+.column {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-4);
+  height: var(--topbar-height);
+  padding: 0 var(--space-4);
+  background: var(--surface-base);
+  box-shadow: 0 1px 8px rgb(0 0 0 / 0.2);
+}
+.toggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.toggle:hover {
+  background: var(--surface-2);
+  color: var(--text-high);
+}
+.crumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.crumbParent {
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+}
+.crumbSep {
+  color: var(--text-dim);
+}
+.crumbCurrent {
+  color: var(--text-high);
+  font-weight: 600;
+}
+.trailing {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+.main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--space-5);
+  overflow: auto;
+  background: var(--surface-base);
+}
+
+/* Collapsed: an icon rail. The labels stay available as titles and accessible names. */
+.shell[data-collapsed='true'] .rail {
+  width: 4rem;
+}
+.shell[data-collapsed='true'] .brandBar {
+  justify-content: center;
+  padding: 0;
+}
+.shell[data-collapsed='true'] .brandName,
+.shell[data-collapsed='true'] .linkLabel,
+.shell[data-collapsed='true'] .railFooter,
+.shell[data-collapsed='true'] .switcherSlot {
+  display: none;
+}
+.shell[data-collapsed='true'] .nav {
+  padding-inline: var(--space-2);
+}
+.shell[data-collapsed='true'] .link {
+  justify-content: center;
+  padding: 0;
 }

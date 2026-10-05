@@ -8,6 +8,8 @@ export const ptBR: Record<TranslationKey, string> = {
   'nav.personalities': 'Personalidades',
   'nav.settings': 'Configurações',
   'nav.main': 'Principal',
+  'nav.collapse': 'Recolher menu',
+  'nav.expand': 'Expandir menu',
   'language.switch': 'Idioma',
   'language.pt-BR': 'Português (Brasil)',
   'language.en-US': 'English',

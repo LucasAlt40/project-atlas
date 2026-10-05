@@ -8,7 +8,7 @@ import { LanguageSwitch } from '@/features/settings/components/LanguageSwitch';
 import { SettingsProvider } from '@/features/settings/hooks/SettingsProvider';
 import { ActiveExecutions } from '@/features/workspace/components/ActiveExecutions';
 import { WorkspaceSwitcher } from '@/features/workspace/components/WorkspaceSwitcher';
-import { WorkspaceProvider } from '@/features/workspace/hooks/WorkspaceProvider';
+import { WorkspaceProvider, useWorkspace } from '@/features/workspace/hooks/WorkspaceProvider';
 import { useT } from '@/i18n/I18nProvider';
 import { NavigationContext, type Navigation, type NavigationIntent } from './NavigationContext';
 import { DEFAULT_SCREEN_ID, SCREENS } from './navigation';
@@ -20,6 +20,7 @@ interface Location {
 
 function Shell() {
   const t = useT();
+  const workspace = useWorkspace();
   const [location, setLocation] = useState<Location>({
     screenId: DEFAULT_SCREEN_ID,
     intent: undefined,
@@ -47,11 +48,14 @@ function Shell() {
       <AppShell
         items={SCREENS.map(({ id, labelKey, icon }) => ({ id, label: t(labelKey), icon }))}
         navLabel={t('nav.main')}
+        collapseLabel={t('nav.collapse')}
+        expandLabel={t('nav.expand')}
         activeId={active.id}
         onNavigate={(id) => {
           navigation.navigate(id);
         }}
         workspaceSwitcher={<WorkspaceSwitcher />}
+        breadcrumb={{ parent: workspace.active?.name ?? '', current: t(active.labelKey) }}
         sidebarFooter={<SidebarFooter />}
         trailing={
           <>

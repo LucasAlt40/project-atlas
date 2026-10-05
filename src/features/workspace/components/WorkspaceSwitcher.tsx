@@ -53,7 +53,14 @@ export function WorkspaceSwitcher({ pickFolder }: Props) {
           setOpen((o) => !o);
         }}
       >
-        <span className={styles.switcherName}>{active?.name ?? t('workspace.switcher.none')}</span>
+        <span className={styles.switcherText}>
+          <span className={styles.switcherLabel} aria-hidden="true">
+            {t('workspace.switcher.label')}
+          </span>
+          <span className={styles.switcherName}>
+            {active?.name ?? t('workspace.switcher.none')}
+          </span>
+        </span>
         <Icon name="chevronDown" size={14} />
       </button>
 
