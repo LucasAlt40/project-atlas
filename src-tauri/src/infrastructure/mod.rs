@@ -1,6 +1,7 @@
 //! Adapters for the world outside the process: child processes and the filesystem.
 //! Each implements a port declared in `application/`; `lib.rs` wires them.
 
+mod fs_watcher;
 mod git_worktree;
 mod harness_store;
 mod ide;
@@ -10,6 +11,7 @@ mod project_inspector;
 mod project_scanner;
 mod pty;
 
+pub use fs_watcher::NotifyWatcher;
 pub use git_worktree::GitWorktreeManager;
 pub use harness_store::FsHarnessStore;
 pub use ide::SystemIdeLauncher;

@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use super::condition::Condition;
 use super::edge::WorkflowEdge;
 use super::node::{NodeKind, WorkflowNode};
 
@@ -28,6 +29,24 @@ pub struct Viewport {
     pub zoom: f64,
 }
 
+/// A route the user repaired: what the edge tested before, what it tests now and where it leads.
+/// Kept on the workflow so a version change always has its reason; nothing is rewritten without
+/// a trace and nothing is repaired without the user's confirmation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RouteRepair {
+    pub edge_id: String,
+    /// The step the edge leaves.
+    pub node_id: String,
+    pub agent_id: String,
+    pub target_node_id: String,
+    pub previous: Option<Condition>,
+    pub current: Condition,
+    /// The version of the workflow the repair produced.
+    pub version: u32,
+    pub at: u64,
+}
+
 /// The declarative definition of a process. It says nothing about any run of it: a run is a
 /// [`super::execution::WorkflowExecution`], which carries a snapshot of the version it started from.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -50,6 +69,9 @@ pub struct Workflow {
     pub edges: Vec<WorkflowEdge>,
     #[serde(default)]
     pub viewport: Option<Viewport>,
+    /// Routes the user repaired, oldest first.
+    #[serde(default)]
+    pub route_repairs: Vec<RouteRepair>,
     pub created_at: u64,
     pub updated_at: u64,
 }

@@ -8,6 +8,7 @@ pub mod chat;
 pub mod events;
 pub mod exit;
 pub mod harness;
+pub mod live_workspace;
 pub mod personalities;
 pub mod runtimes;
 pub mod security;

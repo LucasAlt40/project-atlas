@@ -361,6 +361,12 @@ impl Orchestrator {
         }
         self.workflows.save_execution(&exec)?;
         announce(observer.as_ref(), &events);
+        // The route it takes now may lead straight to an End: the run is then over before any
+        // step starts, and only its code is left to be looked at, as for any run that ends.
+        if exec.status.is_final() {
+            let events = self.conclude_workspace(&mut exec);
+            return self.persist(&exec, observer.as_ref(), &events);
+        }
         self.run(execution_id, observer)
     }
 

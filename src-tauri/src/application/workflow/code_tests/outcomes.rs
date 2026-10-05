@@ -6,10 +6,13 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::*;
-use crate::application::workflow::test_support::{on_outcome, with_failure_route, with_retries};
+use crate::application::workflow::repair::RepairChoice;
+use crate::application::workflow::test_support::{
+    on_outcome, when, with_failure_route, with_retries,
+};
 use crate::application::workflow::validation::IssueCode;
 use crate::domain::result_contract::{ContractKind, Outcome, ResultContract};
-use crate::domain::workflow::{FailureCode, NodeStatus};
+use crate::domain::workflow::{Condition, FailureCode, NodeStatus};
 
 fn contract(s: &Stack, agent: &str, contract: ResultContract) {
     s.config
@@ -378,9 +381,11 @@ fn a_route_on_an_outcome_the_agent_does_not_declare_is_refused_before_the_run() 
                 agent("Developer", DEV),
                 agent("Validator", VALIDATOR),
                 end("done", EndOutcome::Done),
+                end("passed", EndOutcome::Done),
             ],
             vec![
                 edge("Developer", "Validator"),
+                on_outcome("Validator", "passed", "pass"),
                 on_outcome("Validator", "done", value),
             ],
         )
@@ -883,4 +888,265 @@ fn real_claude_workflow_developer_validator_fixer_validator_qa() {
         run.nodes["QA"].attempts.last().unwrap().outcome.as_deref(),
         Some("pass")
     );
+}
+
+// ---- routing on a review contract (QA: approved / changes_requested) -------------------------
+
+/// Developer, then a QA with a review contract. Where each outcome goes is the workflow's choice:
+/// `approved` to the End, `changes_requested` to the Bug Fixer and back.
+fn review_workflow(s: &Stack, routes: &[(&str, &str)]) -> Workflow {
+    contract(s, DEV, ResultContract::preset(ContractKind::Implementation));
+    contract(s, QA, ResultContract::preset(ContractKind::Review));
+    contract(s, FIXER, custom(&["fixed", "blocked"]));
+    let mut edges = vec![edge("Developer", "QA"), edge("Bug Fixer", "QA")];
+    edges.extend(
+        routes
+            .iter()
+            .map(|(outcome, to)| on_outcome("QA", to, outcome)),
+    );
+    s.workflow(
+        vec![
+            agent("Developer", DEV),
+            with_loop(agent("QA", QA), "qa_fix", 3),
+            agent("Bug Fixer", FIXER),
+            end("done", EndOutcome::Done),
+        ],
+        edges,
+    )
+}
+
+const BOTH_ROUTES: [(&str, &str); 2] = [("approved", "done"), ("changes_requested", "Bug Fixer")];
+
+fn reviewer(
+    verdicts: &'static [&'static str],
+) -> impl Fn(&Seen, &RuntimeRequest) -> Result<String, RuntimeError> {
+    let given = Arc::new(AtomicUsize::new(0));
+    move |saw, _| {
+        Ok(match saw.step.as_str() {
+            "QA" => {
+                let verdict =
+                    verdicts[given.fetch_add(1, Ordering::SeqCst).min(verdicts.len() - 1)];
+                // A QA asking for changes says what it found, and where.
+                let findings = if verdict == "changes_requested" {
+                    r#","findings":[{"severity":"high","category":"behaviour","title":"Refund is charged twice","description":"The webhook retries and charges again","file":"src/refund.ts","line":88,"recommendation":"Make the charge idempotent"}]"#
+                } else {
+                    ""
+                };
+                said(verdict, findings)
+            }
+            "Bug Fixer" => said("fixed", ""),
+            _ => said("implemented", ""),
+        })
+    }
+}
+
+#[test]
+fn a_qa_that_approves_reaches_the_end_and_the_run_completes() {
+    let s = stack(Permission::Allowed, reviewer(&["approved"]));
+    let workflow = review_workflow(&s, &BOTH_ROUTES);
+    assert!(s.workflows.validate(&workflow).valid);
+
+    let run = s.run(&workflow);
+
+    assert_eq!(
+        run.status,
+        WorkflowExecutionStatus::Completed,
+        "{:?}",
+        run.failure
+    );
+    assert!(run.failure.is_none());
+    assert_eq!(run.nodes["QA"].status, NodeStatus::Completed);
+    assert_eq!(
+        run.nodes["QA"].attempts[0].outcome.as_deref(),
+        Some("approved")
+    );
+    assert!(
+        s.saw("Bug Fixer").is_empty(),
+        "`approved` must not take the `changes_requested` route"
+    );
+    let last = run.handoffs.last().unwrap();
+    assert_eq!(
+        (
+            last.from_node_id.as_str(),
+            last.to_node_id.as_str(),
+            last.outcome.as_deref()
+        ),
+        ("QA", "done", Some("approved"))
+    );
+}
+
+#[test]
+fn a_qa_that_asks_for_changes_goes_to_the_fixer_and_not_to_the_end() {
+    let s = stack(
+        Permission::Allowed,
+        reviewer(&["changes_requested", "approved"]),
+    );
+    let workflow = review_workflow(&s, &BOTH_ROUTES);
+
+    let run = s.run(&workflow);
+
+    assert_eq!(
+        run.status,
+        WorkflowExecutionStatus::Completed,
+        "{:?}",
+        run.failure
+    );
+    assert_eq!(s.saw("Bug Fixer").len(), 1);
+    assert_eq!(s.saw("QA").len(), 2);
+    // The Bug Fixer is handed what QA concluded: the outcome and each finding, with its place.
+    let fixer = &s.saw("Bug Fixer")[0];
+    assert!(fixer.prompt.contains("Outcome: changes_requested"));
+    assert!(fixer.prompt.contains("Refund is charged twice"));
+    assert!(fixer.prompt.contains("(src/refund.ts:88)"));
+    // Nothing else ran that did not have to: Developer once, QA twice, the fixer once.
+    assert_eq!(s.saw("Developer").len(), 1);
+    let routes: Vec<_> = run
+        .handoffs
+        .iter()
+        .map(|h| {
+            format!(
+                "{}>{}:{}",
+                h.from_node_id,
+                h.to_node_id,
+                h.outcome.as_deref().unwrap_or("-")
+            )
+        })
+        .collect();
+    assert_eq!(
+        routes,
+        [
+            "Developer>QA:implemented",
+            "QA>Bug Fixer:changes_requested",
+            "Bug Fixer>QA:fixed",
+            "QA>done:approved"
+        ]
+    );
+}
+
+#[test]
+fn an_outcome_with_no_route_is_flagged_before_the_run_and_still_ends_it_with_no_route() {
+    let s = stack(Permission::Allowed, reviewer(&["changes_requested"]));
+    let workflow = review_workflow(&s, &[("approved", "done")]);
+
+    // Before the run: an error naming the outcome, and the run is refused.
+    let report = s.workflows.validate(&workflow);
+    assert!(!report.valid);
+    let issue = report
+        .issues
+        .iter()
+        .find(|i| i.code == IssueCode::OutcomeWithoutRoute)
+        .unwrap();
+    assert_eq!(issue.params["outcome"], "changes_requested");
+    assert_eq!(issue.node_id.as_deref(), Some("QA"));
+    assert_eq!(
+        s.workflows.start(&workflow.id, "task").unwrap_err().code,
+        ErrorCode::WorkflowInvalid
+    );
+
+    // Were it to run anyway, a missing route fails the run: never a completion, never a guess.
+    let run = s.run(&workflow);
+    assert_eq!(run.status, WorkflowExecutionStatus::Failed);
+    let failure = run.failure.as_ref().unwrap();
+    assert_eq!(failure.code, FailureCode::NoRouteMatched);
+    assert_eq!(failure.node_id.as_deref(), Some("QA"));
+    assert_eq!(failure.detail.as_deref(), Some("changes_requested"));
+    assert_eq!(s.saw("QA").len(), 1);
+}
+
+#[test]
+fn the_real_bug_is_found_before_the_run_repaired_on_confirmation_and_then_runs_to_the_end() {
+    let s = stack(Permission::Allowed, reviewer(&["approved"]));
+    // QA declares approved / changes_requested; the saved edges read the technical status.
+    contract(
+        &s,
+        DEV,
+        ResultContract::preset(ContractKind::Implementation),
+    );
+    contract(&s, QA, ResultContract::preset(ContractKind::Review));
+    contract(&s, FIXER, custom(&["fixed", "blocked"]));
+    let saved = s.workflow(
+        vec![
+            agent("Developer", DEV),
+            with_loop(agent("QA", QA), "qa_fix", 3),
+            agent("Bug Fixer", FIXER),
+            end("done", EndOutcome::Done),
+        ],
+        vec![
+            edge("Developer", "QA"),
+            edge("Bug Fixer", "QA"),
+            when("QA", "done", "pass"),
+            when("QA", "Bug Fixer", "fail"),
+        ],
+    );
+
+    // Found before the run: refused, with the incompatible routes named.
+    let report = s.workflows.validate(&saved);
+    assert!(!report.valid);
+    assert!(report.has(IssueCode::StatusRouteOnContract));
+    assert_eq!(
+        s.workflows.start(&saved.id, "task").unwrap_err().code,
+        ErrorCode::WorkflowInvalid
+    );
+
+    // Atlas proposes; the proposal changes nothing.
+    let proposals = s.workflows.route_repairs(&saved);
+    assert_eq!(s.workflows.get(&saved.id).unwrap(), saved);
+    let suggested: Vec<_> = proposals[0]
+        .edges
+        .iter()
+        .map(|e| (e.edge_id.clone(), e.suggested.clone().unwrap()))
+        .collect();
+    assert_eq!(
+        suggested,
+        [
+            ("QA->done".to_owned(), "approved".to_owned()),
+            ("QA->Bug Fixer".to_owned(), "changes_requested".to_owned())
+        ]
+    );
+
+    // A stale or wrong confirmation changes nothing.
+    let wrong = [RepairChoice {
+        edge_id: "QA->done".into(),
+        outcome: "success".into(),
+    }];
+    assert!(s.workflows.repair_routes(&saved.id, &wrong).is_err());
+    assert_eq!(s.workflows.get(&saved.id).unwrap(), saved);
+
+    // Confirmed: a new version, the history kept, and the workflow valid.
+    let choices: Vec<_> = suggested
+        .iter()
+        .map(|(edge_id, outcome)| RepairChoice {
+            edge_id: edge_id.clone(),
+            outcome: outcome.clone(),
+        })
+        .collect();
+    let repaired = s.workflows.repair_routes(&saved.id, &choices).unwrap();
+    assert_eq!(repaired.version, saved.version + 1);
+    assert_eq!(repaired.route_repairs.len(), 2);
+    assert_eq!(repaired.route_repairs[0].version, repaired.version);
+    assert_eq!(
+        repaired.route_repairs[0].previous,
+        Some(Condition::equals("result.status", "pass"))
+    );
+    assert!(s.workflows.validate(&repaired).valid);
+    // Saving the workflow again (the editor does) keeps the history and adds none.
+    let saved_again = s.workflows.update(repaired.clone()).unwrap();
+    assert_eq!(saved_again.version, repaired.version);
+    assert_eq!(saved_again.route_repairs, repaired.route_repairs);
+    assert!(s.workflows.route_repairs(&saved_again).is_empty());
+    assert!(s.workflows.repair_routes(&saved.id, &choices).is_err());
+    assert_eq!(
+        s.workflows.get(&saved.id).unwrap().version,
+        repaired.version
+    );
+
+    // And it runs: QA approves, the run reaches the End and completes.
+    let run = s.run(&repaired);
+    assert_eq!(
+        run.status,
+        WorkflowExecutionStatus::Completed,
+        "{:?}",
+        run.failure
+    );
+    assert_eq!(run.workflow_version, repaired.version);
 }

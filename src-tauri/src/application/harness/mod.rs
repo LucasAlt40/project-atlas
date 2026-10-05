@@ -48,10 +48,10 @@ use super::support::{new_id, now_ms};
 use super::workspace::WorkspaceService;
 use crate::domain::harness::UserKnowledge;
 use crate::domain::harness::{
-    AnalysisInfo, Conflict, Finding, HarnessFile, HarnessKnowledge, HarnessManifest, HarnessStatus,
-    HarnessSummary, InitMode, InitializeInput, InitializeOutcome, Origin, ProjectAnalysis,
-    ProjectFingerprint, RefreshOutcome, SemanticReport, SemanticRequest, SemanticStatus,
-    WriteReport, KNOWLEDGE_VERSION,
+    AnalysisInfo, Conflict, Finding, GitIgnoreStatus, HarnessFile, HarnessKnowledge,
+    HarnessManifest, HarnessStatus, HarnessSummary, InitMode, InitializeInput, InitializeOutcome,
+    Origin, ProjectAnalysis, ProjectFingerprint, RefreshOutcome, SemanticReport, SemanticRequest,
+    SemanticStatus, WriteReport, KNOWLEDGE_VERSION,
 };
 use crate::domain::task_context::{PreviewStatus, TaskContextPreview, TaskContextRequest};
 
@@ -104,6 +104,16 @@ pub trait HarnessStore: Send + Sync {
     ///
     /// `HarnessGenerationFailed` if a file cannot be written safely.
     fn write(&self, project_path: &str, files: &[HarnessFile]) -> Result<WriteReport, AppError>;
+    /// Adds `.atlas/` to the project's `.gitignore` (creating it), unless it already ignores it or
+    /// the project is not in a Git repository. Only ever appends one entry: nothing else of the
+    /// file is changed, and nothing is committed, staged or untracked.
+    ///
+    /// # Errors
+    ///
+    /// `HarnessGenerationFailed` if the `.gitignore` cannot be read or written safely.
+    fn ensure_gitignored(&self, _project_path: &str) -> Result<GitIgnoreStatus, AppError> {
+        Ok(GitIgnoreStatus::Skipped)
+    }
 }
 
 /// What an analysis found, kept between "analyze" and "initialize" so the Harness is built from
@@ -508,7 +518,8 @@ impl HarnessService {
             }
             (InitMode::UseExisting, Some(text)) => {
                 parse_manifest(text)?;
-                return Ok(self.outcome(&path, WriteReport::default(), Vec::new()));
+                let outcome = self.outcome(&path, WriteReport::default(), Vec::new());
+                return Ok(self.keep_out_of_git(&path, input.ignore_in_git, outcome));
             }
             (InitMode::Create, Some(_)) => {
                 return Err(AppError::new(ErrorCode::ProjectAlreadyInitialized));
@@ -523,14 +534,32 @@ impl HarnessService {
             corrections: input.corrections.clone(),
             confirmed: input.confirmed.clone(),
         };
-        self.apply(
+        let outcome = self.apply(
             &path,
             &state,
             previous_manifest.as_ref(),
             previous_knowledge.as_ref(),
             choices,
             &input.user_knowledge(),
-        )
+        )?;
+        Ok(self.keep_out_of_git(&path, input.ignore_in_git, outcome))
+    }
+
+    /// Adds `.atlas/` to the project's `.gitignore` when the user wants it kept out of Git. A
+    /// `.gitignore` that cannot be changed is reported, never an error: the Harness is written.
+    fn keep_out_of_git(
+        &self,
+        path: &str,
+        wanted: bool,
+        mut outcome: InitializeOutcome,
+    ) -> InitializeOutcome {
+        if wanted {
+            outcome.git_ignore = self
+                .store
+                .ensure_gitignored(path)
+                .unwrap_or(GitIgnoreStatus::Failed);
+        }
+        outcome
     }
 
     /// The analysis the user just reviewed, or a fresh deterministic one.
@@ -651,6 +680,7 @@ impl HarnessService {
             written: report.written,
             backed_up: report.backed_up,
             left_untouched,
+            git_ignore: GitIgnoreStatus::Skipped,
         }
     }
 }
@@ -728,6 +758,8 @@ pub mod fake {
     #[derive(Default)]
     pub struct MemoryHarnessStore {
         pub files: Mutex<BTreeMap<String, String>>,
+        /// How many times it was asked to keep `.atlas/` out of Git.
+        pub ignored: Mutex<u32>,
     }
 
     impl MemoryHarnessStore {
@@ -739,6 +771,7 @@ pub mod fake {
                         .map(|(p, c)| ((*p).to_owned(), (*c).to_owned()))
                         .collect(),
                 ),
+                ignored: Mutex::new(0),
             }
         }
 
@@ -784,6 +817,14 @@ pub mod fake {
                 report.written.push(file.path.clone());
             }
             Ok(report)
+        }
+
+        fn ensure_gitignored(
+            &self,
+            _: &str,
+        ) -> Result<crate::domain::harness::GitIgnoreStatus, AppError> {
+            *self.ignored.lock().unwrap() += 1;
+            Ok(crate::domain::harness::GitIgnoreStatus::Added)
         }
     }
 }

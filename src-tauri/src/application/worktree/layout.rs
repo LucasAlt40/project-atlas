@@ -100,6 +100,14 @@ impl WorktreeLayout {
     /// Whether `path` is exactly where this layout puts the worktree of that execution: the
     /// check before anything is removed. Compared as written (no `..`, no symlink games: the
     /// folder itself must not be a link).
+    /// Whether `path` is where Atlas puts this execution's worktree (it need not exist yet): the
+    /// check before a worktree is made again in the same place.
+    pub fn is_place_of(&self, path: &Path, workspace_id: &str, execution_id: &str) -> bool {
+        self.path_for(workspace_id, execution_id)
+            .is_ok_and(|expected| path == expected)
+            && !path.components().any(|c| matches!(c, Component::ParentDir))
+    }
+
     pub fn is_worktree_of(&self, path: &Path, workspace_id: &str, execution_id: &str) -> bool {
         let Ok(expected) = self.path_for(workspace_id, execution_id) else {
             return false;

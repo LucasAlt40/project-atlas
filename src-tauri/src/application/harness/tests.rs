@@ -223,6 +223,38 @@ fn build_commands_are_recorded_as_observed_and_never_run() {
 // ---- initialization and the files ----
 
 #[test]
+fn atlas_is_kept_out_of_git_unless_the_user_says_otherwise() {
+    use crate::domain::harness::GitIgnoreStatus;
+    let f = fixture();
+
+    // Not asked for (the input's own default is off; the wire default is on).
+    let plain = f
+        .service
+        .initialize(&f.workspace_id, input(InitMode::Create))
+        .unwrap();
+    assert_eq!(plain.git_ignore, GitIgnoreStatus::Skipped);
+    assert_eq!(*f.store.ignored.lock().unwrap(), 0);
+
+    // Asked for: after the Harness is written, and also when an existing one is used.
+    let asked = InitializeInput {
+        ignore_in_git: true,
+        ..input(InitMode::UseExisting)
+    };
+    let used = f.service.initialize(&f.workspace_id, asked).unwrap();
+    assert_eq!(used.git_ignore, GitIgnoreStatus::Added);
+    assert_eq!(*f.store.ignored.lock().unwrap(), 1);
+}
+
+#[test]
+fn an_input_that_does_not_mention_it_keeps_atlas_out_of_git() {
+    let wire: InitializeInput = serde_json::from_str(r#"{"mode":"create"}"#).unwrap();
+    assert!(wire.ignore_in_git);
+    let off: InitializeInput =
+        serde_json::from_str(r#"{"mode":"create","ignoreInGit":false}"#).unwrap();
+    assert!(!off.ignore_in_git);
+}
+
+#[test]
 fn initializing_writes_generated_knowledge_and_the_users_own_files() {
     let f = fixture();
 

@@ -34,6 +34,15 @@ pub fn git(dir: &Path, args: &[&str]) -> String {
     String::from_utf8_lossy(&output.stdout).trim().to_owned()
 }
 
+/// `git status --porcelain`, line by line, with the leading space of each code kept.
+pub fn status_lines(dir: &Path) -> Vec<String> {
+    let output = git_raw(dir, &["status", "--porcelain"]);
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(str::to_owned)
+        .collect()
+}
+
 pub fn git_raw(dir: &Path, args: &[&str]) -> std::process::Output {
     Command::new("git")
         .args(["-c", "user.name=Test", "-c", "user.email=test@example.com"])
@@ -1427,11 +1436,17 @@ mod shared {
         );
 
         // The user's explicit decision applies it.
-        let merged = env.service.merge("exec-1").unwrap();
-        assert_eq!(merged.merge_status, MergeStatus::Merged);
+        let applied = env.service.merge("exec-1").unwrap();
+        assert_eq!(applied.merge_status, MergeStatus::Applied);
         assert_eq!(
             fs::read_to_string(env.project.path().join("feature.txt")).unwrap(),
             "done\n"
+        );
+        // ...and it is the working tree that has it, not the history.
+        assert_eq!(env.main_branch_head(), before, "HEAD did not move");
+        assert_eq!(
+            git(env.project.path(), &["status", "--porcelain"]),
+            "?? feature.txt"
         );
     }
 
@@ -1491,33 +1506,389 @@ mod shared {
             .contains("+partial"));
     }
 
-    #[test]
-    fn a_dirty_checkout_blocks_applying_and_changes_nothing() {
-        let env = Env::new(Permission::Allowed);
-        open(&env, "exec-1");
-        let developer = step(&env, "agent-2", "exec-2", "exec-1");
-        write(&developer.working_dir, "feature.txt", "x\n");
+    /// A finished workflow run that wrote `files` (name, text) in its worktree.
+    fn finished_run(env: &Env, files: &[(&str, &str)]) {
+        open(env, "exec-1");
+        let developer = step(env, "agent-2", "exec-2", "exec-1");
+        for (name, text) in files {
+            write(&developer.working_dir, name, text);
+        }
         env.service
             .finish_step("exec-2", RunOutcome::Completed)
             .unwrap();
+        let closed = env
+            .service
+            .close_shared("exec-1", RunOutcome::Completed, Validation::NotRun)
+            .unwrap();
+        assert_eq!(closed.merge_status, MergeStatus::Pending);
+    }
+
+    /// Everything the project's repository holds that applying must not change.
+    fn history(env: &Env) -> (String, String, String, String) {
+        let project = env.project.path();
+        (
+            git(project, &["rev-parse", "HEAD"]),
+            git(project, &["reflog", "show", "HEAD"]),
+            git(
+                project,
+                &["for-each-ref", "--format=%(refname) %(objectname)"],
+            ),
+            git(project, &["diff", "--cached", "--name-only"]),
+        )
+    }
+
+    #[test]
+    fn applying_on_a_clean_checkout_modifies_the_working_tree_and_creates_nothing() {
+        let env = Env::new(Permission::Allowed);
+        // A bare remote: applying must never push to it.
+        let remote = TempDir::new("remote");
+        git(remote.path(), &["init", "--quiet", "--bare", "-b", "main"]);
+        git(
+            env.project.path(),
+            &["remote", "add", "origin", &remote.path().to_string_lossy()],
+        );
+        finished_run(
+            &env,
+            &[("feature.txt", "new\n"), ("README.md", "# Project\nmore\n")],
+        );
+        let before = history(&env);
+        let branches = git(env.project.path(), &["branch", "--format=%(refname:short)"]);
+
+        let applied = env.service.merge("exec-1").unwrap();
+
+        assert_eq!(applied.merge_status, MergeStatus::Applied);
+        assert_eq!(applied.status, WorktreeStatus::Cleaned);
+        // Working tree changed...
+        assert_eq!(
+            status_lines(env.project.path()),
+            [" M README.md", "?? feature.txt"]
+        );
+        assert_eq!(
+            fs::read_to_string(env.project.path().join("README.md")).unwrap(),
+            "# Project\nmore\n"
+        );
+        // ...and nothing else: same HEAD, same reflog (no commit, merge, rebase or checkout),
+        // same refs except the run's own branch, nothing staged, no merge in progress.
+        let after = history(&env);
+        assert_eq!(after.0, before.0, "HEAD unchanged");
+        assert_eq!(after.1, before.1, "no commit, merge or rebase was recorded");
+        assert_eq!(after.2, before.2, "no ref moved");
+        assert_eq!(after.3, "", "nothing staged");
+        assert!(!env.project.path().join(".git/MERGE_HEAD").exists());
+        assert_eq!(
+            git(env.project.path(), &["branch", "--format=%(refname:short)"]),
+            branches
+        );
+        // The run's branch is kept as the record of what was applied.
+        assert!(!git(env.project.path(), &["branch", "--list", "atlas/*"]).is_empty());
+        // No push: the remote has no ref at all.
+        assert_eq!(git(remote.path(), &["for-each-ref"]), "");
+        // The user's `git add` and `git commit` are then theirs to do.
+        git(env.project.path(), &["add", "--all"]);
+        git(env.project.path(), &["commit", "--quiet", "-m", "mine"]);
+        assert_eq!(git(env.project.path(), &["status", "--porcelain"]), "");
+    }
+
+    #[test]
+    fn applying_carries_added_modified_and_deleted_files() {
+        let env = Env::new(Permission::Allowed);
+        open(&env, "exec-1");
+        let developer = step(&env, "agent-2", "exec-2", "exec-1");
+        write(&developer.working_dir, "new/dir/file.txt", "added\n");
+        write(
+            &developer.working_dir,
+            "shared.txt",
+            "line 1\nline 2 changed\nline 3\n",
+        );
+        fs::remove_file(developer.working_dir.join("README.md")).unwrap();
+        env.service
+            .finish_step("exec-2", RunOutcome::Completed)
+            .unwrap();
+        env.service
+            .close_shared("exec-1", RunOutcome::Completed, Validation::NotRun)
+            .unwrap();
+        let head = env.main_branch_head();
+
+        let applied = env.service.merge("exec-1").unwrap();
+
+        assert_eq!(applied.merge_status, MergeStatus::Applied);
+        let root = env.project.path();
+        assert_eq!(
+            fs::read_to_string(root.join("new/dir/file.txt")).unwrap(),
+            "added\n"
+        );
+        assert!(!root.join("README.md").exists());
+        assert_eq!(
+            fs::read_to_string(root.join("shared.txt")).unwrap(),
+            "line 1\nline 2 changed\nline 3\n"
+        );
+        assert_eq!(
+            status_lines(root),
+            [" D README.md", " M shared.txt", "?? new/"]
+        );
+        assert_eq!(env.main_branch_head(), head);
+    }
+
+    #[test]
+    fn local_changes_in_other_files_do_not_block_applying_and_survive_it() {
+        let env = Env::new(Permission::Allowed);
+        finished_run(&env, &[("feature.txt", "x\n")]);
         write(
             env.project.path(),
             "README.md",
             "# edited by the user, not committed\n",
         );
+        write(env.project.path(), "notes.txt", "untracked, the user's\n");
+        let head = env.main_branch_head();
 
-        let closed = env
-            .service
-            .close_shared("exec-1", RunOutcome::Completed, Validation::NotRun)
-            .unwrap();
+        let applied = env.service.merge("exec-1").unwrap();
 
-        assert_eq!(closed.merge_status, MergeStatus::Blocked);
-        assert_eq!(closed.block_reason, Some(BlockReason::BaseDirty));
+        assert_eq!(applied.merge_status, MergeStatus::Applied);
         assert_eq!(
             fs::read_to_string(env.project.path().join("README.md")).unwrap(),
             "# edited by the user, not committed\n",
             "the user's work is untouched"
         );
+        assert_eq!(
+            fs::read_to_string(env.project.path().join("notes.txt")).unwrap(),
+            "untracked, the user's\n"
+        );
+        assert_eq!(
+            fs::read_to_string(env.project.path().join("feature.txt")).unwrap(),
+            "x\n"
+        );
+        assert_eq!(env.main_branch_head(), head);
+    }
+
+    #[test]
+    fn a_file_the_user_changed_and_the_run_changed_too_blocks_applying_and_writes_nothing() {
+        let env = Env::new(Permission::Allowed);
+        finished_run(
+            &env,
+            &[
+                ("README.md", "# changed by the run\n"),
+                ("other.txt", "from the run\n"),
+            ],
+        );
+        write(env.project.path(), "README.md", "# changed by the user\n");
+        let before = history(&env);
+
+        let blocked = env.service.merge("exec-1").unwrap();
+
+        assert_eq!(blocked.merge_status, MergeStatus::Conflict);
+        assert_eq!(blocked.block_reason, Some(BlockReason::Conflict));
+        assert_eq!(blocked.changes.as_ref().unwrap().conflicts, ["README.md"]);
+        assert_eq!(
+            fs::read_to_string(env.project.path().join("README.md")).unwrap(),
+            "# changed by the user\n"
+        );
+        assert!(
+            !env.project.path().join("other.txt").exists(),
+            "all or nothing: not even the file that did not conflict was written"
+        );
+        assert_eq!(history(&env), before);
+        // The worktree is kept, so it can be tried again once the user has decided.
+        assert!(Path::new(&blocked.worktree_path).is_dir());
+        git(
+            env.project.path(),
+            &["checkout", "--quiet", "--", "README.md"],
+        );
+        assert_eq!(
+            env.service.merge("exec-1").unwrap().merge_status,
+            MergeStatus::Applied
+        );
+    }
+
+    #[test]
+    fn an_untracked_file_the_run_also_created_is_a_conflict_not_an_overwrite() {
+        let env = Env::new(Permission::Allowed);
+        finished_run(&env, &[("feature.txt", "from the run\n")]);
+        write(env.project.path(), "feature.txt", "the user's own\n");
+
+        let blocked = env.service.merge("exec-1").unwrap();
+
+        assert_eq!(blocked.merge_status, MergeStatus::Conflict);
+        assert_eq!(
+            fs::read_to_string(env.project.path().join("feature.txt")).unwrap(),
+            "the user's own\n"
+        );
+    }
+
+    #[test]
+    fn applying_is_refused_when_the_checkout_has_left_the_base_branch() {
+        let env = Env::new(Permission::Allowed);
+        finished_run(&env, &[("feature.txt", "x\n")]);
+        git(
+            env.project.path(),
+            &["checkout", "--quiet", "-b", "elsewhere"],
+        );
+
+        let blocked = env.service.merge("exec-1").unwrap();
+
+        assert_eq!(blocked.merge_status, MergeStatus::Blocked);
+        assert_eq!(blocked.block_reason, Some(BlockReason::BaseBranchChanged));
+        assert!(!env.project.path().join("feature.txt").exists());
+    }
+
+    #[test]
+    fn a_base_that_moved_on_still_receives_the_changes_without_a_new_commit() {
+        let env = Env::new(Permission::Allowed);
+        finished_run(&env, &[("feature.txt", "x\n")]);
+        // The user committed something unrelated meanwhile.
+        write(env.project.path(), "later.txt", "later\n");
+        git(env.project.path(), &["add", "--all"]);
+        git(env.project.path(), &["commit", "--quiet", "-m", "later"]);
+        let head = env.main_branch_head();
+
+        let applied = env.service.merge("exec-1").unwrap();
+
+        assert_eq!(applied.merge_status, MergeStatus::Applied);
+        assert_eq!(env.main_branch_head(), head);
+        assert_eq!(
+            git(env.project.path(), &["status", "--porcelain"]),
+            "?? feature.txt",
+            "only the run's change is pending, not what the base did meanwhile"
+        );
+    }
+
+    // ---- taking applied changes back out ("keep isolated" after apply) --------------------------
+
+    use crate::application::worktree::UnapplyOutcome;
+
+    #[test]
+    fn applied_changes_can_be_taken_back_out_leaving_the_project_as_it_was_and_the_work_isolated() {
+        let env = Env::new(Permission::Allowed);
+        finished_run(
+            &env,
+            &[("feature.txt", "new\n"), ("README.md", "# Project\nmore\n")],
+        );
+        let head = env.main_branch_head();
+        let before = history(&env);
+        env.service.merge("exec-1").unwrap();
+        assert_eq!(status_lines(env.project.path()).len(), 2);
+
+        let outcome = env.service.unapply("exec-1", &head).unwrap();
+
+        let UnapplyOutcome::Reverted(worktree) = outcome else {
+            panic!("expected the changes to be taken back, got {outcome:?}");
+        };
+        assert_eq!(worktree.merge_status, MergeStatus::Pending);
+        assert_eq!(worktree.status, WorktreeStatus::Completed);
+        assert_eq!(status_lines(env.project.path()), Vec::<String>::new());
+        assert!(!env.project.path().join("feature.txt").exists());
+        assert_eq!(
+            fs::read_to_string(env.project.path().join("README.md")).unwrap(),
+            "# Project\n"
+        );
+        assert_eq!(
+            history(&env),
+            before,
+            "HEAD, reflog, refs, index: nothing moved"
+        );
+        // The work is isolated again: the folder is back, on its branch, with its changes.
+        assert_eq!(
+            fs::read_to_string(Path::new(&worktree.worktree_path).join("feature.txt")).unwrap(),
+            "new\n"
+        );
+        // ...and can be applied again.
+        assert_eq!(
+            env.service.merge("exec-1").unwrap().merge_status,
+            MergeStatus::Applied
+        );
+        assert!(env.project.path().join("feature.txt").is_file());
+        assert_eq!(env.main_branch_head(), head);
+    }
+
+    #[test]
+    fn taking_changes_back_leaves_the_users_own_changes_alone() {
+        let env = Env::new(Permission::Allowed);
+        finished_run(&env, &[("feature.txt", "new\n")]);
+        let head = env.main_branch_head();
+        write(env.project.path(), "README.md", "# my own edit\n");
+        env.service.merge("exec-1").unwrap();
+        write(env.project.path(), "notes.txt", "added after applying\n");
+
+        let outcome = env.service.unapply("exec-1", &head).unwrap();
+
+        assert!(matches!(outcome, UnapplyOutcome::Reverted(_)));
+        assert!(!env.project.path().join("feature.txt").exists());
+        assert_eq!(
+            fs::read_to_string(env.project.path().join("README.md")).unwrap(),
+            "# my own edit\n"
+        );
+        assert_eq!(
+            fs::read_to_string(env.project.path().join("notes.txt")).unwrap(),
+            "added after applying\n"
+        );
+    }
+
+    #[test]
+    fn an_applied_file_the_user_changed_since_blocks_taking_back_and_nothing_is_touched() {
+        let env = Env::new(Permission::Allowed);
+        finished_run(
+            &env,
+            &[("feature.txt", "new\n"), ("other.txt", "from the run\n")],
+        );
+        let head = env.main_branch_head();
+        env.service.merge("exec-1").unwrap();
+        write(
+            env.project.path(),
+            "feature.txt",
+            "new\nand the user kept typing\n",
+        );
+        let status = status_lines(env.project.path());
+
+        let outcome = env.service.unapply("exec-1", &head).unwrap();
+
+        assert_eq!(
+            outcome,
+            UnapplyOutcome::Conflict(vec!["feature.txt".to_owned()])
+        );
+        assert_eq!(
+            fs::read_to_string(env.project.path().join("feature.txt")).unwrap(),
+            "new\nand the user kept typing\n"
+        );
+        assert!(
+            env.project.path().join("other.txt").is_file(),
+            "all or nothing: the other applied file stays too"
+        );
+        assert_eq!(status_lines(env.project.path()), status);
+        let record = env.service.get("exec-1").unwrap();
+        assert_eq!(record.merge_status, MergeStatus::Applied);
+        assert!(
+            !Path::new(&record.worktree_path).exists(),
+            "the folder that was made to try is taken away again"
+        );
+    }
+
+    #[test]
+    fn once_the_project_has_a_new_commit_the_applied_changes_are_not_taken_back() {
+        let env = Env::new(Permission::Allowed);
+        finished_run(&env, &[("feature.txt", "new\n")]);
+        let applied_at = env.main_branch_head();
+        env.service.merge("exec-1").unwrap();
+        // The user commits the applied changes (and so they are part of the history now).
+        git(env.project.path(), &["add", "--all"]);
+        git(env.project.path(), &["commit", "--quiet", "-m", "mine"]);
+        let head = env.main_branch_head();
+
+        let outcome = env.service.unapply("exec-1", &applied_at).unwrap();
+
+        assert_eq!(outcome, UnapplyOutcome::ProjectMoved);
+        assert_eq!(env.main_branch_head(), head);
+        assert!(env.project.path().join("feature.txt").is_file());
+        assert_eq!(status_lines(env.project.path()), Vec::<String>::new());
+    }
+
+    #[test]
+    fn only_changes_that_were_applied_can_be_taken_back() {
+        let env = Env::new(Permission::Allowed);
+        finished_run(&env, &[("feature.txt", "new\n")]);
+
+        assert!(matches!(
+            env.service.unapply("exec-1", &env.main_branch_head()),
+            Err(WorktreeError::InvalidState(_))
+        ));
         assert!(!env.project.path().join("feature.txt").exists());
     }
 
@@ -1563,32 +1934,31 @@ mod shared {
     }
 
     #[test]
-    fn a_policy_that_denies_git_writes_keeps_the_changes_uncommitted_and_cannot_be_applied() {
+    fn a_policy_that_denies_the_agents_git_writes_still_lets_the_user_apply_to_the_working_tree() {
         let env = Env::new(Permission::Denied);
         open(&env, "exec-1");
         let developer = step(&env, "agent-2", "exec-2", "exec-1");
         write(&developer.working_dir, "wip.txt", "x\n");
-
         env.service
             .finish_step("exec-2", RunOutcome::Completed)
             .unwrap();
-        let delta = env.service.step_delta("exec-2").unwrap();
-        assert!(delta.files.is_empty());
-        assert_eq!(delta.uncommitted, ["wip.txt"]);
+        let head = env.main_branch_head();
 
         let closed = env
             .service
             .close_shared("exec-1", RunOutcome::Completed, Validation::NotRun)
             .unwrap();
-        assert_eq!(closed.block_reason, Some(BlockReason::UncommittedChanges));
+
+        // The work is saved on the run's own isolated branch and waits for the user.
+        assert_eq!(closed.merge_status, MergeStatus::Pending);
+        let applied = env.service.merge("exec-1").unwrap();
+        assert_eq!(applied.merge_status, MergeStatus::Applied);
         assert_eq!(
-            env.service.change_set("exec-1").unwrap().uncommitted,
-            ["wip.txt"]
+            fs::read_to_string(env.project.path().join("wip.txt")).unwrap(),
+            "x\n"
         );
-        assert!(matches!(
-            env.service.merge("exec-1"),
-            Err(WorktreeError::PolicyDenied)
-        ));
+        assert_eq!(env.main_branch_head(), head);
+        assert_eq!(status_lines(env.project.path()), ["?? wip.txt"]);
     }
 
     #[test]

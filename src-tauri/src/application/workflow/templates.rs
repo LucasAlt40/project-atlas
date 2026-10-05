@@ -61,6 +61,8 @@ pub struct AgentChoice {
     pub personality_id: String,
     /// Placed in the workspace: preferred over agents that are only in the catalog.
     pub placed: bool,
+    /// The outcomes its result contract declares (none for a general agent).
+    pub outcomes: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -289,6 +291,33 @@ impl<'a> Builder<'a> {
         });
     }
 
+    /// The two ways out of a step that judges: on to `ok_to`, or to `problem_to` to be corrected.
+    /// Which outcomes those are comes from the contract of the agent the step got: the pair of
+    /// the `validation` preset (`pass`/`fail`) or of the `review` preset (`approved`/
+    /// `changes_requested`), whichever it declares in full. These pairs are Atlas's own presets,
+    /// not a guess about an agent's wording; an agent declaring neither gets `pass`/`fail`, and
+    /// validation then says what it lacks, since no pair can be chosen for it.
+    fn gate(&mut self, from: &str, ok_to: &str, problem_to: &str) {
+        let declared: Vec<String> = self
+            .nodes
+            .iter()
+            .find(|n| n.id == from)
+            .and_then(|n| n.agent_id())
+            .and_then(|id| self.agents.iter().find(|a| a.id == id))
+            .map(|a| a.outcomes.clone())
+            .unwrap_or_default();
+        let has = |o: &str| declared.iter().any(|d| d.eq_ignore_ascii_case(o));
+        let (ok, problem) = if has("pass") && has("fail") {
+            ("pass", "fail")
+        } else if has("approved") && has("changes_requested") {
+            ("approved", "changes_requested")
+        } else {
+            ("pass", "fail")
+        };
+        self.on(from, ok_to, ok);
+        self.on(from, problem_to, problem);
+    }
+
     /// An edge taken when the source step ended with this *outcome*, one its agent's result
     /// contract declares. Routing never reads the execution's status or `result.status`.
     fn on(&mut self, from: &str, to: &str, outcome: &str) {
@@ -378,8 +407,7 @@ pub fn instantiate(
             b.end("done", "Done");
             b.then("architect", "developer");
             b.then("developer", "qa");
-            b.on("qa", "done", "pass");
-            b.on("qa", "bug-fixer", "fail");
+            b.gate("qa", "done", "bug-fixer");
             b.then("bug-fixer", "qa");
         }
         "software_feature" | "full_development" | "refactoring" => {
@@ -420,11 +448,9 @@ pub fn instantiate(
                 b.then("architect", "developer");
                 b.then("developer", "validator");
             }
-            b.on("validator", "qa", "pass");
-            b.on("validator", "bug-fixer-architecture", "fail");
+            b.gate("validator", "qa", "bug-fixer-architecture");
             b.then("bug-fixer-architecture", "validator");
-            b.on("qa", "done", "pass");
-            b.on("qa", "bug-fixer-qa", "fail");
+            b.gate("qa", "done", "bug-fixer-qa");
             b.then("bug-fixer-qa", "qa");
         }
         "bug_fix" => {
@@ -438,8 +464,7 @@ pub fn instantiate(
             );
             b.end("done", "Done");
             b.then("bug-fixer", "qa");
-            b.on("qa", "done", "pass");
-            b.on("qa", "bug-fixer-retry", "fail");
+            b.gate("qa", "done", "bug-fixer-retry");
             b.then("bug-fixer-retry", "qa");
         }
         "code_review" => {
@@ -473,6 +498,7 @@ pub fn instantiate(
             nodes,
             edges,
             viewport: None,
+            route_repairs: Vec::new(),
             created_at: now,
             updated_at: now,
         },

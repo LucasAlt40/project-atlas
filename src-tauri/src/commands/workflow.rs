@@ -7,6 +7,7 @@ use super::events::TauriWorkflowObserver;
 use crate::application::errors::{AppError, ErrorCode};
 use crate::application::ide::Ide;
 use crate::application::workflow::orchestrator::{AnswerDelivery, Control};
+use crate::application::workflow::repair::{RepairChoice, RepairProposal};
 use crate::application::workflow::service::NewWorkflow;
 use crate::application::workflow::templates::{Role, TemplateInfo};
 use crate::application::workflow::validation::ValidationReport;
@@ -99,6 +100,27 @@ pub fn delete_workflow(state: State<'_, AppState>, workflow_id: String) -> Resul
 #[tauri::command]
 pub fn validate_workflow(state: State<'_, AppState>, workflow: Workflow) -> ValidationReport {
     state.workflows.validate(&workflow)
+}
+
+/// What Atlas can propose for routes that cannot match their agent's contract. Changes nothing.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command]
+pub fn suggest_route_repairs(
+    state: State<'_, AppState>,
+    workflow: Workflow,
+) -> Vec<RepairProposal> {
+    state.workflows.route_repairs(&workflow)
+}
+
+/// Applies the mapping the user confirmed, as a new version of the saved workflow.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command]
+pub fn repair_workflow_routes(
+    state: State<'_, AppState>,
+    workflow_id: String,
+    choices: Vec<RepairChoice>,
+) -> Result<Workflow, AppError> {
+    state.workflows.repair_routes(&workflow_id, &choices)
 }
 
 /// Starts a run of the workflow on a task. Returns at once with the run; its progress arrives

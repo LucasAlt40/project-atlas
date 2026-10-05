@@ -25,9 +25,10 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::application::worktree::{
-    Assessment, BaseInfo, BaseReadiness, MergeOutcome, NewWorktree, WorktreeError, WorktreeLayout,
-    WorktreeManager,
+    ApplyOutcome, Assessment, BaseInfo, BaseReadiness, MergeOutcome, NewWorktree, WorktreeError,
+    WorktreeLayout, WorktreeManager,
 };
+use crate::domain::live_workspace::{is_plain_relative_path, LiveFile, LiveFileKind};
 use crate::domain::worktree::{
     FileChange, FileChangeStatus, MAX_CHANGESET_FILES, MAX_LISTED_FILES,
 };
@@ -108,6 +109,21 @@ impl GitWorktreeManager {
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr>,
     {
+        self.run_with(cwd, args, identity, None)
+    }
+
+    /// [`Self::run`], optionally feeding `input` to Git's standard input.
+    fn run_with<I, S>(
+        &self,
+        cwd: &Path,
+        args: I,
+        identity: Option<&Identity>,
+        input: Option<Vec<u8>>,
+    ) -> Result<Output, WorktreeError>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>,
+    {
         // Without this a missing folder reads as a missing `git` (both are "not found").
         if !cwd.is_dir() {
             return Err(WorktreeError::Git(format!(
@@ -127,7 +143,11 @@ impl GitWorktreeManager {
             .args(["--no-pager", "--no-optional-locks"])
             .args(args)
             .current_dir(cwd)
-            .stdin(Stdio::null())
+            .stdin(if input.is_some() {
+                Stdio::piped()
+            } else {
+                Stdio::null()
+            })
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .env("GIT_TERMINAL_PROMPT", "0")
@@ -151,6 +171,15 @@ impl GitWorktreeManager {
                 WorktreeError::Git(error.to_string())
             }
         })?;
+        // Written from its own thread: a large patch must not wait on Git's output.
+        let feeder = input.and_then(|bytes| {
+            child.stdin.take().map(|mut stdin| {
+                thread::spawn(move || {
+                    use std::io::Write;
+                    let _ = stdin.write_all(&bytes);
+                })
+            })
+        });
         let stdout = child
             .stdout
             .take()
@@ -172,6 +201,9 @@ impl GitWorktreeManager {
                 Err(error) => return Err(WorktreeError::Git(error.to_string())),
             }
         };
+        if let Some(feeder) = feeder {
+            let _ = feeder.join();
+        }
         let take = |handle: Option<thread::JoinHandle<Vec<u8>>>| {
             handle.and_then(|h| h.join().ok()).unwrap_or_default()
         };
@@ -276,6 +308,22 @@ impl GitWorktreeManager {
         }
     }
 
+    /// A path to look at inside a worktree: relative, inside it, and nothing Git would read as an
+    /// option. (Unlike [`Self::require_plain_path`], a name with `*` or `[` in it is a name:
+    /// callers use literal pathspecs.)
+    fn require_relative_path(file: &str) -> Result<(), WorktreeError> {
+        let bad = file.is_empty()
+            || file.len() > 1000
+            || file.starts_with(['/', '-'])
+            || file.contains(['\0', '\n'])
+            || file.split('/').any(|part| part == ".." || part == ".");
+        if bad {
+            Err(WorktreeError::InvalidIdentifier(file.to_owned()))
+        } else {
+            Ok(())
+        }
+    }
+
     /// `path` must be inside the worktree folder, spelled without `..`.
     fn require_inside_root(&self, path: &Path) -> Result<(), WorktreeError> {
         let inside = path.starts_with(self.layout.root())
@@ -307,6 +355,185 @@ impl GitWorktreeManager {
         Ok(BaseReadiness::Ready)
     }
 
+    /// What the branch changed since it forked from the base: the files, and the patch (binary
+    /// safe, without rename detection) that brings them.
+    fn branch_patch(
+        &self,
+        toplevel: &Path,
+        base_branch: &str,
+        branch: &str,
+    ) -> Result<(Vec<String>, Vec<u8>), WorktreeError> {
+        let fork = self
+            .run_ok(toplevel, ["merge-base", &head(base_branch), &head(branch)])?
+            .text();
+        Self::require_commit_id(&fork)?;
+        let files = nul_separated(&self.run_ok(
+            toplevel,
+            [
+                "diff",
+                "--name-only",
+                "-z",
+                "--no-renames",
+                "--no-ext-diff",
+                &fork,
+                &head(branch),
+                "--",
+            ],
+        )?);
+        let patch = self
+            .run_ok(
+                toplevel,
+                [
+                    "diff",
+                    "--binary",
+                    "--full-index",
+                    "--no-color",
+                    "--no-ext-diff",
+                    "--no-renames",
+                    &fork,
+                    &head(branch),
+                    "--",
+                ],
+            )?
+            .stdout;
+        Ok((files, patch))
+    }
+
+    /// After an apply: the history is exactly where it was, and every file shows as changed.
+    fn verify_applied(
+        &self,
+        toplevel: &Path,
+        before: &Snapshot,
+        files: &[String],
+    ) -> Result<(), WorktreeError> {
+        let after = self.snapshot(toplevel)?;
+        if after.head != before.head {
+            return Err(WorktreeError::Git(
+                "the project's HEAD moved while applying".to_owned(),
+            ));
+        }
+        let dirty: std::collections::HashSet<&str> =
+            after.dirty.iter().map(String::as_str).collect();
+        if let Some(missing) = files.iter().find(|f| !dirty.contains(f.as_str())) {
+            return Err(WorktreeError::Git(format!(
+                "applied, but {missing} does not show as changed"
+            )));
+        }
+        Ok(())
+    }
+
+    /// Git does not see a rename it was not told about (a moved file is a deletion and a new
+    /// untracked file): a deleted file and a new one with exactly the same content are one
+    /// rename. Only on a full read, and only for a bounded number of candidates.
+    fn pair_renames(&self, path: &Path, baseline: &str, changes: &mut Vec<FileChange>) {
+        const MAX_CANDIDATES: usize = 200;
+        let deleted: Vec<usize> = (0..changes.len())
+            .filter(|i| changes[*i].status == FileChangeStatus::Deleted)
+            .take(MAX_CANDIDATES)
+            .collect();
+        let added: Vec<usize> = (0..changes.len())
+            .filter(|i| {
+                changes[*i].status == FileChangeStatus::Added && changes[*i].old_path.is_none()
+            })
+            .take(MAX_CANDIDATES)
+            .collect();
+        if deleted.is_empty() || added.is_empty() {
+            return;
+        }
+        let ask = |args: &[&str], lines: Vec<String>| -> Option<Vec<String>> {
+            let input = lines.join("\n").into_bytes();
+            let out = self
+                .run_with(path, args.iter().copied(), None, Some(input))
+                .ok()
+                .filter(Output::ok)?;
+            Some(
+                String::from_utf8_lossy(&out.stdout)
+                    .lines()
+                    .map(str::to_owned)
+                    .collect(),
+            )
+        };
+        // Names with a newline in them cannot go through a line-based question: left alone.
+        let plain = |i: &usize| !changes[*i].path.contains('\n');
+        let deleted: Vec<usize> = deleted.into_iter().filter(plain).collect();
+        let added: Vec<usize> = added.into_iter().filter(plain).collect();
+        let Some(old_ids) = ask(
+            &["cat-file", "--batch-check=%(objectname) %(objecttype)"],
+            deleted
+                .iter()
+                .map(|i| format!("{baseline}:{}", changes[*i].path))
+                .collect(),
+        ) else {
+            return;
+        };
+        let Some(new_ids) = ask(
+            &["hash-object", "--stdin-paths"],
+            added.iter().map(|i| changes[*i].path.clone()).collect(),
+        ) else {
+            return;
+        };
+        if old_ids.len() != deleted.len() || new_ids.len() != added.len() {
+            return;
+        }
+        let mut taken = std::collections::HashSet::new();
+        let mut renames = Vec::new();
+        for (d, old) in deleted.iter().zip(&old_ids) {
+            let Some(id) = old.strip_suffix(" blob") else {
+                continue;
+            };
+            let found = added
+                .iter()
+                .zip(&new_ids)
+                .find(|(a, new)| *new == id && !taken.contains(*a));
+            if let Some((a, _)) = found {
+                taken.insert(*a);
+                renames.push((*d, *a));
+            }
+        }
+        for (d, a) in &renames {
+            let (old_path, new) = (changes[*d].path.clone(), changes[*a].path.clone());
+            changes[*a] = FileChange {
+                path: new,
+                old_path: Some(old_path),
+                status: FileChangeStatus::Renamed,
+                additions: Some(0),
+                deletions: Some(0),
+                binary: false,
+            };
+        }
+        let gone: std::collections::HashSet<usize> = renames.iter().map(|(d, _)| *d).collect();
+        let mut index = 0;
+        changes.retain(|_| {
+            let keep = !gone.contains(&index);
+            index += 1;
+            keep
+        });
+    }
+
+    /// The commit and the changed paths of a checkout.
+    fn snapshot(&self, cwd: &Path) -> Result<Snapshot, WorktreeError> {
+        let head = self.run_ok(cwd, ["rev-parse", "HEAD"])?.text();
+        let status = self.run_ok(
+            cwd,
+            ["status", "--porcelain=v1", "-z", "--untracked-files=all"],
+        )?;
+        let mut dirty = Vec::new();
+        let mut fields = status.stdout.split(|b| *b == 0).filter(|f| !f.is_empty());
+        while let Some(entry) = fields.next() {
+            let text = String::from_utf8_lossy(entry);
+            let (code, path) = text.split_at(3.min(text.len()));
+            if code.starts_with(['R', 'C']) {
+                // A rename lists the old path as the next field.
+                if let Some(old) = fields.next() {
+                    dirty.push(String::from_utf8_lossy(old).into_owned());
+                }
+            }
+            dirty.push(path.to_owned());
+        }
+        dirty.sort();
+        Ok(Snapshot { head, dirty })
+    }
+
     fn ref_exists(&self, cwd: &Path, reference: &str) -> Result<bool, WorktreeError> {
         Ok(self
             .run(cwd, ["rev-parse", "--verify", "--quiet", reference], None)?
@@ -326,6 +553,33 @@ fn capture(mut stream: impl Read) -> Vec<u8> {
         .read_to_end(&mut buffer);
     let _ = std::io::copy(&mut stream, &mut std::io::sink());
     buffer
+}
+
+/// Where the project's checkout stands: its commit and every path with changes (untracked
+/// files included).
+#[derive(Debug, PartialEq, Eq)]
+struct Snapshot {
+    head: String,
+    dirty: Vec<String>,
+}
+
+/// The paths a failed `git apply --check` named.
+fn conflicted_paths(stderr: &str) -> Vec<String> {
+    let mut paths: Vec<String> = stderr
+        .lines()
+        .filter_map(|line| line.strip_prefix("error: "))
+        .filter_map(|rest| {
+            if let Some(rest) = rest.strip_prefix("patch failed: ") {
+                rest.rsplit_once(':').map(|(path, _)| path.to_owned())
+            } else {
+                rest.split_once(": ").map(|(path, _)| path.to_owned())
+            }
+        })
+        .collect();
+    paths.sort();
+    paths.dedup();
+    paths.truncate(MAX_LISTED_FILES);
+    paths
 }
 
 fn first_line(text: &str) -> String {
@@ -426,6 +680,42 @@ fn parse_changes(status: &[String], numstat: &[String]) -> Vec<FileChange> {
         });
     }
     changes
+}
+
+/// A file that is new in the worktree and not yet known to Git, with its line count when it is
+/// a small text file. `None` if it is not there any more.
+fn new_file_change(root: &Path, file: String) -> Option<FileChange> {
+    const MAX_COUNTED: u64 = 1024 * 1024;
+    let full = root.join(&file);
+    let metadata = full.symlink_metadata().ok()?;
+    let (additions, binary) = if metadata.file_type().is_symlink() {
+        (Some(1), false)
+    } else if metadata.is_file() && metadata.len() <= MAX_COUNTED {
+        let bytes = fs::read(&full).ok()?;
+        if bytes.contains(&0) {
+            (None, true)
+        } else {
+            let pieces = bytes.split(|b| *b == b'\n').count();
+            let lines = if bytes.is_empty() {
+                0
+            } else if bytes.ends_with(b"\n") {
+                pieces - 1
+            } else {
+                pieces
+            };
+            (Some(u32::try_from(lines).unwrap_or(u32::MAX)), false)
+        }
+    } else {
+        (None, false)
+    };
+    Some(FileChange {
+        path: file,
+        old_path: None,
+        status: FileChangeStatus::Added,
+        additions,
+        deletions: additions.map(|_| 0),
+        binary,
+    })
 }
 
 fn head(branch: &str) -> String {
@@ -626,6 +916,223 @@ impl WorktreeManager for GitWorktreeManager {
         Ok(text)
     }
 
+    fn working_changes(
+        &self,
+        path: &Path,
+        baseline: &str,
+        only: Option<&[String]>,
+    ) -> Result<Vec<FileChange>, WorktreeError> {
+        Self::require_commit_id(baseline)?;
+        self.require_inside_root(path)?;
+        if let Some(only) = only {
+            if only.is_empty() {
+                return Ok(Vec::new());
+            }
+            for file in only {
+                Self::require_relative_path(file)?;
+            }
+        }
+        let specs: Vec<&str> =
+            only.map_or_else(Vec::new, |o| o.iter().map(String::as_str).collect());
+        // `--literal-pathspecs`: a file called `*.ts` is that file, not a pattern.
+        let tracked = |kind: &str| -> Result<Output, WorktreeError> {
+            let mut args = vec![
+                "--literal-pathspecs",
+                "diff",
+                kind,
+                "-z",
+                "-M",
+                "--no-ext-diff",
+                baseline,
+                "--",
+            ];
+            args.extend(&specs);
+            self.run_ok(path, args)
+        };
+        let mut changes = parse_changes(
+            &nul_separated_raw(&tracked("--name-status")?),
+            &nul_separated_raw(&tracked("--numstat")?),
+        );
+        let mut args = vec![
+            "--literal-pathspecs",
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+            "-z",
+            "--",
+        ];
+        args.extend(&specs);
+        let untracked = nul_separated(&self.run_ok(path, args)?);
+        for file in untracked {
+            if changes.len() >= MAX_CHANGESET_FILES {
+                break;
+            }
+            // Gone again between Git's listing and the read: not a change any more.
+            if let Some(change) = new_file_change(path, file) {
+                changes.push(change);
+            }
+        }
+        if only.is_none() {
+            self.pair_renames(path, baseline, &mut changes);
+        }
+        changes.sort_by(|a, b| a.path.cmp(&b.path));
+        Ok(changes)
+    }
+
+    fn working_diff(
+        &self,
+        path: &Path,
+        baseline: &str,
+        file: Option<&str>,
+        max_bytes: usize,
+    ) -> Result<String, WorktreeError> {
+        Self::require_commit_id(baseline)?;
+        self.require_inside_root(path)?;
+        if let Some(file) = file {
+            Self::require_relative_path(file)?;
+        }
+        let specs: Vec<&str> = file.into_iter().collect();
+        let mut args = vec![
+            "--literal-pathspecs",
+            "diff",
+            "--no-color",
+            "--no-ext-diff",
+            "-M",
+            baseline,
+            "--",
+        ];
+        args.extend(&specs);
+        let mut text = String::from_utf8_lossy(&self.run_ok(path, args)?.stdout).into_owned();
+        // New files Git does not know yet are changes too: shown as what they add.
+        let mut args = vec![
+            "--literal-pathspecs",
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+            "-z",
+            "--",
+        ];
+        args.extend(&specs);
+        for new in nul_separated(&self.run_ok(path, args)?)
+            .into_iter()
+            .take(MAX_CHANGESET_FILES)
+        {
+            if text.len() >= max_bytes {
+                break;
+            }
+            // `--no-index` exits 1 when the files differ, which is the point.
+            let shown = self.run(
+                path,
+                [
+                    "diff",
+                    "--no-index",
+                    "--no-color",
+                    "--no-ext-diff",
+                    "--",
+                    "/dev/null",
+                    new.as_str(),
+                ],
+                None,
+            )?;
+            if matches!(shown.code, Some(0 | 1)) {
+                text.push_str(&String::from_utf8_lossy(&shown.stdout));
+            }
+        }
+        if text.len() > max_bytes {
+            let mut cut = max_bytes;
+            while !text.is_char_boundary(cut) {
+                cut -= 1;
+            }
+            text.truncate(cut);
+        }
+        Ok(text)
+    }
+
+    fn read_file(
+        &self,
+        path: &Path,
+        file: &str,
+        max_bytes: usize,
+    ) -> Result<LiveFile, WorktreeError> {
+        self.require_inside_root(path)?;
+        if !is_plain_relative_path(file) {
+            return Err(WorktreeError::InvalidIdentifier(file.to_owned()));
+        }
+        let gone = |kind| LiveFile {
+            path: file.to_owned(),
+            kind,
+            content: None,
+            size: None,
+            truncated: false,
+        };
+        // Walk down from the worktree: a link anywhere on the way could lead out of it.
+        let parts: Vec<&str> = file.split('/').collect();
+        let mut current = path.to_path_buf();
+        for (index, part) in parts.iter().enumerate() {
+            current.push(part);
+            let metadata = match current.symlink_metadata() {
+                Ok(m) => m,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                    return Ok(gone(LiveFileKind::Deleted))
+                }
+                // A file where a folder was expected, and the like: it is not there.
+                Err(e) if e.kind() == std::io::ErrorKind::NotADirectory => {
+                    return Ok(gone(LiveFileKind::Deleted))
+                }
+                Err(e) => return Err(WorktreeError::Git(e.to_string())),
+            };
+            let last = index + 1 == parts.len();
+            if metadata.file_type().is_symlink() {
+                if last {
+                    return Ok(gone(LiveFileKind::Symlink));
+                }
+                return Err(WorktreeError::OutsideRoot(file.to_owned()));
+            }
+            if last && !metadata.is_file() {
+                return Ok(gone(LiveFileKind::NotFile));
+            }
+            if !last && !metadata.is_dir() {
+                return Ok(gone(LiveFileKind::Deleted));
+            }
+        }
+        let size = current.metadata().map(|m| m.len()).ok();
+        let mut bytes = Vec::new();
+        let opened = fs::File::open(&current);
+        let Ok(opened) = opened else {
+            // Removed between the look and the read.
+            return Ok(gone(LiveFileKind::Deleted));
+        };
+        opened
+            .take(max_bytes as u64 + 1)
+            .read_to_end(&mut bytes)
+            .map_err(|e| WorktreeError::Git(e.to_string()))?;
+        let truncated = bytes.len() > max_bytes;
+        bytes.truncate(max_bytes);
+        if bytes.contains(&0) {
+            return Ok(LiveFile {
+                path: file.to_owned(),
+                kind: LiveFileKind::Binary,
+                content: None,
+                size,
+                truncated: false,
+            });
+        }
+        // A cut in the middle of a character is not a reason to show a replacement mark.
+        let mut text = String::from_utf8_lossy(&bytes).into_owned();
+        if truncated {
+            while text.ends_with('\u{FFFD}') {
+                text.pop();
+            }
+        }
+        Ok(LiveFile {
+            path: file.to_owned(),
+            kind: LiveFileKind::Text,
+            content: Some(text),
+            size,
+            truncated,
+        })
+    }
+
     fn commit_all(&self, path: &Path, message: &str) -> Result<Option<String>, WorktreeError> {
         self.require_inside_root(path)?;
         let _write = self.lock();
@@ -783,6 +1290,222 @@ impl WorktreeManager for GitWorktreeManager {
             });
         }
         Err(WorktreeError::Git(first_line(&merged.stderr)))
+    }
+
+    fn apply_to_working_tree(
+        &self,
+        toplevel: &Path,
+        base_branch: &str,
+        branch: &str,
+    ) -> Result<ApplyOutcome, WorktreeError> {
+        Self::require_execution_branch(branch)?;
+        self.require_valid_base(toplevel, base_branch)?;
+        let _write = self.lock();
+        // Prepare: the checkout is on the base branch and no operation of the user's is half-done.
+        if self.current_branch(toplevel)?.as_deref() != Some(base_branch) {
+            return Err(WorktreeError::NotMergeable(
+                "the project checkout is no longer on the base branch".to_owned(),
+            ));
+        }
+        for marker in ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD"] {
+            if self.ref_exists(toplevel, marker)? {
+                return Err(WorktreeError::NotMergeable(
+                    "the project checkout is in the middle of a Git operation".to_owned(),
+                ));
+            }
+        }
+        // Snapshot: where the project is before anything is written.
+        let before = self.snapshot(toplevel)?;
+        // The changes are what the branch did since it forked from the base, whatever the base
+        // has done since: the same set a merge would bring, as a patch.
+        let fork = self
+            .run_ok(toplevel, ["merge-base", &head(base_branch), &head(branch)])?
+            .text();
+        Self::require_commit_id(&fork)?;
+        let files = nul_separated(&self.run_ok(
+            toplevel,
+            [
+                "diff",
+                "--name-only",
+                "-z",
+                "--no-renames",
+                "--no-ext-diff",
+                &fork,
+                &head(branch),
+                "--",
+            ],
+        )?);
+        if files.is_empty() {
+            return Ok(ApplyOutcome::Applied { files });
+        }
+        // Detect conflicts with the user's own work: a file the workflow changes that the
+        // working tree already has changes (or an untracked file) in is never overwritten.
+        let touched: std::collections::HashSet<&str> =
+            before.dirty.iter().map(String::as_str).collect();
+        let overlap: Vec<String> = files
+            .iter()
+            .filter(|f| touched.contains(f.as_str()))
+            .take(MAX_LISTED_FILES)
+            .cloned()
+            .collect();
+        if !overlap.is_empty() {
+            return Ok(ApplyOutcome::Conflict { files: overlap });
+        }
+        let patch = self
+            .run_ok(
+                toplevel,
+                [
+                    "diff",
+                    "--binary",
+                    "--full-index",
+                    "--no-color",
+                    "--no-ext-diff",
+                    "--no-renames",
+                    &fork,
+                    &head(branch),
+                    "--",
+                ],
+            )?
+            .stdout;
+        // Validate: the whole patch is checked against the working tree before a byte is written.
+        let check = self.run_with(
+            toplevel,
+            ["apply", "--check", "--whitespace=nowarn", "-"],
+            None,
+            Some(patch.clone()),
+        )?;
+        if !check.ok() {
+            let mut failed = conflicted_paths(&check.stderr);
+            if failed.is_empty() {
+                failed = files.iter().take(MAX_LISTED_FILES).cloned().collect();
+            }
+            return Ok(ApplyOutcome::Conflict { files: failed });
+        }
+        // Revalidate: nothing may have moved since the snapshot.
+        if self.snapshot(toplevel)? != before {
+            return Err(WorktreeError::NotMergeable(
+                "the project changed while the changes were being prepared".to_owned(),
+            ));
+        }
+        // Apply: working tree only. `git apply` writes all of the patch or none of it, and never
+        // touches the index, a ref or the history.
+        let applied = self.run_with(
+            toplevel,
+            ["apply", "--whitespace=nowarn", "-"],
+            None,
+            Some(patch),
+        )?;
+        if !applied.ok() {
+            return Err(WorktreeError::Git(first_line(&applied.stderr)));
+        }
+        self.verify_applied(toplevel, &before, &files)?;
+        Ok(ApplyOutcome::Applied { files })
+    }
+
+    fn revert_from_working_tree(
+        &self,
+        toplevel: &Path,
+        base_branch: &str,
+        branch: &str,
+        expected_head: &str,
+    ) -> Result<ApplyOutcome, WorktreeError> {
+        Self::require_execution_branch(branch)?;
+        self.require_valid_base(toplevel, base_branch)?;
+        Self::require_commit_id(expected_head)?;
+        let _write = self.lock();
+        if self.current_branch(toplevel)?.as_deref() != Some(base_branch) {
+            return Err(WorktreeError::NotMergeable(
+                "the project checkout is no longer on the base branch".to_owned(),
+            ));
+        }
+        for marker in ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD"] {
+            if self.ref_exists(toplevel, marker)? {
+                return Err(WorktreeError::NotMergeable(
+                    "the project checkout is in the middle of a Git operation".to_owned(),
+                ));
+            }
+        }
+        let before = self.snapshot(toplevel)?;
+        // With a new commit the applied changes may be part of it: they are no longer only
+        // uncommitted files, and taking them out would rewrite what the user committed.
+        if before.head != expected_head {
+            return Err(WorktreeError::NotMergeable(
+                "the project has new commits since the changes were applied".to_owned(),
+            ));
+        }
+        let (files, patch) = self.branch_patch(toplevel, base_branch, branch)?;
+        if files.is_empty() {
+            return Ok(ApplyOutcome::Applied { files });
+        }
+        // The patch, reversed, is checked against the working tree as a whole: any applied file the
+        // user changed since no longer matches it, and then nothing at all is written.
+        let check = self.run_with(
+            toplevel,
+            ["apply", "-R", "--check", "--whitespace=nowarn", "-"],
+            None,
+            Some(patch.clone()),
+        )?;
+        if !check.ok() {
+            let mut failed = conflicted_paths(&check.stderr);
+            if failed.is_empty() {
+                failed = files.iter().take(MAX_LISTED_FILES).cloned().collect();
+            }
+            return Ok(ApplyOutcome::Conflict { files: failed });
+        }
+        if self.snapshot(toplevel)? != before {
+            return Err(WorktreeError::NotMergeable(
+                "the project changed while the changes were being taken back".to_owned(),
+            ));
+        }
+        let reverted = self.run_with(
+            toplevel,
+            ["apply", "-R", "--whitespace=nowarn", "-"],
+            None,
+            Some(patch),
+        )?;
+        if !reverted.ok() {
+            return Err(WorktreeError::Git(first_line(&reverted.stderr)));
+        }
+        let after = self.snapshot(toplevel)?;
+        if after.head != before.head {
+            return Err(WorktreeError::Git(
+                "the project's HEAD moved while taking the changes back".to_owned(),
+            ));
+        }
+        let dirty: std::collections::HashSet<&str> =
+            after.dirty.iter().map(String::as_str).collect();
+        if let Some(left) = files.iter().find(|f| dirty.contains(f.as_str())) {
+            return Err(WorktreeError::Git(format!(
+                "taken back, but {left} still differs from the commit"
+            )));
+        }
+        Ok(ApplyOutcome::Applied { files })
+    }
+
+    fn restore(&self, toplevel: &Path, path: &Path, branch: &str) -> Result<(), WorktreeError> {
+        Self::require_execution_branch(branch)?;
+        self.require_inside_root(path)?;
+        let _write = self.lock();
+        if path.symlink_metadata().is_ok() {
+            return Err(WorktreeError::Collision(path.display().to_string()));
+        }
+        if !self.ref_exists(toplevel, &head(branch))? {
+            return Err(WorktreeError::NotFound(branch.to_owned()));
+        }
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|e| WorktreeError::Git(e.to_string()))?;
+        }
+        // The branch by name (it is one Atlas generated): spelled as a ref, Git would detach.
+        self.run_ok(
+            toplevel,
+            [
+                OsStr::new("worktree"),
+                OsStr::new("add"),
+                path.as_os_str(),
+                OsStr::new(branch),
+            ],
+        )?;
+        Ok(())
     }
 
     fn remove(&self, toplevel: &Path, path: &Path) -> Result<(), WorktreeError> {

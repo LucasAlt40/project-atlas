@@ -72,6 +72,10 @@ const COMMANDS: &[&str] = &[
     "discard_workflow_changes",
     "list_ides",
     "open_workflow_in_ide",
+    "get_live_workspace",
+    "refresh_live_workspace",
+    "get_live_file",
+    "get_live_diff",
 ];
 
 fn main() {

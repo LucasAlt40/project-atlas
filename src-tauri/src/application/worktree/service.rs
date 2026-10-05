@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use super::{
-    Assessment, BaseReadiness, MergeOutcome, NewWorktree, WorktreeError, WorktreeLayout,
-    WorktreeManager,
+    ApplyOutcome, Assessment, BaseReadiness, MergeOutcome, NewWorktree, UnapplyOutcome,
+    WorktreeError, WorktreeLayout, WorktreeManager,
 };
 use crate::application::config::ConfigRepository;
 use crate::application::process::ExecutionScope;
@@ -41,6 +41,29 @@ impl From<ExecutionStatus> for RunOutcome {
             Self::Ended
         }
     }
+}
+
+/// A workflow worktree that may be looked at while the run is going: checked to be the folder
+/// Atlas made for that run, on the run's branch.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LiveTarget {
+    pub run_id: String,
+    pub execution_id: String,
+    pub path: PathBuf,
+    pub branch: String,
+    /// The commit the workflow started from.
+    pub baseline: String,
+}
+
+/// Why a worktree cannot be looked at.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LiveTargetError {
+    /// Not a workflow's primary worktree (or not known at all).
+    Unknown,
+    /// The folder is gone.
+    Missing,
+    /// The folder is not what Atlas made, or its branch was switched.
+    Invalid,
 }
 
 /// What a step changed in a workflow's worktree.
@@ -81,6 +104,10 @@ struct Facts<'a> {
     /// The worktree is the folder Atlas made for this execution and is on its branch.
     consistent: bool,
     uncommitted: bool,
+    /// The changes go into the project's working tree, uncommitted (a workflow's), instead of
+    /// into its history. The user's own uncommitted work is then not an obstacle: only a file
+    /// both have changed is.
+    working_tree: bool,
     assessment: Option<&'a Assessment>,
     readiness: Option<BaseReadiness>,
 }
@@ -116,6 +143,7 @@ fn decide(facts: &Facts<'_>) -> Decision {
     }
     match facts.readiness {
         Some(BaseReadiness::Ready) => {}
+        Some(BaseReadiness::Dirty) if facts.working_tree => {}
         Some(BaseReadiness::Dirty) => {
             return Decision::Blocked(BlockReason::BaseDirty, Recommendation::Review)
         }
@@ -198,6 +226,19 @@ impl WorktreeService {
                 .iter()
                 .find(|w| w.execution_id == execution_id)
                 .cloned()
+        })
+    }
+
+    /// The primary worktree of a workflow run, by the run's id.
+    pub fn primary_of_run(&self, run_id: &str) -> Option<String> {
+        self.config.read(|config| {
+            config
+                .worktrees
+                .iter()
+                .find(|w| {
+                    w.shared_with.is_none() && w.workflow_execution_id.as_deref() == Some(run_id)
+                })
+                .map(|w| w.execution_id.clone())
         })
     }
 
@@ -340,8 +381,16 @@ impl WorktreeService {
         })
     }
 
-    /// The Git permission the agent's policy gives. Anything unknown is `Denied`.
+    /// The Git permission that governs what Atlas does with this worktree. For a single agent's
+    /// worktree it is the agent's policy (anything unknown is `Denied`): its work is merged into
+    /// the project's history. A workflow's worktree is different: Atlas saves the run's work on the
+    /// run's own isolated branch and applies it to the project's *working tree*, uncommitted. No
+    /// history of the project is written, so an agent's Git-write policy, which is about what the
+    /// agent may do to history, has nothing to say about it: the user's Apply is the decision.
     fn git_write(&self, worktree: &ExecutionWorktree) -> Permission {
+        if Self::delivers_to_working_tree(worktree) {
+            return Permission::Allowed;
+        }
         self.git_write_of(
             &worktree.workspace_id,
             &worktree.agent_id,
@@ -428,6 +477,101 @@ impl WorktreeService {
         self.apply(execution_id, evaluated, RunOutcome::Completed)
     }
 
+    /// Where the project's checkout is (its `HEAD`), for recording what an apply was made on.
+    pub fn project_head(&self, worktree: &ExecutionWorktree) -> Option<String> {
+        self.manager
+            .head_commit(Path::new(&worktree.repository_path))
+            .ok()
+    }
+
+    /// Takes back out of the project what [`Self::merge`] applied to its working tree, and puts
+    /// the work back in an isolated worktree (so it can be looked at, or applied again). Only the
+    /// applied files are touched, and only while they are as they were applied and the project is
+    /// still at `expected_head`; otherwise nothing changes and the outcome says why.
+    ///
+    /// # Errors
+    ///
+    /// Fails if there is no such worktree, it is not a workflow's whose changes were applied, or
+    /// another operation is running.
+    pub fn unapply(
+        &self,
+        primary_id: &str,
+        expected_head: &str,
+    ) -> Result<UnapplyOutcome, WorktreeError> {
+        let _busy = self.begin(primary_id)?;
+        let worktree = self
+            .get(primary_id)
+            .ok_or_else(|| WorktreeError::NotFound(primary_id.to_owned()))?;
+        if !Self::delivers_to_working_tree(&worktree)
+            || worktree.shared_with.is_some()
+            || worktree.merge_status != MergeStatus::Applied
+        {
+            return Err(WorktreeError::InvalidState(format!(
+                "{:?} / {:?}",
+                worktree.status, worktree.merge_status
+            )));
+        }
+        let toplevel = Path::new(&worktree.repository_path);
+        let path = Path::new(&worktree.worktree_path);
+        // The folder first: it only adds a folder, and is taken away again if the changes
+        // cannot be taken back.
+        let restored = if path.exists() {
+            false
+        } else {
+            self.layout
+                .is_place_of(path, &worktree.workspace_id, &worktree.execution_id)
+                && self
+                    .manager
+                    .restore(toplevel, path, &worktree.branch_name)
+                    .is_ok()
+        };
+        let outcome = self.manager.revert_from_working_tree(
+            toplevel,
+            &worktree.base_branch,
+            &worktree.branch_name,
+            expected_head,
+        );
+        let undo_restore = |this: &Self| {
+            if restored {
+                let _ = this.manager.remove(toplevel, path);
+            }
+        };
+        match outcome {
+            Ok(ApplyOutcome::Applied { .. }) => {
+                let updated = self.update(primary_id, |w| {
+                    w.status = if path.is_dir() {
+                        WorktreeStatus::Completed
+                    } else {
+                        WorktreeStatus::CleanupPending
+                    };
+                    w.merge_status = MergeStatus::Pending;
+                    w.block_reason = None;
+                    w.recommendation = Some(Recommendation::Review);
+                    w.clone()
+                })?;
+                Ok(UnapplyOutcome::Reverted(Box::new(updated)))
+            }
+            Ok(ApplyOutcome::Conflict { files }) => {
+                undo_restore(self);
+                Ok(UnapplyOutcome::Conflict(files))
+            }
+            Err(WorktreeError::NotMergeable(_)) => {
+                undo_restore(self);
+                Ok(UnapplyOutcome::ProjectMoved)
+            }
+            Err(error) => {
+                undo_restore(self);
+                Err(error)
+            }
+        }
+    }
+
+    /// A workflow's code never enters the project as a commit: it is applied to the working
+    /// tree and the user commits it. Only a single agent's own worktree is merged.
+    fn delivers_to_working_tree(worktree: &ExecutionWorktree) -> bool {
+        worktree.workflow_execution_id.is_some()
+    }
+
     /// Whether the worktree has changes that are not in a commit (or cannot be told).
     fn has_uncommitted(&self, path: &Path) -> bool {
         self.manager
@@ -477,6 +621,7 @@ impl WorktreeService {
             automatic,
             consistent,
             uncommitted,
+            working_tree: Self::delivers_to_working_tree(worktree),
             assessment: assessment.as_ref(),
             readiness,
         });
@@ -568,6 +713,10 @@ impl WorktreeService {
     }
 
     fn attempt_merge(&self, worktree: &ExecutionWorktree, merge: &mut Merge) {
+        if Self::delivers_to_working_tree(worktree) {
+            self.attempt_apply(worktree, merge);
+            return;
+        }
         let message = format!("Merge {} ({})", worktree.branch_name, worktree.execution_id);
         let outcome = self.manager.merge(
             Path::new(&worktree.repository_path),
@@ -591,6 +740,49 @@ impl WorktreeService {
                 merge.block = Some(BlockReason::Undetermined);
                 merge.recommendation = Some(Recommendation::Review);
             }
+        }
+    }
+
+    /// Puts a workflow's changes in the project's working tree, uncommitted. The branch stays:
+    /// it is the record of what was applied, and nothing deletes commits that are not merged.
+    fn attempt_apply(&self, worktree: &ExecutionWorktree, merge: &mut Merge) {
+        let outcome = self.manager.apply_to_working_tree(
+            Path::new(&worktree.repository_path),
+            &worktree.base_branch,
+            &worktree.branch_name,
+        );
+        match outcome {
+            Ok(ApplyOutcome::Applied { .. }) => {
+                merge.status = MergeStatus::Applied;
+                merge.cleaned = Some(self.cleanup_folder(worktree));
+            }
+            Ok(ApplyOutcome::Conflict { files }) => {
+                merge.status = MergeStatus::Conflict;
+                merge.block = Some(BlockReason::Conflict);
+                merge.recommendation = Some(Recommendation::ResolveConflicts);
+                merge.conflicts = files;
+            }
+            Err(_) => {
+                merge.status = MergeStatus::Blocked;
+                merge.block = Some(BlockReason::Undetermined);
+                merge.recommendation = Some(Recommendation::Review);
+            }
+        }
+    }
+
+    /// Removes only the worktree folder, keeping the branch (see [`Self::attempt_apply`]).
+    fn cleanup_folder(&self, worktree: &ExecutionWorktree) -> WorktreeStatus {
+        let path = Path::new(&worktree.worktree_path);
+        let toplevel = Path::new(&worktree.repository_path);
+        let gone = !path.exists()
+            || (self
+                .layout
+                .is_worktree_of(path, &worktree.workspace_id, &worktree.execution_id)
+                && self.manager.remove(toplevel, path).is_ok());
+        if gone {
+            WorktreeStatus::Cleaned
+        } else {
+            WorktreeStatus::CleanupPending
         }
     }
 
@@ -630,14 +822,20 @@ impl WorktreeService {
             .into_iter()
             .filter(|w| w.status == WorktreeStatus::CleanupPending)
             .filter(|w| {
-                w.merge_status == MergeStatus::Merged
-                    || w.merge_status == MergeStatus::NothingToMerge
+                matches!(
+                    w.merge_status,
+                    MergeStatus::Merged | MergeStatus::NothingToMerge | MergeStatus::Applied
+                )
             })
         {
             let Ok(_busy) = self.begin(&worktree.execution_id) else {
                 continue;
             };
-            let status = self.cleanup_inner(&worktree, true);
+            let status = if worktree.merge_status == MergeStatus::Applied {
+                self.cleanup_folder(&worktree)
+            } else {
+                self.cleanup_inner(&worktree, true)
+            };
             let _ = self.update(&worktree.execution_id, |w| w.status = status);
         }
     }
@@ -822,6 +1020,99 @@ impl WorktreeService {
             .is_some_and(|primary| self.is_reopenable(&primary))
     }
 
+    /// The workflow worktree `primary_id`, if it may be looked at: the only way the folder
+    /// observed by the Live Workspace is ever chosen. It is derived from what Atlas stored, never
+    /// from a path anyone sends. Looks only: takes no lock an agent's Git would wait for.
+    ///
+    /// # Errors
+    ///
+    /// See [`LiveTargetError`].
+    pub fn live_target(&self, primary_id: &str) -> Result<LiveTarget, LiveTargetError> {
+        let primary = self.get(primary_id).ok_or(LiveTargetError::Unknown)?;
+        let run_id = primary
+            .workflow_execution_id
+            .clone()
+            .filter(|_| primary.shared_with.is_none())
+            .ok_or(LiveTargetError::Unknown)?;
+        let path = PathBuf::from(&primary.worktree_path);
+        // `symlink_metadata`: a link in place of the folder is not the folder.
+        match path.symlink_metadata() {
+            Ok(m) if m.is_dir() => {}
+            Ok(_) => return Err(LiveTargetError::Invalid),
+            Err(_) => return Err(LiveTargetError::Missing),
+        }
+        let ours = self
+            .layout
+            .is_worktree_of(&path, &primary.workspace_id, &primary.execution_id)
+            && self.manager.get_branch(&path).as_deref() == Ok(primary.branch_name.as_str());
+        if !ours {
+            return Err(LiveTargetError::Invalid);
+        }
+        Ok(LiveTarget {
+            run_id,
+            execution_id: primary.execution_id,
+            path,
+            branch: primary.branch_name,
+            baseline: primary.base_commit,
+        })
+    }
+
+    /// The files of the worktree as they are now, against the workflow's baseline (see
+    /// [`WorktreeManager::working_changes`]); with `only`, just those paths.
+    ///
+    /// # Errors
+    ///
+    /// Fails if Git cannot read the worktree.
+    pub fn live_changes(
+        &self,
+        target: &LiveTarget,
+        only: Option<&[String]>,
+    ) -> Result<Vec<FileChange>, WorktreeError> {
+        self.manager
+            .working_changes(&target.path, &target.baseline, only)
+    }
+
+    /// One file of the worktree as it is now.
+    ///
+    /// # Errors
+    ///
+    /// If the path is not a plain relative path or leads out of the worktree.
+    pub fn live_file(
+        &self,
+        target: &LiveTarget,
+        file: &str,
+    ) -> Result<crate::domain::live_workspace::LiveFile, WorktreeError> {
+        self.manager.read_file(
+            &target.path,
+            file,
+            crate::domain::live_workspace::MAX_LIVE_FILE_BYTES,
+        )
+    }
+
+    /// The diff of the worktree as it is now against the workflow's baseline (of one file when
+    /// given).
+    ///
+    /// # Errors
+    ///
+    /// If the path is not plain, or Git cannot read the worktree.
+    pub fn live_diff(
+        &self,
+        target: &LiveTarget,
+        file: Option<&str>,
+    ) -> Result<String, WorktreeError> {
+        self.manager.working_diff(
+            &target.path,
+            &target.baseline,
+            file,
+            crate::domain::live_workspace::MAX_LIVE_DIFF_BYTES,
+        )
+    }
+
+    /// The commit the worktree is at (the agents' saved work), if it can be read.
+    pub fn live_head(&self, target: &LiveTarget) -> Option<String> {
+        self.manager.head_commit(&target.path).ok()
+    }
+
     fn is_reopenable(&self, primary: &ExecutionWorktree) -> bool {
         let path = Path::new(&primary.worktree_path);
         primary.shared_with.is_none()
@@ -974,7 +1265,10 @@ impl WorktreeService {
                 primary.status,
                 WorktreeStatus::Active | WorktreeStatus::Creating | WorktreeStatus::Cleaned
             )
-            && primary.merge_status != MergeStatus::Merged;
+            && !matches!(
+                primary.merge_status,
+                MergeStatus::Merged | MergeStatus::Applied
+            );
         if !removable {
             return Err(WorktreeError::InvalidState(format!(
                 "{:?} / {:?}",

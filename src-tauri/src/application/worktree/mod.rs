@@ -22,10 +22,11 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 pub use layout::WorktreeLayout;
-pub use service::{RunOutcome, StepDelta, WorktreeService};
+pub use service::{LiveTarget, LiveTargetError, RunOutcome, StepDelta, WorktreeService};
 
 use super::errors::{AppError, ErrorCode};
 use crate::domain::execution::FailureKind;
+use crate::domain::live_workspace::LiveFile;
 use crate::domain::worktree::FileChange;
 
 /// Why a worktree operation did not happen.
@@ -167,6 +168,28 @@ pub enum MergeOutcome {
     },
 }
 
+/// What bringing a branch's changes into the project's working tree did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ApplyOutcome {
+    /// The files are in the working tree, uncommitted. Nothing else changed.
+    Applied { files: Vec<String> },
+    /// The working tree has changes of its own in these files (or Git cannot place the patch
+    /// there). Nothing was written.
+    Conflict { files: Vec<String> },
+}
+
+/// What taking applied changes back out of the project did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum UnapplyOutcome {
+    /// The applied files are as they were before; the work is in an isolated worktree again.
+    Reverted(Box<crate::domain::worktree::ExecutionWorktree>),
+    /// These applied files were changed in the project since: nothing was touched.
+    Conflict(Vec<String>),
+    /// The project is on another branch, in the middle of an operation, or has new commits since
+    /// the apply (the changes may be part of them): nothing was touched.
+    ProjectMoved,
+}
+
 /// Port: everything Atlas does with Git for worktrees. Implemented in `infrastructure/`. Every
 /// method takes values Atlas derived (see [`WorktreeLayout`]); implementations still check
 /// them, and never go through a shell. Nothing here discards work: no reset, clean or stash,
@@ -251,6 +274,52 @@ pub trait WorktreeManager: Send + Sync {
         max_bytes: usize,
     ) -> Result<String, WorktreeError>;
 
+    /// What the files of a worktree are *right now* compared with `baseline` (a commit): tracked
+    /// changes (saved or not) and new untracked files, with the lines added and removed. With
+    /// `only`, just the files at or under those relative paths (a path that no longer differs is
+    /// simply absent from the answer). Read-only: no lock is taken that an agent's own Git
+    /// commands would wait for, nothing is written, not even Git's stat cache.
+    ///
+    /// # Errors
+    ///
+    /// Fails if `baseline` is not a commit id, a path is not a plain relative path, or Git cannot
+    /// read the worktree.
+    fn working_changes(
+        &self,
+        path: &Path,
+        baseline: &str,
+        only: Option<&[String]>,
+    ) -> Result<Vec<FileChange>, WorktreeError>;
+
+    /// The unified diff of the worktree's files *as they are now* against `baseline`, of one file
+    /// when `file` is given (new, untracked files included), cut at `max_bytes`. Read from Git
+    /// every time; read-only.
+    ///
+    /// # Errors
+    ///
+    /// Fails if `baseline` is not a commit id, `file` is not a plain relative path, or Git fails.
+    fn working_diff(
+        &self,
+        path: &Path,
+        baseline: &str,
+        file: Option<&str>,
+        max_bytes: usize,
+    ) -> Result<String, WorktreeError>;
+
+    /// One file of a worktree as it is now. `file` is relative to `path` and nothing that leaves
+    /// it is followed: a link is reported, not read; a link in a folder of the path is refused.
+    ///
+    /// # Errors
+    ///
+    /// [`WorktreeError::InvalidIdentifier`] if `file` is not a plain relative path;
+    /// [`WorktreeError::OutsideRoot`] if reaching it would pass through a link.
+    fn read_file(
+        &self,
+        path: &Path,
+        file: &str,
+        max_bytes: usize,
+    ) -> Result<LiveFile, WorktreeError>;
+
     /// Commits everything in the worktree to its own branch (hooks off), when there is
     /// something. Returns the commit, or `None` when nothing changed.
     ///
@@ -296,6 +365,49 @@ pub trait WorktreeManager: Send + Sync {
         branch: &str,
         message: &str,
     ) -> Result<MergeOutcome, WorktreeError>;
+
+    /// Brings what the branch changed into the base checkout's *working tree*, as uncommitted
+    /// changes. Never commits, merges, stages, moves a ref or touches a remote. Files the
+    /// checkout already has changes in are never overwritten: that is a conflict, and nothing
+    /// is written. The patch is checked as a whole before any file is.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the checkout is not on the base branch, is in the middle of a Git operation, or
+    /// changed while the apply was being prepared, or Git fails.
+    fn apply_to_working_tree(
+        &self,
+        toplevel: &Path,
+        base_branch: &str,
+        branch: &str,
+    ) -> Result<ApplyOutcome, WorktreeError>;
+
+    /// Takes back out of the base checkout's working tree what [`Self::apply_to_working_tree`]
+    /// put there: the same patch, reversed, and nothing else (the user's other changes stay).
+    /// Only while the checkout is still on the base branch at `expected_head`: with a new commit
+    /// the changes may be part of it, and this never touches history. The reversed patch is
+    /// checked as a whole first: if any applied file was changed since, that is a conflict and
+    /// nothing is written.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the checkout is not on the base branch, is not at `expected_head`, is in the middle
+    /// of a Git operation, or changed while this was being prepared, or Git fails.
+    fn revert_from_working_tree(
+        &self,
+        toplevel: &Path,
+        base_branch: &str,
+        branch: &str,
+        expected_head: &str,
+    ) -> Result<ApplyOutcome, WorktreeError>;
+
+    /// Makes the worktree folder of an execution's existing branch again (after its changes were
+    /// applied and the folder removed). Creates no branch and forces nothing.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the folder exists, is not inside Atlas's folder, or the branch does not.
+    fn restore(&self, toplevel: &Path, path: &Path, branch: &str) -> Result<(), WorktreeError>;
 
     /// Removes the worktree folder (never forced: a worktree with untracked files is kept).
     ///

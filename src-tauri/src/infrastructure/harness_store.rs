@@ -4,7 +4,7 @@ use std::path::{Component, Path, PathBuf};
 use crate::application::errors::{AppError, ErrorCode};
 use crate::application::harness::manifest::MAX_MANIFEST_BYTES;
 use crate::application::harness::HarnessStore;
-use crate::domain::harness::{HarnessFile, WriteReport};
+use crate::domain::harness::{GitIgnoreStatus, HarnessFile, WriteReport};
 
 const ATLAS_DIR: &str = ".atlas";
 const MAX_CONTEXT_BYTES: u64 = 64 * 1024;
@@ -159,6 +159,38 @@ impl HarnessStore for FsHarnessStore {
         }
         Ok(report)
     }
+
+    fn ensure_gitignored(&self, project_path: &str) -> Result<GitIgnoreStatus, AppError> {
+        let project = fs::canonicalize(project_path).map_err(|e| failed(e.to_string()))?;
+        // Only a project inside a Git repository has anything to be ignored from.
+        if !project.ancestors().any(|dir| dir.join(".git").exists()) {
+            return Ok(GitIgnoreStatus::NoRepository);
+        }
+        let file = project.join(".gitignore");
+        let mut text = match fs::symlink_metadata(&file) {
+            Ok(meta) if meta.is_file() => {
+                fs::read_to_string(&file).map_err(|e| failed(e.to_string()))?
+            }
+            Ok(_) => return Err(failed(".gitignore is not a regular file".to_owned())),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+            Err(e) => return Err(failed(e.to_string())),
+        };
+        let ignored = text
+            .lines()
+            .any(|line| matches!(line.trim(), ".atlas" | ".atlas/" | "/.atlas" | "/.atlas/"));
+        if ignored {
+            return Ok(GitIgnoreStatus::AlreadyIgnored);
+        }
+        if !text.is_empty() && !text.ends_with('\n') {
+            text.push('\n');
+        }
+        text.push_str("# Atlas: local project knowledge, kept out of Git\n.atlas/\n");
+        // Written beside it and renamed, so a crash never leaves half a file.
+        let temp = project.join(".gitignore.atlas-tmp");
+        fs::write(&temp, text).map_err(|e| failed(e.to_string()))?;
+        fs::rename(&temp, &file).map_err(|e| failed(e.to_string()))?;
+        Ok(GitIgnoreStatus::Added)
+    }
 }
 
 #[cfg(test)]
@@ -210,7 +242,7 @@ mod tests {
             Some("# Stack\n")
         );
         assert_eq!(FsHarnessStore.read_context(&path, "../project"), None);
-        // `.atlas/` is never added to .gitignore: it belongs to the project.
+        // Writing the Harness never touches .gitignore: keeping it out of Git is its own, asked-for step.
         assert!(!dir.join(".gitignore").exists());
     }
 
@@ -292,5 +324,89 @@ mod tests {
 
         assert!(!FsHarnessStore.has_atlas_dir(&path));
         assert_eq!(FsHarnessStore.read_manifest(&path).unwrap(), None);
+    }
+
+    fn repository(name: &str) -> PathBuf {
+        let dir = project(name);
+        fs::create_dir_all(dir.join(".git")).unwrap();
+        dir
+    }
+
+    fn ignore(dir: &Path) -> GitIgnoreStatus {
+        FsHarnessStore
+            .ensure_gitignored(&dir.to_string_lossy())
+            .unwrap()
+    }
+
+    #[test]
+    fn atlas_is_added_to_a_new_gitignore_in_a_repository() {
+        let dir = repository("ignore-new");
+
+        assert_eq!(ignore(&dir), GitIgnoreStatus::Added);
+
+        let text = fs::read_to_string(dir.join(".gitignore")).unwrap();
+        assert!(text.lines().any(|l| l == ".atlas/"), "{text}");
+        assert!(!dir.join(".gitignore.atlas-tmp").exists());
+    }
+
+    #[test]
+    fn an_existing_gitignore_only_gains_one_entry_and_keeps_everything_else() {
+        let dir = repository("ignore-append");
+        fs::write(dir.join(".gitignore"), "target/\n*.log").unwrap();
+
+        assert_eq!(ignore(&dir), GitIgnoreStatus::Added);
+
+        let text = fs::read_to_string(dir.join(".gitignore")).unwrap();
+        assert!(text.starts_with("target/\n*.log\n"), "{text}");
+        assert!(text.ends_with(".atlas/\n"), "{text}");
+        assert_eq!(text.matches(".atlas/").count(), 1);
+    }
+
+    #[test]
+    fn an_entry_that_already_ignores_it_is_left_alone_and_a_second_run_changes_nothing() {
+        for existing in [".atlas", ".atlas/", "/.atlas", "/.atlas/", "  .atlas/  "] {
+            let dir = repository("ignore-already");
+            let original = format!("target/\n{existing}\n");
+            fs::write(dir.join(".gitignore"), &original).unwrap();
+
+            assert_eq!(
+                ignore(&dir),
+                GitIgnoreStatus::AlreadyIgnored,
+                "{existing:?}"
+            );
+            assert_eq!(
+                fs::read_to_string(dir.join(".gitignore")).unwrap(),
+                original
+            );
+        }
+        let dir = repository("ignore-twice");
+        assert_eq!(ignore(&dir), GitIgnoreStatus::Added);
+        let once = fs::read_to_string(dir.join(".gitignore")).unwrap();
+        assert_eq!(ignore(&dir), GitIgnoreStatus::AlreadyIgnored);
+        assert_eq!(fs::read_to_string(dir.join(".gitignore")).unwrap(), once);
+    }
+
+    #[test]
+    fn outside_a_repository_nothing_is_created() {
+        let dir = project("ignore-no-repo");
+
+        // A temp folder is not inside a repository on any machine that runs the tests.
+        if dir.ancestors().any(|d| d.join(".git").exists()) {
+            return;
+        }
+        assert_eq!(ignore(&dir), GitIgnoreStatus::NoRepository);
+        assert!(!dir.join(".gitignore").exists());
+    }
+
+    #[test]
+    fn a_gitignore_that_is_not_a_regular_file_is_refused() {
+        let dir = repository("ignore-link");
+        fs::write(dir.join("elsewhere"), "x\n").unwrap();
+        std::os::unix::fs::symlink(dir.join("elsewhere"), dir.join(".gitignore")).unwrap();
+
+        assert!(FsHarnessStore
+            .ensure_gitignored(&dir.to_string_lossy())
+            .is_err());
+        assert_eq!(fs::read_to_string(dir.join("elsewhere")).unwrap(), "x\n");
     }
 }

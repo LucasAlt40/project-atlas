@@ -7,6 +7,7 @@ use std::sync::Arc;
 use serde::Deserialize;
 
 use super::engine::WorkflowEngine;
+use super::repair::{self, RepairChoice, RepairProposal};
 use super::templates::{self, AgentChoice, Role, TemplateInfo};
 use super::validation::{validate, AgentCatalog, ValidationReport};
 use crate::application::agents::AgentService;
@@ -16,8 +17,8 @@ use crate::application::support::{new_id, now_ms};
 use crate::application::workspace::WorkspaceService;
 use crate::domain::result_contract::ResultContract;
 use crate::domain::workflow::{
-    NodeState, Viewport, Workflow, WorkflowEdge, WorkflowExecution, WorkflowExecutionStatus,
-    WorkflowMode, WorkflowNode, WorkflowStatus,
+    NodeState, RouteRepair, Viewport, Workflow, WorkflowEdge, WorkflowExecution,
+    WorkflowExecutionStatus, WorkflowMode, WorkflowNode, WorkflowStatus,
 };
 
 /// Finished runs kept per workspace; the oldest go first.
@@ -185,6 +186,7 @@ impl WorkflowService {
             nodes: new.nodes,
             edges: new.edges,
             viewport: new.viewport,
+            route_repairs: Vec::new(),
             created_at: now,
             updated_at: now,
         };
@@ -217,6 +219,12 @@ impl WorkflowService {
                 placed: workspace.layout.is_placed(&agent.id),
                 id: agent.id,
                 personality_id: agent.personality_id,
+                outcomes: agent
+                    .result_contract
+                    .outcomes
+                    .iter()
+                    .map(|o| o.id.clone())
+                    .collect(),
             })
             .collect();
         let name = name.map(clean_name).transpose()?;
@@ -262,7 +270,15 @@ impl WorkflowService {
     /// # Errors
     ///
     /// Fails if the workflow is unknown, has a run in progress, or saving fails.
-    pub fn update(&self, mut workflow: Workflow) -> Result<Workflow, AppError> {
+    pub fn update(&self, workflow: Workflow) -> Result<Workflow, AppError> {
+        self.save_definition(workflow, Vec::new())
+    }
+
+    fn save_definition(
+        &self,
+        mut workflow: Workflow,
+        repairs: Vec<RouteRepair>,
+    ) -> Result<Workflow, AppError> {
         let current = self
             .get(&workflow.id)
             .ok_or_else(|| AppError::new(ErrorCode::WorkflowNotFound))?;
@@ -279,6 +295,14 @@ impl WorkflowService {
         } else {
             current.version + 1
         };
+        // The history of repairs is only ever added to, by a confirmed repair.
+        workflow.route_repairs.clone_from(&current.route_repairs);
+        workflow
+            .route_repairs
+            .extend(repairs.into_iter().map(|mut r| {
+                r.version = workflow.version;
+                r
+            }));
         workflow.updated_at = now_ms();
         workflow.status = self.status_of(&workflow);
         let saved = workflow.clone();
@@ -292,6 +316,32 @@ impl WorkflowService {
             Ok(())
         })?;
         Ok(workflow)
+    }
+
+    /// The repairs Atlas can propose for the routes that cannot match their agent's contract.
+    /// Nothing is changed.
+    pub fn route_repairs(&self, workflow: &Workflow) -> Vec<RepairProposal> {
+        repair::propose(workflow, &Catalog(&self.agents))
+    }
+
+    /// Applies the repairs the user confirmed, as a new version of the workflow with a record of
+    /// each: what the edge tested before, what it tests now.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the workflow is unknown or running, a choice is stale or names an outcome the
+    /// agent does not declare (nothing is then changed), or saving fails.
+    pub fn repair_routes(
+        &self,
+        workflow_id: &str,
+        choices: &[RepairChoice],
+    ) -> Result<Workflow, AppError> {
+        let mut workflow = self
+            .get(workflow_id)
+            .ok_or_else(|| AppError::new(ErrorCode::WorkflowNotFound))?;
+        let records = repair::apply(&mut workflow, &Catalog(&self.agents), choices, now_ms())
+            .map_err(|_| AppError::new(ErrorCode::WorkflowInvalid))?;
+        self.save_definition(workflow, records)
     }
 
     /// # Errors
@@ -334,6 +384,26 @@ impl WorkflowService {
     ///
     /// Fails if the workflow is unknown, invalid, already running, or the task is empty.
     pub fn start(&self, workflow_id: &str, task: &str) -> Result<WorkflowExecution, AppError> {
+        self.start_checked(workflow_id, task, true)
+    }
+
+    /// Starts without validating: only tests use it, to watch the engine on a definition
+    /// validation would have refused (a missing route must still end the run deterministically).
+    #[cfg(test)]
+    pub fn start_unvalidated(
+        &self,
+        workflow_id: &str,
+        task: &str,
+    ) -> Result<WorkflowExecution, AppError> {
+        self.start_checked(workflow_id, task, false)
+    }
+
+    fn start_checked(
+        &self,
+        workflow_id: &str,
+        task: &str,
+        validated: bool,
+    ) -> Result<WorkflowExecution, AppError> {
         let workflow = self
             .get(workflow_id)
             .ok_or_else(|| AppError::new(ErrorCode::WorkflowNotFound))?;
@@ -341,7 +411,7 @@ impl WorkflowService {
         if task.is_empty() {
             return Err(AppError::new(ErrorCode::MessageEmpty));
         }
-        if !self.validate(&workflow).valid {
+        if validated && !self.validate(&workflow).valid {
             return Err(AppError::new(ErrorCode::WorkflowInvalid));
         }
         let now = now_ms();

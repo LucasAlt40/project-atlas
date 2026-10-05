@@ -383,7 +383,7 @@ impl Env {
     ) -> (WorkflowExecution, Arc<Collector>) {
         let exec = self
             .service
-            .start(workflow_id, "Implement password recovery")
+            .start_unvalidated(workflow_id, "Implement password recovery")
             .unwrap();
         let observer = Arc::new(Collector::default());
         self.orchestrator(runner)
@@ -2222,6 +2222,8 @@ fn with_the_missing_route(
     workflow
         .edges
         .push(on_outcome("validator", "fixer", "fail"));
+    // QA declares `fail` too, and a workflow with an outcome nowhere to go does not validate.
+    workflow.edges.push(on_outcome("qa", "fixer", "fail"));
     workflow.edges.push(edge("fixer", "validator"));
     env.service.update(workflow).unwrap()
 }
@@ -2424,4 +2426,87 @@ fn a_failed_run_survives_a_restart_and_resumes_from_what_was_saved() {
         WorkflowExecutionStatus::Completed
     );
     assert_eq!(runner.started(), ["fixer", "validator", "qa"]);
+}
+
+#[test]
+fn a_run_stopped_for_want_of_a_route_resumes_after_the_routes_are_repaired_by_confirmation() {
+    use super::repair::RepairChoice;
+    let env = env();
+    env.agent_service
+        .set_result_contract(
+            &env.agents["qa"],
+            ResultContract::preset(ContractKind::Review),
+        )
+        .unwrap();
+    // The saved definition of the real bug: QA routed on the technical status.
+    let workflow = env.workflow(
+        vec![
+            agent("developer", "developer"),
+            with_loop(agent("qa", "qa"), "qa_fix", 3),
+            agent("fixer", "fixer"),
+            end("done", EndOutcome::Done),
+        ],
+        vec![
+            edge("developer", "qa"),
+            edge("fixer", "qa"),
+            when("qa", "done", "pass"),
+            when("qa", "fixer", "fail"),
+        ],
+    );
+    let runner = Scripted::new();
+    runner.script("qa", vec![outcome("approved", "")]);
+    let (failed, _) = env.run(&runner, &workflow.id);
+    assert_eq!(failed.status, WorkflowExecutionStatus::Failed);
+    assert_eq!(
+        failed.failure.as_ref().unwrap().code,
+        FailureCode::NoRouteMatched
+    );
+    let orchestrator = env.orchestrator(&runner);
+    assert!(orchestrator
+        .resume_failed(&failed.id, Arc::new(Collector::default()))
+        .unwrap_err()
+        .is(ErrorCode::WorkflowNotRecoverable));
+
+    // Atlas proposes, the user confirms: only then do the routes change.
+    let current = env.service.get(&workflow.id).unwrap();
+    let proposal = &env.service.route_repairs(&current)[0];
+    assert_eq!(proposal.edges[0].suggested.as_deref(), Some("approved"));
+    assert_eq!(
+        proposal.edges[1].suggested.as_deref(),
+        Some("changes_requested")
+    );
+    let repaired = env
+        .service
+        .repair_routes(
+            &workflow.id,
+            &[
+                RepairChoice {
+                    edge_id: proposal.edges[0].edge_id.clone(),
+                    outcome: "approved".to_owned(),
+                },
+                RepairChoice {
+                    edge_id: proposal.edges[1].edge_id.clone(),
+                    outcome: "changes_requested".to_owned(),
+                },
+            ],
+        )
+        .unwrap();
+    assert_eq!(repaired.version, current.version + 1);
+
+    // The same run goes on from the finished QA: nothing that completed runs again.
+    let plan = orchestrator.recovery_plan(&failed.id).unwrap();
+    assert_eq!(plan.problem, None);
+    orchestrator
+        .resume_failed(&failed.id, Arc::new(Collector::default()))
+        .unwrap();
+    let exec = env.service.execution(&failed.id).unwrap();
+    assert_eq!(
+        exec.status,
+        WorkflowExecutionStatus::Completed,
+        "{:?}",
+        exec.failure
+    );
+    assert_eq!(exec.workflow_version, repaired.version);
+    assert_eq!(started_count(&runner, "developer"), 1);
+    assert_eq!(started_count(&runner, "qa"), 1);
 }

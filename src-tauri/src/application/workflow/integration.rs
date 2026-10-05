@@ -2,9 +2,12 @@
 //! in the run's isolated worktree: the two are kept apart here and in the model. The run's worktree
 //! is never merged by itself. When the run ends it is measured (by Git); the user then reviews the
 //! real diff and decides: apply it to the project, keep it isolated, discard it, or open it in an
-//! editor. Applying goes through the existing worktree merge, which keeps every one of its
-//! rules: the agent policy, a clean checkout on the base branch, no forced anything, conflicts
-//! reported and undone.
+//! editor.
+//!
+//! "Apply" means *put these changes in my working tree*. It never commits, merges, stages or
+//! pushes: the project's HEAD is where it was and the files show as modified in `git status`.
+//! Committing is the user's. The run's own commits stay on its branch (history of the run, not of
+//! the project). A file the user has already changed is never overwritten: it is a conflict.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -15,7 +18,7 @@ use crate::application::errors::{AppError, ErrorCode};
 use crate::application::ide::{Ide, IdeError, IdeLauncher};
 use crate::application::support::now_ms;
 use crate::application::workspace::WorkspaceService;
-use crate::application::worktree::{WorktreeError, WorktreeService};
+use crate::application::worktree::{UnapplyOutcome, WorktreeError, WorktreeService};
 use crate::domain::workflow::{
     IntegrationStatus, WorkflowEventKind, WorkflowExecution, WorkflowIntegration,
 };
@@ -39,6 +42,8 @@ pub fn integration_from_worktree(
     next.conflicts = Vec::new();
     next.block_reason = None;
     next.can_apply = false;
+    next.can_undo = false;
+    next.applied_head = None;
     if let Some(changes) = changes {
         next.base_revision = Some(changes.base_revision.clone());
         next.current_revision = Some(changes.current_revision.clone());
@@ -46,7 +51,7 @@ pub fn integration_from_worktree(
     let completed = worktree.status == WorktreeStatus::Completed;
     match worktree.merge_status {
         MergeStatus::NothingToMerge => next.status = IntegrationStatus::NoChanges,
-        MergeStatus::Merged => next.status = IntegrationStatus::Integrated,
+        MergeStatus::Merged | MergeStatus::Applied => next.status = IntegrationStatus::Integrated,
         MergeStatus::Pending => {
             next.status = IntegrationStatus::ChangesAvailable;
             next.can_apply = completed;
@@ -77,6 +82,9 @@ pub fn integration_from_worktree(
                         Some(
                             BlockReason::BaseDirty
                                 | BlockReason::BaseBranchChanged
+                                // Runs blocked by it before it stopped applying (the agents'
+                                // Git policy no longer governs a workflow's Apply): try again.
+                                | BlockReason::PolicyDenied
                                 | BlockReason::Undetermined
                         )
                     );
@@ -214,8 +222,8 @@ impl IntegrationService {
             .map_err(|e| AppError::from(&e))
     }
 
-    /// The user's explicit "apply": the changes enter the project through the worktree merge, with
-    /// all its checks. A merge that cannot happen is not an error: the run says why.
+    /// The user's explicit "apply": the changes enter the project's working tree, uncommitted (see
+    /// the module documentation). Anything that cannot happen is not an error: the run says why.
     ///
     /// # Errors
     ///
@@ -238,8 +246,14 @@ impl IntegrationService {
         let (next, what) = match result {
             Ok(worktree) => {
                 let changes = exec.changes.clone();
-                let next =
+                let mut next =
                     integration_from_worktree(&exec.integration, &worktree, changes.as_ref(), at);
+                // Where the project was when the changes went into its working tree: the changes
+                // can be taken back out only while it is still there.
+                if worktree.merge_status == MergeStatus::Applied {
+                    next.applied_head = self.worktrees.project_head(&worktree);
+                    next.can_undo = next.applied_head.is_some();
+                }
                 let what = if next.status == IntegrationStatus::Integrated {
                     "Changes applied to the project"
                 } else {
@@ -276,7 +290,11 @@ impl IntegrationService {
     ///
     /// Fails if there are no changes waiting.
     pub fn keep(&self, run_id: &str) -> Result<WorkflowExecution, AppError> {
-        let (exec, _) = self.load(run_id)?;
+        let (exec, primary) = self.load(run_id)?;
+        // Changes already applied to the project: keeping them isolated means taking them back out.
+        if exec.integration.status == IntegrationStatus::Integrated {
+            return self.undo_apply(exec, &primary);
+        }
         if !matches!(
             exec.integration.status,
             IntegrationStatus::ChangesAvailable
@@ -290,6 +308,57 @@ impl IntegrationService {
         next.status = IntegrationStatus::KeptIsolated;
         next.updated_at = now_ms();
         self.save(exec, next, "Changes kept isolated")
+    }
+
+    /// "Keep isolated" after the changes were applied: they are taken back out of the project's
+    /// working tree (only those, and only while they are as they were applied and nothing was
+    /// committed on top), and the work is in an isolated worktree again. When that cannot be done
+    /// the changes stay applied and the run says why; nothing in the project is touched.
+    fn undo_apply(
+        &self,
+        exec: WorkflowExecution,
+        primary: &str,
+    ) -> Result<WorkflowExecution, AppError> {
+        let at = now_ms();
+        let Some(head) = exec
+            .integration
+            .applied_head
+            .clone()
+            .filter(|_| exec.integration.can_undo)
+        else {
+            return Err(invalid());
+        };
+        let mut next = exec.integration.clone();
+        next.updated_at = at;
+        next.conflicts = Vec::new();
+        next.block_reason = None;
+        next.message = None;
+        let what = match self.worktrees.unapply(primary, &head) {
+            Ok(UnapplyOutcome::Reverted(_)) => {
+                next.status = IntegrationStatus::KeptIsolated;
+                next.can_undo = false;
+                next.applied_head = None;
+                next.can_apply = true;
+                "The applied changes were taken back out of the project"
+            }
+            Ok(UnapplyOutcome::Conflict(files)) => {
+                next.block_reason = Some(BlockReason::Conflict);
+                next.conflicts = files;
+                "The applied changes could not be taken back: files changed since"
+            }
+            Ok(UnapplyOutcome::ProjectMoved) => {
+                next.message = Some("project_moved".to_owned());
+                "The applied changes could not be taken back: the project moved on"
+            }
+            Err(WorktreeError::InvalidState(_) | WorktreeError::NotFound(_)) => {
+                return Err(invalid());
+            }
+            Err(error) => {
+                next.message = Some(error.to_string());
+                "Taking the applied changes back failed"
+            }
+        };
+        self.save(exec, next, what)
     }
 
     /// The user's confirmed "discard": the worktree folder is removed. The branch is kept (Atlas

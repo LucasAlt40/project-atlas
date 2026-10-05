@@ -603,6 +603,31 @@ pub struct InitializeInput {
     pub constraints: String,
     #[serde(default)]
     pub decisions: String,
+    /// Keep `.atlas/` out of Git: add it to the project's `.gitignore`. On unless the user says
+    /// otherwise.
+    #[serde(default = "yes")]
+    pub ignore_in_git: bool,
+}
+
+fn yes() -> bool {
+    true
+}
+
+/// What was done about keeping `.atlas/` out of Git.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GitIgnoreStatus {
+    /// Not asked for.
+    #[default]
+    Skipped,
+    /// `.atlas/` was added to the project's `.gitignore`.
+    Added,
+    /// The `.gitignore` already ignored it: nothing was changed.
+    AlreadyIgnored,
+    /// The project is not in a Git repository: there is nothing to ignore it from.
+    NoRepository,
+    /// The `.gitignore` could not be changed. The Harness itself was written all the same.
+    Failed,
 }
 
 impl InitializeInput {
@@ -627,6 +652,7 @@ pub struct InitializeOutcome {
     pub backed_up: Vec<String>,
     /// User files left as they are because Atlas cannot rewrite them without losing text.
     pub left_untouched: Vec<String>,
+    pub git_ignore: GitIgnoreStatus,
 }
 
 /// What a refresh would change. Nothing is applied until the user confirms.

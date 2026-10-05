@@ -5,6 +5,7 @@ use crate::application::app_info::AppInfoService;
 use crate::application::chat::ChatService;
 use crate::application::harness::HarnessService;
 use crate::application::lifecycle::AgentLifecycle;
+use crate::application::live_workspace::LiveWorkspaceService;
 use crate::application::personalities::PersonalityService;
 use crate::application::runtimes::RuntimeRegistry;
 use crate::application::security::{ApprovalBroker, SecurityOverview};
@@ -43,6 +44,8 @@ pub struct AppState {
     pub orchestrator: Arc<Orchestrator>,
     /// What becomes of the code of a run: review, apply, keep, discard, open in an editor.
     pub integration: Arc<IntegrationService>,
+    /// The files of a run's worktree as they change while its agents work.
+    pub live: Arc<LiveWorkspaceService>,
 }
 
 #[cfg(test)]
@@ -146,6 +149,12 @@ impl AppState {
         .with_workflows(workflows.clone());
         let approvals = Arc::new(ApprovalBroker::new());
         let sessions = Arc::new(crate::application::sessions::SessionRegistry::default());
+        let live = Arc::new(LiveWorkspaceService::new(
+            worktrees.clone(),
+            workflows.clone(),
+            Arc::new(crate::infrastructure::NotifyWatcher),
+            Arc::new(crate::application::live_workspace::NoLiveSink),
+        ));
         let orchestrator = Arc::new(Orchestrator::new(
             workflows.clone(),
             Arc::new(
@@ -154,6 +163,7 @@ impl AppState {
                     sessions.clone(),
                     approvals.clone(),
                 )
+                .with_live(live.clone())
                 .with_shared_worktrees(
                     worktrees.clone(),
                     workspaces.clone(),
@@ -186,6 +196,7 @@ impl AppState {
             workflows,
             orchestrator,
             integration,
+            live,
         }
     }
 }

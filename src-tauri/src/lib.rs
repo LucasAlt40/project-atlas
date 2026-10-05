@@ -54,6 +54,7 @@ use tauri::Manager;
 /// # Panics
 ///
 /// Panics if the Tauri runtime fails to build.
+#[allow(clippy::too_many_lines)] // the command list
 pub fn run() {
     let consent = commands::exit::ExitConsent::default();
     tauri::Builder::default()
@@ -73,7 +74,11 @@ pub fn run() {
                 Arc::new(commands::events::TauriHarnessProgress {
                     app: app.handle().clone(),
                 });
-            app.manage(build_state(&data_dir, sink, sessions, Some(progress)));
+            let live: Arc<dyn application::live_workspace::LiveSink> =
+                Arc::new(commands::events::TauriLiveSink {
+                    app: app.handle().clone(),
+                });
+            app.manage(build_state(&data_dir, sink, sessions, Some(progress), live));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -130,6 +135,8 @@ pub fn run() {
             commands::workflow::update_workflow,
             commands::workflow::delete_workflow,
             commands::workflow::validate_workflow,
+            commands::workflow::suggest_route_repairs,
+            commands::workflow::repair_workflow_routes,
             commands::workflow::start_workflow,
             commands::workflow::pause_workflow,
             commands::workflow::resume_workflow,
@@ -146,6 +153,10 @@ pub fn run() {
             commands::workflow::discard_workflow_changes,
             commands::workflow::list_ides,
             commands::workflow::open_workflow_in_ide,
+            commands::live_workspace::get_live_workspace,
+            commands::live_workspace::refresh_live_workspace,
+            commands::live_workspace::get_live_file,
+            commands::live_workspace::get_live_diff,
         ])
         .build(context())
         .expect("error while building Project Atlas")
@@ -158,6 +169,7 @@ fn build_state(
     permission_sink: Arc<dyn PermissionSink>,
     session_sink: Arc<dyn SessionSink>,
     harness_progress: Option<Arc<dyn application::harness::semantic::HarnessProgress>>,
+    live_sink: Arc<dyn application::live_workspace::LiveSink>,
 ) -> AppState {
     let app_info = AppInfoService::new(env!("CARGO_PKG_VERSION").to_owned(), Arc::new(OsPlatform));
     let config = Arc::new(ConfigRepository::load(Box::new(JsonConfigStore::new(
@@ -278,10 +290,17 @@ fn build_state(
     .with_workflows(workflows.clone());
     // A workflow step is an execution like any other: it goes through the chat layer, so
     // through the agent's worktree policy, the task context, the runtimes and the guard.
+    let live = Arc::new(application::live_workspace::LiveWorkspaceService::new(
+        worktrees.clone(),
+        workflows.clone(),
+        Arc::new(infrastructure::NotifyWatcher),
+        live_sink,
+    ));
     let orchestrator = Arc::new(Orchestrator::new(
         workflows.clone(),
         Arc::new(
             ChatStepRunner::new(chat.clone(), sessions.clone(), approvals.clone())
+                .with_live(live.clone())
                 .with_shared_worktrees(worktrees.clone(), workspaces.clone(), executions),
         ),
     ));
@@ -317,6 +336,7 @@ fn build_state(
         workflows,
         orchestrator,
         integration,
+        live,
     }
 }
 

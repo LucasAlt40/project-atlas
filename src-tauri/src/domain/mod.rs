@@ -4,6 +4,7 @@ pub mod conversation;
 pub mod execution;
 pub mod harness;
 pub mod interaction;
+pub mod live_workspace;
 pub mod orchestration;
 pub mod personality;
 pub mod project;

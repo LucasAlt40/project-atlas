@@ -66,6 +66,10 @@ fn window() -> (tauri::App<MockRuntime>, WebviewWindow<MockRuntime>) {
             super::harness::get_project_harness,
             super::harness::refresh_project_harness,
             super::harness::preview_task_context,
+            super::live_workspace::get_live_workspace,
+            super::live_workspace::refresh_live_workspace,
+            super::live_workspace::get_live_file,
+            super::live_workspace::get_live_diff,
             super::workflow::list_workflows,
             super::workflow::get_workflow,
             super::workflow::list_workflow_templates,
@@ -1263,4 +1267,100 @@ fn the_commands_about_a_runs_code_are_reachable_and_take_only_a_run_never_a_path
             "{forbidden}"
         );
     }
+}
+
+// ---- the live workspace ------------------------------------------------------------------------
+
+#[test]
+fn the_live_workspace_of_a_run_that_has_no_worktree_is_nothing_and_a_refresh_says_so() {
+    let (_app, window) = window();
+
+    let state = invoke(
+        &window,
+        "get_live_workspace",
+        json!({ "executionId": "wfx-nope" }),
+    )
+    .unwrap();
+    let refreshed = invoke(
+        &window,
+        "refresh_live_workspace",
+        json!({ "executionId": "wfx-nope" }),
+    );
+
+    assert_eq!(state, Value::Null);
+    assert!(refreshed.is_err());
+}
+
+#[test]
+fn what_changes_in_a_worktree_reaches_the_webview_as_an_event_without_anyone_asking() {
+    use crate::application::live_workspace::tests::service_over;
+    use crate::application::worktree::tests::Env;
+    use crate::domain::security::Permission;
+
+    let (app, _window) = window();
+    let (tx, rx) = std::sync::mpsc::channel();
+    app.listen(super::events::LIVE_WORKSPACE_EVENT, move |event| {
+        tx.send(serde_json::from_str::<Value>(event.payload()).unwrap())
+            .unwrap();
+    });
+    let env = Env::new(Permission::Allowed);
+    let prepared = env.prepare("exec-1");
+    env.service.mark_workflow("exec-1", "wfx-1").unwrap();
+    let service = service_over(
+        &env,
+        std::sync::Arc::new(super::events::TauriLiveSink {
+            app: app.handle().clone(),
+        }),
+    );
+    service.start("exec-1").unwrap();
+    // The first look (nothing yet) is announced.
+    let first = rx.recv_timeout(std::time::Duration::from_secs(10)).unwrap();
+    assert_eq!(first["full"], true);
+    assert_eq!(first["worktreeExecutionId"], "exec-1");
+
+    std::fs::write(prepared.working_dir.join("created.ts"), "export {};\n").unwrap();
+
+    let update = loop {
+        let update = rx.recv_timeout(std::time::Duration::from_secs(10)).unwrap();
+        if update["changed"].as_array().is_some_and(|c| !c.is_empty()) {
+            break update;
+        }
+    };
+    assert_eq!(update["changed"][0]["path"], "created.ts");
+    assert_eq!(update["changed"][0]["status"], "added");
+    assert_eq!(update["availability"], "available");
+    assert_eq!(update["observation"], "events");
+    assert_eq!(update["filesChanged"], 1);
+    assert_eq!(update["runId"], "wfx-1");
+}
+
+#[test]
+fn the_viewer_commands_take_a_run_and_a_relative_path_and_refuse_anything_else() {
+    let (_app, window) = window();
+
+    // A path that leaves the worktree is refused before any run is looked at.
+    for bad in ["../outside", "/etc/passwd", ".git/config", "a/../b", ""] {
+        let file = invoke(
+            &window,
+            "get_live_file",
+            json!({ "executionId": "wfx-1", "path": bad }),
+        )
+        .unwrap_err();
+        let diff = invoke(
+            &window,
+            "get_live_diff",
+            json!({ "executionId": "wfx-1", "path": bad }),
+        )
+        .unwrap_err();
+        assert_eq!(file["code"], "worktree_invalid_state", "{bad:?}");
+        assert_eq!(diff["code"], "worktree_invalid_state", "{bad:?}");
+    }
+    // A plain path of a run with no worktree: nothing to read.
+    let unknown = invoke(
+        &window,
+        "get_live_file",
+        json!({ "executionId": "wfx-nope", "path": "src/a.ts" }),
+    )
+    .unwrap_err();
+    assert_eq!(unknown["code"], "worktree_not_found");
 }

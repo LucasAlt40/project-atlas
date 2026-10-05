@@ -358,6 +358,31 @@ mod tests {
     }
 
     #[test]
+    fn a_status_edge_is_never_taken_for_an_outcome_the_agent_did_not_declare() {
+        use crate::application::workflow::test_support::{agent as node, when, workflow};
+        use crate::domain::result_contract::{ContractKind, ResultContract};
+        // QA declares approved / changes_requested: `pass` and `fail` are not among them, and
+        // Atlas does not assume that they mean the same thing.
+        let mut qa = agent();
+        qa.result_contract = ResultContract::preset(ContractKind::Review);
+        let mut config = UserConfig {
+            agents: vec![qa],
+            workflows: vec![workflow(
+                vec![node("qa", "a"), node("done", "a"), node("fix", "a")],
+                vec![when("qa", "done", "pass"), when("qa", "fix", "fail")],
+            )],
+            ..UserConfig::default()
+        };
+        let before = config.workflows.clone();
+
+        // Opening the app, validating and saving again never touch it, however often.
+        for _ in 0..3 {
+            assert!(!route_edges_on_declared_outcomes(&mut config));
+            assert_eq!(config.workflows, before);
+        }
+    }
+
+    #[test]
     fn writes_through_and_keeps_state_when_saving_fails() {
         let repo = ConfigRepository::load(Box::<MemoryStore>::default());
         repo.add_agent(agent()).unwrap();

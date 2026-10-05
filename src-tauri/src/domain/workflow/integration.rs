@@ -51,5 +51,13 @@ pub struct WorkflowIntegration {
     pub conflicts: Vec<String>,
     /// Why it failed, in the words Git gave.
     pub message: Option<String>,
+    /// Where the project's `HEAD` was when the changes were applied to its working tree. The
+    /// applied changes may be taken back out only while it is still there: once the project has a
+    /// new commit, they may be part of it.
+    #[serde(default)]
+    pub applied_head: Option<String>,
+    /// The changes are in the project's working tree, uncommitted, and may be taken back out.
+    #[serde(default)]
+    pub can_undo: bool,
     pub updated_at: u64,
 }

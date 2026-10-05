@@ -124,6 +124,7 @@ pub fn workflow(nodes: Vec<WorkflowNode>, edges: Vec<WorkflowEdge>) -> Workflow 
         nodes,
         edges,
         viewport: None,
+        route_repairs: Vec::new(),
         created_at: 0,
         updated_at: 0,
     }

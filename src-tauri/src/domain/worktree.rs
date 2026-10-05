@@ -34,6 +34,9 @@ pub enum MergeStatus {
     /// to review first.
     Pending,
     Merged,
+    /// A workflow's changes were brought into the project's working tree as *uncommitted*
+    /// changes. Nothing was committed, merged or pushed; the branch is kept as the record.
+    Applied,
     /// Git found conflicts; branch and worktree are kept.
     Conflict,
     /// Not merged on purpose (policy, failed execution, failed validation, unclean base…);

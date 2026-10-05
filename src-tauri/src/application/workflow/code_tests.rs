@@ -29,7 +29,7 @@ use crate::application::runtimes::{
 use crate::application::security::{AuditLog, SecurityService};
 use crate::application::usage::UsageLedger;
 use crate::application::workspace::WorkspaceService;
-use crate::application::worktree::tests::{git, Env, WORKSPACE};
+use crate::application::worktree::tests::{git, status_lines, Env, WORKSPACE};
 use crate::application::worktree::WorktreeService;
 use crate::domain::conversation::Message;
 use crate::domain::execution::ExecutionEvent;
@@ -382,7 +382,7 @@ impl Stack {
     fn run(&self, workflow: &Workflow) -> WorkflowExecution {
         let run = self
             .workflows
-            .start(&workflow.id, "Implement password recovery")
+            .start_unvalidated(&workflow.id, "Implement password recovery")
             .unwrap();
         self.orchestrator
             .run(&run.id, Arc::new(Collector::default()))
@@ -783,8 +783,22 @@ fn apply_puts_the_changes_in_the_project_only_when_asked_and_the_run_stays_what_
     let s = stack(Permission::Allowed, team);
     let run = s.run(&s.pipeline());
     assert!(!s.project().join("src/foo.ts").exists());
+    let head = s.env.main_branch_head();
+    let commits = git(s.project(), &["rev-list", "--all", "--count"]);
 
     let applied = s.integration.apply(&run.id).unwrap();
+
+    // Apply is not a commit: the project's history is exactly where it was, and the change is
+    // an uncommitted file in the working tree.
+    assert_eq!(s.env.main_branch_head(), head, "HEAD did not move");
+    assert_eq!(git(s.project(), &["status", "--porcelain"]), "?? src/");
+    assert_eq!(
+        git(s.project(), &["rev-list", "--all", "--count"]),
+        commits,
+        "no commit was created anywhere"
+    );
+    assert_eq!(git(s.project(), &["rev-list", "--count", "HEAD"]), "1");
+    assert!(!s.project().join(".git/MERGE_HEAD").exists());
 
     assert_eq!(applied.integration.status, IntegrationStatus::Integrated);
     assert!(!applied.integration.can_apply);
@@ -812,37 +826,60 @@ fn apply_puts_the_changes_in_the_project_only_when_asked_and_the_run_stays_what_
 }
 
 #[test]
-fn a_dirty_project_blocks_applying_without_failing_the_run_and_it_can_be_tried_again() {
+fn local_changes_in_other_files_are_kept_and_applying_still_works_without_a_commit() {
     let s = stack(Permission::Allowed, team);
     let run = s.run(&s.pipeline());
     write(s.project(), "README.md", "# the user is editing this\n");
+    let head = s.env.main_branch_head();
 
-    let blocked = s.integration.apply(&run.id).unwrap();
-
-    // The run is still the success it was; only the integration says it could not happen.
-    assert_eq!(blocked.status, WorkflowExecutionStatus::Completed);
-    assert_eq!(blocked.integration.status, IntegrationStatus::Blocked);
-    assert_eq!(
-        blocked.integration.block_reason,
-        Some(BlockReason::BaseDirty)
-    );
-    assert!(blocked.integration.can_apply);
-    assert_eq!(
-        fs::read_to_string(s.project().join("README.md")).unwrap(),
-        "# the user is editing this\n",
-        "the user's work is untouched"
-    );
-    assert!(!s.project().join("src/foo.ts").exists());
-
-    // The user commits their work and tries again.
-    git(s.project(), &["commit", "--quiet", "-am", "my edit"]);
     let applied = s.integration.apply(&run.id).unwrap();
+
+    assert_eq!(applied.status, WorkflowExecutionStatus::Completed);
     assert_eq!(applied.integration.status, IntegrationStatus::Integrated);
     assert!(s.project().join("src/foo.ts").is_file());
     assert_eq!(
         fs::read_to_string(s.project().join("README.md")).unwrap(),
-        "# the user is editing this\n"
+        "# the user is editing this\n",
+        "the user's work is preserved"
     );
+    assert_eq!(s.env.main_branch_head(), head);
+    assert_eq!(status_lines(s.project()), [" M README.md", "?? src/"]);
+}
+
+#[test]
+fn local_changes_in_a_file_the_run_also_changed_block_applying_and_are_never_overwritten() {
+    let s = stack(Permission::Allowed, team);
+    let run = s.run(&s.pipeline());
+    // The user has already started a `src/foo.ts` of their own, uncommitted.
+    write(
+        s.project(),
+        "src/foo.ts",
+        "// the user's own, not committed\n",
+    );
+    let head = s.env.main_branch_head();
+
+    let blocked = s.integration.apply(&run.id).unwrap();
+
+    assert_eq!(blocked.status, WorkflowExecutionStatus::Completed);
+    assert_eq!(blocked.integration.status, IntegrationStatus::Conflicts);
+    assert_eq!(blocked.integration.conflicts, ["src/foo.ts"]);
+    assert_eq!(
+        fs::read_to_string(s.project().join("src/foo.ts")).unwrap(),
+        "// the user's own, not committed\n"
+    );
+    assert_eq!(s.env.main_branch_head(), head);
+    // The worktree is kept: the user can resolve it and try again.
+    assert!(s.saw("Developer")[0].dir.join("src/foo.ts").is_file());
+
+    // Once the user has dealt with their file, applying works.
+    fs::remove_file(s.project().join("src/foo.ts")).unwrap();
+    let applied = s.integration.apply(&run.id).unwrap();
+    assert_eq!(applied.integration.status, IntegrationStatus::Integrated);
+    assert_eq!(
+        fs::read_to_string(s.project().join("src/foo.ts")).unwrap(),
+        FOO
+    );
+    assert_eq!(s.env.main_branch_head(), head);
 }
 
 #[test]
@@ -874,6 +911,88 @@ fn a_conflict_is_reported_and_nothing_in_the_project_is_forced() {
     );
     // The worktree is kept to resolve it in.
     assert!(s.saw("Developer")[0].dir.join("src/foo.ts").is_file());
+}
+
+#[test]
+fn keeping_applied_changes_isolated_takes_them_back_out_of_the_project_and_they_can_be_applied_again(
+) {
+    let s = stack(Permission::Allowed, team);
+    let run = s.run(&s.pipeline());
+    write(s.project(), "README.md", "# the user keeps working\n");
+    let head = s.env.main_branch_head();
+    let applied = s.integration.apply(&run.id).unwrap();
+    assert_eq!(applied.integration.status, IntegrationStatus::Integrated);
+    assert!(applied.integration.can_undo);
+    assert_eq!(
+        applied.integration.applied_head.as_deref(),
+        Some(head.as_str())
+    );
+
+    let kept = s.integration.keep(&run.id).unwrap();
+
+    assert_eq!(kept.integration.status, IntegrationStatus::KeptIsolated);
+    assert!(!kept.integration.can_undo);
+    assert!(kept.integration.can_apply);
+    assert!(
+        !s.project().join("src/foo.ts").exists(),
+        "taken back out of the project"
+    );
+    assert_eq!(
+        fs::read_to_string(s.project().join("README.md")).unwrap(),
+        "# the user keeps working\n",
+        "only the applied changes went"
+    );
+    assert_eq!(s.env.main_branch_head(), head);
+    assert!(
+        s.saw("Developer")[0].dir.join("src/foo.ts").is_file(),
+        "the work is isolated again"
+    );
+    assert_eq!(
+        s.integration.apply(&run.id).unwrap().integration.status,
+        IntegrationStatus::Integrated
+    );
+    assert!(s.project().join("src/foo.ts").is_file());
+}
+
+#[test]
+fn applied_changes_that_were_edited_since_stay_applied_and_the_run_says_why() {
+    let s = stack(Permission::Allowed, team);
+    let run = s.run(&s.pipeline());
+    s.integration.apply(&run.id).unwrap();
+    write(
+        s.project(),
+        "src/foo.ts",
+        "export const x = 'edited after applying';\n",
+    );
+
+    let kept = s.integration.keep(&run.id).unwrap();
+
+    assert_eq!(kept.integration.status, IntegrationStatus::Integrated);
+    assert_eq!(kept.integration.block_reason, Some(BlockReason::Conflict));
+    assert_eq!(kept.integration.conflicts, ["src/foo.ts"]);
+    assert!(
+        kept.integration.can_undo,
+        "it can be tried again once the file is dealt with"
+    );
+    assert_eq!(
+        fs::read_to_string(s.project().join("src/foo.ts")).unwrap(),
+        "export const x = 'edited after applying';\n"
+    );
+}
+
+#[test]
+fn applied_changes_that_were_committed_since_are_not_taken_back() {
+    let s = stack(Permission::Allowed, team);
+    let run = s.run(&s.pipeline());
+    s.integration.apply(&run.id).unwrap();
+    git(s.project(), &["add", "--all"]);
+    git(s.project(), &["commit", "--quiet", "-m", "mine"]);
+
+    let kept = s.integration.keep(&run.id).unwrap();
+
+    assert_eq!(kept.integration.status, IntegrationStatus::Integrated);
+    assert_eq!(kept.integration.message.as_deref(), Some("project_moved"));
+    assert!(s.project().join("src/foo.ts").is_file());
 }
 
 #[test]
@@ -930,27 +1049,29 @@ fn a_run_that_changed_nothing_has_no_code_to_decide_about() {
 }
 
 #[test]
-fn a_policy_that_denies_git_writes_keeps_the_code_reviewable_but_not_applicable() {
+fn a_policy_that_denies_the_agents_git_writes_does_not_stop_the_user_applying_to_the_working_tree()
+{
+    // The agents may not write Git history. Applying writes none: it puts files in the working
+    // tree, uncommitted, and the user's Apply is the decision.
     let s = stack(Permission::Denied, team);
 
     let run = s.run(&s.pipeline());
 
     assert_eq!(run.status, WorkflowExecutionStatus::Completed);
-    assert_eq!(run.integration.status, IntegrationStatus::Blocked);
+    assert_eq!(run.integration.status, IntegrationStatus::ChangesAvailable);
+    assert!(run.integration.can_apply);
+    let head = s.env.main_branch_head();
+
+    let applied = s.integration.apply(&run.id).unwrap();
+
+    assert_eq!(applied.integration.status, IntegrationStatus::Integrated);
+    assert!(s.project().join("src/foo.ts").is_file());
     assert_eq!(
-        run.integration.block_reason,
-        Some(BlockReason::UncommittedChanges)
+        s.env.main_branch_head(),
+        head,
+        "and still no commit in the project"
     );
-    assert!(!run.integration.can_apply);
-    // The work is there, uncommitted, and visible.
-    assert_eq!(run.changes.as_ref().unwrap().uncommitted, ["src/foo.ts"]);
-    assert!(
-        s.saw("Validator")[0].file.is_some(),
-        "the next step still sees it"
-    );
-    let blocked = s.integration.apply(&run.id).unwrap();
-    assert_eq!(blocked.integration.status, IntegrationStatus::Blocked);
-    assert!(!s.project().join("src/foo.ts").exists());
+    assert_eq!(status_lines(s.project()), ["?? src/"]);
 }
 
 #[test]

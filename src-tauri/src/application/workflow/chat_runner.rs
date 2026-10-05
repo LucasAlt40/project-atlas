@@ -12,11 +12,13 @@ use super::runner::{
 };
 use crate::application::chat::{ChatError, ChatService, PendingRun, WorkflowStepRequest};
 use crate::application::executions::ExecutionService;
+use crate::application::live_workspace::LiveWorkspaceService;
 use crate::application::security::ApprovalBroker;
 use crate::application::sessions::{SessionRegistry, SessionTarget};
 use crate::application::workspace::WorkspaceService;
 use crate::application::worktree::{RunOutcome, WorktreeService};
 use crate::domain::execution::ExecutionStatus;
+use crate::domain::live_workspace::LivePhase;
 use crate::domain::worktree::Validation;
 
 pub struct ChatStepRunner {
@@ -27,6 +29,8 @@ pub struct ChatStepRunner {
     worktrees: Option<Arc<WorktreeService>>,
     workspaces: Option<Arc<WorkspaceService>>,
     executions: Option<Arc<ExecutionService>>,
+    /// Told what the run is doing, so its worktree is observed while it works.
+    live: Option<Arc<LiveWorkspaceService>>,
 }
 
 impl ChatStepRunner {
@@ -42,7 +46,15 @@ impl ChatStepRunner {
             worktrees: None,
             workspaces: None,
             executions: None,
+            live: None,
         }
+    }
+
+    /// Observes the run's worktree while its steps work in it.
+    #[must_use]
+    pub fn with_live(mut self, live: Arc<LiveWorkspaceService>) -> Self {
+        self.live = Some(live);
+        self
     }
 
     /// Gives runs a worktree of their own, shared by their steps.
@@ -64,6 +76,9 @@ struct Prepared {
     execution_id: String,
     run: PendingRun,
     worktrees: Option<Arc<WorktreeService>>,
+    live: Option<Arc<LiveWorkspaceService>>,
+    /// The run's shared worktree this step works in, when it does.
+    shared_worktree: Option<String>,
 }
 
 impl PreparedStep for Prepared {
@@ -72,7 +87,20 @@ impl PreparedStep for Prepared {
     }
 
     fn run(self: Box<Self>, observer: &dyn WorkflowObserver) -> StepOutcome {
+        let tell_live = |phase: LivePhase| {
+            if let (Some(live), Some(primary)) = (&self.live, &self.shared_worktree) {
+                live.set_phase(primary, phase);
+            }
+        };
+        tell_live(LivePhase::Running);
         let summary = self.run.run(observer);
+        // Whatever way it ended, the agent is no longer writing: the phase says so, and the
+        // observer reads the whole worktree (what is there is what the step left).
+        tell_live(match summary.status {
+            ExecutionStatus::WaitingForInput => LivePhase::WaitingForInput,
+            ExecutionStatus::Cancelled => LivePhase::Cancelled,
+            _ => LivePhase::Idle,
+        });
         // What the step changed, by Git, once its work has been saved in the shared worktree.
         let delta = self
             .worktrees
@@ -120,13 +148,15 @@ impl StepRunner for ChatStepRunner {
             instruction: request.instruction,
             context_query: request.context_query,
             link: request.link,
-            shared_worktree: request.shared_worktree,
+            shared_worktree: request.shared_worktree.clone(),
         };
         match self.chat.send_workflow_step(step) {
             Ok((sent, run)) => Ok(Box::new(Prepared {
                 execution_id: sent.execution_id,
                 run,
                 worktrees: self.worktrees.clone(),
+                live: self.live.clone(),
+                shared_worktree: request.shared_worktree,
             })),
             Err(ChatError::AgentBusy(_)) => Err(Refusal::Busy),
             Err(error) => Err(Refusal::Invalid(error.to_string())),
@@ -185,6 +215,10 @@ impl StepRunner for ChatStepRunner {
             )
             .ok()?;
         worktrees.mark_workflow(&id, &request.run_id).ok()?;
+        // From here the worktree is observed; nothing has run in it yet.
+        if let Some(live) = &self.live {
+            let _ = live.start(&id);
+        }
         Some(WorkspaceHandle {
             primary_execution_id: id,
             branch: prepared.worktree.branch_name,
@@ -194,9 +228,15 @@ impl StepRunner for ChatStepRunner {
     }
 
     fn reopen_workspace(&self, primary_execution_id: &str) -> bool {
-        self.worktrees
+        let reopened = self
+            .worktrees
             .as_ref()
-            .is_some_and(|worktrees| worktrees.reopen(primary_execution_id).is_ok())
+            .is_some_and(|worktrees| worktrees.reopen(primary_execution_id).is_ok());
+        // Same worktree, same baseline: what it already holds is read first.
+        if let (true, Some(live)) = (reopened, &self.live) {
+            let _ = live.start(primary_execution_id);
+        }
+        reopened
     }
 
     fn workspace_usable(&self, primary_execution_id: &str) -> bool {
@@ -211,6 +251,15 @@ impl StepRunner for ChatStepRunner {
             RunEnd::Completed => RunOutcome::Completed,
             RunEnd::Ended => RunOutcome::Ended,
         };
+        // Observed one last time while the worktree is certainly there (closing may remove an
+        // empty one): this is the state the review starts from.
+        if let Some(live) = &self.live {
+            let phase = match end {
+                RunEnd::Completed => LivePhase::Ended,
+                RunEnd::Ended => LivePhase::Stopped,
+            };
+            live.finish(primary_execution_id, phase);
+        }
         let worktree = worktrees.close_shared(primary_execution_id, outcome, Validation::NotRun)?;
         let changes = worktrees.change_set(primary_execution_id).ok();
         Some(WorkspaceClose { worktree, changes })

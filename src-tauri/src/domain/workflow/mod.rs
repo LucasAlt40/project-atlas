@@ -29,4 +29,4 @@ pub use node::{
     AgentNode, ConditionNode, EndNode, EndOutcome, ExecutionPolicy, FailurePolicy, IsolationMode,
     LoopPolicy, NodeKind, Position, RetryPolicy, WorkflowNode,
 };
-pub use workflow::{Viewport, Workflow, WorkflowMode, WorkflowStatus};
+pub use workflow::{RouteRepair, Viewport, Workflow, WorkflowMode, WorkflowStatus};

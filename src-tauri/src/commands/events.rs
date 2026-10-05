@@ -2,12 +2,14 @@ use tauri::{AppHandle, Emitter, Runtime};
 
 use crate::application::chat::ChatObserver;
 use crate::application::executions::ExecutionObserver;
+use crate::application::live_workspace::LiveSink;
 use crate::application::security::PermissionSink;
 use crate::application::sessions::SessionSink;
 use crate::application::support::now_ms;
 use crate::application::workflow::runner::WorkflowObserver;
 use crate::domain::conversation::Message;
 use crate::domain::execution::{ExecutionEvent, ExecutionEventKind};
+use crate::domain::live_workspace::LiveWorkspaceUpdate;
 use crate::domain::security::PermissionEvent;
 use crate::domain::terminal::{SessionStatusEvent, TerminalChunk};
 use crate::domain::workflow::WorkflowEvent;
@@ -81,6 +83,24 @@ impl<R: Runtime> WorkflowObserver for TauriWorkflowObserver<R> {
         let name = event.kind.wire_name();
         if let Err(error) = self.app.emit(&name, event) {
             eprintln!("failed to emit {name}: {error}");
+        }
+    }
+}
+
+/// What changed in the files of a workflow run's worktree (`LiveWorkspaceUpdate`), sent once the
+/// files have settled, not on every write. The UI reads the state with `get_live_workspace`
+/// and applies updates whose `revision` is the next one; any other number means "read it again".
+pub const LIVE_WORKSPACE_EVENT: &str = "live_workspace:changed";
+
+/// Adapter: tells the webview what changed in a run's worktree.
+pub struct TauriLiveSink<R: Runtime> {
+    pub app: AppHandle<R>,
+}
+
+impl<R: Runtime> LiveSink for TauriLiveSink<R> {
+    fn on_update(&self, update: &LiveWorkspaceUpdate) {
+        if let Err(error) = self.app.emit(LIVE_WORKSPACE_EVENT, update) {
+            eprintln!("failed to emit {LIVE_WORKSPACE_EVENT}: {error}");
         }
     }
 }
