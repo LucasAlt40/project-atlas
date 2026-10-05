@@ -132,6 +132,7 @@ mod tests {
             input_tokens: Some(total - 1),
             output_tokens: Some(1),
             total_tokens: Some(total),
+            cached_input_tokens: None,
             cost,
             currency: cost.map(|_| "USD".to_owned()),
             source: UsageSource::RuntimeReported,

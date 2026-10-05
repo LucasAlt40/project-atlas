@@ -400,6 +400,13 @@ pub mod fake {
             self
         }
 
+        pub fn with_metadata(mut self, key: &str, value: &str) -> Self {
+            if let Ok(output) = &mut self.answer {
+                output.metadata.insert(key.to_owned(), value.to_owned());
+            }
+            self
+        }
+
         pub fn with_usage(mut self, usage: crate::domain::usage::UsageMetrics) -> Self {
             if let Ok(output) = &mut self.answer {
                 output.usage = Some(usage);

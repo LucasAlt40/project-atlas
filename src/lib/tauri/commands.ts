@@ -762,6 +762,16 @@ export interface ProjectContextDto {
 export interface AppSettingsDto {
   language: string;
   selectedWorkspaceId: string | null;
+  /** `optimization.metrics.enabled`: measure prompts and runs. Never changes what is sent. */
+  optimization?: {
+    metricsEnabled: boolean;
+    /** `optimization.context.enabled`: the Context Engine removes what a prompt says twice. */
+    contextEnabled?: boolean;
+    /** `optimization.context.maxTokens`: an estimated-token budget; only reported, never cut to. */
+    contextMaxTokens?: number | null;
+    /** `optimization.skills.enabled`: Atlas sends the skills a task calls for. */
+    skillsEnabled?: boolean;
+  };
 }
 
 export type TaskStatusDto = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
@@ -805,7 +815,17 @@ export type ExecutionEventKindDto =
   | 'process_exited'
   | 'cancelled'
   | 'worktree_created'
-  | 'worktree_finalized';
+  | 'worktree_finalized'
+  /** Observability only (Optimization Layer): what was measured is in `metadata`. */
+  | 'optimization_context_built'
+  | 'optimization_prompt_built'
+  | 'optimization_metrics_recorded'
+  /** The Context Engine removed what the prompt said twice; counts are in `metadata`. */
+  | 'optimization_context_optimized'
+  /** The prompt is over its budget after everything that may be shortened was; nothing was cut. */
+  | 'optimization_budget_warning'
+  /** The skills layer looked at the task; the skills it chose and why are in `metadata`. */
+  | 'optimization_skills_selected';
 
 /** Mirrors `domain::execution::ExecutionEvent`. */
 export interface ExecutionEventDto {
@@ -909,10 +929,132 @@ export interface StoredExecutionDto {
   interaction?: InteractionDetectionDto;
   /** How the Harness context of its prompt was chosen; absent without a Harness. */
   context?: ContextRecordDto;
+  /** What Atlas observed about its prompt and run; absent from before the Optimization Layer. */
+  optimization?: OptimizationMetricsDto;
   /** The workflow step this execution ran as, when it was one. */
   workflow?: WorkflowLinkDto;
   /** The timeline, without streamed answer text. */
   events: ExecutionEventDto[];
+}
+
+/** `estimated` is Atlas's own approximation (chars / 4), never a count by a tokenizer. */
+export type TokenSourceDto = 'exact' | 'estimated' | 'unavailable';
+
+/** Mirrors `domain::optimization::SectionKind`. */
+export type PromptSectionKindDto =
+  | 'personality'
+  | 'atlas_rules'
+  | 'live_narration'
+  | 'plan_rule'
+  | 'harness'
+  | 'task_context'
+  | 'skills'
+  | 'project_context'
+  | 'agent_instructions'
+  | 'brief_workflow_context'
+  | 'brief_handoff'
+  | 'brief_protocols'
+  | 'task'
+  | 'framing';
+
+/** Mirrors `domain::optimization::OptimizationMetrics`. `null` means "not observable". */
+export interface OptimizationMetricsDto {
+  prompt: {
+    totalBytes: number;
+    estimatedTokens: number;
+    tokenSource: TokenSourceDto;
+    sections: {
+      section: PromptSectionKindDto;
+      bytes: number;
+      estimatedTokens: number;
+      tokenSource: TokenSourceDto;
+    }[];
+  };
+  context: {
+    selectedItems: number;
+    omittedItems: number;
+    selectedCharacters: number;
+    totalHarnessCharacters: number;
+  } | null;
+  latency: {
+    contextBuildMs: number | null;
+    promptBuildMs: number | null;
+    runtimeStartupMs: number | null;
+    runtimeExecutionMs: number | null;
+    runtimeMs: number | null;
+    totalMs: number | null;
+    instrumentationMs: number | null;
+  };
+  tools: {
+    calls: number | null;
+    totalOutputBytes: number | null;
+    /** The tools the model could call, as the runtime listed them at start (MCP tools included). */
+    exposed?: string[];
+    /** The tools it did call, most used first. */
+    used?: { name: string; calls: number }[];
+  };
+  handoff: { bytes: number | null };
+  optimization: {
+    cacheHits: number | null;
+    cacheMisses: number | null;
+    deduplicatedItems: number;
+    compressedItems: number;
+    droppedItems: number | null;
+  };
+  /** What the Context Engine did; absent when it is off. Sizes are estimates. */
+  contextEngine?: ContextEngineMetricsDto;
+  /** What the skills layer did; absent when it is off. Token figures are estimates. */
+  skills?: SkillMetricsDto;
+  /** What the runtime loaded around the model on its own (MCP servers, skills, plugins). */
+  extensions?: {
+    mcpServers: string[];
+    skills: number;
+    slashCommands: number;
+    plugins: number;
+  };
+}
+
+/** Mirrors `domain::optimization::SkillMetrics`. */
+export interface SkillMetricsDto {
+  discovered: number;
+  usable: number;
+  issues: number;
+  /** What every skill's name and description would cost if all were sent (they are not). */
+  level1Tokens: number;
+  candidates: number;
+  activated: string[];
+  level2Tokens: number;
+  resourcesAvailable: number;
+  resourcesLoaded: number;
+  level3Tokens: number;
+  cacheHits: number;
+  cacheMisses: number;
+  selectMs: number | null;
+  tokenSource: TokenSourceDto;
+}
+
+export type ContextDecisionKindDto =
+  'duplicate_exact' | 'duplicate_normalized' | 'duplicate_overlap' | 'compressed' | 'omitted';
+
+/** Mirrors `domain::optimization::ContextEngineMetrics`. */
+export interface ContextEngineMetricsDto {
+  rawBytes: number;
+  finalBytes: number;
+  rawEstimatedTokens: number;
+  finalEstimatedTokens: number;
+  tokenSource: TokenSourceDto;
+  deduplicatedLines: number;
+  compressedItems: number;
+  omittedItems: number;
+  decisions: {
+    kind: ContextDecisionKindDto;
+    source: PromptSectionKindDto;
+    keptIn: PromptSectionKindDto | null;
+    bytesSaved: number;
+    preview: string;
+  }[];
+  overBudget: { budgetTokens: number; estimatedTokens: number; requiredTokens: number } | null;
+  skipped: string | null;
 }
 
 export type MessageRoleDto = 'user' | 'assistant';
@@ -953,6 +1095,8 @@ export interface UsageMetricsDto {
   inputTokens: number | null;
   outputTokens: number | null;
   totalTokens: number | null;
+  /** The part of `inputTokens` served from the provider's prompt cache, when reported. */
+  cachedInputTokens?: number | null;
   cost: number | null;
   currency: string | null;
   source: UsageSourceDto;

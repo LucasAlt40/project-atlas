@@ -567,6 +567,7 @@ impl SemanticModel for RuntimeSemanticModel {
         let request = RuntimeRequest {
             model_id: agent.model_id.clone(),
             prompt: Prompt {
+                skills: None,
                 system: if self.text_only {
                     RESTRICTED_RULES
                 } else {

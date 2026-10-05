@@ -431,7 +431,16 @@ fn settings_default_to_portuguese_and_persist_language_and_selected_workspace() 
 
     assert_eq!(
         invoke(&window, "get_settings", json!({})).unwrap(),
-        json!({ "language": "pt-BR", "selectedWorkspaceId": null })
+        json!({
+            "language": "pt-BR",
+            "selectedWorkspaceId": null,
+            "optimization": {
+                "metricsEnabled": true,
+                "contextEnabled": false,
+                "contextMaxTokens": null,
+                "skillsEnabled": false
+            }
+        })
     );
     invoke(&window, "set_language", json!({ "language": "en-US" })).unwrap();
     invoke(

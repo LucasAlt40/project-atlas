@@ -158,33 +158,7 @@ impl ModelRuntime for ClaudeRuntime {
             return Err(RuntimeError::NotInstalled);
         }
 
-        let tools = if request.text_only {
-            // An empty list turns every tool off: the model can only answer from the prompt.
-            ""
-        } else if request.allow_edits {
-            EDIT_TOOLS
-        } else {
-            READ_ONLY_TOOLS
-        };
-        let mut args = [
-            "-p",
-            "--output-format",
-            "stream-json",
-            "--verbose",
-            "--include-partial-messages",
-            "--model",
-            &request.model_id,
-            "--tools",
-            tools,
-            "--no-session-persistence",
-        ]
-        .map(str::to_owned)
-        .to_vec();
-        if request.allow_edits && !request.text_only {
-            // The run is not interactive, so a tool that needs to ask is refused. File edits
-            // inside the working directory (the isolated worktree) are what was granted.
-            args.extend(["--permission-mode".to_owned(), "acceptEdits".to_owned()]);
-        }
+        let args = launch_args(request);
         let delivery = cli::deliver_prompt(
             self.runner.as_ref(),
             PROGRAM,
@@ -209,6 +183,88 @@ impl ModelRuntime for ClaudeRuntime {
             }
         })?;
         parse_run_output(&output, &request.model_id)
+    }
+}
+
+/// The arguments of a Claude run, without the prompt: the tools it gets, and nothing else around
+/// them.
+///
+/// `--tools` only names the *built-in* tools. Left alone, `claude -p` also loads the user's own
+/// MCP servers (connectors such as Docs, Drive, Gmail, Jira), skills, slash commands and plugins,
+/// and their tools are callable by the model. Measured on a real machine with exactly the
+/// arguments below minus the last two: 11 tools instead of 3 (eight of them `mcp__…Claude_Docs__*`,
+/// including `create`, `update` and `delete`), 8 MCP servers, 48 skills, 84 slash commands. An agent
+/// Atlas calls read-only must not reach any of that, and its prompt should not carry its listing.
+/// `--strict-mcp-config` (with no `--mcp-config`) loads no MCP server; `--disable-slash-commands`
+/// turns skills off. Atlas has its own skills layer and chooses what an agent gets.
+fn launch_args(request: &RuntimeRequest) -> Vec<String> {
+    let tools = if request.text_only {
+        // An empty list turns every tool off: the model can only answer from the prompt.
+        ""
+    } else if request.allow_edits {
+        EDIT_TOOLS
+    } else {
+        READ_ONLY_TOOLS
+    };
+    let mut args = [
+        "-p",
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--include-partial-messages",
+        "--model",
+        &request.model_id,
+        "--tools",
+        tools,
+        "--no-session-persistence",
+        "--strict-mcp-config",
+        "--disable-slash-commands",
+    ]
+    .map(str::to_owned)
+    .to_vec();
+    if request.allow_edits && !request.text_only {
+        // The run is not interactive, so a tool that needs to ask is refused. File edits
+        // inside the working directory (the isolated worktree) are what was granted.
+        args.extend(["--permission-mode".to_owned(), "acceptEdits".to_owned()]);
+    }
+    args
+}
+
+/// What the CLI says it loaded when it started (its `system`/`init` message): the tools the model
+/// can call and the extensions around it. Facts, in the keys the rest of Atlas reads
+/// (`toolsExposed`, `mcpServers`, `skillsLoaded`, `slashCommands`, `pluginsLoaded`).
+fn note_surface(metadata: &mut BTreeMap<String, String>, stdout: &str) {
+    let Some(init) = stdout
+        .lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+        .find(|v| v["type"] == "system" && v["subtype"] == "init")
+    else {
+        return;
+    };
+    let names = |value: &Value| -> Option<String> {
+        value.as_array().map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.as_str().or_else(|| item["name"].as_str()))
+                .collect::<Vec<_>>()
+                .join(",")
+        })
+    };
+    let count = |value: &Value| value.as_array().map(Vec::len);
+    if let Some(tools) = names(&init["tools"]) {
+        metadata.insert("toolsExposed".to_owned(), tools);
+    }
+    if let Some(servers) = names(&init["mcp_servers"]) {
+        metadata.insert("mcpServers".to_owned(), servers);
+    }
+    for (key, source) in [
+        ("skillsLoaded", "skills"),
+        ("slashCommands", "slash_commands"),
+        ("pluginsLoaded", "plugins"),
+    ] {
+        if let Some(n) = count(&init[source]) {
+            metadata.insert(key.to_owned(), n.to_string());
+        }
     }
 }
 
@@ -300,6 +356,7 @@ fn usage_of(result: &Value) -> Option<UsageMetrics> {
         input_tokens,
         output_tokens,
         total_tokens,
+        cached_input_tokens: part("cache_read_input_tokens"),
         cost,
         currency: cost.map(|_| "USD".to_owned()),
         source: UsageSource::RuntimeReported,
@@ -366,6 +423,7 @@ fn parse_run_output(output: &ProcessOutput, model_id: &str) -> Result<RuntimeOut
     }
 
     let mut metadata = BTreeMap::new();
+    note_surface(&mut metadata, &output.stdout);
     // A tool that asks the person was called: `-p` has nobody to answer it, so the CLI reports
     // it as denied. That is a structured signal, whatever language the agent wrote in.
     for denial in result["permission_denials"]
@@ -449,6 +507,7 @@ mod tests {
             prompt: Prompt {
                 harness: None,
                 task_aware: false,
+                skills: None,
                 system: "SYS".to_owned(),
                 context: "CTX".to_owned(),
                 instruction: "INS".to_owned(),
@@ -528,6 +587,8 @@ mod tests {
                 "--tools",
                 "Read,Grep,Glob",
                 "--no-session-persistence",
+                "--strict-mcp-config",
+                "--disable-slash-commands",
                 "--",
                 &request("sonnet").prompt.combined(),
             ]
@@ -753,6 +814,69 @@ mod tests {
         }
     }
 
+    /// What the CLI reports when it starts (the shape of its `system`/`init` message, captured from
+    /// Claude Code 2.1.285 with and without the isolation flags).
+    const INIT_UNISOLATED: &str = r#"{"type":"system","subtype":"init","tools":["Glob","Grep","Read","mcp__claude_ai_Claude_Docs__create","mcp__claude_ai_Claude_Docs__delete"],"mcp_servers":[{"name":"claude.ai Claude Docs","status":"connected"},{"name":"claude.ai Gmail","status":"needs-auth"}],"slash_commands":["a","b","c"],"skills":["a","b"],"plugins":[{"name":"figma"}],"agents":["Plan"]}"#;
+    const INIT_ISOLATED: &str = r#"{"type":"system","subtype":"init","tools":["Glob","Grep","Read"],"mcp_servers":[],"slash_commands":[],"skills":[],"plugins":[{"name":"figma"}]}"#;
+
+    fn surface_of(init: &str) -> BTreeMap<String, String> {
+        let stdout = format!("{init}\n{SUCCESS}");
+        parse_run_output(&output(0, &stdout).unwrap(), "sonnet")
+            .unwrap()
+            .metadata
+    }
+
+    #[test]
+    fn what_the_cli_loaded_around_the_model_is_reported_as_it_said_it() {
+        let loose = surface_of(INIT_UNISOLATED);
+        assert_eq!(
+            loose["toolsExposed"],
+            "Glob,Grep,Read,mcp__claude_ai_Claude_Docs__create,mcp__claude_ai_Claude_Docs__delete"
+        );
+        assert_eq!(loose["mcpServers"], "claude.ai Claude Docs,claude.ai Gmail");
+        assert_eq!(loose["skillsLoaded"], "2");
+        assert_eq!(loose["slashCommands"], "3");
+        assert_eq!(loose["pluginsLoaded"], "1");
+
+        let isolated = surface_of(INIT_ISOLATED);
+        assert_eq!(isolated["toolsExposed"], "Glob,Grep,Read");
+        assert_eq!(isolated["mcpServers"], "");
+        assert_eq!(isolated["skillsLoaded"], "0");
+        // Without an init message nothing is claimed.
+        let none = parse_run_output(&output(0, SUCCESS).unwrap(), "sonnet")
+            .unwrap()
+            .metadata;
+        assert!(!none.contains_key("toolsExposed") && !none.contains_key("mcpServers"));
+    }
+
+    #[test]
+    fn every_way_atlas_launches_claude_keeps_the_users_connectors_and_skills_out() {
+        for (edit, text_only) in [(false, false), (true, false), (false, true), (true, true)] {
+            let mut req = request("sonnet");
+            req.allow_edits = edit;
+            req.text_only = text_only;
+            let args = launch_args(&req);
+
+            // No MCP server (none is named with `--mcp-config`) and no skills.
+            assert!(
+                args.contains(&"--strict-mcp-config".to_owned()),
+                "{edit} {text_only}"
+            );
+            assert!(args.contains(&"--disable-slash-commands".to_owned()));
+            assert!(!args.contains(&"--mcp-config".to_owned()));
+            // And it is still the tool list and the read-only/edit decision that were made.
+            let at = args.iter().position(|a| a == "--tools").unwrap();
+            let expected = if text_only {
+                ""
+            } else if edit {
+                "Read,Grep,Glob,Edit,Write"
+            } else {
+                "Read,Grep,Glob"
+            };
+            assert_eq!(args[at + 1], expected);
+        }
+    }
+
     /// Uses the real Claude CLI. It needs Claude installed; the full round trip also needs a
     /// signed-in session. Without one, this verifies the real "authentication required"
     /// behaviour instead. Run with `cargo test real_claude -- --ignored --nocapture`.
@@ -801,5 +925,40 @@ mod tests {
             Some(crate::domain::interaction::InteractionKind::Approval)
         );
         assert!(found.document.contains("1. Do it"));
+    }
+
+    /// Starts the real CLI with Atlas's exact arguments and a model that does not exist, so it
+    /// reports what it loaded (its `init` message) and then fails at the first request: no model
+    /// call is made and nothing is spent. Run with `cargo test real_claude_surface -- --ignored`.
+    #[test]
+    #[ignore = "needs the Claude CLI installed; makes no model call"]
+    fn real_claude_surface_has_only_the_granted_tools_and_no_connectors_or_skills() {
+        use crate::application::process::ProcessRunner as _;
+
+        let system = crate::infrastructure::SystemProcessRunner::new();
+        let mut req = request("not-a-real-model-xyz");
+        req.working_dir = std::env::temp_dir();
+        let mut args = launch_args(&req);
+        args.extend(["--".to_owned(), "ping".to_owned()]);
+        let spec = ProcessSpec {
+            program: PROGRAM.to_owned(),
+            args,
+            stdin: None,
+            cwd: Some(req.working_dir.clone()),
+            env: Vec::new(),
+            timeout: RUN_TIMEOUT,
+            context: ProcessContext::Probe,
+            terminal: None,
+        };
+
+        let out = system.run(&spec, &|_| {}).expect("the CLI ran");
+
+        let mut metadata = BTreeMap::new();
+        note_surface(&mut metadata, &out.stdout);
+        eprintln!("REAL SURFACE {metadata:?}");
+        assert_eq!(metadata["toolsExposed"], "Glob,Grep,Read");
+        assert_eq!(metadata["mcpServers"], "");
+        assert_eq!(metadata["skillsLoaded"], "0");
+        assert_eq!(metadata["slashCommands"], "0");
     }
 }

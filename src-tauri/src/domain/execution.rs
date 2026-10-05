@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use super::interaction::InteractionDetection;
+use super::optimization::OptimizationMetrics;
 use super::security::PermissionEvent;
 use super::task::Task;
 use super::task_context::ContextRecord;
@@ -108,6 +109,8 @@ pub struct Execution {
     pub permission_events: Vec<PermissionEvent>,
     /// How the Harness context of the prompt was chosen. `None` when the project has no Harness.
     pub context: Option<ContextRecord>,
+    /// What Atlas observed about the prompt and the run. `None` when metrics are off.
+    pub optimization: Option<OptimizationMetrics>,
     /// What the execution is waiting for, while it is `WaitingForInput`.
     pub interaction: Option<InteractionDetection>,
 }
@@ -134,6 +137,7 @@ impl Execution {
             permission_events: Vec::new(),
             context: None,
             interaction: None,
+            optimization: None,
             status: ExecutionStatus::Running,
             started_at,
             completed_at: None,
@@ -237,6 +241,26 @@ pub enum ExecutionEventKind {
     /// `worktreeStatus`, `mergeStatus` and, when known, `filesChanged`, `blockReason` and
     /// `recommendation`.
     WorktreeFinalized,
+    /// The Harness part of the prompt was settled (or there is none): `metadata` has `buildMs`
+    /// and, with a Harness, `selectedItems`, `omittedItems`. Observability only.
+    OptimizationContextBuilt,
+    /// The prompt was assembled: `metadata` has `totalBytes`, `estimatedTokens`, `tokenSource`
+    /// (always `estimated`: Atlas has no tokenizer) and `buildMs`. Observability only.
+    OptimizationPromptBuilt,
+    /// The execution's metrics were saved with it: `metadata` has `totalMs` and, when the runtime
+    /// reported them, `runtimeInputTokens` and `runtimeOutputTokens`. Observability only.
+    OptimizationMetricsRecorded,
+    /// The Context Engine reworked the prompt's inputs: `metadata` has `deduplicatedLines`,
+    /// `compressedItems`, `omittedItems`, `savedBytes`, `rawEstimatedTokens`,
+    /// `finalEstimatedTokens` and `tokenSource` (always `estimated`).
+    OptimizationContextOptimized,
+    /// The prompt is over its budget after everything that may be shortened was: `metadata` has
+    /// `budgetTokens`, `estimatedTokens` and `requiredTokens`. Nothing was cut to force it.
+    OptimizationBudgetWarning,
+    /// The skills layer looked at the task: `metadata` has `discovered`, `usable`, `activated`
+    /// (names, comma separated), `reasons`, `level2Tokens`, `level3Tokens`, `cacheHits`,
+    /// `cacheMisses` and `tokenSource` (always `estimated`).
+    OptimizationSkillsSelected,
 }
 
 /// Progress notification emitted while an execution runs. Carries both ids so a listener
@@ -285,6 +309,10 @@ pub struct StoredExecution {
     /// the prompt). Absent for executions from before V0.8 and for projects without a Harness.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context: Option<ContextRecord>,
+    /// What Atlas observed about the prompt and the run (sizes, estimated tokens, latency). Absent
+    /// for executions from before the Optimization Layer and when metrics were off.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub optimization: Option<OptimizationMetrics>,
     /// The workflow step this execution ran as, when it was one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub workflow: Option<WorkflowLink>,

@@ -1,4 +1,5 @@
 use crate::domain::agent::Agent;
+use crate::domain::optimization::{BriefLayout, PromptBreakdown, SectionKind, TextSize};
 use crate::domain::personality::PersonalityProfile;
 use crate::domain::project::ProjectContext;
 use crate::domain::task::Task;
@@ -45,6 +46,10 @@ pub struct Prompt {
     pub harness: Option<String>,
     /// The Harness text was chosen for this task (a Task Context), not the whole project's.
     pub task_aware: bool,
+    /// The skills selected for the task, with the notice that frames them (see
+    /// `optimization::skills`). Guidance only: it sits below the Atlas rules and cannot grant
+    /// anything. `None` if no skill was selected.
+    pub skills: Option<String>,
     pub context: String,
     pub instruction: String,
 }
@@ -60,9 +65,86 @@ impl Prompt {
             };
             format!("{title}\n\n{text}\n\n")
         });
+        let skills = self
+            .skills
+            .as_ref()
+            .map_or_else(String::new, |text| format!("SKILLS\n\n{text}\n\n"));
         format!(
-            "SYSTEM / PERSONALITY\n\n{}\n\n{harness}PROJECT CONTEXT\n\n{}\n\nUSER INSTRUCTION\n\n{}\n",
+            "SYSTEM / PERSONALITY\n\n{}\n\n{harness}{skills}PROJECT CONTEXT\n\n{}\n\nUSER INSTRUCTION\n\n{}\n",
             self.system, self.context, self.instruction
+        )
+    }
+}
+
+/// How big each part of a prompt is, taken from the very strings the builder joined (so it is
+/// exact and nothing is parsed back out of the prompt). Observability only: the prompt does not
+/// depend on it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PromptLayout {
+    personality: TextSize,
+    atlas_rules: TextSize,
+    live_narration: TextSize,
+    plan_rule: TextSize,
+    project_context: TextSize,
+    agent_instructions: TextSize,
+    /// The task text, trimmed, as it follows `Task:` in the instruction.
+    task: TextSize,
+}
+
+impl PromptLayout {
+    /// Splits `prompt` (which this layout was taken from, and which `combined` is the text of)
+    /// into measured sections. `brief` says how
+    /// the task text divides when it is a workflow step's brief; without it the whole task text
+    /// is [`SectionKind::Task`].
+    pub fn breakdown(
+        &self,
+        prompt: &Prompt,
+        combined: &str,
+        brief: Option<&BriefLayout>,
+    ) -> PromptBreakdown {
+        let whole = TextSize::of(combined);
+        let (harness_kind, harness_size) =
+            prompt
+                .harness
+                .as_deref()
+                .map_or((SectionKind::Harness, TextSize::default()), |text| {
+                    let kind = if prompt.task_aware {
+                        SectionKind::TaskContext
+                    } else {
+                        SectionKind::Harness
+                    };
+                    (kind, TextSize::of(text))
+                });
+        let brief = brief.copied().unwrap_or_default();
+        // The brief is a part of the task text: take it out of there. A trailing newline the
+        // builder trimmed off is not counted twice (`saturating_sub`).
+        let task = self
+            .task
+            .saturating_sub(brief.workflow_context)
+            .saturating_sub(brief.handoff)
+            .saturating_sub(brief.protocols);
+        PromptBreakdown::new(
+            whole,
+            [
+                (SectionKind::Personality, self.personality),
+                (SectionKind::AtlasRules, self.atlas_rules),
+                (SectionKind::LiveNarration, self.live_narration),
+                (SectionKind::PlanRule, self.plan_rule),
+                (harness_kind, harness_size),
+                (
+                    SectionKind::Skills,
+                    prompt
+                        .skills
+                        .as_deref()
+                        .map_or_else(TextSize::default, TextSize::of),
+                ),
+                (SectionKind::ProjectContext, self.project_context),
+                (SectionKind::AgentInstructions, self.agent_instructions),
+                (SectionKind::BriefWorkflowContext, brief.workflow_context),
+                (SectionKind::BriefHandoff, brief.handoff),
+                (SectionKind::BriefProtocols, brief.protocols),
+                (SectionKind::Task, task),
+            ],
         )
     }
 }
@@ -94,6 +176,7 @@ impl PromptBuilder {
     /// As [`Self::build`], telling the agent whether it may edit files (see
     /// `RuntimeRequest::allow_edits`). The rule the prompt states is the one the runtime enforces:
     /// the prompt never says more than what the tools allow.
+    #[cfg(test)]
     #[allow(clippy::too_many_arguments)]
     pub fn build_with_access(
         personality: &PersonalityProfile,
@@ -104,15 +187,39 @@ impl PromptBuilder {
         task: &Task,
         can_edit: bool,
     ) -> Prompt {
+        Self::assemble(
+            personality,
+            project,
+            harness,
+            task_aware,
+            agent,
+            task,
+            can_edit,
+            None,
+        )
+        .0
+    }
+
+    /// [`Self::build_with_access`], also telling how big each part is. This is the one assembly:
+    /// the prompt is identical whether or not the layout is used.
+    #[allow(clippy::too_many_arguments)]
+    pub fn assemble(
+        personality: &PersonalityProfile,
+        project: &ProjectContext,
+        harness: Option<&str>,
+        task_aware: bool,
+        agent: &Agent,
+        task: &Task,
+        can_edit: bool,
+        skills: Option<&str>,
+    ) -> (Prompt, PromptLayout) {
         let rules = if can_edit {
             ATLAS_RULES_EDITING
         } else {
             ATLAS_RULES
         };
-        let system = format!(
-            "{}\n\n{rules}\n\n{LIVE_NARRATION}\n\n{PLAN_RULE}",
-            personality.system_instructions.trim()
-        );
+        let personality_text = personality.system_instructions.trim();
+        let system = format!("{personality_text}\n\n{rules}\n\n{LIVE_NARRATION}\n\n{PLAN_RULE}");
 
         let mut context = format!("Project: {}\nPath: {}", project.name, project.path);
         if !project.technologies.is_empty() {
@@ -125,21 +232,36 @@ impl PromptBuilder {
 
         let mut instruction = String::new();
         let standing = agent.instructions.trim();
+        let mut agent_instructions = TextSize::default();
         if !standing.is_empty() {
+            let before = instruction.len();
             instruction.push_str("Agent instructions:\n");
             instruction.push_str(standing);
             instruction.push_str("\n\n");
+            agent_instructions = TextSize::of(&instruction[before..]);
         }
         instruction.push_str("Task:\n");
-        instruction.push_str(task.description.trim());
+        let task_text = task.description.trim();
+        instruction.push_str(task_text);
 
-        Prompt {
+        let layout = PromptLayout {
+            personality: TextSize::of(personality_text),
+            atlas_rules: TextSize::of(rules),
+            live_narration: TextSize::of(LIVE_NARRATION),
+            plan_rule: TextSize::of(PLAN_RULE),
+            project_context: TextSize::of(&context),
+            agent_instructions,
+            task: TextSize::of(task_text),
+        };
+        let prompt = Prompt {
             system,
             harness: harness.map(str::to_owned),
             task_aware,
+            skills: skills.map(str::to_owned),
             context,
             instruction,
-        }
+        };
+        (prompt, layout)
     }
 }
 

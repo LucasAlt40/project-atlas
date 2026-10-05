@@ -216,6 +216,8 @@ fn usage_of(stats: &Value) -> Option<UsageMetrics> {
         input_tokens,
         output_tokens,
         total_tokens,
+        // Not read from Gemini's `stats`: nothing is claimed.
+        cached_input_tokens: None,
         cost: None,
         currency: None,
         source: UsageSource::RuntimeReported,
@@ -344,6 +346,7 @@ mod tests {
             prompt: Prompt {
                 harness: None,
                 task_aware: false,
+                skills: None,
                 system: "SYS".to_owned(),
                 context: "CTX".to_owned(),
                 instruction: "INS".to_owned(),

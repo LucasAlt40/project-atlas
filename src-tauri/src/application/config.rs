@@ -23,6 +23,51 @@ pub struct AppSettings {
     /// The workspace that was open last, so it opens again next time.
     #[serde(default)]
     pub selected_workspace_id: Option<String>,
+    /// Switches of the Optimization Layer.
+    #[serde(default)]
+    pub optimization: OptimizationSettings,
+}
+
+/// Which parts of the Optimization Layer are on. Phase 0 has only the metrics, and they only
+/// measure: on or off, the prompt, the runtime and the permissions are the same.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(clippy::struct_excessive_bools)] // independent switches, one per part of the layer
+pub struct OptimizationSettings {
+    /// `optimization.metrics.enabled`: record what each prompt is made of and how long each stage
+    /// took. On by default: a baseline is only worth having if it is always there.
+    #[serde(default = "default_metrics_enabled")]
+    pub metrics_enabled: bool,
+    /// `optimization.context.enabled`: the Context Engine removes what a prompt says twice (and
+    /// keeps a budget, if one is set). Off by default: unlike the metrics it changes the prompt,
+    /// so it is switched on on purpose and compared with the benchmark first.
+    #[serde(default)]
+    pub context_enabled: bool,
+    /// `optimization.context.maxTokens`: an estimated-token budget for the prompt. Only items that
+    /// are not required, relevant or the user's own can be left out for it; if that is not
+    /// enough, the overrun is reported and nothing is cut. `None`: no budget.
+    #[serde(default)]
+    pub context_max_tokens: Option<u64>,
+    /// `optimization.skills.enabled`: Atlas looks for skills (`<project>/.atlas/skills`, the
+    /// user's `skills` folder) and sends the ones a task calls for. Off by default: it adds text
+    /// to prompts.
+    #[serde(default)]
+    pub skills_enabled: bool,
+}
+
+fn default_metrics_enabled() -> bool {
+    true
+}
+
+impl Default for OptimizationSettings {
+    fn default() -> Self {
+        Self {
+            metrics_enabled: true,
+            context_enabled: false,
+            context_max_tokens: None,
+            skills_enabled: false,
+        }
+    }
 }
 
 impl Default for AppSettings {
@@ -30,6 +75,7 @@ impl Default for AppSettings {
         Self {
             language: DEFAULT_LANGUAGE.to_owned(),
             selected_workspace_id: None,
+            optimization: OptimizationSettings::default(),
         }
     }
 }

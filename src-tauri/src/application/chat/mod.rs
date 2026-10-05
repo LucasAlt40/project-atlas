@@ -19,6 +19,7 @@ use crate::domain::execution::{
     FailureKind, StoredExecution, WorkflowLink,
 };
 use crate::domain::interaction::InteractionDetection;
+use crate::domain::optimization::BriefParts;
 use crate::domain::usage::UsageRecord;
 
 /// Port: everything the UI wants to hear about while a message is being answered. The Tauri
@@ -47,6 +48,8 @@ pub struct WorkflowStepRequest {
     pub instruction: String,
     /// What the Task Context is selected for.
     pub context_query: String,
+    /// The parts of the instruction that follow the node's own instructions and the task.
+    pub brief_parts: BriefParts,
     pub link: WorkflowLink,
     /// The primary worktree of the workflow run, when it has one.
     pub shared_worktree: Option<String>,
@@ -255,6 +258,7 @@ impl ChatService {
                 content: content.to_owned(),
                 instruction: content.to_owned(),
                 context_query: None,
+                brief_parts: None,
                 shared_worktree: None,
                 workflow: None,
                 announce: None,
@@ -283,6 +287,7 @@ impl ChatService {
         })?;
         pending.instruction = step.instruction;
         pending.context_query = Some(step.context_query);
+        pending.brief_parts = Some(step.brief_parts);
         pending.workflow = Some(step.link);
         pending.shared_worktree = step.shared_worktree;
         pending.announce = Some(sent.user_message.clone());
@@ -341,6 +346,7 @@ pub struct PendingRun {
     instruction: String,
     /// What the Task Context is chosen for, when it is not the instruction.
     context_query: Option<String>,
+    brief_parts: Option<BriefParts>,
     shared_worktree: Option<String>,
     workflow: Option<WorkflowLink>,
     /// A message nobody was told about yet (a workflow step's request).
@@ -366,6 +372,7 @@ impl PendingRun {
         };
         let options = StepOptions {
             context_query: self.context_query.as_deref(),
+            brief_parts: self.brief_parts.as_ref(),
             shared_worktree: self.shared_worktree.as_deref(),
             // A workflow step that asks a person something waits for the answer; in a
             // conversation the person just replies.
@@ -488,6 +495,7 @@ impl PendingRun {
                     usage: execution.usage.clone(),
                     interaction: execution.interaction.clone(),
                     context: execution.context.clone(),
+                    optimization: execution.optimization.clone(),
                     workflow: self.workflow.clone(),
                     events,
                 }
@@ -513,6 +521,7 @@ impl PendingRun {
                     usage: None,
                     interaction: None,
                     context: None,
+                    optimization: None,
                     workflow: self.workflow.clone(),
                     events,
                 }
@@ -717,6 +726,7 @@ mod tests {
             input_tokens: Some(total - 1),
             output_tokens: Some(1),
             total_tokens: Some(total),
+            cached_input_tokens: None,
             cost: Some(cost),
             currency: Some("USD".to_owned()),
             source: UsageSource::RuntimeReported,

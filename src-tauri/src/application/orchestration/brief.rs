@@ -10,6 +10,7 @@ use super::result_parser::RESULT_FENCE;
 use crate::application::interaction::INTERACTION_FENCE;
 use crate::application::workflow::graph::Graph;
 use crate::domain::interaction::{InteractionStatus, PendingInteraction};
+use crate::domain::optimization::BriefParts;
 use crate::domain::orchestration::{Finding, ResultStatus};
 use crate::domain::result_contract::ResultContract;
 use crate::domain::workflow::{AgentHandoff, HandoffKind, NodeKind, WorkflowExecution};
@@ -30,6 +31,8 @@ pub struct StepBrief {
     pub context_query: String,
     /// Short label for listings of the execution.
     pub display_task: String,
+    /// The parts of `description` that come after the node's instructions and the task.
+    pub parts: BriefParts,
 }
 
 fn clip(text: &str, max: usize) -> String {
@@ -64,11 +67,22 @@ pub fn build(
         );
     }
     let _ = write!(description, "Overall task:\n{}\n\n", exec.task.trim());
-    description.push_str(&workflow_context(exec, graph, node_id));
-    description.push_str(&handoff_block(exec, graph, node_id));
-    description.push_str(&human_input_block(exec, node_id));
-    description.push_str(&result_protocol(contract));
-    description.push_str(&interaction_protocol());
+    let workflow = workflow_context(exec, graph, node_id);
+    let handoff = handoff_block(exec, graph, node_id);
+    let protocols = [
+        human_input_block(exec, node_id),
+        result_protocol(contract),
+        interaction_protocol(),
+    ]
+    .concat();
+    description.push_str(&workflow);
+    description.push_str(&handoff);
+    description.push_str(&protocols);
+    let parts = BriefParts {
+        workflow_context: workflow,
+        handoff,
+        protocols,
+    };
 
     let mut context_query = exec.task.trim().to_owned();
     let _ = write!(context_query, "\n{label}");
@@ -79,6 +93,7 @@ pub fn build(
         description,
         context_query,
         display_task: clip(&format!("{label}: {}", exec.task), 160),
+        parts,
     }
 }
 
@@ -304,10 +319,9 @@ fn interaction_protocol() -> String {
          ```{INTERACTION_FENCE}\n\
          {{\"type\":\"clarification\",\"question\":\"…\",\"context\":\"…\",\"options\":[\"…\"]}}\n\
          ```\n\
-         When you ask about a plan or an analysis, write it in full in your message as Markdown \
-         (headings, lists): Atlas shows your whole message to the person to read before they \
-         answer. If you can create files, also save it as `docs/plans/<short-name>.md`. Do not \
-         end with a signature or a sign-off after the block or the question.\n\
+         A plan or analysis you ask about follows the plans rule above (written in full, and saved \
+         as a file if you can create files). Do not end with a signature or a sign-off after the \
+         block or the question.\n\
          The person's answer is given back to you and you go on. Their approval lets you continue \
          in this workflow's own worktree; it never applies anything to the main project and does \
          not change what you are allowed to do.\n"

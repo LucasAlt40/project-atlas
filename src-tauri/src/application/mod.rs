@@ -10,6 +10,7 @@ pub mod ide;
 pub mod interaction;
 pub mod lifecycle;
 pub mod live_workspace;
+pub mod optimization;
 pub mod orchestration;
 pub mod personalities;
 pub mod process;

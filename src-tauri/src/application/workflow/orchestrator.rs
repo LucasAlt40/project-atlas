@@ -640,6 +640,7 @@ impl Orchestrator {
                 agent_id: candidate.agent_id.clone(),
                 instruction: brief.description,
                 context_query: brief.context_query,
+                brief_parts: brief.parts,
                 display_task: brief.display_task,
                 shared_worktree,
                 link: WorkflowLink {

@@ -241,6 +241,7 @@ fn usage_of(result: &Value) -> Option<UsageMetrics> {
         input_tokens,
         output_tokens,
         total_tokens,
+        cached_input_tokens: part("cache_read_tokens"),
         cost: None,
         currency: None,
         source: UsageSource::RuntimeReported,
@@ -436,6 +437,7 @@ mod tests {
             prompt: Prompt {
                 harness: None,
                 task_aware: false,
+                skills: None,
                 system: "SYS".to_owned(),
                 context: "CTX".to_owned(),
                 instruction: "INS".to_owned(),

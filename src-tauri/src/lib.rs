@@ -42,8 +42,8 @@ use application::workflow::service::WorkflowService;
 use application::workspace::WorkspaceService;
 use application::worktree::{WorktreeLayout, WorktreeService};
 use infrastructure::{
-    FsHarnessStore, FsProjectInspector, FsProjectScanner, GitWorktreeManager, JsonConfigStore,
-    SystemIdeLauncher, SystemProcessRunner,
+    FsHarnessStore, FsProjectInspector, FsProjectScanner, FsSkillStore, GitWorktreeManager,
+    JsonConfigStore, SystemIdeLauncher, SystemProcessRunner,
 };
 use platform::OsPlatform;
 use state::AppState;
@@ -260,6 +260,13 @@ fn build_state(
         .with_worktrees(worktrees.clone())
         .with_policies(security.clone())
         .with_harness(context_builder)
+        .with_optimization(config.clone())
+        .with_skills(Arc::new(
+            application::optimization::skills::SkillService::new(
+                Arc::new(FsSkillStore),
+                Some(data_dir.join("skills")),
+            ),
+        ))
         .with_first_id(first_id),
     );
     let ledger = Arc::new(UsageLedger::new(config.clone()));

@@ -7,6 +7,7 @@ use crate::application::chat::ChatObserver;
 use crate::application::worktree::StepDelta;
 use crate::domain::execution::WorkflowLink;
 use crate::domain::interaction::InteractionDetection;
+use crate::domain::optimization::BriefParts;
 use crate::domain::workflow::WorkflowEvent;
 use crate::domain::worktree::{ChangeSet, ExecutionWorktree};
 
@@ -19,6 +20,8 @@ pub struct StepRequest {
     pub instruction: String,
     /// What the Task Context is chosen for.
     pub context_query: String,
+    /// The parts of the instruction that follow the node's own instructions and the task.
+    pub brief_parts: BriefParts,
     pub display_task: String,
     pub link: WorkflowLink,
     /// The run's shared worktree, when it has one: the step works in it (if its agent is

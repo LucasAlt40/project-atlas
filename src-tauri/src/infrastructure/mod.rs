@@ -10,6 +10,7 @@ mod process;
 mod project_inspector;
 mod project_scanner;
 mod pty;
+mod skill_store;
 
 pub use fs_watcher::NotifyWatcher;
 pub use git_worktree::GitWorktreeManager;
@@ -19,3 +20,4 @@ pub use json_config_store::JsonConfigStore;
 pub use process::SystemProcessRunner;
 pub use project_inspector::FsProjectInspector;
 pub use project_scanner::FsProjectScanner;
+pub use skill_store::FsSkillStore;

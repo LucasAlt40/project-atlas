@@ -553,6 +553,119 @@ fn each_step_gets_the_task_and_its_own_instructions_for_the_task_context_and_no_
     assert_eq!(backend.link.node_id, "backend");
 }
 
+#[test]
+fn a_steps_brief_layout_matches_the_instruction_it_describes() {
+    let env = env();
+    let workflow = env.workflow(
+        vec![
+            agent("backend", "backend"),
+            agent("frontend", "frontend"),
+            end("done", EndOutcome::Done),
+        ],
+        vec![edge("backend", "frontend"), edge("frontend", "done")],
+    );
+    let runner = Scripted::new();
+    env.run(&runner, &workflow.id);
+
+    let first = &runner.requests_for("backend")[0];
+    let second = &runner.requests_for("frontend")[0];
+    for request in [first, second] {
+        let layout = request.brief_parts.layout();
+        // The parts are measured where they are written, so they fit inside the instruction and
+        // the protocols are the ones that carry the result block.
+        assert!(
+            layout.workflow_context.bytes + layout.handoff.bytes + layout.protocols.bytes
+                <= request.instruction.len()
+        );
+        assert!(request.instruction.contains("RESULT PROTOCOL"));
+        // The plan instruction lives in the plans rule every prompt carries; the step's protocol
+        // points at it instead of saying it again.
+        assert!(!request.instruction.contains("docs/plans"));
+        assert!(request.instruction.contains("follows the plans rule above"));
+        assert!(layout.protocols.bytes > 0 && layout.workflow_context.bytes > 0);
+    }
+    // Nothing was handed to the first step; the second got the first one's handoff.
+    assert_eq!(first.brief_parts.handoff.len(), 0);
+    assert!(!first
+        .instruction
+        .contains(crate::application::orchestration::brief::HANDOFF_START));
+    assert_ne!(second.brief_parts.handoff, "");
+    assert!(second
+        .instruction
+        .contains(crate::application::orchestration::brief::HANDOFF_START));
+}
+
+#[test]
+fn the_context_engine_finds_what_a_real_brief_says_twice_and_keeps_every_fact() {
+    use crate::application::optimization::context::{
+        optimize_prompt_inputs, ContextBudget, ContextInputs,
+    };
+    use crate::application::prompt::Prompt;
+
+    let env = env();
+    let workflow = full_flow(&env);
+    let runner = Scripted::new();
+    runner.script("architect", vec![ok(
+        "success",
+        r#","artifacts":[{"type":"architecture_document","name":"architecture.md","path":"docs/architecture.md","summary":"POST /password-reset, 15m token"}],"decisions":[{"title":"JWT","decision":"Use JWT for the reset token","rationale":"The project already uses JWT"}]"#,
+    )]);
+    env.run(&runner, &workflow.id);
+
+    // The developer follows the architect: its brief carries the architect's handoff and the
+    // workflow context that lists the same artifact and decision.
+    let step = &runner.requests_for("developer")[0];
+    let prompt = Prompt {
+        system: "rules".to_owned(),
+        harness: None,
+        task_aware: false,
+        skills: None,
+        context: "Project: atlas".to_owned(),
+        instruction: format!("Task:\n{}", step.instruction.trim()),
+    };
+    let combined = prompt.combined();
+    let outcome = optimize_prompt_inputs(&ContextInputs {
+        prompt: &prompt,
+        combined: &combined,
+        agent_instructions: "",
+        task_description: step.instruction.trim(),
+        brief: Some(&step.brief_parts),
+        skills: &[],
+        budget: ContextBudget::default(),
+    });
+
+    assert!(
+        outcome.changed,
+        "the same artifact and decision are said twice"
+    );
+    let before = step.instruction.trim();
+    let after = &outcome.task_description;
+    assert!(after.len() < before.len());
+    // Every fact is still there once: the workflow context keeps them (it is required)...
+    for fact in [
+        "architecture.md",
+        "docs/architecture.md",
+        "POST /password-reset, 15m token",
+        "Use JWT for the reset token",
+        "The project already uses JWT",
+    ] {
+        assert!(after.contains(fact), "lost: {fact}");
+    }
+    // ...and what only the handoff says (who handed over, how it ended) is untouched.
+    assert!(after.contains("Previous agent:"));
+    assert!(after.contains("Execution status:"));
+    // The protocols and the task are byte for byte what they were.
+    assert!(after.ends_with(step.brief_parts.protocols.trim_end()));
+    assert!(after.starts_with(&before[..before.find("WORKFLOW CONTEXT").unwrap()]));
+    let metrics = outcome.metrics(&format!("{}{}", combined, ""));
+    assert!(metrics.deduplicated_lines >= 2, "{metrics:?}");
+    eprintln!(
+        "REAL BRIEF: {} -> {} bytes, {} duplicate lines",
+        before.len(),
+        after.len(),
+        metrics.deduplicated_lines
+    );
+}
+
 // ---- scheduling and concurrency ------------------------------------------------------------------------
 
 fn fan_out(env: &Env, left: &str, right: &str) -> crate::domain::workflow::Workflow {

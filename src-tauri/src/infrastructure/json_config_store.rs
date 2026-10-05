@@ -134,6 +134,7 @@ mod tests {
             settings: AppSettings {
                 language: "en-US".to_owned(),
                 selected_workspace_id: Some("ws-1".to_owned()),
+                optimization: crate::application::config::OptimizationSettings::default(),
             },
             worktrees: vec![ExecutionWorktree {
                 execution_id: "exec-42".to_owned(),

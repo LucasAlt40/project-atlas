@@ -208,7 +208,8 @@ fn stack_with(stand_in: Option<&str>, model: &str, git: bool) -> Stack {
         workspaces.clone(),
         audit,
     )
-    .with_sessions(sessions.clone());
+    .with_sessions(sessions.clone())
+    .with_optimization(config.clone());
     if let Some(worktrees) = &worktrees {
         executions = executions
             .with_worktrees(worktrees.clone())
@@ -334,6 +335,36 @@ fn a_workflow_runs_through_the_real_runtime_guard_and_terminal_with_a_loop() {
     let messages = s.chat.messages(Some(&s.workspace_id), None);
     assert_eq!(messages.len(), 8);
     assert_eq!(s.sessions.live_executions().len(), 0);
+
+    // Every step was measured, and the measure of each one explains its whole prompt. The steps
+    // after the first were handed something by the one before; the first was handed nothing.
+    let mut ordered = stored.clone();
+    ordered.sort_by_key(|e| e.started_at);
+    let rows: Vec<_> = ordered
+        .iter()
+        .map(|e| {
+            let metrics = e.optimization.as_ref().expect("measured");
+            assert_eq!(
+                metrics
+                    .prompt
+                    .sections
+                    .iter()
+                    .map(|x| x.bytes)
+                    .sum::<usize>(),
+                metrics.prompt.total_bytes
+            );
+            assert!(metrics.handoff.bytes.is_some());
+            assert!(metrics.latency.runtime_ms.is_some());
+            let link = e.workflow.as_ref().unwrap();
+            (link.node_label.clone(), metrics.handoff.bytes.unwrap_or(0))
+        })
+        .collect();
+    assert_eq!(rows[0].1, 0, "{rows:?}");
+    assert!(rows[1..].iter().all(|(_, bytes)| *bytes > 0), "{rows:?}");
+    // The runtime reported a cost but no tokens: the tokens stay unavailable, never estimated.
+    assert!(ordered
+        .iter()
+        .all(|e| e.usage.as_ref().is_none_or(|u| u.input_tokens.is_none())));
 }
 
 #[test]

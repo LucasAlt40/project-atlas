@@ -20,6 +20,10 @@ pub struct UsageMetrics {
     pub input_tokens: Option<u64>,
     pub output_tokens: Option<u64>,
     pub total_tokens: Option<u64>,
+    /// The part of `input_tokens` the provider served from its prompt cache, when the runtime
+    /// says so. `None` is not zero: it means nothing was reported.
+    #[serde(default)]
+    pub cached_input_tokens: Option<u64>,
     pub cost: Option<f64>,
     /// ISO 4217 code of `cost`, when the runtime says which currency it is.
     pub currency: Option<String>,
@@ -202,6 +206,7 @@ mod tests {
             input_tokens: input,
             output_tokens: output,
             total_tokens: input.zip(output).map(|(i, o)| i + o),
+            cached_input_tokens: None,
             cost,
             currency: cost.map(|_| "USD".to_owned()),
             source: UsageSource::RuntimeReported,

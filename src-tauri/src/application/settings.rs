@@ -107,7 +107,8 @@ mod tests {
             service.get(),
             AppSettings {
                 language: "pt-BR".to_owned(),
-                selected_workspace_id: None
+                selected_workspace_id: None,
+                optimization: crate::application::config::OptimizationSettings::default(),
             }
         );
     }

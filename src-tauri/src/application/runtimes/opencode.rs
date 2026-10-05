@@ -234,6 +234,7 @@ fn usage_of(stdout: &str) -> Option<UsageMetrics> {
     let mut input: Option<u64> = None;
     let mut output: Option<u64> = None;
     let mut total: Option<u64> = None;
+    let mut cached: Option<u64> = None;
     let mut cost: Option<f64> = None;
     let add = |sum: &mut Option<u64>, value: Option<u64>| {
         if let Some(value) = value {
@@ -266,6 +267,7 @@ fn usage_of(stdout: &str) -> Option<UsageMetrics> {
                 .reduce(u64::saturating_add),
         );
         add(&mut total, n(&tokens["total"]));
+        add(&mut cached, cache_read);
         if let Some(step_cost) = part["cost"].as_f64() {
             cost = Some(cost.unwrap_or(0.0) + step_cost);
         }
@@ -277,6 +279,7 @@ fn usage_of(stdout: &str) -> Option<UsageMetrics> {
         input_tokens: input,
         output_tokens: output,
         total_tokens: total,
+        cached_input_tokens: cached,
         cost,
         currency: None,
         source: UsageSource::RuntimeReported,
@@ -421,6 +424,7 @@ mod tests {
             prompt: Prompt {
                 harness: None,
                 task_aware: false,
+                skills: None,
                 system: "SYS".to_owned(),
                 context: "CTX".to_owned(),
                 instruction: "INS".to_owned(),

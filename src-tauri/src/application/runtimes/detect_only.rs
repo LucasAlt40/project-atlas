@@ -126,6 +126,7 @@ mod tests {
                     prompt: crate::application::prompt::Prompt {
                         harness: None,
                         task_aware: false,
+                        skills: None,
                         system: String::new(),
                         context: String::new(),
                         instruction: String::new(),
