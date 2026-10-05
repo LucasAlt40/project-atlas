@@ -98,3 +98,80 @@
   border-color: var(--border-focus);
   outline: 0;
 }
+
+/* The agent editor: sections in two columns and an action bar that stays in view. */
+.agentForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+}
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+}
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  font-size: var(--font-size-lg);
+}
+.sectionTitle::before {
+  content: '';
+  width: 4px;
+  height: 1.125rem;
+  border-radius: 2px;
+  background: var(--accent-soft);
+}
+.pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--space-4);
+}
+.stickyBar {
+  position: sticky;
+  bottom: calc(var(--space-5) * -1);
+  z-index: 5;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: rgb(21 25 30 / 0.92);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 -8px 24px -8px rgb(0 0 0 / 0.6);
+}
+.control,
+.textarea {
+  background: var(--surface-void);
+}
+.textarea {
+  min-height: 9rem;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+}
+.field {
+  gap: var(--space-2);
+}

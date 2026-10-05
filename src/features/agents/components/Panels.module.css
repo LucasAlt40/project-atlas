@@ -161,3 +161,123 @@
   gap: var(--space-2);
   font-size: var(--font-size-sm);
 }
+
+/* Agent cards */
+.agentGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(26rem, 1fr));
+  gap: var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.agentCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+}
+.agentCard:hover {
+  border-color: var(--border-strong);
+}
+.agentCardHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.agentIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius-md);
+  background: var(--surface-3);
+  color: var(--accent-soft);
+}
+.agentCardTitle {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.agentNameRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+.agentCardName {
+  color: var(--text-high);
+  font-size: var(--font-size-lg);
+  letter-spacing: -0.02em;
+}
+.chip {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+  color: var(--info);
+  font-size: 0.6875rem;
+}
+.agentRuntime {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+.agentFacts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-void);
+}
+.agentFacts div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.agentFacts dt {
+  color: var(--text-dim);
+}
+.agentFacts dd {
+  margin: 0;
+  color: var(--text-standard);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.agentCardFoot {
+  display: flex;
+  justify-content: flex-end;
+}
+.iconActions {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.iconButton:hover {
+  background: var(--surface-2);
+  color: var(--text-high);
+}
+.iconDanger:hover {
+  color: var(--color-danger);
+}

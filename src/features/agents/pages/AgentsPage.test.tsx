@@ -34,9 +34,20 @@ describe('AgentsPage', () => {
 
     const list = await screen.findByRole('list', { name: 'Agents' });
     expect(within(list).getByText('Architecture Expert')).toBeInTheDocument();
-    expect(
-      within(list).getByText(/Architect · OpenCode CLI · opencode\/big-pickle/),
-    ).toBeInTheDocument();
+    expect(within(list).getByText('Architect')).toBeInTheDocument();
+    expect(within(list).getByText('OpenCode CLI')).toBeInTheDocument();
+    expect(within(list).getByText('opencode/big-pickle')).toBeInTheDocument();
+  });
+
+  it('narrows the list with the search box', async () => {
+    const user = userEvent.setup();
+    show();
+
+    await user.type(
+      await screen.findByRole('searchbox', { name: 'Search agent or model…' }),
+      'zzz',
+    );
+    expect(screen.getByText('No agent matches your search.')).toBeInTheDocument();
   });
 
   it('isolates executions in Git worktrees by default, says so, and lets the user opt out', async () => {

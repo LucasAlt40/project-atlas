@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Icon } from '@/components/ui/Icon';
+import type { TranslationKey } from '@/i18n';
 import { errorMessage } from '@/i18n/messages';
 import { useT } from '@/i18n/I18nProvider';
 import type { Agent, Personality } from '../types';
@@ -11,10 +13,19 @@ interface Props {
   onEdit: (agentId: string) => void;
   /** Rejects when the agent cannot be deleted (for example it is working). */
   onDelete: (agentId: string) => Promise<void>;
+  /** The list is narrowed by a search, so an empty list means "no match". */
+  filtered?: boolean;
 }
 
 /** Every saved agent, whether or not it is in a workspace. */
-export function AgentList({ agents, personalities, runtimeName, onEdit, onDelete }: Props) {
+export function AgentList({
+  agents,
+  personalities,
+  runtimeName,
+  onEdit,
+  onDelete,
+  filtered = false,
+}: Props) {
   const t = useT();
   const [confirming, setConfirming] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +42,7 @@ export function AgentList({ agents, personalities, runtimeName, onEdit, onDelete
   }
 
   if (agents.length === 0) {
-    return <p className={styles.muted}>{t('agents.empty')}</p>;
+    return <p className={styles.muted}>{t(filtered ? 'agents.noMatch' : 'agents.empty')}</p>;
   }
   return (
     <>
@@ -40,29 +51,47 @@ export function AgentList({ agents, personalities, runtimeName, onEdit, onDelete
           {error}
         </p>
       )}
-      <ul className={styles.agentList} aria-label={t('agents.list')}>
+      <ul className={styles.agentGrid} aria-label={t('agents.list')}>
         {agents.map((agent) => {
           const personality = personalities.find((p) => p.id === agent.personalityId);
+          const profile = agent.permissionProfileId ?? 'read_only';
+          const rows: [string, string][] = [
+            [t('agents.card.model'), agent.modelId || '—'],
+            [t('agents.card.permissions'), t(`security.profile.${profile}` as TranslationKey)],
+            [
+              t('agents.card.result'),
+              agent.resultContract.outcomes.length > 0
+                ? agent.resultContract.outcomes.map((o) => o.id).join(' / ')
+                : t('agents.card.noResult'),
+            ],
+            [
+              t('agents.card.isolation'),
+              t(agent.worktreeIsolation ? 'agent.gitIsolation.on' : 'agent.gitIsolation.off'),
+            ],
+          ];
           return (
-            <li key={agent.id} className={styles.agentRow}>
-              <div>
-                <strong>{agent.name}</strong>
-                <p className={styles.muted}>
-                  {personality?.name ?? agent.personalityId} · {runtimeName(agent.runtimeId)} ·{' '}
-                  {agent.modelId}
-                </p>
-              </div>
-              <div className={styles.rowActions}>
-                <button
-                  type="button"
-                  className={styles.linkButton}
-                  aria-label={t('workspace.editAgent', { name: agent.name })}
-                  onClick={() => {
-                    onEdit(agent.id);
-                  }}
-                >
-                  {t('common.edit')}
-                </button>
+            <li key={agent.id} className={styles.agentCard}>
+              <header className={styles.agentCardHead}>
+                <span className={styles.agentIcon} aria-hidden="true">
+                  <Icon name="agents" size={22} />
+                </span>
+                <div className={styles.agentCardTitle}>
+                  <div className={styles.agentNameRow}>
+                    <strong className={styles.agentCardName}>{agent.name}</strong>
+                    <span className={styles.chip}>{personality?.name ?? agent.personalityId}</span>
+                  </div>
+                  <span className={styles.agentRuntime}>{runtimeName(agent.runtimeId)}</span>
+                </div>
+              </header>
+              <dl className={styles.agentFacts}>
+                {rows.map(([label, value]) => (
+                  <div key={label}>
+                    <dt>{label}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+              <footer className={styles.agentCardFoot}>
                 {confirming === agent.id ? (
                   <span
                     role="group"
@@ -90,18 +119,32 @@ export function AgentList({ agents, personalities, runtimeName, onEdit, onDelete
                     </button>
                   </span>
                 ) : (
-                  <button
-                    type="button"
-                    className={styles.linkButton}
-                    aria-label={t('workspace.manage.deleteLabel', { name: agent.name })}
-                    onClick={() => {
-                      setConfirming(agent.id);
-                    }}
-                  >
-                    {t('common.delete')}
-                  </button>
+                  <span className={styles.iconActions}>
+                    <button
+                      type="button"
+                      className={styles.iconButton}
+                      aria-label={t('workspace.editAgent', { name: agent.name })}
+                      title={t('common.edit')}
+                      onClick={() => {
+                        onEdit(agent.id);
+                      }}
+                    >
+                      <Icon name="edit" size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className={[styles.iconButton, styles.iconDanger].join(' ')}
+                      aria-label={t('workspace.manage.deleteLabel', { name: agent.name })}
+                      title={t('common.delete')}
+                      onClick={() => {
+                        setConfirming(agent.id);
+                      }}
+                    >
+                      <Icon name="trash" size={16} />
+                    </button>
+                  </span>
                 )}
-              </div>
+              </footer>
             </li>
           );
         })}

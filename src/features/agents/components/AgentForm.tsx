@@ -111,158 +111,183 @@ export function AgentForm({
 
   return (
     <form
-      className={styles.form}
+      className={styles.agentForm}
       onSubmit={submit}
       aria-label={initial ? t('agents.form.edit', { name: initial.name }) : t('agents.create')}
     >
-      <div className={styles.field}>
-        <label htmlFor="agent-name" className={styles.label}>
-          {t('agents.form.name')}
-        </label>
-        <input
-          id="agent-name"
-          className={styles.control}
-          value={name}
-          placeholder={t('agents.form.namePlaceholder')}
-          onChange={(e) => {
-            setName(e.target.value);
-          }}
-        />
+      <div className={styles.columns}>
+        <div className={styles.column}>
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>{t('agents.form.section.identity')}</h2>
+            <div className={styles.pair}>
+              <div className={styles.field}>
+                <label htmlFor="agent-name" className={styles.label}>
+                  {t('agents.form.name')}
+                </label>
+                <input
+                  id="agent-name"
+                  className={styles.control}
+                  value={name}
+                  placeholder={t('agents.form.namePlaceholder')}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                  }}
+                />
+              </div>
+
+              <div className={styles.field}>
+                <label htmlFor="agent-personality" className={styles.label}>
+                  {t('agents.form.personality')}
+                </label>
+                <select
+                  id="agent-personality"
+                  className={styles.control}
+                  value={personalityId}
+                  onChange={(e) => {
+                    setPersonalityId(e.target.value);
+                    if (!contractTouched) setContract(suggestion(e.target.value));
+                    if (!profileTouched) setProfile(profileSuggestion(e.target.value));
+                  }}
+                >
+                  <option value="">{t('agents.form.selectPersonality')}</option>
+                  {personalities.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+                {personality && <p className={styles.hint}>{personality.description}</p>}
+              </div>
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>{t('agents.form.section.runtime')}</h2>
+            {runtimes.status === 'loading' && (
+              <p className={styles.hint}>{t('agents.form.detecting')}</p>
+            )}
+            {runtimes.status === 'error' && (
+              <p role="alert" className={styles.error}>
+                {t('agents.form.detectFailed', { message: errorMessage(t, runtimes.error) })}
+              </p>
+            )}
+            {runtimes.status === 'ready' && (
+              <RuntimePicker
+                runtimes={runtimes.runtimes}
+                runtimeId={runtimeId}
+                modelId={modelId}
+                onRuntimeChange={(id) => {
+                  setRuntimeId(id);
+                  setModelId('');
+                }}
+                onModelChange={setModelId}
+              />
+            )}
+            {runtime && !runtime.runtime.capabilities.fileEdit && (
+              <p className={styles.hint}>{t('agents.form.noFileEdit')}</p>
+            )}
+            <div>
+              <Button type="button" onClick={onRefreshRuntimes}>
+                {t('agents.form.redetect')}
+              </Button>
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>{t('agents.form.section.instructions')}</h2>
+            <div className={styles.field}>
+              <label htmlFor="agent-instructions" className={styles.label}>
+                {t('agents.form.instructions')}
+              </label>
+              <textarea
+                id="agent-instructions"
+                className={styles.textarea}
+                value={instructions}
+                placeholder={t('agents.form.instructionsPlaceholder')}
+                onChange={(e) => {
+                  setInstructions(e.target.value);
+                }}
+              />
+            </div>
+          </section>
+        </div>
+
+        <div className={styles.column}>
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>{t('agents.form.section.contract')}</h2>
+            <ResultContractEditor
+              contract={contract}
+              onChange={(next) => {
+                setContractTouched(true);
+                setContract(next);
+              }}
+            />
+          </section>
+
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>{t('agents.form.section.security')}</h2>
+            <div className={styles.field}>
+              <label htmlFor="agent-permissions" className={styles.label}>
+                {t('agents.form.permissions')}
+              </label>
+              <select
+                id="agent-permissions"
+                className={styles.control}
+                value={profile}
+                onChange={(e) => {
+                  setProfileTouched(true);
+                  setProfileChanged(true);
+                  setProfile(e.target.value);
+                }}
+              >
+                {PROFILES.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {t(option.label)}
+                  </option>
+                ))}
+              </select>
+              <p className={styles.hint}>
+                {t(
+                  PROFILES.find((option) => option.id === profile)?.hint ??
+                    'agents.form.permissionDeveloperHint',
+                )}
+              </p>
+              {!initial && !profileTouched && personality && (
+                <p className={styles.hint}>
+                  {t('agents.form.permissionSuggested', { personality: personality.name })}
+                </p>
+              )}
+            </div>
+
+            <fieldset className={styles.field}>
+              <legend className={styles.label}>{t('agents.form.isolation')}</legend>
+              <label className={styles.checkRow} htmlFor="agent-isolation">
+                <input
+                  id="agent-isolation"
+                  type="checkbox"
+                  checked={worktreeIsolation}
+                  onChange={(e) => {
+                    setWorktreeIsolation(e.target.checked);
+                  }}
+                />
+                <span>{t('agents.form.isolationLabel')}</span>
+              </label>
+              {worktreeIsolation ? (
+                <p className={styles.hint}>{t('agents.form.isolationOn')}</p>
+              ) : (
+                <p className={styles.warning}>{t('agents.form.isolationOff')}</p>
+              )}
+            </fieldset>
+          </section>
+        </div>
       </div>
-
-      <div className={styles.field}>
-        <label htmlFor="agent-personality" className={styles.label}>
-          {t('agents.form.personality')}
-        </label>
-        <select
-          id="agent-personality"
-          className={styles.control}
-          value={personalityId}
-          onChange={(e) => {
-            setPersonalityId(e.target.value);
-            if (!contractTouched) setContract(suggestion(e.target.value));
-            if (!profileTouched) setProfile(profileSuggestion(e.target.value));
-          }}
-        >
-          <option value="">{t('agents.form.selectPersonality')}</option>
-          {personalities.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-        {personality && <p className={styles.hint}>{personality.description}</p>}
-      </div>
-
-      {runtimes.status === 'loading' && <p className={styles.hint}>{t('agents.form.detecting')}</p>}
-      {runtimes.status === 'error' && (
-        <p role="alert" className={styles.error}>
-          {t('agents.form.detectFailed', { message: errorMessage(t, runtimes.error) })}
-        </p>
-      )}
-      {runtimes.status === 'ready' && (
-        <RuntimePicker
-          runtimes={runtimes.runtimes}
-          runtimeId={runtimeId}
-          modelId={modelId}
-          onRuntimeChange={(id) => {
-            setRuntimeId(id);
-            setModelId('');
-          }}
-          onModelChange={setModelId}
-        />
-      )}
-      {runtime && !runtime.runtime.capabilities.fileEdit && (
-        <p className={styles.hint}>{t('agents.form.noFileEdit')}</p>
-      )}
-      <div>
-        <Button type="button" onClick={onRefreshRuntimes}>
-          {t('agents.form.redetect')}
-        </Button>
-      </div>
-
-      <div className={styles.field}>
-        <label htmlFor="agent-instructions" className={styles.label}>
-          {t('agents.form.instructions')}
-        </label>
-        <textarea
-          id="agent-instructions"
-          className={styles.textarea}
-          value={instructions}
-          placeholder={t('agents.form.instructionsPlaceholder')}
-          onChange={(e) => {
-            setInstructions(e.target.value);
-          }}
-        />
-      </div>
-
-      <ResultContractEditor
-        contract={contract}
-        onChange={(next) => {
-          setContractTouched(true);
-          setContract(next);
-        }}
-      />
-
-      <div className={styles.field}>
-        <label htmlFor="agent-permissions" className={styles.label}>
-          {t('agents.form.permissions')}
-        </label>
-        <select
-          id="agent-permissions"
-          className={styles.control}
-          value={profile}
-          onChange={(e) => {
-            setProfileTouched(true);
-            setProfileChanged(true);
-            setProfile(e.target.value);
-          }}
-        >
-          {PROFILES.map((option) => (
-            <option key={option.id} value={option.id}>
-              {t(option.label)}
-            </option>
-          ))}
-        </select>
-        <p className={styles.hint}>
-          {t(
-            PROFILES.find((option) => option.id === profile)?.hint ??
-              'agents.form.permissionDeveloperHint',
-          )}
-        </p>
-        {!initial && !profileTouched && personality && (
-          <p className={styles.hint}>
-            {t('agents.form.permissionSuggested', { personality: personality.name })}
-          </p>
-        )}
-      </div>
-
-      <fieldset className={styles.field}>
-        <legend className={styles.label}>{t('agents.form.isolation')}</legend>
-        <label className={styles.checkRow} htmlFor="agent-isolation">
-          <input
-            id="agent-isolation"
-            type="checkbox"
-            checked={worktreeIsolation}
-            onChange={(e) => {
-              setWorktreeIsolation(e.target.checked);
-            }}
-          />
-          <span>{t('agents.form.isolationLabel')}</span>
-        </label>
-        {worktreeIsolation ? (
-          <p className={styles.hint}>{t('agents.form.isolationOn')}</p>
-        ) : (
-          <p className={styles.warning}>{t('agents.form.isolationOff')}</p>
-        )}
-      </fieldset>
 
       {error && (
         <p role="alert" className={styles.error}>
           {error}
         </p>
       )}
-      <div className={styles.actions}>
+      <div className={styles.stickyBar}>
         {onCancel && (
           <Button type="button" onClick={onCancel}>
             {t('common.cancel')}

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import { errorMessage } from '@/i18n/messages';
 import { useT } from '@/i18n/I18nProvider';
 import { AgentForm } from '../components/AgentForm';
@@ -23,6 +24,7 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
   const { catalog, runtimes, refreshRuntimes, addAgent, editAgent, removeAgent } = useCatalog();
   const [creating, setCreating] = useState(startCreating !== undefined);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
 
   if (catalog.status === 'loading') {
     return <p className={styles.muted}>{t('common.loadingCore')}</p>;
@@ -37,6 +39,10 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
 
   const { personalities, agents } = catalog;
   const editing = agents.find((a) => a.id === editingId);
+  const needle = query.trim().toLowerCase();
+  const visible = needle
+    ? agents.filter((a) => `${a.name} ${a.modelId} ${a.runtimeId}`.toLowerCase().includes(needle))
+    : agents;
   const runtimeName = (id: string) =>
     (runtimes.status === 'ready'
       ? runtimes.runtimes.find((r) => r.runtime.id === id)?.runtime.name
@@ -44,24 +50,54 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
 
   return (
     <section className={styles.page}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>{t('agents.title')}</h1>
-        {!creating && (
-          <Button
-            onClick={() => {
-              setEditingId(null);
-              setCreating(true);
-            }}
-          >
-            {t('agents.create')}
-          </Button>
-        )}
-      </header>
+      {!creating && !editing && (
+        <header className={styles.pageHeader}>
+          <div className={styles.headerText}>
+            <div className={styles.titleRow}>
+              <h1 className={styles.title}>{t('agents.title')}</h1>
+              <span className={styles.countChip}>{t('agents.count', { n: agents.length })}</span>
+            </div>
+            <p className={styles.subtitle}>{t('agents.subtitle')}</p>
+          </div>
+          <div className={styles.headerActions}>
+            <label className={styles.search}>
+              <Icon name="search" size={16} />
+              <input
+                type="search"
+                value={query}
+                placeholder={t('agents.search')}
+                aria-label={t('agents.search')}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                }}
+              />
+            </label>
+            <Button
+              onClick={() => {
+                setEditingId(null);
+                setCreating(true);
+              }}
+            >
+              <Icon name="plus" size={16} />
+              {t('agents.create')}
+            </Button>
+          </div>
+        </header>
+      )}
 
       {notice && (
         <p role="status" className={styles.muted}>
           {notice}
         </p>
+      )}
+
+      {(creating || editing) && (
+        <header className={styles.headerText}>
+          <span className={styles.crumb}>{t('agents.title')}</span>
+          <h1 className={styles.title}>
+            {editing ? t('agents.form.edit', { name: editing.name }) : t('agents.create')}
+          </h1>
+        </header>
       )}
 
       {creating && (
@@ -98,16 +134,19 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
         />
       )}
 
-      <AgentList
-        agents={agents}
-        personalities={personalities}
-        runtimeName={runtimeName}
-        onEdit={(id) => {
-          setCreating(false);
-          setEditingId(id);
-        }}
-        onDelete={removeAgent}
-      />
+      {!creating && !editing && (
+        <AgentList
+          agents={visible}
+          filtered={needle !== ''}
+          personalities={personalities}
+          runtimeName={runtimeName}
+          onEdit={(id) => {
+            setCreating(false);
+            setEditingId(id);
+          }}
+          onDelete={removeAgent}
+        />
+      )}
     </section>
   );
 }
