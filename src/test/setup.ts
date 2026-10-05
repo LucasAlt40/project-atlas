@@ -31,3 +31,6 @@ class NoopDOMMatrixReadOnly {
   }
 }
 if (!('DOMMatrixReadOnly' in globalThis)) vi.stubGlobal('DOMMatrixReadOnly', NoopDOMMatrixReadOnly);
+
+// jsdom has no layout, so no scrolling: elements that scroll themselves into view do nothing.
+Element.prototype.scrollIntoView = () => undefined;

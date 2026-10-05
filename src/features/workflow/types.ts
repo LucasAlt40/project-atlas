@@ -5,6 +5,8 @@ import type {
   FileChangeDto,
   IdeDto,
   PendingInteractionDto,
+  RepairChoiceDto,
+  RepairProposalDto,
   RecoveryPlanDto,
   RecoveryRecordDto,
   WorkflowIntegrationDto,
@@ -51,6 +53,8 @@ export type ChangeSet = ChangeSetDto;
 export type FileChange = FileChangeDto;
 export type Integration = WorkflowIntegrationDto;
 export type Ide = IdeDto;
+export type RepairProposal = RepairProposalDto;
+export type RepairChoice = RepairChoiceDto;
 export type PendingInteraction = PendingInteractionDto;
 export type AgentNode = Extract<WorkflowNodeDto, { type: 'agent' }>;
 export type AgentNodePatch = Partial<Omit<AgentNodeFieldsDto, 'type'>>;

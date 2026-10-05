@@ -29,10 +29,12 @@ import {
   listTemplates,
   listWorkflows,
   pauseWorkflow,
+  repairWorkflowRoutes,
   resumeWorkflow,
   selectTemplate,
   startWorkflow,
   subscribeToWorkflowEvents,
+  suggestRouteRepairs,
   updateWorkflow,
   validateWorkflow,
 } from '../services/workflowService';
@@ -44,6 +46,9 @@ vi.mock('@/features/settings/services/settingsService');
 vi.mock('@/features/usage/services/usageService');
 vi.mock('@/features/workspace/services/workspaceService');
 vi.mock('../services/workflowService');
+vi.mock('../services/liveWorkspaceService', async () =>
+  (await import('@/test/liveWorkspaceMock')).liveWorkspaceMock(),
+);
 
 const AGENTS = [
   agent('a-architect', 'Architect agent'),
@@ -284,9 +289,16 @@ describe('Workflow page', () => {
         validation: {
           valid: false,
           issues: [
-            { code: 'missing_agent', nodeId: 'developer', edgeId: null, params: {} },
+            {
+              code: 'missing_agent',
+              severity: 'error',
+              nodeId: 'developer',
+              edgeId: null,
+              params: {},
+            },
             {
               code: 'cycle_without_limit',
+              severity: 'error',
               nodeId: 'qa',
               edgeId: null,
               params: { nodes: 'qa,bug-fixer' },
@@ -304,6 +316,109 @@ describe('Workflow page', () => {
       expect(screen.getByRole('button', { name: 'Run' })).toBeDisabled();
       // The node that is wrong is marked on the canvas.
       expect((await node('Developer')).dataset.invalid).toBe('true');
+    });
+
+    describe('routes that do not match the contract', () => {
+      const issues: ValidationReport['issues'] = [
+        {
+          code: 'status_route_on_contract',
+          severity: 'error',
+          nodeId: 'qa',
+          edgeId: 'qa->done',
+          params: { status: 'pass', outcomes: 'approved, changes_requested', agent: 'QA agent' },
+        },
+        {
+          code: 'outcome_without_route',
+          severity: 'error',
+          nodeId: 'qa',
+          edgeId: null,
+          params: { outcome: 'approved', agent: 'QA agent' },
+        },
+        {
+          code: 'outcome_without_route',
+          severity: 'warning',
+          nodeId: 'architect',
+          edgeId: null,
+          params: { outcomes: 'approved, changes_requested', agent: 'Architect agent' },
+        },
+      ];
+      const proposals = [
+        {
+          nodeId: 'qa',
+          agentId: 'a-qa',
+          agent: 'QA agent',
+          declared: ['approved', 'changes_requested'],
+          edges: [
+            {
+              edgeId: 'qa->done',
+              targetNodeId: 'done',
+              current: { field: 'result.status', operator: 'equals' as const, value: 'pass' },
+              suggested: 'approved',
+            },
+            {
+              edgeId: 'qa->bug-fixer',
+              targetNodeId: 'bug-fixer',
+              current: { field: 'result.status', operator: 'equals' as const, value: 'fail' },
+              suggested: 'changes_requested',
+            },
+          ],
+        },
+      ];
+
+      it('explains status against outcome, names the agent contract and keeps warnings apart', async () => {
+        vi.mocked(suggestRouteRepairs).mockResolvedValue(proposals);
+        show({ validation: { valid: false, issues } });
+        await canvas();
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent('Workflow has routing issues');
+        expect(alert).toHaveTextContent('result.status = "pass"');
+        expect(alert).toHaveTextContent('approved, changes_requested');
+        expect(alert).toHaveTextContent('technical state of a step');
+        const warning = screen.getByText('Warnings').closest('div');
+        expect(warning).toHaveTextContent('Architect agent');
+        expect(alert).not.toHaveTextContent('Architect agent');
+        expect(await screen.findByRole('button', { name: 'Review routes' })).toBeEnabled();
+      });
+
+      it('changes nothing until the person confirms, then repairs with what they chose', async () => {
+        const user = userEvent.setup();
+        vi.mocked(suggestRouteRepairs).mockResolvedValue(proposals);
+        vi.mocked(repairWorkflowRoutes).mockResolvedValue(passwordRecovery({ version: 2 }));
+        show({ validation: { valid: false, issues } });
+        await canvas();
+
+        await user.click(await screen.findByRole('button', { name: 'Review routes' }));
+        const dialog = await screen.findByRole('dialog', {
+          name: 'Reconnect routes to the contract',
+        });
+        expect(dialog).toHaveTextContent('result.status = pass → Done');
+        expect(dialog).toHaveTextContent('does not assume');
+        const [first, second] = within(dialog).getAllByRole('combobox');
+        expect(first).toHaveValue('approved');
+        expect(second).toHaveValue('changes_requested');
+        expect(repairWorkflowRoutes).not.toHaveBeenCalled();
+
+        // Cancel: nothing was applied.
+        await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+        expect(repairWorkflowRoutes).not.toHaveBeenCalled();
+
+        // The person may map it their own way; only then is it applied.
+        await user.click(screen.getByRole('button', { name: 'Review routes' }));
+        const again = await screen.findByRole('dialog', {
+          name: 'Reconnect routes to the contract',
+        });
+        const [firstSelect] = within(again).getAllByRole('combobox');
+        if (!firstSelect) throw new Error('the dialog has no select');
+        await user.selectOptions(firstSelect, 'changes_requested');
+        await user.click(within(again).getByRole('button', { name: 'Apply' }));
+        await waitFor(() => {
+          expect(repairWorkflowRoutes).toHaveBeenCalledWith('wf-1', [
+            { edgeId: 'qa->done', outcome: 'changes_requested' },
+            { edgeId: 'qa->bug-fixer', outcome: 'changes_requested' },
+          ]);
+        });
+      });
     });
 
     it('says a valid workflow can run, and runs it with the task', async () => {

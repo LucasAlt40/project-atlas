@@ -80,24 +80,39 @@ export function DeliveryPanel({
       {!delivery.inProject && delivery.tone !== 'neutral' && (
         <p className={styles.muted}>{t('integration.note')}</p>
       )}
-      {integration.status === 'conflicts' && integration.conflicts.length > 0 && (
-        <ul className={styles.fileList}>
-          {integration.conflicts.map((file) => (
-            <li key={file}>
-              <span className={styles.filePath}>{file}</span>
-            </li>
-          ))}
-        </ul>
+      {integration.status === 'integrated' && integration.canUndo && (
+        <p className={styles.muted}>{t('integration.undoNote')}</p>
       )}
+      {integration.status === 'integrated' && integration.blockReason === 'conflict' && (
+        <p role="alert" className={styles.warning}>
+          {t('integration.undoConflict', { count: integration.conflicts.length })}
+        </p>
+      )}
+      {integration.status === 'integrated' && integration.message === 'project_moved' && (
+        <p role="alert" className={styles.warning}>
+          {t('integration.undoMoved')}
+        </p>
+      )}
+      {integration.conflicts.length > 0 &&
+        (integration.status === 'conflicts' || integration.status === 'integrated') && (
+          <ul className={styles.fileList}>
+            {integration.conflicts.map((file) => (
+              <li key={file}>
+                <span className={styles.filePath}>{file}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       <div className={styles.deliveryActions}>
         {delivery.review && (
-          <Button disabled={busy} onClick={actions.review}>
+          <Button variant="secondary" disabled={busy} onClick={actions.review}>
             {t('integration.review')}
           </Button>
         )}
         {delivery.openInIde && (
           <div className={styles.popoverHost}>
             <Button
+              variant="secondary"
               disabled={busy || ides.length === 0}
               aria-expanded={choosing}
               title={ides.length === 0 ? t('integration.noIde') : undefined}
@@ -134,13 +149,14 @@ export function DeliveryPanel({
           </Button>
         )}
         {delivery.keep && (
-          <Button disabled={busy} onClick={actions.keep}>
+          <Button variant="secondary" disabled={busy} onClick={actions.keep}>
             {t('integration.keep')}
           </Button>
         )}
         {delivery.discard &&
           (confirming ? (
             <Button
+              variant="danger"
               disabled={busy}
               onClick={() => {
                 setConfirming(false);
@@ -151,6 +167,7 @@ export function DeliveryPanel({
             </Button>
           ) : (
             <Button
+              variant="secondary"
               disabled={busy}
               onClick={() => {
                 setConfirming(true);

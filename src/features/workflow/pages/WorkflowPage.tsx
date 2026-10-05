@@ -13,6 +13,8 @@ import { errorMessage } from '@/i18n/messages';
 import type { PositionDto } from '@/lib/tauri/commands';
 import { ChangesModal } from '../components/ChangesModal';
 import { InteractionPanel } from '../components/InteractionPanel';
+import { LiveWorkspacePanel } from '../components/LiveWorkspacePanel';
+import { RouteRepairDialog } from '../components/RouteRepairDialog';
 import { NewWorkflowPanel, type NewWorkflowChoice } from '../components/NewWorkflowPanel';
 import { WorkflowCanvas, type Selection } from '../components/WorkflowCanvas';
 import {
@@ -58,6 +60,7 @@ export function WorkflowPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [inspected, setInspected] = useState<StoredExecution | null>(null);
   const [reviewing, setReviewing] = useState(false);
+  const [repairing, setRepairing] = useState(false);
 
   const agents = useMemo(() => (catalog.status === 'ready' ? catalog.agents : []), [catalog]);
   const personalities = useMemo(
@@ -274,7 +277,9 @@ export function WorkflowPage() {
             </select>
           )}
           {workflow?.mode === 'automatic' && editable && (
-            <Button onClick={space.customize}>{t('workflow.customize')}</Button>
+            <Button variant="secondary" onClick={space.customize}>
+              {t('workflow.customize')}
+            </Button>
           )}
           {editable && (
             <>
@@ -283,6 +288,7 @@ export function WorkflowPage() {
               </Button>
               {confirmingDelete ? (
                 <Button
+                  variant="danger"
                   onClick={() => {
                     setConfirmingDelete(false);
                     void space.remove();
@@ -292,6 +298,7 @@ export function WorkflowPage() {
                 </Button>
               ) : (
                 <Button
+                  variant="secondary"
                   onClick={() => {
                     setConfirmingDelete(true);
                   }}
@@ -303,6 +310,7 @@ export function WorkflowPage() {
           )}
           {shownRun && !isActiveRun(shownRun) && !space.activeRun && (
             <Button
+              variant="secondary"
               onClick={() => {
                 space.showRun(null);
               }}
@@ -311,13 +319,16 @@ export function WorkflowPage() {
             </Button>
           )}
           {runStatus === 'running' && (
-            <Button onClick={() => void space.pause()}>{t('workflow.pause')}</Button>
+            <Button variant="secondary" onClick={() => void space.pause()}>
+              {t('workflow.pause')}
+            </Button>
           )}
           {(runStatus === 'paused' || runStatus === 'interrupted') && (
             <Button onClick={() => void space.resume()}>{t('workflow.resume')}</Button>
           )}
           {runStatus === 'interrupted' && shownRun && (
             <Button
+              variant="secondary"
               onClick={() => {
                 void space.cancel().then(() => space.run(shownRun.task));
               }}
@@ -326,7 +337,9 @@ export function WorkflowPage() {
             </Button>
           )}
           {shownRun && isActiveRun(shownRun) && (
-            <Button onClick={() => void space.cancel()}>{t('workflow.cancel')}</Button>
+            <Button variant="danger" onClick={() => void space.cancel()}>
+              {t('workflow.cancel')}
+            </Button>
           )}
         </div>
       </header>
@@ -508,11 +521,36 @@ export function WorkflowPage() {
                   onRename={(name) => {
                     space.edit((w) => ({ ...w, name }));
                   }}
+                  repair={{
+                    available: space.repairs.length > 0,
+                    unsaved: space.dirty,
+                    onReview: () => {
+                      setRepairing(true);
+                    },
+                  }}
                 />
               )}
             </aside>
           </div>
         </ReactFlowProvider>
+      )}
+
+      {shownRun && <LiveWorkspacePanel key={shownRun.id} run={shownRun} />}
+
+      {repairing && workflow && space.repairs.length > 0 && (
+        <RouteRepairDialog
+          workflow={workflow}
+          proposals={space.repairs}
+          busy={false}
+          onCancel={() => {
+            setRepairing(false);
+          }}
+          onApply={(choices) => {
+            void space.repairRoutes(choices).then(() => {
+              setRepairing(false);
+            });
+          }}
+        />
       )}
 
       {reviewing && shownRun && (

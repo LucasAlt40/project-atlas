@@ -105,6 +105,8 @@ export function deliveryOf(run: WorkflowRun): Delivery | null {
         inProject: true,
         review: true,
         openInIde: true,
+        // "Keep isolated" after applying takes the applied changes back out of the project.
+        keep: code.canUndo,
       };
     case 'kept_isolated':
       return {

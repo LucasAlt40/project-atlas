@@ -136,6 +136,13 @@ export interface CommandMap {
   delete_workflow: { args: { workflowId: string }; result: null };
   /** Checks a definition (possibly unsaved) and lists everything wrong with it. */
   validate_workflow: { args: { workflow: WorkflowDto }; result: ValidationReportDto };
+  /** What Atlas proposes for routes that cannot match their agent's contract. Changes nothing. */
+  suggest_route_repairs: { args: { workflow: WorkflowDto }; result: RepairProposalDto[] };
+  /** Applies what the user confirmed to the saved workflow, as a new version with its record. */
+  repair_workflow_routes: {
+    args: { workflowId: string; choices: RepairChoiceDto[] };
+    result: WorkflowDto;
+  };
   /** Returns at once; progress arrives as `workflow:*` events. */
   start_workflow: { args: { workflowId: string; task: string }; result: WorkflowExecutionDto };
   pause_workflow: { args: { executionId: string }; result: null };
@@ -171,6 +178,20 @@ export interface CommandMap {
   keep_workflow_changes: { args: { executionId: string }; result: WorkflowExecutionDto };
   /** Removes the worktree (its branch is kept). */
   discard_workflow_changes: { args: { executionId: string }; result: WorkflowExecutionDto };
+  /**
+   * The files of a run's isolated worktree as they are now, against the commit the run started from
+   * (read from Git, never from what an agent said). `null` when the run has no code worktree.
+   */
+  get_live_workspace: { args: { executionId: string }; result: LiveWorkspaceStateDto | null };
+  /** Compares the whole worktree with the baseline now. */
+  refresh_live_workspace: { args: { executionId: string }; result: LiveWorkspaceStateDto };
+  /**
+   * One file of the run's worktree as it is now. The run and a relative path are all the webview
+   * says; the folder is the one Atlas stored for the run.
+   */
+  get_live_file: { args: { executionId: string; path: string }; result: LiveFileDto };
+  /** The diff of the run's worktree as it is now against its baseline (of one file when `path` is given). */
+  get_live_diff: { args: { executionId: string; path?: string }; result: string };
   list_ides: { args: undefined; result: IdeDto[] };
   open_workflow_in_ide: { args: { executionId: string; ideId: string }; result: null };
 }
@@ -498,13 +519,19 @@ export interface InitializeInputDto {
   businessRules: string;
   constraints: string;
   decisions: string;
+  /** Add `.atlas/` to the project's `.gitignore` so it is not pushed. */
+  ignoreInGit: boolean;
 }
+
+export type GitIgnoreStatusDto =
+  'skipped' | 'added' | 'already_ignored' | 'no_repository' | 'failed';
 
 export interface InitializeOutcomeDto {
   summary: HarnessSummaryDto;
   written: string[];
   backedUp: string[];
   leftUntouched: string[];
+  gitIgnore: GitIgnoreStatusDto;
 }
 
 /** What a refresh would change (`applied` is null until the user confirms). */
@@ -1148,7 +1175,7 @@ export type WorktreeStatusDto =
   'creating' | 'active' | 'completed' | 'failed' | 'cleanup_pending' | 'cleaned';
 
 export type MergeStatusDto =
-  'not_evaluated' | 'nothing_to_merge' | 'pending' | 'merged' | 'conflict' | 'blocked';
+  'not_evaluated' | 'nothing_to_merge' | 'pending' | 'merged' | 'applied' | 'conflict' | 'blocked';
 
 export type BlockReasonDto =
   | 'policy_denied'
@@ -1402,6 +1429,41 @@ export interface WorkflowEdgeDto {
   label: string;
 }
 
+/** A route the user repaired: what the edge tested before and what it tests now. */
+export interface RouteRepairDto {
+  edgeId: string;
+  nodeId: string;
+  agentId: string;
+  targetNodeId: string;
+  previous: ConditionDto | null;
+  current: ConditionDto;
+  /** The version of the workflow the repair produced. */
+  version: number;
+  at: number;
+}
+
+/** An edge that cannot match its agent's contract, and the outcome Atlas would pair it with. */
+export interface EdgeRepairProposalDto {
+  edgeId: string;
+  targetNodeId: string;
+  current: ConditionDto;
+  suggested: string | null;
+}
+
+export interface RepairProposalDto {
+  nodeId: string;
+  agentId: string;
+  agent: string;
+  /** The outcomes the agent's contract declares, in the contract's order. */
+  declared: string[];
+  edges: EdgeRepairProposalDto[];
+}
+
+export interface RepairChoiceDto {
+  edgeId: string;
+  outcome: string;
+}
+
 export interface WorkflowDto {
   id: string;
   workspaceId: string;
@@ -1414,6 +1476,7 @@ export interface WorkflowDto {
   nodes: WorkflowNodeDto[];
   edges: WorkflowEdgeDto[];
   viewport: ViewportDto | null;
+  routeRepairs: RouteRepairDto[];
   createdAt: number;
   updatedAt: number;
 }
@@ -1463,13 +1526,20 @@ export type ValidationIssueCodeDto =
   | 'duplicate_loop_id'
   | 'invalid_condition'
   | 'undeclared_outcome'
+  | 'outcome_without_route'
+  | 'status_route_on_contract'
+  | 'cannot_reach_end'
   | 'missing_agent'
   | 'unknown_agent'
   | 'workspace_mismatch'
   | 'too_many_retries';
 
+/** An error keeps the workflow from running; a warning is only shown. */
+export type ValidationSeverityDto = 'error' | 'warning';
+
 export interface ValidationIssueDto {
   code: ValidationIssueCodeDto;
+  severity: ValidationSeverityDto;
   nodeId: string | null;
   edgeId: string | null;
   params: Record<string, string>;
@@ -1797,6 +1867,62 @@ export interface ChangeSetDto {
   capturedAt: number;
 }
 
+export type WorktreeAvailabilityDto = 'available' | 'missing' | 'invalid';
+
+export type LivePhaseDto =
+  'idle' | 'running' | 'waiting_for_input' | 'cancelled' | 'ended' | 'stopped';
+
+export type ObservationModeDto = 'events' | 'polling' | 'stopped';
+
+/** Where the run's worktree stands right now. Apply updates whose `revision` is the next one. */
+export interface LiveWorkspaceStateDto {
+  runId: string;
+  worktreeExecutionId: string;
+  branch: string;
+  /** The commit the workflow started from: what every file is compared with. */
+  baselineRevision: string;
+  currentRevision: string | null;
+  availability: WorktreeAvailabilityDto;
+  phase: LivePhaseDto;
+  observation: ObservationModeDto;
+  files: FileChangeDto[];
+  filesChanged: number;
+  additions: number;
+  deletions: number;
+  revision: number;
+  updatedAt: number;
+  lastReconciledAt: number | null;
+}
+
+/** `live_workspace:changed`. With `full`, `changed` is every file and anything else is gone. */
+export interface LiveWorkspaceUpdateDto {
+  runId: string;
+  worktreeExecutionId: string;
+  revision: number;
+  full: boolean;
+  changed: FileChangeDto[];
+  removed: string[];
+  currentRevision: string | null;
+  availability: WorktreeAvailabilityDto;
+  phase: LivePhaseDto;
+  observation: ObservationModeDto;
+  filesChanged: number;
+  additions: number;
+  deletions: number;
+  updatedAt: number;
+}
+
+export type LiveFileKindDto = 'text' | 'binary' | 'deleted' | 'symlink' | 'not_file';
+
+export interface LiveFileDto {
+  path: string;
+  kind: LiveFileKindDto;
+  content: string | null;
+  size: number | null;
+  /** `content` is only the beginning of the file. */
+  truncated: boolean;
+}
+
 export type IntegrationStatusDto =
   | 'not_applicable'
   | 'in_progress'
@@ -1818,6 +1944,8 @@ export interface WorkflowIntegrationDto {
   currentRevision: string | null;
   blockReason: BlockReasonDto | null;
   canApply: boolean;
+  /** The changes are in the project's working tree, uncommitted, and may be taken back out. */
+  canUndo: boolean;
   conflicts: string[];
   message: string | null;
   updatedAt: number;

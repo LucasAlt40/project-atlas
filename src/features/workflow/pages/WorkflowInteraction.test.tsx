@@ -32,6 +32,9 @@ vi.mock('@/features/settings/services/settingsService');
 vi.mock('@/features/usage/services/usageService');
 vi.mock('@/features/workspace/services/workspaceService');
 vi.mock('../services/workflowService');
+vi.mock('../services/liveWorkspaceService', async () =>
+  (await import('@/test/liveWorkspaceMock')).liveWorkspaceMock(),
+);
 
 const AGENTS = [
   agent('a-architect', 'Architect agent'),

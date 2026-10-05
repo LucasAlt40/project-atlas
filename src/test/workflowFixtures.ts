@@ -2,6 +2,9 @@ import type { WorkflowEvent } from '@/features/workflow/types';
 import type {
   AgentNodeFieldsDto,
   AttemptStatusDto,
+  FileChangeDto,
+  LiveWorkspaceStateDto,
+  LiveWorkspaceUpdateDto,
   NodeStateDto,
   NodeStatusDto,
   PendingInteractionDto,
@@ -79,6 +82,7 @@ export function passwordRecovery(overrides: Partial<WorkflowDto> = {}): Workflow
       edge('bug-fixer', 'qa'),
     ],
     viewport: null,
+    routeRepairs: [],
     createdAt: 1,
     updatedAt: 1,
     ...overrides,
@@ -125,6 +129,7 @@ export function noIntegration(): WorkflowExecutionDto['integration'] {
     currentRevision: null,
     blockReason: null,
     canApply: false,
+    canUndo: false,
     conflicts: [],
     message: null,
     updatedAt: 0,
@@ -348,5 +353,76 @@ export function withCode(
       canApply: status === 'changes_available',
       ...integration,
     },
+  };
+}
+
+// ---- the live workspace -------------------------------------------------------------------------
+
+type LiveStateDto = LiveWorkspaceStateDto;
+type LiveUpdateDto = LiveWorkspaceUpdateDto;
+type FileChangeFixture = FileChangeDto;
+
+export function fileChange(
+  path: string,
+  status: FileChangeFixture['status'] = 'modified',
+  extra: Partial<FileChangeFixture> = {},
+): FileChangeFixture {
+  return {
+    path,
+    oldPath: null,
+    status,
+    additions: status === 'deleted' ? 0 : 3,
+    deletions: status === 'added' ? 0 : 1,
+    binary: false,
+    ...extra,
+  };
+}
+
+/** The backend's snapshot of a run's worktree. */
+export function liveState(extra: Partial<LiveStateDto> = {}): LiveStateDto {
+  const files = extra.files ?? [];
+  return {
+    runId: 'wfx-1',
+    worktreeExecutionId: 'exec-40',
+    branch: 'atlas/exec-000040',
+    baselineRevision: 'abc1234def5678',
+    currentRevision: 'abc1234def5678',
+    availability: 'available',
+    phase: 'running',
+    observation: 'events',
+    files,
+    filesChanged: files.length,
+    additions: files.reduce((n, f) => n + (f.additions ?? 0), 0),
+    deletions: files.reduce((n, f) => n + (f.deletions ?? 0), 0),
+    revision: 1,
+    updatedAt: Date.UTC(2026, 9, 5, 10, 32, 14),
+    lastReconciledAt: null,
+    ...extra,
+  };
+}
+
+/** What the backend announces when the worktree changes. */
+export function liveUpdate(
+  revision: number,
+  extra: Partial<LiveUpdateDto> = {},
+  state: Partial<LiveStateDto> = {},
+): LiveUpdateDto {
+  const base = liveState(state);
+  return {
+    runId: base.runId,
+    worktreeExecutionId: base.worktreeExecutionId,
+    revision,
+    full: false,
+    changed: [],
+    removed: [],
+    currentRevision: base.currentRevision,
+    availability: base.availability,
+    phase: base.phase,
+    observation: base.observation,
+    filesChanged: base.filesChanged,
+    additions: base.additions,
+    deletions: base.deletions,
+    updatedAt: Date.UTC(2026, 9, 5, 10, 32, 15),
+    ...extra,
   };
 }

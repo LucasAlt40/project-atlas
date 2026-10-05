@@ -373,7 +373,14 @@ export function harnessSummary(overrides: Partial<HarnessSummaryDto> = {}): Harn
 }
 
 export function outcome(summary: HarnessSummaryDto, extra: Partial<InitializeOutcomeDto> = {}) {
-  return { summary, written: [], backedUp: [], leftUntouched: [], ...extra };
+  return {
+    summary,
+    written: [],
+    backedUp: [],
+    leftUntouched: [],
+    gitIgnore: 'skipped' as const,
+    ...extra,
+  };
 }
 
 export function projectAnalysis(overrides: Partial<ProjectAnalysisDto> = {}): ProjectAnalysisDto {

@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/Button';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { TranslationKey } from '@/i18n';
 import { shortId } from '@/features/workspace/model/inspection';
@@ -8,7 +9,7 @@ import {
   nodeLabel,
   runProgress,
 } from '../model/status';
-import { issueMessage } from '../model/validation';
+import { isRoutingIssue, issueMessage } from '../model/validation';
 import { useState } from 'react';
 import type { Ide, RecoveryPlan, ValidationReport, Workflow, WorkflowRun } from '../types';
 import { DeliveryPanel, type CodeActions } from './DeliveryPanel';
@@ -149,7 +150,6 @@ export function RunOverview({
           {t('workflow.progress', { done: progress.completed, total: progress.total })}
         </strong>
       </p>
-      <ul className={styles.progressList}>
       <div className={styles.progressBar} aria-hidden="true">
         <span
           style={{
@@ -157,6 +157,7 @@ export function RunOverview({
           }}
         />
       </div>
+      <ul className={styles.progressList}>
         {counted.map((node) => {
           const state = run.nodes[node.id];
           const status = state?.status ?? 'pending';
@@ -225,11 +226,17 @@ interface EditProps {
   validation: ValidationReport | null;
   editable: boolean;
   onRename: (name: string) => void;
+  /** Whether the routes that cannot match a contract have a repair to review, and why not yet. */
+  repair?: { available: boolean; unsaved: boolean; onReview: () => void };
 }
 
 /** The workflow as defined, and whether it can run. */
-export function EditorOverview({ workflow, validation, editable, onRename }: EditProps) {
+export function EditorOverview({ workflow, validation, editable, onRename, repair }: EditProps) {
   const { t } = useI18n();
+  const errors = validation?.issues.filter((i) => i.severity === 'error') ?? [];
+  const warnings = validation?.issues.filter((i) => i.severity === 'warning') ?? [];
+  const routing = errors.filter(isRoutingIssue);
+  const others = errors.filter((i) => !isRoutingIssue(i));
   return (
     <section className={styles.overview} aria-label={t('workflow.overview')}>
       <h3 className={styles.inspectorTitle}>{t('workflow.overview')}</h3>
@@ -263,9 +270,48 @@ export function EditorOverview({ workflow, validation, editable, onRename }: Edi
       {validation && !validation.valid && (
         <div role="alert" className={styles.failure}>
           <strong>{t('workflow.validation.cannotStart')}</strong>
+          {routing.length > 0 && (
+            <>
+              <p>
+                <strong>⚠ {t('workflow.validation.routing')}</strong>
+              </p>
+              <ul>
+                {routing.map((issue, index) => (
+                  <li key={`${issue.code}-${issue.edgeId ?? issue.nodeId ?? ''}-${String(index)}`}>
+                    {issueMessage(t, issue, workflow)}
+                  </li>
+                ))}
+              </ul>
+              <p className={styles.muted}>{t('workflow.validation.routingHelp')}</p>
+              {repair?.available && (
+                <>
+                  <Button disabled={!editable || repair.unsaved} onClick={repair.onReview}>
+                    {t('workflow.validation.reviewRoutes')}
+                  </Button>
+                  {repair.unsaved && (
+                    <p className={styles.muted}>{t('workflow.validation.saveFirst')}</p>
+                  )}
+                </>
+              )}
+            </>
+          )}
+          {others.length > 0 && (
+            <ul>
+              {others.map((issue, index) => (
+                <li key={`${issue.code}-${issue.nodeId ?? issue.edgeId ?? String(index)}`}>
+                  {issueMessage(t, issue, workflow)}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      {warnings.length > 0 && (
+        <div role="status" className={styles.warning}>
+          <strong>{t('workflow.validation.warnings')}</strong>
           <ul>
-            {validation.issues.map((issue, index) => (
-              <li key={`${issue.code}-${issue.nodeId ?? issue.edgeId ?? String(index)}`}>
+            {warnings.map((issue, index) => (
+              <li key={`${issue.code}-${issue.nodeId ?? String(index)}`}>
                 {issueMessage(t, issue, workflow)}
               </li>
             ))}

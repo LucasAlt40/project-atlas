@@ -2,6 +2,7 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type {
   ExecutionEventDto,
   HarnessProgressDto,
+  LiveWorkspaceUpdateDto,
   MessageDto,
   SessionStatusEventDto,
   TerminalChunkDto,
@@ -56,6 +57,8 @@ export interface EventMap extends Record<WorkflowEventName, WorkflowEventDto> {
   'execution:status': SessionStatusEventDto;
   /** What the agent analysing a project is doing. */
   'harness:progress': HarnessProgressDto;
+  /** What changed in the files of a run's worktree, once they settled; mirrors `commands::events`. */
+  'live_workspace:changed': LiveWorkspaceUpdateDto;
   /** A message was added to a conversation; mirrors `commands::events`. */
   'conversation:message': MessageDto;
 }

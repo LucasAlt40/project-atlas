@@ -4,7 +4,9 @@ import { agent, mockBackend, renderWithProviders, workspace } from '@/test/fixtu
 import {
   attempt,
   changeSet,
+  fileChange,
   handoff,
+  liveState,
   nodeState,
   passwordRecovery,
   run,
@@ -28,6 +30,7 @@ import {
   subscribeToWorkflowEvents,
   validateWorkflow,
 } from '../services/workflowService';
+import { getLiveWorkspace } from '../services/liveWorkspaceService';
 import { WorkflowPage } from './WorkflowPage';
 
 vi.mock('@/features/agents/services/catalogService');
@@ -35,6 +38,9 @@ vi.mock('@/features/settings/services/settingsService');
 vi.mock('@/features/usage/services/usageService');
 vi.mock('@/features/workspace/services/workspaceService');
 vi.mock('../services/workflowService');
+vi.mock('../services/liveWorkspaceService', async () =>
+  (await import('@/test/liveWorkspaceMock')).liveWorkspaceMock(),
+);
 
 const AGENTS = [
   agent('a-architect', 'Architect agent'),
@@ -103,6 +109,26 @@ describe('the code of a workflow run', () => {
     vi.clearAllMocks();
   });
 
+  it('shows the live workspace of the run beside its result, and applying is still only the result panel’s', async () => {
+    const user = userEvent.setup();
+    vi.mocked(getLiveWorkspace).mockResolvedValue(
+      liveState({ phase: 'ended', files: [fileChange('src/auth.ts')] }),
+    );
+    show(withCode(finished(), 'changes_available'));
+
+    await open(user);
+    const live = await screen.findByRole('region', { name: 'Live workspace' });
+
+    expect(within(live).getByText('REVIEW')).toBeInTheDocument();
+    expect(
+      await within(live).findByRole('button', { name: 'src/auth.ts (Modified)' }),
+    ).toBeInTheDocument();
+    // The one way to apply is the result panel's, not the live workspace's.
+    expect(within(live).queryByRole('button', { name: /apply/i })).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Apply changes' })).toHaveLength(1);
+    expect(applyChanges).not.toHaveBeenCalled();
+  });
+
   it('says the workflow completed and, separately, that its code is not in the project yet', async () => {
     const user = userEvent.setup();
     show(withCode(finished(), 'changes_available'));
@@ -125,7 +151,7 @@ describe('the code of a workflow run', () => {
       expect(within(delivery).getByRole('button', { name })).toBeEnabled();
     }
     // It never claims what has not happened.
-    expect(delivery).not.toHaveTextContent('were applied to your project');
+    expect(delivery).not.toHaveTextContent('were applied to your working tree');
   });
 
   it('applies the changes only when asked, and only then says they are in the project', async () => {
@@ -144,13 +170,95 @@ describe('the code of a workflow run', () => {
       ).toBeInTheDocument();
       expect(
         within(screen.getByRole('region', { name: 'Workflow result and code' })).getByText(
-          'The changes were applied to your project.',
+          'The changes were applied to your working tree. Nothing was committed: review them with git status and commit when you are ready.',
         ),
       ).toBeInTheDocument();
     });
     const after = screen.getByRole('region', { name: 'Workflow result and code' });
     expect(within(after).queryByRole('button', { name: 'Apply changes' })).not.toBeInTheDocument();
     expect(within(after).getByRole('button', { name: 'Review changes' })).toBeInTheDocument();
+  });
+
+  it('opens the person’s editor on the project once the changes are applied, and not when they are not', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('atlas.preferredIde', 'cursor');
+    show(withCode(finished(), 'changes_available'), {
+      ides: [
+        { id: 'vscode', name: 'Visual Studio Code' },
+        { id: 'cursor', name: 'Cursor' },
+      ],
+    });
+    vi.mocked(applyChanges).mockResolvedValue(
+      withCode(finished(), 'integrated', { canUndo: true }),
+    );
+    const delivery = await open(user);
+    expect(openInIde).not.toHaveBeenCalled();
+
+    await user.click(within(delivery).getByRole('button', { name: 'Apply changes' }));
+
+    await waitFor(() => {
+      expect(openInIde).toHaveBeenCalledWith('wfx-1', 'cursor');
+    });
+    localStorage.removeItem('atlas.preferredIde');
+  });
+
+  it('does not open an editor when applying was blocked', async () => {
+    const user = userEvent.setup();
+    show(withCode(finished(), 'changes_available'));
+    vi.mocked(applyChanges).mockResolvedValue(
+      withCode(finished(), 'conflicts', { conflicts: ['src/a.ts'], canApply: true }),
+    );
+    const delivery = await open(user);
+
+    await user.click(within(delivery).getByRole('button', { name: 'Apply changes' }));
+
+    await screen.findByText(/conflict with your project|also changed in your project/);
+    expect(openInIde).not.toHaveBeenCalled();
+  });
+
+  it('offers to keep applied changes isolated, which takes them back out of the project', async () => {
+    const user = userEvent.setup();
+    show(withCode(finished(), 'integrated', { canUndo: true }));
+    vi.mocked(keepChanges).mockResolvedValue(withCode(finished(), 'kept_isolated'));
+    const delivery = await open(user);
+    expect(delivery).toHaveTextContent('takes these changes back out of your project');
+
+    await user.click(within(delivery).getByRole('button', { name: 'Keep isolated' }));
+
+    expect(keepChanges).toHaveBeenCalledWith('wfx-1');
+    await waitFor(() => {
+      expect(
+        within(screen.getByRole('region', { name: 'Workflow result and code' })).getByText(
+          'The changes were kept in the isolated worktree. They are not in your project.',
+        ),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it('does not offer it once the applied changes can no longer be taken back, and says when they could not', async () => {
+    const user = userEvent.setup();
+    show(withCode(finished(), 'integrated', { canUndo: false }));
+    expect(
+      within(await open(user)).queryByRole('button', { name: 'Keep isolated' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('says why applied changes could not be taken back, and that nothing was touched', async () => {
+    const user = userEvent.setup();
+    show(
+      withCode(finished(), 'integrated', {
+        canUndo: true,
+        blockReason: 'conflict',
+        conflicts: ['src/a.ts'],
+      }),
+    );
+
+    const delivery = await open(user);
+
+    expect(within(delivery).getByRole('alert')).toHaveTextContent(
+      '1 of the applied file(s) were changed in your project since. Nothing was touched.',
+    );
+    expect(delivery).toHaveTextContent('src/a.ts');
   });
 
   it('does not turn a completed workflow into a failed one when applying is blocked, and says why', async () => {
@@ -180,7 +288,7 @@ describe('the code of a workflow run', () => {
     const delivery = await open(user);
 
     expect(delivery).toHaveTextContent(
-      'Integration blocked: 1 file(s) conflict with your project.',
+      'Apply blocked: 1 file(s) are also changed in your project.',
     );
     expect(delivery).toHaveTextContent('Nothing in your project changed.');
     expect(within(delivery).getByText('src/auth/auth.controller.ts')).toBeInTheDocument();

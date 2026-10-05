@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { InteractionAnswerDto, WorkflowModeDto } from '@/lib/tauri/commands';
 import { addAgentNode, addConditionNode, addEndNode, asCustom } from '../model/edit';
+import { preferredIde, rememberIde } from '../model/preferredIde';
 import {
   answerInteraction,
   applyChanges,
@@ -24,12 +25,16 @@ import {
   subscribeToWorkflowEvents,
   updateWorkflow,
   validateWorkflow,
+  suggestRouteRepairs,
+  repairWorkflowRoutes,
 } from '../services/workflowService';
 import { isActiveRun } from '../types';
 import type {
   Ide,
   RecoveryPlan,
   ValidationReport,
+  RepairChoice,
+  RepairProposal,
   Workflow,
   WorkflowEvent,
   WorkflowRun,
@@ -327,6 +332,34 @@ export function useWorkflows(workspaceId: string | undefined) {
     };
   }, [present]);
 
+  // Routes that cannot match their agent's contract come with what Atlas would propose.
+  const [proposed, setProposed] = useState<{ of: Workflow; proposals: RepairProposal[] } | null>(
+    null,
+  );
+  const needsRepair =
+    checked !== null &&
+    checked.of === present &&
+    (checked.report?.issues.some(
+      (issue) => issue.code === 'status_route_on_contract' || issue.code === 'undeclared_outcome',
+    ) ??
+      false);
+  useEffect(() => {
+    if (!present || !needsRepair) return;
+    let cancelled = false;
+    suggestRouteRepairs(present)
+      .then((proposals) => {
+        if (!cancelled) setProposed({ of: present, proposals });
+      })
+      .catch(() => {
+        if (!cancelled) setProposed({ of: present, proposals: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [present, needsRepair]);
+  const repairs =
+    needsRepair && proposed !== null && proposed.of === present ? proposed.proposals : [];
+
   // A report belongs to the draft it was made for; an edited draft has none until it is checked.
   const validation = checked && checked.of === present ? checked.report : null;
 
@@ -394,6 +427,24 @@ export function useWorkflows(workspaceId: string | undefined) {
     });
   }, [draft, guard, upsert]);
 
+  /**
+   * Applies the mapping the person confirmed to the saved workflow (a new version, with a record
+   * of what each edge tested before). Only when nothing is unsaved: the repair is made on, and
+   * checked against, the definition the core holds.
+   */
+  const repairRoutes = useCallback(
+    async (choices: RepairChoice[]) => {
+      if (!draft || draft.present !== draft.saved) return undefined;
+      return guard(async () => {
+        const repaired = await repairWorkflowRoutes(draft.saved.id, choices);
+        upsert(repaired);
+        dispatch({ type: 'saved', workflow: repaired });
+        return repaired;
+      });
+    },
+    [draft, guard, upsert],
+  );
+
   const remove = useCallback(async () => {
     if (!selectedId) return;
     await guard(async () => {
@@ -458,10 +509,23 @@ export function useWorkflows(workspaceId: string | undefined) {
         const act = { apply: applyChanges, keep: keepChanges, discard: discardChanges }[decision];
         const next = await act(target.id);
         setRuns((current) => current.map((r) => (r.id === next.id ? next : r)));
+        // Applied: the changes are now in the project's working tree. The person's editor opens on
+        // the project so the changes can be looked at (and committed) there. The changes are
+        // applied whether or not an editor could be started.
+        if (decision === 'apply' && next.integration.status === 'integrated') {
+          const ide = preferredIde(ides);
+          if (ide) {
+            try {
+              await openInIde(next.id, ide.id);
+            } catch {
+              // No editor to show it in: nothing to undo, the changes are applied.
+            }
+          }
+        }
       });
       setIntegrating(false);
     },
-    [shownRun, activeRun, guard],
+    [shownRun, activeRun, guard, ides],
   );
 
   /**
@@ -491,6 +555,7 @@ export function useWorkflows(workspaceId: string | undefined) {
     async (ideId: string) => {
       const target = shownRun ?? activeRun;
       if (!target) return;
+      rememberIde(ideId);
       await guard(() => openInIde(target.id, ideId));
     },
     [shownRun, activeRun, guard],
@@ -514,6 +579,8 @@ export function useWorkflows(workspaceId: string | undefined) {
     canUndo: (draft?.past.length ?? 0) > 0,
     canRedo: (draft?.future.length ?? 0) > 0,
     validation,
+    repairs,
+    repairRoutes,
     activeRun,
     shownRun,
     recovery: recovery && recovery.of === shownRun?.id ? recovery.plan : null,

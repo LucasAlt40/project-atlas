@@ -220,13 +220,20 @@ describe('validation messages', () => {
 
   it('words an issue naming the node, in both languages', () => {
     const w = passwordRecovery();
-    const issue = { code: 'missing_agent', nodeId: 'developer', edgeId: null, params: {} } as const;
+    const issue = {
+      code: 'missing_agent',
+      severity: 'error',
+      nodeId: 'developer',
+      edgeId: null,
+      params: {},
+    } as const;
     expect(issueMessage(t, issue, w)).toBe('Developer has no agent yet: choose one.');
     expect(issueMessage(createTranslator('pt-BR'), issue, w)).toBe(
       'Developer ainda não tem agente: escolha um.',
     );
     const cycle = {
       code: 'cycle_without_limit',
+      severity: 'error',
       nodeId: 'qa',
       edgeId: null,
       params: { nodes: 'qa,bug-fixer' },
@@ -234,6 +241,7 @@ describe('validation messages', () => {
     expect(issueMessage(t, cycle, w)).toContain('QA, Bug Fixer');
     const edgeIssue = {
       code: 'end_has_outgoing',
+      severity: 'error',
       nodeId: null,
       edgeId: 'qa->done:pass',
       params: {},
@@ -245,9 +253,21 @@ describe('validation messages', () => {
     const w = passwordRecovery();
     const ids = invalidNodeIds(
       [
-        { code: 'missing_agent', nodeId: 'developer', edgeId: null, params: {} },
-        { code: 'end_has_outgoing', nodeId: null, edgeId: 'qa->done:pass', params: {} },
-        { code: 'cycle_without_limit', nodeId: null, edgeId: null, params: { nodes: 'bug-fixer' } },
+        { code: 'missing_agent', severity: 'error', nodeId: 'developer', edgeId: null, params: {} },
+        {
+          code: 'end_has_outgoing',
+          severity: 'error',
+          nodeId: null,
+          edgeId: 'qa->done:pass',
+          params: {},
+        },
+        {
+          code: 'cycle_without_limit',
+          severity: 'error',
+          nodeId: null,
+          edgeId: null,
+          params: { nodes: 'bug-fixer' },
+        },
       ],
       w,
     );

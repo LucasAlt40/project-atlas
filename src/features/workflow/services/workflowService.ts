@@ -6,6 +6,8 @@ import type {
   Ide,
   PendingInteraction,
   RecoveryPlan,
+  RepairChoice,
+  RepairProposal,
   TemplateWorkflow,
   ValidationReport,
   Workflow,
@@ -57,6 +59,17 @@ export async function deleteWorkflow(workflowId: string): Promise<void> {
 
 export function validateWorkflow(workflow: Workflow): Promise<ValidationReport> {
   return invokeCommand('validate_workflow', { workflow });
+}
+
+export function suggestRouteRepairs(workflow: Workflow): Promise<RepairProposal[]> {
+  return invokeCommand('suggest_route_repairs', { workflow });
+}
+
+export function repairWorkflowRoutes(
+  workflowId: string,
+  choices: RepairChoice[],
+): Promise<Workflow> {
+  return invokeCommand('repair_workflow_routes', { workflowId, choices });
 }
 
 export function startWorkflow(workflowId: string, task: string): Promise<WorkflowRun> {
