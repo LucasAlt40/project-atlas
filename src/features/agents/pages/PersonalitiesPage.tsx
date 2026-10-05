@@ -27,7 +27,22 @@ export function PersonalitiesPage({ onUse }: Props) {
   }
   return (
     <section className={styles.page}>
-      <h1 className={styles.title}>{t('personalities.title')}</h1>
+      <header className={styles.titleRow}>
+        <h1 className={styles.title}>{t('personalities.title')}</h1>
+        <span className={styles.countChip}>
+          {t('personalities.available', { n: catalog.personalities.length })}
+        </span>
+        <span className={styles.countChip}>
+          {t('personalities.customCount', {
+            n: catalog.personalities.filter((p) => p.source === 'custom').length,
+          })}
+        </span>
+        <span className={styles.countChip}>
+          {t('personalities.builtinCount', {
+            n: catalog.personalities.filter((p) => p.source === 'builtin').length,
+          })}
+        </span>
+      </header>
       <PersonalityBrowser
         personalities={catalog.personalities}
         onUse={onUse}

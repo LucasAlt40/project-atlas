@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import { errorMessage } from '@/i18n/messages';
 import { useT } from '@/i18n/I18nProvider';
 import type { TranslationKey } from '@/i18n';
@@ -50,6 +51,9 @@ export function PersonalityCard({ personality, onUse, onEdit, onDelete }: Props)
   return (
     <article className={styles.card} aria-labelledby={headingId}>
       <header className={styles.header}>
+        <span className={styles.avatar} aria-hidden="true">
+          <Icon name={personality.source === 'builtin' ? 'shield' : 'personalities'} size={20} />
+        </span>
         <h3 id={headingId} className={styles.name}>
           {personality.name}
         </h3>
