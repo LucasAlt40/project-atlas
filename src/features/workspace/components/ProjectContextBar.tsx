@@ -9,7 +9,8 @@ import { RefreshHarnessModal } from '@/features/harness/components/RefreshHarnes
 import harnessStyles from '@/features/harness/components/Harness.module.css';
 import { useProjectHarness } from '@/features/harness/hooks/useProjectHarness';
 import { useT } from '@/i18n/I18nProvider';
-import { getProjectContext } from '../services/workspaceService';
+import { errorMessage } from '@/i18n/messages';
+import { getProjectContext, refreshProjectHarness } from '../services/workspaceService';
 import type { ProjectContext, Workspace } from '../types';
 import styles from './Workspace.module.css';
 
@@ -31,6 +32,28 @@ export function ProjectContextBar({ workspace }: { workspace: Workspace }) {
   const harness = useProjectHarness(id, projectPath);
   const [initializing, setInitializing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [fixing, setFixing] = useState(false);
+  const [fixError, setFixError] = useState<string | null>(null);
+
+  /**
+   * Brings the Harness up to date in one click. The refresh keeps the user's own files and
+   * corrections; when it cannot apply by itself (there is something to decide) the review opens.
+   */
+  function fixStale() {
+    setFixing(true);
+    setFixError(null);
+    refreshProjectHarness(id, true)
+      .then((outcome) => {
+        if (outcome.applied) harness.replace(outcome.applied.summary);
+        else setRefreshing(true);
+      })
+      .catch((e: unknown) => {
+        setFixError(errorMessage(t, e));
+      })
+      .finally(() => {
+        setFixing(false);
+      });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -125,7 +148,7 @@ export function ProjectContextBar({ workspace }: { workspace: Workspace }) {
         )}
       </div>
       {harness.state.status === 'ready' && harness.state.summary.status === 'initialized' && (
-        <>
+        <div className={styles.contextFoot}>
           {harness.state.summary.stats && (
             <HarnessStats
               stats={harness.state.summary.stats}
@@ -133,9 +156,19 @@ export function ProjectContextBar({ workspace }: { workspace: Workspace }) {
             />
           )}
           {harness.state.summary.staleness && (
-            <StaleNotice staleness={harness.state.summary.staleness} />
+            <StaleNotice
+              staleness={harness.state.summary.staleness}
+              fix={{
+                busy: fixing,
+                error: fixError,
+                onFix: fixStale,
+                onReview: () => {
+                  setRefreshing(true);
+                },
+              }}
+            />
           )}
-        </>
+        </div>
       )}
       {refreshing && (
         <RefreshHarnessModal

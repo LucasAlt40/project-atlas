@@ -390,3 +390,75 @@
   font-size: 0.75rem;
   white-space: pre-wrap;
 }
+
+/* The "project changed since the analysis" notice: a quiet banner with an amber edge. */
+.stale {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--warning);
+  border-radius: var(--radius-md);
+  background: var(--surface-void);
+  line-height: 1.5;
+}
+.staleTitle {
+  margin: 0;
+  color: var(--warning);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.staleSummary,
+.staleNote {
+  margin: 0;
+}
+.staleNote {
+  color: var(--text-dim);
+  font-size: var(--font-size-sm);
+}
+.staleChanges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.staleChanges li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: var(--font-size-sm);
+}
+.staleChanges li span,
+.staleMore {
+  color: var(--text-muted);
+}
+
+.staleActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-1);
+}
+.staleReview {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-soft);
+  font: inherit;
+  cursor: pointer;
+}
+.staleReview:hover {
+  text-decoration: underline;
+}
+.staleError {
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}

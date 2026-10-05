@@ -432,3 +432,11 @@
   margin-block: var(--space-1);
   background: var(--border-strong);
 }
+
+/* The stats line and the stale notice take a row of their own under the project strip. */
+.contextFoot {
+  display: flex;
+  flex: 1 0 100%;
+  flex-direction: column;
+  gap: var(--space-3);
+}

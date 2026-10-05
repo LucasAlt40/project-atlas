@@ -221,6 +221,9 @@ export const enUS = {
   'harness.stale.summaryOne': '1 relevant project change detected. Last analyzed: {date}.',
   'harness.stale.keeps':
     'Nothing was deleted: what Atlas knows stays, marked as possibly outdated.',
+  'harness.stale.fix': 'Fix automatically',
+  'harness.stale.fixing': 'Updating…',
+  'harness.stale.review': 'Review changes',
   'harness.stale.more': '… and {count} more',
   'harness.stale.change.added': 'added',
   'harness.stale.change.removed': 'removed',

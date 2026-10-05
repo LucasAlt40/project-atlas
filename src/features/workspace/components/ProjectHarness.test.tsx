@@ -145,6 +145,40 @@ describe('Workspace Harness status', () => {
     expect(vi.mocked(refreshProjectHarness)).toHaveBeenCalledWith('w1', false);
   });
 
+  it('fixes a stale Harness in one click, applying the refresh without a preview', async () => {
+    const user = userEvent.setup();
+    show({
+      harness: {
+        ...initialized,
+        health: { state: 'stale', reasons: ['project_changed'] },
+        analyzedAt: Date.UTC(2026, 9, 3, 20, 14),
+        staleness: {
+          analyzedAt: Date.UTC(2026, 9, 3, 20, 14),
+          totalChanges: 1,
+          changes: [{ path: 'docs', kind: 'added' }],
+        },
+      },
+    });
+    vi.mocked(refreshProjectHarness).mockResolvedValue({
+      staleness: null,
+      diff: { added: [], removed: [], changed: [], unchanged: [] },
+      conflicts: [],
+      applied: {
+        summary: { ...initialized, staleness: null, health: { state: 'healthy', reasons: [] } },
+        written: [],
+        backedUp: [],
+        leftUntouched: [],
+      },
+    });
+
+    await user.click(await screen.findByRole('button', { name: 'Fix automatically' }));
+
+    expect(vi.mocked(refreshProjectHarness)).toHaveBeenCalledWith('w1', true);
+    await waitFor(() =>
+      expect(screen.queryByRole('status', { name: 'Harness stale' })).not.toBeInTheDocument(),
+    );
+  });
+
   it('does not claim staleness for a current Harness', async () => {
     show({ harness: { ...initialized, health: { state: 'healthy', reasons: [] } } });
 

@@ -223,6 +223,9 @@ export const ptBR: Record<TranslationKey, string> = {
   'harness.stale.summaryOne': '1 mudança relevante no projeto detectada. Última análise: {date}.',
   'harness.stale.keeps':
     'Nada foi apagado: o que o Atlas sabe permanece, marcado como possivelmente desatualizado.',
+  'harness.stale.fix': 'Corrigir automaticamente',
+  'harness.stale.fixing': 'Atualizando…',
+  'harness.stale.review': 'Revisar mudanças',
   'harness.stale.more': '… e mais {count}',
   'harness.stale.change.added': 'adicionado',
   'harness.stale.change.removed': 'removido',
