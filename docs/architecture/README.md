@@ -196,6 +196,26 @@ conservative text analysis) lives in `application/interaction`; the orchestrator
 answer through `answer_workflow_interaction`, and starts the step again from it in the same worktree. The UI
 shows "Action required" in the header and on the run; answering never applies code to the project.
 
+## Optimization Layer (V0.10)
+
+A cross-cutting layer that measures what each execution sends and costs, and removes what is said twice, without touching required
+or security text. It wraps the existing pieces instead of replacing them: `PromptBuilder` is still the only prompt assembly, the
+Harness's `TaskContextService` still selects project context, `UsageMetrics` still holds what runtimes report, and `security/` still
+decides what may run.
+
+```text
+ExecutionService.run_step
+   ├─ Harness / Task Context ─────────── (existing selection)
+   ├─ Skills (opt-in) ────────────────── discover → select → activate → references
+   ├─ PromptBuilder.assemble ─────────── the only assembly
+   ├─ Context Engine (opt-in) ────────── dedupe lines, compress whitespace, budget (reports, never cuts)
+   ├─ PromptBuilder.assemble (again, only if the engine changed an input)
+   ├─ Runtime (isolated from the user's MCP servers and skills for Claude)
+   └─ OptimizationMetrics: sections, estimated vs reported tokens, latency, tools exposed/used, extensions loaded
+```
+
+Status of every phase, what was measured, what was removed (RTK) and what is pending: [optimization-layer.md](optimization-layer.md).
+
 ## Workspaces, project context and agent chat (V0.5)
 
 Atlas is organised around **workspaces**: a workspace is a project environment where agents work (see
@@ -355,3 +375,8 @@ A frontend router and global store are intentionally absent until a second scree
 - [0016 — Human in the loop: an agent waiting for a person](adr/0016-human-in-the-loop.md)
 - [0017 — Contract-aware workflow validation and assisted route repair](adr/0017-contract-aware-workflow-validation-and-route-repair.md)
 - [0018 — Live Workspace: observing a workflow run's worktree while it works](adr/0018-live-workspace.md)
+- [0020 — Optimization Layer, phase 0: measuring before optimizing](adr/0020-optimization-observability.md)
+- [0021 — Optimization Layer, phase 1: the Context Engine](adr/0021-context-engine.md)
+- [0022 — Optimization Layer, phase 2: Skills with progressive disclosure](adr/0022-skills.md)
+- [0023 — RTK (Rust Token Killer): evaluated, built, and removed](adr/0023-rtk-evaluated-and-removed.md)
+- [0024 — Optimization Layer, phase 4: what a runtime can reach (surface and isolation)](adr/0024-runtime-surface-and-isolation.md)
