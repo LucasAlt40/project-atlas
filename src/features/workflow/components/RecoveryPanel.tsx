@@ -28,7 +28,7 @@ export function VerdictList({ run }: { run: WorkflowRun }) {
           run.failure?.code === 'no_route_matched' && run.failure.nodeId === entry.nodeId;
         const next = run.handoffs.filter((h) => h.fromNodeId === entry.nodeId).at(-1)?.toNodeId;
         return (
-          <div key={entry.nodeId} className={styles.warning} aria-label={t('workflow.verdict')}>
+          <div key={entry.nodeId} className={styles.verdict} aria-label={t('workflow.verdict')}>
             <strong>
               {nodeLabel(run, entry.nodeId)} · {t('workflow.verdict.outcome', { outcome })}
             </strong>
