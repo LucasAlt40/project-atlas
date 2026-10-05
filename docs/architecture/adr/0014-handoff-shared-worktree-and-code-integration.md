@@ -70,9 +70,9 @@ history.
 | `in_progress`       | the agents work in the worktree; nothing is in the project                                                                                                           |
 | `no_changes`        | the run changed no code (the empty worktree is removed)                                                                                                              |
 | `changes_available` | the code is in the worktree, **not in the project**; `can_apply` says whether it may be applied (a cancelled or failed run's work is kept for review, never applied) |
-| `conflicts`         | applying was tried: Git found conflicts; the attempt was undone                                                                                                      |
-| `blocked`           | applying is not possible now (`block_reason`: dirty checkout, branch changed, policy denies, uncommitted…)                                                           |
-| `integrated`        | **the only state in which the screen says the code is in the project**                                                                                               |
+| `conflicts`         | applying was tried: a file is also changed in the project (or does not apply); nothing was written                                                                   |
+| `blocked`           | applying is not possible now (`block_reason`: branch changed, policy denies, uncommitted…)                                                                           |
+| `integrated`        | **the only state in which the screen says the code is in the project** (uncommitted, in the working tree)                                                            |
 | `kept_isolated`     | the user chose to leave it in the worktree                                                                                                                           |
 | `discarded`         | the user discarded the worktree                                                                                                                                      |
 | `failed`            | applying failed for a reason Git gave                                                                                                                                |
@@ -81,9 +81,9 @@ history.
 is still a completed run.
 
 **The user's decisions** (`IntegrationService`, reached only by the commands the user triggers; the orchestrator, the runner
-and agents have no path to them): **apply** (the existing worktree merge, with all its rules: the agent policy for Git
-writes, a clean checkout on the base branch, nothing forced, conflicts reported and undone; the policy is that of the
-_strictest_ agent of the run), **keep isolated**, **discard** (confirmed in the UI; removes the worktree folder, unforced; the
+and agents have no path to them): **apply** (puts the changes in the project's _working tree_, uncommitted; never a merge or a
+commit: see [ADR 0015](0015-result-contracts-outcomes-and-worktree-lock.md#workflow-apply-is-not-a-commit); the agent policy
+for Git writes still applies, and it is that of the _strictest_ agent of the run), **keep isolated**, **discard** (confirmed in the UI; removes the worktree folder, unforced; the
 _branch is kept_ because Atlas never deletes commits that were not merged, so the work stays recoverable with Git),
 **review** (the real diff) and **open in an editor**.
 

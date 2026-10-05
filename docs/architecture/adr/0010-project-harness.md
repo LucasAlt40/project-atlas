@@ -55,7 +55,10 @@ Execution → HarnessContextBuilder → PromptBuilder → Runtime (in the worktr
   filesystem, network, Git, runtime or merge rights.
 - **Worktrees.** The Harness is read once at the project root and reaches the agent as prompt text. It is not copied into
   worktrees, and the runtime and `WorktreeManager` never see it. Changes to `.atlas/` follow the normal Git lifecycle.
-- `.atlas/` is never added to `.gitignore`.
+- Writing the Harness never touches `.gitignore`. Keeping `.atlas/` out of Git is a separate step the user can turn off in
+  the review (**on by default**): it appends one `.atlas/` entry to the project's `.gitignore` (created if missing; nothing
+  else of the file changes; skipped if already ignored or outside a Git repository; a failure is reported, not fatal). It
+  does not untrack files already committed.
 
 ## Known limitations
 

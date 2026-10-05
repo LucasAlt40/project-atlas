@@ -74,7 +74,7 @@ WorkspacePage → WorkspaceProvider / useCatalog → feature services
   restrict tools (so `text_only` is off and `toolAccess` is reported open: the user's `settings.json` may allow
   commands) and no sign-in status command (reported `unknown`; a run that fails for it is classified).
 - **Gemini CLI**: `gemini --output-format stream-json --model <model> --approval-mode default|auto_edit
-  --skip-trust --prompt=<prompt>`; headless runs cannot use tools that need approval, so `default` is read-only
+--skip-trust --prompt=<prompt>`; headless runs cannot use tools that need approval, so `default` is read-only
   and `allow_edits` uses `auto_edit` (`--yolo` is never used). No model list or sign-in status. Google ended the
   CLI for individual accounts (`IneligibleTierError`), which is reported as unavailable and points to Antigravity.
 - **OpenCode**: models from `opencode models`; `opencode run --agent plan -m <model> --format json`, prompt on
@@ -185,7 +185,7 @@ still only in the isolated worktree, and only an explicit user decision (apply, 
 An agent can declare a **result contract** (outcomes such as `pass`/`fail` or `approved`/`changes_requested`); steps route on the
 structured `result.outcome`, never on free text, and a step that must conclude and does not fails instead of being read as a pass.
 Steps that write take the run's worktree exclusively; readers share it. See
-[ADR 0015](adr/0015-result-contracts-outcomes-and-worktree-lock.md).
+[ADR 0015](adr/0015-result-contracts-outcomes-and-worktree-lock.md); routes are checked against contracts before a run and repaired only on the user's confirmation ([ADR 0017](adr/0017-contract-aware-workflow-validation-and-route-repair.md)).
 
 ## Human in the loop (V0.9.3)
 
@@ -353,3 +353,5 @@ A frontend router and global store are intentionally absent until a second scree
 - [0014 — Handoff, the run's shared worktree and code integration](adr/0014-handoff-shared-worktree-and-code-integration.md)
 - [0015 — Result contracts, outcomes and the shared worktree's lock](adr/0015-result-contracts-outcomes-and-worktree-lock.md)
 - [0016 — Human in the loop: an agent waiting for a person](adr/0016-human-in-the-loop.md)
+- [0017 — Contract-aware workflow validation and assisted route repair](adr/0017-contract-aware-workflow-validation-and-route-repair.md)
+- [0018 — Live Workspace: observing a workflow run's worktree while it works](adr/0018-live-workspace.md)
