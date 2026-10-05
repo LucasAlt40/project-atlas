@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useReactFlow } from '@xyflow/react';
-import { Button } from '@/components/ui/Button';
+import type { ReactNode } from 'react';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import type { Agent } from '@/features/agents/types';
 import { useI18n } from '@/i18n/I18nProvider';
 import styles from './Workflow.module.css';
@@ -21,6 +22,35 @@ interface Props {
   onUndo: () => void;
   onRedo: () => void;
   onResetLayout: () => void;
+}
+
+interface ToolProps {
+  icon: IconName;
+  disabled?: boolean;
+  pressed?: boolean;
+  expanded?: boolean;
+  label?: string;
+  onClick: () => void;
+  children?: ReactNode;
+}
+
+/** A toolbar action: an icon, and its name unless the icon alone is clear. */
+function Tool({ icon, disabled, pressed, expanded, label, onClick, children }: ToolProps) {
+  return (
+    <button
+      type="button"
+      className={styles.toolButton}
+      disabled={disabled}
+      aria-pressed={pressed}
+      aria-expanded={expanded}
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+    >
+      <Icon name={icon} size={15} />
+      {children}
+    </button>
+  );
 }
 
 /** What the user can do to the graph. Must sit inside the graph's provider (fit and zoom). */
@@ -49,15 +79,16 @@ export function WorkflowToolbar({
     <div className={styles.toolbar} role="toolbar" aria-label={t('workflow.toolbar')}>
       <div className={styles.toolbarGroup}>
         <div className={styles.popoverHost}>
-          <Button
+          <Tool
+            icon="agents"
             disabled={!editable}
-            aria-expanded={choosing}
+            expanded={choosing}
             onClick={() => {
               setChoosing((value) => !value);
             }}
           >
             {t('workflow.toolbar.addAgent')}
-          </Button>
+          </Tool>
           {choosing && (
             <ul className={styles.popover} aria-label={t('workflow.toolbar.chooseAgent')}>
               {agents.length === 0 && (
@@ -80,56 +111,56 @@ export function WorkflowToolbar({
             </ul>
           )}
         </div>
-        <Button disabled={!editable} onClick={onAddCondition}>
+        <Tool icon="branch" disabled={!editable} onClick={onAddCondition}>
           {t('workflow.toolbar.addCondition')}
-        </Button>
-        <Button disabled={!editable} onClick={onAddEnd}>
+        </Tool>
+        <Tool icon="endNode" disabled={!editable} onClick={onAddEnd}>
           {t('workflow.toolbar.addEnd')}
-        </Button>
-        <Button
+        </Tool>
+        <Tool
+          icon="link"
           disabled={!editable || !canConnect}
-          aria-pressed={connecting}
+          pressed={connecting}
           onClick={onToggleConnect}
         >
           {t('workflow.toolbar.connect')}
-        </Button>
-        <Button disabled={!editable || !hasSelection} onClick={onDelete}>
+        </Tool>
+        <Tool icon="trash" disabled={!editable || !hasSelection} onClick={onDelete}>
           {t('workflow.toolbar.delete')}
-        </Button>
+        </Tool>
       </div>
       <div className={styles.toolbarGroup}>
-        <Button disabled={!editable || !canUndo} onClick={onUndo}>
+        <Tool icon="undo" disabled={!editable || !canUndo} onClick={onUndo}>
           {t('workflow.toolbar.undo')}
-        </Button>
-        <Button disabled={!editable || !canRedo} onClick={onRedo}>
+        </Tool>
+        <Tool icon="redo" disabled={!editable || !canRedo} onClick={onRedo}>
           {t('workflow.toolbar.redo')}
-        </Button>
-        <Button disabled={!editable} onClick={onResetLayout}>
+        </Tool>
+        <Tool icon="layout" disabled={!editable} onClick={onResetLayout}>
           {t('workflow.toolbar.resetLayout')}
-        </Button>
-        <Button
+        </Tool>
+        <Tool
+          icon="fit"
           onClick={() => {
             void flow.fitView({ padding: 0.2, maxZoom: 1.1 });
           }}
         >
           {t('workflow.toolbar.fit')}
-        </Button>
-        <Button
-          aria-label={t('workflow.toolbar.zoomOut')}
+        </Tool>
+        <Tool
+          icon="zoomOut"
+          label={t('workflow.toolbar.zoomOut')}
           onClick={() => {
             void flow.zoomOut();
           }}
-        >
-          −
-        </Button>
-        <Button
-          aria-label={t('workflow.toolbar.zoomIn')}
+        />
+        <Tool
+          icon="zoomIn"
+          label={t('workflow.toolbar.zoomIn')}
           onClick={() => {
             void flow.zoomIn();
           }}
-        >
-          +
-        </Button>
+        />
       </div>
     </div>
   );

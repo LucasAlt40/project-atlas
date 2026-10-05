@@ -37,6 +37,20 @@ export interface FlowEdgeData extends Record<string, unknown> {
 }
 export type FlowEdge = Edge<FlowEdgeData>;
 
+const EDGE_BAD = '#ffb4ab';
+const EDGE_GOOD = '#7bd0ff';
+
+/** A road that says it is the bad one (fail, changes requested) is drawn red and dashed, the good one blue. */
+function routeLook(text: string): Pick<FlowEdge, 'style' | 'labelStyle'> {
+  if (/\b(fail|failed|changes_requested|blocked|rejected)\b/i.test(text)) {
+    return { style: { stroke: EDGE_BAD, strokeDasharray: '5 4' }, labelStyle: { fill: EDGE_BAD } };
+  }
+  if (/\b(pass|passed|approved|implemented|success|done)\b/i.test(text)) {
+    return { style: { stroke: EDGE_GOOD }, labelStyle: { fill: EDGE_GOOD } };
+  }
+  return {};
+}
+
 /** `result.status = fail`: how a condition reads on an edge that has no label of its own. */
 export function conditionText(condition: ConditionDto): string {
   const operator = {
@@ -110,13 +124,17 @@ export function toFlow(
       },
     };
   });
-  const edges: FlowEdge[] = workflow.edges.map((edge) => ({
-    id: edge.id,
-    source: edge.sourceNodeId,
-    target: edge.targetNodeId,
-    label: edge.label || (edge.condition ? conditionText(edge.condition) : undefined),
-    data: { failureRoute: false },
-  }));
+  const edges: FlowEdge[] = workflow.edges.map((edge) => {
+    const label = edge.label || (edge.condition ? conditionText(edge.condition) : undefined);
+    return {
+      id: edge.id,
+      source: edge.sourceNodeId,
+      target: edge.targetNodeId,
+      label,
+      data: { failureRoute: false },
+      ...routeLook(`${label ?? ''} ${edge.condition?.value ?? ''}`),
+    };
+  });
   for (const node of workflow.nodes) {
     if (node.type === 'agent' && node.failurePolicy.type === 'route_to_node') {
       edges.push({
@@ -125,7 +143,8 @@ export function toFlow(
         target: node.failurePolicy.nodeId,
         label: 'failure',
         data: { failureRoute: true },
-        style: { strokeDasharray: '6 4' },
+        style: { strokeDasharray: '6 4', stroke: EDGE_BAD },
+        labelStyle: { fill: EDGE_BAD },
         deletable: false,
       });
     }

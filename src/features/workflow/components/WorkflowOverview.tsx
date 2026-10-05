@@ -150,6 +150,13 @@ export function RunOverview({
         </strong>
       </p>
       <ul className={styles.progressList}>
+      <div className={styles.progressBar} aria-hidden="true">
+        <span
+          style={{
+            width: `${String(progress.total === 0 ? 0 : Math.round((progress.completed / progress.total) * 100))}%`,
+          }}
+        />
+      </div>
         {counted.map((node) => {
           const state = run.nodes[node.id];
           const status = state?.status ?? 'pending';

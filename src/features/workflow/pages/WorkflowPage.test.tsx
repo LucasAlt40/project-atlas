@@ -458,7 +458,7 @@ describe('Workflow page', () => {
       const developer = await node('Developer');
       expect(developer.dataset.status).toBe('running');
       expect(within(developer).getByText(/Running/)).toBeInTheDocument();
-      expect(within(developer).getByText(/Execution #5/)).toBeInTheDocument();
+      expect(within(developer).getByText('#5')).toBeInTheDocument();
       const architect = await node('Architect');
       expect(within(architect).getByText(/Completed/)).toBeInTheDocument();
       expect(within(architect).getByText('✓')).toBeInTheDocument();

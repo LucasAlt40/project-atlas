@@ -45,9 +45,19 @@ function Frame({
       aria-label={`${data.node.label} (${t(kind)})`}
     >
       <Handle type="target" position={Position.Top} isConnectable={node.isConnectable} />
-      <div className={styles.nodeTitle}>
-        <span aria-hidden="true">{icon}</span>
-        <span className={styles.nodeLabel}>{data.node.label}</span>
+      <div className={styles.nodeHead}>
+        <span className={styles.nodeTitle}>
+          <span aria-hidden="true">{icon}</span>
+          <span className={styles.nodeLabel}>{data.node.label}</span>
+        </span>
+        {data.attempt && (
+          <span
+            className={styles.nodeChip}
+            title={t('workflow.node.execution', { id: shortId(data.attempt.executionId) })}
+          >
+            {shortId(data.attempt.executionId)}
+          </span>
+        )}
       </div>
       {children}
       <Handle type="source" position={Position.Bottom} isConnectable={node.isConnectable} />
@@ -57,22 +67,20 @@ function Frame({
 
 function Progress({ data }: { data: FlowNode['data'] }) {
   const { t } = useI18n();
+  const extra = [
+    data.attempt && data.attempt.number > 1
+      ? t('workflow.node.attempt', { n: data.attempt.number })
+      : null,
+    data.loop && data.loop.iteration > 0
+      ? t('workflow.node.loop', { n: data.loop.iteration, max: data.loop.max })
+      : null,
+  ].filter((part): part is string => part !== null);
+  if (!data.status) return null;
   return (
-    <>
-      {data.status && <StatusBadge status={data.status} />}
-      {data.attempt && (
-        <span className={styles.nodeMeta}>
-          {t('workflow.node.execution', { id: shortId(data.attempt.executionId) })}
-          {data.attempt.number > 1 &&
-            ` · ${t('workflow.node.attempt', { n: data.attempt.number })}`}
-        </span>
-      )}
-      {data.loop && data.loop.iteration > 0 && (
-        <span className={styles.nodeMeta}>
-          {t('workflow.node.loop', { n: data.loop.iteration, max: data.loop.max })}
-        </span>
-      )}
-    </>
+    <div className={styles.nodeStrip}>
+      <StatusBadge status={data.status} />
+      {extra.length > 0 && <span className={styles.nodeStripMeta}>{extra.join(' · ')}</span>}
+    </div>
   );
 }
 

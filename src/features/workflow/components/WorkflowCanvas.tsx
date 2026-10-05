@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
   Background,
+  BackgroundVariant,
   MiniMap,
   ReactFlow,
   applyNodeChanges,
@@ -74,7 +75,6 @@ export function WorkflowCanvas({
     () =>
       nodes.map((node) => ({
         ...node,
-        ...NODE_SIZE,
         initialWidth: NODE_SIZE.width,
         initialHeight: NODE_SIZE.height,
         selected: selection?.kind === 'node' && selection.id === node.id,
@@ -144,7 +144,7 @@ export function WorkflowCanvas({
         maxZoom={2}
         colorMode="dark"
       >
-        <Background gap={20} />
+        <Background variant={BackgroundVariant.Dots} gap={22} size={1.5} color="#2d3748" />
         <MiniMap pannable zoomable ariaLabel={t('workflow.minimap')} />
       </ReactFlow>
     </div>
