@@ -51,6 +51,13 @@ interface Props {
   onOpenWorkflow?: (link: WorkflowLinkDto) => void;
   onEdit: () => void;
   onRemove: () => void;
+  /**
+   * `list` is the expandable list: the card takes the height its content needs and can fold
+   * down to its header. `grid` fills its cell.
+   */
+  variant?: 'grid' | 'list';
+  expanded?: boolean;
+  onToggle?: () => void;
 }
 
 /**
@@ -79,6 +86,9 @@ export function AgentCard({
   onOpenWorkflow,
   onEdit,
   onRemove,
+  variant = 'grid',
+  expanded = true,
+  onToggle,
 }: Props) {
   const t = useT();
   const [tab, setTab] = useState<Tab>('chat');
@@ -127,7 +137,13 @@ export function AgentCard({
   }
 
   return (
-    <article className={styles.card} aria-label={agent.name} data-status={status}>
+    <article
+      className={styles.card}
+      aria-label={agent.name}
+      data-status={status}
+      data-variant={variant}
+      data-expanded={expanded}
+    >
       <AgentHeader
         name={agent.name}
         personalityName={personality?.name ?? agent.personalityId}
@@ -136,115 +152,131 @@ export function AgentCard({
         modelId={agent.modelId}
         gitIsolation={agent.worktreeIsolation}
         status={status}
+        {...(variant === 'list' && onToggle
+          ? {
+              expanded,
+              onToggle,
+              onOpenTerminal: () => {
+                setTab('terminal');
+                if (!expanded) onToggle();
+              },
+            }
+          : {})}
         onOpenDetails={onOpenDetails}
         onEdit={onEdit}
         onRemove={onRemove}
       />
-      <div className={terminalStyles.tabs} role="tablist" aria-label={t('agent.tabs')}>
-        {TABS.map((name) => (
-          <button
-            key={name}
-            id={tabId(name)}
-            type="button"
-            role="tab"
-            className={terminalStyles.tab}
-            aria-selected={tab === name}
-            aria-controls={`${tabId(name)}-panel`}
-            tabIndex={tab === name ? 0 : -1}
-            onClick={() => {
-              setTab(name);
-            }}
-            onKeyDown={onTabKeyDown}
+      {(variant === 'grid' || expanded) && (
+        <div className={styles.body}>
+          <div className={terminalStyles.tabs} role="tablist" aria-label={t('agent.tabs')}>
+            {TABS.map((name) => (
+              <button
+                key={name}
+                id={tabId(name)}
+                type="button"
+                role="tab"
+                className={terminalStyles.tab}
+                aria-selected={tab === name}
+                aria-controls={`${tabId(name)}-panel`}
+                tabIndex={tab === name ? 0 : -1}
+                onClick={() => {
+                  setTab(name);
+                }}
+                onKeyDown={onTabKeyDown}
+              >
+                {t(`agent.tab.${name}` as TranslationKey)}
+              </button>
+            ))}
+          </div>
+          {tab !== 'terminal' &&
+            run?.status === 'running' &&
+            process &&
+            process.status !== 'exited' && (
+              <RunControls
+                workspaceId={workspaceId}
+                agentId={agent.id}
+                run={run}
+                process={process}
+                capabilities={capabilities}
+                onOpenTerminal={() => {
+                  setTab('terminal');
+                }}
+              />
+            )}
+          {run && run.status !== 'running' && stored && (
+            <div className={inspectorStyles.viewBar}>
+              <button
+                type="button"
+                className={terminalStyles.tool}
+                onClick={() => {
+                  setInspected(stored);
+                }}
+              >
+                {t('agent.viewExecution')}
+              </button>
+            </div>
+          )}
+          <div
+            id={`${tabId(tab)}-panel`}
+            role="tabpanel"
+            aria-labelledby={tabId(tab)}
+            className={terminalStyles.tabPanel}
           >
-            {t(`agent.tab.${name}` as TranslationKey)}
-          </button>
-        ))}
-      </div>
-      {tab !== 'terminal' &&
-        run?.status === 'running' &&
-        process &&
-        process.status !== 'exited' && (
-          <RunControls
-            workspaceId={workspaceId}
-            agentId={agent.id}
-            run={run}
-            process={process}
-            capabilities={capabilities}
-            onOpenTerminal={() => {
-              setTab('terminal');
-            }}
-          />
-        )}
-      {run && run.status !== 'running' && stored && (
-        <div className={inspectorStyles.viewBar}>
-          <button
-            type="button"
-            className={terminalStyles.tool}
-            onClick={() => {
-              setInspected(stored);
-            }}
-          >
-            {t('agent.viewExecution')}
-          </button>
-        </div>
-      )}
-      <div
-        id={`${tabId(tab)}-panel`}
-        role="tabpanel"
-        aria-labelledby={tabId(tab)}
-        className={terminalStyles.tabPanel}
-      >
-        {tab === 'chat' && <AgentMessageList messages={messages} liveText={liveText} />}
-        {tab === 'activity' && <AgentActivity run={run} />}
-        {tab === 'terminal' && (
-          <TerminalPanel
+            {tab === 'chat' && (
+              <AgentMessageList messages={messages} liveText={liveText} agentName={agent.name} />
+            )}
+            {tab === 'activity' && <AgentActivity run={run} />}
+            {tab === 'terminal' && (
+              <TerminalPanel
+                workspaceId={workspaceId}
+                agentId={agent.id}
+                agentName={agent.name}
+                runtimeName={runtimeName}
+                capabilities={capabilities}
+                run={run}
+                process={process}
+                hub={terminals}
+              />
+            )}
+            {tab === 'details' &&
+              (facts ? (
+                <ExecutionDetails facts={facts} context={context} />
+              ) : (
+                <p className={styles.empty}>{t('inspector.noExecution')}</p>
+              ))}
+            {tab === 'executions' && (
+              <ExecutionHistory
+                executions={history}
+                runtimeName={runtimeNameOf}
+                onOpen={setInspected}
+              />
+            )}
+          </div>
+          {inspected && (
+            <ExecutionInspector
+              execution={inspected}
+              messages={messages}
+              context={context}
+              onClose={() => {
+                setInspected(null);
+              }}
+              {...(onOpenWorkflow ? { onOpenWorkflow } : {})}
+            />
+          )}
+          {sendError !== undefined && (
+            <p role="alert" className={styles.error}>
+              {errorMessage(t, sendError)}
+            </p>
+          )}
+          <AgentComposer
             workspaceId={workspaceId}
             agentId={agent.id}
             agentName={agent.name}
-            runtimeName={runtimeName}
-            capabilities={capabilities}
-            run={run}
-            process={process}
-            hub={terminals}
+            disabled={run?.status === 'running'}
+            onSend={onSend}
           />
-        )}
-        {tab === 'details' &&
-          (facts ? (
-            <ExecutionDetails facts={facts} context={context} />
-          ) : (
-            <p className={styles.empty}>{t('inspector.noExecution')}</p>
-          ))}
-        {tab === 'executions' && (
-          <ExecutionHistory
-            executions={history}
-            runtimeName={runtimeNameOf}
-            onOpen={setInspected}
-          />
-        )}
-      </div>
-      {inspected && (
-        <ExecutionInspector
-          execution={inspected}
-          messages={messages}
-          context={context}
-          onClose={() => {
-            setInspected(null);
-          }}
-          {...(onOpenWorkflow ? { onOpenWorkflow } : {})}
-        />
+        </div>
       )}
-      {sendError !== undefined && (
-        <p role="alert" className={styles.error}>
-          {errorMessage(t, sendError)}
-        </p>
-      )}
-      <AgentComposer
-        workspaceId={workspaceId}
-        agentId={agent.id}
-        agentName={agent.name}
-        disabled={run?.status === 'running'}
-        onSend={onSend}
-      />
     </article>
   );
 }

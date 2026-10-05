@@ -1,14 +1,75 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
   height: 100%;
   min-height: 36rem;
 }
+.page[data-view='list'] {
+  height: auto;
+}
+/* The workspace's identity: name, usage, project and harness in one panel. */
+.banner {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+}
 .header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+}
+/* View controls above the agents. */
+.viewBar {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+.segment {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 1.875rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.segment:hover {
+  color: var(--text-high);
+}
+.segment[aria-pressed='true'] {
+  background: var(--surface-3);
+  color: var(--text-high);
+}
+.agentList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 .title {
   margin: 0;
@@ -30,7 +91,7 @@
   display: grid;
   flex: 1;
   min-height: 0;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 .cell {
   min-width: 0;
@@ -143,26 +204,39 @@
 /* Workspace switcher in the top bar. */
 .switcher {
   position: relative;
+  width: 100%;
 }
 .switcherButton {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-2);
-  height: 1.875rem;
-  padding: 0 var(--space-3);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: var(--surface-1);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
   color: var(--text-high);
   font: inherit;
+  text-align: left;
   cursor: pointer;
 }
+.switcherText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.switcherLabel {
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 .switcherButton:hover {
-  border-color: var(--border-strong);
-  background: var(--surface-2);
+  background: var(--surface-3);
 }
 .switcherName {
-  max-width: 16rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -262,8 +336,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-3) var(--space-4);
   font-size: var(--font-size-sm);
+  line-height: 1.5;
 }
 .contextName {
   color: var(--text-high);
@@ -287,28 +362,30 @@
   list-style: none;
 }
 .technologies li {
-  padding: 1px var(--space-2);
+  padding: 2px var(--space-3);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  background: var(--surface-1);
+  background: var(--surface-2);
   color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: 0.6875rem;
 }
 .headerRight {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
 }
 .usageChip {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
-  height: 1.875rem;
-  padding: 0 var(--space-3);
+  gap: var(--space-1) var(--space-4);
+  min-height: 2rem;
+  padding: var(--space-1) var(--space-4);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: var(--surface-1);
+  border-radius: var(--radius-md);
+  background: var(--surface-void);
   color: var(--text-standard);
   font: inherit;
   font-family: var(--font-mono);
@@ -331,4 +408,27 @@
 .usageList dd {
   margin: 0;
   font-family: var(--font-mono);
+}
+
+.pathChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 100%;
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-void);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+.pathChip svg {
+  flex: none;
+}
+.divider {
+  align-self: stretch;
+  width: 1px;
+  margin-block: var(--space-1);
+  background: var(--border-strong);
 }

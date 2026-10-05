@@ -69,6 +69,13 @@ export const enUS = {
 
   // Workspace screen
   'workspace.addAgent': '+ Add Agent',
+  'workspace.view.label': 'Layout',
+  'workspace.view.list': 'Expandable list',
+  'workspace.view.grid': 'Grid',
+  'workspace.expandAll': 'Expand all',
+  'workspace.collapseAll': 'Collapse all',
+  'agent.expand': 'Expand {name}',
+  'agent.collapse': 'Collapse {name}',
   'workspace.available': 'Available',
   'workspace.noAgents': 'No agents in this workspace yet. Use “+ Add Agent” to bring one in.',
   'workspace.capacity': 'This version shows up to {max} agents in a workspace.',
@@ -341,6 +348,9 @@ export const enUS = {
   'agent.noMessages': 'No messages yet. Ask this agent something.',
   'agent.composer.placeholder': 'Message…',
   'agent.composer.label': 'Message {name}',
+  'agent.composer.hint': 'Reply to {name} or request a change',
+  'agent.expandDetails': 'Expand details',
+  'agent.elapsed': 'Elapsed: {time}',
   'agent.composer.send': 'Send',
   'agent.conversation': 'Conversation',
   'agent.activity': 'Activity',

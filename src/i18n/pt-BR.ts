@@ -67,6 +67,13 @@ export const ptBR: Record<TranslationKey, string> = {
 
   // Workspace screen
   'workspace.addAgent': '+ Adicionar agente',
+  'workspace.view.label': 'Layout',
+  'workspace.view.list': 'Lista expansível',
+  'workspace.view.grid': 'Grade',
+  'workspace.expandAll': 'Expandir todos',
+  'workspace.collapseAll': 'Recolher todos',
+  'agent.expand': 'Expandir {name}',
+  'agent.collapse': 'Recolher {name}',
   'workspace.available': 'Disponível',
   'workspace.noAgents':
     'Nenhum agente neste workspace ainda. Use “+ Adicionar agente” para trazer um.',
@@ -343,6 +350,9 @@ export const ptBR: Record<TranslationKey, string> = {
   'agent.noMessages': 'Nenhuma mensagem ainda. Pergunte algo a este agente.',
   'agent.composer.placeholder': 'Mensagem…',
   'agent.composer.label': 'Mensagem para {name}',
+  'agent.composer.hint': 'Responder ao {name} ou solicitar alteração',
+  'agent.expandDetails': 'Expandir detalhes',
+  'agent.elapsed': 'Tempo decorrido: {time}',
   'agent.composer.send': 'Enviar',
   'agent.conversation': 'Conversa',
   'agent.activity': 'Atividade',

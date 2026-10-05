@@ -1,15 +1,38 @@
 .card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
   height: 100%;
   min-height: 0;
   min-width: 0;
-  padding: var(--space-3);
+  padding: var(--space-4);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   overflow: hidden;
+}
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+}
+/* The expandable list: the card is as tall as its content, the conversation has a fixed window. */
+.card[data-variant='list'] {
+  height: auto;
+  overflow: visible;
+  box-shadow: 0 1px 8px rgb(0 0 0 / 0.25);
+}
+.card[data-variant='list'][data-expanded='false'] {
+  padding-block: var(--space-3);
+}
+.card[data-variant='list'] [role='tabpanel'] {
+  flex: none;
+  height: 28rem;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-void);
 }
 .card[data-status='running'],
 .card[data-status='responding'] {
@@ -23,28 +46,58 @@
 }
 .header {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
 }
-.titleRow {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+.chevron {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.chevron:hover {
+  background: var(--surface-2);
+  color: var(--text-high);
+}
+.chevron[aria-expanded='false'] {
+  transform: rotate(-90deg);
 }
 .title {
   margin: 0;
   font-size: var(--font-size-lg);
 }
-.meta {
+.meta,
+.metaModel,
+.metaChip {
   margin: 0;
   color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   overflow-wrap: anywhere;
 }
+.metaModel {
+  color: var(--accent-soft);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}
+.metaChip {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}
 .remove {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.75rem;
+  height: 1.75rem;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -60,6 +113,9 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  padding: 2px var(--space-2);
+  border-radius: 999px;
+  background: var(--surface-2);
   color: var(--idle);
   font-family: var(--font-mono);
   font-size: 0.625rem;
@@ -97,10 +153,10 @@
 }
 .messages {
   flex: 1;
-  gap: var(--space-3);
+  gap: var(--space-4);
   min-height: 0;
   margin: 0;
-  padding: var(--space-1) 0;
+  padding: var(--space-2) var(--space-1);
   overflow-y: auto;
   list-style: none;
   display: flex;
@@ -114,6 +170,36 @@
 }
 .message {
   display: flex;
+  gap: var(--space-3);
+}
+.avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-md);
+  background: var(--surface-3);
+  color: var(--accent-soft);
+}
+.answerColumn {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.byline {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  color: var(--text-high);
+}
+.time {
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
 }
 .message[data-role='user'] {
   justify-content: flex-end;
@@ -121,20 +207,22 @@
 .userText {
   max-width: 85%;
   margin: 0;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--surface-2);
   color: var(--text-high);
+  line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 .answer {
   min-width: 0;
   max-width: 100%;
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
   background: var(--surface-2);
+  line-height: 1.55;
 }
 .message[data-failed='true'] .answer {
   border: 1px solid rgb(239 68 68 / 0.4);
@@ -184,15 +272,15 @@
 }
 .composer {
   display: flex;
-  gap: var(--space-2);
+  gap: var(--space-3);
   align-items: flex-end;
 }
 .input {
   flex: 1;
   min-width: 0;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--surface-void);
   color: var(--text-high);
   font: inherit;
@@ -220,15 +308,19 @@
 
 .headerActions {
   display: flex;
+  flex: none;
   gap: 2px;
+  margin-left: auto;
 }
 
 .identity {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 0;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+  padding: var(--space-1) 0;
   border: 0;
   background: transparent;
   color: inherit;
@@ -238,4 +330,58 @@
 }
 .identity:hover .title {
   color: var(--accent-soft);
+}
+
+.foldedActions {
+  display: flex;
+  flex: none;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+.foldedActions + .headerActions {
+  margin-left: 0;
+}
+.foldedButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 1.875rem;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-high);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.foldedButton:hover {
+  background: var(--surface-3);
+}
+.composerPanel {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+.composerHint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}
+/* Working: the whole tag breathes, so a glance says which agent is busy. */
+.status[data-status='running'],
+.status[data-status='responding'],
+.status[data-status='waiting'] {
+  padding: 3px var(--space-3);
+  background: rgb(0 166 224 / 0.22);
+  color: var(--info);
+  font-weight: 700;
+  animation: pulse 1.6s ease-in-out infinite;
 }

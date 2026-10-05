@@ -49,6 +49,7 @@ function show(placed: string[], agents = [architect, developer], options = {}) {
 
 describe('WorkspacePage', () => {
   beforeEach(() => {
+    localStorage.setItem('atlas.workspace.view', 'grid');
     vi.clearAllMocks();
   });
 
@@ -66,12 +67,31 @@ describe('WorkspacePage', () => {
     expect(screen.getByRole('heading', { name: 'Atlas' })).toBeInTheDocument();
   });
 
+  it('lists the agents expandable by default and folds each one down to its header', async () => {
+    localStorage.removeItem('atlas.workspace.view');
+    const user = userEvent.setup();
+    show(['a1', 'a2']);
+
+    await screen.findByRole('article', { name: 'Architect' });
+    expect(screen.queryByText('Available')).not.toBeInTheDocument();
+    expect(within(card('Architect')).getByRole('tablist')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Collapse Architect' }));
+    expect(within(card('Architect')).queryByRole('tablist')).not.toBeInTheDocument();
+    expect(within(card('Developer')).getByRole('tablist')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Collapse all' }));
+    expect(within(card('Developer')).queryByRole('tablist')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Expand all' }));
+    expect(within(card('Architect')).getByRole('tablist')).toBeInTheDocument();
+  });
+
   it('shows the project context: folder, path and the technologies detected locally', async () => {
     show(['a1']);
 
     const context = await screen.findByRole('region', { name: 'Project context' });
     expect(await within(context).findByText('atlas')).toBeInTheDocument();
-    expect(within(context).getByText(/Path: \/dev\/atlas/)).toBeInTheDocument();
+    expect(within(context).getByText('/dev/atlas')).toBeInTheDocument();
     const technologies = within(context).getByRole('list', { name: 'Detected' });
     expect(
       within(technologies)

@@ -143,14 +143,17 @@
 /* The run bar and tabs of the agent card. */
 .tabs {
   display: flex;
-  gap: 2px;
-  border-bottom: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-lg);
+  background: var(--surface-void);
 }
 .tab {
-  height: 1.75rem;
-  padding: 0 var(--space-3);
+  height: 2rem;
+  padding: 0 var(--space-4);
   border: 0;
-  border-bottom: 2px solid transparent;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-muted);
   font: inherit;
@@ -158,10 +161,11 @@
   cursor: pointer;
 }
 .tab:hover {
+  background: var(--surface-2);
   color: var(--text-high);
 }
 .tab[aria-selected='true'] {
-  border-bottom-color: var(--accent);
+  background: var(--surface-3);
   color: var(--text-high);
 }
 .tab:focus-visible {
@@ -177,12 +181,31 @@
 .runBar {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: var(--space-3);
   align-items: center;
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  background: var(--surface-void);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: rgb(0 166 224 / 0.12);
   font-size: var(--font-size-sm);
+}
+.spinner {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 2px solid rgb(56 189 248 / 0.25);
+  border-top-color: var(--info);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.elapsed {
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
 }
 .runStep {
   flex: 1;

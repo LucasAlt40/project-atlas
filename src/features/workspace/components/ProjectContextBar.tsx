@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { HarnessStats } from '@/features/harness/components/HarnessStats';
 import { HealthBadge } from '@/features/harness/components/HealthBadge';
@@ -51,9 +52,11 @@ export function ProjectContextBar({ workspace }: { workspace: Workspace }) {
   return (
     <section className={styles.context} aria-label={t('project.context')}>
       <strong className={styles.contextName}>{context?.name ?? workspace.name}</strong>
-      <span className={styles.muted} title={workspace.projectPath}>
-        {t('project.path')}: {workspace.projectPath}
+      <span className={styles.pathChip} title={`${t('project.path')}: ${workspace.projectPath}`}>
+        <Icon name="folder" size={14} />
+        {workspace.projectPath}
       </span>
+      <span className={styles.divider} aria-hidden="true" />
       {context && (
         <span className={styles.technologies}>
           {context.technologies.length > 0 ? (

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigation } from '@/app/NavigationContext';
+import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { useCatalog } from '@/features/agents/hooks/useCatalog';
 import { errorMessage } from '@/i18n/messages';
@@ -17,6 +18,17 @@ import { agentStatus } from '../model/agentStatus';
 import { MAX_WORKSPACE_AGENTS, canAddAgent } from '../model/grid';
 import { runKey, type ConversationsState } from '../model/agentRuns';
 import styles from '../components/Workspace.module.css';
+
+const VIEW_KEY = 'atlas.workspace.view';
+type View = 'list' | 'grid';
+
+function readView(): View {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'grid' ? 'grid' : 'list';
+  } catch {
+    return 'list';
+  }
+}
 
 /** The live process of the agent's latest run, if it has one. */
 function processOf(conversations: ConversationsState, key: string) {
@@ -44,6 +56,9 @@ export function WorkspacePage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [view, setView] = useState<View>(readView);
+  // Agents folded down to their header in the expandable list; everything starts open.
+  const [folded, setFolded] = useState<ReadonlySet<string>>(new Set());
 
   if (catalog.status === 'loading' || workspace.state.status === 'loading') {
     return <p className={styles.muted}>{t('common.loadingCore')}</p>;
@@ -76,6 +91,30 @@ export function WorkspacePage() {
       : undefined;
   const { conversations } = workspace;
 
+  function chooseView(next: View) {
+    setView(next);
+    try {
+      localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      // The choice simply is not remembered.
+    }
+  }
+
+  function toggleFolded(agentId: string) {
+    setFolded((current) => {
+      const next = new Set(current);
+      if (!next.delete(agentId)) next.add(agentId);
+      return next;
+    });
+  }
+
+  const placedAgentIds = active.layout.agentPlacements
+    .slice()
+    .sort((a, b) => a.position.row - b.position.row || a.position.column - b.position.column)
+    .map((p) => p.agentId)
+    .filter((id) => agents.some((a) => a.id === id));
+  const allFolded = placedAgentIds.length > 0 && placedAgentIds.every((id) => folded.has(id));
+
   function openAdd() {
     if (!canAddAgent(current)) {
       setNotice(t('workspace.capacity', { max: MAX_WORKSPACE_AGENTS }));
@@ -101,16 +140,73 @@ export function WorkspacePage() {
     });
   }
 
+  function renderAgent(agentId: string, variant: View) {
+    const agent = agents.find((a) => a.id === agentId);
+    if (!agent) return null;
+    const key = runKey(current.id, agentId);
+    return (
+      <AgentCard
+        workspaceId={current.id}
+        agent={agent}
+        personality={personalities.find((p) => p.id === agent.personalityId)}
+        runtime={runtimeOf(agent.runtimeId)}
+        workspaceName={current.name}
+        messages={conversations.messages[key] ?? []}
+        history={workspace.history.filter(
+          (e) => e.workspaceId === current.id && e.agentId === agentId,
+        )}
+        focusTab={
+          workspace.focus?.workspaceId === current.id && workspace.focus.agentId === agentId
+            ? workspace.focus.tab
+            : undefined
+        }
+        onFocusHandled={workspace.clearFocus}
+        run={conversations.runs[key]}
+        process={processOf(conversations, key)}
+        terminals={workspace.terminals}
+        liveText={conversations.streams[key]?.text}
+        sendError={conversations.sendErrors[key]}
+        onSend={(content) => {
+          void workspace.sendToAgent(agentId, content);
+        }}
+        onOpenDetails={() => {
+          setDetailsId(agentId);
+        }}
+        onOpenWorkflow={(link) => {
+          navigate('workflow', {
+            type: 'open-workflow',
+            workflowId: link.workflowId,
+            executionId: link.workflowExecutionId,
+          });
+        }}
+        onEdit={() => {
+          setAdding(false);
+          setEditingId(agentId);
+        }}
+        onRemove={() => {
+          void workspace.removeAgent(agentId);
+        }}
+        variant={variant}
+        expanded={!folded.has(agentId)}
+        onToggle={() => {
+          toggleFolded(agentId);
+        }}
+      />
+    );
+  }
+
   return (
-    <section className={styles.page}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>{active.name}</h1>
-        <div className={styles.headerRight}>
-          <WorkspaceUsageChip workspaceId={active.id} usageVersion={workspace.usageVersion} />
-          <Button onClick={openAdd}>{t('workspace.addAgent')}</Button>
-        </div>
-      </header>
-      <ProjectContextBar workspace={active} />
+    <section className={styles.page} data-view={view}>
+      <div className={styles.banner}>
+        <header className={styles.header}>
+          <h1 className={styles.title}>{active.name}</h1>
+          <div className={styles.headerRight}>
+            <WorkspaceUsageChip workspaceId={active.id} usageVersion={workspace.usageVersion} />
+            <Button onClick={openAdd}>{t('workspace.addAgent')}</Button>
+          </div>
+        </header>
+        <ProjectContextBar workspace={active} />
+      </div>
 
       {notice && (
         <p role="alert" className={styles.notice}>
@@ -149,58 +245,48 @@ export function WorkspacePage() {
         <p className={styles.muted}>{t('workspace.noAgents')}</p>
       )}
 
-      <WorkspaceGrid
-        workspace={active}
-        renderAgent={(agentId) => {
-          const agent = agents.find((a) => a.id === agentId);
-          if (!agent) return null;
-          const key = runKey(active.id, agentId);
-          return (
-            <AgentCard
-              workspaceId={active.id}
-              agent={agent}
-              personality={personalities.find((p) => p.id === agent.personalityId)}
-              runtime={runtimeOf(agent.runtimeId)}
-              workspaceName={active.name}
-              messages={conversations.messages[key] ?? []}
-              history={workspace.history.filter(
-                (e) => e.workspaceId === active.id && e.agentId === agentId,
-              )}
-              focusTab={
-                workspace.focus?.workspaceId === active.id && workspace.focus.agentId === agentId
-                  ? workspace.focus.tab
-                  : undefined
-              }
-              onFocusHandled={workspace.clearFocus}
-              run={conversations.runs[key]}
-              process={processOf(conversations, key)}
-              terminals={workspace.terminals}
-              liveText={conversations.streams[key]?.text}
-              sendError={conversations.sendErrors[key]}
-              onSend={(content) => {
-                void workspace.sendToAgent(agentId, content);
+      {placedAgentIds.length > 0 && (
+        <div className={styles.viewBar}>
+          <div className={styles.segmented} role="group" aria-label={t('workspace.view.label')}>
+            {(['list', 'grid'] as const).map((name) => (
+              <button
+                key={name}
+                type="button"
+                className={styles.segment}
+                aria-pressed={view === name}
+                aria-label={t(`workspace.view.${name}`)}
+                title={t(`workspace.view.${name}`)}
+                onClick={() => {
+                  chooseView(name);
+                }}
+              >
+                <Icon name={name === 'list' ? 'viewList' : 'viewGrid'} size={16} />
+              </button>
+            ))}
+          </div>
+          {view === 'list' && (
+            <button
+              type="button"
+              className={styles.linkButton}
+              onClick={() => {
+                setFolded(allFolded ? new Set() : new Set(placedAgentIds));
               }}
-              onOpenDetails={() => {
-                setDetailsId(agentId);
-              }}
-              onOpenWorkflow={(link) => {
-                navigate('workflow', {
-                  type: 'open-workflow',
-                  workflowId: link.workflowId,
-                  executionId: link.workflowExecutionId,
-                });
-              }}
-              onEdit={() => {
-                setAdding(false);
-                setEditingId(agentId);
-              }}
-              onRemove={() => {
-                void workspace.removeAgent(agentId);
-              }}
-            />
-          );
-        }}
-      />
+            >
+              {allFolded ? t('workspace.expandAll') : t('workspace.collapseAll')}
+            </button>
+          )}
+        </div>
+      )}
+
+      {view === 'list' ? (
+        <ul className={styles.agentList}>
+          {placedAgentIds.map((agentId) => (
+            <li key={agentId}>{renderAgent(agentId, 'list')}</li>
+          ))}
+        </ul>
+      ) : (
+        <WorkspaceGrid workspace={active} renderAgent={(agentId) => renderAgent(agentId, 'grid')} />
+      )}
 
       {details && (
         <AgentDetailsPanel
