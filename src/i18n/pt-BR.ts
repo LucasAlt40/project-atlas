@@ -676,6 +676,7 @@ export const ptBR: Record<TranslationKey, string> = {
   'inspector.tab.terminal': 'Terminal',
   'inspector.task': 'Tarefa',
   'inspector.workspace': 'Workspace',
+  'markdown.copied': 'Copiado',
   'inspector.agent': 'Agente',
   'inspector.personality': 'Personalidade',
   'inspector.runtime': 'Runtime',

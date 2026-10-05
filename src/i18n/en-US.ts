@@ -668,6 +668,7 @@ export const enUS = {
   'inspector.tab.terminal': 'Terminal',
   'inspector.task': 'Task',
   'inspector.workspace': 'Workspace',
+  'markdown.copied': 'Copied',
   'inspector.agent': 'Agent',
   'inspector.personality': 'Personality',
   'inspector.runtime': 'Runtime',

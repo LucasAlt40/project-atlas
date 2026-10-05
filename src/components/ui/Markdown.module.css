@@ -1,5 +1,6 @@
 .markdown {
-  line-height: 1.55;
+  font-size: 0.9375rem;
+  line-height: 1.65;
   overflow-wrap: anywhere;
 }
 .markdown > :first-child {
@@ -33,27 +34,73 @@
 .markdown h4 {
   font-size: 1rem;
 }
+
 .markdown ul,
 .markdown ol {
   padding-left: var(--space-5);
 }
 .markdown li + li {
-  margin-top: var(--space-1);
+  margin-top: var(--space-2);
 }
 .markdown code {
   padding: 0.1em 0.35em;
   border-radius: 4px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--surface-3);
+  border: 0;
+  color: var(--info);
   font-family: var(--font-mono);
   font-size: 0.875em;
 }
-.markdown pre {
-  padding: var(--space-3);
+.block {
+  margin: 0 0 var(--space-3);
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--surface-void);
+}
+.blockBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.copy {
+  padding: 2px var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  text-transform: none;
+  cursor: pointer;
+}
+.copy:hover {
+  background: var(--surface-2);
+  color: var(--text-high);
+}
+.markdown .block pre {
+  margin: 0;
+  padding: var(--space-1) var(--space-4) var(--space-4);
+  border: 0;
+  border-radius: 0;
+  background: none;
   overflow-x: auto;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+.jsonKey {
+  color: var(--accent-soft);
+}
+.jsonString {
+  color: #f9a8d4;
+}
+.jsonNumber,
+.jsonLiteral {
+  color: var(--info);
 }
 .markdown pre code {
   padding: 0;
