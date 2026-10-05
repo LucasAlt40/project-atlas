@@ -108,6 +108,8 @@ export interface ReviewState {
   decisions: string;
   /** Fields prefilled with a model's draft rather than the user's own words. */
   suggested: (keyof UserKnowledgeDto)[];
+  /** Keep `.atlas/` out of Git (the project's `.gitignore`). On unless the user turns it off. */
+  ignoreInGit: boolean;
 }
 
 const BUSINESS_FIELDS = [
@@ -145,6 +147,7 @@ export function initialReview(analysis: ProjectAnalysisDto): ReviewState {
     values: { ...resolutions, ...analysis.previousCorrections },
     ...user,
     suggested: [...suggested],
+    ignoreInGit: true,
   };
 }
 
@@ -175,6 +178,7 @@ export function buildInput(
     businessRules: state.businessRules.trim(),
     constraints: state.constraints.trim(),
     decisions: state.decisions.trim(),
+    ignoreInGit: state.ignoreInGit,
   };
 }
 
@@ -192,4 +196,31 @@ export function unresolvedConflicts(analysis: ProjectAnalysisDto, state: ReviewS
   return analysis.conflicts.filter(
     (c: ConflictDto) => !(c.findingId in state.values) && c.resolution === null,
   );
+}
+
+const SOURCE_ROOTS = /^(?:.*?\/)?src\/(?:main|test)\/(?:java|kotlin|scala|groovy|resources)\//;
+const DOMAIN_PREFIXES = new Set([
+  'br',
+  'com',
+  'org',
+  'net',
+  'io',
+  'dev',
+  'app',
+  'co',
+  'gov',
+  'edu',
+]);
+
+/**
+ * A path as it is read at a glance: past the language's source root and the reversed-domain
+ * prefix (`src/main/java/br/org/acme/infra/Foo.java` becomes `acme/infra/Foo.java`).
+ */
+export function shortPath(path: string): string {
+  const rooted = SOURCE_ROOTS.test(path) ? path.replace(SOURCE_ROOTS, '') : path;
+  if (rooted === path) return path;
+  const parts = rooted.split('/');
+  let start = 0;
+  while (start < parts.length - 2 && DOMAIN_PREFIXES.has(parts[start] ?? '')) start += 1;
+  return parts.slice(start).join('/');
 }

@@ -6,8 +6,8 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-5);
-  background: rgb(0 0 0 / 0.55);
-  backdrop-filter: blur(2px);
+  background: rgb(0 0 0 / 0.4);
+  backdrop-filter: blur(4px);
 }
 .backdrop[data-placement='side'] {
   justify-content: flex-end;
@@ -23,13 +23,17 @@
   max-height: 100%;
   padding: var(--space-5);
   overflow-y: auto;
-  border: 1px solid var(--border-focus);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  background: var(--surface-2);
+  background: rgb(28 33 40 / 0.92);
+  backdrop-filter: blur(12px);
   box-shadow: var(--shadow-overlay);
 }
 .dialog[data-size='wide'] {
   width: min(76rem, 100%);
+}
+.dialog[data-size='analyze'] {
+  width: min(42.5rem, 100%);
 }
 .backdrop[data-placement='side'] .dialog {
   width: min(26rem, 100%);

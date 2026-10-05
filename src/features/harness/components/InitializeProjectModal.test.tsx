@@ -137,12 +137,15 @@ describe('InitializeProjectModal', () => {
       outcome(initialized, { written: ['project.yaml'] }),
     );
 
-    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await user.click(await screen.findByRole('button', { name: /^Review/ }));
     const form = screen.getByRole('form', { name: 'Review Project Context' });
     await user.clear(within(form).getByLabelText('Value of Angular 21'));
     await user.type(within(form).getByLabelText('Value of Angular 21'), '19');
+    await user.click(screen.getByRole('tab', { name: /^Testing and commands/ }));
     await user.click(within(form).getByLabelText('Include Vitest'));
+    await user.click(screen.getByRole('tab', { name: /^Architecture and modules/ }));
     await user.click(within(form).getByLabelText('Confirm Layered'));
+    await user.click(screen.getByRole('tab', { name: /^Business context/ }));
     await user.type(within(form).getByLabelText('What does this system do?'), 'ERP for transport');
     await user.type(within(form).getByLabelText('Who uses it?'), 'About 110 internal users');
     await user.type(
@@ -167,10 +170,64 @@ describe('InitializeProjectModal', () => {
       businessRules: '',
       constraints: 'Keep the public API stable',
       decisions: 'The layered architecture is intentional',
+      ignoreInGit: true,
     });
     expect(await screen.findByRole('heading', { name: 'Harness initialized' })).toBeVisible();
     expect(screen.getByText('Agents can now use project context.')).toBeVisible();
     expect(onInitialized).toHaveBeenCalledWith(initialized);
+  });
+
+  it('keeps .atlas/ out of Git by default, and says so once it is done', async () => {
+    const user = userEvent.setup();
+    open();
+    vi.mocked(initializeProject).mockResolvedValue(
+      outcome(initialized, { written: ['project.yaml'], gitIgnore: 'added' }),
+    );
+    await user.click(await screen.findByRole('button', { name: /^Review/ }));
+    const form = screen.getByRole('form', { name: 'Review Project Context' });
+
+    const box = within(form).getByRole('checkbox', { name: /Keep \.atlas\/ out of Git/ });
+    expect(box).toBeChecked();
+    await user.click(within(form).getByRole('button', { name: 'Initialize' }));
+
+    expect(vi.mocked(initializeProject).mock.calls[0]?.[1].ignoreInGit).toBe(true);
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      '.atlas/ was added to .gitignore: it will not be pushed.',
+    );
+  });
+
+  it('lets the person commit .atlas/ with their code instead', async () => {
+    const user = userEvent.setup();
+    open();
+    vi.mocked(initializeProject).mockResolvedValue(
+      outcome(initialized, { written: ['project.yaml'], gitIgnore: 'skipped' }),
+    );
+    await user.click(await screen.findByRole('button', { name: /^Review/ }));
+    const form = screen.getByRole('form', { name: 'Review Project Context' });
+
+    await user.click(within(form).getByRole('checkbox', { name: /Keep \.atlas\/ out of Git/ }));
+    await user.click(within(form).getByRole('button', { name: 'Initialize' }));
+
+    expect(vi.mocked(initializeProject).mock.calls[0]?.[1].ignoreInGit).toBe(false);
+    await screen.findByRole('heading', { name: 'Harness initialized' });
+    expect(screen.queryByText(/gitignore/i)).toBeNull();
+  });
+
+  it('warns, without failing, when .gitignore could not be changed', async () => {
+    const user = userEvent.setup();
+    open();
+    vi.mocked(initializeProject).mockResolvedValue(
+      outcome(initialized, { written: ['project.yaml'], gitIgnore: 'failed' }),
+    );
+    await user.click(await screen.findByRole('button', { name: /^Review/ }));
+    await user.click(
+      within(screen.getByRole('form', { name: 'Review Project Context' })).getByRole('button', {
+        name: 'Initialize',
+      }),
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Harness initialized' })).toBeVisible();
+    expect(screen.getByRole('status')).toHaveTextContent('could not be changed');
   });
 
   it('shows the evidence behind a statement: confidence, origin and sources', async () => {
@@ -179,7 +236,7 @@ describe('InitializeProjectModal', () => {
     analysis.findings.push(modelFinding());
     open({ analysis });
 
-    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await user.click(await screen.findByRole('button', { name: /^Review/ }));
     const form = screen.getByRole('form', { name: 'Review Project Context' });
     // A fact from the repository.
     await user.click(within(form).getByRole('button', { name: 'Show evidence for Angular 21' }));
@@ -189,6 +246,7 @@ describe('InitializeProjectModal', () => {
     expect(within(fact).getByText('package.json')).toBeVisible();
     expect(within(fact).getByText('Verified by a repository file')).toBeVisible();
     // An inference from a model: its reason and the files it cites.
+    await user.click(screen.getByRole('tab', { name: /^Architecture and modules/ }));
     await user.click(
       within(form).getByRole('button', { name: 'Show evidence for orders: Order handling' }),
     );
@@ -218,7 +276,8 @@ describe('InitializeProjectModal', () => {
     open({ analysis });
     vi.mocked(initializeProject).mockResolvedValue(outcome(initialized));
 
-    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await user.click(await screen.findByRole('button', { name: /^Review/ }));
+    await user.click(screen.getByRole('tab', { name: /^Conventions/ }));
     const guess = screen.getByLabelText('Include naming: kebab-case');
     expect(guess).not.toBeChecked();
     expect(screen.getAllByText('Low confidence').length).toBeGreaterThan(0);
@@ -239,7 +298,7 @@ describe('InitializeProjectModal', () => {
     expect(within(panel).getByText(/Not decided yet/)).toBeVisible();
     expect(within(panel).getByText(/package\.json/)).toBeVisible();
     expect(within(panel).getByText(/README\.md/)).toBeVisible();
-    await user.click(screen.getByRole('button', { name: 'Review' }));
+    await user.click(screen.getByRole('button', { name: /^Review/ }));
     await user.click(screen.getByRole('button', { name: 'Use Angular 21 for Angular 21' }));
     expect(screen.getByText('Decided: 21')).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Initialize' }));
@@ -256,7 +315,7 @@ describe('InitializeProjectModal', () => {
     open({ analysis: projectAnalysis({ conflicts: [conflict] }) });
     vi.mocked(initializeProject).mockResolvedValue(outcome(initialized));
 
-    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await user.click(await screen.findByRole('button', { name: /^Review/ }));
     await user.click(screen.getByRole('button', { name: 'Use angular 18 for Angular 21' }));
     await user.click(screen.getByRole('button', { name: 'Initialize' }));
 
@@ -282,8 +341,9 @@ describe('InitializeProjectModal', () => {
       }),
     });
 
-    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await user.click(await screen.findByRole('button', { name: /^Review/ }));
 
+    await user.click(screen.getByRole('tab', { name: /^Business context/ }));
     expect(screen.getByLabelText('What does this system do?')).toHaveValue('ERP');
     expect(screen.getByLabelText(/Decisions to preserve/)).toHaveValue('Do not migrate');
     expect(screen.getByText(/left untouched: context\/business\.md/)).toBeVisible();
@@ -293,7 +353,7 @@ describe('InitializeProjectModal', () => {
     const user = userEvent.setup();
     open();
 
-    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await user.click(await screen.findByRole('button', { name: /^Review/ }));
     await user.click(screen.getByRole('button', { name: 'Back' }));
 
     expect(await screen.findByRole('heading', { name: 'Analyze Project' })).toBeVisible();
@@ -321,7 +381,7 @@ describe('InitializeProjectModal', () => {
     expect(within(diffView).getByText('+ Angular 21')).toBeVisible();
     expect(within(diffView).getByText('+ Vitest 3')).toBeVisible();
     expect(within(diffView).getByText('2 unchanged')).toBeVisible();
-    expect(screen.queryByRole('button', { name: 'Review' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Review/ })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Use existing' }));
 
     expect(initializeProject).toHaveBeenCalledWith(
@@ -349,6 +409,7 @@ describe('InitializeProjectModal', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Update existing' }));
     expect(screen.getByLabelText('Value of Angular 21')).toHaveValue('19');
+    await user.click(screen.getByRole('tab', { name: /^Architecture and modules/ }));
     expect(screen.getByLabelText('Confirm Layered')).toBeChecked();
     await user.click(screen.getByRole('button', { name: 'Initialize' }));
 
@@ -381,7 +442,7 @@ describe('InitializeProjectModal', () => {
     );
 
     expect(await screen.findByText(/is not a valid Harness/)).toBeVisible();
-    await user.click(screen.getByRole('button', { name: 'Review' }));
+    await user.click(screen.getByRole('button', { name: /^Review/ }));
     await user.click(screen.getByRole('button', { name: 'Initialize' }));
 
     expect(initializeProject).toHaveBeenCalledWith(
@@ -399,7 +460,7 @@ describe('InitializeProjectModal', () => {
       detail: 'disk full',
     });
 
-    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await user.click(await screen.findByRole('button', { name: /^Review/ }));
     await user.click(screen.getByRole('button', { name: 'Initialize' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -425,7 +486,7 @@ describe('InitializeProjectModal', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'The project path is not safe to read.',
     );
-    expect(screen.queryByRole('button', { name: 'Review' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Review/ })).not.toBeInTheDocument();
   });
 
   describe('AI analysis', () => {
@@ -458,7 +519,7 @@ describe('InitializeProjectModal', () => {
         within(section).getByLabelText('What should the agent know? (optional)'),
         '  ERP for transport companies  ',
       );
-      await user.click(within(section).getByRole('button', { name: 'Analyze with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Analyze with AI' }));
 
       expect(analyzeProject).toHaveBeenLastCalledWith('w1', {
         agentId: 'a1',
@@ -538,7 +599,8 @@ describe('InitializeProjectModal', () => {
         }),
       );
       await user.click(await screen.findByRole('button', { name: 'Analyze with AI' }));
-      await user.click(await screen.findByRole('button', { name: 'Review' }));
+      await user.click(await screen.findByRole('button', { name: /^Review/ }));
+      await user.click(screen.getByRole('tab', { name: /^Business context/ }));
 
       expect(screen.getByLabelText(/What does this system do\?/)).toHaveValue(
         'ERP for transport companies',
@@ -623,8 +685,9 @@ describe('InitializeProjectModal', () => {
       expect(
         within(screenDialog).getByText('Reading and analyzing', { exact: false }),
       ).toBeVisible();
-      expect(await within(screenDialog).findByText('Read src/app/app.config.ts')).toBeVisible();
-      expect(within(screenDialog).getByText('Glob src/app/**')).toBeVisible();
+      expect(await within(screenDialog).findByText('src/app/app.config.ts')).toBeVisible();
+      expect(within(screenDialog).getByText('src/app/**')).toBeVisible();
+      expect(within(screenDialog).getByText('Glob')).toBeVisible();
       expect(
         within(screenDialog).getByText('The core folder holds the API services.'),
       ).toBeVisible();
@@ -707,8 +770,9 @@ describe('InitializeProjectModal', () => {
         }),
       );
       await user.click(await screen.findByRole('button', { name: 'Analyze with AI' }));
-      await user.click(await screen.findByRole('button', { name: 'Review' }));
+      await user.click(await screen.findByRole('button', { name: /^Review/ }));
 
+      await user.click(screen.getByRole('tab', { name: /^Business context/ }));
       expect(screen.getByLabelText(/architectural constraints/)).toHaveValue(
         'Never touch generated api models.',
       );

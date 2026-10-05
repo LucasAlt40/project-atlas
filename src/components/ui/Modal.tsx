@@ -9,7 +9,7 @@ interface Props {
   /** `side` slides in from the right (details panels); `center` is a classic dialog. */
   placement?: 'center' | 'side';
   /** `wide` for content that needs room, such as a diff. */
-  size?: 'normal' | 'wide';
+  size?: 'normal' | 'wide' | 'analyze';
   children: ReactNode;
 }
 

@@ -5,6 +5,7 @@ import {
   detectedStack,
   initialReview,
   isEditableValue,
+  shortPath,
   stackFindings,
 } from './review';
 
@@ -99,6 +100,7 @@ describe('project review model', () => {
       businessRules: '',
       constraints: '',
       decisions: '',
+      ignoreInGit: true,
     });
   });
 
@@ -110,5 +112,20 @@ describe('project review model', () => {
     expect(isEditableValue(byId('infrastructure:docker'))).toBe(false);
     expect(isEditableValue(byId('architecture:layered'))).toBe(false);
     expect(harnessSummary().status).toBe('not_initialized');
+  });
+});
+
+describe('shortPath', () => {
+  it('starts at the project’s own domain', () => {
+    expect(
+      shortPath('src/main/java/br/org/oficinadasmeninas/infra/pagbank/PaymentGatewayService.java'),
+    ).toBe('oficinadasmeninas/infra/pagbank/PaymentGatewayService.java');
+  });
+
+  it('leaves other paths alone', () => {
+    expect(shortPath('docs/plans/recurring-charge-history.md')).toBe(
+      'docs/plans/recurring-charge-history.md',
+    );
+    expect(shortPath('src/app/app.config.ts')).toBe('src/app/app.config.ts');
   });
 });
