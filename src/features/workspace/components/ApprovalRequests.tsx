@@ -58,6 +58,7 @@ export function ApprovalRequests({ requests, agentName, onResolve }: Props) {
               {t('approval.allowOnce')}
             </Button>
             <Button
+              variant="secondary"
               onClick={() => {
                 onResolve(request.id, false);
               }}

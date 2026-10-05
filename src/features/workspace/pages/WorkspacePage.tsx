@@ -261,6 +261,7 @@ export function WorkspacePage() {
                 }}
               >
                 <Icon name={name === 'list' ? 'viewList' : 'viewGrid'} size={16} />
+                {t(`workspace.view.${name}`)}
               </button>
             ))}
           </div>

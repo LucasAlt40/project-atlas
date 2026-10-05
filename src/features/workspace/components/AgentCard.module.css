@@ -7,7 +7,7 @@
   min-width: 0;
   padding: var(--space-4);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--surface-1);
   overflow: hidden;
 }
@@ -22,7 +22,6 @@
 .card[data-variant='list'] {
   height: auto;
   overflow: visible;
-  box-shadow: 0 1px 8px rgb(0 0 0 / 0.25);
 }
 .card[data-variant='list'][data-expanded='false'] {
   padding-block: var(--space-3);
@@ -114,8 +113,9 @@
   align-items: center;
   gap: var(--space-2);
   padding: 2px var(--space-2);
-  border-radius: 999px;
-  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-void);
   color: var(--idle);
   font-family: var(--font-mono);
   font-size: 0.625rem;
@@ -209,7 +209,7 @@
   margin: 0;
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--surface-2);
   color: var(--text-high);
   line-height: 1.5;
@@ -219,8 +219,9 @@
 .answer {
   min-width: 0;
   max-width: 100%;
-  padding: var(--space-4) var(--space-5);
-  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   background: var(--surface-2);
   line-height: 1.55;
 }
@@ -364,7 +365,8 @@
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-3);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   background: var(--surface-2);
 }
 .composerHint {
@@ -375,13 +377,11 @@
   font-family: var(--font-mono);
   font-size: 0.6875rem;
 }
-/* Working: the whole tag breathes, so a glance says which agent is busy. */
+/* Working: a running tint on the tag; only its dot pulses, so a glance says which agent is busy. */
 .status[data-status='running'],
 .status[data-status='responding'],
 .status[data-status='waiting'] {
-  padding: 3px var(--space-3);
-  background: rgb(0 166 224 / 0.22);
-  color: var(--info);
-  font-weight: 700;
-  animation: pulse 1.6s ease-in-out infinite;
+  border-color: rgb(59 130 246 / 0.4);
+  background: rgb(59 130 246 / 0.12);
+  color: var(--running);
 }

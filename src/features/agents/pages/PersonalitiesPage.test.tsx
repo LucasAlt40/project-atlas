@@ -38,8 +38,9 @@ describe('PersonalitiesPage', () => {
     expect(within(card).getByLabelText('Architect system instructions')).toHaveTextContent(
       'You are an experienced software architect.',
     );
+    // The protocol Atlas adds to every personality is stated once, above the cards.
     expect(
-      within(card).getByText(/live-narration and read-only rules to every personality/),
+      screen.getByText(/live-narration and read-only rules to every personality/),
     ).toBeInTheDocument();
     expect(screen.getByRole('article', { name: 'QA' })).toBeInTheDocument();
   });

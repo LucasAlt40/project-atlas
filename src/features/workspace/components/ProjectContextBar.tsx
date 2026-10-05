@@ -116,6 +116,7 @@ export function ProjectContextBar({ workspace }: { workspace: Workspace }) {
             {harness.state.summary.status === 'initialized' ? (
               <>
                 <Button
+                  variant="secondary"
                   onClick={() => {
                     setInitializing(true);
                   }}
@@ -123,6 +124,7 @@ export function ProjectContextBar({ workspace }: { workspace: Workspace }) {
                   {t('harness.update')}
                 </Button>
                 <Button
+                  variant="secondary"
                   onClick={() => {
                     setRefreshing(true);
                   }}

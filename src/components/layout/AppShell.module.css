@@ -11,7 +11,7 @@
   gap: var(--space-4);
   width: 16rem;
   background: var(--surface-void);
-  box-shadow: 1px 0 8px rgb(0 0 0 / 0.4);
+  border-right: 1px solid var(--border-subtle);
   z-index: 2;
 }
 .brandBar {
@@ -19,6 +19,7 @@
   align-items: center;
   height: var(--topbar-height);
   padding: 0 var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
   background: var(--surface-1);
 }
 .brand {
@@ -44,6 +45,7 @@
   list-style: none;
 }
 .link {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -51,7 +53,7 @@
   height: 2.5rem;
   padding: 0 var(--space-4);
   border: 0;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-muted);
   font: inherit;
@@ -69,8 +71,18 @@
 }
 .link[aria-current='page'] {
   background: var(--surface-2);
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.3);
   color: var(--accent-soft);
+}
+/* The active destination carries the accent as a 2px indicator, like the command palette's row. */
+.link[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  top: 0.5rem;
+  bottom: 0.5rem;
+  left: 0;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
 }
 .linkLabel {
   overflow: hidden;
@@ -79,7 +91,8 @@
 .railFooter {
   margin: auto var(--space-3) var(--space-3);
   padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   background: var(--surface-1);
   font-family: var(--font-mono);
   font-size: 0.6875rem;
@@ -107,8 +120,8 @@
   gap: var(--space-4);
   height: var(--topbar-height);
   padding: 0 var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
   background: var(--surface-base);
-  box-shadow: 0 1px 8px rgb(0 0 0 / 0.2);
 }
 .toggle {
   display: inline-flex;

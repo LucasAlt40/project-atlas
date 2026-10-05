@@ -77,6 +77,14 @@ export function PersonalityBrowser({
         </div>
       </div>
 
+      <aside className={styles.protocol} aria-label={t('personalities.protocol.title')}>
+        <Icon name="shield" size={18} />
+        <div>
+          <strong>{t('personalities.protocol.title')}</strong>
+          <p>{t('personalities.note')}</p>
+        </div>
+      </aside>
+
       <div className={styles.filterBar}>
         <div className={styles.tabsBar} role="group" aria-label={t('personalities.title')}>
           {(['all', 'builtin', 'custom'] as const).map((name) => (

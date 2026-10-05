@@ -98,7 +98,7 @@
 .interrupt {
   border-color: rgb(239 68 68 / 0.5);
   background: rgb(239 68 68 / 0.16);
-  color: #fca5a5;
+  color: var(--color-danger);
 }
 .interrupt:hover:not(:disabled) {
   background: rgb(239 68 68 / 0.28);
@@ -144,16 +144,16 @@
 .tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-lg);
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-md);
   background: var(--surface-void);
 }
 .tab {
-  height: 2rem;
-  padding: 0 var(--space-4);
-  border: 0;
-  border-radius: var(--radius-md);
+  height: 1.75rem;
+  padding: 0 var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
   font: inherit;
@@ -165,7 +165,8 @@
   color: var(--text-high);
 }
 .tab[aria-selected='true'] {
-  background: var(--surface-3);
+  border-color: var(--border-strong);
+  background: var(--surface-2);
   color: var(--text-high);
 }
 .tab:focus-visible {
@@ -184,7 +185,7 @@
   gap: var(--space-3);
   align-items: center;
   padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: rgb(0 166 224 / 0.12);
   font-size: var(--font-size-sm);
 }

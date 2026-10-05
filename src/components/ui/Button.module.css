@@ -5,7 +5,7 @@
   gap: var(--space-2);
   height: 1.875rem;
   padding: 0 var(--space-3);
-  border: 0;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: var(--accent);
   color: var(--text-high);
@@ -25,4 +25,35 @@
 .button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Secondary: a layer-1 surface with a 1px perimeter that brightens on hover. */
+.button[data-variant='secondary'] {
+  border-color: var(--border-subtle);
+  background: var(--surface-1);
+  color: var(--text-standard);
+}
+.button[data-variant='secondary']:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-1);
+}
+
+/* Ghost: no surface until it is hovered. */
+.button[data-variant='ghost'] {
+  background: transparent;
+  color: var(--text-muted);
+}
+.button[data-variant='ghost']:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text-high);
+}
+
+/* Danger: the error accent as a perimeter, filled only on hover, so it never reads as primary. */
+.button[data-variant='danger'] {
+  border-color: rgb(239 68 68 / 0.4);
+  background: transparent;
+  color: var(--danger);
+}
+.button[data-variant='danger']:hover:not(:disabled) {
+  background: rgb(239 68 68 / 0.12);
 }

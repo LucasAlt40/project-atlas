@@ -10,6 +10,8 @@ interface Props {
   agents: Agent[];
   personalities: Personality[];
   runtimeName: (runtimeId: string) => string;
+  /** Whether the agent's runtime can run it now; unknown while the runtimes are still detected. */
+  runtimeReady?: (runtimeId: string) => boolean | undefined;
   onEdit: (agentId: string) => void;
   /** Rejects when the agent cannot be deleted (for example it is working). */
   onDelete: (agentId: string) => Promise<void>;
@@ -22,6 +24,7 @@ export function AgentList({
   agents,
   personalities,
   runtimeName,
+  runtimeReady = () => undefined,
   onEdit,
   onDelete,
   filtered = false,
@@ -69,6 +72,7 @@ export function AgentList({
               t(agent.worktreeIsolation ? 'agent.gitIsolation.on' : 'agent.gitIsolation.off'),
             ],
           ];
+          const ready = runtimeReady(agent.runtimeId);
           return (
             <li key={agent.id} className={styles.agentCard}>
               <header className={styles.agentCardHead}>
@@ -82,6 +86,11 @@ export function AgentList({
                   </div>
                   <span className={styles.agentRuntime}>{runtimeName(agent.runtimeId)}</span>
                 </div>
+                {ready !== undefined && (
+                  <span className={styles.statusPill} data-ready={ready}>
+                    {t(ready ? 'agent.status.ready' : 'agent.status.unavailable')}
+                  </span>
+                )}
               </header>
               <dl className={styles.agentFacts}>
                 {rows.map(([label, value]) => (

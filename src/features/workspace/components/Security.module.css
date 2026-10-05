@@ -100,13 +100,13 @@
 }
 .approval {
   padding: var(--space-4);
-  border: 1px solid rgb(236 72 153 / 0.35);
-  border-radius: var(--radius-lg);
-  background: linear-gradient(rgb(236 72 153 / 0.08), rgb(236 72 153 / 0.04)), var(--surface-2);
+  border: 1px solid rgb(236 72 153 / 0.3);
+  border-radius: var(--radius-md);
+  background: rgb(236 72 153 / 0.1);
 }
 .approvalTitle {
   margin: 0 0 var(--space-3);
-  color: #f9a8d4;
+  color: var(--policy);
   font-size: var(--font-size-lg);
 }
 .approvalFacts {
@@ -136,6 +136,10 @@
   color: var(--text-high);
   font-family: var(--font-mono);
   font-size: 0.75rem;
+}
+.command::before {
+  content: '$ ';
+  color: var(--policy);
 }
 .approvalActions {
   display: flex;

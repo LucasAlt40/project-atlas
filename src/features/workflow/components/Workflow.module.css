@@ -31,7 +31,7 @@
 .runBadge {
   padding: 0.125rem var(--space-3);
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
   color: var(--text-standard);
 }
@@ -76,7 +76,7 @@
 .canvas {
   min-height: 24rem;
   overflow: hidden;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--surface-void);
 }
 .canvas :global(.react-flow__minimap) {
@@ -108,7 +108,7 @@
 .side {
   overflow-y: auto;
   padding: var(--space-5);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--surface-1);
 }
 
@@ -119,7 +119,7 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--surface-1);
 }
 .toolButton {
@@ -203,9 +203,8 @@
   min-width: 14.5rem;
   padding: var(--space-4);
   border: 1px solid transparent;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--surface-1);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.35);
   color: var(--text-high);
   font-size: var(--font-size-sm);
 }
@@ -255,16 +254,14 @@
 }
 .node[data-selected='true'] {
   border-color: var(--accent-soft);
-  box-shadow:
-    0 0 0 1px var(--accent-soft),
-    0 4px 16px rgb(0 0 0 / 0.35);
+  box-shadow: 0 0 0 1px var(--accent-soft);
 }
 .node[data-invalid='true'] {
   border-color: var(--danger);
   border-style: dashed;
 }
 .node[data-kind='condition'] {
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   border-style: dotted;
 }
 .node[data-kind='end'] {
@@ -274,9 +271,7 @@
 }
 .node[data-status='running'] {
   border-color: var(--running);
-  box-shadow:
-    0 0 0 1px rgb(96 165 250 / 0.4),
-    0 0 24px rgb(96 165 250 / 0.25);
+  box-shadow: 0 0 0 1px rgb(96 165 250 / 0.4);
 }
 .node[data-status='waiting_approval'] {
   border-color: var(--policy);
@@ -544,6 +539,19 @@
   gap: var(--space-3);
 }
 
+.repairGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+}
+.repairRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  align-items: end;
+}
+
 @media (max-width: 60rem) {
   .workspace {
     grid-template-columns: 1fr;
@@ -559,20 +567,22 @@
   background: var(--surface-void);
 }
 .tab {
+  flex: 1;
   padding: var(--space-2) var(--space-3);
-  border: 0;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: none;
   color: var(--text-muted);
   font: inherit;
   font-size: var(--font-size-sm);
+  font-weight: 500;
   cursor: pointer;
 }
 .tab[aria-selected='true'] {
-  background: var(--surface-3);
+  border-color: var(--border-strong);
+  background: var(--surface-2);
   color: var(--text-high);
 }
-  flex: 1;
 
 /* Where the code of a run stands. The run's own result is one line; the code's is another. */
 .delivery {
@@ -580,7 +590,6 @@
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-3);
-  font-weight: 500;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--surface-2);

@@ -39,7 +39,7 @@ export function ResultContractEditor({ contract, onChange }: Props) {
   };
 
   return (
-    <fieldset className={styles.field} aria-label={t('contract.title')}>
+    <fieldset className={[styles.field, styles.group].join(' ')} aria-label={t('contract.title')}>
       <legend className={styles.label}>{t('contract.title')}</legend>
       <label htmlFor={`${id}-kind`} className={styles.hint}>
         {t('contract.type')}

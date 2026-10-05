@@ -107,7 +107,7 @@ export function PersonalityForm({ initial, onSubmit, onSaved, onCancel }: Props)
         </p>
       )}
       <div className={styles.actions}>
-        <Button type="button" onClick={onCancel}>
+        <Button type="button" variant="secondary" onClick={onCancel}>
           {t('common.cancel')}
         </Button>
         <Button type="submit" disabled={saving}>

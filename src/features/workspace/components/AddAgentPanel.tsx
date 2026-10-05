@@ -22,6 +22,7 @@ export function AddAgentPanel({ available, onAdd, onCreateNew, onClose }: Props)
             <li key={agent.id}>
               <span>{agent.name}</span>
               <Button
+                variant="secondary"
                 onClick={() => {
                   onAdd(agent.id);
                 }}

@@ -102,6 +102,7 @@ export function InteractionPanel({ interaction, busy, error, onAnswer, onCancelR
               {interaction.options.map((option) => (
                 <Button
                   key={option.id}
+                  variant="secondary"
                   disabled={busy}
                   onClick={() => {
                     setText(option.id);
@@ -137,7 +138,7 @@ export function InteractionPanel({ interaction, busy, error, onAnswer, onCancelR
         </p>
       )}
       <div className={styles.footer}>
-        <Button disabled={busy} onClick={onCancelRun}>
+        <Button variant="danger" disabled={busy} onClick={onCancelRun}>
           {t('interaction.cancelRun')}
         </Button>
         <span className={styles.note}>{t('interaction.noAutoApply')}</span>

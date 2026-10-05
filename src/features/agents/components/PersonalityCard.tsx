@@ -88,8 +88,6 @@ export function PersonalityCard({ personality, onUse, onEdit, onDelete }: Props)
         </ul>
       )}
 
-      <p className={styles.note}>{t('personalities.note')}</p>
-
       {error && (
         <p role="alert" className={styles.error}>
           {error}

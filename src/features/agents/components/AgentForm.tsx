@@ -187,7 +187,7 @@ export function AgentForm({
               <p className={styles.hint}>{t('agents.form.noFileEdit')}</p>
             )}
             <div>
-              <Button type="button" onClick={onRefreshRuntimes}>
+              <Button type="button" variant="secondary" onClick={onRefreshRuntimes}>
                 {t('agents.form.redetect')}
               </Button>
             </div>
@@ -259,7 +259,7 @@ export function AgentForm({
               )}
             </div>
 
-            <fieldset className={styles.field}>
+            <fieldset className={[styles.field, styles.group].join(' ')}>
               <legend className={styles.label}>{t('agents.form.isolation')}</legend>
               <label className={styles.checkRow} htmlFor="agent-isolation">
                 <input
@@ -289,7 +289,7 @@ export function AgentForm({
       )}
       <div className={styles.stickyBar}>
         {onCancel && (
-          <Button type="button" onClick={onCancel}>
+          <Button type="button" variant="secondary" onClick={onCancel}>
             {t('common.cancel')}
           </Button>
         )}

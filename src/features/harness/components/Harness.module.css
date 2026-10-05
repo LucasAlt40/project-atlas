@@ -257,7 +257,7 @@
   padding: var(--space-5);
   overflow-y: auto;
   border: 1px solid var(--border-focus);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--surface-2);
   box-shadow: var(--shadow-overlay);
 }

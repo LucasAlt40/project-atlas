@@ -95,7 +95,7 @@ export function RefreshHarnessModal({ workspaceId, onClose, onApplied }: Props) 
         )}
         {error && <ErrorBox problem={error} />}
         <div className={styles.actions}>
-          <Button onClick={onClose}>
+          <Button variant="secondary" onClick={onClose}>
             {state.name === 'applied' ? t('common.close') : t('common.cancel')}
           </Button>
           {state.name === 'preview' && (

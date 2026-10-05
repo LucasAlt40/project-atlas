@@ -168,6 +168,7 @@ describe('Workspace Harness status', () => {
         written: [],
         backedUp: [],
         leftUntouched: [],
+        gitIgnore: 'skipped',
       },
     });
 
@@ -208,6 +209,7 @@ describe('Workspace Harness status', () => {
               written: [],
               backedUp: ['context/stack.md'],
               leftUntouched: [],
+              gitIgnore: 'skipped',
             }
           : null,
       }),

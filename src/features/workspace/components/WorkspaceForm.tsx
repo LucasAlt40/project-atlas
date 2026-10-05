@@ -90,7 +90,7 @@ export function WorkspaceForm({
             readOnly
             placeholder={t('workspace.form.folderPlaceholder')}
           />
-          <Button type="button" onClick={() => void chooseFolder()}>
+          <Button type="button" variant="secondary" onClick={() => void chooseFolder()}>
             {t('workspace.form.selectFolder')}
           </Button>
         </div>
@@ -113,7 +113,7 @@ export function WorkspaceForm({
         </p>
       )}
       <div className={styles.panelActions}>
-        <Button type="button" onClick={onCancel}>
+        <Button type="button" variant="secondary" onClick={onCancel}>
           {t('common.cancel')}
         </Button>
         <Button type="submit" disabled={saving}>

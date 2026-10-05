@@ -48,6 +48,11 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
       ? runtimes.runtimes.find((r) => r.runtime.id === id)?.runtime.name
       : undefined) ?? id;
 
+  const runtimeReady = (id: string) =>
+    runtimes.status === 'ready'
+      ? runtimes.runtimes.find((r) => r.runtime.id === id)?.availability === 'ready'
+      : undefined;
+
   return (
     <section className={styles.page}>
       {!creating && !editing && (
@@ -140,6 +145,7 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
           filtered={needle !== ''}
           personalities={personalities}
           runtimeName={runtimeName}
+          runtimeReady={runtimeReady}
           onEdit={(id) => {
             setCreating(false);
             setEditingId(id);

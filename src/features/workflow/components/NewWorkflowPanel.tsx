@@ -154,7 +154,7 @@ export function NewWorkflowPanel({ templates, recommend, error, onCreate, onCanc
       )}
       <div className={styles.actions}>
         {onCancel && (
-          <Button type="button" onClick={onCancel}>
+          <Button type="button" variant="secondary" onClick={onCancel}>
             {t('common.cancel')}
           </Button>
         )}

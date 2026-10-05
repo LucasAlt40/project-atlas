@@ -174,11 +174,11 @@
 .agentCard {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
   min-width: 0;
-  padding: var(--space-5);
+  padding: var(--space-4);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--surface-1);
 }
 .agentCard:hover {
@@ -194,13 +194,14 @@
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 2.25rem;
+  height: 2.25rem;
   border-radius: var(--radius-md);
   background: var(--surface-3);
   color: var(--accent-soft);
 }
 .agentCardTitle {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -234,9 +235,34 @@
   flex-direction: column;
   gap: var(--space-2);
   margin: 0;
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
   background: var(--surface-void);
+}
+/* The runtime's availability, as the telemetry status chip of the design system. */
+.statusPill {
+  flex: none;
+  align-self: flex-start;
+  padding: 1px var(--space-2);
+  border: 1px solid rgb(100 116 139 / 0.4);
+  border-radius: var(--radius-sm);
+  color: var(--idle);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.statusPill[data-ready='true'] {
+  border-color: rgb(16 185 129 / 0.4);
+  background: rgb(16 185 129 / 0.1);
+  color: var(--success);
+}
+.statusPill[data-ready='false'] {
+  border-color: rgb(245 158 11 / 0.4);
+  background: rgb(245 158 11 / 0.1);
+  color: var(--warning);
 }
 .agentFacts div {
   display: flex;
