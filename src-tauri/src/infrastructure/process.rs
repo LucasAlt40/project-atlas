@@ -38,6 +38,7 @@ impl SystemProcessRunner {
             let home = PathBuf::from(home);
             for relative in [
                 ".opencode/bin",
+                ".kimi-code/bin",
                 ".local/bin",
                 ".npm-global/bin",
                 ".cargo/bin",

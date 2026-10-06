@@ -273,6 +273,7 @@ mod tests {
     use crate::application::config::memory::MemoryStore;
     use crate::application::process::fake::{ok, FakeProcessRunner};
     use crate::application::process::ProcessRunner;
+    use crate::application::runtimes::detect_only::DetectOnlyRuntime;
 
     /// The real default registry (`OpenCode`, Claude, detect-only runtimes) over a fake runner.
     fn service() -> AgentService {
@@ -281,8 +282,21 @@ mod tests {
         AgentService::new(
             config.clone(),
             Arc::new(PersonalityService::new(config)),
-            Arc::new(RuntimeRegistry::with_default_runtimes(&runner)),
+            Arc::new(registry(&runner)),
         )
+    }
+
+    /// The default runtimes plus `detect-only`, which is detected but cannot run tasks.
+    fn registry(runner: &Arc<dyn ProcessRunner>) -> RuntimeRegistry {
+        let mut runtimes = RuntimeRegistry::with_default_runtimes(runner).into_runtimes();
+        runtimes.push(Arc::new(DetectOnlyRuntime::new(
+            "detect-only",
+            "Detect only",
+            ("test", "Test"),
+            "detect-only",
+            runner.clone(),
+        )));
+        RuntimeRegistry::new(runtimes)
     }
 
     fn request(runtime_id: &str, model_id: &str) -> CreateAgentRequest {
@@ -394,7 +408,7 @@ mod tests {
             .unwrap_err()
             .is(ErrorCode::ModelInvalid));
         // Detected but not runnable yet.
-        assert!(bad(|r| r.runtime_id = "codex".into())
+        assert!(bad(|r| r.runtime_id = "detect-only".into())
             .unwrap_err()
             .is(ErrorCode::RuntimeNotSupported));
         assert_eq!(service.list(), []);
@@ -511,7 +525,7 @@ mod tests {
         let created = service.create(request("claude", "sonnet")).unwrap();
 
         assert!(service
-            .update(&created.id, request("codex", "m"))
+            .update(&created.id, request("detect-only", "m"))
             .unwrap_err()
             .is(ErrorCode::RuntimeNotSupported));
         assert!(service

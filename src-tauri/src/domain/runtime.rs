@@ -137,7 +137,9 @@ pub enum ModelDiscovery {
 pub enum RuntimeNotice {
     /// The tool is installed but not signed in.
     SignInRequired,
-    /// Detected, but Atlas cannot run tasks with it yet.
+    /// Detected, but Atlas cannot run tasks with it yet. No runtime is in that state today; the
+    /// code stays because the UI knows it.
+    #[cfg_attr(not(test), allow(dead_code))]
     ExecutionNotSupported,
     /// Installed but failing its own checks.
     Unavailable,

@@ -1,7 +1,9 @@
 mod antigravity;
 mod claude;
 mod cli;
-mod detect_only;
+mod codex;
+#[cfg(test)]
+pub(crate) mod detect_only;
 mod gemini;
 mod opencode;
 
@@ -23,6 +25,7 @@ use crate::domain::usage::{QuotaInfo, UsageMetrics};
 
 pub use antigravity::AntigravityRuntime;
 pub use claude::ClaudeRuntime;
+pub use codex::CodexRuntime;
 pub use gemini::GeminiRuntime;
 pub use opencode::OpenCodeRuntime;
 
@@ -228,25 +231,20 @@ impl RuntimeRegistry {
         Self { runtimes }
     }
 
-    /// The runtimes Atlas knows about. Every one can run tasks except Codex, which is detected
-    /// only.
+    /// The runtimes Atlas knows about. Every one can run tasks.
     pub fn with_default_runtimes(runner: &Arc<dyn ProcessRunner>) -> Self {
-        let detect_only = |id: &str, name: &str, provider: (&str, &str), program: &str| {
-            Arc::new(detect_only::DetectOnlyRuntime::new(
-                id,
-                name,
-                provider,
-                program,
-                runner.clone(),
-            )) as Arc<dyn ModelRuntime>
-        };
         Self::new(vec![
             Arc::new(OpenCodeRuntime::new(runner.clone())),
             Arc::new(ClaudeRuntime::new(runner.clone())),
-            detect_only("codex", "Codex CLI", ("openai", "OpenAI"), "codex"),
+            Arc::new(CodexRuntime::new(runner.clone())),
             Arc::new(GeminiRuntime::new(runner.clone())),
             Arc::new(AntigravityRuntime::new(runner.clone())),
         ])
+    }
+
+    #[cfg(test)]
+    pub fn into_runtimes(self) -> Vec<Arc<dyn ModelRuntime>> {
+        self.runtimes
     }
 
     pub fn find(&self, id: &str) -> Option<Arc<dyn ModelRuntime>> {
@@ -540,7 +538,7 @@ mod tests {
     fn registers_the_runtimes_that_can_execute() {
         let registry = registry();
 
-        for id in ["opencode", "claude", "gemini", "antigravity"] {
+        for id in ["opencode", "claude", "codex", "gemini", "antigravity"] {
             let info = registry.find(id).unwrap().info();
             assert!(info.capabilities.non_interactive_execution, "{id}");
         }
