@@ -87,6 +87,7 @@ fn parse(body: &str) -> Option<InteractionDetection> {
         document: String::new(),
         options,
         source: DetectionSource::Structured,
+        evaluation: None,
     })
 }
 

@@ -16,9 +16,11 @@ use super::runner::WorkspaceClose;
 use super::service::WorkflowService;
 use crate::application::errors::{AppError, ErrorCode};
 use crate::application::ide::{Ide, IdeError, IdeLauncher};
+use crate::application::security::changeset;
 use crate::application::support::now_ms;
 use crate::application::workspace::WorkspaceService;
 use crate::application::worktree::{UnapplyOutcome, WorktreeError, WorktreeService};
+use crate::domain::guardrail::{ChangeSetHealth, ChangeSetReview, GuardrailDecision};
 use crate::domain::workflow::{
     IntegrationStatus, WorkflowEventKind, WorkflowExecution, WorkflowIntegration,
 };
@@ -103,6 +105,11 @@ pub fn integration_from_close(
 ) -> WorkflowIntegration {
     integration_from_worktree(previous, &close.worktree, close.changes.as_ref(), at)
 }
+
+/// The integration to record and what to say about it.
+type Held = (WorkflowIntegration, &'static str);
+/// A review and, when the changes are not to go in now, what to record instead.
+type Reviewed = (ChangeSetReview, Option<Held>);
 
 pub struct IntegrationService {
     workflows: Arc<WorkflowService>,
@@ -242,12 +249,20 @@ impl IntegrationService {
             return Err(invalid());
         }
         let at = now_ms();
+        // What is about to enter the project is looked at first, whoever asks: a person's Apply
+        // is never a way around it.
+        let (review, held) = self.review_before_apply(&exec, &primary, at)?;
+        if let Some(held) = held {
+            return self.save(exec, held.0, held.1);
+        }
         let result = self.worktrees.merge(&primary);
         let (next, what) = match result {
             Ok(worktree) => {
                 let changes = exec.changes.clone();
                 let mut next =
                     integration_from_worktree(&exec.integration, &worktree, changes.as_ref(), at);
+                next.review = Some(review);
+                next.review_pending = None;
                 // Where the project was when the changes went into its working tree: the changes
                 // can be taken back out only while it is still there.
                 if worktree.merge_status == MergeStatus::Applied {
@@ -282,6 +297,99 @@ impl IntegrationService {
             }
         };
         self.save(exec, next, what)
+    }
+
+    /// Reviews the changes the run would put in the project. `Ok((review, None))`: they may go
+    /// (the review is `Healthy`, or it needs a person and the person already saw exactly this).
+    /// `Ok((review, Some(next, what)))`: not now, and the integration to record saying why.
+    ///
+    /// # Errors
+    ///
+    /// Fails (as nothing to apply) when the run changed nothing.
+    fn review_before_apply(
+        &self,
+        exec: &WorkflowExecution,
+        primary: &str,
+        at: u64,
+    ) -> Result<Reviewed, AppError> {
+        let held = |reason: BlockReason,
+                    can_apply: bool,
+                    review: Option<ChangeSetReview>,
+                    pending: Option<String>,
+                    message: String,
+                    what: &'static str| {
+            let mut next = exec.integration.clone();
+            next.status = IntegrationStatus::Blocked;
+            next.block_reason = Some(reason);
+            next.can_apply = can_apply;
+            next.message = Some(message);
+            next.review = review;
+            next.review_pending = pending;
+            next.updated_at = at;
+            (next, what)
+        };
+        let unreadable = || {
+            let empty = ChangeSetReview {
+                health: ChangeSetHealth::NeedsReview,
+                issues: Vec::new(),
+                files_reviewed: 0,
+                fingerprint: String::new(),
+            };
+            (
+                empty.clone(),
+                Some(held(
+                    BlockReason::Undetermined,
+                    true,
+                    Some(empty),
+                    None,
+                    "Atlas could not read the changes to review them".to_owned(),
+                    "The changes could not be reviewed",
+                )),
+            )
+        };
+        let (Ok(changes), Ok(target)) = (
+            self.worktrees.change_set(primary),
+            self.worktrees.live_target(primary),
+        ) else {
+            return Ok(unreadable());
+        };
+        if changes.files.is_empty() && changes.uncommitted.is_empty() {
+            return Err(invalid());
+        }
+        let review = changeset::review(&target.path, &changes, &|path| {
+            self.worktrees
+                .diff(primary, Some(path), MAX_DIFF_BYTES)
+                .ok()
+                .map(|text| changeset::added_lines(&text))
+        });
+        let message = review.summary();
+        let outcome = match review.health.decision() {
+            // A review never transforms anything: the changes go in as they are, or not at all.
+            GuardrailDecision::Allow | GuardrailDecision::Transform => None,
+            GuardrailDecision::Deny => Some(held(
+                BlockReason::ProtectedPaths,
+                false,
+                Some(review.clone()),
+                None,
+                message,
+                "The changes touch paths that must not enter the project",
+            )),
+            GuardrailDecision::Ask
+                if exec.integration.review_pending.as_deref()
+                    == Some(review.fingerprint.as_str()) =>
+            {
+                None
+            }
+            GuardrailDecision::Ask => Some(held(
+                BlockReason::NeedsReview,
+                true,
+                Some(review.clone()),
+                Some(review.fingerprint.clone()),
+                message,
+                "The changes need a person's look before they are applied",
+            )),
+        };
+        Ok((review, outcome))
     }
 
     /// The user's choice to leave the changes where they are.

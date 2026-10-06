@@ -373,6 +373,8 @@ pub mod fake {
         pub work: Option<Work>,
         /// Whether it can be run with every tool off.
         pub text_only: bool,
+        /// Whether it can be launched with file-editing tools.
+        pub file_edit: bool,
     }
 
     pub type Work = Box<dyn Fn(&RuntimeRequest) + Send + Sync>;
@@ -392,11 +394,17 @@ pub mod fake {
                 chunks: Vec::new(),
                 work: None,
                 text_only: true,
+                file_edit: false,
             }
         }
 
         pub fn with_work(mut self, work: impl Fn(&RuntimeRequest) + Send + Sync + 'static) -> Self {
             self.work = Some(Box::new(work));
+            self
+        }
+
+        pub fn with_file_edit(mut self) -> Self {
+            self.file_edit = true;
             self
         }
 
@@ -454,7 +462,7 @@ pub mod fake {
                     terminal_input: false,
                     terminal_resize: false,
                     text_only: self.text_only,
-                    file_edit: false,
+                    file_edit: self.file_edit,
                     tool_access: ToolAccess::NONE,
                 },
                 model_hint: None,

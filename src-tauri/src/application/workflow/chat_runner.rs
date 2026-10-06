@@ -148,6 +148,7 @@ impl StepRunner for ChatStepRunner {
             instruction: request.instruction,
             context_query: request.context_query,
             brief_parts: request.brief_parts,
+            review: request.review,
             link: request.link,
             shared_worktree: request.shared_worktree.clone(),
         };

@@ -59,5 +59,13 @@ pub struct WorkflowIntegration {
     /// The changes are in the project's working tree, uncommitted, and may be taken back out.
     #[serde(default)]
     pub can_undo: bool,
+    /// What the `ChangeSet` review found the last time Apply was asked for.
+    #[serde(default)]
+    pub review: Option<crate::domain::guardrail::ChangeSetReview>,
+    /// The fingerprint of a review that needs a person: Apply asked once, answered with the
+    /// findings. Applying again with the same changes is the person's yes; any other changes are
+    /// another review.
+    #[serde(default)]
+    pub review_pending: Option<String>,
     pub updated_at: u64,
 }

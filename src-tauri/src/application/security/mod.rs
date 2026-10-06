@@ -15,9 +15,11 @@
 
 pub mod approvals;
 pub mod audit;
+pub mod changeset;
 mod classify;
 mod evaluator;
 pub mod guard;
+pub mod guardrails;
 mod paths;
 pub mod sandbox;
 pub mod service;

@@ -7,6 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::guardrail::{ContextReviewResult, GuardrailMetrics};
 use super::usage::{UsageMetrics, UsageSource};
 
 /// How a token figure was obtained.
@@ -73,7 +74,7 @@ pub fn estimate_tokens(chars: usize) -> u64 {
 }
 
 /// The parts a prompt is made of, in the order they appear.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SectionKind {
     /// The personality's own system instructions.
@@ -408,6 +409,12 @@ pub struct OptimizationMetrics {
     /// What the runtime loaded on its own (MCP servers, skills, plugins), when it says.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub extensions: Option<RuntimeExtensions>,
+    /// What the guardrails decided before the agent started. `None` when they are off.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub guardrails: Option<GuardrailMetrics>,
+    /// The review of the context the agent was given. `None` when the guardrails are off.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_review: Option<ContextReviewResult>,
 }
 
 /// What Atlas assembled against what the runtime says it received.
@@ -545,6 +552,8 @@ mod tests {
             context_engine: None,
             skills: None,
             extensions: None,
+            guardrails: None,
+            context_review: None,
         }
     }
 

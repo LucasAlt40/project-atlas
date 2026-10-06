@@ -33,6 +33,7 @@ use crate::application::worktree::tests::{git, status_lines, Env, WORKSPACE};
 use crate::application::worktree::WorktreeService;
 use crate::domain::conversation::Message;
 use crate::domain::execution::ExecutionEvent;
+use crate::domain::guardrail::ChangeSetHealth;
 use crate::domain::runtime::{
     AuthKind, AuthState, Authentication, ModelInfo, ProviderRef, RuntimeCapabilities, RuntimeInfo,
     Transport,
@@ -822,6 +823,246 @@ fn apply_puts_the_changes_in_the_project_only_when_asked_and_the_run_stays_what_
     assert_eq!(
         s.integration.apply(&run.id).unwrap_err().code,
         ErrorCode::IntegrationNotAvailable
+    );
+}
+
+// ---- the ChangeSet is reviewed before it can enter the project (phase 5.1) ------------------------
+
+/// A team whose Developer also writes `extra` (path, text) next to `src/foo.ts`.
+fn team_writing(
+    extra: Vec<(&'static str, &'static str)>,
+) -> impl Fn(&Seen, &RuntimeRequest) -> Result<String, RuntimeError> + Send + Sync + 'static {
+    move |saw, request| {
+        if saw.step == "Developer" {
+            for (path, text) in &extra {
+                write(&request.working_dir, path, text);
+            }
+        }
+        team(saw, request)
+    }
+}
+
+#[test]
+fn a_healthy_changeset_is_allowed_but_applying_stays_the_persons_act_and_never_commits() {
+    let s = stack(Permission::Allowed, team);
+    let head = s.env.main_branch_head();
+
+    let run = s.run(&s.pipeline());
+
+    // The review never applies anything by itself, however healthy: the run waits for a person.
+    assert_eq!(run.integration.status, IntegrationStatus::ChangesAvailable);
+    assert!(run.integration.can_apply);
+    assert!(!s.project().join("src/foo.ts").exists());
+    assert_eq!(s.env.main_branch_head(), head);
+
+    let applied = s.integration.apply(&run.id).unwrap();
+
+    let review = applied
+        .integration
+        .review
+        .clone()
+        .expect("the review is kept");
+    assert_eq!(review.health, ChangeSetHealth::Healthy);
+    assert_eq!(review.files_reviewed, 1);
+    assert_eq!(applied.integration.status, IntegrationStatus::Integrated);
+    // Uncommitted, in the working tree, HEAD where it was.
+    assert_eq!(s.env.main_branch_head(), head);
+    assert_eq!(git(s.project(), &["status", "--porcelain"]), "?? src/");
+    assert_eq!(git(s.project(), &["rev-list", "--count", "HEAD"]), "1");
+}
+
+#[test]
+fn an_env_file_is_held_for_a_person_and_goes_in_only_when_they_apply_again_having_seen_it() {
+    let s = stack(
+        Permission::Allowed,
+        team_writing(vec![(".env", "PORT=3000\n")]),
+    );
+    let run = s.run(&s.pipeline());
+    let head = s.env.main_branch_head();
+
+    let asked = s.integration.apply(&run.id).unwrap();
+
+    // ASK: not applied; the run says what needs a look and that the person may apply again.
+    assert_eq!(asked.integration.status, IntegrationStatus::Blocked);
+    assert_eq!(
+        asked.integration.block_reason,
+        Some(BlockReason::NeedsReview)
+    );
+    assert!(asked.integration.can_apply);
+    assert!(asked
+        .integration
+        .message
+        .unwrap()
+        .contains("sensitive_file: .env"));
+    let review = asked.integration.review.unwrap();
+    assert_eq!(review.health, ChangeSetHealth::NeedsReview);
+    assert!(!s.project().join(".env").exists());
+    assert!(!s.project().join("src/foo.ts").exists());
+    assert_eq!(s.env.main_branch_head(), head);
+
+    // The person looked and applies again: that is their decision, and it still does not commit.
+    let applied = s.integration.apply(&run.id).unwrap();
+
+    assert_eq!(applied.integration.status, IntegrationStatus::Integrated);
+    assert!(s.project().join(".env").is_file());
+    assert_eq!(s.env.main_branch_head(), head);
+    assert!(git(s.project(), &["status", "--porcelain"]).contains(".env"));
+    assert_eq!(git(s.project(), &["rev-list", "--count", "HEAD"]), "1");
+}
+
+#[test]
+fn a_person_s_look_at_one_changeset_is_not_a_look_at_another() {
+    let s = stack(
+        Permission::Allowed,
+        team_writing(vec![(".env", "PORT=3000\n")]),
+    );
+    let run = s.run(&s.pipeline());
+    let first = s.integration.apply(&run.id).unwrap();
+    assert_eq!(
+        first.integration.block_reason,
+        Some(BlockReason::NeedsReview)
+    );
+    // Before the person applies again, the run's code changes: another sensitive file.
+    let worktree = s.saw("Developer")[0].dir.clone();
+    write(&worktree, ".env.production", "TOKEN_URL=https://x\n");
+    git(&worktree, &["add", "--all"]);
+    git(&worktree, &["commit", "--quiet", "-m", "one more file"]);
+
+    let again = s.integration.apply(&run.id).unwrap();
+
+    // The earlier look does not cover it: it is held again, nothing entered the project.
+    assert_eq!(again.integration.status, IntegrationStatus::Blocked);
+    assert_eq!(
+        again.integration.block_reason,
+        Some(BlockReason::NeedsReview)
+    );
+    assert!(!s.project().join(".env").exists());
+    assert!(again
+        .integration
+        .message
+        .unwrap()
+        .contains(".env.production"));
+}
+
+#[cfg(unix)]
+#[test]
+fn a_link_that_leaves_the_project_is_denied_and_nothing_enters_the_project() {
+    let s = stack(Permission::Allowed, |saw, request| {
+        if saw.step == "Developer" {
+            write(&request.working_dir, "src/foo.ts", FOO);
+            std::os::unix::fs::symlink("/etc", request.working_dir.join("src/etc-link")).unwrap();
+        }
+        team(saw, request)
+    });
+    let run = s.run(&s.pipeline());
+    let head = s.env.main_branch_head();
+
+    let denied = s.integration.apply(&run.id).unwrap();
+
+    assert_eq!(denied.integration.status, IntegrationStatus::Blocked);
+    assert_eq!(
+        denied.integration.block_reason,
+        Some(BlockReason::ProtectedPaths)
+    );
+    // DENY: nobody can apply it, not even by trying again.
+    assert!(!denied.integration.can_apply);
+    assert!(denied
+        .integration
+        .message
+        .clone()
+        .unwrap()
+        .contains("symlink_escape: src/etc-link"));
+    for _ in 0..2 {
+        let again = s.integration.apply(&run.id).unwrap();
+        assert_eq!(
+            again.integration.block_reason,
+            Some(BlockReason::ProtectedPaths)
+        );
+    }
+    assert!(
+        !s.project().join("src/foo.ts").exists(),
+        "the healthy file did not go in either"
+    );
+    assert_eq!(s.env.main_branch_head(), head);
+    assert!(git(s.project(), &["status", "--porcelain"]).is_empty());
+    // The person can still look at it, keep it isolated or discard it.
+    assert!(s.integration.keep(&run.id).is_ok());
+}
+
+#[cfg(unix)]
+#[test]
+fn every_file_is_evaluated_and_the_worst_finding_decides() {
+    let s = stack(Permission::Allowed, |saw, request| {
+        if saw.step == "Developer" {
+            write(&request.working_dir, "src/foo.ts", FOO);
+            write(&request.working_dir, ".env", "A=1\n");
+            write(&request.working_dir, ".atlas/harness/notes.md", "notes\n");
+            write(
+                &request.working_dir,
+                "src/client.ts",
+                "const api_key = \"sk-abcdefghijklmnopqrstuvwxyz0123\";\n",
+            );
+            std::os::unix::fs::symlink("../../..", request.working_dir.join("src/up")).unwrap();
+        }
+        team(saw, request)
+    });
+    let run = s.run(&s.pipeline());
+
+    let held = s.integration.apply(&run.id).unwrap();
+
+    let review = held.integration.review.unwrap();
+    assert_eq!(review.health, ChangeSetHealth::Invalid);
+    assert_eq!(review.files_reviewed, 5);
+    let found: Vec<String> = review
+        .issues
+        .iter()
+        .map(|i| format!("{}:{}", i.code.as_str(), i.path))
+        .collect();
+    for expected in [
+        "sensitive_file:.env",
+        "protected_atlas:.atlas/harness/notes.md",
+        "secret_in_content:src/client.ts",
+        "symlink_escape:src/up",
+    ] {
+        assert!(
+            found.iter().any(|f| f == expected),
+            "{expected} in {found:?}"
+        );
+    }
+    assert!(
+        !format!("{review:?}").contains("sk-abc"),
+        "the review never carries content"
+    );
+}
+
+#[test]
+fn an_empty_changeset_is_never_applied_and_a_conflict_is_still_blocked_by_the_existing_mechanism() {
+    // Nothing changed: no Apply (the review is not even reached).
+    let s = stack(Permission::Allowed, |_, _| Ok(result("pass", "")));
+    let run = s.run(&s.pipeline());
+    assert_eq!(
+        s.integration.apply(&run.id).unwrap_err().code,
+        ErrorCode::IntegrationNotAvailable
+    );
+
+    // A healthy review does not override a conflict: Git's own check still stops it.
+    let s = stack(Permission::Allowed, team);
+    let run = s.run(&s.pipeline());
+    write(
+        s.project(),
+        "src/foo.ts",
+        "export const x = 'the user got there first';\n",
+    );
+    git(s.project(), &["add", "--all"]);
+    git(
+        s.project(),
+        &["commit", "--quiet", "-m", "user adds foo too"],
+    );
+    let conflicted = s.integration.apply(&run.id).unwrap();
+    assert_eq!(conflicted.integration.status, IntegrationStatus::Conflicts);
+    assert_eq!(
+        conflicted.integration.review.unwrap().health,
+        ChangeSetHealth::Healthy
     );
 }
 

@@ -261,6 +261,20 @@ pub enum ExecutionEventKind {
     /// (names, comma separated), `reasons`, `level2Tokens`, `level3Tokens`, `cacheHits`,
     /// `cacheMisses` and `tokenSource` (always `estimated`).
     OptimizationSkillsSelected,
+    /// The context an agent is about to receive was reviewed: `metadata` has `health`,
+    /// `warnings`, `errors`, `blockingIssues`, `staleItems`.
+    OptimizationContextReviewed,
+    /// The review found the context not fit to send and the execution did not start: `metadata`
+    /// has `rule`, `reason` and `matched` (the issue codes).
+    OptimizationContextReviewBlocked,
+    /// A guardrail asked a person before the agent starts: `metadata` has `rule`, `reason` and
+    /// `matched`. The answer comes through the workflow's pending interaction.
+    OptimizationGuardrailAsked,
+    /// A guardrail refused something: `metadata` has `action`, `rule` and `reason`.
+    OptimizationGuardrailDenied,
+    /// Everything the guardrails decided for this execution, counted: `evaluations`, `allowed`,
+    /// `asked`, `denied`, `transformed`, `blocked`.
+    OptimizationGuardrailEvaluated,
 }
 
 /// Progress notification emitted while an execution runs. Carries both ids so a listener

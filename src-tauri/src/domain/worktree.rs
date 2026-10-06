@@ -74,6 +74,11 @@ pub enum BlockReason {
     /// The worktree is not what Atlas made: another folder, or its branch was switched.
     WorktreeInconsistent,
     Conflict,
+    /// The `ChangeSet` touches what must never enter the project (Git's files, paths that leave it).
+    ProtectedPaths,
+    /// The `ChangeSet` holds something a person must look at first (a secret, a key file, Atlas's
+    /// own folder); applying again, having seen it, is the person's decision.
+    NeedsReview,
 }
 
 /// The Git side of one execution. Created before the runtime starts and kept after it ends, so

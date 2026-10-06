@@ -29,8 +29,8 @@ pub struct ContextInputs<'a> {
 /// What to build the prompt from instead, and what was done.
 pub struct ContextOutcome {
     pub harness: Option<String>,
-    /// The prompt's skills section as it will be (`None`: there is none).
-    pub skills: Option<String>,
+    /// The skills as they will be, block by block.
+    pub skill_blocks: Vec<SkillBlock>,
     pub task_description: String,
     /// The brief as it will be, when it was taken apart.
     pub brief_parts: Option<BriefParts>,
@@ -50,12 +50,27 @@ impl ContextOutcome {
     }
 }
 
-/// Runs the engine over what the prompt is made of. When the brief cannot be taken apart exactly
-/// (its text no longer ends with its parts) the task text is left whole and the metrics say why:
-/// the engine would rather do nothing than edit what it cannot place.
+/// What a prompt is made of, as the items the engine and the review work on, in prompt order.
+pub(crate) struct PromptItems {
+    pub items: Vec<ContextItem>,
+    /// The task text before the brief, when the brief could be taken apart exactly.
+    pub prefix: Option<String>,
+    /// Why the brief was left whole, when it was.
+    pub skipped: Option<String>,
+}
+
+/// The items of a prompt: the system text, the Harness, the skills, the project, the agent's
+/// instructions and the task (taken apart into task, workflow context, handoff and protocols when
+/// it is a step's brief). The same list for everything that looks at a prompt, so they all agree
+/// on what each part is and how far it can be trusted.
 #[allow(clippy::too_many_lines)]
-pub fn optimize_prompt_inputs(inputs: &ContextInputs<'_>) -> ContextOutcome {
-    let prompt = inputs.prompt;
+pub(crate) fn prompt_items(
+    prompt: &Prompt,
+    agent_instructions: &str,
+    task_description: &str,
+    brief: Option<&BriefParts>,
+    skills: &[SkillBlock],
+) -> PromptItems {
     let mut items: Vec<ContextItem> = Vec::new();
     items.push(ContextItem::new(
         "system",
@@ -82,7 +97,7 @@ pub fn optimize_prompt_inputs(inputs: &ContextInputs<'_>) -> ContextOutcome {
             harness,
         ));
     }
-    if !inputs.skills.is_empty() {
+    if !skills.is_empty() {
         items.push(ContextItem::new(
             "skills_notice",
             SectionKind::Skills,
@@ -90,7 +105,7 @@ pub fn optimize_prompt_inputs(inputs: &ContextInputs<'_>) -> ContextOutcome {
             "atlas",
             crate::application::optimization::skills::SkillPlan::notice(),
         ));
-        for block in inputs.skills {
+        for block in skills {
             // A skill the task asked for by name is relevant context; one Atlas matched is
             // the first thing a budget gives up.
             items.push(ContextItem::new(
@@ -113,19 +128,19 @@ pub fn optimize_prompt_inputs(inputs: &ContextInputs<'_>) -> ContextOutcome {
         "workspace",
         &prompt.context,
     ));
-    if !inputs.agent_instructions.trim().is_empty() {
+    if !agent_instructions.trim().is_empty() {
         items.push(ContextItem::new(
             "agent_instructions",
             SectionKind::AgentInstructions,
             Priority::Required,
             "agent",
-            inputs.agent_instructions.trim(),
+            agent_instructions.trim(),
         ));
     }
 
-    let description = inputs.task_description;
+    let description = task_description;
     let mut skipped = None;
-    let split = inputs.brief.and_then(|brief| {
+    let split = brief.and_then(|brief| {
         let all = format!(
             "{}{}{}",
             brief.workflow_context, brief.handoff, brief.protocols
@@ -136,7 +151,7 @@ pub fn optimize_prompt_inputs(inputs: &ContextInputs<'_>) -> ContextOutcome {
             .then(|| description[..description.len() - tail.len()].to_owned())
             .map(|prefix| (prefix, brief))
     });
-    if inputs.brief.is_some() && split.is_none() {
+    if brief.is_some() && split.is_none() {
         skipped = Some("the brief does not end the task text as written".to_owned());
     }
     match &split {
@@ -178,6 +193,45 @@ pub fn optimize_prompt_inputs(inputs: &ContextInputs<'_>) -> ContextOutcome {
             description,
         )),
     }
+    PromptItems {
+        items,
+        prefix: split.map(|(prefix, _)| prefix),
+        skipped,
+    }
+}
+
+/// The task text put back together from its parts: what a step's brief was before it was taken
+/// apart, trimmed as the builder trims it.
+pub(crate) fn rebuild_task(
+    prefix: &str,
+    workflow_context: &str,
+    handoff: &str,
+    protocols: &str,
+) -> String {
+    [prefix, workflow_context, handoff, protocols]
+        .concat()
+        .trim_end()
+        .to_owned()
+}
+
+/// Runs the engine over what the prompt is made of. When the brief cannot be taken apart exactly
+/// (its text no longer ends with its parts) the task text is left whole and the metrics say why:
+/// the engine would rather do nothing than edit what it cannot place.
+#[allow(clippy::too_many_lines)]
+pub fn optimize_prompt_inputs(inputs: &ContextInputs<'_>) -> ContextOutcome {
+    let prompt = inputs.prompt;
+    let description = inputs.task_description;
+    let PromptItems {
+        items,
+        prefix: split,
+        skipped,
+    } = prompt_items(
+        prompt,
+        inputs.agent_instructions,
+        description,
+        inputs.brief,
+        inputs.skills,
+    );
 
     let whole = TextSize::of(inputs.combined);
     let items_tokens: u64 = items.iter().map(ContextItem::estimated_tokens).sum();
@@ -219,18 +273,14 @@ pub fn optimize_prompt_inputs(inputs: &ContextInputs<'_>) -> ContextOutcome {
         }
         None => description.to_owned(),
     };
-    let skills = (!inputs.skills.is_empty()).then(|| {
-        let blocks: Vec<String> = inputs
-            .skills
-            .iter()
-            .filter_map(|b| content_of(&format!("skill:{}", b.name)))
-            .collect();
-        let refs: Vec<&str> = blocks.iter().map(String::as_str).collect();
-        crate::application::optimization::skills::SkillPlan::render(
-            &content_of("skills_notice").unwrap_or_default(),
-            &refs,
-        )
-    });
+    let skill_blocks: Vec<SkillBlock> = inputs
+        .skills
+        .iter()
+        .map(|block| SkillBlock {
+            text: content_of(&format!("skill:{}", block.name)).unwrap_or_default(),
+            ..block.clone()
+        })
+        .collect();
     let brief_parts = split.as_ref().map(|_| BriefParts {
         workflow_context: content_of("workflow_context").unwrap_or_default(),
         handoff: content_of("handoff").unwrap_or_default(),
@@ -239,7 +289,7 @@ pub fn optimize_prompt_inputs(inputs: &ContextInputs<'_>) -> ContextOutcome {
     let changed = plan.changed();
     ContextOutcome {
         harness,
-        skills,
+        skill_blocks,
         task_description,
         brief_parts,
         changed,

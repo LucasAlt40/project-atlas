@@ -2,6 +2,7 @@ pub mod agent;
 pub mod app_info;
 pub mod conversation;
 pub mod execution;
+pub mod guardrail;
 pub mod harness;
 pub mod interaction;
 pub mod live_workspace;

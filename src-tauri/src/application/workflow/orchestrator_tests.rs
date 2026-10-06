@@ -275,6 +275,8 @@ struct Env {
     store: Arc<MemoryStore>,
     workspace_id: String,
     agents: HashMap<&'static str, String>,
+    /// The orchestrator applies the guardrails to what steps hand on.
+    guardrails: bool,
 }
 
 fn env() -> Env {
@@ -329,6 +331,7 @@ fn env() -> Env {
         store,
         workspace_id,
         agents: ids,
+        guardrails: false,
     }
 }
 
@@ -372,8 +375,16 @@ impl Env {
     }
 
     fn orchestrator(&self, runner: &Arc<Scripted>) -> Orchestrator {
-        Orchestrator::new(self.service.clone(), Arc::new(runner.clone()))
-            .with_poll(Duration::from_millis(5))
+        let orchestrator = Orchestrator::new(self.service.clone(), Arc::new(runner.clone()))
+            .with_poll(Duration::from_millis(5));
+        if self.guardrails {
+            orchestrator.with_guardrails(Arc::new(crate::application::optimization::FixedFlags {
+                guardrails: true,
+                ..crate::application::optimization::FixedFlags::default()
+            }))
+        } else {
+            orchestrator
+        }
     }
 
     fn run(
@@ -664,6 +675,66 @@ fn the_context_engine_finds_what_a_real_brief_says_twice_and_keeps_every_fact() 
         after.len(),
         metrics.deduplicated_lines
     );
+}
+
+#[test]
+fn a_secret_in_a_steps_result_is_taken_out_before_the_next_agent_receives_it() {
+    let secret_result = r#","artifacts":[{"type":"notes","name":"setup.md","path":"docs/setup.md","summary":"how it is wired"}],"decisions":[{"title":"Client","decision":"Use the hosted client","rationale":"DB_PASSWORD=hunter2hunter2 is what it needs"}]"#;
+    let run_with = |guardrails: bool| {
+        let mut env = env();
+        env.guardrails = guardrails;
+        let workflow = env.workflow(
+            vec![
+                agent("architect", "architect"),
+                agent("developer", "developer"),
+                end("done", EndOutcome::Done),
+            ],
+            vec![edge("architect", "developer"), edge("developer", "done")],
+        );
+        let runner = Scripted::new();
+        runner.script(
+            "architect",
+            vec![ok(
+                "success",
+                &format!("{secret_result},\"summary\":\"api_key=abcdef123456\""),
+            )],
+        );
+        let (exec, _) = env.run(&runner, &workflow.id);
+        let developer = runner.requests_for("developer")[0].instruction.clone();
+        (exec, developer)
+    };
+
+    let (kept, kept_brief) = run_with(false);
+    assert!(
+        kept_brief.contains("hunter2hunter2"),
+        "without guardrails nothing is touched"
+    );
+    assert!(!kept
+        .events
+        .iter()
+        .any(|e| e.kind == WorkflowEventKind::GuardrailTransformed));
+
+    let (clean, clean_brief) = run_with(true);
+    // The next agent never sees the secret: not in the brief, not in the shared state.
+    assert!(!clean_brief.contains("hunter2hunter2"), "{clean_brief}");
+    assert!(!clean_brief.contains("abcdef123456"));
+    let state = serde_json::to_string(&clean.state).unwrap();
+    assert!(!state.contains("hunter2hunter2") && !state.contains("abcdef123456"));
+    let handoffs = serde_json::to_string(&clean.handoffs).unwrap();
+    assert!(!handoffs.contains("hunter2hunter2") && !handoffs.contains("abcdef123456"));
+    // What was not a secret is untouched, and the run still completes.
+    assert!(clean_brief.contains("setup.md") && clean_brief.contains("Use the hosted client"));
+    assert_eq!(clean.status, WorkflowExecutionStatus::Completed);
+    // It is on the run's record, as a count and never as content.
+    let event = clean
+        .events
+        .iter()
+        .find(|e| e.kind == WorkflowEventKind::GuardrailTransformed)
+        .expect("recorded");
+    assert_eq!(event.metadata["stage"], "before_handoff");
+    assert_eq!(event.metadata["rule"], "secrets.redact");
+    assert_eq!(event.metadata["lines"], "2");
+    assert!(!serde_json::to_string(event).unwrap().contains("hunter2"));
 }
 
 // ---- scheduling and concurrency ------------------------------------------------------------------------
@@ -1736,6 +1807,7 @@ fn asks(kind: InteractionKind, question: &str) -> Step {
                 document: "Plan\n\n- step one".to_owned(),
                 options: decision_options(kind),
                 source: DetectionSource::Structured,
+                evaluation: None,
             }),
             delta: None,
         },
@@ -2086,6 +2158,7 @@ fn a_question_survives_the_app_closing_and_is_answered_into_a_resumed_run() {
         answered_at: None,
         choice: None,
         answer: None,
+        evaluation: None,
     };
     engine.wait_for_input(&mut exec, "developer", interaction, 3);
     env.service.save_execution(&exec).unwrap();
@@ -2239,6 +2312,7 @@ fn only_one_question_is_pending_for_a_step_at_a_time() {
         answered_at: None,
         choice: None,
         answer: None,
+        evaluation: None,
     };
     let (a, b) = (make("a"), make("b"));
     assert_eq!(engine.wait_for_input(&mut exec, "developer", a, 3).len(), 2);

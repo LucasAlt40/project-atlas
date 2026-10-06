@@ -336,6 +336,7 @@ pub(super) fn detection_from_asking_tool(
         document: clip(document, MAX_DOCUMENT),
         options,
         source: DetectionSource::Adapter,
+        evaluation: None,
     })
 }
 

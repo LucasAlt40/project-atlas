@@ -238,6 +238,9 @@ pub enum WorkflowEventKind {
     HandoffCreated,
     /// Where the run's code stands changed (changes available, applied, kept…).
     IntegrationChanged,
+    /// A guardrail took something out of a step's result before it was handed on (secrets);
+    /// `metadata` has `stage`, `rule` and `lines`. Never the content.
+    GuardrailTransformed,
 }
 
 impl WorkflowEventKind {

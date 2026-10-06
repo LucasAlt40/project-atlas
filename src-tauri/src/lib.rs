@@ -271,6 +271,7 @@ fn build_state(
     );
     let ledger = Arc::new(UsageLedger::new(config.clone()));
     let config_for_overview = config.clone();
+    let config_for_guardrails = config.clone();
     // Workflow definitions and runs live in the same config store. A run the previous session
     // never saw end is marked interrupted: nothing is resumed or called finished on its own.
     let workflows = Arc::new(WorkflowService::new(
@@ -303,14 +304,17 @@ fn build_state(
         Arc::new(infrastructure::NotifyWatcher),
         live_sink,
     ));
-    let orchestrator = Arc::new(Orchestrator::new(
-        workflows.clone(),
-        Arc::new(
-            ChatStepRunner::new(chat.clone(), sessions.clone(), approvals.clone())
-                .with_live(live.clone())
-                .with_shared_worktrees(worktrees.clone(), workspaces.clone(), executions),
-        ),
-    ));
+    let orchestrator = Arc::new(
+        Orchestrator::new(
+            workflows.clone(),
+            Arc::new(
+                ChatStepRunner::new(chat.clone(), sessions.clone(), approvals.clone())
+                    .with_live(live.clone())
+                    .with_shared_worktrees(worktrees.clone(), workspaces.clone(), executions),
+            ),
+        )
+        .with_guardrails(config_for_guardrails),
+    );
     // What becomes of a run's code (review, apply, keep, discard, open in an editor): Git and the
     // worktree service decide; the editor is launched by Atlas from a fixed list.
     let integration = Arc::new(IntegrationService::new(

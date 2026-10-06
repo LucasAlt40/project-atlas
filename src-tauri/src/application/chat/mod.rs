@@ -18,6 +18,7 @@ use crate::domain::execution::{
     ExecutionEvent, ExecutionEventKind, ExecutionFailure, ExecutionRecord, ExecutionStatus,
     FailureKind, StoredExecution, WorkflowLink,
 };
+use crate::domain::guardrail::ReviewAnswer;
 use crate::domain::interaction::InteractionDetection;
 use crate::domain::optimization::BriefParts;
 use crate::domain::usage::UsageRecord;
@@ -50,6 +51,8 @@ pub struct WorkflowStepRequest {
     pub context_query: String,
     /// The parts of the instruction that follow the node's own instructions and the task.
     pub brief_parts: BriefParts,
+    /// What a person answered when a guardrail asked about this step's context, if it did.
+    pub review: Option<ReviewAnswer>,
     pub link: WorkflowLink,
     /// The primary worktree of the workflow run, when it has one.
     pub shared_worktree: Option<String>,
@@ -259,6 +262,7 @@ impl ChatService {
                 instruction: content.to_owned(),
                 context_query: None,
                 brief_parts: None,
+                review: None,
                 shared_worktree: None,
                 workflow: None,
                 announce: None,
@@ -288,6 +292,7 @@ impl ChatService {
         pending.instruction = step.instruction;
         pending.context_query = Some(step.context_query);
         pending.brief_parts = Some(step.brief_parts);
+        pending.review = step.review;
         pending.workflow = Some(step.link);
         pending.shared_worktree = step.shared_worktree;
         pending.announce = Some(sent.user_message.clone());
@@ -347,6 +352,7 @@ pub struct PendingRun {
     /// What the Task Context is chosen for, when it is not the instruction.
     context_query: Option<String>,
     brief_parts: Option<BriefParts>,
+    review: Option<ReviewAnswer>,
     shared_worktree: Option<String>,
     workflow: Option<WorkflowLink>,
     /// A message nobody was told about yet (a workflow step's request).
@@ -373,6 +379,7 @@ impl PendingRun {
         let options = StepOptions {
             context_query: self.context_query.as_deref(),
             brief_parts: self.brief_parts.as_ref(),
+            review: self.review.clone(),
             shared_worktree: self.shared_worktree.as_deref(),
             // A workflow step that asks a person something waits for the answer; in a
             // conversation the person just replies.

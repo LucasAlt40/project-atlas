@@ -32,7 +32,9 @@ npm run check   # tipos, lint, formatação e testes (frontend e Rust)
 
 ## Documentação
 
-Decisões e arquitetura: [docs/architecture](docs/architecture/README.md).
+- Guia técnico completo (arquitetura, IA, contexto, workflow, segurança): [docs/guia](docs/guia/README.md)
+- Resumo em uma página: [docs/RESUMO.md](docs/RESUMO.md)
+- Decisões e arquitetura (ADRs): [docs/architecture](docs/architecture/README.md)
 
 ## Licença
 

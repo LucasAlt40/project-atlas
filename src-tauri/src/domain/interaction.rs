@@ -121,6 +121,8 @@ pub enum DetectionSource {
     Adapter,
     /// Text analysis, conservative.
     Heuristic,
+    /// Atlas's own guardrail asked, before the agent started. The agent said nothing.
+    Guardrail,
 }
 
 /// What the detector concluded about an execution's output.
@@ -138,6 +140,10 @@ pub struct InteractionDetection {
     pub document: String,
     pub options: Vec<InteractionOption>,
     pub source: DetectionSource,
+    /// The guardrail evaluation this question is about (its fingerprint), for Atlas's own
+    /// questions: an answer approves that evaluation and nothing else.
+    #[serde(default)]
+    pub evaluation: Option<String>,
 }
 
 impl InteractionDetection {
@@ -151,6 +157,7 @@ impl InteractionDetection {
             document: String::new(),
             options: Vec::new(),
             source,
+            evaluation: None,
         }
     }
 }
@@ -199,6 +206,9 @@ pub struct PendingInteraction {
     /// The free text the person wrote.
     #[serde(default)]
     pub answer: Option<String>,
+    /// The guardrail evaluation the question is bound to (see [`InteractionDetection`]).
+    #[serde(default)]
+    pub evaluation: Option<String>,
 }
 
 impl PendingInteraction {
@@ -296,6 +306,7 @@ mod tests {
             answered_at: None,
             choice: None,
             answer: None,
+            evaluation: None,
         }
     }
 

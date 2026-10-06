@@ -313,6 +313,16 @@ pub enum Reason {
     SandboxRefused,
     ApprovalRejected,
     ApprovalTimeout,
+    /// The context to be sent has a blocking problem.
+    ContextInvalid,
+    /// The context to be sent has a problem a person should look at.
+    ContextNeedsReview,
+    /// Something that looked like a secret was taken out of context before it was sent.
+    SecretsRedacted,
+    /// Edits were not granted: the agent does not work in an isolated worktree.
+    WriteNotIsolated,
+    /// Edits were not granted: the runtime cannot be launched with file-editing tools.
+    RuntimeCannotEdit,
 }
 
 impl Reason {
@@ -340,6 +350,11 @@ impl Reason {
             Self::SandboxRefused => "sandbox_refused",
             Self::ApprovalRejected => "approval_rejected",
             Self::ApprovalTimeout => "approval_timeout",
+            Self::ContextInvalid => "context_invalid",
+            Self::ContextNeedsReview => "context_needs_review",
+            Self::SecretsRedacted => "secrets_redacted",
+            Self::WriteNotIsolated => "write_not_isolated",
+            Self::RuntimeCannotEdit => "runtime_cannot_edit",
         }
     }
 }
@@ -351,6 +366,12 @@ pub enum PermissionAction {
     LaunchRuntime,
     /// A command an agent asked Atlas to run.
     RunProcess,
+    /// Atlas weighed the context an agent is about to receive before starting it.
+    ReviewContext,
+    /// Atlas decided whether an execution may be given file-editing tools.
+    EditFiles,
+    /// Atlas weighed what a step hands to the next one.
+    ShareResult,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -361,6 +382,8 @@ pub enum PermissionOutcome {
     ApprovalRequested,
     Approved,
     Rejected,
+    /// Allowed, changed by a deterministic rule (secrets redacted).
+    Transformed,
 }
 
 /// Who decided.

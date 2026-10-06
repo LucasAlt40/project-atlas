@@ -7,6 +7,7 @@
 #[cfg(test)]
 pub mod benchmark;
 pub mod context;
+pub mod review;
 pub mod skills;
 
 use std::cell::Cell;
@@ -15,6 +16,7 @@ use std::time::Instant;
 
 use super::config::ConfigRepository;
 use super::runtimes::RuntimeEvent;
+use crate::domain::guardrail::{ContextReviewResult, GuardrailMetrics};
 use crate::domain::optimization::{
     ContextEngineMetrics, ContextMetrics, HandoffMetrics, LatencyMetrics, OptimizationCounters,
     OptimizationMetrics, PromptBreakdown, RuntimeExtensions, SkillMetrics, ToolMetrics, ToolUse,
@@ -35,6 +37,11 @@ pub trait OptimizationFlags: Send + Sync {
     /// `optimization.skills.enabled`: skills are discovered and the ones a task calls for are
     /// sent with it.
     fn skills_enabled(&self) -> bool {
+        false
+    }
+
+    /// `optimization.guardrails.enabled`: review the context before an agent starts.
+    fn guardrails_enabled(&self) -> bool {
         false
     }
 
@@ -61,6 +68,10 @@ impl OptimizationFlags for ConfigRepository {
     fn skills_enabled(&self) -> bool {
         self.read(|config| config.settings.optimization.skills_enabled)
     }
+
+    fn guardrails_enabled(&self) -> bool {
+        self.read(|config| config.settings.optimization.guardrails_enabled)
+    }
 }
 
 /// A fixed answer, for tests.
@@ -72,6 +83,7 @@ pub struct FixedFlags {
     pub context: bool,
     pub max_tokens: Option<u64>,
     pub skills: bool,
+    pub guardrails: bool,
 }
 
 #[cfg(test)]
@@ -101,6 +113,7 @@ impl FixedFlags {
             context: true,
             max_tokens,
             skills: false,
+            guardrails: false,
         }
     }
 }
@@ -121,6 +134,10 @@ impl OptimizationFlags for FixedFlags {
 
     fn skills_enabled(&self) -> bool {
         self.skills
+    }
+
+    fn guardrails_enabled(&self) -> bool {
+        self.guardrails
     }
 }
 
@@ -209,6 +226,8 @@ pub struct PreRuntime {
     pub context: Option<ContextMetrics>,
     pub context_engine: Option<ContextEngineMetrics>,
     pub skills: Option<SkillMetrics>,
+    pub guardrails: Option<GuardrailMetrics>,
+    pub context_review: Option<ContextReviewResult>,
     pub handoff_bytes: Option<u64>,
     pub context_build_ms: Option<f64>,
     pub prompt_build_ms: Option<f64>,
@@ -282,6 +301,8 @@ pub fn finish_metrics(
         context_engine: pre.context_engine,
         skills: pre.skills,
         extensions: None,
+        guardrails: pre.guardrails,
+        context_review: pre.context_review,
     }
 }
 

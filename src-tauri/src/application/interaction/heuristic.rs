@@ -205,6 +205,7 @@ fn question_in_the_tail(text: &str) -> InteractionDetection {
         document: clip(text, MAX_DOCUMENT),
         options: decision_options(kind),
         source: DetectionSource::Heuristic,
+        evaluation: None,
     }
 }
 
@@ -262,6 +263,7 @@ fn detect_with(text: &str, strict: bool) -> InteractionDetection {
         document: clip(text, MAX_DOCUMENT),
         options: decision_options(kind),
         source: DetectionSource::Heuristic,
+        evaluation: None,
     }
 }
 

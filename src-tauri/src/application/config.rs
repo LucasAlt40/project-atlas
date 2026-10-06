@@ -53,6 +53,16 @@ pub struct OptimizationSettings {
     /// to prompts.
     #[serde(default)]
     pub skills_enabled: bool,
+    /// `optimization.guardrails.enabled`: before an agent starts, Atlas reviews the context it is
+    /// about to receive (and asks, or stops, when it is not fit) and takes secrets out of context
+    /// that came from files and other agents. On by default: it is a safety check, and it changes
+    /// a prompt only to remove something that looked like a secret.
+    #[serde(default = "default_guardrails_enabled")]
+    pub guardrails_enabled: bool,
+}
+
+fn default_guardrails_enabled() -> bool {
+    true
 }
 
 fn default_metrics_enabled() -> bool {
@@ -66,6 +76,7 @@ impl Default for OptimizationSettings {
             context_enabled: false,
             context_max_tokens: None,
             skills_enabled: false,
+            guardrails_enabled: true,
         }
     }
 }

@@ -275,6 +275,10 @@ pub struct ContextRecord {
     pub selected_context_characters: usize,
     pub selected_items: usize,
     pub omitted_items: usize,
+    /// Items included that the project has changed under since they were written (the Outdated
+    /// block). Zero for executions recorded before this was counted.
+    #[serde(default)]
+    pub stale_items: usize,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fallback_reason: Option<String>,
 }
@@ -294,6 +298,13 @@ impl TaskContext {
                 .entries
                 .iter()
                 .filter(|e| e.outcome != EntryOutcome::Included)
+                .count(),
+            stale_items: self
+                .entries
+                .iter()
+                .filter(|e| {
+                    e.outcome == EntryOutcome::Included && e.item.block == ContextBlock::Outdated
+                })
                 .count(),
             fallback_reason: self.fallback_reason.clone(),
         }

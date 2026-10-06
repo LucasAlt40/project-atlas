@@ -5,12 +5,14 @@ use crate::domain::project::ProjectContext;
 use crate::domain::task::Task;
 
 /// Rules Atlas applies to every agent until real permissions exist.
-const ATLAS_RULES: &str = "You are running inside Atlas in read-only mode. Do not modify files \
+pub(crate) const ATLAS_RULES: &str =
+    "You are running inside Atlas in read-only mode. Do not modify files \
 or run commands that change anything. Answer with text only.";
 
 /// For an execution that may edit files: it works in an isolated worktree and its policy allows
 /// writing there. Says exactly that, and what is still not allowed.
-const ATLAS_RULES_EDITING: &str = "You are running inside Atlas, in an isolated Git worktree of \
+pub(crate) const ATLAS_RULES_EDITING: &str =
+    "You are running inside Atlas, in an isolated Git worktree of \
 the project (your working directory). You may create and edit files in it with your file tools. \
 You cannot run shell commands or use the network, and you must not touch anything outside your \
 working directory. What you write stays in the worktree: it is saved there, handed to the next \

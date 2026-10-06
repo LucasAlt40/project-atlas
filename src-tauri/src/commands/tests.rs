@@ -438,7 +438,8 @@ fn settings_default_to_portuguese_and_persist_language_and_selected_workspace() 
                 "metricsEnabled": true,
                 "contextEnabled": false,
                 "contextMaxTokens": null,
-                "skillsEnabled": false
+                "skillsEnabled": false,
+                "guardrailsEnabled": true
             }
         })
     );

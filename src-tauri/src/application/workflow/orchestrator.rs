@@ -4,7 +4,7 @@
 //! happens. It decides nothing about the graph (the engine does) and nothing about how a step
 //! runs (the runner does: execution service, worktree, permission guard and runtime).
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::panic::AssertUnwindSafe;
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex};
@@ -20,9 +20,11 @@ use super::service::WorkflowService;
 use super::worktree_lock::WorktreeLock;
 use crate::application::errors::{AppError, ErrorCode};
 use crate::application::interaction::detect_unfinished_question;
+use crate::application::optimization::OptimizationFlags;
 use crate::application::orchestration::brief;
 use crate::application::orchestration::handoff::{
-    build_handoff, record_handoff, record_result, result_kept, HandoffSource, StepReport,
+    build_handoff, record_handoff, record_result, redact_secrets_in, result_kept, HandoffSource,
+    StepReport,
 };
 use crate::application::orchestration::result_parser::{parse_with_contract, OutcomeProblem};
 use crate::application::support::now_ms;
@@ -80,6 +82,8 @@ pub struct Orchestrator {
     /// How often a run looks at things nothing reports to it (an approval being asked for, an
     /// agent becoming free).
     poll: Duration,
+    /// Whether guardrails (`optimization.guardrails.enabled`) apply to what a step hands on.
+    guardrails: Option<Arc<dyn OptimizationFlags>>,
 }
 
 impl Orchestrator {
@@ -89,7 +93,22 @@ impl Orchestrator {
             runner,
             live: Mutex::new(HashMap::new()),
             poll: Duration::from_millis(150),
+            guardrails: None,
         }
+    }
+
+    /// Applies the guardrails to what steps hand on (secrets are taken out of a result) while
+    /// the flag says so.
+    #[must_use]
+    pub fn with_guardrails(mut self, flags: Arc<dyn OptimizationFlags>) -> Self {
+        self.guardrails = Some(flags);
+        self
+    }
+
+    fn guardrails_on(&self) -> bool {
+        self.guardrails
+            .as_ref()
+            .is_some_and(|flags| flags.guardrails_enabled())
     }
 
     #[cfg(test)]
@@ -641,6 +660,7 @@ impl Orchestrator {
                 instruction: brief.description,
                 context_query: brief.context_query,
                 brief_parts: brief.parts,
+                review: brief.review,
                 display_task: brief.display_task,
                 shared_worktree,
                 link: WorkflowLink {
@@ -754,7 +774,26 @@ impl Orchestrator {
                             .map(|id| self.workflows.contract_of(id))
                             .unwrap_or_default();
                         let read = parse_with_contract(&outcome.text, &contract);
-                        let (result, problem) = (read.result, read.problem);
+                        let (mut result, problem) = (read.result, read.problem);
+                        // What the next agent receives is this result: secrets do not travel in it.
+                        if self.guardrails_on() {
+                            let lines = redact_secrets_in(&mut result);
+                            if lines > 0 {
+                                events.push(exec.record(
+                                    WorkflowEventKind::GuardrailTransformed,
+                                    Some(&node_id),
+                                    "Secrets were taken out of a step's result before it was handed on"
+                                        .to_owned(),
+                                    BTreeMap::from([
+                                        ("stage".to_owned(), "before_handoff".to_owned()),
+                                        ("rule".to_owned(), "secrets.redact".to_owned()),
+                                        ("lines".to_owned(), lines.to_string()),
+                                        ("executionId".to_owned(), execution_id.clone()),
+                                    ]),
+                                    at,
+                                ));
+                            }
+                        }
                         let label = engine
                             .graph()
                             .workflow
@@ -919,6 +958,7 @@ impl Orchestrator {
             answered_at: None,
             choice: None,
             answer: None,
+            evaluation: detection.evaluation,
         };
         engine.wait_for_input(exec, node_id, interaction, at)
     }

@@ -82,6 +82,7 @@ impl SkillPlan {
     }
 
     /// `None` when no skill was selected: the prompt has no skills section at all.
+    #[cfg(test)]
     pub fn text(&self) -> Option<String> {
         (!self.blocks.is_empty()).then(|| {
             let blocks: Vec<&str> = self.blocks.iter().map(|b| b.text.as_str()).collect();

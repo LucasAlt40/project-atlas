@@ -9,7 +9,8 @@ use std::fmt::Write;
 use super::result_parser::RESULT_FENCE;
 use crate::application::interaction::INTERACTION_FENCE;
 use crate::application::workflow::graph::Graph;
-use crate::domain::interaction::{InteractionStatus, PendingInteraction};
+use crate::domain::guardrail::{Answered, ReviewAnswer};
+use crate::domain::interaction::{DetectionSource, InteractionStatus, PendingInteraction};
 use crate::domain::optimization::BriefParts;
 use crate::domain::orchestration::{Finding, ResultStatus};
 use crate::domain::result_contract::ResultContract;
@@ -33,6 +34,8 @@ pub struct StepBrief {
     pub display_task: String,
     /// The parts of `description` that come after the node's instructions and the task.
     pub parts: BriefParts,
+    /// What a person answered when a guardrail asked about this step's context, if it did.
+    pub review: Option<ReviewAnswer>,
 }
 
 fn clip(text: &str, max: usize) -> String {
@@ -94,6 +97,7 @@ pub fn build(
         context_query,
         display_task: clip(&format!("{label}: {}", exec.task), 160),
         parts,
+        review: guardrail_answer(exec, node_id),
     }
 }
 
@@ -247,6 +251,42 @@ fn workflow_context(exec: &WorkflowExecution, graph: &Graph<'_>, node_id: &str) 
     text
 }
 
+/// What a person answered when Atlas's own guardrail asked about this pass through the step. It
+/// comes from the answered interaction the workflow run kept, never from text anyone wrote: only
+/// the person answering the question in Atlas can approve it.
+///
+/// The answer counts only for the question it was given to: asked in this run, about this step and
+/// this pass, by the attempt that is being run again (an older attempt's question is not this
+/// one's), and bound to an evaluation (the guardrail then checks that evaluation is still the
+/// current one).
+fn guardrail_answer(exec: &WorkflowExecution, node_id: &str) -> Option<ReviewAnswer> {
+    let state = exec.node_state(node_id);
+    let iteration = state.map_or(0, |s| s.iterations);
+    let asked_by = state
+        .and_then(|s| s.last_attempt())
+        .map(|a| a.execution_id.as_str());
+    exec.interactions
+        .iter()
+        .rfind(|i| {
+            i.step_id == node_id
+                && i.iteration == iteration
+                && i.workflow_execution_id == exec.id
+                && asked_by == Some(i.execution_id.as_str())
+                && i.source == DetectionSource::Guardrail
+                && i.status == InteractionStatus::Answered
+        })
+        .and_then(|i| {
+            Some(ReviewAnswer {
+                answered: if i.was_declined() {
+                    Answered::Declined
+                } else {
+                    Answered::Allowed
+                },
+                evaluation: i.evaluation.clone()?,
+            })
+        })
+}
+
 /// What the person answered when this step stopped to ask. The step is run again from scratch
 /// (the runtime keeps no conversation), so it is told what it asked and what it was answered; the
 /// files it already wrote are still in the worktree. The answer is the person's own words, so it
@@ -260,6 +300,8 @@ fn human_input_block(exec: &WorkflowExecution, node_id: &str) -> String {
             i.step_id == node_id
                 && i.iteration == iteration
                 && i.status == InteractionStatus::Answered
+                // Atlas's own question, not the agent's: the agent never asked and is not told.
+                && i.source != DetectionSource::Guardrail
         })
         .collect();
     if answered.is_empty() {
@@ -557,4 +599,210 @@ fn handoff_block(exec: &WorkflowExecution, graph: &Graph<'_>, node_id: &str) -> 
     }
     let _ = write!(text, "\n{HANDOFF_END}\n\n");
     text
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::application::workflow::test_support::{agent, edge, end, workflow};
+    use crate::domain::interaction::InteractionKind;
+
+    fn run() -> WorkflowExecution {
+        let wf = workflow(
+            vec![
+                agent("dev", "a1"),
+                end("done", crate::domain::workflow::EndOutcome::Done),
+            ],
+            vec![edge("dev", "done")],
+        );
+        WorkflowExecution::new("wfx-1".to_owned(), wf, "Build it".to_owned(), 1)
+    }
+
+    fn asked(
+        source: DetectionSource,
+        choice: &str,
+        status: InteractionStatus,
+    ) -> PendingInteraction {
+        PendingInteraction {
+            id: "q1".to_owned(),
+            execution_id: "exec-1".to_owned(),
+            workflow_id: "wf-1".to_owned(),
+            workflow_execution_id: "wfx-1".to_owned(),
+            workspace_id: "ws-1".to_owned(),
+            step_id: "dev".to_owned(),
+            step_label: "dev".to_owned(),
+            agent_id: "a1".to_owned(),
+            iteration: 0,
+            kind: InteractionKind::Permission,
+            question: "May I?".to_owned(),
+            context: String::new(),
+            document: String::new(),
+            options: Vec::new(),
+            source,
+            confidence: 100,
+            status,
+            created_at: 1,
+            answered_at: Some(2),
+            choice: Some(choice.to_owned()),
+            answer: None,
+            evaluation: Some("ev-1".to_owned()),
+        }
+    }
+
+    /// The step has been run once, by execution `execution_id` (the one that asked).
+    fn attempted(mut exec: WorkflowExecution, node: &str, execution_id: &str) -> WorkflowExecution {
+        let state = exec.nodes.get_mut(node).unwrap();
+        state.attempts.push(crate::domain::workflow::NodeAttempt {
+            attempt: 1,
+            iteration: 0,
+            execution_id: execution_id.to_owned(),
+            status: crate::domain::workflow::AttemptStatus::WaitingForInput,
+            started_at: 1,
+            completed_at: None,
+            summary: None,
+            outcome: None,
+            failure: None,
+        });
+        exec
+    }
+
+    fn answered(evaluation: &str, answered: Answered) -> ReviewAnswer {
+        ReviewAnswer {
+            answered,
+            evaluation: evaluation.to_owned(),
+        }
+    }
+
+    #[test]
+    fn only_an_answered_question_atlas_asked_counts_as_an_answer_to_its_guardrail() {
+        let mut exec = attempted(run(), "dev", "exec-1");
+        assert_eq!(guardrail_answer(&exec, "dev"), None);
+
+        // An agent asked for permission and the person allowed it: that is an answer to the
+        // agent, not an approval of Atlas's own check.
+        for source in [
+            DetectionSource::Structured,
+            DetectionSource::Adapter,
+            DetectionSource::Heuristic,
+        ] {
+            exec.interactions
+                .push(asked(source, "allow", InteractionStatus::Answered));
+        }
+        assert_eq!(guardrail_answer(&exec, "dev"), None);
+
+        // Atlas's own question, still waiting: not an approval either.
+        exec.interactions.push(asked(
+            DetectionSource::Guardrail,
+            "allow",
+            InteractionStatus::Pending,
+        ));
+        assert_eq!(guardrail_answer(&exec, "dev"), None);
+    }
+
+    #[test]
+    fn a_persons_answer_to_the_guardrail_is_read_from_the_run_and_nowhere_else() {
+        let mut allowed = attempted(run(), "dev", "exec-1");
+        allowed.interactions.push(asked(
+            DetectionSource::Guardrail,
+            "allow",
+            InteractionStatus::Answered,
+        ));
+        assert_eq!(
+            guardrail_answer(&allowed, "dev"),
+            Some(answered("ev-1", Answered::Allowed))
+        );
+
+        let mut declined = attempted(run(), "dev", "exec-1");
+        declined.interactions.push(asked(
+            DetectionSource::Guardrail,
+            "deny",
+            InteractionStatus::Answered,
+        ));
+        assert_eq!(
+            guardrail_answer(&declined, "dev"),
+            Some(answered("ev-1", Answered::Declined))
+        );
+
+        // Test E: another step's question says nothing about this one.
+        assert_eq!(guardrail_answer(&allowed, "done"), None);
+        let mut other_step = attempted(attempted(run(), "dev", "exec-1"), "done", "exec-2");
+        other_step.interactions.push(asked(
+            DetectionSource::Guardrail,
+            "allow",
+            InteractionStatus::Answered,
+        ));
+        assert_eq!(guardrail_answer(&other_step, "done"), None);
+    }
+
+    #[test]
+    fn an_answer_of_one_pass_through_the_step_is_not_an_answer_of_another() {
+        // Test F.
+        let mut exec = attempted(run(), "dev", "exec-1");
+        exec.interactions.push(asked(
+            DetectionSource::Guardrail,
+            "allow",
+            InteractionStatus::Answered,
+        ));
+        exec.interactions[0].iteration = 3;
+        assert_eq!(guardrail_answer(&exec, "dev"), None);
+    }
+
+    #[test]
+    fn an_answer_is_for_the_attempt_that_asked_not_for_an_earlier_one_or_another_run() {
+        // Test G: the question was asked by exec-1; the step has been run again since (exec-2), so
+        // exec-1's answer is not what the next run's evaluation was asked.
+        let mut exec = attempted(run(), "dev", "exec-1");
+        exec.interactions.push(asked(
+            DetectionSource::Guardrail,
+            "allow",
+            InteractionStatus::Answered,
+        ));
+        assert!(guardrail_answer(&exec, "dev").is_some());
+        let state = exec.nodes.get_mut("dev").unwrap();
+        let mut again = state.attempts[0].clone();
+        again.attempt = 2;
+        again.execution_id = "exec-2".to_owned();
+        state.attempts.push(again);
+        assert_eq!(guardrail_answer(&exec, "dev"), None);
+
+        // Nor does a question of another workflow run, whatever its ids say.
+        let mut foreign = attempted(run(), "dev", "exec-1");
+        foreign.interactions.push(asked(
+            DetectionSource::Guardrail,
+            "allow",
+            InteractionStatus::Answered,
+        ));
+        foreign.interactions[0].workflow_execution_id = "wfx-other".to_owned();
+        assert_eq!(guardrail_answer(&foreign, "dev"), None);
+
+        // An answer that carries no evaluation (an old record) approves nothing.
+        let mut old = attempted(run(), "dev", "exec-1");
+        old.interactions.push(asked(
+            DetectionSource::Guardrail,
+            "allow",
+            InteractionStatus::Answered,
+        ));
+        old.interactions[0].evaluation = None;
+        assert_eq!(guardrail_answer(&old, "dev"), None);
+    }
+
+    #[test]
+    fn the_agent_is_not_told_about_a_question_it_never_asked() {
+        let mut exec = run();
+        exec.interactions.push(asked(
+            DetectionSource::Guardrail,
+            "allow",
+            InteractionStatus::Answered,
+        ));
+
+        assert_eq!(human_input_block(&exec, "dev"), "");
+
+        // Its own answered question still is told.
+        exec.interactions.push(asked(
+            DetectionSource::Structured,
+            "allow",
+            InteractionStatus::Answered,
+        ));
+        assert!(human_input_block(&exec, "dev").contains("HUMAN INPUT"));
+    }
 }

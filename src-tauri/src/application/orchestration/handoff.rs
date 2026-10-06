@@ -4,6 +4,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::application::harness::secrets::redact_secrets;
 use crate::application::workflow::graph::{Graph, Link};
 use crate::application::worktree::StepDelta;
 use crate::domain::orchestration::{
@@ -14,6 +15,42 @@ use crate::domain::workflow::{
     AgentHandoff, HandoffArtifact, HandoffDecision, HandoffKind, HandoffValidation, WorkflowEvent,
     WorkflowEventKind, WorkflowExecution,
 };
+
+/// Takes what looks like a secret out of a step's result before it is handed on: the next agent
+/// receives this result, not the first agent's whole answer. Every text the agent wrote is
+/// covered (summary, decisions, artifacts, findings, next action); paths are not text it wrote
+/// freely and are left alone. Returns how many lines were replaced. The rule is the one the
+/// Harness uses for the same reason (`redact_secrets`): exact, and safe.
+pub fn redact_secrets_in(result: &mut AgentResult) -> usize {
+    let mut lines = 0;
+    let mut clean = |text: &mut String| {
+        let (redacted, n) = redact_secrets(text);
+        if n > 0 {
+            *text = redacted;
+            lines += n;
+        }
+    };
+    clean(&mut result.summary);
+    if let Some(next) = result.next_action.as_mut() {
+        clean(next);
+    }
+    for decision in &mut result.decisions {
+        clean(&mut decision.title);
+        clean(&mut decision.decision);
+        clean(&mut decision.rationale);
+    }
+    for artifact in &mut result.artifacts {
+        clean(&mut artifact.name);
+        clean(&mut artifact.summary);
+    }
+    for finding in &mut result.findings {
+        clean(&mut finding.title);
+        clean(&mut finding.description);
+        clean(&mut finding.evidence);
+        clean(&mut finding.recommendation);
+    }
+    lines
+}
 
 /// What the step was, to put its output in the right place.
 pub struct StepReport<'a> {

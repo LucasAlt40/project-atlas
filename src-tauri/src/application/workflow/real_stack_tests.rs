@@ -76,6 +76,7 @@ struct Stack {
     orchestrator: Orchestrator,
     sessions: Arc<SessionRegistry>,
     chat: ChatService,
+    config: Arc<ConfigRepository>,
 }
 
 fn stack(stand_in: Option<&str>, model: &str) -> Stack {
@@ -209,7 +210,14 @@ fn stack_with(stand_in: Option<&str>, model: &str, git: bool) -> Stack {
         audit,
     )
     .with_sessions(sessions.clone())
-    .with_optimization(config.clone());
+    .with_optimization(config.clone())
+    // Skills are looked for in the project's own `.atlas/skills` (only when the setting is on).
+    .with_skills(Arc::new(
+        crate::application::optimization::skills::SkillService::new(
+            Arc::new(crate::infrastructure::FsSkillStore),
+            None,
+        ),
+    ));
     if let Some(worktrees) = &worktrees {
         executions = executions
             .with_worktrees(worktrees.clone())
@@ -223,6 +231,7 @@ fn stack_with(stand_in: Option<&str>, model: &str, git: bool) -> Stack {
         workspaces.clone(),
         ledger,
     );
+    let settings_config = config.clone();
     let workflows = Arc::new(WorkflowService::new(config, agents, workspaces.clone()));
     let mut runner = ChatStepRunner::new(chat.clone(), sessions.clone(), approvals);
     if let Some(worktrees) = &worktrees {
@@ -240,6 +249,7 @@ fn stack_with(stand_in: Option<&str>, model: &str, git: bool) -> Stack {
         orchestrator,
         sessions,
         chat,
+        config: settings_config,
     }
 }
 
@@ -888,4 +898,256 @@ fn a_failed_run_whose_worktree_is_gone_asks_for_recovery_instead_of_recreating_i
         .unwrap_err();
     assert!(error.is(crate::application::errors::ErrorCode::WorkflowNotRecoverable));
     assert_eq!(s.workflows.execution(&run.id).unwrap(), failed);
+}
+
+/// A stand-in `claude` that finishes whatever it is asked, with a result block.
+const FINISHING_CLAUDE: &str = r#"#!/bin/sh
+printf '{"type":"system","subtype":"init","tools":["Glob","Grep","Read"],"mcp_servers":[],"skills":[],"slash_commands":[]}\r\n'
+printf '{"type":"result","subtype":"success","is_error":false,"duration_ms":5,"num_turns":1,"result":"Done.\\n```atlas-result\\n{\\"status\\":\\"success\\",\\"summary\\":\\"stored it\\"}\\n```","total_cost_usd":0.001}\r\n'
+"#;
+
+/// A project whose skill says PostgreSQL and a step whose own instructions say MongoDB: two
+/// sources of the user's own setup disagreeing about the database, which no agent should be left
+/// to pick between. The workflow's one step names the skill so it is loaded.
+fn conflicted_run(s: &Stack) -> crate::domain::workflow::WorkflowExecution {
+    let skill = s.project.join(".atlas/skills/storage-rules");
+    fs::create_dir_all(&skill).unwrap();
+    fs::write(
+        skill.join("SKILL.md"),
+        "---\nname: storage-rules\ndescription: Use when choosing the database and storage for a feature\n---\nUse PostgreSQL for all persistence.\n",
+    )
+    .unwrap();
+    s.config
+        .modify(|c| {
+            c.settings.optimization.skills_enabled = true;
+            Ok(())
+        })
+        .unwrap();
+    let mut developer = agent("developer", "developer");
+    if let NodeKind::Agent(a) = &mut developer.kind {
+        "Use MongoDB for storage, following /storage-rules".clone_into(&mut a.instructions);
+    }
+    let workflow = s.workflow(
+        vec![developer, end("done", EndOutcome::Done)],
+        vec![edge("developer", "done")],
+    );
+    s.workflows
+        .start(&workflow.id, "Build the storage layer")
+        .unwrap()
+}
+
+#[test]
+fn a_context_that_needs_a_look_pauses_the_run_for_a_person_and_goes_on_only_with_their_yes() {
+    use crate::domain::execution::ExecutionStatus;
+    use crate::domain::interaction::{DetectionSource, InteractionAnswer};
+
+    let s = stack(Some(FINISHING_CLAUDE), "sonnet");
+    let run = conflicted_run(&s);
+    let observer = Arc::new(Collector::default());
+    let orchestrator = Arc::new(s.orchestrator);
+    let driver = {
+        let (orchestrator, observer, id) = (orchestrator.clone(), observer.clone(), run.id.clone());
+        std::thread::spawn(move || orchestrator.run(&id, observer).unwrap())
+    };
+
+    // Before the agent started, Atlas asked: the run waits and no process was ever launched.
+    wait_for("the run to wait for the person", || {
+        s.workflows.execution(&run.id).unwrap().status == WorkflowExecutionStatus::WaitingForInput
+    });
+    let waiting = s.workflows.execution(&run.id).unwrap();
+    let question = waiting.pending_interaction("developer").unwrap().clone();
+    assert_eq!(question.source, DetectionSource::Guardrail);
+    assert!(
+        question.context.contains("conflicting_instructions"),
+        "{}",
+        question.context
+    );
+    assert_eq!(
+        waiting.nodes["done"].status,
+        crate::domain::workflow::NodeStatus::Pending
+    );
+    let stored = s.chat.executions(Some(&s.workspace_id), None);
+    assert_eq!(stored.len(), 1);
+    assert_eq!(stored[0].status, ExecutionStatus::WaitingForInput);
+    assert_eq!(s.sessions.live_executions().len(), 0, "nothing was started");
+    assert_eq!(
+        stored[0]
+            .optimization
+            .as_ref()
+            .unwrap()
+            .guardrails
+            .unwrap()
+            .asked,
+        1
+    );
+
+    // The person says yes through the real mechanism.
+    orchestrator
+        .answer_interaction(
+            &run.id,
+            &question.id,
+            InteractionAnswer {
+                choice: Some("allow".to_owned()),
+                text: None,
+            },
+            observer.as_ref(),
+        )
+        .unwrap();
+    driver.join().unwrap();
+
+    let done = s.workflows.execution(&run.id).unwrap();
+    assert_eq!(
+        done.status,
+        WorkflowExecutionStatus::Completed,
+        "{:?}",
+        done.failure
+    );
+    let stored = s.chat.executions(Some(&s.workspace_id), None);
+    assert_eq!(stored.len(), 2);
+    // The second execution ran, and says a person approved it; the agent was never told a thing.
+    let second = stored
+        .iter()
+        .find(|e| e.status == ExecutionStatus::Completed)
+        .unwrap();
+    let review = second
+        .optimization
+        .as_ref()
+        .unwrap()
+        .context_review
+        .clone()
+        .unwrap();
+    assert_eq!(
+        review.health,
+        crate::domain::guardrail::ContextHealth::NeedsReview
+    );
+    // It is not asked about again: the person's yes was taken, and counted as allowed.
+    let guard = second.optimization.as_ref().unwrap().guardrails.unwrap();
+    assert_eq!((guard.asked, guard.allowed, guard.denied), (0, 1, 0));
+}
+
+#[test]
+fn a_persons_no_stops_the_step_without_ever_starting_the_agent() {
+    use crate::domain::execution::{ExecutionStatus, FailureKind};
+    use crate::domain::interaction::InteractionAnswer;
+
+    let s = stack(Some(FINISHING_CLAUDE), "sonnet");
+    let run = conflicted_run(&s);
+    let observer = Arc::new(Collector::default());
+    let orchestrator = Arc::new(s.orchestrator);
+    let driver = {
+        let (orchestrator, observer, id) = (orchestrator.clone(), observer.clone(), run.id.clone());
+        std::thread::spawn(move || orchestrator.run(&id, observer).unwrap())
+    };
+    wait_for("the run to wait for the person", || {
+        s.workflows.execution(&run.id).unwrap().status == WorkflowExecutionStatus::WaitingForInput
+    });
+    let question = s
+        .workflows
+        .execution(&run.id)
+        .unwrap()
+        .pending_interaction("developer")
+        .unwrap()
+        .clone();
+
+    orchestrator
+        .answer_interaction(
+            &run.id,
+            &question.id,
+            InteractionAnswer {
+                choice: Some("deny".to_owned()),
+                text: None,
+            },
+            observer.as_ref(),
+        )
+        .unwrap();
+    driver.join().unwrap();
+
+    // The workflow stays safe: the step failed with the reason and nothing after it ran.
+    let done = s.workflows.execution(&run.id).unwrap();
+    assert_eq!(done.status, WorkflowExecutionStatus::Failed);
+    assert_ne!(
+        done.nodes["done"].status,
+        crate::domain::workflow::NodeStatus::Completed
+    );
+    let stored = s.chat.executions(Some(&s.workspace_id), None);
+    let ended = stored
+        .iter()
+        .find(|e| e.status == ExecutionStatus::Failed)
+        .unwrap();
+    assert_eq!(
+        ended.failure.as_ref().unwrap().kind,
+        FailureKind::PermissionDenied
+    );
+    assert!(ended.failure.as_ref().unwrap().message.contains("declined"));
+    assert_eq!(s.sessions.live_executions().len(), 0);
+}
+
+/// The whole path with the real Claude CLI, without spending a token: the model does not exist, so
+/// the CLI starts, reports what it loaded and fails at its first request. It proves, with the real
+/// adapter, guard, terminal and CLI, that Atlas asks first, starts nothing before the answer, and
+/// after a yes really starts the runtime (which then fails for its model, not for Atlas).
+/// Run with `cargo test real_claude_guardrail -- --ignored --nocapture`.
+#[test]
+#[ignore = "needs the Claude CLI installed; makes no model call (the model does not exist)"]
+fn real_claude_guardrail_asks_before_starting_and_starts_the_real_cli_after_a_yes() {
+    use crate::domain::execution::{ExecutionStatus, FailureKind};
+    use crate::domain::interaction::InteractionAnswer;
+
+    let s = stack(None, "not-a-real-model-xyz");
+    let run = conflicted_run(&s);
+    let observer = Arc::new(Collector::default());
+    let orchestrator = Arc::new(s.orchestrator);
+    let driver = {
+        let (orchestrator, observer, id) = (orchestrator.clone(), observer.clone(), run.id.clone());
+        std::thread::spawn(move || orchestrator.run(&id, observer).unwrap())
+    };
+    wait_for("the run to wait for the person", || {
+        s.workflows.execution(&run.id).unwrap().status == WorkflowExecutionStatus::WaitingForInput
+    });
+    // Nothing was started before the question was answered.
+    assert_eq!(s.sessions.live_executions().len(), 0);
+    let stored = s.chat.executions(Some(&s.workspace_id), None);
+    assert_eq!(stored.len(), 1);
+    assert_eq!(stored[0].status, ExecutionStatus::WaitingForInput);
+    let question = s
+        .workflows
+        .execution(&run.id)
+        .unwrap()
+        .pending_interaction("developer")
+        .unwrap()
+        .clone();
+
+    orchestrator
+        .answer_interaction(
+            &run.id,
+            &question.id,
+            InteractionAnswer {
+                choice: Some("allow".to_owned()),
+                text: None,
+            },
+            observer.as_ref(),
+        )
+        .unwrap();
+    driver.join().unwrap();
+
+    // After the yes the real CLI ran: it failed because the model does not exist.
+    let stored = s.chat.executions(Some(&s.workspace_id), None);
+    let started = stored
+        .iter()
+        .find(|e| e.status == ExecutionStatus::Failed)
+        .expect("the runtime was started after the answer");
+    println!("REAL FAILURE {:?}", started.failure);
+    assert_eq!(
+        started.failure.as_ref().unwrap().kind,
+        FailureKind::ModelUnavailable
+    );
+    let guard = started.optimization.as_ref().unwrap();
+    println!(
+        "REAL REVIEW {:?}",
+        guard.context_review.as_ref().map(|r| r.health)
+    );
+    assert_eq!(
+        guard.context_review.as_ref().unwrap().health,
+        crate::domain::guardrail::ContextHealth::NeedsReview
+    );
 }
