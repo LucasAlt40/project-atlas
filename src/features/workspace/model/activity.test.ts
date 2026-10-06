@@ -21,9 +21,22 @@ describe('permission events', () => {
     'are worded in %s for every decision and reason, never as a raw key',
     (language) => {
       const t = createTranslator(language);
-      const decisions = ['allowed', 'denied', 'approval_requested', 'approved', 'rejected'];
+      const decisions = [
+        'allowed',
+        'denied',
+        'approval_requested',
+        'approved',
+        'rejected',
+        'transformed',
+      ];
       for (const decision of decisions) {
-        for (const action of ['launch_runtime', 'run_process']) {
+        for (const action of [
+          'launch_runtime',
+          'run_process',
+          'review_context',
+          'edit_files',
+          'share_result',
+        ]) {
           const label = activityLabel(
             t,
             toActivityEntry(

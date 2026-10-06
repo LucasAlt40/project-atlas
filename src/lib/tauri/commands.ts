@@ -771,6 +771,8 @@ export interface AppSettingsDto {
     contextMaxTokens?: number | null;
     /** `optimization.skills.enabled`: Atlas sends the skills a task calls for. */
     skillsEnabled?: boolean;
+    /** `optimization.guardrails.enabled`: review the context before an agent starts. */
+    guardrailsEnabled?: boolean;
   };
 }
 
@@ -825,7 +827,17 @@ export type ExecutionEventKindDto =
   /** The prompt is over its budget after everything that may be shortened was; nothing was cut. */
   | 'optimization_budget_warning'
   /** The skills layer looked at the task; the skills it chose and why are in `metadata`. */
-  | 'optimization_skills_selected';
+  | 'optimization_skills_selected'
+  /** The context an agent is about to receive was reviewed; `metadata` has the health and counts. */
+  | 'optimization_context_reviewed'
+  /** The context was not fit to send, so the agent was not started. */
+  | 'optimization_context_review_blocked'
+  /** A guardrail asked a person before the agent started (a pending interaction). */
+  | 'optimization_guardrail_asked'
+  /** A guardrail refused something; `metadata` has the rule and the reason. */
+  | 'optimization_guardrail_denied'
+  /** Everything the guardrails decided for this execution, counted. */
+  | 'optimization_guardrail_evaluated';
 
 /** Mirrors `domain::execution::ExecutionEvent`. */
 export interface ExecutionEventDto {
@@ -861,7 +873,7 @@ export interface InteractionOptionDto {
 }
 
 /** How the question was recognised, from the most to the least reliable. */
-export type DetectionSourceDto = 'structured' | 'adapter' | 'heuristic';
+export type DetectionSourceDto = 'structured' | 'adapter' | 'heuristic' | 'guardrail';
 
 /** What an execution asked, while it waits for a person. */
 export interface InteractionDetectionDto {
@@ -1012,6 +1024,59 @@ export interface OptimizationMetricsDto {
     slashCommands: number;
     plugins: number;
   };
+  /** What the guardrails decided before the agent started; absent when they are off. */
+  guardrails?: GuardrailMetricsDto;
+  /** The review of the context the agent was given; absent when the guardrails are off. */
+  contextReview?: ContextReviewDto;
+}
+
+/** Mirrors `domain::guardrail::GuardrailMetrics`. */
+export interface GuardrailMetricsDto {
+  evaluations: number;
+  allowed: number;
+  asked: number;
+  denied: number;
+  transformed: number;
+  /** Denials that stopped the execution before its runtime started. */
+  blocked: number;
+}
+
+export type ContextHealthDto = 'healthy' | 'partial' | 'needs_review' | 'invalid';
+export type IssueSeverityDto = 'info' | 'warning' | 'error' | 'blocking';
+export type IssueCodeDto =
+  | 'missing_required'
+  | 'altered_required'
+  | 'conflicting_instructions'
+  | 'stale_context'
+  | 'duplicated_context'
+  | 'budget_exceeded'
+  | 'context_trimmed'
+  | 'skill_issues'
+  | 'secret_in_context'
+  | 'authority_claim';
+
+/** Mirrors `domain::guardrail::ContextReviewResult`. */
+export interface ContextReviewDto {
+  health: ContextHealthDto;
+  issues: {
+    code: IssueCodeDto;
+    severity: IssueSeverityDto;
+    source: PromptSectionKindDto;
+    /** The other side of a conflict. */
+    otherSource: PromptSectionKindDto | null;
+    message: string;
+    excerpt: string;
+  }[];
+  sources: {
+    source: PromptSectionKindDto;
+    trust: 'atlas' | 'configured' | 'untrusted';
+    estimatedTokens: number;
+  }[];
+  requiredItems: number;
+  highItems: number;
+  normalItems: number;
+  optionalItems: number;
+  staleItems: number;
 }
 
 /** Mirrors `domain::optimization::SkillMetrics`. */
@@ -1330,7 +1395,9 @@ export type BlockReasonDto =
   | 'undetermined'
   | 'uncommitted_changes'
   | 'worktree_inconsistent'
-  | 'conflict';
+  | 'conflict'
+  | 'protected_paths'
+  | 'needs_review';
 
 export type RecommendationDto = 'merge' | 'review' | 'resolve_conflicts' | 'inspect' | 'discard';
 
@@ -1484,6 +1551,8 @@ export interface ContextRecordDto {
   selectedContextCharacters: number;
   selectedItems: number;
   omittedItems: number;
+  /** Items the project has changed under since they were written. */
+  staleItems?: number;
   fallbackReason?: string;
 }
 
@@ -1863,7 +1932,9 @@ export type WorkflowEventKindDto =
   | 'decision_created'
   | 'overlap_detected'
   | 'handoff_created'
-  | 'integration_changed';
+  | 'integration_changed'
+  /** A guardrail took secrets out of a step's result before it was handed on. */
+  | 'guardrail_transformed';
 
 /** Something that happened in a run; carries ids, not state: the UI reads the run again. */
 export interface WorkflowEventDto {
@@ -2092,7 +2163,21 @@ export interface WorkflowIntegrationDto {
   canUndo: boolean;
   conflicts: string[];
   message: string | null;
+  /** What the ChangeSet review found the last time Apply was asked for. */
+  review: ChangeSetReviewDto | null;
+  /** The review that needs a person: Apply again, having seen it, is their decision. */
+  reviewPending: string | null;
   updatedAt: number;
+}
+
+/** Mirrors `domain::guardrail::ChangeSetReview`: names and paths, never file content. */
+export type ChangeSetHealthDto = 'healthy' | 'needs_review' | 'invalid';
+
+export interface ChangeSetReviewDto {
+  health: ChangeSetHealthDto;
+  issues: { code: string; path: string }[];
+  filesReviewed: number;
+  fingerprint: string;
 }
 
 export interface IdeDto {

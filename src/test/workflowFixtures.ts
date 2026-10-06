@@ -132,6 +132,8 @@ export function noIntegration(): WorkflowExecutionDto['integration'] {
     canUndo: false,
     conflicts: [],
     message: null,
+    review: null,
+    reviewPending: null,
     updatedAt: 0,
   };
 }

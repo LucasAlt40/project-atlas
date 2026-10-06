@@ -802,3 +802,26 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+/* Review status and integration status, side by side: two facts, not one. */
+.stateRows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+}
+.stateRows dt {
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+.stateRows dd {
+  margin: 0;
+  color: var(--text-high);
+}
+.stateRows dd[data-applied='true'] {
+  color: var(--success);
+}
+.applied {
+  margin: 0;
+  color: var(--text-standard);
+}

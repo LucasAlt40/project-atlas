@@ -762,8 +762,8 @@ describe('Workflow page', () => {
           'Developer ended with the result "fail" (the step itself ran well), but the workflow has no route for that result.',
         );
         expect(screen.getByText(/Result: FAIL/)).toBeInTheDocument();
-        expect(screen.getByText(/Missing transaction boundary/)).toBeInTheDocument();
-        expect(screen.getByText(/src\/payment\.ts:142/)).toBeInTheDocument();
+        expect(screen.getAllByText(/Missing transaction boundary/).length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/src\/payment\.ts:142/).length).toBeGreaterThan(0);
         expect(
           screen.getByText(/No route of the workflow matches this result/),
         ).toBeInTheDocument();

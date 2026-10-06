@@ -1,0 +1,248 @@
+/*
+ * The Review Workspace: the Live Workspace once the run is over. Same tokens, 1px strokes, no
+ * shadows. Severity and outcome are always a word as well as a colour.
+ */
+.review {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.title {
+  margin: 0;
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--text-high);
+}
+.mode {
+  padding: 0.0625rem var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.headline {
+  color: var(--text-standard);
+}
+.headline[data-status='completed'] {
+  color: var(--success);
+}
+.headline[data-status='failed'] {
+  color: var(--danger);
+}
+.headline[data-status='cancelled'] {
+  color: var(--warning);
+}
+.stats,
+.outcomes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+}
+.stats li[data-alert='true'] {
+  color: var(--danger);
+}
+.lines [data-sign='add'] {
+  color: var(--success);
+}
+.lines [data-sign='del'] {
+  color: var(--danger);
+}
+.outcomes li {
+  display: inline-flex;
+  gap: var(--space-2);
+  padding: 0.125rem var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+.outcomes strong,
+.outcome {
+  color: var(--text-high);
+}
+.outcomes strong[data-outcome='fail'],
+.outcome[data-outcome='fail'] {
+  color: var(--danger);
+}
+.outcomes strong[data-outcome='pass'],
+.outcome[data-outcome='pass'],
+.outcome[data-outcome='approved'] {
+  color: var(--success);
+}
+.notice {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-sm);
+  color: var(--text-standard);
+  font-size: var(--font-size-sm);
+}
+
+.section {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-base);
+}
+.sectionHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  background: transparent;
+  color: var(--text-high);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.count {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+}
+.sectionBody {
+  padding: 0 var(--space-4) var(--space-4);
+}
+.subtitle {
+  margin: var(--space-3) 0 var(--space-2);
+  color: var(--text-muted);
+}
+
+/* The timeline: one card per pass of one agent, joined by a line. */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.timeline > li {
+  position: relative;
+  padding-bottom: var(--space-3);
+}
+.timeline > li:not(:last-child)::after {
+  content: '↓';
+  display: block;
+  padding-top: var(--space-1);
+  color: var(--text-dim);
+  text-align: center;
+}
+.step {
+  padding: var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+.step[data-status='failed'] {
+  border-color: var(--danger);
+}
+.step[data-status='cancelled'],
+.step[data-status='interrupted'] {
+  border-color: var(--warning);
+}
+.stepHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.stepMeta {
+  margin: var(--space-1) 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+.status,
+.outcome,
+.severity {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}
+.status[data-status='completed'],
+.status[data-addressed='true'] {
+  border-color: var(--success);
+  color: var(--success);
+}
+.status[data-status='failed'] {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.trailNote {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.findings,
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.finding,
+.card {
+  padding: var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-left-width: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+.finding[data-severity='error'] {
+  border-left-color: var(--danger);
+}
+.finding[data-severity='warning'] {
+  border-left-color: var(--warning);
+}
+.finding[data-severity='info'] {
+  border-left-color: var(--info);
+}
+.findingHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.severity[data-severity='error'] {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.severity[data-severity='warning'] {
+  border-color: var(--warning);
+  color: var(--warning);
+}
+.severity[data-severity='info'] {
+  border-color: var(--info);
+  color: var(--info);
+}
+.body {
+  margin: var(--space-1) 0;
+  color: var(--text-standard);
+  overflow-wrap: anywhere;
+}

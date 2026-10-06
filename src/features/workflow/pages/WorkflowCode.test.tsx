@@ -142,7 +142,7 @@ describe('the code of a workflow run', () => {
     expect(within(delivery).getByText('2 file(s) changed · +113 −4')).toBeInTheDocument();
     expect(delivery).toHaveTextContent('does not mean the code is in your project');
     for (const name of [
-      'Review changes',
+      'Review diff',
       'Open in IDE',
       'Apply changes',
       'Keep isolated',
@@ -162,6 +162,11 @@ describe('the code of a workflow run', () => {
     const delivery = await open(user);
 
     await user.click(within(delivery).getByRole('button', { name: 'Apply changes' }));
+    await user.click(
+      within(await screen.findByRole('dialog', { name: 'Apply changes?' })).getByRole('button', {
+        name: 'Apply to working tree',
+      }),
+    );
 
     expect(applyChanges).toHaveBeenCalledWith('wfx-1');
     await waitFor(() => {
@@ -176,7 +181,7 @@ describe('the code of a workflow run', () => {
     });
     const after = screen.getByRole('region', { name: 'Workflow result and code' });
     expect(within(after).queryByRole('button', { name: 'Apply changes' })).not.toBeInTheDocument();
-    expect(within(after).getByRole('button', { name: 'Review changes' })).toBeInTheDocument();
+    expect(within(after).getByRole('button', { name: 'Review diff' })).toBeInTheDocument();
   });
 
   it('opens the person’s editor on the project once the changes are applied, and not when they are not', async () => {
@@ -195,6 +200,11 @@ describe('the code of a workflow run', () => {
     expect(openInIde).not.toHaveBeenCalled();
 
     await user.click(within(delivery).getByRole('button', { name: 'Apply changes' }));
+    await user.click(
+      within(await screen.findByRole('dialog', { name: 'Apply changes?' })).getByRole('button', {
+        name: 'Apply to working tree',
+      }),
+    );
 
     await waitFor(() => {
       expect(openInIde).toHaveBeenCalledWith('wfx-1', 'cursor');
@@ -211,6 +221,11 @@ describe('the code of a workflow run', () => {
     const delivery = await open(user);
 
     await user.click(within(delivery).getByRole('button', { name: 'Apply changes' }));
+    await user.click(
+      within(await screen.findByRole('dialog', { name: 'Apply changes?' })).getByRole('button', {
+        name: 'Apply to working tree',
+      }),
+    );
 
     await screen.findByText(/conflict with your project|also changed in your project/);
     expect(openInIde).not.toHaveBeenCalled();
@@ -312,7 +327,7 @@ describe('the code of a workflow run', () => {
     expect(
       within(delivery).queryByRole('button', { name: 'Apply changes' }),
     ).not.toBeInTheDocument();
-    for (const name of ['Review changes', 'Open in IDE', 'Keep isolated', 'Discard']) {
+    for (const name of ['Review diff', 'Open in IDE', 'Keep isolated', 'Discard']) {
       expect(within(delivery).getByRole('button', { name })).toBeEnabled();
     }
   });
@@ -424,7 +439,7 @@ describe('the code of a workflow run', () => {
     );
     const delivery = await open(user);
 
-    await user.click(within(delivery).getByRole('button', { name: 'Review changes' }));
+    await user.click(within(delivery).getByRole('button', { name: 'Review diff' }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Review changes' });
     expect(await within(dialog).findByText('+everything')).toBeInTheDocument();
@@ -445,9 +460,10 @@ describe('the code of a workflow run', () => {
 
     await user.click(screen.getByRole('tab', { name: 'Changes' }));
 
-    expect(screen.getByText('src/auth/password-reset.ts')).toBeInTheDocument();
-    expect(screen.getByText('+82 −0')).toBeInTheDocument();
-    expect(screen.getByText('+31 −4')).toBeInTheDocument();
+    const panel = screen.getByRole('tabpanel');
+    expect(within(panel).getByText('src/auth/password-reset.ts')).toBeInTheDocument();
+    expect(within(panel).getByText('+82 −0')).toBeInTheDocument();
+    expect(within(panel).getByText('+31 −4')).toBeInTheDocument();
   });
 
   it('is in Portuguese when the interface is, without ever saying the code is in the project early', async () => {

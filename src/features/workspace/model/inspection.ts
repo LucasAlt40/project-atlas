@@ -1,5 +1,7 @@
 import type {
   ContextRecordDto,
+  ContextReviewDto,
+  GuardrailMetricsDto,
   InteractionDetectionDto,
   UsageMetricsDto,
 } from '@/lib/tauri/commands';
@@ -57,6 +59,9 @@ export interface ExecutionFacts {
   context: ContextRecordDto | null;
   /** What it asked, when it is waiting for a person. */
   interaction: InteractionDetectionDto | null;
+  /** The review of the context it was given and what the guardrails decided (absent when off). */
+  contextReview: ContextReviewDto | null;
+  guardrails: GuardrailMetricsDto | null;
 }
 
 export function factsFromStored(execution: StoredExecution): ExecutionFacts {
@@ -78,6 +83,8 @@ export function factsFromStored(execution: StoredExecution): ExecutionFacts {
     stoppedBy: stoppedByOf(execution),
     context: execution.context ?? null,
     interaction: execution.interaction ?? null,
+    contextReview: execution.optimization?.contextReview ?? null,
+    guardrails: execution.optimization?.guardrails ?? null,
   };
 }
 
@@ -114,6 +121,8 @@ export function factsFromRun(
         : null,
     context: null,
     interaction: null,
+    contextReview: null,
+    guardrails: null,
   };
 }
 

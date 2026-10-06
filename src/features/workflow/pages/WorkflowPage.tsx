@@ -14,6 +14,7 @@ import type { PositionDto } from '@/lib/tauri/commands';
 import { ChangesModal } from '../components/ChangesModal';
 import { InteractionPanel } from '../components/InteractionPanel';
 import { LiveWorkspacePanel } from '../components/LiveWorkspacePanel';
+import { ReviewWorkspace } from '../components/ReviewWorkspace';
 import { RouteRepairDialog } from '../components/RouteRepairDialog';
 import { NewWorkflowPanel, type NewWorkflowChoice } from '../components/NewWorkflowPanel';
 import { WorkflowCanvas, type Selection } from '../components/WorkflowCanvas';
@@ -28,6 +29,7 @@ import { WorkflowToolbar } from '../components/WorkflowToolbar';
 import { useWorkflows } from '../hooks/useWorkflows';
 import { connect, disconnect, removeNode, resetLayout } from '../model/edit';
 import { withPositions, type AgentLabel } from '../model/graph';
+import { isFinished } from '../model/review';
 import { RUN_STATUS_LABEL } from '../model/status';
 import { invalidNodeIds } from '../model/validation';
 import { isActiveRun, type WorkflowRun } from '../types';
@@ -59,7 +61,8 @@ export function WorkflowPage() {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [inspected, setInspected] = useState<StoredExecution | null>(null);
-  const [reviewing, setReviewing] = useState(false);
+  /** The diff is open: of all files (`''`) or of one. */
+  const [reviewing, setReviewing] = useState<string | null>(null);
   const [repairing, setRepairing] = useState(false);
 
   const agents = useMemo(() => (catalog.status === 'ready' ? catalog.agents : []), [catalog]);
@@ -502,8 +505,8 @@ export function WorkflowPage() {
                   recovery={space.recovery}
                   onResume={() => void space.resume()}
                   code={{
-                    review: () => {
-                      setReviewing(true);
+                    review: (file) => {
+                      setReviewing(file ?? '');
                     },
                     openInIde: (ideId) => {
                       void space.openRunInIde(ideId);
@@ -535,7 +538,37 @@ export function WorkflowPage() {
         </ReactFlowProvider>
       )}
 
-      {shownRun && <LiveWorkspacePanel key={shownRun.id} run={shownRun} />}
+      {shownRun && !isFinished(shownRun) && <LiveWorkspacePanel key={shownRun.id} run={shownRun} />}
+      {shownRun && isFinished(shownRun) && (
+        <ReviewWorkspace
+          key={shownRun.id}
+          run={shownRun}
+          ides={space.ides}
+          busy={space.integrating}
+          context={{
+            agentName,
+            personality: (agentId) => labels.get(agentId)?.personality ?? '',
+            executionOf: (executionId) => {
+              const stored = workspace.history.find((execution) => execution.id === executionId);
+              return stored
+                ? { runtime: runtimeName(stored.runtimeId), model: stored.modelId }
+                : undefined;
+            },
+          }}
+          onOpenExecution={openExecution}
+          code={{
+            review: (file) => {
+              setReviewing(file ?? '');
+            },
+            openInIde: (ideId) => {
+              void space.openRunInIde(ideId);
+            },
+            apply: () => void space.integrate('apply'),
+            keep: () => void space.integrate('keep'),
+            discard: () => void space.integrate('discard'),
+          }}
+        />
+      )}
 
       {repairing && workflow && space.repairs.length > 0 && (
         <RouteRepairDialog
@@ -553,11 +586,12 @@ export function WorkflowPage() {
         />
       )}
 
-      {reviewing && shownRun && (
+      {reviewing !== null && shownRun && (
         <ChangesModal
           run={shownRun}
+          initialFile={reviewing === '' ? null : reviewing}
           onClose={() => {
-            setReviewing(false);
+            setReviewing(null);
           }}
         />
       )}

@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/Modal';
 import { useI18n } from '@/i18n/I18nProvider';
 import { deliveryOf } from '../model/integration';
+import { reviewStateOf } from '../model/review';
 import { isActiveRun } from '../types';
 import type { Ide, WorkflowRun } from '../types';
 import styles from './Workflow.module.css';
 
 export interface CodeActions {
-  review: () => void;
+  /** Opens the diff, of one file or of all of them. */
+  review: (file?: string) => void;
   openInIde: (ideId: string) => void;
   apply: () => void;
   keep: () => void;
@@ -24,17 +27,25 @@ export function DeliveryPanel({
   ides,
   busy,
   actions,
+  worktree = 'unknown',
 }: {
   run: WorkflowRun;
   ides: Ide[];
   busy: boolean;
   actions: CodeActions;
+  /** Whether the run's worktree can still be read. Once it is gone only the saved state is left. */
+  worktree?: 'available' | 'missing' | 'invalid' | 'unknown';
 }) {
   const { t } = useI18n();
   const [choosing, setChoosing] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const delivery = deliveryOf(run);
+  const [applying, setApplying] = useState(false);
+  const base = deliveryOf(run);
   const { integration, changes } = run;
+  // A worktree that is gone cannot be opened, applied or kept: only what was saved is left.
+  const gone =
+    (worktree === 'missing' || worktree === 'invalid') && integration.status !== 'integrated';
+  const delivery = base && gone ? { ...base, openInIde: false, apply: false, keep: false } : base;
 
   if (!delivery) {
     if (integration.status === 'in_progress' && isActiveRun(run)) {
@@ -47,6 +58,8 @@ export function DeliveryPanel({
     return null;
   }
 
+  const state = reviewStateOf(run);
+  const noChanges = integration.status === 'no_changes';
   const stats =
     changes && changes.filesChanged > 0
       ? t('integration.stats', {
@@ -68,9 +81,36 @@ export function DeliveryPanel({
         </span>{' '}
         <strong>{t(delivery.runLine)}</strong>
       </p>
+      {run.status === 'failed' && <p className={styles.warning}>{t('review.failedNote')}</p>}
+      {run.status === 'cancelled' && <p className={styles.warning}>{t('review.cancelledNote')}</p>}
+      <dl className={styles.stateRows}>
+        <div>
+          <dt>{t('review.reviewStatus')}</dt>
+          <dd>{t(state.review)}</dd>
+        </div>
+        <div>
+          <dt>{t('review.integrationStatus')}</dt>
+          <dd data-applied={state.applied}>{t(state.integration)}</dd>
+        </div>
+      </dl>
       <p className={styles.deliveryCode} role="status">
         {t(delivery.codeLine, delivery.params)}
       </p>
+      {noChanges && <p className={styles.muted}>{t('review.noChangesToApply')}</p>}
+      {integration.status === 'integrated' && (
+        <p className={styles.applied}>
+          <strong>✓ {t('review.applied.title')}</strong> {t('review.applied.body')}{' '}
+          {integration.canUndo
+            ? t('review.applied.headUnchanged')
+            : t('review.applied.headUnknown')}
+        </p>
+      )}
+      {(integration.status === 'conflicts' || integration.status === 'blocked') &&
+        integration.conflicts.length > 0 && (
+          <p role="alert" className={styles.warning}>
+            <strong>{t('review.blocked.title')}</strong> {t('review.blocked.files')}
+          </p>
+        )}
       {stats && <p className={styles.deliveryStats}>{stats}</p>}
       {changes && changes.uncommitted.length > 0 && (
         <p className={styles.muted}>
@@ -103,9 +143,18 @@ export function DeliveryPanel({
             ))}
           </ul>
         )}
+      {integration.status === 'conflicts' && (
+        <p className={styles.muted}>{t('review.blocked.resolve')}</p>
+      )}
       <div className={styles.deliveryActions}>
         {delivery.review && (
-          <Button variant="secondary" disabled={busy} onClick={actions.review}>
+          <Button
+            variant="secondary"
+            disabled={busy}
+            onClick={() => {
+              actions.review();
+            }}
+          >
             {t('integration.review')}
           </Button>
         )}
@@ -144,7 +193,12 @@ export function DeliveryPanel({
           </div>
         )}
         {delivery.apply && (
-          <Button disabled={busy} onClick={actions.apply}>
+          <Button
+            disabled={busy}
+            onClick={() => {
+              setApplying(true);
+            }}
+          >
             {t('integration.apply')}
           </Button>
         )}
@@ -178,6 +232,58 @@ export function DeliveryPanel({
           ))}
       </div>
       {confirming && <p className={styles.warning}>{t('integration.discardNote')}</p>}
+      {applying && (
+        <Modal
+          label={t('review.apply.title')}
+          onClose={() => {
+            setApplying(false);
+          }}
+        >
+          <h2>{t('review.apply.title')}</h2>
+          <p>{t('review.apply.body', { files: changes?.filesChanged ?? 0 })}</p>
+          <p>{t('review.apply.willNot')}</p>
+          <ul>
+            <li>{t('review.apply.noCommit')}</li>
+            <li>{t('review.apply.noPush')}</li>
+            <li>{t('review.apply.noMerge')}</li>
+          </ul>
+          <p>{t('review.apply.result')}</p>
+          {integration.conflicts.length > 0 && (
+            <>
+              <p role="alert" className={styles.warning}>
+                {t('review.apply.knownConflicts')}
+              </p>
+              <ul className={styles.fileList}>
+                {integration.conflicts.map((file) => (
+                  <li key={file}>
+                    <span className={styles.filePath}>{file}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          <p className={styles.muted}>{t('review.apply.neverOverwrites')}</p>
+          <div className={styles.deliveryActions}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setApplying(false);
+              }}
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              disabled={busy}
+              onClick={() => {
+                setApplying(false);
+                actions.apply();
+              }}
+            >
+              {t('review.apply.confirm')}
+            </Button>
+          </div>
+        </Modal>
+      )}
     </section>
   );
 }

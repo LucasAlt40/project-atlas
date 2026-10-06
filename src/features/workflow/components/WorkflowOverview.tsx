@@ -9,6 +9,7 @@ import {
   nodeLabel,
   runProgress,
 } from '../model/status';
+import { isFinished } from '../model/review';
 import { isRoutingIssue, issueMessage } from '../model/validation';
 import { useState } from 'react';
 import type { Ide, RecoveryPlan, ValidationReport, Workflow, WorkflowRun } from '../types';
@@ -110,7 +111,13 @@ export function RunOverview({
           )}
           {files.length > 0 && (
             <p>
-              <button type="button" className={styles.link} onClick={code.review}>
+              <button
+                type="button"
+                className={styles.link}
+                onClick={() => {
+                  code.review();
+                }}
+              >
                 {t('integration.review')}
               </button>
             </p>
@@ -124,7 +131,8 @@ export function RunOverview({
     <section className={styles.overview} aria-label={t('workflow.overview')}>
       <h3 className={styles.inspectorTitle}>{t('workflow.overview')}</h3>
       {tabs}
-      <DeliveryPanel run={run} ides={ides} busy={busy} actions={code} />
+      {/* Once the run is over, its result and code are the Review Workspace's. */}
+      {!isFinished(run) && <DeliveryPanel run={run} ides={ides} busy={busy} actions={code} />}
       <p className={styles.runStatus} data-status={run.status}>
         {t('workflow.overview.status')}: <strong>{t(RUN_STATUS_LABEL[run.status])}</strong>
       </p>

@@ -86,6 +86,8 @@ function permissionLabel(t: Translate, entry: ActivityEntry): string {
       return t('agent.activity.permission.denied', params);
     case 'approval_requested':
       return t('agent.activity.permission.approval_requested', params);
+    case 'transformed':
+      return t('agent.activity.permission.transformed', params);
     case 'approved':
       return t('agent.activity.permission.approved', params);
     case 'rejected':

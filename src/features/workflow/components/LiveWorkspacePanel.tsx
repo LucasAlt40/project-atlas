@@ -5,7 +5,7 @@ import type { TranslationKey } from '@/i18n';
 import { errorMessage } from '@/i18n/messages';
 import type { LiveFileDto } from '@/lib/tauri/commands';
 import { useLiveText } from '../hooks/useLiveText';
-import { useLiveWorkspace } from '../hooks/useLiveWorkspace';
+import { useLiveWorkspace, type LiveWorkspace } from '../hooks/useLiveWorkspace';
 import { headlineOf, STATUS_LABEL, type LiveModel } from '../model/live';
 import { getLiveDiff, getLiveFile } from '../services/liveWorkspaceService';
 import { getDiff } from '../services/workflowService';
@@ -26,9 +26,18 @@ const TABS: readonly Tab[] = ['diff', 'file'];
  * and nothing here can do it.
  */
 export function LiveWorkspacePanel({ run }: { run: WorkflowRun }) {
-  const { t } = useI18n();
   const hasWorktree = run.integration.worktreeExecutionId !== null;
   const live = useLiveWorkspace(hasWorktree ? run.id : null);
+  return <LiveWorkspaceView run={run} live={live} />;
+}
+
+/**
+ * The panel over a Live Workspace somebody else follows (the Review Workspace follows it once and
+ * also reads its availability), so the worktree is read and watched a single time.
+ */
+export function LiveWorkspaceView({ run, live }: { run: WorkflowRun; live: LiveWorkspace }) {
+  const { t } = useI18n();
+  const hasWorktree = run.integration.worktreeExecutionId !== null;
   const [open, setOpen] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('diff');

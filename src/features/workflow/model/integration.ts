@@ -33,6 +33,8 @@ const BLOCKS: Record<BlockReasonDto, TranslationKey> = {
   uncommitted_changes: 'integration.block.uncommitted_changes',
   worktree_inconsistent: 'integration.block.worktree_inconsistent',
   conflict: 'integration.block.conflict',
+  protected_paths: 'integration.block.protected_paths',
+  needs_review: 'integration.block.needs_review',
 };
 
 const RUN_LINES = {

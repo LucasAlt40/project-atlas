@@ -17,10 +17,19 @@ interface Loaded {
 }
 
 /** The real diff of the run's code, file by file, read from Git when asked for. */
-export function ChangesModal({ run, onClose }: { run: WorkflowRun; onClose: () => void }) {
+export function ChangesModal({
+  run,
+  initialFile = null,
+  onClose,
+}: {
+  run: WorkflowRun;
+  /** The file whose diff opens first; all of them when absent. */
+  initialFile?: string | null;
+  onClose: () => void;
+}) {
   const { t } = useI18n();
   const [changes, setChanges] = useState<ChangeSet | null>(run.changes);
-  const [file, setFile] = useState<string | null>(null);
+  const [file, setFile] = useState<string | null>(initialFile);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const key = `${run.id}|${file ?? ''}`;
   const diff: Diff = loaded?.key === key ? loaded.diff : { status: 'loading' };

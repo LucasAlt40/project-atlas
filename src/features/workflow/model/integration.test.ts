@@ -93,6 +93,34 @@ describe('what the screen may say about the code', () => {
   });
 });
 
+describe('the review of the changes before they are applied', () => {
+  it('shows what was held back and who may still apply it', () => {
+    // DENY: nobody applies it; the person can still look, keep it isolated or discard it.
+    const denied = deliveryOf(
+      withCode(done(), 'blocked', {
+        blockReason: 'protected_paths',
+        canApply: false,
+        message: 'protected_git: .git/hooks/pre-commit',
+      }),
+    );
+    expect(denied?.codeLine).toBe('integration.block.protected_paths');
+    expect(denied?.params.message).toBe('protected_git: .git/hooks/pre-commit');
+    expect([denied?.review, denied?.apply, denied?.keep, denied?.discard]).toEqual([
+      true,
+      false,
+      true,
+      true,
+    ]);
+    // ASK: held, and the person's next Apply is their decision.
+    const held = deliveryOf(
+      withCode(done(), 'blocked', { blockReason: 'needs_review', canApply: true }),
+    );
+    expect(held?.codeLine).toBe('integration.block.needs_review');
+    expect(held?.apply).toBe(true);
+    expect(held?.inProject).toBe(false);
+  });
+});
+
 describe('handoffs of a run', () => {
   const r = {
     ...done(),

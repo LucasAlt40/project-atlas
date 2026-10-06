@@ -7,6 +7,7 @@ import type { TranslationKey } from '@/i18n';
 import type { PendingInteractionDto, RuntimeCapabilitiesDto } from '@/lib/tauri/commands';
 import type { ExecutionFacts } from '../model/inspection';
 import { shortId } from '../model/inspection';
+import { ContextReviewPanel } from './ContextReviewPanel';
 import { GitDetails } from './GitDetails';
 import styles from './Inspector.module.css';
 
@@ -162,6 +163,9 @@ export function ExecutionDetails({
         )}
       </dl>
       {facts.usagePending && <p className={styles.note}>{t('inspector.usagePending')}</p>}
+      {facts.contextReview && (
+        <ContextReviewPanel review={facts.contextReview} guardrails={facts.guardrails} />
+      )}
       <GitDetails
         executionId={facts.executionId}
         isolated={context.worktreeIsolation}

@@ -1,6 +1,7 @@
 import { useI18n } from '@/i18n/I18nProvider';
 import type { TranslationKey } from '@/i18n';
 import { shortId } from '@/features/workspace/model/inspection';
+import { divergence } from '../model/review';
 import { nodeLabel } from '../model/status';
 import type { FileChange, Handoff, WorkflowRun } from '../types';
 import type { ResultFindingDto } from '@/lib/tauri/commands';
@@ -71,9 +72,7 @@ export function HandoffView({
   onOpenExecution: (executionId: string) => void;
 }) {
   const { t } = useI18n();
-  const claimed = handoff.reportedFiles.filter(
-    (path) => !handoff.changedFiles.some((f) => f.path === path),
-  );
+  const { claimedOnly: claimed, detectedOnly } = divergence(handoff);
   return (
     <article
       className={styles.handoff}
@@ -162,6 +161,11 @@ export function HandoffView({
       )}
       {claimed.length > 0 && (
         <p className={styles.muted}>{t('handoff.claimed', { files: claimed.join(', ') })}</p>
+      )}
+      {detectedOnly.length > 0 && handoff.reportedFiles.length > 0 && (
+        <p className={styles.muted}>
+          {t('handoff.detectedOnly', { files: detectedOnly.join(', ') })}
+        </p>
       )}
 
       {handoff.validation && (
