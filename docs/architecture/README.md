@@ -64,8 +64,9 @@ WorkspacePage → WorkspaceProvider / useCatalog → feature services
   required / ready; `authentication`; `modelDiscovery`: discovered / unsupported / unavailable / failed).
   Adding a runtime = one file in `application/runtimes/` plus one line in
   `RuntimeRegistry::with_default_runtimes`. Nothing in agents, prompts, executions, commands or the UI changes.
-- **Runtimes today**: `OpenCodeRuntime`, `ClaudeRuntime`, `GeminiRuntime` and `AntigravityRuntime` execute
-  tasks. Codex is a `DetectOnlyRuntime` (`nonInteractiveExecution: false`), so agents cannot be created for it yet.
+- **Runtimes today**: `OpenCodeRuntime`, `ClaudeRuntime`, `CodexRuntime`, `GeminiRuntime` and `AntigravityRuntime`
+  execute tasks. `exec` never asks for approval, so Codex is bounded by its own sandbox (`read-only`, or
+  `workspace-write` when the execution may edit); the sandbox-bypass flag is never used.
 - **Antigravity CLI** (program `agy`, not `antigravity`): models from `agy models` (`id<TAB>name`, the reasoning
   effort is part of the id); runs `agy --output-format stream-json --model <id> --prompt=<prompt>` in a terminal
   (`-p` takes a value and ignores stdin, so the prompt is an option value, never stdin). A headless run denies

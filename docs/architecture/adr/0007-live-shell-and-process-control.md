@@ -116,11 +116,11 @@ the state and the cancellation are tracked), mixed with other bytes it is refuse
 
 `RuntimeCapabilities` gained `interactiveTerminal`, `interrupt`, `terminalInput`, `terminalResize`.
 
-| Runtime                                | interactiveTerminal | interrupt | terminalInput | terminalResize |
-| -------------------------------------- | :-----------------: | :-------: | :-----------: | :------------: |
-| Claude CLI                             |         yes         |    yes    |      no       |      yes       |
-| OpenCode CLI                           |         yes         |    yes    |      no       |      yes       |
-| Codex/Gemini/Antigravity (detect only) |         no          |    no     |      no       |       no       |
+| Runtime      | interactiveTerminal | interrupt | terminalInput | terminalResize |
+| ------------ | :-----------------: | :-------: | :-----------: | :------------: |
+| Claude CLI   |         yes         |    yes    |      no       |      yes       |
+| OpenCode CLI |         yes         |    yes    |      no       |      yes       |
+| Codex CLI    |         yes         |    yes    |      no       |      yes       |
 
 The UI shows only what the runtime can do ("does not provide a terminal", no Interrupt button, read-only badge).
 

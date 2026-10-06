@@ -40,7 +40,7 @@ nada em agentes, prompt, execuções, comandos ou UI muda. **Nenhum código rami
 | OpenCode    | `opencode` | `opencode run --agent plan -m <modelo> --format json`                                                                 | `--agent build`                                      | `opencode models`                                   |
 | Gemini CLI  | `gemini`   | `--output-format stream-json --approval-mode default --skip-trust --prompt=…`                                         | `--approval-mode auto_edit`                          | sem listagem                                        |
 | Antigravity | `agy`      | `--output-format stream-json --model <id> --prompt=…`                                                                 | `--mode accept-edits`                                | `agy models`                                        |
-| Codex       | `codex`    | **só detecção** (`DetectOnlyRuntime`): não é possível criar agentes para ele                                          | —                                                    | —                                                   |
+| Codex       | `codex`    | `exec --json --ephemeral --skip-git-repo-check --sandbox read-only --model <id> -- <prompt>`                          | `--sandbox workspace-write`                          | `codex debug models` (só `visibility: "list"`)      |
 
 Regras comuns:
 

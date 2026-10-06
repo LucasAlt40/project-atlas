@@ -10,14 +10,14 @@ agente escreva muda permissões, rotas, aprovações ou política.
 
 ## Quem usa o quê
 
-| Peça                  | Usa / é                                                                                                                             | Detalhe                                    |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| Agente                | personalidade + runtime + modelo + instruções + perfil de permissão + isolamento (ligado) + contrato de resultado                   | [02](guia/02-agentes-runtimes-e-prompt.md) |
-| Modelo de IA          | Acessado por **CLI local** já logada pelo usuário: `claude`, `opencode`, `gemini`, `agy` (Codex só detecção). **Sem chave de API.** | [02](guia/02-agentes-runtimes-e-prompt.md) |
-| Frontend              | React/TS; só chama **comandos Tauri** com allow-list; nunca toca disco/processo/Git/rede                                            | [01](guia/01-visao-geral-e-arquitetura.md) |
-| Core                  | Rust em camadas `commands → application → domain`; adaptadores nas bordas; wiring só em `lib.rs`                                    | [01](guia/01-visao-geral-e-arquitetura.md) |
-| Personalidades        | Architect, Developer, QA, Architecture & Code Validator (somente leitura), Bug Fixer — editáveis; dá para criar outras              | [02](guia/02-agentes-runtimes-e-prompt.md) |
-| Código escrito por IA | Só em **worktree Git isolado**, nunca no checkout; o usuário decide se entra no projeto                                             | [05](guia/05-seguranca-e-isolamento.md)    |
+| Peça                  | Usa / é                                                                                                                  | Detalhe                                    |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ |
+| Agente                | personalidade + runtime + modelo + instruções + perfil de permissão + isolamento (ligado) + contrato de resultado        | [02](guia/02-agentes-runtimes-e-prompt.md) |
+| Modelo de IA          | Acessado por **CLI local** já logada pelo usuário: `claude`, `opencode`, `codex`, `gemini`, `agy`. **Sem chave de API.** | [02](guia/02-agentes-runtimes-e-prompt.md) |
+| Frontend              | React/TS; só chama **comandos Tauri** com allow-list; nunca toca disco/processo/Git/rede                                 | [01](guia/01-visao-geral-e-arquitetura.md) |
+| Core                  | Rust em camadas `commands → application → domain`; adaptadores nas bordas; wiring só em `lib.rs`                         | [01](guia/01-visao-geral-e-arquitetura.md) |
+| Personalidades        | Architect, Developer, QA, Architecture & Code Validator (somente leitura), Bug Fixer — editáveis; dá para criar outras   | [02](guia/02-agentes-runtimes-e-prompt.md) |
+| Código escrito por IA | Só em **worktree Git isolado**, nunca no checkout; o usuário decide se entra no projeto                                  | [05](guia/05-seguranca-e-isolamento.md)    |
 
 ## Como o prompt é montado (sempre pelo `PromptBuilder`)
 
