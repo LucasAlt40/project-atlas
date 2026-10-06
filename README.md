@@ -24,6 +24,33 @@ npm install
 npm run tauri dev
 ```
 
+## Instalar (para testar)
+
+Baixe o instalador do seu sistema na página de
+[Releases](https://github.com/LucasAlt40/project-atlas/releases) (macOS `.dmg`, Windows `.msi`/`.exe`,
+Linux `.AppImage`/`.deb`). Os builds ainda não são assinados, então o sistema avisa na primeira abertura:
+
+- **macOS:** se aparecer "app danificado" ou "desenvolvedor não identificado", rode
+  `xattr -cr "/Applications/Project Atlas.app"` e abra de novo (ou botão direito → Abrir).
+  Use o `aarch64` em Macs com chip Apple e o `x64` em Macs Intel.
+- **Windows:** no aviso do SmartScreen, clique em "Mais informações" → "Executar assim mesmo".
+- **Linux:** `chmod +x Project-Atlas*.AppImage` e execute.
+
+O Atlas procura as CLIs de IA (OpenCode, Claude, Codex, Gemini) no `PATH` e nos diretórios usuais
+(`~/.local/bin`, `~/.npm-global/bin`, `~/.cargo/bin`, Homebrew). Instale ao menos uma delas e faça login
+nela antes de criar agentes.
+
+## Publicar uma versão
+
+```bash
+# 1. suba a versão em package.json, src-tauri/Cargo.toml e src-tauri/tauri.conf.json
+git tag v0.1.0
+git push origin main v0.1.0
+```
+
+O workflow [release.yml](.github/workflows/release.yml) compila para macOS (Apple Silicon e Intel),
+Windows e Linux e anexa os instaladores a uma release.
+
 ## Verificações
 
 ```bash
