@@ -4,6 +4,7 @@
 //! then stored on the execution record (`Execution::permission_events`) and in its log. As they
 //! happen they are also announced through a [`PermissionSink`] so the UI can show them live.
 
+use crate::application::support::LockExt;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -33,8 +34,7 @@ impl AuditLog {
             sink.on_permission_event(&event);
         }
         self.events
-            .lock()
-            .expect("audit lock poisoned")
+            .lock_or_recover()
             .entry(event.execution_id.clone())
             .or_default()
             .push(event);
@@ -43,8 +43,7 @@ impl AuditLog {
     /// Hands over (and forgets) what was recorded for an execution, oldest first.
     pub fn take(&self, execution_id: &str) -> Vec<PermissionEvent> {
         self.events
-            .lock()
-            .expect("audit lock poisoned")
+            .lock_or_recover()
             .remove(execution_id)
             .unwrap_or_default()
     }

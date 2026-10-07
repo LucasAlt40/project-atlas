@@ -1,3 +1,4 @@
+use crate::application::support::LockExt;
 use std::collections::{BTreeMap, HashSet};
 use std::fmt;
 use std::sync::{Arc, Mutex};
@@ -321,7 +322,7 @@ struct BusyGuard {
 impl BusyGuard {
     fn acquire(inner: &Arc<Inner>, workspace_id: &str, agent_id: &str) -> Result<Self, ChatError> {
         let key = (workspace_id.to_owned(), agent_id.to_owned());
-        let mut busy = inner.busy.lock().expect("busy lock poisoned");
+        let mut busy = inner.busy.lock_or_recover();
         if !busy.insert(key.clone()) {
             return Err(ChatError::AgentBusy(agent_id.to_owned()));
         }

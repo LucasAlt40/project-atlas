@@ -4,6 +4,7 @@
 //! `resolve_approval` command. Nothing a model writes can reach it: model output is data in a
 //! conversation, never an input here.
 
+use crate::application::support::LockExt;
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Condvar, Mutex};
@@ -78,7 +79,7 @@ impl ApprovalBroker {
         let mut request = build(id.clone());
         request.id.clone_from(&id);
         request.requested_at = now_ms();
-        self.slots.lock().expect("approvals lock poisoned").insert(
+        self.slots.lock_or_recover().insert(
             id,
             Slot {
                 request: request.clone(),
@@ -91,7 +92,7 @@ impl ApprovalBroker {
     /// Blocks until the request is answered or `timeout` passes, then forgets the request.
     pub fn wait(&self, id: &str, timeout: Duration) -> Answer {
         let deadline = Instant::now() + timeout;
-        let mut slots = self.slots.lock().expect("approvals lock poisoned");
+        let mut slots = self.slots.lock_or_recover();
         loop {
             if let Some(answer) = slots.get(id).and_then(|slot| slot.answer) {
                 slots.remove(id);
@@ -116,7 +117,7 @@ impl ApprovalBroker {
     ///
     /// Fails if nothing is waiting under `id`.
     pub fn resolve(&self, id: &str, approve: bool) -> Result<PendingApproval, ApprovalError> {
-        let mut slots = self.slots.lock().expect("approvals lock poisoned");
+        let mut slots = self.slots.lock_or_recover();
         let slot = slots
             .get_mut(id)
             .filter(|slot| slot.answer.is_none())
@@ -133,7 +134,7 @@ impl ApprovalBroker {
 
     /// Requests still waiting, oldest first, optionally for one workspace.
     pub fn pending(&self, workspace_id: Option<&str>) -> Vec<PendingApproval> {
-        let slots = self.slots.lock().expect("approvals lock poisoned");
+        let slots = self.slots.lock_or_recover();
         let mut pending: Vec<_> = slots
             .values()
             .filter(|slot| slot.answer.is_none())

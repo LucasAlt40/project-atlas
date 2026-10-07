@@ -4,6 +4,7 @@
 //! happens. It decides nothing about the graph (the engine does) and nothing about how a step
 //! runs (the runner does: execution service, worktree, permission guard and runtime).
 
+use crate::application::support::LockExt;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::panic::AssertUnwindSafe;
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
@@ -121,10 +122,7 @@ impl Orchestrator {
     /// Whether the run is being driven by this process right now.
     #[cfg(test)]
     pub fn is_live(&self, execution_id: &str) -> bool {
-        self.live
-            .lock()
-            .expect("live runs lock poisoned")
-            .contains_key(execution_id)
+        self.live.lock_or_recover().contains_key(execution_id)
     }
 
     /// Pauses, resumes or cancels a run. A run nobody is driving (interrupted by a shutdown)
@@ -139,12 +137,7 @@ impl Orchestrator {
         control: Control,
         observer: &dyn WorkflowObserver,
     ) -> Result<(), AppError> {
-        let sender = self
-            .live
-            .lock()
-            .expect("live runs lock poisoned")
-            .get(execution_id)
-            .cloned();
+        let sender = self.live.lock_or_recover().get(execution_id).cloned();
         if let Some(sender) = sender {
             return sender
                 .send(Message::Control(control))
@@ -200,12 +193,7 @@ impl Orchestrator {
             announce(observer, &events);
             return Err(answer_error(&problem));
         }
-        let sender = self
-            .live
-            .lock()
-            .expect("live runs lock poisoned")
-            .get(execution_id)
-            .cloned();
+        let sender = self.live.lock_or_recover().get(execution_id).cloned();
         if let Some(sender) = sender {
             sender
                 .send(Message::Answer {
@@ -410,7 +398,7 @@ impl Orchestrator {
         }
         let (tx, rx) = mpsc::channel::<Message>();
         {
-            let mut live = self.live.lock().expect("live runs lock poisoned");
+            let mut live = self.live.lock_or_recover();
             if live.contains_key(execution_id) {
                 return Err(AppError::new(ErrorCode::WorkflowStateInvalid));
             }
@@ -425,10 +413,7 @@ impl Orchestrator {
         } else {
             Ok(())
         };
-        self.live
-            .lock()
-            .expect("live runs lock poisoned")
-            .remove(execution_id);
+        self.live.lock_or_recover().remove(execution_id);
         result.and(concluded)
     }
 

@@ -15,6 +15,7 @@
 //! The registry never starts a process, so controlling one cannot widen what the execution may
 //! do: the process was authorized by the guard before it existed (ADR 0007).
 
+use crate::application::support::LockExt;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -237,7 +238,7 @@ impl SessionRegistry {
     }
 
     fn lock(&self) -> MutexGuard<'_, State> {
-        self.state.lock().expect("session registry lock poisoned")
+        self.state.lock_or_recover()
     }
 
     /// Registers the session of a process that has just started and announces it.

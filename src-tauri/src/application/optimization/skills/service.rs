@@ -1,3 +1,4 @@
+use crate::application::support::LockExt;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
@@ -144,7 +145,7 @@ impl SkillService {
                         .read(&base, &dir)
                         .map_or(Err(ParseError::NoFrontmatter), |raw| parse(&dir, &raw.text))
                         .map(Arc::new);
-                    self.cache.lock().expect("skill cache").insert(
+                    self.cache.lock_or_recover().insert(
                         key,
                         Cached {
                             fingerprint: fingerprint.clone(),
@@ -197,7 +198,7 @@ impl SkillService {
         key: &Path,
         fingerprint: &str,
     ) -> Option<Result<Arc<ParsedSkill>, ParseError>> {
-        let cache = self.cache.lock().expect("skill cache");
+        let cache = self.cache.lock_or_recover();
         cache
             .get(key)
             .filter(|c| c.fingerprint == fingerprint)

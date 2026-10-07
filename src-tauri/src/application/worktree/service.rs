@@ -1,3 +1,4 @@
+use crate::application::support::LockExt;
 use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -208,7 +209,7 @@ impl WorktreeService {
     }
 
     fn begin(&self, execution_id: &str) -> Result<BusyGuard<'_>, WorktreeError> {
-        let mut busy = self.busy.lock().expect("worktree busy lock poisoned");
+        let mut busy = self.busy.lock_or_recover();
         if !busy.insert(execution_id.to_owned()) {
             return Err(WorktreeError::Busy);
         }

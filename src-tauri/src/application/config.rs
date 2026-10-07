@@ -1,3 +1,4 @@
+use crate::application::support::LockExt;
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 
@@ -291,7 +292,7 @@ impl ConfigRepository {
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, UserConfig> {
-        self.config.lock().expect("user config lock poisoned")
+        self.config.lock_or_recover()
     }
 }
 
