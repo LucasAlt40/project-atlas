@@ -4,6 +4,7 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::mpsc;
+use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -18,6 +19,10 @@ const MAX_OUTPUT_BYTES: u64 = 8 * 1024 * 1024;
 const POLL_INTERVAL: Duration = Duration::from_millis(20);
 /// How long to wait for the input writer when output arrives before it reports being done.
 const INPUT_GRACE: Duration = Duration::from_millis(50);
+/// After the process exits: how long to wait for output still in flight. A grandchild (an MCP
+/// server, a daemon) can inherit the pipes and keep them open long after the tool is done; the
+/// execution must end with the tool, not with whatever it left running.
+const DRAIN_TIMEOUT: Duration = Duration::from_millis(500);
 
 /// Runs real child processes. Executables are looked up on `PATH` plus the usual install
 /// directories of developer tools, because an app launched from the desktop does not
@@ -107,36 +112,82 @@ fn is_executable(path: &Path) -> bool {
     }
 }
 
-/// Reads a stream line by line, sending each line (without its ending) to `lines` as soon as
-/// it arrives. Returns the whole output, capped like [`read_capped`].
-fn read_lines(stream: impl Read, lines: &mpsc::Sender<String>) -> Vec<u8> {
-    let mut reader = BufReader::new(stream);
-    let mut all = Vec::new();
-    let mut line = Vec::new();
-    loop {
-        line.clear();
-        match reader.read_until(b'\n', &mut line) {
-            Ok(0) | Err(_) => break,
-            Ok(_) => {
-                if (all.len() as u64) < MAX_OUTPUT_BYTES {
-                    all.extend_from_slice(&line);
-                }
-                let text = String::from_utf8_lossy(&line);
-                // A receiver that is gone just means nobody is listening any more.
-                let _ = lines.send(text.trim_end_matches(['\r', '\n']).to_owned());
-            }
-        }
-    }
-    all
+/// What a reader thread has collected so far, readable even while the thread is still blocked
+/// on a pipe that nobody will close.
+type Collected = Arc<Mutex<Vec<u8>>>;
+
+/// A reader thread's progress: the output so far, and a signal that sends once the stream ended.
+struct Reader {
+    collected: Collected,
+    done: mpsc::Receiver<()>,
 }
 
-fn read_capped(mut stream: impl Read) -> Vec<u8> {
-    let mut buffer = Vec::new();
-    let _ = (&mut stream)
-        .take(MAX_OUTPUT_BYTES)
-        .read_to_end(&mut buffer);
-    let _ = std::io::copy(&mut stream, &mut std::io::sink());
-    buffer
+impl Reader {
+    /// The output, waiting at most until `deadline` for the stream to end. Past it the reader is
+    /// left behind (it ends by itself when the last holder of the pipe does) with what it has.
+    fn take(self, deadline: Instant) -> Vec<u8> {
+        let left = deadline.saturating_duration_since(Instant::now());
+        let _ = self.done.recv_timeout(left);
+        std::mem::take(
+            &mut *self
+                .collected
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        )
+    }
+}
+
+fn append(collected: &Collected, bytes: &[u8]) {
+    collected
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .extend_from_slice(bytes);
+}
+
+/// Reads a stream line by line, sending each line (without its ending) to `lines` as soon as
+/// it arrives. Collects the whole output, capped like [`read_capped`].
+fn read_lines(stream: impl Read + Send + 'static, lines: mpsc::Sender<String>) -> Reader {
+    let collected = Collected::default();
+    let (done_tx, done) = mpsc::channel();
+    let sink = collected.clone();
+    thread::spawn(move || {
+        let mut reader = BufReader::new(stream);
+        let mut kept = 0_u64;
+        let mut line = Vec::new();
+        loop {
+            line.clear();
+            match reader.read_until(b'\n', &mut line) {
+                Ok(0) | Err(_) => break,
+                Ok(_) => {
+                    if kept < MAX_OUTPUT_BYTES {
+                        append(&sink, &line);
+                        kept += line.len() as u64;
+                    }
+                    let text = String::from_utf8_lossy(&line);
+                    // A receiver that is gone just means nobody is listening any more.
+                    let _ = lines.send(text.trim_end_matches(['\r', '\n']).to_owned());
+                }
+            }
+        }
+        let _ = done_tx.send(());
+    });
+    Reader { collected, done }
+}
+
+fn read_capped(mut stream: impl Read + Send + 'static) -> Reader {
+    let collected = Collected::default();
+    let (done_tx, done) = mpsc::channel();
+    let sink = collected.clone();
+    thread::spawn(move || {
+        let mut buffer = Vec::new();
+        let _ = (&mut stream)
+            .take(MAX_OUTPUT_BYTES)
+            .read_to_end(&mut buffer);
+        append(&sink, &buffer);
+        let _ = std::io::copy(&mut stream, &mut std::io::sink());
+        let _ = done_tx.send(());
+    });
+    Reader { collected, done }
 }
 
 impl ProcessRunner for SystemProcessRunner {
@@ -197,14 +248,8 @@ impl ProcessRunner for SystemProcessRunner {
         on_event(ProcessEvent::Spawned);
 
         let (line_tx, line_rx) = mpsc::channel();
-        let stdout = child
-            .stdout
-            .take()
-            .map(|s| thread::spawn(move || read_lines(s, &line_tx)));
-        let stderr = child
-            .stderr
-            .take()
-            .map(|s| thread::spawn(move || read_capped(s)));
+        let stdout = child.stdout.take().map(|s| read_lines(s, line_tx));
+        let stderr = child.stderr.take().map(read_capped);
 
         let written_rx = write_stdin(spec.stdin.clone(), child.stdin.take());
 
@@ -248,8 +293,11 @@ impl ProcessRunner for SystemProcessRunner {
             }
         };
 
-        let collect = |handle: Option<thread::JoinHandle<Vec<u8>>>| {
-            handle.and_then(|h| h.join().ok()).unwrap_or_default()
+        let drain_until = Instant::now() + DRAIN_TIMEOUT;
+        let collect = |reader: Option<Reader>| {
+            reader
+                .map(|reader| reader.take(drain_until))
+                .unwrap_or_default()
         };
         let stdout = collect(stdout);
         if !input_reported {
@@ -378,6 +426,31 @@ mod tests {
 
         let lines: Vec<_> = output.stdout.lines().collect();
         assert_eq!(lines, [dir.to_str().unwrap(), dir.to_str().unwrap()]);
+    }
+
+    #[test]
+    fn does_not_wait_for_a_grandchild_that_keeps_the_pipes_open() {
+        let started = Instant::now();
+
+        let output = SystemProcessRunner::new()
+            .run(
+                &spec(
+                    "sh",
+                    &["-c", "sleep 20 & echo done"],
+                    None,
+                    Duration::from_secs(60),
+                ),
+                &|_| {},
+            )
+            .unwrap();
+
+        assert_eq!(output.exit_code, Some(0));
+        assert_eq!(output.stdout, "done\n");
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "waited {:?} for output that nobody was going to write",
+            started.elapsed()
+        );
     }
 
     #[test]
