@@ -66,6 +66,13 @@ pub struct RunAgentRequest {
     pub description: String,
 }
 
+/// What a step does once its prompt is built: the guardrails' verdict and two switches read once.
+struct RunFlags {
+    gate: guardrails::Gate,
+    detect_interaction: bool,
+    measuring: bool,
+}
+
 /// How a workflow step differs from a message: where its Task Context comes from, the worktree it
 /// shares, and whether an answer that is a request for a person pauses it instead of ending it.
 #[derive(Debug, Clone, Default)]
@@ -439,7 +446,6 @@ impl ExecutionService {
             agent_id: agent.id.clone(),
             status: TaskStatus::Pending,
         };
-        let runtime_name = runtime.info().name;
         // The prompt is only known once the working directory is: it tells the model where it
         // is working, and that must be the worktree, never the project's checkout.
         let mut execution = Execution::start(
@@ -704,59 +710,18 @@ impl ExecutionService {
             text_only: false,
             allow_edits: can_edit,
         };
-        let mut observation = None;
-        let outcome = match gate {
-            guardrails::Gate::Deny(failure) => {
-                // Not started: nothing ran, so there is nothing to conclude or to repeat.
-                emitter.emit_with(
-                    ExecutionEventKind::Failed,
-                    failure.message.clone(),
-                    [("failureKind".to_owned(), failure.kind.as_str().to_owned())].into(),
-                );
-                execution.fail(failure, now_ms());
-                task.status = TaskStatus::Failed;
-                None
-            }
-            guardrails::Gate::Ask(detection) => {
-                // Paused before it started, waiting for a person: the answer is what lets it go on.
-                let question = RuntimeOutput {
-                    text: detection.question.clone(),
-                    metadata: BTreeMap::new(),
-                    usage: None,
-                    quota: None,
-                };
-                Self::pause_for_input(&emitter, &mut execution, &mut task, question, detection);
-                None
-            }
-            guardrails::Gate::Proceed => {
-                let probe = measuring.then(RuntimeProbe::start);
-                let result = runtime.execute(&runtime_request, &|stage| {
-                    if let Some(probe) = &probe {
-                        probe.observe(&stage);
-                    }
-                    emitter.runtime_event(stage, &runtime_name, &agent.model_id);
-                });
-                observation = probe.as_ref().map(RuntimeProbe::finish);
-                match result {
-                    Ok(output) if detect_interaction => {
-                        match self.interaction_in(runtime.as_ref(), &output) {
-                            Some(interaction) => {
-                                Self::pause_for_input(
-                                    &emitter,
-                                    &mut execution,
-                                    &mut task,
-                                    output,
-                                    interaction,
-                                );
-                                None
-                            }
-                            None => Some(Ok(output)),
-                        }
-                    }
-                    other => Some(other),
-                }
-            }
-        };
+        let (outcome, observation) = self.run_gated(
+            runtime.as_ref(),
+            &runtime_request,
+            &emitter,
+            &mut execution,
+            &mut task,
+            RunFlags {
+                gate,
+                detect_interaction,
+                measuring,
+            },
+        );
         if let Some(outcome) = outcome {
             self.conclude(outcome, &emitter, &mut execution, &mut task);
         }
@@ -915,6 +880,76 @@ impl ExecutionService {
             "Metrics recorded".to_owned(),
             metadata,
         );
+    }
+
+    /// Starts the agent if the guardrails let it, or settles the execution without starting it.
+    /// Returns what the runtime answered (`None` when nothing ran, or when the run now waits
+    /// for a person) and what was observed of the run.
+    fn run_gated(
+        &self,
+        runtime: &dyn crate::application::runtimes::ModelRuntime,
+        runtime_request: &RuntimeRequest,
+        emitter: &Emitter<'_>,
+        execution: &mut Execution,
+        task: &mut Task,
+        flags: RunFlags,
+    ) -> (
+        Option<Result<RuntimeOutput, RuntimeError>>,
+        Option<optimization::RuntimeObservation>,
+    ) {
+        let RunFlags {
+            gate,
+            detect_interaction,
+            measuring,
+        } = flags;
+        let runtime_name = runtime.info().name;
+        let mut observation = None;
+        let outcome = match gate {
+            guardrails::Gate::Deny(failure) => {
+                // Not started: nothing ran, so there is nothing to conclude or to repeat.
+                emitter.emit_with(
+                    ExecutionEventKind::Failed,
+                    failure.message.clone(),
+                    [("failureKind".to_owned(), failure.kind.as_str().to_owned())].into(),
+                );
+                execution.fail(failure, now_ms());
+                task.status = TaskStatus::Failed;
+                None
+            }
+            guardrails::Gate::Ask(detection) => {
+                // Paused before it started, waiting for a person: the answer is what lets it go on.
+                let question = RuntimeOutput {
+                    text: detection.question.clone(),
+                    metadata: BTreeMap::new(),
+                    usage: None,
+                    quota: None,
+                };
+                Self::pause_for_input(emitter, execution, task, question, detection);
+                None
+            }
+            guardrails::Gate::Proceed => {
+                let probe = measuring.then(RuntimeProbe::start);
+                let result = runtime.execute(runtime_request, &|stage| {
+                    if let Some(probe) = &probe {
+                        probe.observe(&stage);
+                    }
+                    emitter.runtime_event(stage, &runtime_name, &runtime_request.model_id);
+                });
+                observation = probe.as_ref().map(RuntimeProbe::finish);
+                match result {
+                    Ok(output) if detect_interaction => match self.interaction_in(runtime, &output)
+                    {
+                        Some(interaction) => {
+                            Self::pause_for_input(emitter, execution, task, output, interaction);
+                            None
+                        }
+                        None => Some(Ok(output)),
+                    },
+                    other => Some(other),
+                }
+            }
+        };
+        (outcome, observation)
     }
 
     /// Whether the answer is a request for a person worth pausing for: the runtime adapter's own
