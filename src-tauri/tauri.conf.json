@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Project Atlas",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "identifier": "io.github.lucasalt40.projectatlas",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -32,13 +32,42 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": [
+      "dmg",
+      "app",
+      "nsis",
+      "msi",
+      "appimage",
+      "deb"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "publisher": "Lucas Alt",
+    "copyright": "Copyright © 2026 Lucas Alt. MIT License.",
+    "category": "DeveloperTool",
+    "shortDescription": "Orquestre agentes de IA em projetos de desenvolvimento",
+    "longDescription": "Project Atlas é um aplicativo desktop de código aberto para orquestrar agentes de IA em projetos locais. Código-fonte: https://github.com/LucasAlt40/project-atlas",
+    "macOS": {
+      "minimumSystemVersion": "11.0",
+      "signingIdentity": "-",
+      "hardenedRuntime": true
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "PortugueseBR",
+          "English"
+        ]
+      },
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    }
   }
 }

@@ -2,6 +2,12 @@ name: Release
 
 # Publishes installers for macOS, Windows and Linux. Run it by pushing a version tag:
 #   git tag v0.1.0 && git push origin v0.1.0
+#
+# Code signing is optional and enabled by repository secrets (see docs/INSTALADORES.md):
+#   macOS:   APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY,
+#            APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID   (signs + notarizes)
+#   Windows: WINDOWS_CERTIFICATE (base64 .pfx), WINDOWS_CERTIFICATE_PASSWORD
+# Without them the build falls back to ad-hoc signing on macOS and no signing on Windows.
 on:
   push:
     tags: ['v*']
@@ -29,6 +35,9 @@ jobs:
             args: ''
             rust-targets: ''
     runs-on: ${{ matrix.platform }}
+    env:
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -47,6 +56,45 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      # macOS: only export the Apple credentials when they exist, otherwise the config's
+      # ad-hoc identity ("-") is used. Empty env vars would confuse the Tauri CLI.
+      - name: Configure macOS signing and notarization
+        if: runner.os == 'macOS' && env.APPLE_CERTIFICATE != ''
+        env:
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          {
+            echo "APPLE_CERTIFICATE_PASSWORD=$APPLE_CERTIFICATE_PASSWORD"
+            echo "APPLE_SIGNING_IDENTITY=$APPLE_SIGNING_IDENTITY"
+            echo "APPLE_ID=$APPLE_ID"
+            echo "APPLE_PASSWORD=$APPLE_PASSWORD"
+            echo "APPLE_TEAM_ID=$APPLE_TEAM_ID"
+          } >> "$GITHUB_ENV"
+
+      # Windows: import the .pfx and let Tauri merge tauri.windows.conf.json with the thumbprint.
+      - name: Configure Windows signing
+        if: runner.os == 'Windows' && env.WINDOWS_CERTIFICATE != ''
+        env:
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        shell: pwsh
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP 'cert.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $password = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          Remove-Item $pfx
+          $conf = @{ bundle = @{ windows = @{
+            certificateThumbprint = $cert.Thumbprint
+            digestAlgorithm = 'sha256'
+            timestampUrl = 'http://timestamp.digicert.com'
+          } } } | ConvertTo-Json -Depth 5
+          Set-Content -Path src-tauri/tauri.windows.conf.json -Value $conf
+
       - run: npm ci
       - uses: tauri-apps/tauri-action@v0
         env:
@@ -55,8 +103,23 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Project Atlas ${{ github.ref_name }}'
           releaseBody: |
-            Instaladores de teste (sem assinatura de código). Veja "Instalar" no README para o aviso
-            do sistema na primeira abertura.
+            Instaladores do Project Atlas. Confira a integridade com o arquivo `SHA256SUMS.txt`.
+            Se o sistema avisar na primeira abertura, veja "Instalar" no README.
           releaseDraft: false
           prerelease: true
           args: ${{ matrix.args }}
+
+  checksums:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish SHA256SUMS.txt
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          mkdir assets && cd assets
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*' --skip-existing
+          rm -f SHA256SUMS.txt
+          sha256sum * > SHA256SUMS.txt
+          gh release upload "$TAG" SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber

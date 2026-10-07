@@ -1,7 +1,7 @@
 {
   "name": "project-atlas",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Aplicativo desktop para orquestrar agentes de IA em projetos de desenvolvimento",
   "license": "MIT",
   "author": "LucasAlt40",

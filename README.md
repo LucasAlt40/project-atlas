@@ -28,7 +28,7 @@ npm run tauri dev
 
 Baixe o instalador do seu sistema na página de
 [Releases](https://github.com/LucasAlt40/project-atlas/releases) (macOS `.dmg`, Windows `.msi`/`.exe`,
-Linux `.AppImage`/`.deb`). Os builds ainda não são assinados, então o sistema avisa na primeira abertura:
+Linux `.AppImage`/`.deb`). Cada release traz um `SHA256SUMS.txt` para conferir o download. Sem certificado de assinatura pago, o sistema ainda pode avisar na primeira abertura (detalhes em [docs/INSTALADORES.md](docs/INSTALADORES.md)):
 
 - **macOS:** se aparecer "app danificado" ou "desenvolvedor não identificado", rode
   `xattr -cr "/Applications/Project Atlas.app"` e abra de novo (ou botão direito → Abrir).
