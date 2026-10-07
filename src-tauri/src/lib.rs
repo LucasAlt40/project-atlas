@@ -63,12 +63,6 @@ pub fn run() {
         // System notifications (granted as `notification:default`): an agent waiting for the person.
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
-            // Dev builds open the inspector on the app's own webview, so a blank window can be
-            // debugged without guessing which browser tab is being inspected.
-            #[cfg(debug_assertions)]
-            if let Some(window) = app.get_webview_window("main") {
-                window.open_devtools();
-            }
             let data_dir = app.path().app_data_dir()?;
             let sink = Arc::new(commands::events::TauriPermissionSink {
                 app: app.handle().clone(),
