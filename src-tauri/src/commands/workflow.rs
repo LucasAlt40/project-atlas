@@ -325,7 +325,7 @@ fn drive<R: Runtime>(
 /// What the run changed in the code, from Git (while its worktree exists; the summary kept with
 /// the run afterwards).
 #[allow(clippy::needless_pass_by_value)]
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_workflow_changes(
     state: State<'_, AppState>,
     execution_id: String,
@@ -335,7 +335,7 @@ pub fn get_workflow_changes(
 
 /// The real diff of the run's code, or of one file of it.
 #[allow(clippy::needless_pass_by_value)]
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_workflow_diff(
     state: State<'_, AppState>,
     execution_id: String,
@@ -347,7 +347,7 @@ pub fn get_workflow_diff(
 /// The user's decision to apply the run's changes to the project. Goes through the worktree
 /// merge with every check it has; a merge that cannot happen is reported in the run.
 #[allow(clippy::needless_pass_by_value)]
-#[tauri::command]
+#[tauri::command(async)]
 pub fn apply_workflow_changes<R: Runtime>(
     app: AppHandle<R>,
     state: State<'_, AppState>,
@@ -358,7 +358,7 @@ pub fn apply_workflow_changes<R: Runtime>(
 
 /// The user's decision to leave the changes in the worktree.
 #[allow(clippy::needless_pass_by_value)]
-#[tauri::command]
+#[tauri::command(async)]
 pub fn keep_workflow_changes<R: Runtime>(
     app: AppHandle<R>,
     state: State<'_, AppState>,
@@ -369,7 +369,7 @@ pub fn keep_workflow_changes<R: Runtime>(
 
 /// The user's confirmed decision to discard the worktree (its branch is kept).
 #[allow(clippy::needless_pass_by_value)]
-#[tauri::command]
+#[tauri::command(async)]
 pub fn discard_workflow_changes<R: Runtime>(
     app: AppHandle<R>,
     state: State<'_, AppState>,
@@ -380,14 +380,14 @@ pub fn discard_workflow_changes<R: Runtime>(
 
 /// The editors Atlas can open a worktree in, found on this machine.
 #[allow(clippy::needless_pass_by_value)]
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_ides(state: State<'_, AppState>) -> Vec<Ide> {
     state.integration.ides()
 }
 
 /// Opens the run's code in an editor: its worktree while the code is only there.
 #[allow(clippy::needless_pass_by_value)]
-#[tauri::command]
+#[tauri::command(async)]
 pub fn open_workflow_in_ide(
     state: State<'_, AppState>,
     execution_id: String,

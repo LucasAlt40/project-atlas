@@ -27,7 +27,7 @@ pub async fn analyze_project(
 
 /// Creates or updates `.atlas/` from a fresh analysis and the user's review.
 #[allow(clippy::needless_pass_by_value)]
-#[tauri::command]
+#[tauri::command(async)]
 pub fn initialize_project(
     state: State<'_, AppState>,
     workspace_id: String,
@@ -38,7 +38,7 @@ pub fn initialize_project(
 
 /// The state of the workspace's Harness: not initialized, initialized or needs review.
 #[allow(clippy::needless_pass_by_value)]
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_project_harness(
     state: State<'_, AppState>,
     workspace_id: String,
@@ -49,7 +49,7 @@ pub fn get_project_harness(
 /// Compares a new analysis with the existing Harness. Without `confirm` it only reports the
 /// diff and conflicts; with it, the generated files are updated and the user's own are kept.
 #[allow(clippy::needless_pass_by_value)]
-#[tauri::command]
+#[tauri::command(async)]
 pub fn refresh_project_harness(
     state: State<'_, AppState>,
     workspace_id: String,
@@ -63,7 +63,7 @@ pub fn refresh_project_harness(
 /// What an agent would be told for a task, chosen from the workspace's Harness, with the reason
 /// for each choice. Inspection only: nothing is written and nothing runs.
 #[allow(clippy::needless_pass_by_value)]
-#[tauri::command]
+#[tauri::command(async)]
 pub fn preview_task_context(
     state: State<'_, AppState>,
     request: TaskContextRequest,

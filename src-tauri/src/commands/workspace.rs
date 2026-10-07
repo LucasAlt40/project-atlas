@@ -67,7 +67,7 @@ pub fn remove_agent_from_workspace(
 /// What agents are told about the workspace's project (folder name, path, and the technologies
 /// recognised from marker files in the folder).
 #[allow(clippy::needless_pass_by_value)]
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_project_context(
     state: State<'_, AppState>,
     workspace_id: String,
