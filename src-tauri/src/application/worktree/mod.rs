@@ -224,21 +224,6 @@ pub trait WorktreeManager: Send + Sync {
     /// Fails if Git cannot read it.
     fn get_status(&self, path: &Path) -> Result<Vec<String>, WorktreeError>;
 
-    /// The unified diff of the execution branch against where it forked from the base, cut at
-    /// `max_bytes`. Read again from Git whenever it is needed; never stored.
-    ///
-    /// # Errors
-    ///
-    /// Fails if Git cannot produce it.
-    #[allow(dead_code)] // for the diff view of a later milestone; tested
-    fn get_diff(
-        &self,
-        toplevel: &Path,
-        base_branch: &str,
-        branch: &str,
-        max_bytes: usize,
-    ) -> Result<String, WorktreeError>;
-
     /// The commit a worktree (or checkout) is at.
     ///
     /// # Errors

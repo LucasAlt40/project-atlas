@@ -817,31 +817,6 @@ impl WorktreeManager for GitWorktreeManager {
             .collect())
     }
 
-    fn get_diff(
-        &self,
-        toplevel: &Path,
-        base_branch: &str,
-        branch: &str,
-        max_bytes: usize,
-    ) -> Result<String, WorktreeError> {
-        Self::require_execution_branch(branch)?;
-        self.require_valid_base(toplevel, base_branch)?;
-        let range = format!("{}...{}", head(base_branch), head(branch));
-        let output = self.run_ok(
-            toplevel,
-            ["diff", "--no-color", "--no-ext-diff", &range, "--"],
-        )?;
-        let mut text = String::from_utf8_lossy(&output.stdout).into_owned();
-        if text.len() > max_bytes {
-            let mut cut = max_bytes;
-            while !text.is_char_boundary(cut) {
-                cut -= 1;
-            }
-            text.truncate(cut);
-        }
-        Ok(text)
-    }
-
     fn head_commit(&self, path: &Path) -> Result<String, WorktreeError> {
         Ok(self.run_ok(path, ["rev-parse", "HEAD"])?.text())
     }

@@ -67,12 +67,7 @@ pub struct FsProjectScanner {
     limits: ScanLimits,
 }
 
-impl FsProjectScanner {
-    #[allow(dead_code)]
-    pub fn with_limits(limits: ScanLimits) -> Self {
-        Self { limits }
-    }
-}
+impl FsProjectScanner {}
 
 impl ProjectScanner for FsProjectScanner {
     fn scan(&self, project_path: &str) -> Result<ScanSnapshot, AppError> {

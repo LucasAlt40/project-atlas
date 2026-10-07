@@ -693,31 +693,6 @@ fn a_merged_execution_cannot_be_merged_again_and_an_unknown_one_cannot_be_merged
     ));
 }
 
-#[test]
-fn the_diff_is_read_from_git_and_bounded() {
-    let env = Env::new(Permission::ApprovalRequired);
-    let prepared = env.prepare("exec-1");
-    write(&prepared.working_dir, "feature.txt", &"line\n".repeat(1000));
-    let done = env.finalize("exec-1");
-
-    let diff = env
-        .manager
-        .get_diff(
-            Path::new(&done.repository_path),
-            &done.base_branch,
-            &done.branch_name,
-            200,
-        )
-        .unwrap();
-
-    assert!(diff.starts_with("diff --git a/feature.txt"));
-    assert_eq!(diff.len(), 200);
-    assert_eq!(
-        env.manager.get_branch(&prepared.working_dir).unwrap(),
-        "atlas/exec-000001"
-    );
-}
-
 // ---- security -----------------------------------------------------------------------------
 
 #[test]
