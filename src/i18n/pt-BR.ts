@@ -16,6 +16,8 @@ export const ptBR: Record<TranslationKey, string> = {
 
   // Generic
   'common.cancel': 'Cancelar',
+  'common.retry': 'Tentar de novo',
+  'common.renderFailed': 'Esta tela encontrou um problema inesperado.',
   'common.save': 'Salvar',
   'common.create': 'Criar',
   'common.edit': 'Editar',

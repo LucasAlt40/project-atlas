@@ -18,6 +18,8 @@ export const enUS = {
 
   // Generic
   'common.cancel': 'Cancel',
+  'common.retry': 'Try again',
+  'common.renderFailed': 'This screen hit an unexpected problem.',
   'common.save': 'Save',
   'common.create': 'Create',
   'common.edit': 'Edit',

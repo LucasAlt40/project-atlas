@@ -356,3 +356,66 @@ fn build_state(
 fn context<R: tauri::Runtime>() -> tauri::Context<R> {
     tauri::generate_context!()
 }
+
+#[cfg(test)]
+mod command_wiring {
+    use std::collections::BTreeSet;
+
+    /// The text of each `"quoted",` line of `source` that starts with `prefix`, without it.
+    fn quoted_lines(source: &str, prefix: &str) -> BTreeSet<String> {
+        source
+            .lines()
+            .map(|line| line.trim().trim_end_matches(',').trim_matches('"'))
+            .filter_map(|text| text.strip_prefix(prefix))
+            .filter(|name| !name.is_empty())
+            .map(|name| name.replace('-', "_"))
+            .collect()
+    }
+
+    /// A command reachable from the webview is declared in three places that nothing else ties
+    /// together: the handler list, `build.rs` (which generates its permission) and the capability
+    /// that grants it. One missing from either of the last two fails only at run time, as
+    /// "not allowed", so this keeps them identical.
+    #[test]
+    fn every_registered_command_is_declared_and_granted() {
+        let handler = include_str!("lib.rs")
+            .split("generate_handler![")
+            .nth(1)
+            .and_then(|rest| rest.split("])").next())
+            .expect("the handler list");
+        let registered: BTreeSet<String> = handler
+            .lines()
+            .filter_map(|line| line.trim().strip_prefix("commands::"))
+            .filter_map(|path| path.trim_end_matches(',').rsplit("::").next())
+            .map(str::to_owned)
+            .collect();
+        let build = include_str!("../build.rs");
+        let declared: BTreeSet<String> = build
+            .split("COMMANDS: &[&str] = &[")
+            .nth(1)
+            .and_then(|rest| rest.split("];").next())
+            .map(|list| quoted_lines(list, ""))
+            .expect("the command list");
+        let granted = quoted_lines(include_str!("../capabilities/default.json"), "allow-");
+
+        assert!(registered.len() > 50, "the handler list was not read");
+        let missing = |a: &BTreeSet<String>, b: &BTreeSet<String>| {
+            a.difference(b).cloned().collect::<Vec<_>>()
+        };
+        assert_eq!(
+            missing(&registered, &declared),
+            Vec::<String>::new(),
+            "not in build.rs"
+        );
+        assert_eq!(
+            missing(&registered, &granted),
+            Vec::<String>::new(),
+            "not granted"
+        );
+        assert_eq!(
+            missing(&declared, &registered),
+            Vec::<String>::new(),
+            "never registered"
+        );
+    }
+}

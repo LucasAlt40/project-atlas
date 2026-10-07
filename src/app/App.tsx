@@ -1,4 +1,5 @@
 import { Suspense, useMemo, useState } from 'react';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { AppShell } from '@/components/layout/AppShell';
 import { SidebarFooter } from '@/components/layout/SidebarFooter';
 import { CatalogProvider } from '@/features/agents/hooks/useCatalog';
@@ -65,9 +66,11 @@ function Shell() {
           </>
         }
       >
-        <Suspense fallback={null}>
-          <ActiveScreen />
-        </Suspense>
+        <ErrorBoundary resetKey={active.id}>
+          <Suspense fallback={null}>
+            <ActiveScreen />
+          </Suspense>
+        </ErrorBoundary>
       </AppShell>
     </NavigationContext.Provider>
   );
