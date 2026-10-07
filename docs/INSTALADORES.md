@@ -17,7 +17,7 @@ definitiva é assinar os builds com um certificado em nome do publicador.
 ### macOS (Apple Developer Program, US$ 99/ano)
 
 1. Crie um certificado **Developer ID Application** e exporte como `.p12`.
-2. Gere uma *app-specific password* em appleid.apple.com.
+2. Gere uma _app-specific password_ em appleid.apple.com.
 3. Secrets do repositório:
    - `APPLE_CERTIFICATE`: `base64 -i cert.p12 | pbcopy`
    - `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY` (ex.: `Developer ID Application: Nome (TEAMID)`)
