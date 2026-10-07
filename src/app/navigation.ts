@@ -1,11 +1,23 @@
-import type { ComponentType } from 'react';
-import { WorkflowPage } from '@/features/workflow/pages/WorkflowPage';
-import { SettingsPage } from '@/features/settings/pages/SettingsPage';
+import { lazy, type ComponentType } from 'react';
 import { WorkspacePage } from '@/features/workspace/pages/WorkspacePage';
 import type { IconName } from '@/components/ui/Icon';
 import type { TranslationKey } from '@/i18n';
-import { AgentsScreen } from './AgentsScreen';
-import { PersonalitiesScreen } from './PersonalitiesScreen';
+
+// Only the first screen is in the main bundle; the others load when first opened (the workflow
+// canvas alone brings in a graph library). A screen is unmounted when it is left, so a lazy
+// one costs nothing after its first load.
+const WorkflowPage = lazy(() =>
+  import('@/features/workflow/pages/WorkflowPage').then((m) => ({ default: m.WorkflowPage })),
+);
+const SettingsPage = lazy(() =>
+  import('@/features/settings/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
+);
+const AgentsScreen = lazy(() =>
+  import('./AgentsScreen').then((m) => ({ default: m.AgentsScreen })),
+);
+const PersonalitiesScreen = lazy(() =>
+  import('./PersonalitiesScreen').then((m) => ({ default: m.PersonalitiesScreen })),
+);
 
 export interface Screen {
   id: string;

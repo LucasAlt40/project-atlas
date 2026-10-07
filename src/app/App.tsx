@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { SidebarFooter } from '@/components/layout/SidebarFooter';
 import { CatalogProvider } from '@/features/agents/hooks/useCatalog';
@@ -65,7 +65,9 @@ function Shell() {
           </>
         }
       >
-        <ActiveScreen />
+        <Suspense fallback={null}>
+          <ActiveScreen />
+        </Suspense>
       </AppShell>
     </NavigationContext.Provider>
   );
