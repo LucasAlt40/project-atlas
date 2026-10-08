@@ -7,6 +7,8 @@ name: Release
 #   macOS:   APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY,
 #            APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID   (signs + notarizes)
 #   Windows: WINDOWS_CERTIFICATE (base64 .pfx), WINDOWS_CERTIFICATE_PASSWORD
+# In-app updates (required): TAURI_SIGNING_PRIVATE_KEY (+ TAURI_SIGNING_PRIVATE_KEY_PASSWORD if it
+#   has one) signs the update bundles; the matching public key is in tauri.conf.json.
 # Without them the build falls back to ad-hoc signing on macOS and no signing on Windows.
 on:
   push:
@@ -99,6 +101,8 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Project Atlas ${{ github.ref_name }}'
@@ -106,7 +110,8 @@ jobs:
             Instaladores do Project Atlas. Confira a integridade com o arquivo `SHA256SUMS.txt`.
             Se o sistema avisar na primeira abertura, veja "Instalar" no README.
           releaseDraft: false
-          prerelease: true
+          # `releases/latest` (the updater endpoint) skips prereleases.
+          prerelease: false
           args: ${{ matrix.args }}
 
   checksums:
