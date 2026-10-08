@@ -9,30 +9,9 @@ use crate::domain::optimization::{
     BudgetOverrun, ContextDecision, DecisionKind, SectionKind, TextSize,
 };
 
-/// How much a prompt may weigh, in estimated tokens. `max_tokens: None` is no budget: nothing is
-/// ever left out for size.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct ContextBudget {
-    pub max_tokens: Option<u64>,
-    pub reserved_for_output: u64,
-    pub reserved_for_tools: u64,
-    pub reserved_for_reasoning: u64,
-}
-
-impl ContextBudget {
-    /// What is left for the context itself once the reservations are made.
-    fn available(&self) -> Option<u64> {
-        self.max_tokens.map(|max| {
-            max.saturating_sub(self.reserved_for_output)
-                .saturating_sub(self.reserved_for_tools)
-                .saturating_sub(self.reserved_for_reasoning)
-        })
-    }
-}
-
 /// What the engine decided: the items as they should be sent, and why each change was made.
 #[derive(Debug, Clone, PartialEq)]
-pub struct ContextPlan {
+pub struct EnginePlan {
     pub items: Vec<ContextItem>,
     pub decisions: Vec<ContextDecision>,
     pub deduplicated_lines: u32,
@@ -41,7 +20,7 @@ pub struct ContextPlan {
     pub over_budget: Option<BudgetOverrun>,
 }
 
-impl ContextPlan {
+impl EnginePlan {
     pub fn changed(&self) -> bool {
         !self.decisions.is_empty()
     }
@@ -58,11 +37,13 @@ struct Seen {
 pub struct ContextEngine;
 
 impl ContextEngine {
-    /// Plans `items` (in prompt order) under `budget`: duplicates out, whitespace tidied, then,
-    /// only if a budget is still not met, whole items below `High` left out. `Required` items are
+    /// Plans `items` (in prompt order) for a prompt that may weigh `available` estimated tokens
+    /// (`ExecutionBudget::available_for_context`; `None`: no limit is known, so nothing is left
+    /// out for size): duplicates out, whitespace tidied, then, only if the limit is still not
+    /// met, whole items below `High` left out. `Required` items are
     /// compared against and never changed.
-    pub fn plan(items: Vec<ContextItem>, budget: &ContextBudget) -> ContextPlan {
-        let mut plan = ContextPlan {
+    pub fn plan(items: Vec<ContextItem>, available: Option<u64>) -> EnginePlan {
+        let mut plan = EnginePlan {
             items,
             decisions: Vec::new(),
             deduplicated_lines: 0,
@@ -72,11 +53,11 @@ impl ContextEngine {
         };
         Self::deduplicate(&mut plan);
         Self::compress(&mut plan);
-        Self::fit(&mut plan, budget);
+        Self::fit(&mut plan, available);
         plan
     }
 
-    fn deduplicate(plan: &mut ContextPlan) {
+    fn deduplicate(plan: &mut EnginePlan) {
         let mut seen: Vec<Seen> = Vec::new();
         for index in 0..plan.items.len() {
             let editable = plan.items[index].editable();
@@ -157,7 +138,7 @@ impl ContextEngine {
         fenced: &[bool],
         dropped: &mut [bool],
         source: SectionKind,
-        plan: &mut ContextPlan,
+        plan: &mut EnginePlan,
     ) {
         for i in 0..lines.len() {
             if dropped[i] || fenced[i] || !is_list_heading(lines[i]) {
@@ -180,7 +161,7 @@ impl ContextEngine {
         }
     }
 
-    fn compress(plan: &mut ContextPlan) {
+    fn compress(plan: &mut EnginePlan) {
         for item in plan.items.iter_mut().filter(|i| i.editable()) {
             let (text, changed) = compress_whitespace(&item.content);
             if changed {
@@ -201,11 +182,11 @@ impl ContextEngine {
 
     /// Leaves out whole items below `High` until the budget is met, stale and larger ones first,
     /// each replaced by a line saying so. What cannot be left out is reported, not cut.
-    fn fit(plan: &mut ContextPlan, budget: &ContextBudget) {
-        let Some(available) = budget.available() else {
+    fn fit(plan: &mut EnginePlan, available: Option<u64>) {
+        let Some(available) = available else {
             return;
         };
-        let total = |plan: &ContextPlan| -> u64 {
+        let total = |plan: &EnginePlan| -> u64 {
             plan.items.iter().map(ContextItem::estimated_tokens).sum()
         };
         while total(plan) > available {

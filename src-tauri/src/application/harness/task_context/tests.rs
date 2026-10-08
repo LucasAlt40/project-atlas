@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::*;
 use crate::application::harness::context::{
-    ContextBudget, HarnessContextBuilder, HarnessLoad, TaskContextLoad,
+    HarnessBudget, HarnessContextBuilder, HarnessLoad, TaskContextLoad,
 };
 use crate::application::harness::fake::MemoryHarnessStore;
 use crate::application::harness::generator::{user_files, ExistingUserFiles};
@@ -723,7 +723,7 @@ fn a_big_harness_is_cut_to_the_budget_and_the_cut_is_told() {
 #[test]
 fn constraints_and_decisions_survive_a_budget_too_small_for_anything_else() {
     let w = World::with(findings(), vec![], &user());
-    let tight = w.builder().with_budget(ContextBudget { max_chars: 300 });
+    let tight = w.builder().with_budget(HarnessBudget { max_chars: 300 });
 
     let TaskContextLoad::Ready(c) = tight.build_for_task("/erp", "Add password recovery endpoint")
     else {

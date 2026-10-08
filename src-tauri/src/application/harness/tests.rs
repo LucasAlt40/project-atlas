@@ -987,7 +987,7 @@ fn model_findings_are_reviewed_then_stored_and_carried_over_by_a_refresh_while_t
 
 // ---- HarnessContextBuilder ----
 
-use super::context::{ContextBudget, HarnessContextBuilder, HarnessLoad};
+use super::context::{HarnessBudget, HarnessContextBuilder, HarnessLoad};
 
 fn loaded(f: &Fixture) -> (String, Vec<String>) {
     match HarnessContextBuilder::new(f.store.clone()).build("/erp") {
@@ -1131,7 +1131,7 @@ fn a_small_budget_keeps_constraints_and_decisions_first_and_names_what_was_left_
     init(&f, input(InitMode::Create));
 
     let tight =
-        HarnessContextBuilder::new(f.store.clone()).with_budget(ContextBudget { max_chars: 700 });
+        HarnessContextBuilder::new(f.store.clone()).with_budget(HarnessBudget { max_chars: 700 });
     let HarnessLoad::Loaded { text, omitted } = tight.build("/erp") else {
         panic!("expected a loaded harness");
     };
@@ -1805,7 +1805,7 @@ fn constraints_and_decisions_are_never_cut_by_the_budget() {
     let f = fixture_with(&[], layered_project());
     init(&f, input(InitMode::Create));
     let tiny =
-        HarnessContextBuilder::new(f.store.clone()).with_budget(ContextBudget { max_chars: 1 });
+        HarnessContextBuilder::new(f.store.clone()).with_budget(HarnessBudget { max_chars: 1 });
 
     let HarnessLoad::Loaded { text, omitted } = tiny.build("/erp") else {
         panic!("expected a loaded harness");

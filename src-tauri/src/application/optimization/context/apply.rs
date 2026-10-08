@@ -2,13 +2,16 @@
 //! the *inputs* `PromptBuilder` takes (the Harness text and the task text, brief included), and
 //! the builder, still the only assembly, builds the prompt from them.
 
-use super::engine::{ContextBudget, ContextEngine, ContextPlan};
+use super::engine::{ContextEngine, EnginePlan};
 use super::item::{ContextItem, Priority};
 use crate::application::optimization::skills::SkillBlock;
 use crate::application::prompt::Prompt;
+use crate::application::rules::{self, RuleBlock};
+use crate::domain::context::ExecutionBudget;
 use crate::domain::optimization::{
     BriefParts, ContextEngineMetrics, SectionKind, TextSize, TokenSource,
 };
+use crate::domain::rules::RuleStrength;
 
 const MAX_RECORDED_DECISIONS: usize = 40;
 
@@ -23,7 +26,9 @@ pub struct ContextInputs<'a> {
     pub brief: Option<&'a BriefParts>,
     /// The skills in the prompt, one block each (as `prompt.skills` is made of them).
     pub skills: &'a [SkillBlock],
-    pub budget: ContextBudget,
+    /// The rules in the prompt, one block each.
+    pub rules: &'a [RuleBlock],
+    pub budget: &'a ExecutionBudget,
 }
 
 /// What to build the prompt from instead, and what was done.
@@ -31,6 +36,8 @@ pub struct ContextOutcome {
     pub harness: Option<String>,
     /// The skills as they will be, block by block.
     pub skill_blocks: Vec<SkillBlock>,
+    /// The rules as they will be, block by block.
+    pub rule_blocks: Vec<RuleBlock>,
     pub task_description: String,
     /// The brief as it will be, when it was taken apart.
     pub brief_parts: Option<BriefParts>,
@@ -70,6 +77,7 @@ pub(crate) fn prompt_items(
     task_description: &str,
     brief: Option<&BriefParts>,
     skills: &[SkillBlock],
+    rules: &[RuleBlock],
 ) -> PromptItems {
     let mut items: Vec<ContextItem> = Vec::new();
     items.push(ContextItem::new(
@@ -79,6 +87,34 @@ pub(crate) fn prompt_items(
         "atlas",
         &prompt.system,
     ));
+    if !rules.is_empty() {
+        items.push(ContextItem::new(
+            "rules_notice",
+            SectionKind::Rules,
+            Priority::Required,
+            "atlas",
+            rules::notice(),
+        ));
+        for block in rules {
+            // A mandatory rule is never edited, dropped or truncated. A preference may be left
+            // out for a budget, and background goes first.
+            let priority = match block.strength {
+                RuleStrength::Mandatory => Priority::Required,
+                RuleStrength::Preference => Priority::Normal,
+                RuleStrength::Informational => Priority::Optional,
+            };
+            items.push(
+                ContextItem::new(
+                    &format!("rule:{}", block.reference),
+                    SectionKind::Rules,
+                    priority,
+                    &block.provenance(),
+                    &block.text,
+                )
+                .with_authority(block.authority),
+            );
+        }
+    }
     let harness_kind = if prompt.task_aware {
         SectionKind::TaskContext
     } else {
@@ -231,17 +267,18 @@ pub fn optimize_prompt_inputs(inputs: &ContextInputs<'_>) -> ContextOutcome {
         description,
         inputs.brief,
         inputs.skills,
+        inputs.rules,
     );
 
     let whole = TextSize::of(inputs.combined);
     let items_tokens: u64 = items.iter().map(ContextItem::estimated_tokens).sum();
     // The part of the prompt that is not an item (headings, separators) counts against the budget.
     let overhead = whole.estimated_tokens().saturating_sub(items_tokens);
-    let budget = ContextBudget {
-        max_tokens: inputs.budget.max_tokens.map(|m| m.saturating_sub(overhead)),
-        ..inputs.budget
-    };
-    let plan = ContextEngine::plan(items, &budget);
+    let available = inputs
+        .budget
+        .available_for_context()
+        .map(|tokens| tokens.saturating_sub(overhead));
+    let plan = ContextEngine::plan(items, available);
 
     let content_of = |id: &str| {
         plan.items
@@ -281,6 +318,14 @@ pub fn optimize_prompt_inputs(inputs: &ContextInputs<'_>) -> ContextOutcome {
             ..block.clone()
         })
         .collect();
+    let rule_blocks: Vec<RuleBlock> = inputs
+        .rules
+        .iter()
+        .map(|block| RuleBlock {
+            text: content_of(&format!("rule:{}", block.reference)).unwrap_or_default(),
+            ..block.clone()
+        })
+        .collect();
     let brief_parts = split.as_ref().map(|_| BriefParts {
         workflow_context: content_of("workflow_context").unwrap_or_default(),
         handoff: content_of("handoff").unwrap_or_default(),
@@ -290,6 +335,7 @@ pub fn optimize_prompt_inputs(inputs: &ContextInputs<'_>) -> ContextOutcome {
     ContextOutcome {
         harness,
         skill_blocks,
+        rule_blocks,
         task_description,
         brief_parts,
         changed,
@@ -297,7 +343,7 @@ pub fn optimize_prompt_inputs(inputs: &ContextInputs<'_>) -> ContextOutcome {
     }
 }
 
-fn metrics_of(plan: &ContextPlan, raw: TextSize, skipped: Option<String>) -> ContextEngineMetrics {
+fn metrics_of(plan: &EnginePlan, raw: TextSize, skipped: Option<String>) -> ContextEngineMetrics {
     ContextEngineMetrics {
         raw_bytes: raw.bytes,
         final_bytes: raw.bytes,

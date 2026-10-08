@@ -1,5 +1,6 @@
 use super::*;
 use crate::application::optimization::context::item::{ContextItem, Priority};
+use crate::domain::context::{ExecutionBudget, ModelLimits, Precision, ReportedLimits};
 use crate::domain::optimization::{DecisionKind, SectionKind};
 
 fn item(id: &str, source: SectionKind, priority: Priority, content: &str) -> ContextItem {
@@ -14,8 +15,8 @@ fn high(id: &str, source: SectionKind, content: &str) -> ContextItem {
     item(id, source, Priority::High, content)
 }
 
-fn no_budget() -> ContextBudget {
-    ContextBudget::default()
+fn no_budget() -> Option<u64> {
+    None
 }
 
 /// `n` words no other filler shares, so fillers never repeat one another.
@@ -26,7 +27,7 @@ fn filler(seed: &str, n: usize) -> String {
         .join(" ")
 }
 
-fn content<'a>(plan: &'a ContextPlan, id: &str) -> &'a str {
+fn content<'a>(plan: &'a EnginePlan, id: &str) -> &'a str {
     &plan.items.iter().find(|i| i.id == id).unwrap().content
 }
 
@@ -45,7 +46,7 @@ fn an_exact_repeat_is_removed_from_the_later_item_and_the_earlier_one_keeps_it()
                 "The project uses Angular 22 with PrimeNG\nBackend is Rust and Tauri",
             ),
         ],
-        &no_budget(),
+        no_budget(),
     );
 
     assert_eq!(
@@ -77,7 +78,7 @@ fn case_punctuation_and_spacing_do_not_make_a_line_different() {
                 "  stack - angular 22   primeng  ",
             ),
         ],
-        &no_budget(),
+        no_budget(),
     );
 
     assert_eq!(plan.decisions[0].kind, DecisionKind::DuplicateNormalized);
@@ -99,7 +100,7 @@ fn a_line_whose_every_word_is_in_one_earlier_line_adds_nothing_and_goes() {
                 "- architecture.md (docs/architecture.md): POST /password-reset, 15m token",
             ),
         ],
-        &no_budget(),
+        no_budget(),
     );
 
     assert_eq!(plan.decisions[0].kind, DecisionKind::DuplicateOverlap);
@@ -121,7 +122,7 @@ fn a_line_that_says_something_new_is_kept_even_if_it_shares_most_words() {
                 "Use JWT for the reset token and never expire it",
             ),
         ],
-        &no_budget(),
+        no_budget(),
     );
 
     // "never" is new: the second line is not contained in the first.
@@ -144,7 +145,7 @@ fn short_lines_headings_and_code_are_never_compared() {
                 "Decisions:\n- JWT\n```\nlet total = price + tax;\n```",
             ),
         ],
-        &no_budget(),
+        no_budget(),
     );
 
     // Two words are not a claim; a heading is structure; code is literal.
@@ -166,7 +167,7 @@ fn a_list_whose_every_bullet_was_a_repeat_loses_its_heading_too() {
                 "Summary of the work\nDecisions:\n- JWT: use JWT for the reset token\n- Mail: send the reset link by email only\nArtifacts:\n- notes.md: a new note about the flow\n",
             ),
         ],
-        &no_budget(),
+        no_budget(),
     );
 
     let handoff = content(&plan, "handoff");
@@ -185,10 +186,7 @@ fn required_context_is_never_edited_even_when_it_repeats_itself() {
             required("rules", SectionKind::AtlasRules, repeated),
             required("protocols", SectionKind::BriefProtocols, repeated),
         ],
-        &ContextBudget {
-            max_tokens: Some(1),
-            ..ContextBudget::default()
-        },
+        Some(1),
     );
 
     assert!(
@@ -216,10 +214,7 @@ fn a_budget_leaves_out_the_least_important_whole_items_first_and_says_so() {
             item("history", SectionKind::Task, Priority::Optional, &b),
             item("hints", SectionKind::Task, Priority::Normal, &c),
         ],
-        &ContextBudget {
-            max_tokens: Some(400),
-            ..ContextBudget::default()
-        },
+        Some(400),
     );
 
     // Optional goes before Normal; High and Required stay.
@@ -243,11 +238,8 @@ fn only_as_much_is_left_out_as_the_budget_needs_and_stale_goes_first() {
             item("fresh", SectionKind::Task, Priority::Normal, &fresh),
             item("old", SectionKind::Task, Priority::Normal, &old).stale(),
         ],
-        &ContextBudget {
-            // One filler fits, two do not.
-            max_tokens: Some(150),
-            ..ContextBudget::default()
-        },
+        // One filler fits, two do not.
+        Some(150),
     );
 
     assert!(content(&plan, "old").starts_with("[Left out"));
@@ -257,7 +249,7 @@ fn only_as_much_is_left_out_as_the_budget_needs_and_stale_goes_first() {
 }
 
 #[test]
-fn reservations_come_out_of_the_budget() {
+fn what_is_kept_for_the_answer_comes_out_of_the_budget() {
     let extra = filler("e", 100);
     let items = || {
         vec![
@@ -265,18 +257,31 @@ fn reservations_come_out_of_the_budget() {
             item("extra", SectionKind::Task, Priority::Optional, &extra),
         ]
     };
-    let fits = ContextBudget {
-        max_tokens: Some(200),
-        ..ContextBudget::default()
-    };
-    let reserved = ContextBudget {
-        reserved_for_output: 100,
-        reserved_for_tools: 50,
-        ..fits
+    // The same window, with more or less of it kept for the answer.
+    let budget = |kept_for_output: u64| {
+        ExecutionBudget::resolve(
+            ModelLimits::reported(
+                "rt",
+                "m",
+                ReportedLimits {
+                    input: None,
+                    output: Some(kept_for_output),
+                    total: Some(250),
+                    precision: Precision::Exact,
+                },
+            ),
+            &[],
+        )
     };
 
-    assert_eq!(ContextEngine::plan(items(), &fits).omitted_items, 0);
-    assert_eq!(ContextEngine::plan(items(), &reserved).omitted_items, 1);
+    assert_eq!(
+        ContextEngine::plan(items(), budget(50).available_for_context()).omitted_items,
+        0
+    );
+    assert_eq!(
+        ContextEngine::plan(items(), budget(200).available_for_context()).omitted_items,
+        1
+    );
 }
 
 #[test]
@@ -289,7 +294,7 @@ fn without_a_budget_nothing_is_ever_left_out() {
             Priority::Optional,
             &filler,
         )],
-        &no_budget(),
+        no_budget(),
     );
 
     assert_eq!(plan.omitted_items, 0);
@@ -305,7 +310,7 @@ fn whitespace_is_tidied_in_editable_items_only_and_no_word_changes() {
             required("rules", SectionKind::AtlasRules, rules),
             high("harness", SectionKind::Harness, harness),
         ],
-        &no_budget(),
+        no_budget(),
     );
 
     assert_eq!(content(&plan, "rules"), rules);

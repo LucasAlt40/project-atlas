@@ -7,8 +7,10 @@
 #[cfg(test)]
 pub mod benchmark;
 pub mod context;
+pub mod platform;
 pub mod review;
 pub mod skills;
+pub mod surface;
 
 use std::cell::Cell;
 use std::collections::BTreeMap;
@@ -16,10 +18,12 @@ use std::time::Instant;
 
 use super::config::ConfigRepository;
 use super::runtimes::RuntimeEvent;
+use crate::domain::context::{ContextAuthority, ExecutionBudget};
 use crate::domain::guardrail::{ContextReviewResult, GuardrailMetrics};
 use crate::domain::optimization::{
-    ContextEngineMetrics, ContextMetrics, HandoffMetrics, LatencyMetrics, OptimizationCounters,
-    OptimizationMetrics, PromptBreakdown, RuntimeExtensions, SkillMetrics, ToolMetrics, ToolUse,
+    AuthorityMetrics, ContextEngineMetrics, ContextMetrics, HandoffMetrics, LatencyMetrics,
+    OptimizationCounters, OptimizationMetrics, PromptBreakdown, RuleMetrics, RuntimeExtensions,
+    SkillMetrics, TokenSource, ToolMetrics, ToolUse,
 };
 use crate::domain::task_context::ContextRecord;
 
@@ -233,6 +237,28 @@ pub struct PreRuntime {
     pub prompt_build_ms: Option<f64>,
     /// Time spent measuring so far.
     pub instrumentation_ms: f64,
+    pub budget: Option<ExecutionBudget>,
+    pub delivery_ms: Option<f64>,
+    pub rules: Option<RuleMetrics>,
+    pub authority: Option<AuthorityMetrics>,
+}
+
+/// The prompt's size by what its text may do. Estimates (`chars / 4`), by item.
+pub fn authority_metrics(items: &[context::ContextItem]) -> AuthorityMetrics {
+    let of = |authority: ContextAuthority| {
+        items
+            .iter()
+            .filter(|item| item.authority == authority)
+            .map(context::ContextItem::estimated_tokens)
+            .sum()
+    };
+    AuthorityMetrics {
+        authoritative_tokens: of(ContextAuthority::Authoritative),
+        instructional_tokens: of(ContextAuthority::Instructional),
+        informational_tokens: of(ContextAuthority::Informational),
+        untrusted_tokens: of(ContextAuthority::Untrusted),
+        token_source: TokenSource::Estimated,
+    }
 }
 
 /// The harness part of the picture, from the record the Task Context service already makes.
@@ -264,6 +290,7 @@ pub fn finish_metrics(
             runtime_ms: runtime.map(|r| r.total_ms),
             total_ms,
             instrumentation_ms: Some(pre.instrumentation_ms + instrumentation_ms),
+            delivery_ms: pre.delivery_ms,
         },
         tools: ToolMetrics {
             calls: runtime.and_then(|r| r.tool_calls),
@@ -303,6 +330,10 @@ pub fn finish_metrics(
         extensions: None,
         guardrails: pre.guardrails,
         context_review: pre.context_review,
+        budget: pre.budget,
+        rules: pre.rules,
+        authority: pre.authority,
+        mcp: None,
     }
 }
 

@@ -23,5 +23,7 @@ pub(crate) mod text;
 
 pub use apply::{optimize_prompt_inputs, ContextInputs};
 pub(crate) use apply::{prompt_items, rebuild_task};
-pub use engine::ContextBudget;
 pub use item::{ContextItem, Priority};
+
+#[cfg(test)]
+mod rule_items_tests;

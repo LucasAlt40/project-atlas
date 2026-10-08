@@ -1,4 +1,5 @@
 use crate::application::harness::fingerprint::digest_text;
+use crate::domain::context::ContextAuthority;
 use crate::domain::optimization::{SectionKind, TextSize};
 
 /// How much a piece of context matters to the step, from the order the Optimization Layer
@@ -31,6 +32,9 @@ pub struct ContextItem {
     pub stale: bool,
     /// Where it came from (`harness`, `workflow.handoff`, `agent`…).
     pub provenance: String,
+    /// What the text may do (`ContextAuthority`): by default what its section allows; a rule's
+    /// depends on its strength and origin.
+    pub authority: ContextAuthority,
     /// Stable digest of the text, to tell when it changed or repeats.
     pub fingerprint: String,
     pub size: TextSize,
@@ -52,9 +56,16 @@ impl ContextItem {
             relevance: None,
             stale: false,
             provenance: provenance.to_owned(),
+            authority: ContextAuthority::of_section(source),
             fingerprint: digest_text(content),
             size: TextSize::of(content),
         }
+    }
+
+    #[must_use]
+    pub fn with_authority(mut self, authority: ContextAuthority) -> Self {
+        self.authority = authority;
+        self
     }
 
     #[cfg(test)]

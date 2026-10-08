@@ -31,6 +31,17 @@ fn base() -> Vec<ContextItem> {
     ]
 }
 
+static NO_MCP: McpFacts = McpFacts {
+    failures: Vec::new(),
+    requires_approval: false,
+};
+
+static NO_RULES: RuleFacts = RuleFacts {
+    mandatory: Vec::new(),
+    conflicts: Vec::new(),
+    downgraded: Vec::new(),
+};
+
 fn input(items: &[ContextItem]) -> ReviewInput<'_> {
     ReviewInput {
         items,
@@ -39,6 +50,8 @@ fn input(items: &[ContextItem]) -> ReviewInput<'_> {
         stale_items: 0,
         outdated_in_text: false,
         skill_issues: 0,
+        rules: &NO_RULES,
+        mcp: &NO_MCP,
     }
 }
 

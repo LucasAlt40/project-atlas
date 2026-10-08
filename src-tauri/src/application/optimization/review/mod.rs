@@ -11,6 +11,12 @@
 
 mod claims;
 mod conflicts;
+mod directives;
+mod mcp;
+mod rules;
+
+pub use mcp::{McpFacts, McpFailure};
+pub use rules::{MandatoryRule, RuleFacts};
 
 use std::collections::HashSet;
 
@@ -19,6 +25,7 @@ use super::context::{ContextItem, Priority};
 use crate::application::harness::secrets::redact_secrets;
 use crate::application::orchestration::result_parser::RESULT_FENCE;
 use crate::application::prompt::{ATLAS_RULES, ATLAS_RULES_EDITING};
+use crate::domain::context::ContextAuthority;
 use crate::domain::guardrail::{
     ContextHealth, ContextReviewResult, IssueCode, IssueSeverity, ReviewIssue, SourceSummary,
     SourceTrust,
@@ -39,6 +46,11 @@ pub struct ReviewInput<'a> {
     pub outdated_in_text: bool,
     /// Quality issues in the skills that were loaded.
     pub skill_issues: u32,
+    /// What rule resolution decided: the mandatory rules the prompt must carry, the conflicts
+    /// and the rules kept as background.
+    pub rules: &'a RuleFacts,
+    /// What planning decided about the MCP connections granted to the step.
+    pub mcp: &'a McpFacts,
 }
 
 /// Required context a source may not lose.
@@ -66,6 +78,7 @@ fn issue(
         other_source: None,
         message: message.into(),
         excerpt: String::new(),
+        claim: None,
     }
 }
 
@@ -80,6 +93,9 @@ pub fn review(input: &ReviewInput<'_>) -> ContextReviewResult {
     check_engine(input, &mut issues);
     check_freshness(input, &mut issues);
     check_content(input, &mut issues);
+    issues.extend(rules::check(input.items, input.rules));
+    issues.extend(mcp::check(input.mcp));
+    issues.extend(directives::find(input.items, &input.rules.mandatory));
     issues.extend(conflicts::find(input.items));
 
     let health = if issues.iter().any(|i| i.severity == IssueSeverity::Blocking) {
@@ -115,6 +131,7 @@ fn sources_of(items: &[ContextItem]) -> Vec<SourceSummary> {
             None => sources.push(SourceSummary {
                 source: item.source,
                 trust: SourceTrust::of(item.source),
+                authority: ContextAuthority::of_section(item.source),
                 estimated_tokens: tokens,
             }),
         }
@@ -184,6 +201,16 @@ fn check_engine(input: &ReviewInput<'_>, issues: &mut Vec<ReviewIssue>) {
             SectionKind::Framing,
             "what cannot be left out does not fit the context budget",
         ));
+        // A mandatory rule is part of what cannot be left out: that is its own finding, because
+        // it is one the step may not go past without a person.
+        if !input.rules.mandatory.is_empty() {
+            issues.push(issue(
+                IssueCode::RuleOverBudget,
+                IssueSeverity::Error,
+                SectionKind::Rules,
+                "a mandatory rule cannot be delivered within the context budget (required text is never cut)",
+            ));
+        }
     }
     if engine.omitted_items > 0 {
         issues.push(issue(
@@ -253,7 +280,7 @@ fn check_content(input: &ReviewInput<'_>, issues: &mut Vec<ReviewIssue>) {
             issues.push(found);
         }
         if trust == SourceTrust::Untrusted {
-            if let Some(line) = claims::authority_claim(&item.content) {
+            if let Some((kind, line)) = claims::find_claim(&item.content) {
                 if seen.insert((item.source, IssueCode::AuthorityClaim)) {
                     let mut found = issue(
                         IssueCode::AuthorityClaim,
@@ -262,6 +289,7 @@ fn check_content(input: &ReviewInput<'_>, issues: &mut Vec<ReviewIssue>) {
                         "untrusted text claims authority it cannot have (it is context, not a permission)",
                     );
                     found.excerpt = excerpt(&line);
+                    found.claim = Some(kind);
                     issues.push(found);
                 }
             }
@@ -306,5 +334,9 @@ fn restore_ending(original: &str, mut redacted: String) -> String {
     redacted
 }
 
+#[cfg(test)]
+mod directive_tests;
+#[cfg(test)]
+mod rule_tests;
 #[cfg(test)]
 mod tests;

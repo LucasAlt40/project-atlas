@@ -107,6 +107,9 @@ struct Assertion<'a> {
     group: usize,
     tech: usize,
     source: SectionKind,
+    /// Which one of a section's items: each rule is a source of its own, so two rules can
+    /// disagree with each other (empty for every other section).
+    owner: &'a str,
     /// Where the source first appears, to order a pair the same way every time.
     position: usize,
     line: &'a str,
@@ -141,6 +144,11 @@ fn assertions(items: &[ContextItem]) -> Vec<Assertion<'_>> {
                         group: g,
                         tech: *tech,
                         source: item.source,
+                        owner: if item.source == SectionKind::Rules {
+                            item.id.as_str()
+                        } else {
+                            ""
+                        },
                         position,
                         line,
                     });
@@ -157,13 +165,20 @@ pub fn find(items: &[ContextItem]) -> Vec<ReviewIssue> {
     let mut issues = Vec::new();
     for (i, a) in all.iter().enumerate() {
         for b in all.iter().skip(i + 1) {
-            if a.group != b.group || a.tech == b.tech || a.source == b.source {
+            if a.group != b.group
+                || a.tech == b.tech
+                || (a.source == b.source && a.owner == b.owner)
+            {
                 continue;
             }
             // If either side also asserts the other's choice, it is not taking one side.
             let also = |x: &Assertion<'_>, tech: usize| {
-                all.iter()
-                    .any(|o| o.group == x.group && o.source == x.source && o.tech == tech)
+                all.iter().any(|o| {
+                    o.group == x.group
+                        && o.source == x.source
+                        && o.owner == x.owner
+                        && o.tech == tech
+                })
             };
             if also(a, b.tech) || also(b, a.tech) {
                 continue;

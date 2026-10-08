@@ -44,16 +44,19 @@ use crate::domain::task_context::{
     OmittedGroup, TaskContext,
 };
 
-/// How much Harness an agent is sent. Items are dropped, lowest priority first, and the text
-/// says what was dropped.
+/// How much Harness an agent is sent: the Harness section's allocation in the execution's budget
+/// (its default lives with `ExecutionBudget`, in characters because the Harness renders text).
+/// Items are dropped, lowest priority first, and the text says what was dropped.
 #[derive(Debug, Clone, Copy)]
-pub struct ContextBudget {
+pub struct HarnessBudget {
     pub max_chars: usize,
 }
 
-impl Default for ContextBudget {
+impl Default for HarnessBudget {
     fn default() -> Self {
-        Self { max_chars: 6_000 }
+        Self {
+            max_chars: crate::domain::context::defaults::HARNESS_CHARS,
+        }
     }
 }
 
@@ -106,7 +109,7 @@ pub struct HarnessContextBuilder {
     /// Lets the builder fingerprint the project to tell what may be outdated. Without it, no
     /// staleness is claimed.
     scanner: Option<Arc<dyn ProjectScanner>>,
-    budget: ContextBudget,
+    budget: HarnessBudget,
     /// How long a project's fingerprint is reused (zero: never). Typing a task is previewed on
     /// every pause, and a scan on each would be wasteful; a run uses whatever is this fresh.
     fingerprint_ttl: Duration,
@@ -118,10 +121,16 @@ impl HarnessContextBuilder {
         Self {
             store,
             scanner: None,
-            budget: ContextBudget::default(),
+            budget: HarnessBudget::default(),
             fingerprint_ttl: Duration::ZERO,
             fingerprints: Mutex::default(),
         }
+    }
+
+    /// The text of the project's own rules (`.atlas/context/rules.md`), if it has one. The same
+    /// read-only access to `.atlas/` the Harness context uses, at the project's own root.
+    pub fn project_rules_text(&self, project_path: &str) -> Option<String> {
+        self.store.read_context(project_path, "rules")
     }
 
     /// Reuses a project's fingerprint for `ttl`, so previews do not scan the project each time.
@@ -166,7 +175,7 @@ impl HarnessContextBuilder {
 
     #[cfg(test)]
     #[must_use]
-    pub fn with_budget(mut self, budget: ContextBudget) -> Self {
+    pub fn with_budget(mut self, budget: HarnessBudget) -> Self {
         self.budget = budget;
         self
     }
@@ -915,7 +924,7 @@ fn header(manifest: &HarnessManifest, status: &[String], intro: Option<&str>) ->
 /// The whole Harness within its budget: kept by priority until the budget is spent; what does
 /// not fit is named, not hidden. What the user decided or constrained (priority 1) is never left
 /// out: each is already capped.
-fn render_full(loaded: &LoadedHarness, budget: ContextBudget) -> (String, Vec<String>) {
+fn render_full(loaded: &LoadedHarness, budget: HarnessBudget) -> (String, Vec<String>) {
     let header = header(&loaded.manifest, &loaded.status, None);
     let mut items: Vec<&ContextItem> = loaded.items.iter().collect();
     items.sort_by_key(|i| i.priority);

@@ -52,13 +52,23 @@ pub struct Prompt {
     /// `optimization::skills`). Guidance only: it sits below the Atlas rules and cannot grant
     /// anything. `None` if no skill was selected.
     pub skills: Option<String>,
+    /// The rules that apply to this execution (`application::rules`), with the notice that frames
+    /// them: authoritative guidance that grants no permission. `None` when none apply (the prompt
+    /// is then byte-identical to one built before rules existed).
+    pub rules: Option<String>,
     pub context: String,
     pub instruction: String,
 }
 
 impl Prompt {
-    /// The whole prompt as one text, with clearly labelled sections.
-    pub fn combined(&self) -> String {
+    fn rules_section(&self) -> String {
+        self.rules
+            .as_ref()
+            .map_or_else(String::new, |text| format!("RULES\n\n{text}\n\n"))
+    }
+
+    /// Everything after the system and rules sections, labelled.
+    fn rest(&self) -> String {
         let harness = self.harness.as_ref().map_or_else(String::new, |text| {
             let title = if self.task_aware {
                 "TASK CONTEXT"
@@ -72,9 +82,34 @@ impl Prompt {
             .as_ref()
             .map_or_else(String::new, |text| format!("SKILLS\n\n{text}\n\n"));
         format!(
-            "SYSTEM / PERSONALITY\n\n{}\n\n{harness}{skills}PROJECT CONTEXT\n\n{}\n\nUSER INSTRUCTION\n\n{}\n",
-            self.system, self.context, self.instruction
+            "{harness}{skills}PROJECT CONTEXT\n\n{}\n\nUSER INSTRUCTION\n\n{}\n",
+            self.context, self.instruction
         )
+    }
+
+    /// The whole prompt as one text, with clearly labelled sections. This is how every runtime
+    /// that has no system-prompt channel of its own receives it.
+    pub fn combined(&self) -> String {
+        format!(
+            "SYSTEM / PERSONALITY\n\n{}\n\n{}{}",
+            self.system,
+            self.rules_section(),
+            self.rest()
+        )
+    }
+
+    /// What goes on a runtime's system-prompt channel, when it has one: Atlas's own instructions
+    /// and the rules. Both are authoritative; everything else (project knowledge, skills, the
+    /// task) is not, and stays in the body.
+    pub fn system_channel_text(&self) -> String {
+        format!("{}\n\n{}", self.system, self.rules_section())
+            .trim_end()
+            .to_owned()
+    }
+
+    /// The body that goes with [`Self::system_channel_text`].
+    pub fn body_without_system(&self) -> String {
+        self.rest()
     }
 }
 
@@ -133,6 +168,13 @@ impl PromptLayout {
                 (SectionKind::LiveNarration, self.live_narration),
                 (SectionKind::PlanRule, self.plan_rule),
                 (harness_kind, harness_size),
+                (
+                    SectionKind::Rules,
+                    prompt
+                        .rules
+                        .as_deref()
+                        .map_or_else(TextSize::default, TextSize::of),
+                ),
                 (
                     SectionKind::Skills,
                     prompt
@@ -198,6 +240,7 @@ impl PromptBuilder {
             task,
             can_edit,
             None,
+            None,
         )
         .0
     }
@@ -214,14 +257,16 @@ impl PromptBuilder {
         task: &Task,
         can_edit: bool,
         skills: Option<&str>,
+        rules: Option<&str>,
     ) -> (Prompt, PromptLayout) {
-        let rules = if can_edit {
+        let atlas_rules = if can_edit {
             ATLAS_RULES_EDITING
         } else {
             ATLAS_RULES
         };
         let personality_text = personality.system_instructions.trim();
-        let system = format!("{personality_text}\n\n{rules}\n\n{LIVE_NARRATION}\n\n{PLAN_RULE}");
+        let system =
+            format!("{personality_text}\n\n{atlas_rules}\n\n{LIVE_NARRATION}\n\n{PLAN_RULE}");
 
         let mut context = format!("Project: {}\nPath: {}", project.name, project.path);
         if !project.technologies.is_empty() {
@@ -248,7 +293,7 @@ impl PromptBuilder {
 
         let layout = PromptLayout {
             personality: TextSize::of(personality_text),
-            atlas_rules: TextSize::of(rules),
+            atlas_rules: TextSize::of(atlas_rules),
             live_narration: TextSize::of(LIVE_NARRATION),
             plan_rule: TextSize::of(PLAN_RULE),
             project_context: TextSize::of(&context),
@@ -260,6 +305,7 @@ impl PromptBuilder {
             harness: harness.map(str::to_owned),
             task_aware,
             skills: skills.map(str::to_owned),
+            rules: rules.map(str::to_owned),
             context,
             instruction,
         };
