@@ -281,6 +281,37 @@ mod tests {
     }
 
     #[test]
+    fn an_mcp_launch_and_probe_of_a_runtime_pass_the_guard() {
+        let p = project();
+        let known = vec!["claude".to_owned()];
+        // What the Claude adapter hands over: a config file outside the project and the
+        // references' values in the environment.
+        let env = vec![("ATLAS_MCP_FILES_TOKEN".to_owned(), "x".to_owned())];
+        let args = [
+            "--mcp-config",
+            "/var/folders/xx/atlas-mcp-1.json",
+            "--strict-mcp-config",
+        ];
+        let launch = ProcessSpec {
+            context: ProcessContext::Runtime(ExecutionScope::for_tests()),
+            env: env.clone(),
+            ..request(&p.root, "claude", &args)
+        };
+        let probe = ProcessSpec {
+            context: ProcessContext::Probe,
+            cwd: None,
+            env,
+            ..request(&p.root, "claude", &args)
+        };
+
+        assert_eq!(
+            evaluate_runtime_launch(&p.root, &launch, &known),
+            Evaluation::ALLOWED
+        );
+        assert_eq!(evaluate_probe(&probe, &known), Evaluation::ALLOWED);
+    }
+
+    #[test]
     fn listed_development_commands_run_in_the_project() {
         let p = project();
         for (program, args) in [

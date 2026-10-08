@@ -10,9 +10,10 @@ use std::collections::BTreeMap;
 
 use super::{EditAccess, Emitter, Execution, ExecutionService};
 use crate::application::optimization::context::{prompt_items, rebuild_task};
-use crate::application::optimization::review::{self, ReviewInput};
+use crate::application::optimization::review::{self, McpFacts, ReviewInput, RuleFacts};
 use crate::application::optimization::skills::{SkillBlock, SkillPlan};
 use crate::application::prompt::Prompt;
+use crate::application::rules::{self, RuleBlock};
 use crate::application::security::guardrails::{self, EditGrant, ReviewContext};
 use crate::application::support::now_ms;
 use crate::domain::execution::{ExecutionEventKind, ExecutionFailure, FailureKind};
@@ -33,9 +34,21 @@ pub(super) struct PromptInputs {
     pub skills: Vec<SkillBlock>,
     pub description: String,
     pub parts: Option<BriefParts>,
+    /// The rules in the prompt, one block each.
+    pub rules: Vec<RuleBlock>,
 }
 
 impl PromptInputs {
+    /// The prompt's rules section: the notice, then each rule. `None`: no rule applies, and the
+    /// prompt has no such section.
+    pub fn rules_text(&self) -> Option<String> {
+        if self.rules.is_empty() {
+            return None;
+        }
+        let blocks: Vec<&str> = self.rules.iter().map(|b| b.text.as_str()).collect();
+        Some(SkillPlan::render(rules::notice(), &blocks))
+    }
+
     pub fn skills_text(&self) -> Option<String> {
         if self.skills.is_empty() {
             return None;
@@ -71,6 +84,10 @@ pub(super) struct GuardContext<'a> {
     pub record: Option<&'a ContextRecord>,
     /// A workflow step: it can wait for an answer, and its protocols are required.
     pub step: bool,
+    /// What rule resolution decided, for the review.
+    pub rule_facts: &'a RuleFacts,
+    /// What MCP planning decided, for the review.
+    pub mcp_facts: &'a McpFacts,
     /// What a person answered to an earlier question, with the evaluation it was about. It
     /// counts only if that is still this evaluation.
     pub answered: Option<ReviewAnswer>,
@@ -90,6 +107,11 @@ pub(super) struct Binding {
     pub policy: String,
     /// Where the agent works: the worktree it is given.
     pub worktree: String,
+    /// Which rules apply, how, and which were left out (`Resolution::canonical`).
+    pub rules: String,
+    /// Which MCP servers and tools the step may be given, under which policy and configuration
+    /// (`McpPlan::canonical`).
+    pub mcp: String,
 }
 
 impl ExecutionService {
@@ -113,6 +135,7 @@ impl ExecutionService {
             &ctx.inputs.description,
             ctx.inputs.parts.as_ref(),
             &ctx.inputs.skills,
+            &ctx.inputs.rules,
         );
         let harness_text = ctx.inputs.harness.as_deref().unwrap_or("");
         let review = review::review(&ReviewInput {
@@ -124,6 +147,8 @@ impl ExecutionService {
                 .map_or(0, |r| u32::try_from(r.stale_items).unwrap_or(u32::MAX)),
             outdated_in_text: harness_text.contains("WHAT MAY BE OUTDATED"),
             skill_issues: ctx.skills.map_or(0, |s| s.issues),
+            rules: ctx.rule_facts,
+            mcp: ctx.mcp_facts,
         });
 
         let mut evaluations: Vec<GuardrailEvaluation> = Vec::new();
@@ -177,6 +202,8 @@ impl ExecutionService {
             capabilities: &ctx.binding.capabilities,
             policy: &ctx.binding.policy,
             worktree: &ctx.binding.worktree,
+            rules: &ctx.binding.rules,
+            mcp: &ctx.binding.mcp,
         });
         // An answer is for one evaluation: if anything it looked at has changed, it is void and
         // the question is asked again.
@@ -341,6 +368,14 @@ fn denial(decision: &GuardrailEvaluation, review: &ContextReviewResult) -> Execu
         Some(Reason::ApprovalRejected) => (
             "The person declined to run this step with the context Atlas flagged.".to_owned(),
             Reason::ApprovalRejected,
+        ),
+        _ if decision.rule == "context.mandatory_unresolved" => (
+            // Nobody was there to decide, so it is not run. Say why and what can be done.
+            "Atlas did not start the agent: a mandatory rule is contradicted by the request, or \
+             cannot be delivered in full, and there was no one to ask. Reword the request so it \
+             does not go against the rule, or run it as a workflow step, where a person can decide."
+                .to_owned(),
+            Reason::ContextInvalid,
         ),
         _ => (
             "Atlas did not start the agent: its context is not fit to send.".to_owned(),

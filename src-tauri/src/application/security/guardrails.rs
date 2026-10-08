@@ -18,7 +18,7 @@ use crate::application::harness::fingerprint::digest_text;
 use crate::application::optimization::context::ContextItem;
 use crate::domain::guardrail::{
     Answered, ContextHealth, ContextReviewResult, GuardrailDecision, GuardrailEvaluation,
-    GuardrailStage, IssueSeverity, ReviewIssue,
+    GuardrailStage, IssueCode, IssueSeverity, ReviewIssue,
 };
 use crate::domain::interaction::{
     decision_options, DetectionSource, InteractionDetection, InteractionKind, MAX_CONTEXT,
@@ -47,14 +47,33 @@ fn codes(issues: &[ReviewIssue], at_least: IssueSeverity) -> Vec<String> {
     codes
 }
 
+/// A mandatory rule is contradicted (by text that may instruct) or does not fit, or the policy asks
+/// a person before MCP tools are handed out: a finding that must be resolved by a person, not run
+/// past.
+fn mandatory_unresolved(review: &ContextReviewResult) -> bool {
+    review.issues.iter().any(|i| {
+        i.severity >= IssueSeverity::Error
+            && matches!(
+                i.code,
+                IssueCode::RuleConflict
+                    | IssueCode::RuleOverBudget
+                    | IssueCode::McpApprovalRequired
+            )
+    })
+}
+
 /// May an agent be started with this context?
 ///
 /// | Health        | Answer                                                                |
 /// | ------------- | --------------------------------------------------------------------- |
 /// | `Healthy`     | `ALLOW`                                                               |
 /// | `Partial`     | `ALLOW` (warnings are reported, not obstacles)                        |
-/// | `NeedsReview` | `ASK` when someone can answer; their answer decides; else `ALLOW`     |
+/// | `NeedsReview` | `ASK` when someone can answer; their answer decides; else `ALLOW`, but `DENY` if a mandatory rule is the problem (see below) |
 /// | `Invalid`     | `DENY`, whatever anyone says: it must not be sent                     |
+///
+/// A **mandatory rule** that is contradicted by text that may instruct, or that cannot be delivered
+/// within the budget, never results in a normal run: `ASK` when someone can answer, and `DENY` when
+/// nobody can or the answer is no. Nothing unresolved is ever allowed.
 pub fn decide_context(review: &ContextReviewResult, ctx: ReviewContext) -> GuardrailEvaluation {
     let evaluation = |decision, rule: &str| {
         GuardrailEvaluation::new(
@@ -94,6 +113,12 @@ pub fn decide_context(review: &ContextReviewResult, ctx: ReviewContext) -> Guard
                 None if ctx.interactive => {
                     evaluation(GuardrailDecision::Ask, "context.needs_review")
                         .because(Reason::ContextNeedsReview)
+                        .matching(matched)
+                }
+                // Nobody to ask. A mandatory rule at stake is not something to run past.
+                None if mandatory_unresolved(review) => {
+                    evaluation(GuardrailDecision::Deny, "context.mandatory_unresolved")
+                        .because(Reason::ContextInvalid)
                         .matching(matched)
                 }
                 None => evaluation(GuardrailDecision::Allow, "context.needs_review.unattended")
@@ -206,6 +231,12 @@ pub struct Evaluated<'a> {
     pub capabilities: &'a str,
     pub policy: &'a str,
     pub worktree: &'a str,
+    /// Which rules apply and how (`Resolution::canonical`).
+    pub rules: &'a str,
+    /// Which MCP servers and tools the step may be given, and how they are configured
+    /// (`McpPlan::canonical`): the connections' configuration and credential versions, the grants,
+    /// what is held back, the policy.
+    pub mcp: &'a str,
 }
 
 /// The identity of an evaluation: a digest of the context (each item's source and content), the
@@ -215,7 +246,7 @@ pub struct Evaluated<'a> {
 /// fingerprint of data Atlas itself assembled, not a signature: it protects against stale
 /// approvals, not against someone who can already write Atlas's run files.)
 pub fn evaluation_fingerprint(evaluated: &Evaluated<'_>) -> String {
-    let mut canonical = String::from("atlas.guardrail.evaluation.v1\n");
+    let mut canonical = String::from("atlas.guardrail.evaluation.v2\n");
     let mut line = |key: &str, value: &str| {
         let _ = writeln!(canonical, "{key}={value}");
     };
@@ -228,11 +259,23 @@ pub fn evaluation_fingerprint(evaluated: &Evaluated<'_>) -> String {
     line("policy", evaluated.policy);
     line("worktree", evaluated.worktree);
     line("access", evaluated.access);
+    line("rules", evaluated.rules);
+    line("mcp", evaluated.mcp);
     line("health", &format!("{:?}", evaluated.review.health));
     for item in evaluated.items {
+        // Where it came from and what it may do are part of what was approved: the same text
+        // from another origin, or at another priority or authority, is another evaluation.
         line(
             "item",
-            &format!("{}|{:?}|{}", item.id, item.source, item.fingerprint),
+            &format!(
+                "{}|{:?}|{:?}|{:?}|{}|{}",
+                item.id,
+                item.source,
+                item.priority,
+                item.authority,
+                item.provenance,
+                item.fingerprint
+            ),
         );
     }
     for issue in &evaluated.review.issues {

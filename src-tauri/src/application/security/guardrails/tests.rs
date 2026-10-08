@@ -25,6 +25,7 @@ fn issue(code: IssueCode, severity: IssueSeverity) -> ReviewIssue {
         other_source: Some(SectionKind::AgentInstructions),
         message: "two sources disagree on the database: PostgreSQL vs MongoDB".to_owned(),
         excerpt: String::new(),
+        claim: None,
     }
 }
 
@@ -246,5 +247,115 @@ fn a_permission_decision_maps_onto_the_same_four_answers() {
     assert_eq!(
         GuardrailDecision::from(PermissionDecision::Denied),
         GuardrailDecision::Deny
+    );
+}
+
+// ---- the fingerprint of an evaluation, with rules ----
+
+fn evaluated<'a>(
+    items: &'a [crate::application::optimization::context::ContextItem],
+    review: &'a ContextReviewResult,
+    rules: &'a str,
+) -> Evaluated<'a> {
+    Evaluated {
+        items,
+        review,
+        interactive: true,
+        access: "PolicyDenied",
+        agent_id: "a",
+        runtime_id: "r",
+        model_id: "m",
+        capabilities: "caps",
+        policy: "policy",
+        worktree: "/w",
+        rules,
+        mcp: "",
+    }
+}
+
+fn rule_item(
+    priority: crate::application::optimization::context::Priority,
+    provenance: &str,
+    text: &str,
+) -> Vec<crate::application::optimization::context::ContextItem> {
+    vec![crate::application::optimization::context::ContextItem::new(
+        "rule:global.x",
+        SectionKind::Rules,
+        priority,
+        provenance,
+        text,
+    )]
+}
+
+#[test]
+fn the_fingerprint_follows_a_rules_text_priority_provenance_authority_and_the_resolution() {
+    use crate::application::optimization::context::Priority;
+    use crate::domain::context::ContextAuthority;
+    let review = conflict();
+    let base_items = rule_item(
+        Priority::Required,
+        "rule:user:config",
+        "[MANDATORY] Write tests",
+    );
+    let base = evaluation_fingerprint(&evaluated(&base_items, &review, "applied|global.x"));
+
+    // The same evaluation is the same fingerprint.
+    assert_eq!(
+        base,
+        evaluation_fingerprint(&evaluated(&base_items, &review, "applied|global.x"))
+    );
+    let differing = [
+        (
+            rule_item(
+                Priority::Required,
+                "rule:user:config",
+                "[MANDATORY] Write more tests",
+            ),
+            "applied|global.x",
+        ),
+        (
+            rule_item(
+                Priority::Normal,
+                "rule:user:config",
+                "[MANDATORY] Write tests",
+            ),
+            "applied|global.x",
+        ),
+        (
+            rule_item(
+                Priority::Required,
+                "rule:external:web",
+                "[MANDATORY] Write tests",
+            ),
+            "applied|global.x",
+        ),
+        (
+            rule_item(
+                Priority::Required,
+                "rule:user:config",
+                "[MANDATORY] Write tests",
+            ),
+            "applied|global.x|downgraded",
+        ),
+        (vec![], "applied|global.x"),
+    ];
+    for (items, resolution) in &differing {
+        assert_ne!(
+            base,
+            evaluation_fingerprint(&evaluated(items, &review, resolution)),
+            "{resolution}"
+        );
+    }
+    let mut other_authority = rule_item(
+        Priority::Required,
+        "rule:user:config",
+        "[MANDATORY] Write tests",
+    );
+    other_authority[0] = other_authority[0]
+        .clone()
+        .with_authority(ContextAuthority::Informational);
+    assert_ne!(
+        base,
+        evaluation_fingerprint(&evaluated(&other_authority, &review, "applied|global.x"))
     );
 }
