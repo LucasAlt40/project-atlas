@@ -51,6 +51,8 @@ export const ptBR: Record<TranslationKey, string> = {
   'error.message_empty': 'A mensagem está vazia.',
   'error.language_unsupported': 'Esse idioma não é suportado.',
   'error.storage_failed': 'Não foi possível salvar as alterações.',
+  'error.update_check_failed': 'Não foi possível buscar atualizações. Verifique sua conexão.',
+  'error.update_install_failed': 'Não foi possível instalar a atualização.',
 
   // Why an execution failed (by failure kind)
   'failure.runtime_not_installed': 'O runtime de IA não está instalado ou não foi encontrado.',
@@ -589,6 +591,14 @@ export const ptBR: Record<TranslationKey, string> = {
   'settings.about': 'Sobre',
   'settings.version': 'Versão',
   'settings.platform': 'Plataforma',
+  'settings.updates': 'Atualizações',
+  'settings.updateCheck': 'Buscar atualizações',
+  'settings.updateChecking': 'Buscando…',
+  'settings.updateUpToDate': 'Você está usando a versão mais recente do Atlas.',
+  'settings.updateAvailable': 'A versão {version} está disponível.',
+  'settings.updateInstall': 'Instalar e reiniciar',
+  'settings.updateInstalling': 'Instalando…',
+  'settings.updateInstalled': 'Atualização instalada. O Atlas vai reiniciar.',
 
   // Security (V0.6)
   'agent.status.waiting_approval': 'Aguardando aprovação',

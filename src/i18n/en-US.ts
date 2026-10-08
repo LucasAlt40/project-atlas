@@ -53,6 +53,8 @@ export const enUS = {
   'error.message_empty': 'The message is empty.',
   'error.language_unsupported': 'That language is not supported.',
   'error.storage_failed': 'Could not save your changes.',
+  'error.update_check_failed': 'Could not check for updates. Check your connection.',
+  'error.update_install_failed': 'Could not install the update.',
 
   // Why an execution failed (by failure kind)
   'failure.runtime_not_installed': 'The AI runtime is not installed or could not be found.',
@@ -585,6 +587,14 @@ export const enUS = {
   'settings.about': 'About',
   'settings.version': 'Version',
   'settings.platform': 'Platform',
+  'settings.updates': 'Updates',
+  'settings.updateCheck': 'Check for updates',
+  'settings.updateChecking': 'Checking…',
+  'settings.updateUpToDate': 'You are on the latest version of Atlas.',
+  'settings.updateAvailable': 'Version {version} is available.',
+  'settings.updateInstall': 'Install and restart',
+  'settings.updateInstalling': 'Installing…',
+  'settings.updateInstalled': 'Update installed. Atlas will restart.',
 
   // Security, approvals and the live shell
   'agent.status.waiting_approval': 'Waiting for approval',

@@ -7,6 +7,8 @@
  */
 export interface CommandMap {
   get_app_info: { args: undefined; result: AppInfoDto };
+  check_for_update: { args: undefined; result: UpdateInfoDto | null };
+  install_update: { args: undefined; result: null };
   list_personalities: { args: undefined; result: PersonalityDto[] };
   create_personality: { args: { request: CreatePersonalityRequestDto }; result: PersonalityDto };
   update_personality: {
@@ -251,6 +253,12 @@ export interface ExecutionRefDto {
 /** `ExecutionRefDto` as Tauri's invoke accepts it (an object with string keys). */
 export type ExecutionRefArgs = ExecutionRefDto & Record<string, unknown>;
 
+/** A newer version of Atlas; mirrors `commands::updater::UpdateInfo` in Rust. */
+export interface UpdateInfoDto {
+  version: string;
+  notes: string | null;
+}
+
 /** Wire format of `get_app_info`; mirrors `domain::app_info::AppInfo` in Rust. */
 export interface AppInfoDto {
   name: string;
@@ -308,7 +316,9 @@ export type ErrorCodeDto =
   | 'project_analysis_failed'
   | 'harness_generation_failed'
   | 'unsafe_project_path'
-  | 'storage_failed';
+  | 'storage_failed'
+  | 'update_check_failed'
+  | 'update_install_failed';
 
 /**
  * How sure the analysis is. `high`: direct evidence; `medium`: several signals plus

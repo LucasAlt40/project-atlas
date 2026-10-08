@@ -2,6 +2,7 @@ import { AppInfoPanel } from '@/features/home/components/AppInfoPanel';
 import { useAppInfo } from '@/features/home/hooks/useAppInfo';
 import { LANGUAGES } from '@/i18n';
 import { useI18n } from '@/i18n/I18nProvider';
+import { UpdateChecker } from '../components/UpdateChecker';
 import { useSettings } from '../hooks/SettingsProvider';
 import styles from './SettingsPage.module.css';
 
@@ -40,6 +41,11 @@ export function SettingsPage() {
       <div className={styles.field}>
         <h2 className={styles.heading}>{t('settings.about')}</h2>
         <AppInfoPanel state={appInfo} />
+      </div>
+
+      <div className={styles.field}>
+        <h2 className={styles.heading}>{t('settings.updates')}</h2>
+        <UpdateChecker />
       </div>
     </section>
   );
