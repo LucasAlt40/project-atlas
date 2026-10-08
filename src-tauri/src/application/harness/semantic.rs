@@ -548,7 +548,7 @@ impl SemanticModel for RuntimeSemanticModel {
             .runtimes
             .find(&agent.runtime_id)
             .ok_or_else(|| AppError::new(ErrorCode::RuntimeRequired))?;
-        if !runtime.info().capabilities.text_only {
+        if self.text_only && !runtime.info().capabilities.text_only {
             return Err(AppError::new(ErrorCode::SemanticUnsupported));
         }
         let id = new_id("semantic");
@@ -568,6 +568,7 @@ impl SemanticModel for RuntimeSemanticModel {
             model_id: agent.model_id.clone(),
             prompt: Prompt {
                 skills: None,
+                rules: None,
                 system: if self.text_only {
                     RESTRICTED_RULES
                 } else {
@@ -590,6 +591,7 @@ impl SemanticModel for RuntimeSemanticModel {
             },
             text_only: self.text_only,
             allow_edits: false,
+            mcp: None,
         };
         runtime
             .execute(&request, &|event| match event {
@@ -599,6 +601,7 @@ impl SemanticModel for RuntimeSemanticModel {
                 RuntimeEvent::Output(text) => tell(ProgressKind::Output, &text),
                 RuntimeEvent::ToolStarted(name) => tell(ProgressKind::ToolStarted, &name),
                 RuntimeEvent::ToolCompleted(name) => tell(ProgressKind::ToolCompleted, &name),
+                RuntimeEvent::ToolsReported(_) => {}
             })
             .map(|output| output.text)
             .map_err(|error| {
