@@ -5,16 +5,16 @@ use std::time::Duration;
 
 use serde_json::Value;
 
-use super::claude_mcp::{ClaudeMcpAdapter, ConfigFile, CONFIG_PLACEHOLDER};
+use super::claude_mcp::{ClaudeMcpAdapter, CONFIG_PLACEHOLDER};
+use super::mcp_adapter::{prepare_for, McpAdapter, McpAdapterFactory, McpDialect};
 use super::{
     cli, Detection, ModelRuntime, RuntimeError, RuntimeEvent, RuntimeOutput, RuntimeRequest,
 };
-use crate::application::mcp::{LaunchServer, McpLaunch, McpProbe, ReportedMcpTool};
+use crate::application::mcp::{LaunchServer, McpProbe, ReportedMcpTool};
 use crate::application::process::{ProcessContext, ProcessOutput, ProcessRunner, ProcessSpec};
 use crate::domain::context::{
     Observation, RuntimeSurface, SurfaceControl, SurfaceEntry, SurfaceKind,
 };
-use crate::domain::mcp::McpSupport;
 use crate::domain::runtime::{
     AuthKind, AuthState, Authentication, ModelInfo, ProviderRef, RuntimeCapabilities, RuntimeInfo,
     RuntimeNotice, SystemPromptChannel, Transport,
@@ -25,8 +25,6 @@ use crate::domain::usage::{QuotaInfo, QuotaWindow, UsageMetrics, UsageSource};
 const PROGRAM: &str = "claude";
 /// Idle limit: silence from the CLI (long thinking or a slow tool) for this long ends the run.
 const RUN_TIMEOUT: Duration = Duration::from_secs(900);
-/// A probe only waits for the CLI to start the server and report.
-const PROBE_TIMEOUT: Duration = Duration::from_secs(60);
 /// The only tools a Claude run may use: reading and searching the project. Everything that
 /// writes or executes (Edit, Write, Bash…) is not available, which is how Atlas's read-only
 /// rule is enforced for this runtime.
@@ -52,11 +50,15 @@ const EDIT_TOOLS: &str = "Read,Grep,Glob,Edit,Write";
 /// instead, because `claude -p` ignores a terminal's stdin.
 pub struct ClaudeRuntime {
     runner: Arc<dyn ProcessRunner>,
+    mcp: Arc<dyn McpAdapter>,
 }
 
 impl ClaudeRuntime {
     pub fn new(runner: Arc<dyn ProcessRunner>) -> Self {
-        Self { runner }
+        Self {
+            runner,
+            mcp: McpAdapterFactory::create(McpDialect::Claude),
+        }
     }
 
     fn authentication(&self) -> Authentication {
@@ -92,6 +94,7 @@ impl ModelRuntime for ClaudeRuntime {
     }
 
     fn info(&self) -> RuntimeInfo {
+        let (mcp, mcp_features) = McpAdapterFactory::declared(Some(&self.mcp));
         RuntimeInfo {
             id: "claude".to_owned(),
             name: "Claude CLI".to_owned(),
@@ -104,7 +107,8 @@ impl ModelRuntime for ClaudeRuntime {
                 model_discovery: false,
                 streaming: false,
                 system_prompt: SystemPromptChannel::Unsupported,
-                mcp: McpSupport::Supported,
+                mcp,
+                mcp_features,
                 non_interactive_execution: true,
                 authentication: vec![AuthKind::CliSession],
                 usage_metrics: true,
@@ -157,56 +161,11 @@ impl ModelRuntime for ClaudeRuntime {
     }
 
     fn mcp_tools_in(&self, reported: &[String], launched: &[&str]) -> Vec<ReportedMcpTool> {
-        ClaudeMcpAdapter::classify(reported, launched)
+        self.mcp.classify(reported, launched)
     }
 
-    /// Starts the server through the CLI with a model that does not exist: the CLI reports what it
-    /// loaded and fails at its first request, so nothing is asked of any model and nothing is
-    /// spent. What is learned is the server's status and the names of its tools.
     fn probe_mcp(&self, server: &LaunchServer) -> Result<McpProbe, RuntimeError> {
-        if self.runner.locate(PROGRAM).is_none() {
-            return Err(RuntimeError::NotInstalled);
-        }
-        let launch = McpLaunch {
-            servers: vec![server.clone()],
-            held_back: Vec::new(),
-        };
-        let config = ConfigFile::write(&launch).map_err(|error| {
-            RuntimeError::ExecutionFailed(format!("the MCP config could not be written: {error}"))
-        })?;
-        let spec = ProcessSpec {
-            program: PROGRAM.to_owned(),
-            args: ClaudeMcpAdapter::probe_arguments(server, config.path()),
-            stdin: None,
-            cwd: None,
-            env: ClaudeMcpAdapter::environment(&launch),
-            timeout: PROBE_TIMEOUT,
-            context: ProcessContext::Probe,
-            terminal: None,
-        };
-        // The exit code is not the answer: the model is not there on purpose.
-        let output = self
-            .runner
-            .run(&spec, &|_| {})
-            .map_err(|error| RuntimeError::ExecutionFailed(format!("{error:?}")))?;
-        let report = ClaudeMcpAdapter::parse_init(&output.stdout).ok_or_else(|| {
-            RuntimeError::UnexpectedResponse("the CLI did not report what it loaded".to_owned())
-        })?;
-        let status = report
-            .servers
-            .iter()
-            .find(|(name, _)| name == &server.name)
-            .map(|(_, status)| *status)
-            .ok_or_else(|| {
-                RuntimeError::UnexpectedResponse("the CLI did not list the server".to_owned())
-            })?;
-        let tools = report
-            .tools
-            .iter()
-            .filter_map(|tool| ClaudeMcpAdapter::tool_of(&server.name, tool))
-            .map(str::to_owned)
-            .collect();
-        Ok(McpProbe { status, tools })
+        self.mcp.probe(self.runner.as_ref(), server)
     }
 
     /// What shapes a Claude run, by evidence (ADR 0024 and the ADR 0026 spike). Atlas-controlled
@@ -215,7 +174,7 @@ impl ModelRuntime for ClaudeRuntime {
     /// help says it loads them (a real model run would be needed to see whether they reach the
     /// model). Nothing here says the model received anything but the prompt.
     fn surface(&self, request: &RuntimeRequest) -> RuntimeSurface {
-        let args = launch_args(request, CONFIG_PLACEHOLDER);
+        let args = launch_args(request, &display_mcp_args(request));
         let mut flags = Vec::new();
         let mut skip_next = false;
         for arg in &args {
@@ -291,20 +250,9 @@ impl ModelRuntime for ClaudeRuntime {
             return Err(RuntimeError::NotInstalled);
         }
 
-        // The servers' config travels in a file that lives as long as the run.
-        let config = match request
-            .mcp
-            .as_ref()
-            .filter(|m| !request.text_only && !m.is_empty())
-        {
-            Some(mcp) => Some(ConfigFile::write(mcp).map_err(|error| {
-                RuntimeError::ExecutionFailed(format!(
-                    "the MCP config could not be written: {error}"
-                ))
-            })?),
-            None => None,
-        };
-        let args = launch_args(request, config.as_ref().map_or("", ConfigFile::path));
+        // The servers of this step, as the CLI takes them; the files live as long as `mcp`.
+        let mcp = prepare_for(self.mcp.as_ref(), request)?;
+        let args = launch_args(request, &mcp.args);
         let delivery = cli::deliver_prompt(
             self.runner.as_ref(),
             PROGRAM,
@@ -319,10 +267,7 @@ impl ModelRuntime for ClaudeRuntime {
             cwd: Some(request.working_dir.clone()),
             // The secrets of the MCP servers this execution is given, for the references in the
             // config. Nothing else is added to the CLI's environment.
-            env: match (&request.mcp, request.text_only) {
-                (Some(mcp), false) => ClaudeMcpAdapter::environment(mcp),
-                _ => Vec::new(),
-            },
+            env: mcp.env.clone(),
             timeout: RUN_TIMEOUT,
             context: ProcessContext::Runtime(request.scope.clone()),
             terminal: delivery.terminal,
@@ -348,7 +293,18 @@ impl ModelRuntime for ClaudeRuntime {
 /// Atlas calls read-only must not reach any of that, and its prompt should not carry its listing.
 /// `--strict-mcp-config` (with no `--mcp-config`) loads no MCP server; `--disable-slash-commands`
 /// turns skills off. Atlas has its own skills layer and chooses what an agent gets.
-fn launch_args(request: &RuntimeRequest, mcp_config: &str) -> Vec<String> {
+/// What the servers' arguments look like, with a stand-in for the per-run config file: for a
+/// description of the launch (the surface), never for a run.
+fn display_mcp_args(request: &RuntimeRequest) -> Vec<String> {
+    request
+        .mcp
+        .as_ref()
+        .filter(|m| !request.text_only && !m.is_empty())
+        .map(|m| ClaudeMcpAdapter::arguments(m, CONFIG_PLACEHOLDER))
+        .unwrap_or_default()
+}
+
+fn launch_args(request: &RuntimeRequest, mcp_args: &[String]) -> Vec<String> {
     let tools = if request.text_only {
         // An empty list turns every tool off: the model can only answer from the prompt.
         ""
@@ -374,8 +330,8 @@ fn launch_args(request: &RuntimeRequest, mcp_config: &str) -> Vec<String> {
     // The servers Atlas chose for this execution, and only those: `--strict-mcp-config` below
     // keeps every other one out. A text-only run gets none (`--tools ""` does not turn MCP tools
     // off, so the only way to keep them from it is not to give them).
-    if let (Some(mcp), false) = (&request.mcp, request.text_only) {
-        args.extend(ClaudeMcpAdapter::arguments(mcp, mcp_config));
+    if !request.text_only {
+        args.extend(mcp_args.iter().cloned());
     }
     args.extend(["--strict-mcp-config", "--disable-slash-commands"].map(str::to_owned));
     if request.allow_edits && !request.text_only {
@@ -1042,6 +998,7 @@ mod tests {
         request.mcp = Some(McpLaunch {
             servers: vec![files_server(secret)],
             held_back: vec![("files".to_owned(), "delete".to_owned())],
+            only: Vec::new(),
         });
         request
     }
@@ -1074,10 +1031,13 @@ mod tests {
         // refers to, and appears nowhere in the arguments or the prompt.
         assert_eq!(
             run.env,
-            [(
-                "ATLAS_MCP_FILES_API_TOKEN".to_owned(),
-                "hunter2hunter2".to_owned()
-            )]
+            [
+                (
+                    "ATLAS_MCP_FILES_API_TOKEN".to_owned(),
+                    "hunter2hunter2".to_owned()
+                ),
+                ("MCP_TIMEOUT".to_owned(), "120000".to_owned())
+            ]
         );
         assert!(!run.args.join(" ").contains("hunter2"));
         assert!(!run.stdin.clone().unwrap_or_default().contains("hunter2"));
@@ -1166,7 +1126,12 @@ mod tests {
         assert_eq!(spec.args[at + 1], "atlas-probe-no-such-model");
         assert_eq!(spec.context, ProcessContext::Probe);
         assert!(spec.cwd.is_none());
-        assert_eq!(spec.env.len(), 1);
+        // The secret, and the allowance the CLI gives the server to start.
+        assert_eq!(spec.env.len(), 2);
+        assert!(spec
+            .env
+            .iter()
+            .any(|(k, v)| k == "MCP_TIMEOUT" && v == "120000"));
         assert!(!spec.args.join(" ").contains("hunter2"));
     }
 
@@ -1288,7 +1253,7 @@ mod tests {
             let mut req = request("sonnet");
             req.allow_edits = edit;
             req.text_only = text_only;
-            let args = launch_args(&req, CONFIG_PLACEHOLDER);
+            let args = launch_args(&req, &display_mcp_args(&req));
 
             // No MCP server (none is named with `--mcp-config`) and no skills.
             assert!(
@@ -1432,6 +1397,7 @@ mod tests {
         req.mcp = Some(McpLaunch {
             servers: vec![spike_server(&[("MODE", "grow")])],
             held_back: vec![("atlasspike".to_owned(), "echo_static".to_owned())],
+            only: Vec::new(),
         });
         let listed = RefCell::new(Vec::new());
 
@@ -1458,6 +1424,21 @@ mod tests {
         assert_eq!(found[0].tool, "extra_tool");
     }
 
+    /// A server that needs a while to start (an `npx` downloading its package the first time) is
+    /// connected thanks to the startup allowance Atlas gives the CLI. No model call.
+    #[test]
+    #[ignore = "needs the Claude CLI and node installed; makes no model call; takes about 45 s"]
+    fn real_claude_mcp_a_slow_starting_server_still_connects() {
+        let runtime =
+            ClaudeRuntime::new(Arc::new(crate::infrastructure::SystemProcessRunner::new()));
+        let probed = runtime
+            .probe_mcp(&spike_server(&[("MODE", "slow"), ("DELAY_MS", "40000")]))
+            .expect("the CLI probed it");
+
+        assert_eq!(probed.status, McpServerStatus::Connected, "{probed:?}");
+        assert_eq!(probed.tools, ["echo_static"]);
+    }
+
     /// Atlas stops a run (an MCP tool nobody authorized): the CLI is killed without a chance to
     /// clean up, and a server that ignores the end of its input must not be left behind. No model
     /// call: the model does not exist.
@@ -1482,6 +1463,7 @@ mod tests {
         req.mcp = Some(McpLaunch {
             servers: vec![server],
             held_back: vec![],
+            only: Vec::new(),
         });
         let execution = req.scope.execution_id.clone();
         let stopped = std::sync::atomic::AtomicBool::new(false);
@@ -1516,7 +1498,7 @@ mod tests {
         let system = crate::infrastructure::SystemProcessRunner::new();
         let mut req = request("not-a-real-model-xyz");
         req.working_dir = std::env::temp_dir();
-        let mut args = launch_args(&req, CONFIG_PLACEHOLDER);
+        let mut args = launch_args(&req, &display_mcp_args(&req));
         args.extend(["--".to_owned(), "ping".to_owned()]);
         let spec = ProcessSpec {
             program: PROGRAM.to_owned(),

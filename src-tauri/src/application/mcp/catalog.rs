@@ -69,80 +69,160 @@ fn check(requirement: Requirement, found: bool) -> RequirementCheck {
     RequirementCheck { requirement, found }
 }
 
-fn devtools_transport() -> McpTransport {
-    McpTransport::Stdio {
-        executable: "npx".to_owned(),
-        args: [
-            "-y".to_owned(),
-            format!("chrome-devtools-mcp@{DEVTOOLS_VERSION}"),
-            // An own profile and no window: not the user's browser; and no data sent to Google.
-            "--isolated".to_owned(),
-            "--headless".to_owned(),
-            "--no-usage-statistics".to_owned(),
-            "--no-performance-crux".to_owned(),
-        ]
-        .to_vec(),
-        env: Vec::new(),
+/// What the machine has, as far as Atlas can see without starting anything.
+pub struct Host {
+    runner: Arc<dyn ProcessRunner>,
+    chrome_paths: Vec<PathBuf>,
+}
+
+impl Host {
+    fn has_program(&self, program: &str) -> bool {
+        self.runner.locate(program).is_some()
+    }
+
+    fn chrome_found(&self) -> bool {
+        self.chrome_paths.iter().any(|p| p.exists()) || self.has_program("google-chrome")
+    }
+}
+
+/// One entry of the catalogue (the strategy): what it is, what it needs, and the connection it
+/// becomes. Adding an integration is one `impl` and one arm of [`McpPresetFactory::create`].
+pub trait McpPreset: Send + Sync {
+    fn id(&self) -> &'static str;
+
+    /// How it is shown, with what the machine has.
+    fn describe(&self, host: &Host) -> McpPresetInfo;
+
+    /// The name and configuration of the connection it becomes.
+    ///
+    /// # Errors
+    ///
+    /// The entry cannot be added yet.
+    fn connection(&self) -> Result<(&'static str, McpTransport), AppError>;
+}
+
+/// The Chrome `DevTools` server: STDIO, pinned, headless and isolated.
+struct ChromeDevTools;
+
+impl ChromeDevTools {
+    fn transport() -> McpTransport {
+        McpTransport::Stdio {
+            executable: "npx".to_owned(),
+            args: [
+                "-y".to_owned(),
+                format!("chrome-devtools-mcp@{DEVTOOLS_VERSION}"),
+                // An own profile and no window: not the user's browser; and no data sent to Google.
+                "--isolated".to_owned(),
+                "--headless".to_owned(),
+                "--no-usage-statistics".to_owned(),
+                "--no-performance-crux".to_owned(),
+            ]
+            .to_vec(),
+            env: Vec::new(),
+        }
+    }
+}
+
+impl McpPreset for ChromeDevTools {
+    fn id(&self) -> &'static str {
+        "chrome-devtools"
+    }
+
+    fn describe(&self, host: &Host) -> McpPresetInfo {
+        let McpTransport::Stdio {
+            executable, args, ..
+        } = Self::transport()
+        else {
+            unreachable!("the DevTools entry is STDIO")
+        };
+        McpPresetInfo {
+            id: "chrome-devtools",
+            connection_name: "chrome-devtools",
+            availability: PresetAvailability::Ready,
+            risk: PresetRisk::High,
+            source_url: "https://github.com/ChromeDevTools/chrome-devtools-mcp",
+            pinned_version: Some(DEVTOOLS_VERSION),
+            command: Some(format!("{executable} {}", args.join(" "))),
+            requirements: vec![
+                check(Requirement::Node, host.has_program("node")),
+                check(Requirement::Npx, host.has_program("npx")),
+                check(Requirement::Chrome, host.chrome_found()),
+            ],
+        }
+    }
+
+    fn connection(&self) -> Result<(&'static str, McpTransport), AppError> {
+        Ok(("chrome-devtools", Self::transport()))
+    }
+}
+
+/// Figma's official server is remote (HTTP) and needs OAuth: listed for what it is, not addable.
+struct Figma;
+
+impl McpPreset for Figma {
+    fn id(&self) -> &'static str {
+        "figma"
+    }
+
+    fn describe(&self, _host: &Host) -> McpPresetInfo {
+        McpPresetInfo {
+            id: "figma",
+            connection_name: "figma",
+            availability: PresetAvailability::NeedsHttpAndOauth,
+            risk: PresetRisk::High,
+            source_url: "https://developers.figma.com/docs/figma-mcp-server",
+            pinned_version: None,
+            command: None,
+            requirements: Vec::new(),
+        }
+    }
+
+    fn connection(&self) -> Result<(&'static str, McpTransport), AppError> {
+        Err(AppError::new(ErrorCode::McpPresetUnavailable))
+    }
+}
+
+/// Chooses the entries (the factory).
+pub struct McpPresetFactory;
+
+impl McpPresetFactory {
+    /// Every entry, in the order they are shown.
+    pub fn all() -> Vec<Box<dyn McpPreset>> {
+        vec![Box::new(ChromeDevTools), Box::new(Figma)]
+    }
+
+    pub fn create(id: &str) -> Option<Box<dyn McpPreset>> {
+        Self::all().into_iter().find(|p| p.id() == id)
     }
 }
 
 pub struct McpCatalog {
-    runner: Arc<dyn ProcessRunner>,
-    chrome_paths: Vec<PathBuf>,
+    presets: Vec<Box<dyn McpPreset>>,
+    host: Host,
 }
 
 impl McpCatalog {
     pub fn new(runner: Arc<dyn ProcessRunner>) -> Self {
         Self {
-            runner,
-            chrome_paths: default_chrome_paths(),
+            presets: McpPresetFactory::all(),
+            host: Host {
+                runner,
+                chrome_paths: default_chrome_paths(),
+            },
         }
     }
 
     #[cfg(test)]
     pub fn with_chrome_paths(mut self, paths: Vec<PathBuf>) -> Self {
-        self.chrome_paths = paths;
+        self.host.chrome_paths = paths;
         self
     }
 
     pub fn list(&self) -> Vec<McpPresetInfo> {
-        let McpTransport::Stdio {
-            executable, args, ..
-        } = devtools_transport()
-        else {
-            unreachable!("the DevTools entry is STDIO")
-        };
-        vec![
-            McpPresetInfo {
-                id: "chrome-devtools",
-                connection_name: "chrome-devtools",
-                availability: PresetAvailability::Ready,
-                risk: PresetRisk::High,
-                source_url: "https://github.com/ChromeDevTools/chrome-devtools-mcp",
-                pinned_version: Some(DEVTOOLS_VERSION),
-                command: Some(format!("{executable} {}", args.join(" "))),
-                requirements: vec![
-                    check(Requirement::Node, self.runner.locate("node").is_some()),
-                    check(Requirement::Npx, self.runner.locate("npx").is_some()),
-                    check(Requirement::Chrome, self.chrome_found()),
-                ],
-            },
-            McpPresetInfo {
-                id: "figma",
-                connection_name: "figma",
-                availability: PresetAvailability::NeedsHttpAndOauth,
-                risk: PresetRisk::High,
-                source_url: "https://developers.figma.com/docs/figma-mcp-server",
-                pinned_version: None,
-                command: None,
-                requirements: Vec::new(),
-            },
-        ]
-    }
-
-    fn chrome_found(&self) -> bool {
-        self.chrome_paths.iter().any(|p| p.exists())
-            || self.runner.locate("google-chrome").is_some()
+        self.presets
+            .iter()
+            .map(|p| p.describe(&self.host))
+            .collect()
     }
 
     /// The name and configuration of an entry, to be added as a connection.
@@ -151,11 +231,9 @@ impl McpCatalog {
     ///
     /// The entry is unknown, or cannot be added yet.
     pub fn connection_for(preset_id: &str) -> Result<(&'static str, McpTransport), AppError> {
-        match preset_id {
-            "chrome-devtools" => Ok(("chrome-devtools", devtools_transport())),
-            // Figma is listed but needs HTTP and OAuth: it falls here with every unknown id.
-            _ => Err(AppError::new(ErrorCode::McpPresetUnavailable)),
-        }
+        McpPresetFactory::create(preset_id)
+            .ok_or_else(|| AppError::new(ErrorCode::McpPresetUnavailable))?
+            .connection()
     }
 }
 

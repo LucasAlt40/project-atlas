@@ -654,6 +654,8 @@ mod tests {
         workspaces: Arc<WorkspaceService>,
         agent_ids: Vec<String>,
         workspace_id: String,
+        config: Arc<ConfigRepository>,
+        mcp: Arc<crate::application::mcp::McpService>,
     }
 
     /// One agent per fake runtime, all in one workspace on `/atlas`.
@@ -704,13 +706,24 @@ mod tests {
             })
             .unwrap()
             .id;
-        let executions = Arc::new(ExecutionService::new(
-            agents.clone(),
-            personalities,
-            registry,
-            workspaces.clone(),
-            Arc::new(crate::application::security::AuditLog::default()),
+        let mcp = Arc::new(crate::application::mcp::McpService::new(
+            config.clone(),
+            Arc::new(crate::application::mcp::MemoryCredentials::default()),
+            registry.clone(),
         ));
+        let executions = Arc::new(
+            ExecutionService::new(
+                agents.clone(),
+                personalities,
+                registry,
+                workspaces.clone(),
+                Arc::new(crate::application::security::AuditLog::default()),
+            )
+            .with_policies(Arc::new(
+                crate::application::security::SecurityService::new(config.clone()),
+            ))
+            .with_mcp(mcp.clone()),
+        );
         let ledger = Arc::new(UsageLedger::new(config.clone()));
         Fixture {
             chat: ChatService::with_history(
@@ -725,6 +738,8 @@ mod tests {
             workspaces,
             agent_ids,
             workspace_id,
+            config,
+            mcp,
         }
     }
 
@@ -746,6 +761,87 @@ mod tests {
             currency: Some("USD".to_owned()),
             source: UsageSource::RuntimeReported,
         }
+    }
+
+    /// A workflow step runs through the chat service like a message does; what its MCP grant says
+    /// is decided by the workflow and the step it names, which must reach the plan from here.
+    #[test]
+    fn a_grant_to_one_workflow_step_reaches_that_step_through_the_chat_service() {
+        use crate::domain::mcp::{McpEnv, McpTransport, ToolSelection};
+        let f = fixture(vec![FakeRuntime::new("rt", Ok("done")).with_mcp()]);
+        let agent = f.agent_ids[0].clone();
+        let connection = f
+            .mcp
+            .add(
+                &f.workspace_id,
+                "files",
+                McpTransport::Stdio {
+                    executable: "node".to_owned(),
+                    args: vec!["server.js".to_owned()],
+                    env: Vec::<McpEnv>::new(),
+                },
+                false,
+            )
+            .unwrap();
+        f.mcp.set_enabled(&connection.id, true).unwrap();
+        let mut flow = crate::application::workflow::test_support::workflow(
+            vec![
+                crate::application::workflow::test_support::agent("n1", &agent),
+                crate::application::workflow::test_support::agent("n2", &agent),
+            ],
+            vec![],
+        );
+        flow.id = "wf1".to_owned();
+        flow.workspace_id = f.workspace_id.clone();
+        f.config
+            .modify(|c| {
+                c.workflows.push(flow);
+                Ok(())
+            })
+            .unwrap();
+        f.mcp
+            .grant(
+                &connection.id,
+                Some(&agent),
+                Some("wf1"),
+                Some("n1"),
+                ToolSelection::Server,
+            )
+            .unwrap();
+        let run_step = |node: &str| {
+            let (_, pending) = f
+                .chat
+                .send_workflow_step(WorkflowStepRequest {
+                    workspace_id: f.workspace_id.clone(),
+                    agent_id: agent.clone(),
+                    display_task: "Fix it".to_owned(),
+                    instruction: "Fix it".to_owned(),
+                    context_query: "fix".to_owned(),
+                    brief_parts: BriefParts::default(),
+                    review: None,
+                    link: WorkflowLink {
+                        workflow_id: "wf1".to_owned(),
+                        workflow_name: "Flow".to_owned(),
+                        workflow_execution_id: "run1".to_owned(),
+                        node_id: node.to_owned(),
+                        node_label: node.to_owned(),
+                        attempt: 1,
+                        iteration: 1,
+                    },
+                    shared_worktree: None,
+                })
+                .unwrap();
+            pending.run(&Collector::default());
+            f.config
+                .snapshot()
+                .executions
+                .last()
+                .and_then(|e| e.manifest.clone())
+                .map(|m| m.mcp.servers.iter().any(|s| s.exposed))
+        };
+
+        assert_eq!(run_step("n1"), Some(true));
+        assert_eq!(run_step("n2"), Some(false));
     }
 
     #[test]

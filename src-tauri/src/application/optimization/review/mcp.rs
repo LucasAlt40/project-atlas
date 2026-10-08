@@ -34,6 +34,9 @@ fn what(problem: &McpProblem) -> &'static str {
         McpProblem::InvalidConfiguration { .. } => "its configuration is not valid",
         McpProblem::SecretMissing { .. } => "a secret it needs is not stored",
         McpProblem::NeedsDiscovery => "it was never discovered, so named tools cannot be held to",
+        McpProblem::ToolFilterUnsupported => {
+            "the agent's runtime cannot hold a server to the tools named"
+        }
     }
 }
 

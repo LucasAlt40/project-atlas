@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use super::mcp::McpSupport;
+use super::mcp::{McpFeatures, McpSupport};
 use super::security::ToolAccess;
 
 /// Who provides the AI capability (Anthropic, `OpenCode`, `OpenAI`…). A runtime is how Atlas
@@ -72,6 +72,9 @@ pub struct RuntimeCapabilities {
     /// means an adapter exists and its behaviour was measured; a runtime nobody has looked at is
     /// `NotInvestigated`, not `Unsupported`.
     pub mcp: McpSupport,
+    /// How its MCP support goes about tool filtering and probing (meaningful when `mcp` is
+    /// `Supported`).
+    pub mcp_features: McpFeatures,
     /// Atlas can run a task through this runtime today.
     pub non_interactive_execution: bool,
     pub authentication: Vec<AuthKind>,

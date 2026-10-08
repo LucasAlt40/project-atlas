@@ -6,6 +6,7 @@ import type {
   McpPresetDto,
   McpToolSelectionDto,
   McpTransportDto,
+  WorkflowDto,
 } from '@/lib/tauri/commands';
 
 export function listMcpConnections(workspaceId: string): Promise<McpOverviewDto> {
@@ -60,12 +61,18 @@ export function probeMcpConnection(
   return invokeCommand('probe_mcp_connection', { connectionId, runtimeId });
 }
 
+/** The workflows of the workspace, to say which run or step a grant is for. */
+export function listWorkspaceWorkflows(workspaceId: string): Promise<WorkflowDto[]> {
+  return invokeCommand('list_workflows', { workspaceId });
+}
+
 export function grantMcpConnection(
   connectionId: string,
   agentId: string,
   tools: McpToolSelectionDto,
+  scope: { workflowId?: string; nodeId?: string } = {},
 ): Promise<McpGrantDto> {
-  return invokeCommand('grant_mcp_connection', { connectionId, agentId, tools });
+  return invokeCommand('grant_mcp_connection', { connectionId, agentId, tools, ...scope });
 }
 
 export function revokeMcpGrant(grantId: string): Promise<undefined> {

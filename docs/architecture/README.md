@@ -388,3 +388,4 @@ A frontend router and global store are intentionally absent until a second scree
 - [0026 — Context & Tooling Platform (Phase A: architecture and spike)](adr/0026-context-and-tooling-platform.md) — design: [context-and-tooling-platform.md](context-and-tooling-platform.md)
 - [0027 — Rules, Context Authority and the system-prompt channel (Phase C)](adr/0027-rules-context-authority-and-system-prompt-channel.md)
 - [0028 — MCP foundation (Phase D)](adr/0028-mcp-foundation.md)
+- [0029 — MCP for every runtime that can take it](adr/0029-mcp-for-every-runtime.md) — what each CLI offers, measured

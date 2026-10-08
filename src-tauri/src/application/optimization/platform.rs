@@ -71,17 +71,24 @@ pub struct ManifestSource<'a> {
 }
 
 pub fn manifest_of(source: &ManifestSource<'_>) -> ContextManifest {
-    let mut manifest = ContextManifest::new(
-        source.ids.clone(),
-        source.created_at,
-        source.plan.fingerprint.clone(),
-        sections_fingerprint(source.delivered) != source.plan.fingerprint,
-        source.delivered.sections.clone(),
-        source.delivery.record(source.will_deliver),
-        source.rules.clone(),
-        source.mcp.clone(),
-        source.surface.clone(),
-    );
+    let ids = source.ids.clone();
+    let mut manifest = ContextManifest {
+        execution_id: ids.execution,
+        workspace_id: ids.workspace,
+        task_id: ids.task,
+        agent_id: ids.agent,
+        runtime_id: ids.runtime,
+        model_id: ids.model,
+        created_at: source.created_at,
+        plan_fingerprint: source.plan.fingerprint.clone(),
+        diverged_from_plan: sections_fingerprint(source.delivered) != source.plan.fingerprint,
+        sections: source.delivered.sections.clone(),
+        delivery: source.delivery.record(source.will_deliver),
+        rules: source.rules.clone(),
+        mcp: source.mcp.clone(),
+        surface: source.surface.clone(),
+        warnings: Vec::new(),
+    };
     manifest.refresh_warnings(&source.budget.warnings());
     manifest
 }

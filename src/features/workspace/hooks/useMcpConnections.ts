@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { McpOverviewDto, McpPresetDto } from '@/lib/tauri/commands';
-import { listMcpCatalog, listMcpConnections } from '../services/mcpService';
+import type { McpOverviewDto, McpPresetDto, WorkflowDto } from '@/lib/tauri/commands';
+import { listMcpCatalog, listMcpConnections, listWorkspaceWorkflows } from '../services/mcpService';
 import type { Loadable } from './useSecurity';
 
 export interface McpState {
   overview: McpOverviewDto;
   catalog: McpPresetDto[];
+  workflows: WorkflowDto[];
 }
 
 /**
@@ -17,10 +18,17 @@ export function useMcpConnections(workspaceId: string) {
   const [version, setVersion] = useState(0);
   useEffect(() => {
     let cancelled = false;
-    Promise.all([listMcpConnections(workspaceId), listMcpCatalog()])
-      .then(([overview, catalog]) => {
+    Promise.all([
+      listMcpConnections(workspaceId),
+      listMcpCatalog(),
+      listWorkspaceWorkflows(workspaceId),
+    ])
+      .then(([overview, catalog, workflows]) => {
         if (!cancelled)
-          setState({ key: workspaceId, result: { status: 'ready', value: { overview, catalog } } });
+          setState({
+            key: workspaceId,
+            result: { status: 'ready', value: { overview, catalog, workflows } },
+          });
       })
       .catch((error: unknown) => {
         if (!cancelled) setState({ key: workspaceId, result: { status: 'error', error } });

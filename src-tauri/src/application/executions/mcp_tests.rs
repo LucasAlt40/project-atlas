@@ -16,8 +16,8 @@ use crate::application::workspace::WorkspaceInput;
 use crate::domain::execution::ExecutionStatus;
 use crate::domain::guardrail::{Answered, IssueCode, ReviewAnswer};
 use crate::domain::mcp::{
-    McpConnection, McpDiscovery, McpEnv, McpEnvValue, McpProblem, McpServerStatus, McpTransport,
-    Secret, ToolSelection,
+    McpConnection, McpDiscovery, McpEnv, McpEnvValue, McpFeatures, McpProbeKind, McpProblem,
+    McpServerStatus, McpToolFilter, McpTransport, Secret, ToolSelection,
 };
 use crate::domain::security::Permission;
 
@@ -377,10 +377,54 @@ fn revoking_a_grant_or_switching_a_connection_off_takes_effect_on_the_next_step(
     assert_eq!(given(&world), Vec::<String>::new());
 }
 
+/// A workflow of the world's workspace whose steps are run by the given agents.
+fn add_workflow(world: &World, id: &str, steps: &[(&str, &str)]) {
+    use crate::application::workflow::test_support::{agent, workflow};
+    let mut w = workflow(steps.iter().map(|(n, a)| agent(n, a)).collect(), vec![]);
+    w.id = id.to_owned();
+    w.workspace_id = world.workspace_id.clone();
+    world
+        .config
+        .modify(|c| {
+            c.workflows.push(w);
+            Ok(())
+        })
+        .unwrap();
+}
+
+#[test]
+fn a_grant_to_a_step_needs_the_step_to_exist_and_to_run_that_agent() {
+    let world = world();
+    let files = connect(&world, "files", false, false);
+    add_workflow(&world, "wf1", &[("n1", &world.developer.clone())]);
+    let grant = |agent: &str, wf: &str, node: &str| {
+        world.mcp.grant(
+            &files.id,
+            Some(agent),
+            Some(wf),
+            Some(node),
+            ToolSelection::Server,
+        )
+    };
+
+    assert!(grant(&world.developer, "wf1", "n1").is_ok());
+    assert!(grant(&world.developer, "wf1", "n9").is_err());
+    assert!(grant(&world.developer, "ghost", "n1").is_err());
+    assert!(grant(&world.reader, "wf1", "n1").is_err());
+}
+
 #[test]
 fn a_grant_to_one_step_of_one_workflow_applies_to_that_step_only() {
     let world = world();
     let files = connect(&world, "files", false, false);
+    add_workflow(
+        &world,
+        "wf1",
+        &[
+            ("n1", &world.developer.clone()),
+            ("n2", &world.developer.clone()),
+        ],
+    );
     world
         .mcp
         .grant(
@@ -949,4 +993,239 @@ fn a_workspace_without_connections_has_no_mcp_metrics_and_an_unchanged_prompt() 
     assert!(a.execution.optimization.unwrap().mcp.is_none());
     assert_eq!(b.execution.manifest.unwrap().mcp.servers.len(), 0);
     assert_eq!(a.execution.prompt, b.execution.prompt);
+}
+
+/// The whole path with nothing faked but the model: the real guard, the real Claude CLI, the real
+/// MCP service over a harmless server, a step through `ExecutionService`. The model does not
+/// exist, so the CLI reports what it loaded and then fails: nothing is asked of any model.
+#[test]
+#[ignore = "needs the Claude CLI and node installed; makes no model call"]
+#[allow(clippy::too_many_lines)]
+fn real_a_granted_server_goes_through_guard_cli_and_manifest() {
+    use crate::application::process::ProcessRunner;
+    use crate::application::runtimes::ClaudeRuntime;
+    use crate::application::security::{ApprovalBroker, AuditLog, GuardedProcessRunner, NoSandbox};
+    use crate::application::sessions::SessionRegistry;
+
+    let project = std::env::temp_dir().join(format!("atlas-e2e-{}", std::process::id()));
+    std::fs::create_dir_all(&project).unwrap();
+    let project_path = project.to_string_lossy().into_owned();
+    let config = Arc::new(ConfigRepository::load(Box::<MemoryStore>::default()));
+    let security = Arc::new(SecurityService::new(config.clone()));
+    let sessions = Arc::new(SessionRegistry::default());
+    let runner: Arc<dyn ProcessRunner> = Arc::new(GuardedProcessRunner::new(
+        Arc::new(crate::infrastructure::SystemProcessRunner::new().with_sessions(sessions.clone())),
+        security.clone(),
+        Arc::new(ApprovalBroker::new()),
+        Arc::new(AuditLog::default()),
+        Arc::new(NoSandbox),
+        crate::application::runtimes::RUNTIME_PROGRAMS
+            .map(str::to_owned)
+            .to_vec(),
+    ));
+    let registry = Arc::new(RuntimeRegistry::new(vec![
+        Arc::new(ClaudeRuntime::new(runner)) as Arc<_>,
+    ]));
+    let personalities = Arc::new(PersonalityService::new(config.clone()));
+    let agents = Arc::new(AgentService::new(
+        config.clone(),
+        personalities.clone(),
+        registry.clone(),
+    ));
+    let workspaces = Arc::new(WorkspaceService::new(
+        config.clone(),
+        agents.clone(),
+        Arc::new(FakeInspector::with(&[(project_path.as_str(), &[])])),
+    ));
+    let workspace_id = workspaces
+        .create(&WorkspaceInput {
+            name: "E2E".to_owned(),
+            project_path,
+            description: None,
+        })
+        .unwrap()
+        .id;
+    let agent = agents
+        .create(CreateAgentRequest {
+            permission_profile_id: Some("developer".to_owned()),
+            name: "dev".to_owned(),
+            personality_id: "architect".to_owned(),
+            runtime_id: "claude".to_owned(),
+            model_id: "atlas-probe-no-such-model".to_owned(),
+            instructions: String::new(),
+            worktree_isolation: Some(false),
+            result_contract: None,
+        })
+        .unwrap()
+        .id;
+    let mcp = Arc::new(McpService::new(
+        config.clone(),
+        Arc::new(MemoryCredentials::default()),
+        registry.clone(),
+    ));
+    let server = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../docs/architecture/spikes/mcp-claude/echo-mcp.js");
+    let connection = mcp
+        .add(
+            &workspace_id,
+            "spike",
+            McpTransport::Stdio {
+                executable: "node".to_owned(),
+                args: vec![server.to_string_lossy().into_owned()],
+                env: vec![McpEnv {
+                    name: "MODE".to_owned(),
+                    value: McpEnvValue::Plain {
+                        value: "grow".to_owned(),
+                    },
+                }],
+            },
+            false,
+        )
+        .unwrap();
+    mcp.set_enabled(&connection.id, true).unwrap();
+    // Only the tool it had; the server will say it has one more.
+    mcp.grant(
+        &connection.id,
+        Some(&agent),
+        None,
+        None,
+        ToolSelection::Only {
+            tools: vec!["echo_static".to_owned()],
+        },
+    )
+    .unwrap();
+    let service = ExecutionService::new(
+        agents,
+        personalities,
+        registry,
+        workspaces,
+        Arc::new(AuditLog::default()),
+    )
+    .with_optimization(Arc::new(guarded()))
+    .with_policies(security)
+    .with_mcp(mcp.clone())
+    .with_sessions(sessions);
+
+    let record = service
+        .run_with_id(
+            service.next_execution_id(),
+            RunAgentRequest {
+                task_id: "t".to_owned(),
+                workspace_id,
+                agent_id: agent,
+                description: "ping".to_owned(),
+            },
+            &Quiet::default(),
+        )
+        .unwrap();
+
+    let manifest = record.execution.manifest.expect("a manifest");
+    eprintln!("REAL E2E status={:?}", record.execution.status);
+    eprintln!("REAL E2E servers={:?}", manifest.mcp.servers);
+    eprintln!("REAL E2E tools={:?}", manifest.mcp.tools);
+    eprintln!("REAL E2E held_back={:?}", manifest.mcp.held_back);
+    eprintln!("REAL E2E unauthorized={:?}", manifest.mcp.unauthorized);
+    // Discovery was refreshed first (the connection was never discovered): the server was started
+    // by the guarded CLI and its tools are known.
+    let discovered = mcp.overview(&manifest.workspace_id).connections[0]
+        .discovery
+        .clone()
+        .expect("discovery was refreshed before the step");
+    assert_eq!(discovered.status, McpServerStatus::Connected);
+    // The step was given the server and the CLI reported its tool.
+    assert!(manifest.mcp.servers.iter().any(|s| s.exposed));
+    let echo = manifest
+        .mcp
+        .tools
+        .iter()
+        .find(|t| t.tool == "echo_static")
+        .unwrap();
+    assert!(echo.authorized && echo.exposed);
+    // What the server added is not authorized, so it was held back (or, if the CLI still listed
+    // it, the step was stopped): in neither case is it silently in use.
+    assert!(
+        manifest
+            .mcp
+            .held_back
+            .iter()
+            .any(|t| t.ends_with("extra_tool"))
+            || manifest
+                .mcp
+                .unauthorized
+                .iter()
+                .any(|t| t.ends_with("extra_tool"))
+    );
+}
+
+fn runtime_with(filter: McpToolFilter, probe: McpProbeKind) -> FakeRuntime {
+    FakeRuntime::new("rt-a", Ok("done")).with_mcp_features(McpFeatures {
+        tool_filter: filter,
+        probe,
+        strict: false,
+    })
+}
+
+fn grant_only(world: &World, connection: &McpConnection, tool: &str) {
+    world
+        .mcp
+        .grant(
+            &connection.id,
+            Some(&world.developer),
+            None,
+            None,
+            ToolSelection::Only {
+                tools: vec![tool.to_owned()],
+            },
+        )
+        .unwrap();
+}
+
+#[test]
+fn a_runtime_with_an_allow_list_needs_no_discovery_and_is_given_the_tools_named() {
+    let world = world_with(runtime_with(McpToolFilter::AllowList, McpProbeKind::None));
+    let files = connect(&world, "files", false, false);
+    grant_only(&world, &files, "read");
+
+    let record = conversation(&world, &world.developer);
+
+    let launch = world.runtime.requests.lock().unwrap()[0]
+        .mcp
+        .clone()
+        .unwrap();
+    assert_eq!(launch.only, [("files".to_owned(), vec!["read".to_owned()])]);
+    let manifest = record.execution.manifest.unwrap();
+    assert!(manifest.mcp.servers[0].exposed);
+    // Nothing was started to look at it: this runtime cannot be probed.
+    assert_eq!(world.runtime.probed.lock().unwrap().len(), 0);
+    let read = manifest
+        .mcp
+        .tools
+        .iter()
+        .find(|t| t.tool == "read")
+        .unwrap();
+    assert!(read.authorized && read.exposed && !read.discovered);
+}
+
+#[test]
+fn a_runtime_that_cannot_hold_a_server_to_named_tools_is_not_given_it() {
+    let world = world_with(runtime_with(
+        McpToolFilter::Unsupported,
+        McpProbeKind::StatusOnly,
+    ));
+    let files = connect(&world, "files", false, false);
+    discovered(&world, &files, &["read", "write"]);
+    grant_only(&world, &files, "read");
+
+    let record = conversation(&world, &world.developer);
+
+    assert_eq!(given(&world), Vec::<String>::new());
+    let manifest = record.execution.manifest.unwrap();
+    assert_eq!(
+        manifest.mcp.servers[0].problem,
+        Some(McpProblem::ToolFilterUnsupported)
+    );
+    // Whole-server grants are another matter: nothing needs holding back.
+    grant_all(&world, &files, &world.developer);
+    conversation(&world, &world.developer);
+    assert_eq!(given(&world), ["files"]);
 }

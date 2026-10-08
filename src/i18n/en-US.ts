@@ -1906,7 +1906,8 @@ export const enUS = {
     'This program downloads and runs code from the network the first time it starts.',
   'integrations.examineWith': 'Examine through',
   'integrations.examineAction': 'Examine',
-  'integrations.noRuntime': 'No installed runtime can be given MCP servers yet (only Claude).',
+  'integrations.noRuntime':
+    'No installed runtime can look at a server without asking a model (Claude, Gemini and OpenCode can; Codex and Antigravity cannot).',
   'integrations.noTools': 'no tools listed',
   'integrations.tools': 'tools: {tools}',
   'integrations.grants': 'Who may use it',
@@ -1931,6 +1932,27 @@ export const enUS = {
   'integrations.customEnv': 'Environment variables (NAME=value, one per line)',
   'integrations.customSecrets': 'Secret variables (names only, one per line)',
   'integrations.customAdd': 'Add (stays off)',
+  'integrations.scopeUnknown': 'a workflow that no longer exists',
+  'integrations.scopeWorkflow': 'in workflow {workflow}',
+  'integrations.scopeStep': 'in {workflow}, step {step}',
+  'integrations.grantWorkflow': 'Applies to',
+  'integrations.grantAnyRun': 'Any run (chat or workflow)',
+  'integrations.grantStep': 'Step',
+  'integrations.grantAnyStep': 'Every step of the workflow',
+  'integrations.examining':
+    'Starting the program and reading its tools… the first time it can take a couple of minutes (it may be downloading).',
+  'integrations.grantsNote':
+    "An agent with the read-only profile never receives an integration, whatever is granted here. The execution's Context tab says why a granted integration was not given.",
+  'integrations.runtimeCannot': 'its runtime cannot receive integrations: it will not be given',
+  'integrations.runtimeCannotLong':
+    "This agent's runtime cannot be given integrations by Atlas yet (Claude, Codex, Gemini and OpenCode can; Antigravity cannot, because it only takes servers through its own global configuration). You can grant it, but Atlas will not deliver it. A server already set up in the runtime itself is available to it anyway, and the task has to ask for it by name.",
+  'context.mcp.problem.tool_filter_unsupported':
+    'Not given: this runtime cannot hold a server to the tools named, so a grant that names tools is not honoured.',
+  'integrations.filterUnsupported':
+    'This agent\'s runtime cannot hold a server to the tools named, so only "all its tools" can be granted to it.',
+  'integrations.notStrict':
+    'This runtime also loads the integrations set up in its own configuration; Atlas cannot see or hide them.',
+  'integrations.typeTools': 'Tool names (separated by commas or spaces)',
 } as const;
 
 export type TranslationKey = keyof typeof enUS;

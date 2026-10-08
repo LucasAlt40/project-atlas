@@ -52,6 +52,9 @@ impl SystemProcessRunner {
                 dirs.push(home.join(relative));
             }
         }
+        if let Some(home) = env::var_os("HOME").or_else(|| env::var_os("USERPROFILE")) {
+            dirs.extend(version_manager_dirs(Path::new(&home)));
+        }
         if let Some(appdata) = env::var_os("APPDATA") {
             // npm's global bin directory on Windows, where `.cmd` shims live.
             dirs.push(PathBuf::from(appdata).join("npm"));
@@ -123,6 +126,52 @@ impl Default for SystemProcessRunner {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Where Node and friends live when a version manager installed them. An app started from the
+/// desktop does not inherit the shell's `PATH`, which is where those managers add themselves, so
+/// without this `node` and `npx` (what most MCP servers are started with) would not be found.
+/// Only folders that exist are returned; with several installed versions the newest comes first.
+fn version_manager_dirs(home: &Path) -> Vec<PathBuf> {
+    let mut found = Vec::new();
+    // nvm, and fnm's older layout: `<root>/<version>/bin`.
+    for root in [
+        home.join(".nvm/versions/node"),
+        home.join(".local/share/fnm/node-versions"),
+        home.join(".fnm/node-versions"),
+    ] {
+        let Ok(entries) = std::fs::read_dir(&root) else {
+            continue;
+        };
+        let mut versions: Vec<PathBuf> = entries.filter_map(Result::ok).map(|e| e.path()).collect();
+        versions.sort_by_key(|v| std::cmp::Reverse(version_key(v)));
+        for version in versions {
+            for bin in ["bin", "installation/bin"] {
+                found.push(version.join(bin));
+            }
+        }
+    }
+    for fixed in [
+        ".volta/bin",
+        ".asdf/shims",
+        ".local/share/mise/shims",
+        ".bun/bin",
+    ] {
+        found.push(home.join(fixed));
+    }
+    found.retain(|dir| dir.is_dir());
+    found
+}
+
+/// `v22.12.0` as `[22, 12, 0]`, so versions sort by number and not as text.
+fn version_key(path: &Path) -> Vec<u64> {
+    path.file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or_default()
+        .trim_start_matches('v')
+        .split('.')
+        .map(|part| part.parse().unwrap_or(0))
+        .collect()
 }
 
 fn is_executable(path: &Path) -> bool {
@@ -722,5 +771,68 @@ mod argument_integrity {
             !std::path::Path::new("atlas-pwned").exists(),
             "an argument was run as a command"
         );
+    }
+}
+
+#[cfg(all(test, unix))]
+mod version_manager_tests {
+    use super::*;
+
+    fn home() -> PathBuf {
+        static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+        let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!("atlas-home-{}-{n}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn nvm_versions_are_found_newest_first_and_by_number() {
+        let home = home();
+        for v in ["v9.11.2", "v22.12.0", "v24.15.0", "v22.9.1"] {
+            std::fs::create_dir_all(home.join(".nvm/versions/node").join(v).join("bin")).unwrap();
+        }
+
+        let dirs = version_manager_dirs(&home);
+
+        let names: Vec<_> = dirs
+            .iter()
+            .map(|d| {
+                d.parent()
+                    .unwrap()
+                    .file_name()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_owned()
+            })
+            .collect();
+        assert_eq!(names, ["v24.15.0", "v22.12.0", "v22.9.1", "v9.11.2"]);
+        let _ = std::fs::remove_dir_all(home);
+    }
+
+    #[test]
+    fn only_folders_that_exist_are_searched() {
+        let home = home();
+        std::fs::create_dir_all(home.join(".volta/bin")).unwrap();
+
+        assert_eq!(version_manager_dirs(&home), [home.join(".volta/bin")]);
+        let _ = std::fs::remove_dir_all(home);
+    }
+
+    #[test]
+    fn a_program_in_a_version_managers_folder_is_located() {
+        use std::os::unix::fs::PermissionsExt;
+        let home = home();
+        let bin = home.join(".nvm/versions/node/v24.0.0/bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        let tool = bin.join("atlas-fake-npx");
+        std::fs::write(&tool, "#!/bin/sh\n").unwrap();
+        std::fs::set_permissions(&tool, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let mut runner = SystemProcessRunner::new();
+        runner.search_dirs.extend(version_manager_dirs(&home));
+
+        assert_eq!(runner.locate("atlas-fake-npx"), Some(tool));
+        let _ = std::fs::remove_dir_all(home);
     }
 }

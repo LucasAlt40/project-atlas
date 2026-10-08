@@ -78,3 +78,7 @@ the one runtime that has an adapter. The design is in [context-and-tooling-platf
 
 Chrome DevTools and Figma integrations (Phase E; Figma needs HTTP and OAuth), any UI to add or grant a connection, an MCP client in Atlas,
 a Tool Gateway or proxy, HTTP and its SSRF layer, per-call interception, MCP for the other four runtimes, a real model run.
+
+## Phase F follow-up
+
+A grant naming a workflow or a step is refused when that workflow or step does not exist, is not an agent step, or runs a different agent than the grant names (doc section 19.1).

@@ -3,11 +3,15 @@ mod claude;
 mod claude_mcp;
 mod cli;
 mod codex;
+mod codex_mcp;
 mod delivery;
 #[cfg(test)]
 pub(crate) mod detect_only;
 mod gemini;
+mod gemini_mcp;
+mod mcp_adapter;
 mod opencode;
+mod opencode_mcp;
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -401,6 +405,43 @@ fn status(
     }
 }
 
+/// The surface of a runtime that takes Atlas's MCP servers **besides** the user's own (it cannot
+/// be told to leave those out): what Atlas gave, and an honest entry for what it cannot see.
+pub(crate) fn merged_mcp_surface(
+    runtime_id: &str,
+    channel: crate::domain::runtime::SystemPromptChannel,
+    request: &RuntimeRequest,
+) -> RuntimeSurface {
+    use crate::domain::context::{Observation, SurfaceControl, SurfaceEntry, SurfaceKind};
+    let mut surface = RuntimeSurface::baseline(runtime_id, channel);
+    let given = request
+        .mcp
+        .as_ref()
+        .filter(|_| !request.text_only)
+        .map(|m| {
+            m.servers
+                .iter()
+                .map(|s| s.name.as_str())
+                .collect::<Vec<_>>()
+        })
+        .filter(|names| !names.is_empty());
+    surface.declare(
+        SurfaceEntry::new(
+            SurfaceKind::McpServers,
+            SurfaceControl::AtlasControlled,
+            Observation::Declared,
+        )
+        .with_detail(given.map_or_else(|| "none".to_owned(), |names| names.join(","))),
+    );
+    // The runtime merges its own configuration: servers the user set up there load as well.
+    surface.declare(SurfaceEntry::new(
+        SurfaceKind::McpServers,
+        SurfaceControl::UserControlled,
+        Observation::NotObserved,
+    ));
+    surface
+}
+
 #[cfg(test)]
 pub mod fake {
     use std::sync::Mutex;
@@ -409,7 +450,9 @@ pub mod fake {
         Detection, LaunchServer, McpProbe, ModelRuntime, RuntimeError, RuntimeEvent, RuntimeOutput,
         RuntimeRequest,
     };
-    use crate::domain::mcp::{McpSupport, ReportedMcpTool};
+    use crate::domain::mcp::{
+        McpFeatures, McpProbeKind, McpSupport, McpToolFilter, ReportedMcpTool,
+    };
     use crate::domain::runtime::{
         AuthKind, AuthState, Authentication, ModelInfo, ProviderRef, RuntimeCapabilities,
         RuntimeInfo, Transport,
@@ -434,6 +477,8 @@ pub mod fake {
         pub file_edit: bool,
         /// What it declares about MCP (`NotInvestigated`, like the runtimes nobody measured).
         pub mcp: McpSupport,
+        /// How its MCP support filters tools and probes.
+        pub mcp_features: McpFeatures,
         /// Tools it reports having when it starts (as a CLI's start-up report does).
         pub reported_tools: Option<Vec<String>>,
         /// What starting an MCP server to look at it shows (none: the probe fails).
@@ -461,6 +506,7 @@ pub mod fake {
                 text_only: true,
                 file_edit: false,
                 mcp: McpSupport::NotInvestigated,
+                mcp_features: McpFeatures::default(),
                 reported_tools: None,
                 probe: None,
                 probed: Mutex::new(Vec::new()),
@@ -474,6 +520,18 @@ pub mod fake {
 
         pub fn with_mcp(mut self) -> Self {
             self.mcp = McpSupport::Supported;
+            // What the Claude adapter measured: a deny-list, and a probe that lists tools.
+            self.mcp_features = McpFeatures {
+                tool_filter: McpToolFilter::DenyList,
+                probe: McpProbeKind::Tools,
+                strict: true,
+            };
+            self
+        }
+
+        pub fn with_mcp_features(mut self, features: McpFeatures) -> Self {
+            self.mcp = McpSupport::Supported;
+            self.mcp_features = features;
             self
         }
 
@@ -556,6 +614,7 @@ pub mod fake {
                     streaming: false,
                     system_prompt: crate::domain::runtime::SystemPromptChannel::Unsupported,
                     mcp: self.mcp,
+                    mcp_features: self.mcp_features,
                     non_interactive_execution: true,
                     authentication: vec![AuthKind::CliSession],
                     usage_metrics: true,

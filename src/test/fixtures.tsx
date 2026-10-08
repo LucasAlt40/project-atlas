@@ -118,6 +118,7 @@ const capabilities = {
   streaming: false,
   systemPrompt: 'unsupported' as const,
   mcp: 'not_investigated' as const,
+  mcpFeatures: { toolFilter: 'unsupported' as const, probe: 'none' as const, strict: false },
   nonInteractiveExecution: true,
   authentication: ['cli_session' as const],
   usageMetrics: true,

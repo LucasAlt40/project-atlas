@@ -153,6 +153,16 @@ impl RuntimeSurface {
         }
     }
 
+    /// Adds an entry Atlas declares (by its own design), before the closing "everything else".
+    pub fn declare(&mut self, entry: SurfaceEntry) {
+        let at = self
+            .entries
+            .iter()
+            .position(|e| e.kind == SurfaceKind::Other)
+            .unwrap_or(self.entries.len());
+        self.entries.insert(at, entry);
+    }
+
     pub fn of(runtime_id: &str, entries: Vec<SurfaceEntry>) -> Self {
         Self {
             runtime_id: runtime_id.to_owned(),

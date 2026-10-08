@@ -5,11 +5,14 @@ use std::time::Duration;
 
 use serde_json::Value;
 
+use super::mcp_adapter::{prepare_for, McpAdapter, McpAdapterFactory, McpDialect};
 use super::{
     cli, Detection, ModelRuntime, RuntimeError, RuntimeEvent, RuntimeOutput, RuntimeRequest,
 };
+use crate::application::mcp::{LaunchServer, McpProbe};
 use crate::application::process::{ProcessContext, ProcessOutput, ProcessRunner, ProcessSpec};
-use crate::domain::mcp::McpSupport;
+use crate::domain::context::RuntimeSurface;
+use crate::domain::mcp::ReportedMcpTool;
 use crate::domain::runtime::{
     AuthKind, AuthState, Authentication, ModelInfo, ProviderRef, RuntimeCapabilities, RuntimeInfo,
     SystemPromptChannel, Transport,
@@ -40,16 +43,21 @@ const RUN_TIMEOUT: Duration = Duration::from_secs(900);
 /// chose in Atlas (or its isolated worktree).
 pub struct GeminiRuntime {
     runner: Arc<dyn ProcessRunner>,
+    mcp: Arc<dyn McpAdapter>,
 }
 
 impl GeminiRuntime {
     pub fn new(runner: Arc<dyn ProcessRunner>) -> Self {
-        Self { runner }
+        Self {
+            runner,
+            mcp: McpAdapterFactory::create(McpDialect::Gemini),
+        }
     }
 }
 
 impl ModelRuntime for GeminiRuntime {
     fn info(&self) -> RuntimeInfo {
+        let (mcp, mcp_features) = McpAdapterFactory::declared(Some(&self.mcp));
         RuntimeInfo {
             id: "gemini".to_owned(),
             name: "Gemini CLI".to_owned(),
@@ -62,7 +70,8 @@ impl ModelRuntime for GeminiRuntime {
                 model_discovery: false,
                 streaming: false,
                 system_prompt: SystemPromptChannel::Unsupported,
-                mcp: McpSupport::NotInvestigated,
+                mcp,
+                mcp_features,
                 non_interactive_execution: true,
                 authentication: vec![AuthKind::CliSession],
                 usage_metrics: true,
@@ -113,6 +122,24 @@ impl ModelRuntime for GeminiRuntime {
         ))
     }
 
+    fn surface(&self, request: &RuntimeRequest) -> RuntimeSurface {
+        super::merged_mcp_surface(
+            &self.info().id,
+            self.info().capabilities.system_prompt,
+            request,
+        )
+    }
+
+    fn mcp_tools_in(&self, reported: &[String], launched: &[&str]) -> Vec<ReportedMcpTool> {
+        self.mcp.classify(reported, launched)
+    }
+
+    /// Starts the server through `gemini mcp list`, which connects to each server and says whether
+    /// it did. No model is asked anything. The CLI lists no tools, so none are reported.
+    fn probe_mcp(&self, server: &LaunchServer) -> Result<McpProbe, RuntimeError> {
+        self.mcp.probe(self.runner.as_ref(), server)
+    }
+
     fn execute(
         &self,
         request: &RuntimeRequest,
@@ -129,17 +156,20 @@ impl ModelRuntime for GeminiRuntime {
         } else {
             "default"
         };
-        let args = [
+        let mut args = [
             "--output-format",
             "stream-json",
             "--model",
             &request.model_id,
             "--approval-mode",
             approval,
-            "--skip-trust",
         ]
         .map(str::to_owned)
         .to_vec();
+        // The servers Atlas gave this step, in settings of this run's own that are removed when
+        // it ends (`mcp` owns them).
+        let mcp = prepare_for(self.mcp.as_ref(), request)?;
+        args.push("--skip-trust".to_owned());
         let delivery = cli::deliver_prompt_option(
             self.runner.as_ref(),
             PROGRAM,
@@ -152,7 +182,7 @@ impl ModelRuntime for GeminiRuntime {
             args: delivery.args,
             stdin: delivery.stdin,
             cwd: Some(request.working_dir.clone()),
-            env: Vec::new(),
+            env: mcp.env.clone(),
             timeout: RUN_TIMEOUT,
             context: ProcessContext::Runtime(request.scope.clone()),
             terminal: delivery.terminal,
@@ -509,5 +539,56 @@ mod tests {
 
         assert!(matches!(result, Err(RuntimeError::InvalidRequest(_))));
         assert_eq!(fake.calls.lock().unwrap().len(), 0);
+    }
+
+    /// The harmless MCP server of the Phase A spike. `MODE=requireenv` makes it start only when the
+    /// secret really reached it, which is how a probe tells "connected" from "not".
+    fn spike(secret: Option<&str>) -> LaunchServer {
+        use crate::application::mcp::LaunchEnv;
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../docs/architecture/spikes/mcp-claude/echo-mcp.js");
+        let mut env = vec![
+            LaunchEnv::Plain {
+                name: "MODE".to_owned(),
+                value: "requireenv".to_owned(),
+            },
+            LaunchEnv::Plain {
+                name: "REPORT_ENV".to_owned(),
+                value: "MYSECRET".to_owned(),
+            },
+            LaunchEnv::Plain {
+                name: "EXPECT".to_owned(),
+                value: "topsecret42".to_owned(),
+            },
+        ];
+        if let Some(value) = secret {
+            env.push(LaunchEnv::Secret {
+                name: "MYSECRET".to_owned(),
+                value: crate::domain::mcp::Secret::new(value.to_owned()),
+            });
+        }
+        LaunchServer {
+            name: "atlasspike".to_owned(),
+            executable: "node".to_owned(),
+            args: vec![path.to_string_lossy().into_owned()],
+            env,
+        }
+    }
+
+    /// Against the real CLI, no model call: a server that needs its secret connects only when the
+    /// secret reached it through the settings file and the environment.
+    #[test]
+    #[ignore = "needs the Gemini CLI and node installed; makes no model call"]
+    fn real_gemini_probe_sees_the_server_and_the_secret_that_reached_it() {
+        let runtime =
+            GeminiRuntime::new(Arc::new(crate::infrastructure::SystemProcessRunner::new()));
+
+        let with = runtime
+            .probe_mcp(&spike(Some("topsecret42")))
+            .expect("probed");
+        let wrong = runtime.probe_mcp(&spike(Some("not-it"))).expect("probed");
+
+        assert_eq!(with.status, crate::domain::mcp::McpServerStatus::Connected);
+        assert_eq!(wrong.status, crate::domain::mcp::McpServerStatus::Failed);
     }
 }

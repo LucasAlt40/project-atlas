@@ -4,11 +4,11 @@ use std::time::Duration;
 
 use serde_json::Value;
 
+use super::mcp_adapter::McpAdapterFactory;
 use super::{
     cli, Detection, ModelRuntime, RuntimeError, RuntimeEvent, RuntimeOutput, RuntimeRequest,
 };
 use crate::application::process::{ProcessContext, ProcessOutput, ProcessRunner, ProcessSpec};
-use crate::domain::mcp::McpSupport;
 use crate::domain::runtime::{
     AuthKind, AuthState, Authentication, ModelInfo, ProviderRef, RuntimeCapabilities, RuntimeInfo,
     SystemPromptChannel, Transport,
@@ -59,6 +59,10 @@ impl ModelRuntime for AntigravityRuntime {
     }
 
     fn info(&self) -> RuntimeInfo {
+        // Measured (`agy --help`, `agy mcp --help`): servers are added with `agy mcp add`, which
+        // writes the user's own configuration, and no per-run configuration was found. Atlas does
+        // not change the user's global configuration, so there is no adapter.
+        let (mcp, mcp_features) = McpAdapterFactory::declared(None);
         RuntimeInfo {
             id: "antigravity".to_owned(),
             name: "Antigravity CLI".to_owned(),
@@ -71,7 +75,8 @@ impl ModelRuntime for AntigravityRuntime {
                 model_discovery: true,
                 streaming: false,
                 system_prompt: SystemPromptChannel::Unsupported,
-                mcp: McpSupport::NotInvestigated,
+                mcp,
+                mcp_features,
                 non_interactive_execution: true,
                 authentication: vec![AuthKind::CliSession],
                 usage_metrics: true,
@@ -211,7 +216,18 @@ fn stream_event(line: &str) -> Option<RuntimeEvent> {
             Some(RuntimeEvent::Output(text.to_owned()))
         }
         "tool" => {
-            let name = step["tool_name"].as_str()?.to_owned();
+            let mut name = step["tool_name"].as_str()?.to_owned();
+            // A call to one of the user's own MCP servers goes through one tool, `call_mcp_tool`,
+            // with the server and tool as parameters (measured): show which, in the shape the
+            // other runtimes use, so a person sees that the integration was really used.
+            if name == "call_mcp_tool" {
+                let params = &step["tool_info"]["parameters"];
+                if let (Some(server), Some(tool)) =
+                    (params["ServerName"].as_str(), params["ToolName"].as_str())
+                {
+                    name = format!("mcp__{server}__{tool}");
+                }
+            }
             match step["state"].as_str()? {
                 "ACTIVE" => Some(RuntimeEvent::ToolStarted(name)),
                 "DONE" | "ERROR" => Some(RuntimeEvent::ToolCompleted(name)),
@@ -569,6 +585,18 @@ mod tests {
             ]
         );
         assert_eq!(result.text, "Found it.");
+    }
+
+    #[test]
+    fn a_call_to_the_users_own_mcp_server_is_shown_with_its_server_and_tool() {
+        let line = r#"{"event":"step_update","step_update":{"step_index":4,"state":"ACTIVE","step_type":"tool","tool_name":"call_mcp_tool","tool_info":{"name":"call_mcp_tool","parameters":{"Arguments":{},"ServerName":"chrome-devtools-mcp","ToolName":"list_pages"}}}}"#;
+
+        assert_eq!(
+            stream_event(line),
+            Some(RuntimeEvent::ToolStarted(
+                "mcp__chrome-devtools-mcp__list_pages".to_owned()
+            ))
+        );
     }
 
     #[test]

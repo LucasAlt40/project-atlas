@@ -100,9 +100,18 @@ pub fn valid_name(name: &str) -> bool {
     !name.is_empty()
         && name.len() <= MAX_NAME
         && !name.starts_with(['-', '_'])
+        // A runtime joins server and tool with `__`: a name holding one is ambiguous.
+        && !name.contains("__")
         && name
             .chars()
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
+}
+
+/// What a name comes to once a runtime and the environment have had their say: `web-2` and `web_2`
+/// are told apart by a person and are the same to the variable a secret travels in
+/// (`ATLAS_MCP_WEB_2_…`), so two connections may not share it.
+pub fn name_key(name: &str) -> String {
+    name.to_lowercase().replace('-', "_")
 }
 
 fn valid_env_name(name: &str) -> bool {
@@ -142,10 +151,18 @@ pub fn validate(connection: &McpConnection) -> Result<(), Invalid> {
     if args.iter().any(|a| a.len() > MAX_FIELD || a.contains('\0')) {
         return Err(Invalid::Argument);
     }
-    // The CLI expands `${VAR}` from Atlas's environment in a server's command, arguments and
-    // values: a configuration could name a variable that holds another connection's secret.
-    // Atlas writes those references itself, for its own secrets, and nothing else may.
-    let expands = |text: &str| text.contains("${");
+    // The CLIs expand references from Atlas's environment in a server's command, arguments and
+    // values (`${VAR}` for Claude, `$VAR` for Gemini, `{env:VAR}` and `{file:path}` for OpenCode): a
+    // configuration could name a variable that holds another connection's secret. Atlas writes
+    // those references itself, for its own secrets, and nothing else may.
+    let expands = |text: &str| {
+        text.contains("${")
+            || text.contains("{env:")
+            || text.contains("{file:")
+            || text.match_indices('$').any(|(at, _)| {
+                text[at + 1..].starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+            })
+    };
     if expands(executable)
         || args.iter().any(|a| expands(a))
         || env.iter().any(|e| {
@@ -227,7 +244,17 @@ mod tests {
         for good in ["files", "chrome-devtools", "a1", "my_server"] {
             assert!(valid_name(good), "{good}");
         }
-        for bad in ["", "Files", "-x", "_x", "a b", "a.b", "é", &"x".repeat(33)] {
+        for bad in [
+            "",
+            "Files",
+            "-x",
+            "_x",
+            "a b",
+            "a.b",
+            "a__b",
+            "é",
+            &"x".repeat(33),
+        ] {
             assert!(!valid_name(bad), "{bad}");
         }
         assert_eq!(validate(&connection("Bad Name")), Err(Invalid::Name));
@@ -312,6 +339,9 @@ mod tests {
             stdio("node", &["--key=${ATLAS_MCP_OTHER_TOKEN}"], vec![]),
             stdio("node", &[], vec![leak]),
             stdio("${HOME}/bin/x", &[], vec![]),
+            stdio("node", &["--key=$ATLAS_MCP_OTHER_TOKEN"], vec![]),
+            stdio("node", &["{env:ATLAS_MCP_OTHER_TOKEN}"], vec![]),
+            stdio("node", &["{file:/etc/passwd}"], vec![]),
         ] {
             assert_eq!(validate(&with(transport)), Err(Invalid::Expansion));
         }

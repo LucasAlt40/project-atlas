@@ -5,6 +5,9 @@
 //! - `--mcp-config` takes a JSON file (or the JSON inline); with `--strict-mcp-config` only those
 //!   servers load. Atlas uses a file: a long inline argument is mangled by Windows `.cmd` shims.
 //! - A server's tools are named `mcp__<server>__<tool>` and appear in the start-up report (`init`).
+//! - A tool that needs permission is refused in a non-interactive run, so Atlas also passes
+//!   `--allowedTools` for what it granted (`mcp__<server>` for a whole server). That this is what lets
+//!   a model call the tool was read in the CLI's reference and not run (it needs a model call).
 //! - `--tools` does **not** limit them; `--disallowedTools mcp__<server>__<tool>` removes one. A
 //!   tool the server adds later is not on any list Atlas made, so it is exposed: Atlas reads the
 //!   report and stops the step when the runtime lists a tool nobody authorized.
@@ -18,59 +21,22 @@
 
 use serde_json::{json, Map, Value};
 
-use crate::application::mcp::{LaunchEnv, LaunchServer, McpLaunch};
-use crate::domain::mcp::McpServerStatus;
-use crate::domain::mcp::ReportedMcpTool;
+use std::time::Duration;
+
+use super::mcp_adapter::{write_config, McpAdapter, McpPreparation, ProbePlan};
+use super::RuntimeError;
+use crate::application::mcp::{LaunchEnv, LaunchServer, McpLaunch, McpProbe};
+use crate::application::process::ProcessOutput;
+use crate::domain::mcp::{
+    McpFeatures, McpProbeKind, McpServerStatus, McpToolFilter, ReportedMcpTool,
+};
+
+/// How long the CLI waits for an MCP server to start, in milliseconds (its `MCP_TIMEOUT`).
+pub const STARTUP_WAIT_MS: u64 = 120_000;
 
 /// What stands in for the config file in a description of the launch (the real path is
 /// per-run and means nothing to a reader).
 pub const CONFIG_PLACEHOLDER: &str = "<mcp config file>";
-
-/// The config file of one run: only references where a secret goes, readable by the user alone
-/// (on Unix), and deleted when this is dropped, however the run ended.
-pub struct ConfigFile {
-    path: std::path::PathBuf,
-}
-
-impl ConfigFile {
-    /// Writes `launch`'s config to a new file in the system's temporary directory.
-    ///
-    /// # Errors
-    ///
-    /// Fails if the file cannot be created or written.
-    pub fn write(launch: &McpLaunch) -> std::io::Result<Self> {
-        use std::io::Write;
-        use std::sync::atomic::{AtomicU64, Ordering};
-        static NEXT: AtomicU64 = AtomicU64::new(0);
-        let path = std::env::temp_dir().join(format!(
-            "atlas-mcp-{}-{}.json",
-            std::process::id(),
-            NEXT.fetch_add(1, Ordering::Relaxed)
-        ));
-        let mut options = std::fs::OpenOptions::new();
-        options.write(true).create_new(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt;
-            options.mode(0o600);
-        }
-        let mut file = options.open(&path)?;
-        // From here the guard owns the file: a failed write still deletes it.
-        let guard = Self { path };
-        file.write_all(ClaudeMcpAdapter::config_json(launch).as_bytes())?;
-        Ok(guard)
-    }
-
-    pub fn path(&self) -> &str {
-        self.path.to_str().unwrap_or_default()
-    }
-}
-
-impl Drop for ConfigFile {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.path);
-    }
-}
 
 /// What the CLI said about MCP when it started.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -80,6 +46,80 @@ pub struct InitReport {
 }
 
 pub struct ClaudeMcpAdapter;
+
+/// Idle limit of a probe: longer than the wait the CLI gives a server to start
+/// ([`STARTUP_WAIT_MS`]), during which it prints nothing.
+const PROBE_TIMEOUT: Duration = Duration::from_secs(180);
+
+impl McpAdapter for ClaudeMcpAdapter {
+    fn program(&self) -> &'static str {
+        "claude"
+    }
+
+    /// Measured: `--disallowedTools` hides a known tool; the `init` report lists tools; only the
+    /// servers given load (`--strict-mcp-config`).
+    fn features(&self) -> McpFeatures {
+        McpFeatures {
+            tool_filter: McpToolFilter::DenyList,
+            probe: McpProbeKind::Tools,
+            strict: true,
+        }
+    }
+
+    fn prepare(&self, launch: &McpLaunch) -> Result<McpPreparation, RuntimeError> {
+        if launch.is_empty() {
+            return Ok(McpPreparation::empty());
+        }
+        // The servers' config travels in a file that lives as long as the run.
+        let file = write_config(&Self::config_json(launch))?;
+        Ok(McpPreparation::with_files(
+            Self::arguments(launch, file.path()),
+            Self::environment(launch),
+            vec![file],
+        ))
+    }
+
+    /// Starts the server through the CLI with a model that does not exist: the CLI reports what it
+    /// loaded and fails at its first request, so nothing is asked of any model and nothing is spent.
+    fn probe_plan(&self, server: &LaunchServer) -> Option<Result<ProbePlan, RuntimeError>> {
+        let launch = McpLaunch::of_one(server);
+        Some(write_config(&Self::config_json(&launch)).map(|file| {
+            ProbePlan::new(
+                Self::probe_arguments(server, file.path()),
+                Self::environment(&launch),
+                PROBE_TIMEOUT,
+                read_probe,
+                vec![file],
+            )
+        }))
+    }
+
+    fn classify(&self, reported: &[String], launched: &[&str]) -> Vec<ReportedMcpTool> {
+        ClaudeMcpAdapter::classify(reported, launched)
+    }
+}
+
+/// The server's status and tools from the CLI's `init` report.
+fn read_probe(output: &ProcessOutput, name: &str) -> Result<McpProbe, RuntimeError> {
+    let report = ClaudeMcpAdapter::parse_init(&output.stdout).ok_or_else(|| {
+        RuntimeError::UnexpectedResponse("the CLI did not report what it loaded".to_owned())
+    })?;
+    let status = report
+        .servers
+        .iter()
+        .find(|(listed, _)| listed == name)
+        .map(|(_, status)| *status)
+        .ok_or_else(|| {
+            RuntimeError::UnexpectedResponse("the CLI did not list the server".to_owned())
+        })?;
+    let tools = report
+        .tools
+        .iter()
+        .filter_map(|tool| ClaudeMcpAdapter::tool_of(name, tool))
+        .map(str::to_owned)
+        .collect();
+    Ok(McpProbe { status, tools })
+}
 
 impl ClaudeMcpAdapter {
     /// How the CLI names a server's tool.
@@ -160,13 +200,26 @@ impl ClaudeMcpAdapter {
     }
 
     /// The arguments that give the CLI these servers and hold back the tools no grant covers.
-    /// `config` is the value of `--mcp-config` (the path of [`ConfigFile`]). Both options take
+    /// `config` is the value of `--mcp-config` (the path of the run's config file). Both options take
     /// several values, so each is followed by another option.
     pub fn arguments(launch: &McpLaunch, config: &str) -> Vec<String> {
         if launch.is_empty() {
             return Vec::new();
         }
         let mut args = vec!["--mcp-config".to_owned(), config.to_owned()];
+        // `claude -p` cannot ask a person, so a tool that needs permission is simply refused: a
+        // server a person granted must also be allowed to be called, the whole server
+        // (`mcp__<server>`) or the tools named. What was held back below is denied, and a denial
+        // wins over an allowance.
+        args.push("--allowedTools".to_owned());
+        for server in &launch.servers {
+            match launch.only.iter().find(|(name, _)| name == &server.name) {
+                Some((_, tools)) => {
+                    args.extend(tools.iter().map(|tool| Self::tool_name(&server.name, tool)));
+                }
+                None => args.push(format!("mcp__{}", server.name)),
+            }
+        }
         if !launch.held_back.is_empty() {
             args.push("--disallowedTools".to_owned());
             args.extend(
@@ -179,8 +232,8 @@ impl ClaudeMcpAdapter {
         args
     }
 
-    /// The values the CLI's own environment must carry for the references in the config.
-    pub fn environment(launch: &McpLaunch) -> Vec<(String, String)> {
+    /// The secrets the config refers to, under the variable names it uses.
+    pub fn secret_environment(launch: &McpLaunch) -> Vec<(String, String)> {
         launch
             .servers
             .iter()
@@ -196,13 +249,32 @@ impl ClaudeMcpAdapter {
             .collect()
     }
 
+    /// The values the CLI's own environment must carry: the secrets the config refers to, and how
+    /// long it waits for a server to come up. Measured: a server that needs 40 s to start (an
+    /// `npx` that has to download its package, the first time) is `failed` under the CLI's default
+    /// wait and `connected` with `MCP_TIMEOUT` raised.
+    pub fn environment(launch: &McpLaunch) -> Vec<(String, String)> {
+        if launch.is_empty() {
+            return Vec::new();
+        }
+        let secrets = launch.servers.iter().flat_map(|server| {
+            server.env.iter().filter_map(|var| match var {
+                LaunchEnv::Secret { name, value } => Some((
+                    Self::secret_variable(&server.name, name),
+                    value.expose().to_owned(),
+                )),
+                LaunchEnv::Plain { .. } => None,
+            })
+        });
+        secrets
+            .chain([("MCP_TIMEOUT".to_owned(), STARTUP_WAIT_MS.to_string())])
+            .collect()
+    }
+
     /// The arguments of a start-up probe of one server: nothing is asked of any model (the model
     /// does not exist, so the CLI reports what it loaded and fails at its first request).
     pub fn probe_arguments(server: &LaunchServer, config: &str) -> Vec<String> {
-        let launch = McpLaunch {
-            servers: vec![server.clone()],
-            held_back: Vec::new(),
-        };
+        let launch = McpLaunch::of_one(server);
         let mut args: Vec<String> = [
             "-p",
             "--output-format",
@@ -319,6 +391,7 @@ mod tests {
                 ],
             )],
             held_back: vec![],
+            only: Vec::new(),
         };
 
         let json = ClaudeMcpAdapter::config_json(&launch);
@@ -344,6 +417,7 @@ mod tests {
                 server("web-2", vec![secret_env("TOKEN", "two")]),
             ],
             held_back: vec![],
+            only: Vec::new(),
         };
 
         let env = ClaudeMcpAdapter::environment(&launch);
@@ -352,7 +426,8 @@ mod tests {
             env,
             [
                 ("ATLAS_MCP_FILES_TOKEN".to_owned(), "one".to_owned()),
-                ("ATLAS_MCP_WEB_2_TOKEN".to_owned(), "two".to_owned())
+                ("ATLAS_MCP_WEB_2_TOKEN".to_owned(), "two".to_owned()),
+                ("MCP_TIMEOUT".to_owned(), "120000".to_owned())
             ]
         );
         // And it is nowhere in the arguments.
@@ -369,6 +444,7 @@ mod tests {
                 ("files".to_owned(), "write".to_owned()),
                 ("files".to_owned(), "delete".to_owned()),
             ],
+            only: Vec::new(),
         };
 
         let args = ClaudeMcpAdapter::arguments(&launch, "/run/config.json");
@@ -378,10 +454,29 @@ mod tests {
         assert_eq!(
             &args[2..],
             [
+                // Granted whole, so allowed whole (a non-interactive run cannot ask).
+                "--allowedTools",
+                "mcp__files",
                 "--disallowedTools",
                 "mcp__files__write",
                 "mcp__files__delete"
             ]
+        );
+    }
+
+    #[test]
+    fn a_server_held_to_named_tools_is_allowed_those_tools_only() {
+        let launch = McpLaunch {
+            servers: vec![server("files", vec![]), server("web", vec![])],
+            held_back: vec![],
+            only: vec![("files".to_owned(), vec!["read".to_owned()])],
+        };
+
+        let args = ClaudeMcpAdapter::arguments(&launch, "/run/config.json");
+
+        assert_eq!(
+            &args[2..],
+            ["--allowedTools", "mcp__files__read", "mcp__web"]
         );
     }
 
@@ -437,38 +532,5 @@ mod tests {
         assert_eq!(name, "mcp__files__read_file");
         assert_eq!(ClaudeMcpAdapter::tool_of("files", &name), Some("read_file"));
         assert_eq!(ClaudeMcpAdapter::tool_of("other", &name), None);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn the_config_file_is_private_holds_no_secret_and_goes_with_its_guard() {
-        use std::os::unix::fs::PermissionsExt;
-        let launch = McpLaunch {
-            servers: vec![server("files", vec![secret_env("TOKEN", "hunter2hunter2")])],
-            held_back: vec![],
-        };
-
-        let file = ConfigFile::write(&launch).unwrap();
-        let path = std::path::PathBuf::from(file.path());
-
-        let text = std::fs::read_to_string(&path).unwrap();
-        assert!(!text.contains("hunter2"));
-        assert!(text.contains("${ATLAS_MCP_FILES_TOKEN}"));
-        assert_eq!(
-            std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
-            0o600
-        );
-        drop(file);
-        assert!(!path.exists());
-    }
-
-    #[test]
-    fn two_config_files_never_share_a_path() {
-        let launch = McpLaunch::default();
-        let (a, b) = (
-            ConfigFile::write(&launch).unwrap(),
-            ConfigFile::write(&launch).unwrap(),
-        );
-        assert_ne!(a.path(), b.path());
     }
 }

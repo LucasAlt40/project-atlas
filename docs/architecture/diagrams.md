@@ -176,6 +176,56 @@ flowchart TD
 
 The dashed box is Phase E: not built.
 
+## 6. MCP across runtimes: Strategy and Factory
+
+Each CLI takes MCP servers in its own dialect. Atlas speaks to all of them through one interface (**Strategy**: `McpAdapter`), and one place
+chooses the dialect (**Factory**: `McpAdapterFactory`). A runtime holds an adapter and does not know which CLI's dialect it speaks; the catalogue
+of known integrations is built the same way (`McpPreset`, `McpPresetFactory`).
+
+```mermaid
+classDiagram
+    class ModelRuntime {
+        <<trait>>
+        +execute(request)
+        +probe_mcp(server)
+        +mcp_tools_in(names, launched)
+    }
+    class McpAdapter {
+        <<trait, the strategy>>
+        +program()
+        +features() McpFeatures
+        +prepare(launch) McpPreparation
+        +probe_plan(server) ProbePlan
+        +classify(names, launched)
+        +probe(runner, server)
+    }
+    class McpAdapterFactory {
+        +create(dialect) McpAdapter
+        +declared(adapter) support, features
+    }
+    class ClaudeMcpAdapter {
+        file config, deny-list, strict
+    }
+    class GeminiMcpAdapter {
+        settings file, allow-list
+    }
+    class OpenCodeMcpAdapter {
+        env JSON, allow-list
+    }
+    class CodexMcpAdapter {
+        -c overrides, allow-list
+    }
+    ModelRuntime --> McpAdapter : holds
+    McpAdapterFactory ..> McpAdapter : creates
+    McpAdapter <|.. ClaudeMcpAdapter
+    McpAdapter <|.. GeminiMcpAdapter
+    McpAdapter <|.. OpenCodeMcpAdapter
+    McpAdapter <|.. CodexMcpAdapter
+```
+
+`McpFeatures` is what the plan reads (not a `match` on the runtime): `tool_filter` (deny-list, allow-list, unsupported), `probe`
+(none, status, tools) and `strict`. Antigravity has no adapter, so it declares MCP as unsupported.
+
 ## Keeping these true
 
 A diagram that drifts is worse than none. When a step in section 3 or 5 changes in code, change it here in the same commit. The Mermaid blocks are

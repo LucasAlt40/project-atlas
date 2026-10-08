@@ -649,6 +649,13 @@ export interface RuntimeCapabilitiesDto {
   systemPrompt: SystemPromptChannelDto;
   /** Whether Atlas can give this runtime MCP servers of its own (an adapter that was measured). */
   mcp: McpSupportDto;
+  /** How its MCP support filters tools and probes (meaningful when `mcp` is `supported`). */
+  mcpFeatures: {
+    toolFilter: 'unsupported' | 'deny_list' | 'allow_list';
+    probe: 'none' | 'status_only' | 'tools';
+    /** It loads only the servers Atlas gives it; `false`: the user's own load as well. */
+    strict: boolean;
+  };
   nonInteractiveExecution: boolean;
   authentication: AuthKindDto[];
   /** The runtime reports token counts for an execution. */
@@ -1180,7 +1187,8 @@ export type McpProblemDto =
   | { kind: 'runtime_unsupported' }
   | { kind: 'invalid_configuration'; reason: string }
   | { kind: 'secret_missing'; name: string }
-  | { kind: 'needs_discovery' };
+  | { kind: 'needs_discovery' }
+  | { kind: 'tool_filter_unsupported' };
 
 /** Mirrors `domain::mcp::McpRecord`: the six things about a tool, kept apart. */
 export interface McpRecordDto {

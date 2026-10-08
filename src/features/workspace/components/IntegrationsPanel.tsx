@@ -90,6 +90,7 @@ export function IntegrationsPanel({ workspaceId, agents, runtimes, onClose }: Pr
                   grants={state.value.overview.grants}
                   agents={agents}
                   runtimes={runtimes}
+                  workflows={state.value.workflows}
                   riskNoteKey={
                     preset ? (`integrations.preset.${preset.id}.risk` as TranslationKey) : undefined
                   }

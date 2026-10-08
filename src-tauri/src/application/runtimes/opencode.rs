@@ -4,11 +4,14 @@ use std::time::Duration;
 
 use serde_json::Value;
 
+use super::mcp_adapter::{prepare_for, McpAdapter, McpAdapterFactory, McpDialect};
 use super::{
     cli, Detection, ModelRuntime, RuntimeError, RuntimeEvent, RuntimeOutput, RuntimeRequest,
 };
+use crate::application::mcp::{LaunchServer, McpProbe};
 use crate::application::process::{ProcessContext, ProcessOutput, ProcessRunner, ProcessSpec};
-use crate::domain::mcp::McpSupport;
+use crate::domain::context::RuntimeSurface;
+use crate::domain::mcp::ReportedMcpTool;
 use crate::domain::runtime::{
     AuthKind, AuthState, Authentication, ModelInfo, ProviderRef, RuntimeCapabilities, RuntimeInfo,
     SystemPromptChannel, Transport,
@@ -35,11 +38,15 @@ const RUN_TIMEOUT: Duration = Duration::from_secs(900);
 /// and ADR 0006. Atlas also never passes `--auto`.
 pub struct OpenCodeRuntime {
     runner: Arc<dyn ProcessRunner>,
+    mcp: Arc<dyn McpAdapter>,
 }
 
 impl OpenCodeRuntime {
     pub fn new(runner: Arc<dyn ProcessRunner>) -> Self {
-        Self { runner }
+        Self {
+            runner,
+            mcp: McpAdapterFactory::create(McpDialect::OpenCode),
+        }
     }
 }
 
@@ -52,6 +59,7 @@ impl ModelRuntime for OpenCodeRuntime {
     }
 
     fn info(&self) -> RuntimeInfo {
+        let (mcp, mcp_features) = McpAdapterFactory::declared(Some(&self.mcp));
         RuntimeInfo {
             id: "opencode".to_owned(),
             name: "OpenCode CLI".to_owned(),
@@ -64,7 +72,8 @@ impl ModelRuntime for OpenCodeRuntime {
                 model_discovery: true,
                 streaming: false,
                 system_prompt: SystemPromptChannel::Unsupported,
-                mcp: McpSupport::NotInvestigated,
+                mcp,
+                mcp_features,
                 non_interactive_execution: true,
                 authentication: vec![AuthKind::CliSession],
                 usage_metrics: true,
@@ -136,6 +145,24 @@ impl ModelRuntime for OpenCodeRuntime {
             .collect())
     }
 
+    fn mcp_tools_in(&self, reported: &[String], launched: &[&str]) -> Vec<ReportedMcpTool> {
+        self.mcp.classify(reported, launched)
+    }
+
+    fn surface(&self, request: &RuntimeRequest) -> RuntimeSurface {
+        super::merged_mcp_surface(
+            &self.info().id,
+            self.info().capabilities.system_prompt,
+            request,
+        )
+    }
+
+    /// Starts the server through `opencode mcp list`, which connects to each server and says
+    /// whether it did. No model is asked anything; the CLI lists no tools, so none are reported.
+    fn probe_mcp(&self, server: &LaunchServer) -> Result<McpProbe, RuntimeError> {
+        self.mcp.probe(self.runner.as_ref(), server)
+    }
+
     fn execute(
         &self,
         request: &RuntimeRequest,
@@ -158,6 +185,9 @@ impl ModelRuntime for OpenCodeRuntime {
                 return Err(RuntimeError::ModelUnavailable(request.model_id.clone()));
             }
         }
+
+        // The servers of this step travel in the CLI's environment (`mcp` owns the preparation).
+        let mcp = prepare_for(self.mcp.as_ref(), request)?;
 
         // OpenCode has no system-prompt flag, so everything goes in as one labelled prompt.
         // `plan` is its read-only agent; `build` can edit files, and is used only when the
@@ -186,7 +216,7 @@ impl ModelRuntime for OpenCodeRuntime {
             args: delivery.args,
             stdin: delivery.stdin,
             cwd: Some(request.working_dir.clone()),
-            env: Vec::new(),
+            env: mcp.env.clone(),
             timeout: RUN_TIMEOUT,
             context: ProcessContext::Runtime(request.scope.clone()),
             terminal: delivery.terminal,
@@ -790,5 +820,55 @@ mod tests {
         let found = cli::detection_from_asking_tool(&out).expect("a structured signal");
         assert_eq!(found.question, "Qual banco?");
         assert_eq!(found.options[0].label, "Postgres");
+    }
+
+    /// The harmless MCP server of the Phase A spike. `MODE=requireenv` makes it start only when the
+    /// secret really reached it, which is how a probe tells "connected" from "not".
+    fn spike(secret: Option<&str>) -> LaunchServer {
+        use crate::application::mcp::LaunchEnv;
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../docs/architecture/spikes/mcp-claude/echo-mcp.js");
+        let mut env = vec![
+            LaunchEnv::Plain {
+                name: "MODE".to_owned(),
+                value: "requireenv".to_owned(),
+            },
+            LaunchEnv::Plain {
+                name: "REPORT_ENV".to_owned(),
+                value: "MYSECRET".to_owned(),
+            },
+            LaunchEnv::Plain {
+                name: "EXPECT".to_owned(),
+                value: "topsecret42".to_owned(),
+            },
+        ];
+        if let Some(value) = secret {
+            env.push(LaunchEnv::Secret {
+                name: "MYSECRET".to_owned(),
+                value: crate::domain::mcp::Secret::new(value.to_owned()),
+            });
+        }
+        LaunchServer {
+            name: "atlasspike".to_owned(),
+            executable: "node".to_owned(),
+            args: vec![path.to_string_lossy().into_owned()],
+            env,
+        }
+    }
+
+    /// Against the real CLI, no model call: see the Gemini twin of this test.
+    #[test]
+    #[ignore = "needs the OpenCode CLI and node installed; makes no model call"]
+    fn real_opencode_probe_sees_the_server_and_the_secret_that_reached_it() {
+        let runtime =
+            OpenCodeRuntime::new(Arc::new(crate::infrastructure::SystemProcessRunner::new()));
+
+        let with = runtime
+            .probe_mcp(&spike(Some("topsecret42")))
+            .expect("probed");
+        let wrong = runtime.probe_mcp(&spike(Some("not-it"))).expect("probed");
+
+        assert_eq!(with.status, crate::domain::mcp::McpServerStatus::Connected);
+        assert_eq!(wrong.status, crate::domain::mcp::McpServerStatus::Failed);
     }
 }

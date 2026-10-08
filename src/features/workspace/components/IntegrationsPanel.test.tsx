@@ -1,7 +1,12 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { I18nProvider } from '@/i18n/I18nProvider';
-import type { McpConnectionDto, McpPresetDto, RuntimeStatusDto } from '@/lib/tauri/commands';
+import type {
+  McpConnectionDto,
+  McpPresetDto,
+  RuntimeStatusDto,
+  WorkflowDto,
+} from '@/lib/tauri/commands';
 import { agent } from '@/test/fixtures';
 import * as mcp from '../services/mcpService';
 import { IntegrationsPanel } from './IntegrationsPanel';
@@ -44,12 +49,20 @@ const connection = (over: Partial<McpConnectionDto> = {}): McpConnectionDto => (
   ...over,
 });
 const claude = {
-  runtime: { id: 'claude', name: 'Claude Code', capabilities: { mcp: 'supported' } },
+  runtime: {
+    id: 'claude',
+    name: 'Claude Code',
+    capabilities: {
+      mcp: 'supported',
+      mcpFeatures: { toolFilter: 'deny_list', probe: 'tools', strict: true },
+    },
+  },
 } as unknown as RuntimeStatusDto;
 
-function show(connections: McpConnectionDto[] = []) {
+function show(connections: McpConnectionDto[] = [], workflows: WorkflowDto[] = []) {
   vi.mocked(mcp.listMcpCatalog).mockResolvedValue([devtools, figma]);
   vi.mocked(mcp.listMcpConnections).mockResolvedValue({ connections, grants: [] });
+  vi.mocked(mcp.listWorkspaceWorkflows).mockResolvedValue(workflows);
   return render(
     <I18nProvider language="en-US">
       <IntegrationsPanel
@@ -144,6 +157,159 @@ describe('IntegrationsPanel', () => {
 
     expect(mcp.probeMcpConnection).not.toHaveBeenCalled();
     await userEvent.click(within(card).getByRole('button', { name: 'Grant' }));
-    expect(mcp.grantMcpConnection).toHaveBeenCalledWith('c1', 'a1', { kind: 'server' });
+    expect(mcp.grantMcpConnection).toHaveBeenCalledWith('c1', 'a1', { kind: 'server' }, {});
+  });
+
+  it('a grant can be for one step of one workflow, and then it is for the agent that step runs', async () => {
+    const flow = {
+      id: 'wf1',
+      name: 'Build',
+      nodes: [
+        { id: 'n1', type: 'agent', agentId: 'a1', label: 'Design' },
+        { id: 'end', type: 'end', label: 'Done', outcome: 'done' },
+      ],
+    } as unknown as WorkflowDto;
+    show([connection({ enabled: true })], [flow]);
+    vi.mocked(mcp.grantMcpConnection).mockResolvedValue({
+      id: 'g1',
+      connectionId: 'c1',
+      agentId: 'a1',
+      workflowId: 'wf1',
+      nodeId: 'n1',
+      tools: { kind: 'server' },
+    });
+    const card = (await screen.findAllByRole('listitem', { name: 'chrome-devtools' })).at(-1);
+    if (!card) throw new Error('no card');
+
+    await userEvent.selectOptions(within(card).getByLabelText('Applies to'), 'wf1');
+    // Only a step that runs an agent is offered.
+    expect(within(card).queryByRole('option', { name: 'Done' })).toBeNull();
+    await userEvent.selectOptions(within(card).getByLabelText('Step'), 'n1');
+    await userEvent.click(within(card).getByRole('button', { name: 'Grant' }));
+
+    expect(mcp.grantMcpConnection).toHaveBeenCalledWith(
+      'c1',
+      'a1',
+      { kind: 'server' },
+      { workflowId: 'wf1', nodeId: 'n1' },
+    );
+  });
+
+  it('says so when the agent being granted runs on a runtime that cannot receive integrations', async () => {
+    vi.mocked(mcp.listMcpCatalog).mockResolvedValue([devtools]);
+    vi.mocked(mcp.listMcpConnections).mockResolvedValue({
+      connections: [connection({ enabled: true })],
+      grants: [],
+    });
+    vi.mocked(mcp.listWorkspaceWorkflows).mockResolvedValue([]);
+    render(
+      <I18nProvider language="en-US">
+        <IntegrationsPanel
+          workspaceId="w1"
+          agents={[agent('qa', 'QA TESTER', 'antigravity')]}
+          runtimes={[claude]}
+          onClose={() => undefined}
+        />
+      </I18nProvider>,
+    );
+
+    const alerts = await screen.findAllByRole('alert');
+
+    expect(alerts.some((a) => a.textContent.includes('Antigravity cannot'))).toBe(true);
+  });
+
+  it('an allow-list runtime takes tool names typed by hand, with no examination', async () => {
+    const codex = {
+      runtime: {
+        id: 'codex',
+        name: 'Codex',
+        capabilities: {
+          mcp: 'supported',
+          mcpFeatures: { toolFilter: 'allow_list', probe: 'none', strict: false },
+        },
+      },
+    } as unknown as RuntimeStatusDto;
+    vi.mocked(mcp.listMcpCatalog).mockResolvedValue([devtools]);
+    vi.mocked(mcp.listMcpConnections).mockResolvedValue({
+      connections: [connection({ enabled: true })],
+      grants: [],
+    });
+    vi.mocked(mcp.listWorkspaceWorkflows).mockResolvedValue([]);
+    vi.mocked(mcp.grantMcpConnection).mockResolvedValue({
+      id: 'g1',
+      connectionId: 'c1',
+      agentId: 'a1',
+      workflowId: null,
+      nodeId: null,
+      tools: { kind: 'only', tools: ['navigate_page', 'take_screenshot'] },
+    });
+    render(
+      <I18nProvider language="en-US">
+        <IntegrationsPanel
+          workspaceId="w1"
+          agents={[agent('a1', 'Dev', 'codex')]}
+          runtimes={[codex]}
+          onClose={() => undefined}
+        />
+      </I18nProvider>,
+    );
+    const card = (await screen.findAllByRole('listitem', { name: 'chrome-devtools' })).at(-1);
+    if (!card) throw new Error('no card');
+
+    // It also loads what the user set up in it, and cannot be examined.
+    expect(within(card).getByText(/loads the integrations set up in its own/)).toBeInTheDocument();
+    expect(within(card).getByText(/No installed runtime can look at a server/)).toBeInTheDocument();
+    await userEvent.click(within(card).getByLabelText('Only the tools I pick'));
+    await userEvent.type(
+      within(card).getByLabelText(/Tool names/),
+      'navigate_page, take_screenshot',
+    );
+    await userEvent.click(within(card).getByRole('button', { name: 'Grant' }));
+
+    expect(mcp.grantMcpConnection).toHaveBeenCalledWith(
+      'c1',
+      'a1',
+      { kind: 'only', tools: ['navigate_page', 'take_screenshot'] },
+      {},
+    );
+  });
+
+  it('a runtime that cannot hold a server to named tools can only be granted the whole server', async () => {
+    const opencode = {
+      runtime: {
+        id: 'opencode',
+        name: 'OpenCode',
+        capabilities: {
+          mcp: 'supported',
+          mcpFeatures: { toolFilter: 'unsupported', probe: 'status_only', strict: false },
+        },
+      },
+    } as unknown as RuntimeStatusDto;
+    vi.mocked(mcp.listMcpCatalog).mockResolvedValue([devtools]);
+    vi.mocked(mcp.listMcpConnections).mockResolvedValue({
+      connections: [
+        connection({
+          enabled: true,
+          discovery: { discoveredAt: 1, runtimeId: 'opencode', status: 'connected', tools: [] },
+        }),
+      ],
+      grants: [],
+    });
+    vi.mocked(mcp.listWorkspaceWorkflows).mockResolvedValue([]);
+    render(
+      <I18nProvider language="en-US">
+        <IntegrationsPanel
+          workspaceId="w1"
+          agents={[agent('a1', 'Dev', 'opencode')]}
+          runtimes={[opencode]}
+          onClose={() => undefined}
+        />
+      </I18nProvider>,
+    );
+    const card = (await screen.findAllByRole('listitem', { name: 'chrome-devtools' })).at(-1);
+    if (!card) throw new Error('no card');
+
+    expect(within(card).getByLabelText('Only the tools I pick')).toBeDisabled();
+    expect(within(card).getByText(/only "all its tools" can be granted/)).toBeInTheDocument();
   });
 });

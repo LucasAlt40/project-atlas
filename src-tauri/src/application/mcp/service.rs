@@ -3,7 +3,7 @@ use std::sync::Arc;
 use super::credentials::{CredentialError, CredentialStore};
 use super::launch::{LaunchEnv, LaunchServer, McpLaunch};
 use super::plan::{covers, McpContext, McpPlan};
-use super::validate::validate;
+use super::validate::{name_key, validate};
 use crate::application::config::ConfigRepository;
 use crate::application::errors::{AppError, ErrorCode};
 use crate::application::runtimes::RuntimeRegistry;
@@ -117,11 +117,9 @@ impl McpService {
             if !config.workspaces.iter().any(|w| w.id == workspace_id) {
                 return Err(AppError::new(ErrorCode::WorkspaceNotFound));
             }
-            if config
-                .mcp_connections
-                .iter()
-                .any(|c| c.workspace_id == workspace_id && c.name == connection.name)
-            {
+            if config.mcp_connections.iter().any(|c| {
+                c.workspace_id == workspace_id && name_key(&c.name) == name_key(&connection.name)
+            }) {
                 return Err(AppError::new(ErrorCode::McpNameTaken));
             }
             config.mcp_connections.push(connection.clone());
@@ -277,6 +275,7 @@ impl McpService {
         if node_id.is_some() && workflow_id.is_none() {
             return Err(AppError::new(ErrorCode::McpGrantInvalid));
         }
+        let connection_workspace = connection.workspace_id.clone();
         let grant = McpGrant {
             id: new_id("grant"),
             connection_id: connection.id,
@@ -289,6 +288,32 @@ impl McpService {
             if let Some(agent) = &grant.agent_id {
                 if !config.agents.iter().any(|a| &a.id == agent) {
                     return Err(AppError::new(ErrorCode::AgentNotFound));
+                }
+            }
+            if let Some(workflow_id) = &grant.workflow_id {
+                // A grant for a workflow or step that does not exist would sit there doing
+                // nothing, and look like protection: refuse it.
+                let workflow = config
+                    .workflows
+                    .iter()
+                    .find(|w| &w.id == workflow_id && w.workspace_id == connection_workspace)
+                    .ok_or_else(|| AppError::new(ErrorCode::WorkflowNotFound))?;
+                if let Some(node_id) = &grant.node_id {
+                    let node = workflow
+                        .nodes
+                        .iter()
+                        .find(|n| &n.id == node_id)
+                        .ok_or_else(|| AppError::new(ErrorCode::McpGrantInvalid))?;
+                    // Only an agent's step runs a model; a grant to another agent than the one
+                    // the step runs can never apply.
+                    match (&node.kind, &grant.agent_id) {
+                        (crate::domain::workflow::NodeKind::Agent(step), agent) => {
+                            if agent.as_ref().is_some_and(|a| a != &step.agent_id) {
+                                return Err(AppError::new(ErrorCode::McpGrantInvalid));
+                            }
+                        }
+                        _ => return Err(AppError::new(ErrorCode::McpGrantInvalid)),
+                    }
                 }
             }
             config.mcp_grants.push(grant.clone());
@@ -353,11 +378,31 @@ impl McpService {
         let mut launch = McpLaunch::default();
         let mut left_out = Vec::new();
         for server in plan.exposed() {
+            // Two servers whose names come to the same key would share the variable a secret
+            // travels in: the second is left out rather than given the first one's value.
+            if launch
+                .servers
+                .iter()
+                .any(|s| name_key(&s.name) == name_key(&server.connection.name))
+            {
+                left_out.push((server.connection.name.clone(), LaunchProblem::Invalid));
+                continue;
+            }
             match self.launch_server(&server.connection) {
                 Ok(started) => launch.servers.push(started),
                 Err(problem) => left_out.push((server.connection.name.clone(), problem)),
             }
         }
+        launch.only = plan
+            .exposed()
+            .filter(|s| launch.servers.iter().any(|l| l.name == s.connection.name))
+            .filter_map(|s| match &s.selection {
+                Some(ToolSelection::Only { tools }) => {
+                    Some((s.connection.name.clone(), tools.clone()))
+                }
+                _ => None,
+            })
+            .collect();
         launch.held_back = plan
             .held_back()
             .into_iter()
@@ -384,7 +429,11 @@ impl McpService {
             .runtimes
             .find(runtime_id)
             .ok_or_else(|| AppError::new(ErrorCode::RuntimeNotSupported))?;
-        if runtime.info().capabilities.mcp != McpSupport::Supported {
+        let capabilities = runtime.info().capabilities;
+        // A runtime without an adapter, or one that cannot look at a server without a model.
+        if capabilities.mcp != McpSupport::Supported
+            || capabilities.mcp_features.probe == crate::domain::mcp::McpProbeKind::None
+        {
             return Err(AppError::new(ErrorCode::McpRuntimeUnsupported));
         }
         let server = self
@@ -722,6 +771,7 @@ mod tests {
             .unwrap_err()
             .is(ErrorCode::McpGrantInvalid));
 
+        add_workflow(&s, "wf1", &[("n1", "someone")]);
         let granted = s
             .service
             .grant(&c.id, None, Some("wf1"), Some("n1"), ToolSelection::Server)
@@ -840,6 +890,7 @@ mod tests {
             },
             policy: Permission::Allowed,
             support: McpSupport::Supported,
+            features: claude_like(),
         });
 
         let (launch, left_out) = s.service.launch(&planned);
@@ -858,10 +909,54 @@ mod tests {
         assert!(!format!("{launch:?}").contains("secret-of-ok"));
     }
 
+    fn claude_like() -> crate::domain::mcp::McpFeatures {
+        crate::domain::mcp::McpFeatures {
+            tool_filter: crate::domain::mcp::McpToolFilter::DenyList,
+            probe: crate::domain::mcp::McpProbeKind::Tools,
+            strict: false,
+        }
+    }
+
     fn ready_connection(s: &Setup, name: &str) -> McpConnection {
         let c = s.service.add("w1", name, stdio(false), false).unwrap();
         s.service.set_enabled(&c.id, true).unwrap();
         c
+    }
+
+    fn add_workflow(s: &Setup, id: &str, nodes: &[(&str, &str)]) {
+        use crate::application::workflow::test_support::{agent, workflow};
+        let mut w = workflow(
+            nodes.iter().map(|(node, who)| agent(node, who)).collect(),
+            vec![],
+        );
+        w.id = id.to_owned();
+        w.workspace_id = "w1".to_owned();
+        s.config
+            .modify(|c| {
+                c.workflows.push(w);
+                Ok(())
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn a_grant_must_name_a_workflow_and_a_step_that_exist() {
+        let s = setup();
+        let c = ready_connection(&s, "files");
+        add_workflow(&s, "wf1", &[("n1", "someone")]);
+        let grant = |wf: Option<&str>, node: Option<&str>, agent: Option<&str>| {
+            s.service
+                .grant(&c.id, agent, wf, node, ToolSelection::Server)
+        };
+
+        assert!(grant(Some("wf1"), None, None).is_ok());
+        assert!(grant(Some("wf1"), Some("n1"), None).is_ok());
+        assert!(grant(Some("ghost"), None, None)
+            .unwrap_err()
+            .is(ErrorCode::WorkflowNotFound));
+        assert!(grant(Some("wf1"), Some("nope"), None)
+            .unwrap_err()
+            .is(ErrorCode::McpGrantInvalid));
     }
 
     fn ctx() -> McpContext<'static> {
@@ -903,6 +998,7 @@ mod tests {
     fn a_connection_with_no_named_tools_for_this_step_is_never_started_for_a_refresh() {
         let s = setup();
         let c = ready_connection(&s, "files");
+        add_workflow(&s, "wf-other", &[("n1", "someone")]);
         // Server-wide for this step, and a named-tools grant for another workflow.
         s.service
             .grant(&c.id, None, None, None, ToolSelection::Server)
@@ -911,7 +1007,7 @@ mod tests {
             .grant(
                 &c.id,
                 None,
-                Some("another-workflow"),
+                Some("wf-other"),
                 None,
                 ToolSelection::Only {
                     tools: vec!["read".to_owned()],
@@ -990,5 +1086,62 @@ mod tests {
         service.refresh_discovery(&ctx(), "rt-a", 60_000);
 
         assert_eq!(broken.probed.lock().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn names_that_differ_only_by_a_dash_or_case_are_the_same_connection() {
+        let s = setup();
+        s.service.add("w1", "web-2", stdio(false), false).unwrap();
+
+        for same in ["web_2", "WEB-2"] {
+            assert!(s
+                .service
+                .add("w1", same, stdio(false), false)
+                .unwrap_err()
+                .is(if same == "WEB-2" {
+                    ErrorCode::McpConnectionInvalid
+                } else {
+                    ErrorCode::McpNameTaken
+                }));
+        }
+    }
+
+    #[test]
+    fn two_servers_that_share_a_key_never_share_a_secret_variable() {
+        use crate::application::mcp::{plan, McpInputs};
+        let s = setup();
+        // A configuration edited by hand can hold both: the guard is in the launch, not only in add.
+        let a = ready_connection(&s, "web-2");
+        let mut b = ready_connection(&s, "other");
+        b.name = "web_2".to_owned();
+        s.config
+            .modify(|c| {
+                c.mcp_connections
+                    .iter_mut()
+                    .find(|x| x.id == b.id)
+                    .unwrap()
+                    .name = "web_2".to_owned();
+                Ok(())
+            })
+            .unwrap();
+        for id in [&a.id, &b.id] {
+            s.service
+                .grant(id, None, None, None, ToolSelection::Server)
+                .unwrap();
+        }
+        let overview = s.service.overview("w1");
+        let plan = plan(&McpInputs {
+            connections: &overview.connections,
+            grants: &overview.grants,
+            context: ctx(),
+            policy: crate::domain::security::Permission::Allowed,
+            support: McpSupport::Supported,
+            features: claude_like(),
+        });
+
+        let (launch, left_out) = s.service.launch(&plan);
+
+        assert_eq!(launch.servers.len(), 1);
+        assert_eq!(left_out.len(), 1);
     }
 }

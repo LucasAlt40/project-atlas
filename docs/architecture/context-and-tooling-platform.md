@@ -404,7 +404,8 @@ shims, escaping, and whether moving text from the user turn to the system prompt
 | C     | **Done** (section 16): Rules, Context Authority, `SystemPromptChannel`, guardrail and review integration. Memory is **not** part of it                                                             |
 | D     | **Done** (section 17, ADR 0028): MCP domain, plan, STDIO validation, `CredentialStore` + keyring, Claude adapter, probe, policy axis, guardrail integration, manifest and metrics. No UI           |
 | E     | **Done** (section 18): catalogue (DevTools pinned, Figma listed and not addable), the Integrations panel (connections, secrets, examine, grants). Figma waits for HTTP + OAuth                     |
-| F–G   | Workflow integration; validation and hardening                                                                                                                                                     |
+| F     | **Done** (section 19): MCP grants for a workflow or one of its steps, validated and set from the Integrations panel; proven through the chat service the workflow runner uses                      |
+| G     | **Done** (section 19.2): validation pass and hardening; what is still unverified is listed there                                                                                                   |
 
 ## 15. Phase B: what exists now
 
@@ -780,9 +781,9 @@ report upgrades it to `Reported`.
 
 ### 17.5 Runtime matrix (MCP)
 
-|                   | Claude                            | Codex                                           | OpenCode                                   | Gemini           | Antigravity      |
-| ----------------- | --------------------------------- | ----------------------------------------------- | ------------------------------------------ | ---------------- | ---------------- |
-| Atlas-managed MCP | **Supported** (adapter, measured) | Not investigated (emits `mcp_tool_call` events) | Not investigated (may load the user's own) | Not investigated | Not investigated |
+Superseded by [ADR 0029](adr/0029-mcp-for-every-runtime.md): Claude, Gemini, OpenCode and Codex take Atlas's servers (each measured, none strict
+except Claude); Antigravity cannot without changing the user's global configuration. The paragraph below is what the help alone showed before
+those measurements.
 
 What the other four CLIs' own help shows about MCP (read-only, `--help` only; no server was started and nothing was changed). This is
 evidence of where to look, not support:
@@ -820,6 +821,24 @@ Closed after the first Phase D report, each with a test:
   with the file config; and no MCP server left after a normal and a stopped run. The last pair also passes with the group kill disabled,
   because Claude cleans up its own servers: the group kill is proven by the unit tests (a plain shell and its `sleep`), not by that run.
 
+Found by a review of the whole path (each with a test):
+
+- **A server that takes a while to start was `failed`.** Measured with the real CLI: a server that needs 40 s is `failed` under the CLI's
+  default wait and `connected` with `MCP_TIMEOUT` raised. An `npx` that downloads its package the first time (the DevTools entry) is exactly
+  that. The adapter now gives the CLI `MCP_TIMEOUT=120000` for every launch that has servers, and the probe's idle limit is 180 s. The panel
+  says the first examination can take minutes.
+- **`node` and `npx` were not found from a desktop-launched app** when a version manager installed them (nvm, fnm, volta, asdf, mise): the
+  shell `PATH` that holds them is not inherited. The process runner now also searches those folders (newest version first), for the
+  requirement check and for the CLI's own `PATH`.
+- **Two connections could share a secret.** `web-2` and `web_2` map to the same variable (`ATLAS_MCP_WEB_2_…`). Names that come to the same key
+  are refused when added, a name may not hold `__` (the runtimes join server and tool with it), and the launch leaves out a second server with
+  an already used key instead of giving it the first one's value.
+- **A real end-to-end run without a model** (`real_a_granted_server_goes_through_guard_cli_and_manifest`): real guard, real CLI, real MCP
+  service, a step through `ExecutionService`. Discovery was refreshed first, the server was given, `echo_static` was reported exposed, and
+  `extra_tool` (added by the server) was held back and reported not exposed.
+- **Known, not verified:** on native Windows Claude Code's own documentation asks for `cmd /c npx …`; Atlas refuses shells by design, so the
+  DevTools entry is expected not to start there until that is decided.
+
 Not closable without a decision or cost: whether `CLAUDE.md`, hooks, auto-memory and plugins reach the model, `--append-system-prompt`
 semantics, and the real size of `chars / 4` all need a paid model run; tool descriptions and schemas need an MCP client, which this phase
 does not build.
@@ -841,6 +860,32 @@ Code: `application/mcp/catalog.rs`; commands `list_mcp_catalog`, `add_mcp_preset
 - **Secrets** are typed into a password field, handed to the core and the field is emptied; the panel never receives a value back.
 - **Not done:** the real examination of DevTools (it downloads third-party code: needs the user's go-ahead), HTTP and OAuth (Figma), editing
   an existing connection's command in the UI, Memory.
+
+## 19. Phases F and G
+
+### 19.1 F: workflows
+
+A workflow step is an execution like any other (`ChatService::send_workflow_step` → `ExecutionService::run_step`), so rules, budget,
+guardrails, the manifest and MCP already applied to it. What F adds:
+
+- **A grant can name a workflow and one of its steps.** `McpService::grant` refuses a workflow that is not in the connection's workspace
+  (`WorkflowNotFound`), a step that is not in it, a step that is not an agent step, and an agent other than the one the step runs
+  (`McpGrantInvalid`): such a grant would sit there looking like protection and never apply.
+- **The panel offers it.** The grant form has "Applies to" (any run, or a workflow) and "Step" (only agent steps; the agent is then the one the
+  step runs). A listed grant says where it applies.
+- **Proof through the real path.** A test sends two steps of one workflow through the chat service: the step named in the grant is given the
+  server, the other is not (the manifest says so).
+- **A step's Context tab** is the one the Inspector already had: the workflow page opens the same `ExecutionInspector`.
+- **Not done:** a per-step summary of its integrations in the workflow canvas, and workflow-scoped rules in the UI (no rules editor yet).
+
+### 19.2 G: validation and hardening
+
+Done across the work after Phase D: stopping a run without a terminal (process group), a bounded retry for a connection that cannot be probed,
+the group kill limited to a runtime's own run, the config file instead of inline JSON, the guard checked for the MCP launch and probe, real
+runs without a model (probe, held-back tool, stopped run, no orphan server), the Keychain round trip on macOS, production builds, repeated
+test runs. **Not verified:** the desktop window by a person; Windows and Linux builds of the credential store; any run that costs tokens
+(whether `CLAUDE.md`, hooks and auto-memory reach the model, `--append-system-prompt`, the real size of `chars / 4`); the DevTools examination
+(it downloads third-party code and needs the user's go-ahead); descriptions and schemas of MCP tools.
 
 ## 14. Limits of this document
 

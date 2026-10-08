@@ -116,39 +116,6 @@ pub struct ContextManifest {
 }
 
 impl ContextManifest {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        ids: ManifestIds,
-        created_at: u64,
-        plan_fingerprint: String,
-        diverged_from_plan: bool,
-        sections: Vec<PromptSection>,
-        delivery: DeliveryRecord,
-        rules: Vec<ManifestRule>,
-        mcp: McpRecord,
-        surface: RuntimeSurface,
-    ) -> Self {
-        let mut manifest = Self {
-            execution_id: ids.execution,
-            workspace_id: ids.workspace,
-            task_id: ids.task,
-            agent_id: ids.agent,
-            runtime_id: ids.runtime,
-            model_id: ids.model,
-            created_at,
-            plan_fingerprint,
-            diverged_from_plan,
-            sections,
-            delivery,
-            rules,
-            mcp,
-            surface,
-            warnings: Vec::new(),
-        };
-        manifest.refresh_warnings(&[]);
-        manifest
-    }
-
     /// Recomputes the manifest's own warnings (and keeps `extra`, the budget's). Called again
     /// when the surface learns what the runtime reported.
     pub fn refresh_warnings(&mut self, extra: &[ContextWarning]) {

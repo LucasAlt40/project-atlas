@@ -12,7 +12,7 @@ use super::agents::AgentService;
 use super::errors::{AppError, ErrorCode};
 use super::harness::context::{HarnessContextBuilder, TaskContextLoad};
 use super::interaction::{should_pause, InteractionDetector, InteractionSignals, LayeredDetector};
-use super::mcp::{LaunchProblem, McpContext, McpInputs, McpPlan, McpService};
+use super::mcp::{LaunchProblem, McpContext, McpInputs, McpLaunch, McpPlan, McpService};
 use super::optimization::review::{MandatoryRule, McpFacts, McpFailure, RuleFacts};
 use super::optimization::skills::{SelectionInput, SkillService};
 use super::optimization::{self, OptimizationFlags, PreRuntime, RuntimeProbe};
@@ -650,17 +650,18 @@ impl ExecutionService {
                 description: inputs.description.clone(),
                 ..task.clone()
             };
-            PromptBuilder::assemble(
-                &personality,
-                &project,
-                inputs.harness.as_deref(),
+            PromptBuilder {
+                personality: &personality,
+                project: &project,
+                agent: &agent,
+                task: &reworked,
                 task_aware,
-                &agent,
-                &reworked,
                 can_edit,
-                inputs.skills_text().as_deref(),
-                inputs.rules_text().as_deref(),
-            )
+                harness: inputs.harness.as_deref(),
+                skills: inputs.skills_text().as_deref(),
+                rules: inputs.rules_text().as_deref(),
+            }
+            .assemble()
         };
         let (mut prompt, mut layout) = build(&inputs);
         let mut combined = prompt.combined();
@@ -719,7 +720,7 @@ impl ExecutionService {
                 node: node_id,
             },
             mcp_policy,
-            runtime.info().capabilities.mcp,
+            &runtime.info().capabilities,
             &runtime.info().id,
         );
         let mcp_facts = Self::mcp_facts(&mcp_plan);
@@ -770,35 +771,7 @@ impl ExecutionService {
         // The guardrails allowed it: only now are the secrets of the servers it is given read, and
         // only for those. A connection that cannot be started as planned is out of the step; a
         // required one stops the step.
-        let mut mcp_launch = None;
-        if matches!(gate, guardrails::Gate::Proceed) && mcp_plan.exposed().next().is_some() {
-            if let Some(service) = &self.mcp {
-                let (launch, left_out) = service.launch(&mcp_plan);
-                for (name, problem) in left_out {
-                    let required = mcp_plan
-                        .servers
-                        .iter()
-                        .any(|s| s.connection.name == name && s.connection.required);
-                    mcp_plan.exclude(&name, Self::problem_of(&problem));
-                    emitter.log(&format!(
-                        "MCP connection {name} could not be started as planned"
-                    ));
-                    if required {
-                        gate = guardrails::Gate::Deny(ExecutionFailure {
-                            kind: crate::domain::execution::FailureKind::PermissionDenied,
-                            message: format!(
-                                "Atlas did not start the agent: the required MCP connection {name} could not be started."
-                            ),
-                            details: Some(format!(
-                                "reason {}",
-                                crate::domain::security::Reason::McpConnectionUnavailable.as_str()
-                            )),
-                        });
-                    }
-                }
-                mcp_launch = (!launch.is_empty()).then_some(launch);
-            }
-        }
+        let mcp_launch = self.launch_mcp(&emitter, &mut mcp_plan, &mut gate);
         let measured_parts = inputs.parts.clone();
         execution.prompt = combined;
         let prompt_build_ms = optimization::elapsed_ms(prompt_timer);
@@ -964,6 +937,45 @@ impl ExecutionService {
         Ok(ExecutionRecord { task, execution })
     }
 
+    /// What the step is given of its MCP servers, once the guardrails have let it run: the secrets
+    /// are read here, for the exposed servers only. A connection that cannot be started as planned
+    /// leaves the plan, and a required one turns the gate into a denial.
+    fn launch_mcp(
+        &self,
+        emitter: &Emitter<'_>,
+        plan: &mut McpPlan,
+        gate: &mut guardrails::Gate,
+    ) -> Option<McpLaunch> {
+        if !matches!(gate, guardrails::Gate::Proceed) || plan.exposed().next().is_none() {
+            return None;
+        }
+        let service = self.mcp.as_ref()?;
+        let (launch, left_out) = service.launch(plan);
+        for (name, problem) in left_out {
+            let required = plan
+                .servers
+                .iter()
+                .any(|s| s.connection.name == name && s.connection.required);
+            plan.exclude(&name, Self::problem_of(&problem));
+            emitter.log(&format!(
+                "MCP connection {name} could not be started as planned"
+            ));
+            if required {
+                *gate = guardrails::Gate::Deny(ExecutionFailure {
+                    kind: crate::domain::execution::FailureKind::PermissionDenied,
+                    message: format!(
+                        "Atlas did not start the agent: the required MCP connection {name} could not be started."
+                    ),
+                    details: Some(format!(
+                        "reason {}",
+                        crate::domain::security::Reason::McpConnectionUnavailable.as_str()
+                    )),
+                });
+            }
+        }
+        (!launch.is_empty()).then_some(launch)
+    }
+
     /// Gathers and resolves the rules of this execution: the user's configured rules, the
     /// project's own file, and the task's. Without a rule service nothing applies.
     fn resolve_rules(
@@ -1073,11 +1085,11 @@ impl ExecutionService {
         let listed_mcp = listed
             .as_ref()
             .map(|tools| runtime.mcp_tools_in(tools, &launched));
-        let used_mcp = listed.as_ref().and_then(|_| {
-            observed.map(|o| {
-                let names: Vec<String> = o.tools_used.iter().map(|(n, _)| n.clone()).collect();
-                runtime.mcp_tools_in(&names, &launched)
-            })
+        // What the stream showed of the tools it called, listed or not: a runtime that streams
+        // its calls (Codex, OpenCode) says which MCP tools were used even if it never listed them.
+        let used_mcp = observed.map(|o| {
+            let names: Vec<String> = o.tools_used.iter().map(|(n, _)| n.clone()).collect();
+            runtime.mcp_tools_in(&names, &launched)
         });
         let statuses = Self::reported_statuses(&reported);
         if let Some(manifest) = execution.manifest.as_mut() {
@@ -1190,14 +1202,21 @@ impl ExecutionService {
         &self,
         context: &McpContext<'_>,
         policy: Permission,
-        support: crate::domain::mcp::McpSupport,
+        capabilities: &crate::domain::runtime::RuntimeCapabilities,
         runtime_id: &str,
     ) -> McpPlan {
+        let support = capabilities.mcp;
+        let features = capabilities.mcp_features;
         let Some(service) = &self.mcp else {
             return McpPlan::default();
         };
         // A grant that names tools only holds if the tools Atlas knows are recent.
-        if policy != Permission::Denied && support == crate::domain::mcp::McpSupport::Supported {
+        let can_look = features.probe != crate::domain::mcp::McpProbeKind::None
+            && features.tool_filter == crate::domain::mcp::McpToolFilter::DenyList;
+        if policy != Permission::Denied
+            && support == crate::domain::mcp::McpSupport::Supported
+            && can_look
+        {
             service.refresh_discovery(context, runtime_id, MCP_DISCOVERY_MAX_AGE_MS);
         }
         let overview = service.snapshot(context.workspace);
@@ -1207,6 +1226,7 @@ impl ExecutionService {
             context: *context,
             policy,
             support,
+            features,
         })
     }
 
@@ -1892,6 +1912,8 @@ impl Emitter<'_> {
 mod context_tests;
 #[cfg(test)]
 mod mcp_tests;
+#[cfg(test)]
+mod real_runtime_tests;
 #[cfg(test)]
 mod rules_tests;
 #[cfg(test)]

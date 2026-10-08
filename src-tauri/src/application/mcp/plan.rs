@@ -17,8 +17,8 @@ use std::collections::BTreeSet;
 
 use super::validate::validate;
 use crate::domain::mcp::{
-    McpConnection, McpGrant, McpProblem, McpRecord, McpServerRecord, McpSupport, McpToolState,
-    ToolSelection,
+    McpConnection, McpFeatures, McpGrant, McpProblem, McpRecord, McpServerRecord, McpSupport,
+    McpToolFilter, McpToolState, ToolSelection,
 };
 use crate::domain::security::Permission;
 
@@ -38,6 +38,8 @@ pub struct McpInputs<'a> {
     /// The agent's resolved MCP policy.
     pub policy: Permission,
     pub support: McpSupport,
+    /// How the runtime filters tools (what a grant naming tools needs).
+    pub features: McpFeatures,
 }
 
 /// One connection as this step sees it.
@@ -70,6 +72,8 @@ pub struct McpPlan {
     /// The policy asks a person before a step is given MCP tools, and this one would be.
     pub requires_approval: bool,
     policy: Option<Permission>,
+    /// The runtime exposes only the tools named: a tool is exposed without having been discovered.
+    allow_list: bool,
 }
 
 /// Several grants that match one step add up: the whole server if any says so, else the union.
@@ -130,6 +134,7 @@ pub fn plan(inputs: &McpInputs<'_>) -> McpPlan {
         servers,
         requires_approval,
         policy: Some(inputs.policy),
+        allow_list: inputs.features.tool_filter == McpToolFilter::AllowList,
     }
 }
 
@@ -153,8 +158,16 @@ fn problem_of(
             reason: invalid.code().to_owned(),
         });
     }
-    if matches!(selection, ToolSelection::Only { .. }) && connection.discovery.is_none() {
-        return Some(McpProblem::NeedsDiscovery);
+    if matches!(selection, ToolSelection::Only { .. }) {
+        match inputs.features.tool_filter {
+            // The rest cannot be held back: better not to give the server at all.
+            McpToolFilter::Unsupported => return Some(McpProblem::ToolFilterUnsupported),
+            // The tools are the ones a discovery listed.
+            McpToolFilter::DenyList if connection.discovery.is_none() => {
+                return Some(McpProblem::NeedsDiscovery)
+            }
+            McpToolFilter::DenyList | McpToolFilter::AllowList => {}
+        }
     }
     connection
         .missing_secret()
@@ -250,7 +263,9 @@ impl McpPlan {
                 enabled: server.connection.enabled,
                 authorized: server.authorizes(tool),
                 // A tool the server does not have cannot be given, whatever a grant says.
-                exposed: server.exposed() && server.authorizes(tool) && discovered,
+                exposed: server.exposed()
+                    && server.authorizes(tool)
+                    && (discovered || self.allow_list),
                 reported_exposed: None,
                 used: None,
             };
@@ -370,6 +385,11 @@ mod tests {
             context: CTX,
             policy,
             support,
+            features: crate::domain::mcp::McpFeatures {
+                tool_filter: McpToolFilter::DenyList,
+                probe: crate::domain::mcp::McpProbeKind::Tools,
+                strict: false,
+            },
         })
     }
 

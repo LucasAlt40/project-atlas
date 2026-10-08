@@ -71,6 +71,7 @@ impl ModelRuntime for Scripted {
                 streaming: false,
                 system_prompt: SystemPromptChannel::Unsupported,
                 mcp: crate::domain::mcp::McpSupport::NotInvestigated,
+                mcp_features: crate::domain::mcp::McpFeatures::default(),
                 non_interactive_execution: true,
                 authentication: vec![AuthKind::CliSession],
                 usage_metrics: false,

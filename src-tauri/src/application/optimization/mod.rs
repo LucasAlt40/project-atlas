@@ -161,6 +161,9 @@ pub struct RuntimeProbe {
     waiting_at: Cell<Option<Instant>>,
     tool_calls: Cell<u32>,
     tool_names: std::cell::RefCell<BTreeMap<String, u32>>,
+    /// Calls a runtime reported only once they were done (`OpenCode` writes a tool call when it has
+    /// finished), per tool.
+    completed_names: std::cell::RefCell<BTreeMap<String, u32>>,
 }
 
 /// What a [`RuntimeProbe`] saw.
@@ -181,6 +184,7 @@ impl RuntimeProbe {
             waiting_at: Cell::new(None),
             tool_calls: Cell::new(0),
             tool_names: std::cell::RefCell::default(),
+            completed_names: std::cell::RefCell::default(),
         }
     }
 
@@ -197,6 +201,13 @@ impl RuntimeProbe {
                     .entry(name.clone())
                     .or_default() += 1;
             }
+            RuntimeEvent::ToolCompleted(name) => {
+                *self
+                    .completed_names
+                    .borrow_mut()
+                    .entry(name.clone())
+                    .or_default() += 1;
+            }
             _ => {}
         }
     }
@@ -204,13 +215,15 @@ impl RuntimeProbe {
     pub fn finish(&self) -> RuntimeObservation {
         let now = Instant::now();
         let waiting = self.waiting_at.get();
-        let calls = self.tool_calls.get();
-        let mut tools_used: Vec<(String, u32)> = self
-            .tool_names
-            .borrow()
-            .iter()
-            .map(|(name, count)| (name.clone(), *count))
-            .collect();
+        // A call reported both when it started and when it finished is one call: per tool, the
+        // larger of the two counts.
+        let mut counts = self.tool_names.borrow().clone();
+        for (name, done) in self.completed_names.borrow().iter() {
+            let seen = counts.entry(name.clone()).or_default();
+            *seen = (*seen).max(*done);
+        }
+        let calls = counts.values().sum::<u32>().max(self.tool_calls.get());
+        let mut tools_used: Vec<(String, u32)> = counts.into_iter().collect();
         tools_used.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
         RuntimeObservation {
             startup_ms: waiting.map(|at| ms(at.duration_since(self.started))),

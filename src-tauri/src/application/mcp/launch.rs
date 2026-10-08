@@ -41,9 +41,21 @@ pub struct McpLaunch {
     pub servers: Vec<LaunchServer>,
     /// (server, tool) discovered and not authorized: kept from the runtime where it can be.
     pub held_back: Vec<(String, String)>,
+    /// (server, tools) for a server a grant holds to the tools it names: what a runtime that takes
+    /// an allow-list is given. Empty for a server granted whole.
+    pub only: Vec<(String, Vec<String>)>,
 }
 
 impl McpLaunch {
+    /// Just `server`, whole: what a probe starts to look at it alone.
+    pub fn of_one(server: &LaunchServer) -> Self {
+        Self {
+            servers: vec![server.clone()],
+            held_back: Vec::new(),
+            only: Vec::new(),
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.servers.is_empty()
     }

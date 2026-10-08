@@ -193,72 +193,36 @@ impl PromptLayout {
     }
 }
 
-/// The only place a prompt is assembled.
-pub struct PromptBuilder;
+/// What a prompt is assembled from, borrowed: the only place a prompt is assembled.
+pub struct PromptBuilder<'a> {
+    pub personality: &'a PersonalityProfile,
+    pub project: &'a ProjectContext,
+    pub agent: &'a Agent,
+    pub task: &'a Task,
+    pub task_aware: bool,
+    /// Whether the agent may edit files (see `RuntimeRequest::allow_edits`). The rule the prompt
+    /// states is the one the runtime enforces: the prompt never says more than what the tools allow.
+    pub can_edit: bool,
+    pub harness: Option<&'a str>,
+    pub skills: Option<&'a str>,
+    pub rules: Option<&'a str>,
+}
 
-impl PromptBuilder {
-    #[cfg(test)]
-    pub fn build(
-        personality: &PersonalityProfile,
-        project: &ProjectContext,
-        harness: Option<&str>,
-        task_aware: bool,
-        agent: &Agent,
-        task: &Task,
-    ) -> Prompt {
-        Self::build_with_access(
+impl PromptBuilder<'_> {
+    /// The prompt, also telling how big each part is. The prompt is identical whether or not the
+    /// layout is used.
+    pub fn assemble(&self) -> (Prompt, PromptLayout) {
+        let Self {
             personality,
             project,
-            harness,
-            task_aware,
             agent,
             task,
-            false,
-        )
-    }
-
-    /// As [`Self::build`], telling the agent whether it may edit files (see
-    /// `RuntimeRequest::allow_edits`). The rule the prompt states is the one the runtime enforces:
-    /// the prompt never says more than what the tools allow.
-    #[cfg(test)]
-    #[allow(clippy::too_many_arguments)]
-    pub fn build_with_access(
-        personality: &PersonalityProfile,
-        project: &ProjectContext,
-        harness: Option<&str>,
-        task_aware: bool,
-        agent: &Agent,
-        task: &Task,
-        can_edit: bool,
-    ) -> Prompt {
-        Self::assemble(
-            personality,
-            project,
-            harness,
             task_aware,
-            agent,
-            task,
             can_edit,
-            None,
-            None,
-        )
-        .0
-    }
-
-    /// [`Self::build_with_access`], also telling how big each part is. This is the one assembly:
-    /// the prompt is identical whether or not the layout is used.
-    #[allow(clippy::too_many_arguments)]
-    pub fn assemble(
-        personality: &PersonalityProfile,
-        project: &ProjectContext,
-        harness: Option<&str>,
-        task_aware: bool,
-        agent: &Agent,
-        task: &Task,
-        can_edit: bool,
-        skills: Option<&str>,
-        rules: Option<&str>,
-    ) -> (Prompt, PromptLayout) {
+            harness,
+            skills,
+            rules,
+        } = *self;
         let atlas_rules = if can_edit {
             ATLAS_RULES_EDITING
         } else {
@@ -320,44 +284,53 @@ mod tests {
     use crate::domain::task::TaskStatus;
 
     fn build(instructions: &str) -> Prompt {
-        PromptBuilder::build(
-            &PersonalityProfile {
-                id: "p".to_owned(),
-                name: "Architect".to_owned(),
-                description: String::new(),
-                system_instructions: "You are an architect.".to_owned(),
-                behavior: vec![],
-                tags: vec![],
-                source: PersonalitySource::Builtin,
-                suggested_contract: crate::domain::result_contract::ResultContract::default(),
-                suggested_permission_profile: "developer".to_owned(),
-            },
-            &ProjectContext {
-                name: "Project Atlas".to_owned(),
-                path: "/atlas".to_owned(),
-                technologies: vec!["Tauri 2".to_owned(), "Rust".to_owned()],
-            },
-            None,
-            false,
-            &Agent {
-                id: "a".to_owned(),
-                name: "A".to_owned(),
-                personality_id: "p".to_owned(),
-                runtime_id: "x".to_owned(),
-                model_id: "m".to_owned(),
-                instructions: instructions.to_owned(),
-                permission_profile_id: None,
-                worktree_isolation: false,
-                result_contract: crate::domain::result_contract::ResultContract::default(),
-                created_at: 0,
-            },
-            &Task {
-                id: "t".to_owned(),
-                description: "Find three improvements".to_owned(),
-                agent_id: "a".to_owned(),
-                status: TaskStatus::Running,
-            },
-        )
+        let personality = PersonalityProfile {
+            id: "p".to_owned(),
+            name: "Architect".to_owned(),
+            description: String::new(),
+            system_instructions: "You are an architect.".to_owned(),
+            behavior: vec![],
+            tags: vec![],
+            source: PersonalitySource::Builtin,
+            suggested_contract: crate::domain::result_contract::ResultContract::default(),
+            suggested_permission_profile: "developer".to_owned(),
+        };
+        let project = ProjectContext {
+            name: "Project Atlas".to_owned(),
+            path: "/atlas".to_owned(),
+            technologies: vec!["Tauri 2".to_owned(), "Rust".to_owned()],
+        };
+        let agent = Agent {
+            id: "a".to_owned(),
+            name: "A".to_owned(),
+            personality_id: "p".to_owned(),
+            runtime_id: "x".to_owned(),
+            model_id: "m".to_owned(),
+            instructions: instructions.to_owned(),
+            permission_profile_id: None,
+            worktree_isolation: false,
+            result_contract: crate::domain::result_contract::ResultContract::default(),
+            created_at: 0,
+        };
+        let task = Task {
+            id: "t".to_owned(),
+            description: "Find three improvements".to_owned(),
+            agent_id: "a".to_owned(),
+            status: TaskStatus::Running,
+        };
+        PromptBuilder {
+            personality: &personality,
+            project: &project,
+            agent: &agent,
+            task: &task,
+            task_aware: false,
+            can_edit: false,
+            harness: None,
+            skills: None,
+            rules: None,
+        }
+        .assemble()
+        .0
     }
 
     #[test]

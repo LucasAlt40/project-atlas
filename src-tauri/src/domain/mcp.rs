@@ -180,6 +180,44 @@ pub enum McpSupport {
     Supported,
 }
 
+/// How a runtime can keep a granted server's other tools from the model. Measured per runtime;
+/// what was only read in a CLI's configuration reference is marked so in the runtime matrix.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum McpToolFilter {
+    /// No way found: a grant that names tools cannot be honoured, so the server is not given.
+    #[default]
+    Unsupported,
+    /// The runtime hides tools Atlas names. Needs the tools to be known (a discovery), and a tool
+    /// the server adds later is not hidden.
+    DenyList,
+    /// The runtime exposes only the tools Atlas names. Needs no discovery and fails closed.
+    AllowList,
+}
+
+/// What looking at a server through a runtime shows, without asking any model.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum McpProbeKind {
+    #[default]
+    None,
+    /// Whether the server started and connected; its tools are not listed.
+    StatusOnly,
+    /// Status and the names of its tools.
+    Tools,
+}
+
+/// The finer facts about a runtime that has MCP support.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct McpFeatures {
+    pub tool_filter: McpToolFilter,
+    pub probe: McpProbeKind,
+    /// The runtime loads **only** the servers Atlas gives it (measured). `false`: it merges them
+    /// with whatever the user configured in the runtime itself, which Atlas cannot see or hide.
+    pub strict: bool,
+}
+
 /// Why a connection is not exposed to a step.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -199,6 +237,8 @@ pub enum McpProblem {
     SecretMissing { name: String },
     /// A grant names tools, but the server was never discovered, so the rest cannot be held back.
     NeedsDiscovery,
+    /// A grant names tools and the runtime has no way to hold the others back.
+    ToolFilterUnsupported,
 }
 
 /// The six things kept apart for one tool.
@@ -313,9 +353,42 @@ impl McpRecord {
                 });
             }
         }
+        // A call the runtime streamed is a fact even when the runtime never listed its tools: a
+        // tool Atlas had no state for is added for it.
+        if reported.is_none() {
+            for item in used.unwrap_or_default() {
+                let Some(server) = item.server.as_deref() else {
+                    continue;
+                };
+                if self
+                    .tools
+                    .iter()
+                    .any(|t| t.server == server && t.tool == item.tool)
+                {
+                    continue;
+                }
+                let record = self.servers.iter().find(|s| s.name == server);
+                let covered = authorized(server, &item.tool);
+                self.tools.push(McpToolState {
+                    server: server.to_owned(),
+                    tool: item.tool.clone(),
+                    discovered: false,
+                    enabled: record.is_some_and(|s| s.enabled),
+                    authorized: covered,
+                    exposed: record.is_some_and(|s| s.exposed) && covered,
+                    reported_exposed: None,
+                    used: None,
+                });
+            }
+        }
         for tool in &mut self.tools {
             tool.reported_exposed = reported.map(|r| has(r, &tool.server, &tool.tool));
-            tool.used = used.map(|u| has(u, &tool.server, &tool.tool));
+            tool.used = match (reported, used) {
+                (_, None) => None,
+                (Some(_), Some(u)) => Some(has(u, &tool.server, &tool.tool)),
+                // Without a list, a call seen is a "yes"; no call seen is not a "no".
+                (None, Some(u)) => has(u, &tool.server, &tool.tool).then_some(true),
+            };
         }
     }
 }
@@ -488,6 +561,23 @@ pub(crate) mod tests {
             .iter()
             .all(|t| t.reported_exposed.is_none() && t.used.is_none()));
         assert_eq!(observed.servers[0].reported_status, None);
+    }
+
+    #[test]
+    fn a_call_seen_without_a_list_is_a_yes_and_a_call_not_seen_is_not_a_no() {
+        let mut observed = record();
+        let used = [tool(Some("files"), "read"), tool(Some("files"), "extra")];
+
+        observed.observe(None, &BTreeMap::new(), Some(&used), &|_, t| t == "read");
+
+        let find = |name: &str| observed.tools.iter().find(|t| t.tool == name).unwrap();
+        assert_eq!(find("read").used, Some(true));
+        // Never called as far as the stream showed: unknown, not false.
+        assert_eq!(find("write").used, None);
+        // A tool called that Atlas had no state for is added, with what a grant says of it.
+        assert_eq!(find("extra").used, Some(true));
+        assert!(!find("extra").authorized);
+        assert!(observed.tools.iter().all(|t| t.reported_exposed.is_none()));
     }
 
     #[test]

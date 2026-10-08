@@ -1929,7 +1929,8 @@ export const ptBR: Record<TranslationKey, string> = {
     'Este programa baixa e executa código da rede na primeira vez que inicia.',
   'integrations.examineWith': 'Examinar através de',
   'integrations.examineAction': 'Examinar',
-  'integrations.noRuntime': 'Nenhum runtime instalado aceita servidores MCP ainda (só o Claude).',
+  'integrations.noRuntime':
+    'Nenhum runtime instalado consegue examinar um servidor sem consultar um modelo (Claude, Gemini e OpenCode conseguem; Codex e Antigravity não).',
   'integrations.noTools': 'nenhuma ferramenta listada',
   'integrations.tools': 'ferramentas: {tools}',
   'integrations.grants': 'Quem pode usar',
@@ -1954,4 +1955,25 @@ export const ptBR: Record<TranslationKey, string> = {
   'integrations.customEnv': 'Variáveis de ambiente (NOME=valor, uma por linha)',
   'integrations.customSecrets': 'Variáveis secretas (só os nomes, uma por linha)',
   'integrations.customAdd': 'Adicionar (fica desligada)',
+  'integrations.scopeUnknown': 'um workflow que não existe mais',
+  'integrations.scopeWorkflow': 'no workflow {workflow}',
+  'integrations.scopeStep': 'em {workflow}, etapa {step}',
+  'integrations.grantWorkflow': 'Vale para',
+  'integrations.grantAnyRun': 'Qualquer execução (chat ou workflow)',
+  'integrations.grantStep': 'Etapa',
+  'integrations.grantAnyStep': 'Todas as etapas do workflow',
+  'integrations.examining':
+    'Iniciando o programa e lendo as ferramentas… na primeira vez pode levar alguns minutos (pode estar baixando).',
+  'integrations.grantsNote':
+    'Um agente com o perfil somente leitura nunca recebe uma integração, seja qual for a concessão. A aba Contexto da execução diz por que uma integração concedida não foi entregue.',
+  'integrations.runtimeCannot': 'o runtime dele não recebe integrações: não será entregue',
+  'integrations.runtimeCannotLong':
+    'O runtime deste agente ainda não pode receber integrações pelo Atlas (Claude, Codex, Gemini e OpenCode podem; o Antigravity não, porque só aceita servidores pela configuração global dele). Você pode conceder, mas o Atlas não vai entregá-la. Um servidor que já esteja configurado no próprio runtime fica disponível para ele de qualquer forma, e a tarefa precisa pedir o uso dele pelo nome.',
+  'context.mcp.problem.tool_filter_unsupported':
+    'Não entregue: este runtime não consegue limitar um servidor às ferramentas nomeadas, então uma concessão por ferramentas não é atendida.',
+  'integrations.filterUnsupported':
+    'O runtime deste agente não consegue limitar um servidor às ferramentas nomeadas, então só dá para conceder "todas as ferramentas".',
+  'integrations.notStrict':
+    'Este runtime também carrega as integrações da configuração dele; o Atlas não consegue vê-las nem escondê-las.',
+  'integrations.typeTools': 'Nomes das ferramentas (separados por vírgula ou espaço)',
 };

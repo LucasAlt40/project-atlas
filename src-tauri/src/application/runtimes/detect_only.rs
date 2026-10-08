@@ -4,7 +4,7 @@ use super::{
     cli, Detection, ModelRuntime, RuntimeError, RuntimeEvent, RuntimeOutput, RuntimeRequest,
 };
 use crate::application::process::ProcessRunner;
-use crate::domain::mcp::McpSupport;
+use crate::domain::mcp::{McpFeatures, McpSupport};
 use crate::domain::runtime::{
     AuthState, Authentication, ModelInfo, ProviderRef, RuntimeCapabilities, RuntimeInfo,
     RuntimeNotice, SystemPromptChannel, Transport,
@@ -41,6 +41,7 @@ impl DetectOnlyRuntime {
                     streaming: false,
                     system_prompt: SystemPromptChannel::Unsupported,
                     mcp: McpSupport::NotInvestigated,
+                    mcp_features: McpFeatures::default(),
                     non_interactive_execution: false,
                     authentication: Vec::new(),
                     usage_metrics: false,
