@@ -5,13 +5,19 @@ use std::time::Duration;
 
 use serde_json::Value;
 
+use super::claude_mcp::{ClaudeMcpAdapter, ConfigFile, CONFIG_PLACEHOLDER};
 use super::{
     cli, Detection, ModelRuntime, RuntimeError, RuntimeEvent, RuntimeOutput, RuntimeRequest,
 };
+use crate::application::mcp::{LaunchServer, McpLaunch, McpProbe, ReportedMcpTool};
 use crate::application::process::{ProcessContext, ProcessOutput, ProcessRunner, ProcessSpec};
+use crate::domain::context::{
+    Observation, RuntimeSurface, SurfaceControl, SurfaceEntry, SurfaceKind,
+};
+use crate::domain::mcp::McpSupport;
 use crate::domain::runtime::{
     AuthKind, AuthState, Authentication, ModelInfo, ProviderRef, RuntimeCapabilities, RuntimeInfo,
-    RuntimeNotice, Transport,
+    RuntimeNotice, SystemPromptChannel, Transport,
 };
 use crate::domain::security::ToolAccess;
 use crate::domain::usage::{QuotaInfo, QuotaWindow, UsageMetrics, UsageSource};
@@ -19,6 +25,8 @@ use crate::domain::usage::{QuotaInfo, QuotaWindow, UsageMetrics, UsageSource};
 const PROGRAM: &str = "claude";
 /// Idle limit: silence from the CLI (long thinking or a slow tool) for this long ends the run.
 const RUN_TIMEOUT: Duration = Duration::from_secs(900);
+/// A probe only waits for the CLI to start the server and report.
+const PROBE_TIMEOUT: Duration = Duration::from_secs(60);
 /// The only tools a Claude run may use: reading and searching the project. Everything that
 /// writes or executes (Edit, Write, Bash…) is not available, which is how Atlas's read-only
 /// rule is enforced for this runtime.
@@ -95,7 +103,8 @@ impl ModelRuntime for ClaudeRuntime {
             capabilities: RuntimeCapabilities {
                 model_discovery: false,
                 streaming: false,
-                system_prompt: false,
+                system_prompt: SystemPromptChannel::Unsupported,
+                mcp: McpSupport::Supported,
                 non_interactive_execution: true,
                 authentication: vec![AuthKind::CliSession],
                 usage_metrics: true,
@@ -147,6 +156,130 @@ impl ModelRuntime for ClaudeRuntime {
         ))
     }
 
+    fn mcp_tools_in(&self, reported: &[String], launched: &[&str]) -> Vec<ReportedMcpTool> {
+        ClaudeMcpAdapter::classify(reported, launched)
+    }
+
+    /// Starts the server through the CLI with a model that does not exist: the CLI reports what it
+    /// loaded and fails at its first request, so nothing is asked of any model and nothing is
+    /// spent. What is learned is the server's status and the names of its tools.
+    fn probe_mcp(&self, server: &LaunchServer) -> Result<McpProbe, RuntimeError> {
+        if self.runner.locate(PROGRAM).is_none() {
+            return Err(RuntimeError::NotInstalled);
+        }
+        let launch = McpLaunch {
+            servers: vec![server.clone()],
+            held_back: Vec::new(),
+        };
+        let config = ConfigFile::write(&launch).map_err(|error| {
+            RuntimeError::ExecutionFailed(format!("the MCP config could not be written: {error}"))
+        })?;
+        let spec = ProcessSpec {
+            program: PROGRAM.to_owned(),
+            args: ClaudeMcpAdapter::probe_arguments(server, config.path()),
+            stdin: None,
+            cwd: None,
+            env: ClaudeMcpAdapter::environment(&launch),
+            timeout: PROBE_TIMEOUT,
+            context: ProcessContext::Probe,
+            terminal: None,
+        };
+        // The exit code is not the answer: the model is not there on purpose.
+        let output = self
+            .runner
+            .run(&spec, &|_| {})
+            .map_err(|error| RuntimeError::ExecutionFailed(format!("{error:?}")))?;
+        let report = ClaudeMcpAdapter::parse_init(&output.stdout).ok_or_else(|| {
+            RuntimeError::UnexpectedResponse("the CLI did not report what it loaded".to_owned())
+        })?;
+        let status = report
+            .servers
+            .iter()
+            .find(|(name, _)| name == &server.name)
+            .map(|(_, status)| *status)
+            .ok_or_else(|| {
+                RuntimeError::UnexpectedResponse("the CLI did not list the server".to_owned())
+            })?;
+        let tools = report
+            .tools
+            .iter()
+            .filter_map(|tool| ClaudeMcpAdapter::tool_of(&server.name, tool))
+            .map(str::to_owned)
+            .collect();
+        Ok(McpProbe { status, tools })
+    }
+
+    /// What shapes a Claude run, by evidence (ADR 0024 and the ADR 0026 spike). Atlas-controlled
+    /// entries are what it passes; the user's instruction files, hooks and settings are listed as
+    /// not observed because the CLI's start-up report does not mention them, and the CLI's own
+    /// help says it loads them (a real model run would be needed to see whether they reach the
+    /// model). Nothing here says the model received anything but the prompt.
+    fn surface(&self, request: &RuntimeRequest) -> RuntimeSurface {
+        let args = launch_args(request, CONFIG_PLACEHOLDER);
+        let mut flags = Vec::new();
+        let mut skip_next = false;
+        for arg in &args {
+            if std::mem::take(&mut skip_next) {
+                continue;
+            }
+            // The model id is the user's choice and is shown elsewhere.
+            skip_next = arg == "--model";
+            flags.push(arg.as_str());
+        }
+        let tools = args
+            .iter()
+            .position(|a| a == "--tools")
+            .and_then(|at| args.get(at + 1))
+            .cloned()
+            .unwrap_or_default();
+        let atlas = SurfaceControl::AtlasControlled;
+        let user = SurfaceControl::UserControlled;
+        RuntimeSurface::of(
+            &self.info().id,
+            vec![
+                SurfaceEntry::delivered_prompt(),
+                // Atlas does not use the CLI's `--append-system-prompt` (its Windows and escaping
+                // behaviour and its semantics are untested): the instructions are in the body.
+                SurfaceEntry::system_channel(self.info().capabilities.system_prompt),
+                SurfaceEntry::new(SurfaceKind::LaunchFlags, atlas, Observation::Declared)
+                    .with_detail(flags.join(" ")),
+                SurfaceEntry::new(SurfaceKind::Tools, atlas, Observation::Declared)
+                    .with_detail(tools),
+                // `--strict-mcp-config` with no `--mcp-config`: Atlas passes no MCP server.
+                SurfaceEntry::new(SurfaceKind::McpServers, atlas, Observation::Declared)
+                    .with_detail(match request.mcp.as_ref().filter(|_| !request.text_only) {
+                        Some(mcp) if !mcp.is_empty() => mcp
+                            .servers
+                            .iter()
+                            .map(|s| s.name.as_str())
+                            .collect::<Vec<_>>()
+                            .join(","),
+                        _ => "none".to_owned(),
+                    }),
+                // `--disable-slash-commands`.
+                SurfaceEntry::new(SurfaceKind::Skills, atlas, Observation::Declared)
+                    .with_detail("disabled"),
+                SurfaceEntry::new(
+                    SurfaceKind::SystemPrompt,
+                    SurfaceControl::RuntimeControlled,
+                    Observation::Declared,
+                ),
+                SurfaceEntry::new(
+                    SurfaceKind::UserInstructions,
+                    user,
+                    Observation::NotObserved,
+                ),
+                SurfaceEntry::new(SurfaceKind::Hooks, user, Observation::NotObserved),
+                SurfaceEntry::new(SurfaceKind::UserSettings, user, Observation::NotObserved),
+                SurfaceEntry::new(
+                    SurfaceKind::Other,
+                    SurfaceControl::Unknown,
+                    Observation::NotObserved,
+                ),
+            ],
+        )
+    }
+
     fn execute(
         &self,
         request: &RuntimeRequest,
@@ -158,12 +291,25 @@ impl ModelRuntime for ClaudeRuntime {
             return Err(RuntimeError::NotInstalled);
         }
 
-        let args = launch_args(request);
+        // The servers' config travels in a file that lives as long as the run.
+        let config = match request
+            .mcp
+            .as_ref()
+            .filter(|m| !request.text_only && !m.is_empty())
+        {
+            Some(mcp) => Some(ConfigFile::write(mcp).map_err(|error| {
+                RuntimeError::ExecutionFailed(format!(
+                    "the MCP config could not be written: {error}"
+                ))
+            })?),
+            None => None,
+        };
+        let args = launch_args(request, config.as_ref().map_or("", ConfigFile::path));
         let delivery = cli::deliver_prompt(
             self.runner.as_ref(),
             PROGRAM,
             args,
-            request.prompt.combined(),
+            self.delivery(request).into_payload(),
             false,
         );
         let spec = ProcessSpec {
@@ -171,7 +317,12 @@ impl ModelRuntime for ClaudeRuntime {
             args: delivery.args,
             stdin: delivery.stdin,
             cwd: Some(request.working_dir.clone()),
-            env: Vec::new(),
+            // The secrets of the MCP servers this execution is given, for the references in the
+            // config. Nothing else is added to the CLI's environment.
+            env: match (&request.mcp, request.text_only) {
+                (Some(mcp), false) => ClaudeMcpAdapter::environment(mcp),
+                _ => Vec::new(),
+            },
             timeout: RUN_TIMEOUT,
             context: ProcessContext::Runtime(request.scope.clone()),
             terminal: delivery.terminal,
@@ -197,7 +348,7 @@ impl ModelRuntime for ClaudeRuntime {
 /// Atlas calls read-only must not reach any of that, and its prompt should not carry its listing.
 /// `--strict-mcp-config` (with no `--mcp-config`) loads no MCP server; `--disable-slash-commands`
 /// turns skills off. Atlas has its own skills layer and chooses what an agent gets.
-fn launch_args(request: &RuntimeRequest) -> Vec<String> {
+fn launch_args(request: &RuntimeRequest, mcp_config: &str) -> Vec<String> {
     let tools = if request.text_only {
         // An empty list turns every tool off: the model can only answer from the prompt.
         ""
@@ -217,11 +368,16 @@ fn launch_args(request: &RuntimeRequest) -> Vec<String> {
         "--tools",
         tools,
         "--no-session-persistence",
-        "--strict-mcp-config",
-        "--disable-slash-commands",
     ]
     .map(str::to_owned)
     .to_vec();
+    // The servers Atlas chose for this execution, and only those: `--strict-mcp-config` below
+    // keeps every other one out. A text-only run gets none (`--tools ""` does not turn MCP tools
+    // off, so the only way to keep them from it is not to give them).
+    if let (Some(mcp), false) = (&request.mcp, request.text_only) {
+        args.extend(ClaudeMcpAdapter::arguments(mcp, mcp_config));
+    }
+    args.extend(["--strict-mcp-config", "--disable-slash-commands"].map(str::to_owned));
     if request.allow_edits && !request.text_only {
         // The run is not interactive, so a tool that needs to ask is refused. File edits
         // inside the working directory (the isolated worktree) are what was granted.
@@ -256,6 +412,22 @@ fn note_surface(metadata: &mut BTreeMap<String, String>, stdout: &str) {
     }
     if let Some(servers) = names(&init["mcp_servers"]) {
         metadata.insert("mcpServers".to_owned(), servers);
+        // And how each one came up: `connected` says the process answered, not that its tools
+        // are usable.
+        let statuses = ClaudeMcpAdapter::report_of(&init)
+            .servers
+            .iter()
+            .map(|(name, status)| {
+                format!(
+                    "{name}:{}",
+                    serde_json::to_string(status)
+                        .unwrap_or_default()
+                        .trim_matches('"')
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        metadata.insert("mcpStatus".to_owned(), statuses);
     }
     for (key, source) in [
         ("skillsLoaded", "skills"),
@@ -265,6 +437,21 @@ fn note_surface(metadata: &mut BTreeMap<String, String>, stdout: &str) {
         if let Some(n) = count(&init[source]) {
             metadata.insert(key.to_owned(), n.to_string());
         }
+    }
+    // Where each plugin comes from (`name@marketplace`, or `name@builtin` for the CLI's own),
+    // which is what tells the user's plugins from the runtime's.
+    if let Some(plugins) = init["plugins"].as_array() {
+        let sources = plugins
+            .iter()
+            .filter_map(|p| p["source"].as_str())
+            .collect::<Vec<_>>()
+            .join(",");
+        metadata.insert("pluginSources".to_owned(), sources);
+    }
+    // The directory of the CLI's own auto-memory. That it exists is reported; whether its text
+    // reaches the model is not.
+    if let Some(path) = init["memory_paths"]["auto"].as_str() {
+        metadata.insert("autoMemoryPath".to_owned(), path.to_owned());
     }
 }
 
@@ -283,6 +470,10 @@ impl ClaudeStream {
     fn event(&self, line: &str) -> Option<RuntimeEvent> {
         let value: Value = serde_json::from_str(line).ok()?;
         match value["type"].as_str()? {
+            // What the CLI loaded, before it asks the model anything.
+            "system" if value["subtype"] == "init" && value["tools"].is_array() => Some(
+                RuntimeEvent::ToolsReported(ClaudeMcpAdapter::report_of(&value).tools),
+            ),
             "stream_event" => {
                 let event = &value["event"];
                 match event["type"].as_str()? {
@@ -473,10 +664,12 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
+    use crate::application::mcp::{LaunchServer, McpLaunch};
     use crate::application::process::fake::{ok, FakeProcessRunner};
     use crate::application::process::{ProcessError, TerminalRequest};
     use crate::application::prompt::Prompt;
     use crate::application::runtimes::inspect;
+    use crate::domain::mcp::McpServerStatus;
     use crate::domain::runtime::{Availability, ModelDiscovery};
 
     const SUCCESS: &str = r#"{"type":"result","subtype":"success","is_error":false,"duration_ms":1234,"num_turns":1,"result":"Three improvements.\n","total_cost_usd":0.0123}"#;
@@ -508,6 +701,7 @@ mod tests {
                 harness: None,
                 task_aware: false,
                 skills: None,
+                rules: None,
                 system: "SYS".to_owned(),
                 context: "CTX".to_owned(),
                 instruction: "INS".to_owned(),
@@ -516,6 +710,7 @@ mod tests {
             scope: crate::application::process::ExecutionScope::for_tests(),
             text_only: false,
             allow_edits: false,
+            mcp: None,
         }
     }
 
@@ -826,6 +1021,244 @@ mod tests {
             .metadata
     }
 
+    fn files_server(secret: bool) -> LaunchServer {
+        use crate::application::mcp::LaunchEnv;
+        LaunchServer {
+            name: "files".to_owned(),
+            executable: "node".to_owned(),
+            args: vec!["server.js".to_owned()],
+            env: if secret {
+                vec![LaunchEnv::Secret {
+                    name: "API_TOKEN".to_owned(),
+                    value: crate::domain::mcp::Secret::new("hunter2hunter2".to_owned()),
+                }]
+            } else {
+                vec![]
+            },
+        }
+    }
+
+    fn with_mcp(mut request: RuntimeRequest, secret: bool) -> RuntimeRequest {
+        request.mcp = Some(McpLaunch {
+            servers: vec![files_server(secret)],
+            held_back: vec![("files".to_owned(), "delete".to_owned())],
+        });
+        request
+    }
+
+    #[test]
+    fn the_servers_atlas_chose_are_the_only_ones_and_the_secret_is_in_the_environment_not_the_arguments(
+    ) {
+        let fake = runner(true, output(0, SUCCESS));
+
+        let _ =
+            ClaudeRuntime::new(fake.clone()).execute(&with_mcp(request("sonnet"), true), &|_| {});
+
+        let calls = fake.calls.lock().unwrap();
+        let run = calls
+            .iter()
+            .find(|c| c.args.contains(&"--tools".to_owned()))
+            .unwrap();
+        let at = |flag: &str| run.args.iter().position(|a| a == flag).unwrap();
+        // The servers, what is held back, and then the flag that keeps every other one out.
+        // The config is a file of this run, no longer there once the run is over.
+        let config = std::path::Path::new(&run.args[at("--mcp-config") + 1]);
+        assert!(config.starts_with(std::env::temp_dir()));
+        assert_eq!(config.extension().and_then(|e| e.to_str()), Some("json"));
+        assert!(!config.exists());
+        assert_eq!(run.args[at("--disallowedTools") + 1], "mcp__files__delete");
+        assert!(at("--mcp-config") < at("--disallowedTools"));
+        assert!(at("--disallowedTools") < at("--strict-mcp-config"));
+        assert!(run.args.contains(&"--disable-slash-commands".to_owned()));
+        // The secret reaches the CLI's process through its environment, under the name the config
+        // refers to, and appears nowhere in the arguments or the prompt.
+        assert_eq!(
+            run.env,
+            [(
+                "ATLAS_MCP_FILES_API_TOKEN".to_owned(),
+                "hunter2hunter2".to_owned()
+            )]
+        );
+        assert!(!run.args.join(" ").contains("hunter2"));
+        assert!(!run.stdin.clone().unwrap_or_default().contains("hunter2"));
+        // The terminal case puts the prompt last, after `--`, so a variadic option never takes it.
+        assert_eq!(run.args[run.args.len() - 2], "--");
+    }
+
+    #[test]
+    fn without_servers_the_launch_is_what_it_always_was() {
+        let fake = runner(true, output(0, SUCCESS));
+        let _ = ClaudeRuntime::new(fake.clone()).execute(&request("sonnet"), &|_| {});
+
+        let calls = fake.calls.lock().unwrap();
+        let run = calls
+            .iter()
+            .find(|c| c.args.contains(&"--tools".to_owned()))
+            .unwrap();
+        assert!(!run.args.contains(&"--mcp-config".to_owned()));
+        assert!(run.args.contains(&"--strict-mcp-config".to_owned()));
+        assert_eq!(run.env.len(), 0);
+    }
+
+    #[test]
+    fn a_run_with_every_tool_off_is_never_given_a_server_whatever_the_request_says() {
+        let fake = runner(true, output(0, SUCCESS));
+        let mut text_only = with_mcp(request("sonnet"), true);
+        text_only.text_only = true;
+
+        let _ = ClaudeRuntime::new(fake.clone()).execute(&text_only, &|_| {});
+
+        let calls = fake.calls.lock().unwrap();
+        let run = calls
+            .iter()
+            .find(|c| c.args.contains(&"--tools".to_owned()))
+            .unwrap();
+        assert!(!run.args.contains(&"--mcp-config".to_owned()));
+        assert_eq!(run.env.len(), 0);
+    }
+
+    #[test]
+    fn the_start_up_report_is_streamed_as_the_tools_the_model_could_call() {
+        let stream = ClaudeStream::default();
+        let line = r#"{"type":"system","subtype":"init","tools":["Read","mcp__files__read"],"mcp_servers":[]}"#;
+
+        assert_eq!(
+            stream.event(line),
+            Some(RuntimeEvent::ToolsReported(vec![
+                "Read".to_owned(),
+                "mcp__files__read".to_owned()
+            ]))
+        );
+    }
+
+    #[test]
+    fn the_surface_names_the_servers_a_step_was_given() {
+        use crate::domain::context::{SurfaceControl, SurfaceKind};
+        let surface =
+            ClaudeRuntime::new(runner(true, ok(""))).surface(&with_mcp(request("sonnet"), false));
+
+        let mcp = surface
+            .entries
+            .iter()
+            .find(|e| e.kind == SurfaceKind::McpServers)
+            .unwrap();
+        assert_eq!(mcp.detail.as_deref(), Some("files"));
+        assert_eq!(mcp.control, SurfaceControl::AtlasControlled);
+    }
+
+    const PROBE_OUTPUT: &str = r#"{"type":"system","subtype":"init","tools":["Glob","mcp__files__read","mcp__files__write","mcp__other__x"],"mcp_servers":[{"name":"files","status":"connected"},{"name":"other","status":"connected"}]}"#;
+
+    #[test]
+    fn a_probe_reports_the_servers_status_and_only_its_own_tools_and_asks_no_model() {
+        let fake = runner(true, output(1, PROBE_OUTPUT));
+
+        let probe = ClaudeRuntime::new(fake.clone())
+            .probe_mcp(&files_server(true))
+            .unwrap();
+
+        assert_eq!(probe.status, McpServerStatus::Connected);
+        assert_eq!(probe.tools, ["read", "write"]);
+        let calls = fake.calls.lock().unwrap();
+        let spec = &calls[0];
+        // A model that does not exist, a probe context, no working directory, the secret in the
+        // environment only.
+        let at = spec.args.iter().position(|a| a == "--model").unwrap();
+        assert_eq!(spec.args[at + 1], "atlas-probe-no-such-model");
+        assert_eq!(spec.context, ProcessContext::Probe);
+        assert!(spec.cwd.is_none());
+        assert_eq!(spec.env.len(), 1);
+        assert!(!spec.args.join(" ").contains("hunter2"));
+    }
+
+    #[test]
+    fn a_probe_of_a_server_that_did_not_start_says_failed_with_no_tools() {
+        let out = r#"{"type":"system","subtype":"init","tools":["Glob"],"mcp_servers":[{"name":"files","status":"failed"}]}"#;
+
+        let probe = ClaudeRuntime::new(runner(true, output(1, out)))
+            .probe_mcp(&files_server(false))
+            .unwrap();
+
+        assert_eq!(probe.status, McpServerStatus::Failed);
+        assert_eq!(probe.tools.len(), 0);
+    }
+
+    #[test]
+    fn a_probe_that_gets_no_report_or_not_the_server_is_an_error_not_a_guess() {
+        for out in [
+            "",
+            "nothing useful",
+            r#"{"type":"system","subtype":"init","tools":[],"mcp_servers":[]}"#,
+        ] {
+            let result =
+                ClaudeRuntime::new(runner(true, output(1, out))).probe_mcp(&files_server(false));
+            assert!(
+                matches!(result, Err(RuntimeError::UnexpectedResponse(_))),
+                "{out}"
+            );
+        }
+        let missing = Arc::new(FakeProcessRunner::new(&[], |_| ok("")));
+        assert_eq!(
+            ClaudeRuntime::new(missing).probe_mcp(&files_server(false)),
+            Err(RuntimeError::NotInstalled)
+        );
+    }
+
+    #[test]
+    fn the_start_up_report_also_says_where_plugins_come_from_and_where_the_auto_memory_is() {
+        let init = r#"{"type":"system","subtype":"init","tools":["Read"],"plugins":[{"name":"figma","source":"figma@claude-plugins-official"},{"name":"cc-plugin-telemetry","source":"cc-plugin-telemetry@builtin"}],"memory_paths":{"auto":"/home/u/.claude/projects/p/memory/"}}"#;
+
+        let metadata = surface_of(init);
+
+        assert_eq!(
+            metadata["pluginSources"],
+            "figma@claude-plugins-official,cc-plugin-telemetry@builtin"
+        );
+        assert_eq!(
+            metadata["autoMemoryPath"],
+            "/home/u/.claude/projects/p/memory/"
+        );
+        // Nothing reported, nothing claimed.
+        let bare = surface_of(INIT_ISOLATED);
+        assert!(!bare.contains_key("autoMemoryPath"));
+    }
+
+    #[test]
+    fn the_declared_surface_lists_what_atlas_passes_and_admits_what_it_cannot_see() {
+        use crate::domain::context::{Observation, SurfaceControl, SurfaceKind};
+
+        let surface = ClaudeRuntime::new(runner(true, ok(""))).surface(&request("sonnet"));
+
+        let entry = |kind| surface.entries.iter().find(|e| e.kind == kind).unwrap();
+        let flags = entry(SurfaceKind::LaunchFlags).detail.clone().unwrap();
+        assert!(
+            flags.contains("--strict-mcp-config") && flags.contains("--disable-slash-commands")
+        );
+        // The model id is shown elsewhere and is not a flag of the surface.
+        assert!(!flags.contains("sonnet"));
+        assert_eq!(
+            entry(SurfaceKind::Tools).detail.as_deref(),
+            Some("Read,Grep,Glob")
+        );
+        assert_eq!(
+            entry(SurfaceKind::McpServers).detail.as_deref(),
+            Some("none")
+        );
+        for kind in [
+            SurfaceKind::UserInstructions,
+            SurfaceKind::Hooks,
+            SurfaceKind::UserSettings,
+        ] {
+            let user = entry(kind);
+            assert_eq!(user.control, SurfaceControl::UserControlled);
+            assert_eq!(user.observation, Observation::NotObserved);
+        }
+        // Before the run nothing has been reported yet.
+        assert!(surface
+            .entries
+            .iter()
+            .all(|e| e.observation != Observation::Reported));
+    }
+
     #[test]
     fn what_the_cli_loaded_around_the_model_is_reported_as_it_said_it() {
         let loose = surface_of(INIT_UNISOLATED);
@@ -855,7 +1288,7 @@ mod tests {
             let mut req = request("sonnet");
             req.allow_edits = edit;
             req.text_only = text_only;
-            let args = launch_args(&req);
+            let args = launch_args(&req, CONFIG_PLACEHOLDER);
 
             // No MCP server (none is named with `--mcp-config`) and no skills.
             assert!(
@@ -927,6 +1360,151 @@ mod tests {
         assert!(found.document.contains("1. Do it"));
     }
 
+    /// The harmless MCP server of the Phase A spike: no filesystem, network or process access,
+    /// static answers. `MODE=grow` makes it list one more tool than it did when discovered;
+    /// `REPORT_ENV=<name>` makes it list a tool named after that variable's value.
+    fn spike_server(extra_env: &[(&str, &str)]) -> LaunchServer {
+        use crate::application::mcp::LaunchEnv;
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../docs/architecture/spikes/mcp-claude/echo-mcp.js");
+        LaunchServer {
+            name: "atlasspike".to_owned(),
+            executable: "node".to_owned(),
+            args: vec![path.to_string_lossy().into_owned()],
+            env: extra_env
+                .iter()
+                .map(|(name, value)| LaunchEnv::Plain {
+                    name: (*name).to_owned(),
+                    value: (*value).to_owned(),
+                })
+                .collect(),
+        }
+    }
+
+    /// Against the real CLI, with a model that does not exist (no model is asked anything):
+    /// `cargo test real_claude_mcp -- --ignored`.
+    #[test]
+    #[ignore = "needs the Claude CLI and node installed; makes no model call"]
+    fn real_claude_mcp_probe_sees_the_server_its_tools_and_the_secret_that_reached_it() {
+        use crate::application::mcp::LaunchEnv;
+        let runtime =
+            ClaudeRuntime::new(Arc::new(crate::infrastructure::SystemProcessRunner::new()));
+        let plain = runtime
+            .probe_mcp(&spike_server(&[]))
+            .expect("the CLI probed it");
+        eprintln!("REAL PROBE {plain:?}");
+        assert_eq!(plain.status, McpServerStatus::Connected);
+        assert_eq!(plain.tools, ["echo_static"]);
+
+        // A secret goes through the environment, as a reference in the config, and reaches the
+        // server: it reports a tool named after the value it received.
+        let mut with_secret = spike_server(&[("REPORT_ENV", "MYSECRET")]);
+        with_secret.env.push(LaunchEnv::Secret {
+            name: "MYSECRET".to_owned(),
+            value: crate::domain::mcp::Secret::new("topsecret42".to_owned()),
+        });
+        let probed = runtime.probe_mcp(&with_secret).expect("the CLI probed it");
+        assert!(
+            probed.tools.contains(&"env_topsecret42".to_owned()),
+            "{probed:?}"
+        );
+
+        // A server that cannot start is reported failed, with no tools.
+        let ghost = LaunchServer {
+            executable: "/nonexistent/atlas-mcp-ghost".to_owned(),
+            ..spike_server(&[])
+        };
+        let failed = runtime.probe_mcp(&ghost).expect("the CLI still reported");
+        assert_eq!(failed.status, McpServerStatus::Failed);
+        assert_eq!(failed.tools.len(), 0);
+    }
+
+    /// What Atlas relies on, measured: the deny-list holds back a tool it knows of, and a tool the
+    /// server adds later is listed all the same, which is why the step is stopped when the runtime
+    /// says so.
+    #[test]
+    #[ignore = "needs the Claude CLI and node installed; makes no model call"]
+    fn real_claude_mcp_holds_back_a_known_tool_and_lists_one_the_server_added_later() {
+        let runner = Arc::new(crate::infrastructure::SystemProcessRunner::new());
+        let runtime = ClaudeRuntime::new(runner);
+        let mut req = request("atlas-probe-no-such-model");
+        req.working_dir = std::env::temp_dir();
+        req.mcp = Some(McpLaunch {
+            servers: vec![spike_server(&[("MODE", "grow")])],
+            held_back: vec![("atlasspike".to_owned(), "echo_static".to_owned())],
+        });
+        let listed = RefCell::new(Vec::new());
+
+        let _ = runtime.execute(&req, &|event| {
+            if let RuntimeEvent::ToolsReported(tools) = event {
+                *listed.borrow_mut() = tools;
+            }
+        });
+
+        let listed = listed.into_inner();
+        eprintln!("REAL LISTED {listed:?}");
+        assert!(
+            !listed.contains(&"mcp__atlasspike__echo_static".to_owned()),
+            "held back"
+        );
+        assert!(
+            listed.contains(&"mcp__atlasspike__extra_tool".to_owned()),
+            "added later"
+        );
+        // And the classification the service uses names it as that server's.
+        let found = runtime.mcp_tools_in(&listed, &["atlasspike"]);
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].server.as_deref(), Some("atlasspike"));
+        assert_eq!(found[0].tool, "extra_tool");
+    }
+
+    /// Atlas stops a run (an MCP tool nobody authorized): the CLI is killed without a chance to
+    /// clean up, and a server that ignores the end of its input must not be left behind. No model
+    /// call: the model does not exist.
+    #[test]
+    #[ignore = "needs the Claude CLI and node installed; makes no model call"]
+    fn real_claude_mcp_a_stopped_run_leaves_no_server_behind() {
+        let marker = format!("atlas-orphan-check-{}", std::process::id());
+        let running = || {
+            std::process::Command::new("pgrep")
+                .args(["-f", &marker])
+                .output()
+                .is_ok_and(|out| !out.stdout.is_empty())
+        };
+        let sessions = Arc::new(crate::application::sessions::SessionRegistry::default());
+        let runtime = ClaudeRuntime::new(Arc::new(
+            crate::infrastructure::SystemProcessRunner::new().with_sessions(sessions.clone()),
+        ));
+        let mut server = spike_server(&[("MODE", "stubborn")]);
+        server.args.push(marker.clone());
+        let mut req = request("atlas-probe-no-such-model");
+        req.working_dir = std::env::temp_dir();
+        req.mcp = Some(McpLaunch {
+            servers: vec![server],
+            held_back: vec![],
+        });
+        let execution = req.scope.execution_id.clone();
+        let stopped = std::sync::atomic::AtomicBool::new(false);
+
+        // Exactly what the execution service does when the runtime lists a tool nobody authorized.
+        let _ = runtime.execute(&req, &|event| {
+            if matches!(event, RuntimeEvent::ToolsReported(_)) {
+                sessions.stop(&execution);
+                stopped.store(true, std::sync::atomic::Ordering::SeqCst);
+            }
+        });
+
+        assert!(
+            stopped.load(std::sync::atomic::Ordering::SeqCst),
+            "the CLI never listed its tools, so the check proves nothing"
+        );
+        let gone = (0..50).any(|_| {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            !running()
+        });
+        assert!(gone, "an MCP server outlived the stopped run");
+    }
+
     /// Starts the real CLI with Atlas's exact arguments and a model that does not exist, so it
     /// reports what it loaded (its `init` message) and then fails at the first request: no model
     /// call is made and nothing is spent. Run with `cargo test real_claude_surface -- --ignored`.
@@ -938,7 +1516,7 @@ mod tests {
         let system = crate::infrastructure::SystemProcessRunner::new();
         let mut req = request("not-a-real-model-xyz");
         req.working_dir = std::env::temp_dir();
-        let mut args = launch_args(&req);
+        let mut args = launch_args(&req, CONFIG_PLACEHOLDER);
         args.extend(["--".to_owned(), "ping".to_owned()]);
         let spec = ProcessSpec {
             program: PROGRAM.to_owned(),

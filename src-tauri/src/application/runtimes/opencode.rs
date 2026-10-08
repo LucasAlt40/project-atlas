@@ -8,9 +8,10 @@ use super::{
     cli, Detection, ModelRuntime, RuntimeError, RuntimeEvent, RuntimeOutput, RuntimeRequest,
 };
 use crate::application::process::{ProcessContext, ProcessOutput, ProcessRunner, ProcessSpec};
+use crate::domain::mcp::McpSupport;
 use crate::domain::runtime::{
     AuthKind, AuthState, Authentication, ModelInfo, ProviderRef, RuntimeCapabilities, RuntimeInfo,
-    Transport,
+    SystemPromptChannel, Transport,
 };
 use crate::domain::security::ToolAccess;
 use crate::domain::usage::{UsageMetrics, UsageSource};
@@ -62,7 +63,8 @@ impl ModelRuntime for OpenCodeRuntime {
             capabilities: RuntimeCapabilities {
                 model_discovery: true,
                 streaming: false,
-                system_prompt: false,
+                system_prompt: SystemPromptChannel::Unsupported,
+                mcp: McpSupport::NotInvestigated,
                 non_interactive_execution: true,
                 authentication: vec![AuthKind::CliSession],
                 usage_metrics: true,
@@ -176,7 +178,7 @@ impl ModelRuntime for OpenCodeRuntime {
             self.runner.as_ref(),
             PROGRAM,
             args,
-            request.prompt.combined(),
+            self.delivery(request).into_payload(),
             false,
         );
         let spec = ProcessSpec {
@@ -425,6 +427,7 @@ mod tests {
                 harness: None,
                 task_aware: false,
                 skills: None,
+                rules: None,
                 system: "SYS".to_owned(),
                 context: "CTX".to_owned(),
                 instruction: "INS".to_owned(),
@@ -433,6 +436,7 @@ mod tests {
             scope: crate::application::process::ExecutionScope::for_tests(),
             text_only: false,
             allow_edits: false,
+            mcp: None,
         }
     }
 

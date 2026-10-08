@@ -1,7 +1,9 @@
 mod antigravity;
 mod claude;
+mod claude_mcp;
 mod cli;
 mod codex;
+mod delivery;
 #[cfg(test)]
 pub(crate) mod detect_only;
 mod gemini;
@@ -12,10 +14,13 @@ use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use super::mcp::{LaunchServer, McpLaunch, McpProbe};
 use super::process::{ExecutionScope, ProcessRunner};
 use super::prompt::Prompt;
+use crate::domain::context::{ReportedLimits, RuntimeSurface};
 use crate::domain::execution::{ExecutionFailure, FailureKind};
 use crate::domain::interaction::InteractionDetection;
+use crate::domain::mcp::ReportedMcpTool;
 use crate::domain::runtime::{
     Authentication, Availability, ModelDiscovery, ModelInfo, RuntimeInfo, RuntimeNotice,
     RuntimeStatus,
@@ -26,6 +31,7 @@ use crate::domain::usage::{QuotaInfo, UsageMetrics};
 pub use antigravity::AntigravityRuntime;
 pub use claude::ClaudeRuntime;
 pub use codex::CodexRuntime;
+pub use delivery::{sha256_hex, Delivery};
 pub use gemini::GeminiRuntime;
 pub use opencode::OpenCodeRuntime;
 
@@ -46,6 +52,10 @@ pub struct RuntimeRequest {
     /// by the execution service only when the agent's policy allows file writes and the agent
     /// works in an isolated worktree. A runtime that cannot ignores it.
     pub allow_edits: bool,
+    /// The MCP servers this execution is given, and only those. `None`: none (the runtime loads
+    /// no MCP server of any kind). Never set for a `text_only` request; a runtime ignores it
+    /// when it has no adapter.
+    pub mcp: Option<McpLaunch>,
 }
 
 /// A runtime's answer, normalized: provider-specific output formats stop here.
@@ -72,6 +82,9 @@ pub enum RuntimeEvent {
     Output(String),
     ToolStarted(String),
     ToolCompleted(String),
+    /// The tools the model could call, as the runtime itself listed them when it started and
+    /// before it asked the model anything. MCP tools are among them.
+    ToolsReported(Vec<String>),
 }
 
 /// What a runtime found out about itself on this machine.
@@ -115,6 +128,50 @@ pub trait ModelRuntime: Send + Sync {
         request: &RuntimeRequest,
         progress: &dyn Fn(RuntimeEvent),
     ) -> Result<RuntimeOutput, RuntimeError>;
+
+    /// The payload this runtime hands to its process for `request`. `execute` must take its
+    /// prompt from here and nowhere else: the Context Manifest hashes this very value, so what was
+    /// hashed is what was delivered. The default follows the runtime's declared
+    /// `system_prompt` channel: the whole prompt as one text for `Unsupported`, split for a runtime
+    /// that really has one (and whose `execute` then sends each part where it belongs).
+    fn delivery(&self, request: &RuntimeRequest) -> Delivery {
+        // The channel the runtime declares, and nothing more: a runtime that says `Unsupported`
+        // gets one text and is never given a split it cannot honour.
+        Delivery::for_channel(&request.prompt, self.info().capabilities.system_prompt)
+    }
+
+    /// What the runtime itself states about the limits of `model_id`. `None`: it states none, and
+    /// Atlas does not guess (no runtime reports limits today).
+    fn reported_limits(&self, _model_id: &str) -> Option<ReportedLimits> {
+        None
+    }
+
+    /// What can shape an execution of `request` besides the prompt, as far as Atlas knows by its
+    /// own design (`Declared`) before the runtime has run. The default knows only the prompt it
+    /// delivers and admits that the rest is not observed.
+    fn surface(&self, _request: &RuntimeRequest) -> RuntimeSurface {
+        RuntimeSurface::baseline(&self.info().id, self.info().capabilities.system_prompt)
+    }
+
+    /// Starts one MCP server through this runtime, as it would for a step, only to see what the
+    /// runtime reports: its status and the tools it lists. No model is asked anything. Only
+    /// called for a runtime whose `capabilities.mcp` is `Supported`.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the runtime has no such adapter or the probe cannot run.
+    fn probe_mcp(&self, _server: &LaunchServer) -> Result<McpProbe, RuntimeError> {
+        Err(RuntimeError::Unavailable(
+            "This runtime has no MCP adapter.".to_owned(),
+        ))
+    }
+
+    /// Which of the tools the runtime listed at start-up are MCP tools, and of which of the
+    /// servers Atlas launched. A tool of a server Atlas did not launch has no server. The default
+    /// knows none (a runtime with no adapter has no MCP tools to tell apart).
+    fn mcp_tools_in(&self, _reported: &[String], _launched: &[&str]) -> Vec<ReportedMcpTool> {
+        Vec::new()
+    }
 
     /// Whether this answer is the runtime's own way of asking a person something (a tool's
     /// approval event, a question tool…). The adapter is the only place that may know a tool's
@@ -349,8 +406,10 @@ pub mod fake {
     use std::sync::Mutex;
 
     use super::{
-        Detection, ModelRuntime, RuntimeError, RuntimeEvent, RuntimeOutput, RuntimeRequest,
+        Detection, LaunchServer, McpProbe, ModelRuntime, RuntimeError, RuntimeEvent, RuntimeOutput,
+        RuntimeRequest,
     };
+    use crate::domain::mcp::{McpSupport, ReportedMcpTool};
     use crate::domain::runtime::{
         AuthKind, AuthState, Authentication, ModelInfo, ProviderRef, RuntimeCapabilities,
         RuntimeInfo, Transport,
@@ -373,6 +432,14 @@ pub mod fake {
         pub text_only: bool,
         /// Whether it can be launched with file-editing tools.
         pub file_edit: bool,
+        /// What it declares about MCP (`NotInvestigated`, like the runtimes nobody measured).
+        pub mcp: McpSupport,
+        /// Tools it reports having when it starts (as a CLI's start-up report does).
+        pub reported_tools: Option<Vec<String>>,
+        /// What starting an MCP server to look at it shows (none: the probe fails).
+        pub probe: Option<McpProbe>,
+        /// The MCP servers it was asked to probe, by name.
+        pub probed: Mutex<Vec<String>>,
     }
 
     pub type Work = Box<dyn Fn(&RuntimeRequest) + Send + Sync>;
@@ -393,11 +460,37 @@ pub mod fake {
                 work: None,
                 text_only: true,
                 file_edit: false,
+                mcp: McpSupport::NotInvestigated,
+                reported_tools: None,
+                probe: None,
+                probed: Mutex::new(Vec::new()),
             }
         }
 
         pub fn with_work(mut self, work: impl Fn(&RuntimeRequest) + Send + Sync + 'static) -> Self {
             self.work = Some(Box::new(work));
+            self
+        }
+
+        pub fn with_mcp(mut self) -> Self {
+            self.mcp = McpSupport::Supported;
+            self
+        }
+
+        pub fn probing(
+            mut self,
+            status: crate::domain::mcp::McpServerStatus,
+            tools: &[&str],
+        ) -> Self {
+            self.probe = Some(McpProbe {
+                status,
+                tools: tools.iter().map(|t| (*t).to_owned()).collect(),
+            });
+            self
+        }
+
+        pub fn reporting_tools(mut self, tools: &[&str]) -> Self {
+            self.reported_tools = Some(tools.iter().map(|t| (*t).to_owned()).collect());
             self
         }
 
@@ -437,6 +530,18 @@ pub mod fake {
     }
 
     impl ModelRuntime for FakeRuntime {
+        fn mcp_tools_in(&self, reported: &[String], launched: &[&str]) -> Vec<ReportedMcpTool> {
+            // The same naming as the one adapter that exists, so the guard can be tested.
+            super::claude_mcp::ClaudeMcpAdapter::classify(reported, launched)
+        }
+
+        fn probe_mcp(&self, server: &LaunchServer) -> Result<McpProbe, RuntimeError> {
+            self.probed.lock().unwrap().push(server.name.clone());
+            self.probe
+                .clone()
+                .ok_or_else(|| RuntimeError::Unavailable("no probe".to_owned()))
+        }
+
         fn info(&self) -> RuntimeInfo {
             RuntimeInfo {
                 id: self.id.clone(),
@@ -449,7 +554,8 @@ pub mod fake {
                 capabilities: RuntimeCapabilities {
                     model_discovery: true,
                     streaming: false,
-                    system_prompt: false,
+                    system_prompt: crate::domain::runtime::SystemPromptChannel::Unsupported,
+                    mcp: self.mcp,
                     non_interactive_execution: true,
                     authentication: vec![AuthKind::CliSession],
                     usage_metrics: true,
@@ -495,6 +601,9 @@ pub mod fake {
             progress(RuntimeEvent::Starting);
             progress(RuntimeEvent::Sending);
             progress(RuntimeEvent::Waiting);
+            if let Some(tools) = &self.reported_tools {
+                progress(RuntimeEvent::ToolsReported(tools.clone()));
+            }
             for chunk in &self.chunks {
                 progress(RuntimeEvent::Output(chunk.clone()));
             }

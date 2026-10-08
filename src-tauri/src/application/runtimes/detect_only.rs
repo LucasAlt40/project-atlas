@@ -4,9 +4,10 @@ use super::{
     cli, Detection, ModelRuntime, RuntimeError, RuntimeEvent, RuntimeOutput, RuntimeRequest,
 };
 use crate::application::process::ProcessRunner;
+use crate::domain::mcp::McpSupport;
 use crate::domain::runtime::{
     AuthState, Authentication, ModelInfo, ProviderRef, RuntimeCapabilities, RuntimeInfo,
-    RuntimeNotice, Transport,
+    RuntimeNotice, SystemPromptChannel, Transport,
 };
 use crate::domain::security::ToolAccess;
 
@@ -38,7 +39,8 @@ impl DetectOnlyRuntime {
                 capabilities: RuntimeCapabilities {
                     model_discovery: false,
                     streaming: false,
-                    system_prompt: false,
+                    system_prompt: SystemPromptChannel::Unsupported,
+                    mcp: McpSupport::NotInvestigated,
                     non_interactive_execution: false,
                     authentication: Vec::new(),
                     usage_metrics: false,
@@ -127,6 +129,7 @@ mod tests {
                         harness: None,
                         task_aware: false,
                         skills: None,
+                        rules: None,
                         system: String::new(),
                         context: String::new(),
                         instruction: String::new(),
@@ -135,6 +138,7 @@ mod tests {
                     scope: crate::application::process::ExecutionScope::for_tests(),
                     text_only: false,
                     allow_edits: false,
+                    mcp: None,
                 },
                 &|_| {}
             ),
