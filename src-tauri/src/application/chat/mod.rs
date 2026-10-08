@@ -385,6 +385,9 @@ impl PendingRun {
             // A workflow step that asks a person something waits for the answer; in a
             // conversation the person just replies.
             detect_interaction: self.workflow.is_some(),
+            workflow_id: self.workflow.as_ref().map(|link| link.workflow_id.as_str()),
+            node_id: self.workflow.as_ref().map(|link| link.node_id.as_str()),
+            task_rules: &[],
         };
         let result = if options.context_query.is_some() || options.detect_interaction {
             self.inner
@@ -504,6 +507,8 @@ impl PendingRun {
                     interaction: execution.interaction.clone(),
                     context: execution.context.clone(),
                     optimization: execution.optimization.clone(),
+                    plan: execution.plan.clone(),
+                    manifest: execution.manifest.clone(),
                     workflow: self.workflow.clone(),
                     events,
                 }
@@ -530,6 +535,8 @@ impl PendingRun {
                     interaction: None,
                     context: None,
                     optimization: None,
+                    plan: None,
+                    manifest: None,
                     workflow: self.workflow.clone(),
                     events,
                 }

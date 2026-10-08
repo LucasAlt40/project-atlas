@@ -83,6 +83,25 @@ pub enum ErrorCode {
     WorkflowNotRecoverable,
     /// The run has no code in a worktree that the asked-for action applies to.
     IntegrationNotAvailable,
+    McpConnectionNotFound,
+    /// The connection's configuration is not acceptable (`reason` is a code: name, shell,
+    /// executable, expansion…).
+    McpConnectionInvalid,
+    /// Another connection of the workspace already has that name.
+    McpNameTaken,
+    McpGrantInvalid,
+    /// The OS credential store could not be reached (locked, missing).
+    McpCredentialStoreUnavailable,
+    /// The secret is not one the connection declares.
+    McpSecretUnknown,
+    /// The connection has to be enabled (and valid, with its secrets) before it is started.
+    McpNotReady,
+    /// The runtime cannot give MCP servers (no adapter, or it was not investigated).
+    McpRuntimeUnsupported,
+    /// Starting the server to look at it failed (`detail` says what the runtime reported).
+    McpProbeFailed,
+    /// The catalogue entry does not exist or cannot be added yet (Figma: HTTP and OAuth).
+    McpPresetUnavailable,
     IdeUnknown,
     IdeNotInstalled,
     IdeLaunchFailed,

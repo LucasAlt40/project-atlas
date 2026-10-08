@@ -608,10 +608,9 @@ fn a_steps_brief_layout_matches_the_instruction_it_describes() {
 
 #[test]
 fn the_context_engine_finds_what_a_real_brief_says_twice_and_keeps_every_fact() {
-    use crate::application::optimization::context::{
-        optimize_prompt_inputs, ContextBudget, ContextInputs,
-    };
+    use crate::application::optimization::context::{optimize_prompt_inputs, ContextInputs};
     use crate::application::prompt::Prompt;
+    use crate::domain::context::{ExecutionBudget, ModelLimits};
 
     let env = env();
     let workflow = full_flow(&env);
@@ -630,6 +629,7 @@ fn the_context_engine_finds_what_a_real_brief_says_twice_and_keeps_every_fact() 
         harness: None,
         task_aware: false,
         skills: None,
+        rules: None,
         context: "Project: atlas".to_owned(),
         instruction: format!("Task:\n{}", step.instruction.trim()),
     };
@@ -641,7 +641,8 @@ fn the_context_engine_finds_what_a_real_brief_says_twice_and_keeps_every_fact() 
         task_description: step.instruction.trim(),
         brief: Some(&step.brief_parts),
         skills: &[],
-        budget: ContextBudget::default(),
+        rules: &[],
+        budget: &ExecutionBudget::resolve(ModelLimits::unknown("rt", "m"), &[]),
     });
 
     assert!(

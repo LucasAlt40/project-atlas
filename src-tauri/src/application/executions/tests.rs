@@ -2516,6 +2516,13 @@ fn sources_that_disagree_pause_a_step_and_ask_a_person_before_the_agent_starts()
     );
     let guard = metrics.guardrails.unwrap();
     assert_eq!((guard.asked, guard.denied, guard.blocked), (1, 0, 0));
+    // The manifest says the payload was prepared and hashed, and that it was never handed over.
+    let manifest = record.execution.manifest.clone().unwrap();
+    assert!(!manifest.delivery.delivered);
+    assert!(manifest.delivery.prompt_hash.starts_with("sha256:"));
+    assert!(manifest
+        .warnings
+        .contains(&crate::domain::context::ContextWarning::NotDelivered));
     let audit = audit_of(&record);
     assert_eq!(audit[0].1, PermissionOutcome::ApprovalRequested);
     assert!(audit[0].2.contains("matched:conflicting_instructions"));
@@ -2544,6 +2551,14 @@ fn a_persons_yes_lets_the_step_go_on_and_a_no_stops_it() {
     );
     assert_eq!(yes.execution.status, ExecutionStatus::Completed);
     assert_eq!(f.runtimes[0].requests.lock().unwrap().len(), 1);
+    // Once a person said yes the payload is delivered, and the manifest hash is that payload's.
+    let manifest = yes.execution.manifest.clone().unwrap();
+    assert!(manifest.delivery.delivered);
+    let received = f.runtimes[0].requests.lock().unwrap()[0].prompt.combined();
+    assert_eq!(
+        manifest.delivery.prompt_hash,
+        crate::application::runtimes::sha256_hex(received.as_bytes())
+    );
     let decision = yes
         .execution
         .permission_events
@@ -3158,4 +3173,48 @@ fn the_review_and_the_counters_survive_being_stored_and_old_records_still_load()
     let loaded: crate::domain::optimization::OptimizationMetrics =
         serde_json::from_value(old).unwrap();
     assert!(loaded.context_review.is_none() && loaded.guardrails.is_none());
+}
+
+#[test]
+fn a_required_context_that_does_not_fit_the_budget_is_never_cut_and_the_step_asks_before_it_starts()
+{
+    let brief = whole_brief();
+    let f = with_flags(
+        fixture(vec![("rt-a", Ok("done"))]),
+        FixedFlags {
+            metrics: true,
+            context: true,
+            max_tokens: Some(10),
+            guardrails: true,
+            ..FixedFlags::default()
+        },
+    );
+    let agent = agent_saying(&f, "Be brief.");
+
+    let record = step_with(
+        &f,
+        &agent,
+        "Implement the page\n\n",
+        &brief,
+        None,
+        &Collector::default(),
+    );
+
+    // Nothing was started, and nothing required was removed to make it fit.
+    assert_eq!(f.runtimes[0].requests.lock().unwrap().len(), 0);
+    assert_eq!(record.execution.status, ExecutionStatus::WaitingForInput);
+    assert!(record.execution.prompt.contains("RESULT PROTOCOL"));
+    assert!(record.execution.prompt.contains("Implement the page"));
+    let metrics = record.execution.optimization.unwrap();
+    assert!(metrics.context_engine.unwrap().over_budget.is_some());
+    assert!(metrics.budget.unwrap().over_budget());
+    assert!(
+        !record
+            .execution
+            .manifest
+            .clone()
+            .unwrap()
+            .delivery
+            .delivered
+    );
 }

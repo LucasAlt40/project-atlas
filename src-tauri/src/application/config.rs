@@ -134,6 +134,18 @@ pub struct UserConfig {
     /// Runs of workflows, oldest first, each with the snapshot of the definition it started from.
     #[serde(default)]
     pub workflow_executions: Vec<WorkflowExecution>,
+    /// The user's rules for the scopes Atlas's own configuration holds (global, workspace,
+    /// workflow, agent). The project's rules live in the project (`.atlas/context/rules.md`) and a
+    /// task's arrive with the task, so a rule of either scope found here is ignored: one source
+    /// of truth per scope. Rules are read, never written, by an execution.
+    #[serde(default)]
+    pub rules: Vec<crate::domain::rules::Rule>,
+    /// The MCP integrations each workspace knows. No secret is in them (see `domain::mcp`).
+    #[serde(default)]
+    pub mcp_connections: Vec<crate::domain::mcp::McpConnection>,
+    /// Who may use which connection and which of its tools. Nothing is exposed without one.
+    #[serde(default)]
+    pub mcp_grants: Vec<crate::domain::mcp::McpGrant>,
 }
 
 /// Port: durable storage for [`UserConfig`]. Implemented in `infrastructure/`.

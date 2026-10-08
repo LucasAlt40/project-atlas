@@ -213,6 +213,8 @@ impl ConversationHistory {
                     interaction: None,
                     context: None,
                     optimization: None,
+                    plan: None,
+                    manifest: None,
                     workflow: None,
                     events: vec![ExecutionEvent {
                         execution_id,
@@ -292,6 +294,8 @@ mod tests {
             interaction: None,
             context: None,
             optimization: None,
+            plan: None,
+            manifest: None,
             workflow: None,
             events: Vec::new(),
         }

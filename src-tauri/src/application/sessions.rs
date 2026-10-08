@@ -220,6 +220,9 @@ struct State {
     /// One session per execution: live ones and the most recent finished ones.
     entries: HashMap<String, Entry>,
     finished: VecDeque<String>,
+    /// Executions Atlas itself asked to stop (not the user): the pipe runner, which has no
+    /// session to terminate, looks here.
+    stops: std::collections::HashSet<String>,
 }
 
 /// Every live process session, keyed by execution. See the module documentation.
@@ -306,6 +309,34 @@ impl SessionRegistry {
             .entries
             .get(execution_id)
             .and_then(|entry| entry.user_action)
+    }
+
+    /// Atlas (not the user) ends the execution's process: a run that broke a rule it was
+    /// started under. A process in a terminal is terminated; any other is stopped by its runner,
+    /// which polls [`Self::stop_requested`]. Nothing is recorded as a user action.
+    pub fn stop(&self, execution_id: &str) {
+        let session = {
+            let mut state = self.lock();
+            state.stops.insert(execution_id.to_owned());
+            state
+                .entries
+                .get(execution_id)
+                .filter(|entry| entry.status != SessionStatus::Exited)
+                .map(|entry| entry.session.clone())
+        };
+        if let Some(session) = session {
+            let _ = session.terminate();
+        }
+    }
+
+    /// Whether [`Self::stop`] was called for the execution since the last [`Self::clear_stop`].
+    pub fn stop_requested(&self, execution_id: &str) -> bool {
+        self.lock().stops.contains(execution_id)
+    }
+
+    /// Forgets a stop request: called when a step starts and when it has ended.
+    pub fn clear_stop(&self, execution_id: &str) {
+        self.lock().stops.remove(execution_id);
     }
 
     /// Executions whose process is still alive.

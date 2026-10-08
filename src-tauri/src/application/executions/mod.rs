@@ -12,29 +12,41 @@ use super::agents::AgentService;
 use super::errors::{AppError, ErrorCode};
 use super::harness::context::{HarnessContextBuilder, TaskContextLoad};
 use super::interaction::{should_pause, InteractionDetector, InteractionSignals, LayeredDetector};
+use super::mcp::{LaunchProblem, McpContext, McpInputs, McpPlan, McpService};
+use super::optimization::review::{MandatoryRule, McpFacts, McpFailure, RuleFacts};
 use super::optimization::skills::{SelectionInput, SkillService};
 use super::optimization::{self, OptimizationFlags, PreRuntime, RuntimeProbe};
 use super::personalities::PersonalityService;
 use super::process::ExecutionScope;
 use super::prompt::PromptBuilder;
+use super::rules::{self, AppliedRule, RuleBlock, RuleContext, RuleService};
 use super::runtimes::{RuntimeError, RuntimeEvent, RuntimeOutput, RuntimeRegistry, RuntimeRequest};
 use super::security::{AuditLog, PolicyResolver};
 use super::sessions::SessionRegistry;
+use super::sessions::SessionTarget;
 use super::support::now_ms;
 use super::workspace::WorkspaceService;
 use super::worktree::{RunOutcome, WorktreeError, WorktreeService};
+use crate::domain::context::ManifestIds;
 use crate::domain::execution::{
     Execution, ExecutionEvent, ExecutionEventKind, ExecutionFailure, ExecutionRecord,
     ExecutionStatus,
 };
+use crate::domain::guardrail::IssueSeverity;
 use crate::domain::guardrail::ReviewAnswer;
 use crate::domain::interaction::InteractionDetection;
+use crate::domain::mcp::{McpProblem, McpServerStatus, ReportedMcpTool};
 use crate::domain::optimization::BriefParts;
+use crate::domain::optimization::{RuleMetrics, SectionKind};
+use crate::domain::rules::{Rule, RuleStrength};
 use crate::domain::security::{Permission, ToolAccess};
 use crate::domain::task::{Task, TaskStatus};
 use crate::domain::task_context::{ContextMode, ContextRecord};
 use crate::domain::terminal::UserAction;
 use crate::domain::worktree::Validation;
+
+/// How old the discovery of a connection with named-tool grants may be before a step looks again.
+const MCP_DISCOVERY_MAX_AGE_MS: u64 = 10 * 60 * 1000;
 
 /// Port: receives progress while an execution runs. The Tauri adapter in `commands/`
 /// forwards these to the webview; tests collect them.
@@ -66,11 +78,20 @@ pub struct RunAgentRequest {
     pub description: String,
 }
 
+/// What running a step gave back: the runtime's answer (none if nothing ran or it now waits for a
+/// person), what was observed of the run, and the tools the runtime listed when it started.
+type Gated = (
+    Option<Result<RuntimeOutput, RuntimeError>>,
+    Option<optimization::RuntimeObservation>,
+    Option<Vec<String>>,
+);
+
 /// What a step does once its prompt is built: the guardrails' verdict and two switches read once.
 struct RunFlags {
     gate: guardrails::Gate,
     detect_interaction: bool,
-    measuring: bool,
+    /// What the step may be given, to check what the runtime then says it has.
+    mcp: McpPlan,
 }
 
 /// How a workflow step differs from a message: where its Task Context comes from, the worktree it
@@ -90,6 +111,12 @@ pub struct StepOptions<'a> {
     /// Look at the answer for a request for a person. Only workflow steps ask for this: in a
     /// conversation the person simply replies.
     pub detect_interaction: bool,
+    /// The workflow the step belongs to, so the workflow's rules apply.
+    pub workflow_id: Option<&'a str>,
+    /// The step's node in that workflow, so a grant to one step applies to it only.
+    pub node_id: Option<&'a str>,
+    /// Rules that come with the task (scope `Task`).
+    pub task_rules: &'a [Rule],
 }
 
 /// The request was not acceptable, so no execution was created. Runtime problems are not
@@ -160,6 +187,10 @@ pub struct ExecutionService {
     /// Where skills are found. Without it (or with `optimization.skills.enabled` off) no skill is
     /// ever selected.
     skills: Option<Arc<SkillService>>,
+    /// Where the user's rules are gathered from. Without it prompts carry no rules.
+    rules: Option<Arc<RuleService>>,
+    /// The workspace's MCP connections and grants. Without it no step is ever given an MCP server.
+    mcp: Option<Arc<McpService>>,
     next_id: AtomicU64,
 }
 
@@ -184,6 +215,8 @@ impl ExecutionService {
             interactions: Arc::new(LayeredDetector),
             optimization: None,
             skills: None,
+            rules: None,
+            mcp: None,
             next_id: AtomicU64::new(1),
         }
     }
@@ -222,6 +255,20 @@ impl ExecutionService {
     #[must_use]
     pub fn with_skills(mut self, skills: Arc<SkillService>) -> Self {
         self.skills = Some(skills);
+        self
+    }
+
+    /// Lets steps be given the MCP servers their agent is granted (see `application::mcp`).
+    #[must_use]
+    pub fn with_mcp(mut self, mcp: Arc<McpService>) -> Self {
+        self.mcp = Some(mcp);
+        self
+    }
+
+    /// Gives executions the rules that apply to them (see `application::rules`).
+    #[must_use]
+    pub fn with_rules(mut self, rules: Arc<RuleService>) -> Self {
+        self.rules = Some(rules);
         self
     }
 
@@ -389,6 +436,9 @@ impl ExecutionService {
             brief_parts: None,
             review: None,
             detect_interaction: false,
+            workflow_id: None,
+            node_id: None,
+            task_rules: &[],
         };
         self.run_step(id, request, options, observer)
     }
@@ -412,6 +462,9 @@ impl ExecutionService {
             brief_parts,
             review: review_answer,
             detect_interaction,
+            workflow_id,
+            node_id,
+            task_rules,
         } = options;
         // Read once: a run is measured entirely or not at all.
         let measuring = self
@@ -525,6 +578,17 @@ impl ExecutionService {
                 );
                 plan
             });
+        // Rules are read like the Harness: at the project's own root, before the path is swapped
+        // for the worktree's, and they reach the agent as prompt text only.
+        let rule_resolution = self.resolve_rules(
+            &RuleContext {
+                workspace: &emitter.workspace_id,
+                workflow: workflow_id,
+                agent: &agent.id,
+            },
+            &project.path,
+            task_rules,
+        );
         let mut project = project;
         let working_dir = if agent.worktree_isolation {
             match self.start_worktree(
@@ -555,6 +619,20 @@ impl ExecutionService {
         }
         let can_edit = access == EditAccess::Allowed;
         let prompt_timer = measuring.then(std::time::Instant::now);
+        // The budget of this runtime + model. A configured limit counts only while the Context
+        // Engine, which is what enforces it, is on.
+        let engine_on = self
+            .optimization
+            .as_ref()
+            .is_some_and(|flags| flags.context_enabled());
+        let budget = optimization::platform::execution_budget(
+            runtime.as_ref(),
+            &agent.model_id,
+            self.optimization
+                .as_ref()
+                .filter(|_| engine_on)
+                .and_then(|flags| flags.context_max_tokens()),
+        );
         // What the prompt is built from. The Context Engine and the guardrails rework these inputs
         // (never a built prompt) and the builder, still the only assembly, builds again.
         let mut inputs = guardrails::PromptInputs {
@@ -565,6 +643,7 @@ impl ExecutionService {
                 .unwrap_or_default(),
             description: task.description.clone(),
             parts: brief_parts.cloned(),
+            rules: rule_resolution.applied.iter().map(RuleBlock::of).collect(),
         };
         let build = |inputs: &guardrails::PromptInputs| {
             let reworked = Task {
@@ -580,12 +659,13 @@ impl ExecutionService {
                 &reworked,
                 can_edit,
                 inputs.skills_text().as_deref(),
+                inputs.rules_text().as_deref(),
             )
         };
         let (mut prompt, mut layout) = build(&inputs);
         let mut combined = prompt.combined();
         let mut context_engine = None;
-        if let Some(flags) = self.optimization.as_ref().filter(|f| f.context_enabled()) {
+        if engine_on {
             let outcome = optimization::context::optimize_prompt_inputs(
                 &optimization::context::ContextInputs {
                     prompt: &prompt,
@@ -594,15 +674,14 @@ impl ExecutionService {
                     task_description: &task.description,
                     brief: brief_parts,
                     skills: &inputs.skills,
-                    budget: optimization::context::ContextBudget {
-                        max_tokens: flags.context_max_tokens(),
-                        ..optimization::context::ContextBudget::default()
-                    },
+                    rules: &inputs.rules,
+                    budget: &budget,
                 },
             );
             if outcome.changed {
                 inputs.harness.clone_from(&outcome.harness);
                 inputs.skills.clone_from(&outcome.skill_blocks);
+                inputs.rules.clone_from(&outcome.rule_blocks);
                 inputs.description.clone_from(&outcome.task_description);
                 if outcome.brief_parts.is_some() {
                     inputs.parts.clone_from(&outcome.brief_parts);
@@ -614,6 +693,36 @@ impl ExecutionService {
             Self::announce_context_engine(&emitter, &engine);
             context_engine = Some(engine);
         }
+        // What Atlas meant to send: the prompt as built and reworked by the engine, before the
+        // guardrails may take anything out of it.
+        // The manifest is the evidence of the delivery and exists whether or not metrics are on.
+        let plan = optimization::platform::plan_of(
+            &layout.breakdown(
+                &prompt,
+                &combined,
+                inputs.parts.as_ref().map(BriefParts::layout).as_ref(),
+            ),
+            context_engine.as_ref().map_or(
+                0,
+                |engine: &crate::domain::optimization::ContextEngineMetrics| engine.omitted_items,
+            ),
+        );
+        let rule_facts = Self::rule_facts(&rule_resolution);
+        // What MCP the step may be given: connections, grants, the agent's policy and what the
+        // runtime can do. Nothing is started or read here.
+        let mcp_policy = self.mcp_permission(&execution, &agent, &task.id);
+        let mut mcp_plan = self.plan_mcp(
+            &McpContext {
+                workspace: &emitter.workspace_id,
+                agent: &agent.id,
+                workflow: workflow_id,
+                node: node_id,
+            },
+            mcp_policy,
+            runtime.info().capabilities.mcp,
+            &runtime.info().id,
+        );
+        let mcp_facts = Self::mcp_facts(&mcp_plan);
         // The guardrails look at the context as it is about to be sent: whole, coherent, free of
         // secrets that came from files and other agents. A person decides what needs deciding.
         let mut gate = guardrails::Gate::Proceed;
@@ -630,6 +739,8 @@ impl ExecutionService {
                     skills: skill_plan.as_ref().map(|plan| &plan.metrics),
                     record: execution.context.as_ref(),
                     step: detect_interaction,
+                    rule_facts: &rule_facts,
+                    mcp_facts: &mcp_facts,
                     answered: review_answer,
                     access,
                     binding: guardrails::Binding {
@@ -643,6 +754,8 @@ impl ExecutionService {
                             working_dir.to_string_lossy(),
                             agent.worktree_isolation
                         ),
+                        rules: rule_resolution.canonical(),
+                        mcp: mcp_plan.canonical(),
                     },
                 },
             );
@@ -654,23 +767,74 @@ impl ExecutionService {
             gate = stage.gate;
             guard_summary = Some((stage.metrics, stage.review));
         }
+        // The guardrails allowed it: only now are the secrets of the servers it is given read, and
+        // only for those. A connection that cannot be started as planned is out of the step; a
+        // required one stops the step.
+        let mut mcp_launch = None;
+        if matches!(gate, guardrails::Gate::Proceed) && mcp_plan.exposed().next().is_some() {
+            if let Some(service) = &self.mcp {
+                let (launch, left_out) = service.launch(&mcp_plan);
+                for (name, problem) in left_out {
+                    let required = mcp_plan
+                        .servers
+                        .iter()
+                        .any(|s| s.connection.name == name && s.connection.required);
+                    mcp_plan.exclude(&name, Self::problem_of(&problem));
+                    emitter.log(&format!(
+                        "MCP connection {name} could not be started as planned"
+                    ));
+                    if required {
+                        gate = guardrails::Gate::Deny(ExecutionFailure {
+                            kind: crate::domain::execution::FailureKind::PermissionDenied,
+                            message: format!(
+                                "Atlas did not start the agent: the required MCP connection {name} could not be started."
+                            ),
+                            details: Some(format!(
+                                "reason {}",
+                                crate::domain::security::Reason::McpConnectionUnavailable.as_str()
+                            )),
+                        });
+                    }
+                }
+                mcp_launch = (!launch.is_empty()).then_some(launch);
+            }
+        }
         let measured_parts = inputs.parts.clone();
         execution.prompt = combined;
         let prompt_build_ms = optimization::elapsed_ms(prompt_timer);
-        let pre_runtime = measuring.then(|| {
+        let breakdown = layout.breakdown(
+            &prompt,
+            &execution.prompt,
+            measured_parts.as_ref().map(BriefParts::layout).as_ref(),
+        );
+        let budget = optimization::platform::measured(budget, &breakdown);
+        let mut pre_runtime = measuring.then(|| {
             let measured = std::time::Instant::now();
-            let breakdown = layout.breakdown(
-                &prompt,
-                &execution.prompt,
-                measured_parts.as_ref().map(BriefParts::layout).as_ref(),
-            );
             emitter.announce(
                 ExecutionEventKind::OptimizationPromptBuilt,
                 "Prompt built".to_owned(),
                 optimization::prompt_event_metadata(&breakdown, prompt_build_ms),
             );
+            let items = optimization::context::prompt_items(
+                &prompt,
+                &agent.instructions,
+                &inputs.description,
+                inputs.parts.as_ref(),
+                &inputs.skills,
+                &inputs.rules,
+            )
+            .items;
             PreRuntime {
-                prompt: breakdown,
+                budget: Some(budget.clone()),
+                delivery_ms: None,
+                rules: Self::rule_metrics(
+                    &rule_resolution,
+                    &inputs.rules,
+                    context_engine.as_ref(),
+                    guard_summary.as_ref().map(|(_, review)| review),
+                ),
+                authority: Some(optimization::authority_metrics(&items)),
+                prompt: breakdown.clone(),
                 context: optimization::context_metrics(execution.context.as_ref()),
                 context_engine,
                 skills: skill_plan.as_ref().map(|plan| plan.metrics.clone()),
@@ -709,8 +873,45 @@ impl ExecutionService {
             scope,
             text_only: false,
             allow_edits: can_edit,
+            mcp: mcp_launch,
         };
-        let (outcome, observation) = self.run_gated(
+        // What the adapter will hand to its process, hashed from that same value, before it does.
+        // Always: the manifest is the evidence of the delivery, not an optional measurement.
+        let will_deliver = matches!(gate, guardrails::Gate::Proceed);
+        let delivery_timer = std::time::Instant::now();
+        let delivery = runtime.delivery(&runtime_request);
+        let omitted: std::collections::BTreeSet<String> = inputs
+            .rules
+            .iter()
+            .filter(|block| block.text.starts_with("[Left out"))
+            .map(|block| block.reference.clone())
+            .collect();
+        execution.manifest = Some(optimization::platform::manifest_of(
+            &optimization::platform::ManifestSource {
+                ids: ManifestIds {
+                    execution: execution.id.clone(),
+                    workspace: execution.workspace_id.clone(),
+                    task: task.id.clone(),
+                    agent: agent.id.clone(),
+                    runtime: agent.runtime_id.clone(),
+                    model: agent.model_id.clone(),
+                },
+                created_at: now_ms(),
+                plan: &plan,
+                delivered: &breakdown,
+                delivery: &delivery,
+                will_deliver,
+                rules: rule_resolution.records(&omitted),
+                mcp: mcp_plan.record(),
+                surface: runtime.surface(&runtime_request),
+                budget: &budget,
+            },
+        ));
+        execution.plan = Some(plan);
+        if let Some(pre) = pre_runtime.as_mut() {
+            pre.delivery_ms = optimization::elapsed_ms(Some(delivery_timer));
+        }
+        let (outcome, observation, listed) = self.run_gated(
             runtime.as_ref(),
             &runtime_request,
             &emitter,
@@ -719,12 +920,29 @@ impl ExecutionService {
             RunFlags {
                 gate,
                 detect_interaction,
-                measuring,
+                mcp: mcp_plan.clone(),
             },
         );
         if let Some(outcome) = outcome {
             self.conclude(outcome, &emitter, &mut execution, &mut task);
         }
+        // What the runtime listed at start-up, when its output did not carry it.
+        if let Some(list) = &listed {
+            execution
+                .metadata
+                .entry("toolsExposed".to_owned())
+                .or_insert_with(|| list.join(","));
+        }
+        // What the runtime reported it loaded joins what Atlas declared; neither says the model
+        // got it. Whether or not metrics are on.
+        Self::refresh_manifest(
+            &mut execution,
+            &budget,
+            runtime.as_ref(),
+            &runtime_request,
+            observation.as_ref(),
+            &mcp_plan,
+        );
         if let Some(pre) = pre_runtime {
             Self::record_metrics(
                 &emitter,
@@ -744,6 +962,298 @@ impl ExecutionService {
         self.attach_audit(&mut execution, emitter.logs.into_inner());
 
         Ok(ExecutionRecord { task, execution })
+    }
+
+    /// Gathers and resolves the rules of this execution: the user's configured rules, the
+    /// project's own file, and the task's. Without a rule service nothing applies.
+    fn resolve_rules(
+        &self,
+        ctx: &RuleContext<'_>,
+        project_path: &str,
+        task_rules: &[Rule],
+    ) -> rules::Resolution {
+        let Some(service) = self.rules.as_ref() else {
+            return rules::resolve(task_rules, ctx);
+        };
+        let project_rules = self
+            .harness
+            .as_ref()
+            .and_then(|harness| harness.project_rules_text(project_path));
+        rules::resolve(&service.collect(project_rules.as_deref(), task_rules), ctx)
+    }
+
+    /// What the review needs of a resolution.
+    fn rule_facts(resolution: &rules::Resolution) -> RuleFacts {
+        RuleFacts {
+            mandatory: resolution
+                .applied
+                .iter()
+                .filter(|a| a.strength == RuleStrength::Mandatory)
+                .map(|a| MandatoryRule {
+                    reference: a.reference(),
+                    content: a.rule.content.trim().to_owned(),
+                })
+                .collect(),
+            conflicts: resolution.conflicts.clone(),
+            downgraded: resolution
+                .applied
+                .iter()
+                .filter(|a| a.downgraded)
+                .map(AppliedRule::reference)
+                .collect(),
+        }
+    }
+
+    /// What the rules did for this execution, in numbers; `None` when none applied.
+    fn rule_metrics(
+        resolution: &rules::Resolution,
+        blocks: &[RuleBlock],
+        engine: Option<&crate::domain::optimization::ContextEngineMetrics>,
+        review: Option<&crate::domain::guardrail::ContextReviewResult>,
+    ) -> Option<RuleMetrics> {
+        if resolution.applied.is_empty() && resolution.excluded.is_empty() {
+            return None;
+        }
+        let count = |n: usize| u32::try_from(n).unwrap_or(u32::MAX);
+        let omitted = blocks
+            .iter()
+            .filter(|block| block.text.starts_with("[Left out"))
+            .count();
+        let tokens = blocks
+            .iter()
+            .map(|block| crate::domain::optimization::estimate_tokens(block.text.chars().count()))
+            .sum();
+        let _ = engine;
+        Some(RuleMetrics {
+            applied: count(resolution.applied.len()),
+            mandatory: count(resolution.count(RuleStrength::Mandatory)),
+            preference: count(resolution.count(RuleStrength::Preference)),
+            informational: count(resolution.count(RuleStrength::Informational)),
+            excluded: count(resolution.excluded.len()),
+            conflicts: count(resolution.conflicts.len()),
+            omitted_for_budget: count(omitted),
+            warnings: review.map_or(0, |r| {
+                count(
+                    r.issues
+                        .iter()
+                        .filter(|i| {
+                            i.source == SectionKind::Rules && i.severity >= IssueSeverity::Warning
+                        })
+                        .count(),
+                )
+            }),
+            estimated_tokens: tokens,
+            token_source: crate::domain::optimization::TokenSource::Estimated,
+        })
+    }
+
+    /// Adds what the runtime reported to the manifest's surface and recomputes its warnings.
+    fn refresh_manifest(
+        execution: &mut Execution,
+        budget: &crate::domain::context::ExecutionBudget,
+        runtime: &dyn crate::application::runtimes::ModelRuntime,
+        request: &RuntimeRequest,
+        observed: Option<&optimization::RuntimeObservation>,
+        plan: &McpPlan,
+    ) {
+        let reported = execution.metadata.clone();
+        let launched: Vec<&str> = request
+            .mcp
+            .as_ref()
+            .map(|m| m.servers.iter().map(|s| s.name.as_str()).collect())
+            .unwrap_or_default();
+        // What the runtime listed, and what the model called, as MCP tools of which server. A
+        // runtime that listed nothing leaves both unknown.
+        let listed: Option<Vec<String>> = reported.get("toolsExposed").map(|list| {
+            list.split(',')
+                .filter(|t| !t.is_empty())
+                .map(str::to_owned)
+                .collect()
+        });
+        let listed_mcp = listed
+            .as_ref()
+            .map(|tools| runtime.mcp_tools_in(tools, &launched));
+        let used_mcp = listed.as_ref().and_then(|_| {
+            observed.map(|o| {
+                let names: Vec<String> = o.tools_used.iter().map(|(n, _)| n.clone()).collect();
+                runtime.mcp_tools_in(&names, &launched)
+            })
+        });
+        let statuses = Self::reported_statuses(&reported);
+        if let Some(manifest) = execution.manifest.as_mut() {
+            manifest.surface =
+                optimization::surface::with_reported(manifest.surface.clone(), &reported);
+            manifest.mcp.observe(
+                listed_mcp.as_deref(),
+                &statuses,
+                used_mcp.as_deref(),
+                &|server, tool| plan.authorizes_reported(server, tool),
+            );
+            manifest.refresh_warnings(&budget.warnings());
+        }
+    }
+
+    /// What the step had to do with MCP, in numbers; `None` when the workspace has no connection.
+    fn mcp_metrics(
+        record: &crate::domain::mcp::McpRecord,
+    ) -> Option<crate::domain::optimization::McpMetrics> {
+        if record.servers.is_empty() {
+            return None;
+        }
+        let count = |n: usize| u32::try_from(n).unwrap_or(u32::MAX);
+        let reported = record.tools.iter().any(|t| t.reported_exposed.is_some());
+        let used = record.tools.iter().any(|t| t.used.is_some());
+        let statuses = record.servers.iter().any(|s| s.reported_status.is_some());
+        Some(crate::domain::optimization::McpMetrics {
+            connections: count(record.servers.len()),
+            servers_exposed: count(record.servers.iter().filter(|s| s.exposed).count()),
+            servers_left_out: count(
+                record
+                    .servers
+                    .iter()
+                    .filter(|s| {
+                        s.authorized && !s.exposed && s.problem != Some(McpProblem::PolicyDenied)
+                    })
+                    .count(),
+            ),
+            tools_authorized: count(record.tools.iter().filter(|t| t.authorized).count()),
+            tools_held_back: count(record.held_back.len()),
+            tools_reported: reported.then(|| {
+                count(
+                    record
+                        .tools
+                        .iter()
+                        .filter(|t| t.reported_exposed == Some(true))
+                        .count(),
+                )
+            }),
+            tools_unauthorized: count(record.unauthorized.len()),
+            tools_used: used
+                .then(|| count(record.tools.iter().filter(|t| t.used == Some(true)).count())),
+            servers_failed: statuses.then(|| {
+                count(
+                    record
+                        .servers
+                        .iter()
+                        .filter(|s| s.reported_status == Some(McpServerStatus::Failed))
+                        .count(),
+                )
+            }),
+        })
+    }
+
+    /// The statuses the runtime gave the servers it started (`name:status` pairs it reported).
+    fn reported_statuses(metadata: &BTreeMap<String, String>) -> BTreeMap<String, McpServerStatus> {
+        metadata
+            .get("mcpStatus")
+            .map(|list| {
+                list.split(',')
+                    .filter_map(|pair| pair.rsplit_once(':'))
+                    .map(|(name, status)| {
+                        let status = serde_json::from_str(&format!("\"{status}\""))
+                            .unwrap_or(McpServerStatus::Unknown);
+                        (name.to_owned(), status)
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// The agent's MCP policy as resolved now: what its workspace and permission profile allow.
+    /// Without a policy resolver nothing is allowed.
+    fn mcp_permission(
+        &self,
+        execution: &Execution,
+        agent: &crate::domain::agent::Agent,
+        task_id: &str,
+    ) -> Permission {
+        let Some(policies) = &self.policies else {
+            return Permission::Denied;
+        };
+        let scope = ExecutionScope {
+            workspace_id: execution.workspace_id.clone(),
+            agent_id: agent.id.clone(),
+            execution_id: execution.id.clone(),
+            task_id: task_id.to_owned(),
+            runtime_access: ToolAccess::NONE,
+            isolated: agent.worktree_isolation,
+        };
+        policies
+            .resolve(&scope)
+            .map_or(Permission::Denied, |resolved| {
+                resolved.agent_policy.mcp.mode
+            })
+    }
+
+    /// What the step may be given. Without an MCP service the workspace has no connection.
+    fn plan_mcp(
+        &self,
+        context: &McpContext<'_>,
+        policy: Permission,
+        support: crate::domain::mcp::McpSupport,
+        runtime_id: &str,
+    ) -> McpPlan {
+        let Some(service) = &self.mcp else {
+            return McpPlan::default();
+        };
+        // A grant that names tools only holds if the tools Atlas knows are recent.
+        if policy != Permission::Denied && support == crate::domain::mcp::McpSupport::Supported {
+            service.refresh_discovery(context, runtime_id, MCP_DISCOVERY_MAX_AGE_MS);
+        }
+        let overview = service.snapshot(context.workspace);
+        super::mcp::plan(&McpInputs {
+            connections: &overview.connections,
+            grants: &overview.grants,
+            context: *context,
+            policy,
+            support,
+        })
+    }
+
+    /// What the review needs of an MCP plan: connections granted and not given, and whether the
+    /// policy asks first.
+    fn mcp_facts(plan: &McpPlan) -> McpFacts {
+        McpFacts {
+            failures: plan
+                .failed()
+                .filter_map(|s| {
+                    Some(McpFailure {
+                        name: s.connection.name.clone(),
+                        required: s.connection.required,
+                        problem: s.problem.clone()?,
+                    })
+                })
+                .collect(),
+            requires_approval: plan.requires_approval,
+        }
+    }
+
+    fn problem_of(problem: &LaunchProblem) -> McpProblem {
+        match problem {
+            LaunchProblem::SecretMissing(name) => McpProblem::SecretMissing { name: name.clone() },
+            LaunchProblem::Invalid => McpProblem::InvalidConfiguration {
+                reason: "transport".to_owned(),
+            },
+            LaunchProblem::StoreUnavailable => McpProblem::InvalidConfiguration {
+                reason: "credential_store".to_owned(),
+            },
+        }
+    }
+
+    /// MCP tools a runtime listed that no grant covers: a tool of a server that was not launched
+    /// for this step, or a tool of one that was and that nothing authorizes.
+    fn unauthorized_mcp(listed: &[ReportedMcpTool], plan: &McpPlan) -> Vec<String> {
+        listed
+            .iter()
+            .filter(|t| match &t.server {
+                Some(server) => !plan.authorizes_reported(server, &t.tool),
+                None => true,
+            })
+            .map(|t| match &t.server {
+                Some(server) => format!("{server}/{}", t.tool),
+                None => t.tool.clone(),
+            })
+            .collect()
     }
 
     /// What the `optimization_skills_selected` event says.
@@ -874,6 +1384,16 @@ impl ExecutionService {
         let (exposed, extensions) = optimization::runtime_reported_surface(&execution.metadata);
         metrics.tools.exposed = exposed;
         metrics.extensions = extensions;
+        if let Some(manifest) = &execution.manifest {
+            metadata.insert(
+                "promptHash".to_owned(),
+                manifest.delivery.prompt_hash.clone(),
+            );
+        }
+        metrics.mcp = execution
+            .manifest
+            .as_ref()
+            .and_then(|manifest| Self::mcp_metrics(&manifest.mcp));
         execution.optimization = Some(metrics);
         emitter.announce(
             ExecutionEventKind::OptimizationMetricsRecorded,
@@ -893,17 +1413,15 @@ impl ExecutionService {
         execution: &mut Execution,
         task: &mut Task,
         flags: RunFlags,
-    ) -> (
-        Option<Result<RuntimeOutput, RuntimeError>>,
-        Option<optimization::RuntimeObservation>,
-    ) {
+    ) -> Gated {
         let RunFlags {
             gate,
             detect_interaction,
-            measuring,
+            mcp: mcp_plan,
         } = flags;
         let runtime_name = runtime.info().name;
         let mut observation = None;
+        let mut listed: Option<Vec<String>> = None;
         let outcome = match gate {
             guardrails::Gate::Deny(failure) => {
                 // Not started: nothing ran, so there is nothing to conclude or to repeat.
@@ -928,14 +1446,60 @@ impl ExecutionService {
                 None
             }
             guardrails::Gate::Proceed => {
-                let probe = measuring.then(RuntimeProbe::start);
+                // Always watched: what the model called is the manifest's, not only the metrics'.
+                let probe = RuntimeProbe::start();
+                let launched: Vec<&str> = runtime_request
+                    .mcp
+                    .as_ref()
+                    .map(|m| m.servers.iter().map(|s| s.name.as_str()).collect())
+                    .unwrap_or_default();
+                let target = SessionTarget {
+                    execution_id: execution.id.clone(),
+                    workspace_id: execution.workspace_id.clone(),
+                    agent_id: runtime_request.scope.agent_id.clone(),
+                };
+                self.sessions.clear_stop(&target.execution_id);
+                let unauthorized: RefCell<Vec<String>> = RefCell::default();
+                let tools_listed: RefCell<Option<Vec<String>>> = RefCell::default();
                 let result = runtime.execute(runtime_request, &|stage| {
-                    if let Some(probe) = &probe {
-                        probe.observe(&stage);
+                    probe.observe(&stage);
+                    // Before the model is asked anything the runtime says what it has. A tool of
+                    // MCP nobody authorized is the one thing Atlas cannot hold back beforehand
+                    // (a server may add tools later): so it stops the step as soon as it is told.
+                    if let RuntimeEvent::ToolsReported(tools) = &stage {
+                        *tools_listed.borrow_mut() = Some(tools.clone());
+                        let found = Self::unauthorized_mcp(
+                            &runtime.mcp_tools_in(tools, &launched),
+                            &mcp_plan,
+                        );
+                        if !found.is_empty() {
+                            unauthorized.borrow_mut().extend(found);
+                            // Atlas ends it (not the user): a terminal session is terminated, a
+                            // piped process is stopped by its runner, whole process group included.
+                            self.sessions.stop(&target.execution_id);
+                        }
                     }
                     emitter.runtime_event(stage, &runtime_name, &runtime_request.model_id);
                 });
-                observation = probe.as_ref().map(RuntimeProbe::finish);
+                self.sessions.clear_stop(&target.execution_id);
+                observation = Some(probe.finish());
+                listed = tools_listed.into_inner();
+                let unauthorized = unauthorized.into_inner();
+                let result = if unauthorized.is_empty() {
+                    result
+                } else {
+                    emitter.log(&format!(
+                        "The runtime listed MCP tools nobody authorized: {}",
+                        unauthorized.join(", ")
+                    ));
+                    if let Some(manifest) = execution.manifest.as_mut() {
+                        manifest.mcp.unauthorized = unauthorized;
+                    }
+                    // Whatever it answered is not handed on: the step did not run as authorized.
+                    Err(RuntimeError::PermissionDenied(
+                        crate::domain::security::Reason::McpToolNotAuthorized,
+                    ))
+                };
                 match result {
                     Ok(output) if detect_interaction => match self.interaction_in(runtime, &output)
                     {
@@ -949,7 +1513,7 @@ impl ExecutionService {
                 }
             }
         };
-        (outcome, observation)
+        (outcome, observation, listed)
     }
 
     /// Whether the answer is a request for a person worth pausing for: the runtime adapter's own
@@ -1268,6 +1832,8 @@ impl Emitter<'_> {
                 format!("Waiting for {model_id}"),
                 named("model", model_id),
             ),
+            // Read by the execution service itself (it is not a step the user watches).
+            RuntimeEvent::ToolsReported(_) => {}
             RuntimeEvent::Output(text) => {
                 self.announce(ExecutionEventKind::OutputChunk, text, BTreeMap::new());
             }
@@ -1322,5 +1888,11 @@ impl Emitter<'_> {
     }
 }
 
+#[cfg(test)]
+mod context_tests;
+#[cfg(test)]
+mod mcp_tests;
+#[cfg(test)]
+mod rules_tests;
 #[cfg(test)]
 mod tests;

@@ -36,7 +36,7 @@ use crate::domain::execution::ExecutionEvent;
 use crate::domain::guardrail::ChangeSetHealth;
 use crate::domain::runtime::{
     AuthKind, AuthState, Authentication, ModelInfo, ProviderRef, RuntimeCapabilities, RuntimeInfo,
-    Transport,
+    SystemPromptChannel, Transport,
 };
 use crate::domain::security::{Permission, ToolAccess};
 use crate::domain::workflow::{
@@ -69,7 +69,8 @@ impl ModelRuntime for Scripted {
             capabilities: RuntimeCapabilities {
                 model_discovery: false,
                 streaming: false,
-                system_prompt: false,
+                system_prompt: SystemPromptChannel::Unsupported,
+                mcp: crate::domain::mcp::McpSupport::NotInvestigated,
                 non_interactive_execution: true,
                 authentication: vec![AuthKind::CliSession],
                 usage_metrics: false,
