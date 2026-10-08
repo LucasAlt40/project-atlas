@@ -5,6 +5,8 @@ use tauri_build::{AppManifest, Attributes};
 /// unless a capability in `capabilities/` grants that permission.
 const COMMANDS: &[&str] = &[
     "get_app_info",
+    "check_for_update",
+    "install_update",
     "list_personalities",
     "create_personality",
     "update_personality",

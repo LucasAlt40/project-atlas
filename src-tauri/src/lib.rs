@@ -62,6 +62,9 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         // System notifications (granted as `notification:default`): an agent waiting for the person.
         .plugin(tauri_plugin_notification::init())
+        // Signed updates from the project's GitHub releases; only the two commands in
+        // `commands::updater` reach it, the webview gets no updater permission of its own.
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
             let sink = Arc::new(commands::events::TauriPermissionSink {
@@ -83,6 +86,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::app::get_app_info,
+            commands::updater::check_for_update,
+            commands::updater::install_update,
             commands::personalities::list_personalities,
             commands::personalities::create_personality,
             commands::personalities::update_personality,

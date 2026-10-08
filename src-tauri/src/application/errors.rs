@@ -106,6 +106,10 @@ pub enum ErrorCode {
     IdeNotInstalled,
     IdeLaunchFailed,
     StorageFailed,
+    /// The update server could not be reached or its answer was not usable (`detail` says why).
+    UpdateCheckFailed,
+    /// The update was found but downloading, verifying or installing it failed.
+    UpdateInstallFailed,
 }
 
 /// A failure with a stable code, values for the message (`params`), and an optional technical

@@ -15,6 +15,7 @@ pub mod runtimes;
 pub mod security;
 pub mod settings;
 pub mod terminal;
+pub mod updater;
 pub mod usage;
 pub mod workflow;
 pub mod workspace;

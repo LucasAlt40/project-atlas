@@ -30,6 +30,7 @@ sha2 = "0.10"
 # The OS credential store (macOS Keychain, Windows Credential Manager, Linux Secret Service) for MCP
 # secrets. Used only by `infrastructure/`, behind the `CredentialStore` port.
 keyring = "4"
+tauri-plugin-updater = "2"
 
 [target.'cfg(unix)'.dependencies]
 # Same crate (and version) `portable-pty` already uses; the `signal` feature adds the safe

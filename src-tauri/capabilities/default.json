@@ -5,6 +5,8 @@
   "windows": ["main"],
   "permissions": [
     "allow-get-app-info",
+    "allow-check-for-update",
+    "allow-install-update",
     "allow-list-mcp-connections",
     "allow-add-mcp-connection",
     "allow-update-mcp-connection",
