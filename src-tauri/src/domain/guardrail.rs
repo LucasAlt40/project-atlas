@@ -13,6 +13,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::context::ContextAuthority;
 use super::optimization::SectionKind;
 use super::security::{
     PermissionAction, PermissionDecision, PermissionEvent, PermissionOutcome, Reason,
@@ -251,9 +252,10 @@ impl SourceTrust {
             | SectionKind::PlanRule
             | SectionKind::BriefProtocols
             | SectionKind::Framing => Self::Atlas,
-            SectionKind::ProjectContext | SectionKind::AgentInstructions | SectionKind::Task => {
-                Self::Configured
-            }
+            SectionKind::ProjectContext
+            | SectionKind::AgentInstructions
+            | SectionKind::Task
+            | SectionKind::Rules => Self::Configured,
             SectionKind::Harness
             | SectionKind::TaskContext
             | SectionKind::Skills
@@ -295,8 +297,26 @@ pub enum IssueCode {
     SkillIssues,
     /// Something that looks like a secret is in context that is about to be sent.
     SecretInContext,
-    /// Untrusted text claims authority it cannot have.
+    /// Text claims authority it cannot have (see [`ClaimKind`] for which).
     AuthorityClaim,
+    /// A rule contradicts a broader mandatory rule, or two mandatory rules disagree. The mandatory
+    /// rule governs; a person should know.
+    RuleConflict,
+    /// Text that may go against a mandatory rule, but not plainly enough to say (it is hedged, or
+    /// tangled in negations). Only a warning: it changes nothing about the execution.
+    PossibleRuleConflict,
+    /// A mandatory rule is part of a context that does not fit the budget. Required text is never
+    /// cut, so the step asks a person, and without one it does not run.
+    RuleOverBudget,
+    /// A connection granted to the step could not be given to it (not enabled with its secrets,
+    /// invalid, the runtime has no adapter…). A required one blocks the step; an optional one is
+    /// left out and the step goes on without its tools.
+    McpUnavailable,
+    /// The agent's policy asks a person before a step is given MCP tools.
+    McpApprovalRequired,
+    /// A rule's text came from somewhere that cannot bind (generated or external): it was kept as
+    /// background, whatever strength it claimed.
+    UnknownProvenance,
 }
 
 impl IssueCode {
@@ -312,8 +332,31 @@ impl IssueCode {
             Self::SkillIssues => "skill_issues",
             Self::SecretInContext => "secret_in_context",
             Self::AuthorityClaim => "authority_claim",
+            Self::RuleConflict => "rule_conflict",
+            Self::UnknownProvenance => "unknown_provenance",
+            Self::McpUnavailable => "mcp_unavailable",
+            Self::McpApprovalRequired => "mcp_approval_required",
+            Self::PossibleRuleConflict => "possible_rule_conflict",
+            Self::RuleOverBudget => "rule_over_budget",
         }
     }
+}
+
+/// What a piece of text tries to claim for itself. A claim changes nothing about what is allowed;
+/// it is classified so a person can see what the text was trying to do.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ClaimKind {
+    /// Tells the agent to disregard the rules or the hierarchy.
+    OverrideRules,
+    /// Says the agent has been given privileges or permission.
+    GrantPermission,
+    /// Says to switch security, the guardrails or the guard off.
+    DisableSecurity,
+    /// Says a person already approved something nobody was asked about.
+    FalseApproval,
+    /// Asks for elevated commands.
+    Elevation,
 }
 
 /// One finding of the review, with where it is (and, for a conflict, where the other side is).
@@ -330,6 +373,9 @@ pub struct ReviewIssue {
     /// The start of the line concerned (never a whole text, and never a secret: the review
     /// redacts before it quotes).
     pub excerpt: String,
+    /// For an `AuthorityClaim`: what it tried to claim.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claim: Option<ClaimKind>,
 }
 
 /// Whether the context is fit to send.
@@ -352,6 +398,9 @@ pub enum ContextHealth {
 pub struct SourceSummary {
     pub source: SectionKind,
     pub trust: SourceTrust,
+    /// What the source's text may do (`ContextAuthority`); `Untrusted` when nothing says.
+    #[serde(default)]
+    pub authority: ContextAuthority,
     pub estimated_tokens: u64,
 }
 

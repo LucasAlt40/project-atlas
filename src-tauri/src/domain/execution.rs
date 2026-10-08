@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use super::context::{ContextManifest, ContextPlan};
 use super::interaction::InteractionDetection;
 use super::optimization::OptimizationMetrics;
 use super::security::PermissionEvent;
@@ -111,6 +112,12 @@ pub struct Execution {
     pub context: Option<ContextRecord>,
     /// What Atlas observed about the prompt and the run. `None` when metrics are off.
     pub optimization: Option<OptimizationMetrics>,
+    /// What Atlas meant to send. Present for every execution that got as far as building a prompt,
+    /// whether or not metrics are on.
+    pub plan: Option<ContextPlan>,
+    /// What Atlas prepared and delivered: the operational evidence of the delivery. Present for
+    /// every execution that got as far as building a prompt, whether or not metrics are on.
+    pub manifest: Option<ContextManifest>,
     /// What the execution is waiting for, while it is `WaitingForInput`.
     pub interaction: Option<InteractionDetection>,
 }
@@ -138,6 +145,8 @@ impl Execution {
             context: None,
             interaction: None,
             optimization: None,
+            plan: None,
+            manifest: None,
             status: ExecutionStatus::Running,
             started_at,
             completed_at: None,
@@ -327,6 +336,13 @@ pub struct StoredExecution {
     /// for executions from before the Optimization Layer and when metrics were off.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub optimization: Option<OptimizationMetrics>,
+    /// What Atlas meant to send. Absent for executions from before the Context Platform.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plan: Option<ContextPlan>,
+    /// What Atlas prepared and delivered, with the hash of the payload. Absent for executions from
+    /// before the Context Platform.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub manifest: Option<ContextManifest>,
     /// The workflow step this execution ran as, when it was one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub workflow: Option<WorkflowLink>,

@@ -66,6 +66,24 @@ pub struct GitPolicy {
     pub destructive: Permission,
 }
 
+/// Whether an agent may be given MCP tools at all. This is the policy half; the other is a grant
+/// (which connections, which tools): both are needed, and nothing is exposed without a grant.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct McpPolicy {
+    /// `Allowed`: a grant is enough. `ApprovalRequired`: a person is asked before each step that
+    /// would be given MCP tools. `Denied`: none, whatever a grant says.
+    pub mode: Permission,
+}
+
+fn mcp_not_restricted() -> McpPolicy {
+    // Older stored policies have no such setting. They do not restrict it: nothing is exposed
+    // without a grant, and the read-only profile denies it.
+    McpPolicy {
+        mode: Permission::Allowed,
+    }
+}
+
 /// What may be done in one workspace. A workspace stores one; profiles and runtimes can only
 /// narrow it (see [`SecurityPolicy::restrict`]).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -75,6 +93,8 @@ pub struct SecurityPolicy {
     pub processes: ProcessPolicy,
     pub network: NetworkPolicy,
     pub git: GitPolicy,
+    #[serde(default = "mcp_not_restricted")]
+    pub mcp: McpPolicy,
 }
 
 /// Development tools a workspace runs without asking. Bare names: `npm.cmd` and `npm.exe`
@@ -108,6 +128,9 @@ impl SecurityPolicy {
                 write: Permission::Allowed,
                 destructive: Permission::ApprovalRequired,
             },
+            mcp: McpPolicy {
+                mode: Permission::Allowed,
+            },
         }
     }
 
@@ -129,6 +152,10 @@ impl SecurityPolicy {
                 read: Permission::Allowed,
                 write: Permission::Denied,
                 destructive: Permission::Denied,
+            },
+            // An MCP tool can do what its server can; a read-only agent is not given any.
+            mcp: McpPolicy {
+                mode: Permission::Denied,
             },
         }
     }
@@ -170,6 +197,9 @@ impl SecurityPolicy {
                 read: self.git.read.restrict(other.git.read),
                 write: self.git.write.restrict(other.git.write),
                 destructive: self.git.destructive.restrict(other.git.destructive),
+            },
+            mcp: McpPolicy {
+                mode: self.mcp.mode.restrict(other.mcp.mode),
             },
         }
     }
@@ -323,11 +353,17 @@ pub enum Reason {
     WriteNotIsolated,
     /// Edits were not granted: the runtime cannot be launched with file-editing tools.
     RuntimeCannotEdit,
+    /// The runtime listed an MCP tool nobody authorized for this step.
+    McpToolNotAuthorized,
+    /// A required MCP connection could not be given to the step.
+    McpConnectionUnavailable,
 }
 
 impl Reason {
     pub fn as_str(self) -> &'static str {
         match self {
+            Self::McpToolNotAuthorized => "mcp_tool_not_authorized",
+            Self::McpConnectionUnavailable => "mcp_connection_unavailable",
             Self::UnknownScope => "unknown_scope",
             Self::ProjectUnavailable => "project_unavailable",
             Self::ShellNotPermitted => "shell_not_permitted",

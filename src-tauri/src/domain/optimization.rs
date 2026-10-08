@@ -7,6 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::context::ExecutionBudget;
 use super::guardrail::{ContextReviewResult, GuardrailMetrics};
 use super::usage::{UsageMetrics, UsageSource};
 
@@ -82,6 +83,8 @@ pub enum SectionKind {
     AtlasRules,
     LiveNarration,
     PlanRule,
+    /// The user's and the project's rules that apply to this execution (see `domain::rules`).
+    Rules,
     /// The whole Harness context, used when no Task Context could be selected.
     Harness,
     /// The part of the Harness chosen for the task.
@@ -232,6 +235,9 @@ pub struct LatencyMetrics {
     pub total_ms: Option<f64>,
     /// What measuring itself cost, so the instrumentation can be held to account.
     pub instrumentation_ms: Option<f64>,
+    /// Preparing the delivery: building the payload, hashing it and writing the Manifest.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delivery_ms: Option<f64>,
 }
 
 /// What the runtime showed of its tools. Atlas does not own the tool loop of a CLI runtime, so
@@ -415,6 +421,73 @@ pub struct OptimizationMetrics {
     /// The review of the context the agent was given. `None` when the guardrails are off.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context_review: Option<ContextReviewResult>,
+    /// What this execution may use: the limits of its runtime + model and how much the prompt uses.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub budget: Option<ExecutionBudget>,
+    /// What the rules did for this execution; absent when none applied. Numbers Atlas resolved
+    /// itself, so exact; the token figure is an estimate.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rules: Option<RuleMetrics>,
+    /// The prompt's size by what its text may do. Estimates (`chars / 4`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub authority: Option<AuthorityMetrics>,
+    /// What the step had to do with MCP; absent when the workspace has no connection.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mcp: Option<McpMetrics>,
+}
+
+/// What one step had to do with MCP. Counts Atlas resolved itself are exact; the ones the runtime
+/// reports are `None` when it did not report (which is not zero).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct McpMetrics {
+    pub connections: u32,
+    pub servers_exposed: u32,
+    /// Connections granted to the step that could not be given to it.
+    pub servers_left_out: u32,
+    pub tools_authorized: u32,
+    pub tools_held_back: u32,
+    /// MCP tools the runtime listed at start-up.
+    pub tools_reported: Option<u32>,
+    /// Of those, ones nobody authorized (the step is stopped).
+    pub tools_unauthorized: u32,
+    /// Distinct MCP tools the model called, from the runtime's tool events.
+    pub tools_used: Option<u32>,
+    /// Servers the runtime said failed to start.
+    pub servers_failed: Option<u32>,
+}
+
+/// What rule resolution did for one execution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuleMetrics {
+    /// Rules that went to the agent.
+    pub applied: u32,
+    pub mandatory: u32,
+    pub preference: u32,
+    pub informational: u32,
+    /// Rules that applied but were not sent: disabled, duplicated, or overridden on their topic.
+    pub excluded: u32,
+    /// Conflicts settled (routine ones included).
+    pub conflicts: u32,
+    /// Rules the Context Engine left out for the budget (never a mandatory one).
+    pub omitted_for_budget: u32,
+    /// Review findings about rules: conflicts a person should know, rules kept as background for
+    /// their origin, rules claiming powers.
+    pub warnings: u32,
+    pub estimated_tokens: u64,
+    pub token_source: TokenSource,
+}
+
+/// How big the prompt is by authority (`ContextAuthority`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorityMetrics {
+    pub authoritative_tokens: u64,
+    pub instructional_tokens: u64,
+    pub informational_tokens: u64,
+    pub untrusted_tokens: u64,
+    pub token_source: TokenSource,
 }
 
 /// What Atlas assembled against what the runtime says it received.
@@ -554,6 +627,10 @@ mod tests {
             extensions: None,
             guardrails: None,
             context_review: None,
+            budget: None,
+            rules: None,
+            authority: None,
+            mcp: None,
         }
     }
 

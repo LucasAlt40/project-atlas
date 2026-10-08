@@ -1,5 +1,6 @@
 use serde::Serialize;
 
+use super::mcp::McpSupport;
 use super::security::ToolAccess;
 
 /// Who provides the AI capability (Anthropic, `OpenCode`, `OpenAI`…). A runtime is how Atlas
@@ -32,6 +33,30 @@ pub enum AuthKind {
     CredentialStore,
 }
 
+/// How a runtime can take Atlas's system instructions. A property of the runtime as Atlas drives
+/// it, never an assumption: a runtime that has such a channel in some other mode (a CLI flag Atlas
+/// does not use) is `Unsupported` here until an adapter uses it, proves it, and says so.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SystemPromptChannel {
+    /// Atlas has no system channel to use: everything goes in one prompt body, with the Atlas
+    /// instructions as its first labelled section. A text in a user message does not have the
+    /// semantics of a native system prompt, and Atlas does not claim it does.
+    #[default]
+    Unsupported,
+    /// The runtime takes a system prompt that replaces its own.
+    Native,
+    /// The runtime takes text appended to its own system prompt.
+    Appended,
+}
+
+impl SystemPromptChannel {
+    /// Whether Atlas's system instructions travel on a channel of their own.
+    pub const fn is_separate(self) -> bool {
+        !matches!(self, Self::Unsupported)
+    }
+}
+
 /// What a runtime actually supports, so the UI and executor adapt instead of assuming.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -40,9 +65,13 @@ pub struct RuntimeCapabilities {
     /// The runtime can list the models it offers.
     pub model_discovery: bool,
     pub streaming: bool,
-    /// Atlas sends the system prompt through a dedicated channel (otherwise it is part of
-    /// the single prompt text).
-    pub system_prompt: bool,
+    /// Whether Atlas sends its system instructions (and the rules) through a channel of their own
+    /// or, as for every runtime today, as the first section of the single prompt text.
+    pub system_prompt: SystemPromptChannel,
+    /// Whether Atlas can give this runtime MCP servers of its own, and only those. `Supported`
+    /// means an adapter exists and its behaviour was measured; a runtime nobody has looked at is
+    /// `NotInvestigated`, not `Unsupported`.
+    pub mcp: McpSupport,
     /// Atlas can run a task through this runtime today.
     pub non_interactive_execution: bool,
     pub authentication: Vec<AuthKind>,
