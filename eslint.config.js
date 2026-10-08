@@ -4,7 +4,8 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'coverage', 'src-tauri/target', 'src-tauri/gen'] },
+  // docs/ holds documentation and its reproducible spikes (plain scripts), not application code.
+  { ignores: ['dist', 'coverage', 'src-tauri/target', 'src-tauri/gen', 'docs'] },
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,

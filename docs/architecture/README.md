@@ -215,6 +215,8 @@ ExecutionService.run_step
    └─ OptimizationMetrics: sections, estimated vs reported tokens, latency, tools exposed/used, extensions loaded
 ```
 
+Pictures of how the pieces fit (Atlas above the agent harness, layers, one step, authority, MCP): [diagrams.md](diagrams.md).
+
 Status of every phase, what was measured, what was removed (RTK) and what is pending: [optimization-layer.md](optimization-layer.md).
 
 ## Workspaces, project context and agent chat (V0.5)
@@ -383,3 +385,6 @@ A frontend router and global store are intentionally absent until a second scree
 - [0023 — RTK (Rust Token Killer): evaluated, built, and removed](adr/0023-rtk-evaluated-and-removed.md)
 - [0024 — Optimization Layer, phase 4: what a runtime can reach (surface and isolation)](adr/0024-runtime-surface-and-isolation.md)
 - [0025 — Optimization Layer, phase 5: Guardrails and Context Review](adr/0025-guardrails-and-context-review.md)
+- [0026 — Context & Tooling Platform (Phase A: architecture and spike)](adr/0026-context-and-tooling-platform.md) — design: [context-and-tooling-platform.md](context-and-tooling-platform.md)
+- [0027 — Rules, Context Authority and the system-prompt channel (Phase C)](adr/0027-rules-context-authority-and-system-prompt-channel.md)
+- [0028 — MCP foundation (Phase D)](adr/0028-mcp-foundation.md)

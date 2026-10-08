@@ -4,6 +4,14 @@ The goal: fewer tokens, less latency and less noise per execution **without** lo
 optimizing, never call something optimized without numbers, and never let an optimization remove required or security context.
 This page is the map; each phase has its ADR.
 
+> The next evolution (execution budget, context manifest, rules, memory, MCP) is designed in
+> [context-and-tooling-platform.md](context-and-tooling-platform.md) and ADR 0026. It does not change the phases below. Its Phase B
+> is built on this layer: `OptimizationMetrics` now also carries the execution's `budget`, `plan` and `manifest`
+> (and `latency.deliveryMs`); the Context Engine fits against `ExecutionBudget::available_for_context()` instead of its own
+> `ContextBudget`, with unchanged behaviour. Phase C adds rules and context authority to the same
+> pipeline (`OptimizationMetrics.rules` and `.authority`) and moves the plan and the manifest onto the execution itself. Phase D adds `OptimizationMetrics.mcp` and gives Claude, and only Claude, MCP servers
+> that Atlas chose (ADR 0024's isolation still holds: `--strict-mcp-config` with only those).
+
 ## Where each phase stands
 
 | Phase | What                                                                                                                                                                                                                               | State                                                                                    | Default                                                | ADR                                               |
