@@ -9,6 +9,7 @@ pub mod events;
 pub mod exit;
 pub mod harness;
 pub mod live_workspace;
+pub mod mcp;
 pub mod personalities;
 pub mod runtimes;
 pub mod security;

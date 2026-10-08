@@ -110,6 +110,18 @@ pub fn run() {
             commands::usage::get_agent_usage,
             commands::usage::get_workspace_usage,
             commands::security::get_workspace_security,
+            commands::mcp::list_mcp_connections,
+            commands::mcp::add_mcp_connection,
+            commands::mcp::update_mcp_connection,
+            commands::mcp::set_mcp_connection_enabled,
+            commands::mcp::remove_mcp_connection,
+            commands::mcp::set_mcp_secret,
+            commands::mcp::clear_mcp_secret,
+            commands::mcp::probe_mcp_connection,
+            commands::mcp::grant_mcp_connection,
+            commands::mcp::revoke_mcp_grant,
+            commands::mcp::list_mcp_catalog,
+            commands::mcp::add_mcp_preset,
             commands::security::get_agent_permissions,
             commands::security::set_agent_permission_profile,
             commands::security::list_pending_approvals,
@@ -192,6 +204,13 @@ fn build_state(
         RUNTIME_PROGRAMS.map(str::to_owned).to_vec(),
     ));
     let runtimes = Arc::new(RuntimeRegistry::with_default_runtimes(&runner));
+    // MCP connections live in the configuration; their secrets only in the OS credential store.
+    let mcp = Arc::new(application::mcp::McpService::new(
+        config.clone(),
+        Arc::new(infrastructure::KeyringCredentialStore::new()),
+        runtimes.clone(),
+    ));
+    let mcp_catalog = Arc::new(application::mcp::McpCatalog::new(runner.clone()));
     let personalities = Arc::new(PersonalityService::new(config.clone()));
     let agents = Arc::new(AgentService::new(
         config.clone(),
@@ -261,6 +280,10 @@ fn build_state(
         .with_policies(security.clone())
         .with_harness(context_builder)
         .with_optimization(config.clone())
+        .with_mcp(mcp.clone())
+        .with_rules(Arc::new(application::rules::RuleService::new(
+            config.clone(),
+        )))
         .with_skills(Arc::new(
             application::optimization::skills::SkillService::new(
                 Arc::new(FsSkillStore),
@@ -348,6 +371,8 @@ fn build_state(
         orchestrator,
         integration,
         live,
+        mcp,
+        mcp_catalog,
     }
 }
 

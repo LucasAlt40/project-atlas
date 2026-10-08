@@ -6,6 +6,7 @@ use crate::application::chat::ChatService;
 use crate::application::harness::HarnessService;
 use crate::application::lifecycle::AgentLifecycle;
 use crate::application::live_workspace::LiveWorkspaceService;
+use crate::application::mcp::McpService;
 use crate::application::personalities::PersonalityService;
 use crate::application::runtimes::RuntimeRegistry;
 use crate::application::security::{ApprovalBroker, SecurityOverview};
@@ -46,6 +47,9 @@ pub struct AppState {
     pub integration: Arc<IntegrationService>,
     /// The files of a run's worktree as they change while its agents work.
     pub live: Arc<LiveWorkspaceService>,
+    /// The workspace's MCP connections, their grants and their secrets.
+    pub mcp: Arc<McpService>,
+    pub mcp_catalog: Arc<crate::application::mcp::McpCatalog>,
 }
 
 #[cfg(test)]
@@ -68,6 +72,11 @@ impl AppState {
             "fake",
             Ok("fake answer"),
         ))]));
+        let mcp = Arc::new(McpService::new(
+            config.clone(),
+            Arc::new(crate::application::mcp::MemoryCredentials::default()),
+            runtimes.clone(),
+        ));
         let agents = Arc::new(AgentService::new(
             config.clone(),
             personalities.clone(),
@@ -197,6 +206,12 @@ impl AppState {
             orchestrator,
             integration,
             live,
+            mcp,
+            mcp_catalog: Arc::new(crate::application::mcp::McpCatalog::new(Arc::new(
+                crate::application::process::fake::FakeProcessRunner::new(&[], |_| {
+                    Err(crate::application::process::ProcessError::NotFound)
+                }),
+            ))),
         }
     }
 }
