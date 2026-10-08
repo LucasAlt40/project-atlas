@@ -24,6 +24,12 @@ portable-pty = "0.9.0"
 serde_norway = "0.9.42"
 tauri-plugin-notification = "2"
 notify = "8"
+# Already in the tree through Tauri (same version in Cargo.lock): the prompt hash of the Context
+# Manifest must be a real SHA-256, not the FNV-1a the Harness uses for change detection.
+sha2 = "0.10"
+# The OS credential store (macOS Keychain, Windows Credential Manager, Linux Secret Service) for MCP
+# secrets. Used only by `infrastructure/`, behind the `CredentialStore` port.
+keyring = "4"
 
 [target.'cfg(unix)'.dependencies]
 # Same crate (and version) `portable-pty` already uses; the `signal` feature adds the safe

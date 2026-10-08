@@ -9,7 +9,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::application::process::{
-    ProcessError, ProcessEvent, ProcessOutput, ProcessRunner, ProcessSpec,
+    ProcessContext, ProcessError, ProcessEvent, ProcessOutput, ProcessRunner, ProcessSpec,
 };
 use crate::application::sessions::SessionRegistry;
 use std::sync::Arc;
@@ -85,6 +85,37 @@ impl SystemProcessRunner {
 
     fn path_for_children(&self) -> OsString {
         env::join_paths(&self.search_dirs).unwrap_or_default()
+    }
+
+    /// The command for `spec`: arguments kept apart, the search path ours, its own process group.
+    fn command(&self, executable: &Path, spec: &ProcessSpec) -> Command {
+        let mut command = Command::new(executable);
+        command
+            .args(&spec.args)
+            // First, so nothing in `spec.env` can replace the search path set below.
+            .envs(spec.env.iter().map(|(k, v)| (k, v)))
+            .env("PATH", self.path_for_children())
+            .env("NO_COLOR", "1")
+            .stdin(if spec.stdin.is_some() {
+                Stdio::piped()
+            } else {
+                Stdio::null()
+            })
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        // Its own process group, so that ending it also ends what it started (an MCP server, a
+        // dev server) instead of leaving them behind.
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            command.process_group(0);
+        }
+        if let Some(cwd) = &spec.cwd {
+            // `current_dir` does not update the inherited `PWD`, and tools that trust `PWD`
+            // (OpenCode does) would see the project as outside their working directory.
+            command.current_dir(cwd).env("PWD", cwd);
+        }
+        command
     }
 }
 
@@ -223,25 +254,7 @@ impl ProcessRunner for SystemProcessRunner {
                 on_event,
             );
         }
-        let mut command = Command::new(executable);
-        command
-            .args(&spec.args)
-            // First, so nothing in `spec.env` can replace the search path set below.
-            .envs(spec.env.iter().map(|(k, v)| (k, v)))
-            .env("PATH", self.path_for_children())
-            .env("NO_COLOR", "1")
-            .stdin(if spec.stdin.is_some() {
-                Stdio::piped()
-            } else {
-                Stdio::null()
-            })
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-        if let Some(cwd) = &spec.cwd {
-            // `current_dir` does not update the inherited `PWD`, and tools that trust `PWD`
-            // (OpenCode does) would see the project as outside their working directory.
-            command.current_dir(cwd).env("PWD", cwd);
-        }
+        let mut command = self.command(&executable, spec);
         let mut child = command
             .spawn()
             .map_err(|error| ProcessError::Spawn(error.to_string()))?;
@@ -256,6 +269,12 @@ impl ProcessRunner for SystemProcessRunner {
         // An idle limit, not a wall-clock one: every line of output restarts it, so an agent
         // that is still working (and streaming) is never cut off.
         let mut deadline = Instant::now() + spec.timeout;
+        let stop_check = match (&spec.context, &self.sessions) {
+            (ProcessContext::Runtime(scope) | ProcessContext::AgentRequested(scope), Some(s)) => {
+                Some((s.clone(), scope.execution_id.clone()))
+            }
+            _ => None,
+        };
         let mut input_reported = false;
         let status = loop {
             if !input_reported && written_rx.try_recv().is_ok() {
@@ -279,6 +298,13 @@ impl ProcessRunner for SystemProcessRunner {
                 Err(mpsc::RecvTimeoutError::Timeout) => {}
                 Err(mpsc::RecvTimeoutError::Disconnected) => thread::sleep(POLL_INTERVAL),
             }
+            if stop_check
+                .as_ref()
+                .is_some_and(|(sessions, id)| sessions.stop_requested(id))
+            {
+                kill(&mut child);
+                return Err(ProcessError::Io("stopped by Atlas".to_owned()));
+            }
             match child.try_wait() {
                 Ok(Some(status)) => break status,
                 Ok(None) if Instant::now() >= deadline => {
@@ -293,6 +319,11 @@ impl ProcessRunner for SystemProcessRunner {
             }
         };
 
+        // A runtime's CLI is done: what it left running (an MCP server) does not outlive the run.
+        // Other programs (git, a probe) may leave a daemon on purpose, as `git gc --auto` does.
+        if matches!(spec.context, ProcessContext::Runtime(_)) {
+            kill_group(&child);
+        }
         let drain_until = Instant::now() + DRAIN_TIMEOUT;
         let collect = |reader: Option<Reader>| {
             reader
@@ -315,7 +346,24 @@ impl ProcessRunner for SystemProcessRunner {
     }
 }
 
+/// Ends everything the child started, whether or not the child itself is still there. The child
+/// leads its own process group (see `process_group` above). Without this an MCP server that
+/// ignores the end of its input would outlive the run that launched it.
+fn kill_group(child: &Child) {
+    #[cfg(unix)]
+    {
+        use nix::sys::signal::{killpg, Signal};
+        use nix::unistd::Pid;
+        if let Ok(pid) = i32::try_from(child.id()) {
+            let _ = killpg(Pid::from_raw(pid), Signal::SIGKILL);
+        }
+    }
+    #[cfg(not(unix))]
+    let _ = child;
+}
+
 fn kill(child: &mut Child) {
+    kill_group(child);
     let _ = child.kill();
     let _ = child.wait();
 }
@@ -464,6 +512,129 @@ mod tests {
 
         assert_eq!(result, Err(ProcessError::Timeout));
         assert!(started.elapsed() < Duration::from_secs(5));
+    }
+
+    fn pid_file() -> PathBuf {
+        static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+        let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        std::env::temp_dir().join(format!("atlas-pid-{}-{n}", std::process::id()))
+    }
+
+    fn alive(pid: i32) -> bool {
+        nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid), None).is_ok()
+    }
+
+    fn pid_in(file: &Path) -> i32 {
+        for _ in 0..100 {
+            if let Some(pid) = std::fs::read_to_string(file)
+                .ok()
+                .and_then(|text| text.trim().parse().ok())
+            {
+                return pid;
+            }
+            thread::sleep(Duration::from_millis(20));
+        }
+        panic!("the grandchild never wrote its pid");
+    }
+
+    fn gone(pid: i32) -> bool {
+        (0..100).any(|_| {
+            thread::sleep(Duration::from_millis(20));
+            !alive(pid)
+        })
+    }
+
+    /// A shell that starts a long-lived grandchild (what an MCP server is to the CLI).
+    fn with_grandchild(file: &Path) -> String {
+        format!("sleep 60 & echo $! > '{}'; wait", file.display())
+    }
+
+    #[test]
+    fn a_timeout_also_ends_what_the_process_started() {
+        let file = pid_file();
+
+        let result = SystemProcessRunner::new().run(
+            &spec(
+                "sh",
+                &["-c", &with_grandchild(&file)],
+                None,
+                Duration::from_millis(400),
+            ),
+            &|_| {},
+        );
+
+        assert_eq!(result, Err(ProcessError::Timeout));
+        assert!(gone(pid_in(&file)), "the grandchild outlived the timeout");
+    }
+
+    fn leaves_a_grandchild(context: ProcessContext) -> (Result<ProcessOutput, ProcessError>, i32) {
+        let file = pid_file();
+        let mut request = spec(
+            "sh",
+            &["-c", &format!("sleep 60 & echo $! > '{}'", file.display())],
+            None,
+            Duration::from_secs(30),
+        );
+        request.context = context;
+        let result = SystemProcessRunner::new().run(&request, &|_| {});
+        (result, pid_in(&file))
+    }
+
+    #[test]
+    fn what_a_runtime_left_running_does_not_outlive_its_run() {
+        let (result, pid) = leaves_a_grandchild(ProcessContext::Runtime(
+            crate::application::process::ExecutionScope::for_tests(),
+        ));
+
+        assert!(result.is_ok(), "{result:?}");
+        assert!(gone(pid), "the grandchild outlived the run");
+    }
+
+    #[test]
+    fn another_program_may_leave_a_daemon_behind_on_purpose() {
+        let (result, pid) = leaves_a_grandchild(ProcessContext::Probe);
+
+        assert!(result.is_ok(), "{result:?}");
+        assert!(alive(pid));
+        let _ = nix::sys::signal::kill(
+            nix::unistd::Pid::from_raw(pid),
+            nix::sys::signal::Signal::SIGKILL,
+        );
+    }
+
+    #[test]
+    fn a_stop_request_ends_a_piped_process_and_its_children_without_a_terminal() {
+        let file = pid_file();
+        let sessions = Arc::new(SessionRegistry::default());
+        let runner = SystemProcessRunner::new().with_sessions(sessions.clone());
+        let mut request = spec(
+            "sh",
+            &["-c", &with_grandchild(&file)],
+            None,
+            Duration::from_secs(60),
+        );
+        request.context =
+            ProcessContext::Runtime(crate::application::process::ExecutionScope::for_tests());
+        let id = crate::application::process::ExecutionScope::for_tests().execution_id;
+
+        let stopper = {
+            let sessions = sessions.clone();
+            let file = file.clone();
+            thread::spawn(move || {
+                let pid = pid_in(&file);
+                sessions.stop(&id);
+                pid
+            })
+        };
+        let started = Instant::now();
+        let result = runner.run(&request, &|_| {});
+
+        let pid = stopper.join().unwrap();
+        assert!(matches!(result, Err(ProcessError::Io(_))), "{result:?}");
+        assert!(started.elapsed() < Duration::from_secs(10));
+        assert!(gone(pid), "the grandchild outlived the stop");
+        // Not the user: nothing is recorded as a user action.
+        assert_eq!(sessions.user_action("exec-1"), None);
     }
 }
 
