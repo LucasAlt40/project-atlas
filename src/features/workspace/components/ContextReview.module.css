@@ -70,3 +70,22 @@
 .trust {
   color: var(--text-dim);
 }
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+.table {
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+.table th,
+.table td {
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: center;
+}
+.table th[scope='row'],
+.table th:first-child {
+  text-align: left;
+}

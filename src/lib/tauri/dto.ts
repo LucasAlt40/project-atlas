@@ -59,6 +59,50 @@ export interface CommandMap {
     result: WorkspaceUsageSummaryDto;
   };
   get_workspace_security: { args: { workspaceId: string }; result: WorkspaceSecurityDto };
+  /** The workspace's MCP connections and who may use them. No secret is in them. */
+  list_mcp_connections: { args: { workspaceId: string }; result: McpOverviewDto };
+  add_mcp_connection: {
+    args: { workspaceId: string; name: string; transport: McpTransportDto; required: boolean };
+    result: McpConnectionDto;
+  };
+  update_mcp_connection: {
+    args: { connectionId: string; transport: McpTransportDto; required: boolean };
+    result: McpConnectionDto;
+  };
+  set_mcp_connection_enabled: {
+    args: { connectionId: string; enabled: boolean };
+    result: McpConnectionDto;
+  };
+  remove_mcp_connection: { args: { connectionId: string }; result: undefined };
+  /** The value goes to the OS credential store and is never returned. */
+  set_mcp_secret: {
+    args: { connectionId: string; name: string; value: string };
+    result: McpConnectionDto;
+  };
+  clear_mcp_secret: { args: { connectionId: string; name: string }; result: McpConnectionDto };
+  /** Starts the server through the runtime only to see what it reports; no model is asked. */
+  probe_mcp_connection: {
+    args: { connectionId: string; runtimeId: string };
+    result: McpConnectionDto;
+  };
+  grant_mcp_connection: {
+    args: {
+      connectionId: string;
+      agentId?: string;
+      workflowId?: string;
+      nodeId?: string;
+      tools: McpToolSelectionDto;
+    };
+    result: McpGrantDto;
+  };
+  revoke_mcp_grant: { args: { grantId: string }; result: undefined };
+  /** The integrations Atlas knows by name. Nothing is started to answer. */
+  list_mcp_catalog: { args: undefined; result: McpPresetDto[] };
+  /** Adds an entry as an ordinary connection: off, granted to nobody, not started. */
+  add_mcp_preset: {
+    args: { workspaceId: string; presetId: string };
+    result: McpConnectionDto;
+  };
   get_agent_permissions: {
     args: { workspaceId: string; agentId: string };
     result: AgentPermissionsDto;
@@ -579,13 +623,22 @@ export interface ProviderRefDto {
   name: string;
 }
 
+/** Mirrors `domain::runtime::SystemPromptChannel`. */
+export type SystemPromptChannelDto = 'unsupported' | 'native' | 'appended';
+
+/** Mirrors `domain::mcp::McpSupport`. */
+export type McpSupportDto = 'unsupported' | 'not_investigated' | 'supported';
+
 export type AuthKindDto = 'cli_session' | 'api_key' | 'environment_variable' | 'credential_store';
 
 /** Mirrors `domain::runtime::RuntimeCapabilities`. */
 export interface RuntimeCapabilitiesDto {
   modelDiscovery: boolean;
   streaming: boolean;
-  systemPrompt: boolean;
+  /** How Atlas's system instructions reach the runtime. `unsupported`: inside the prompt body. */
+  systemPrompt: SystemPromptChannelDto;
+  /** Whether Atlas can give this runtime MCP servers of its own (an adapter that was measured). */
+  mcp: McpSupportDto;
   nonInteractiveExecution: boolean;
   authentication: AuthKindDto[];
   /** The runtime reports token counts for an execution. */
@@ -931,6 +984,10 @@ export interface StoredExecutionDto {
   context?: ContextRecordDto;
   /** What Atlas observed about its prompt and run; absent from before the Optimization Layer. */
   optimization?: OptimizationMetricsDto;
+  /** What Atlas meant to send. Present whether or not metrics were on. */
+  plan?: ContextPlanDto;
+  /** What Atlas prepared and delivered, with the hash of the payload. Present whether or not metrics were on. */
+  manifest?: ContextManifestDto;
   /** The workflow step this execution ran as, when it was one. */
   workflow?: WorkflowLinkDto;
   /** The timeline, without streamed answer text. */
@@ -946,6 +1003,7 @@ export type PromptSectionKindDto =
   | 'atlas_rules'
   | 'live_narration'
   | 'plan_rule'
+  | 'rules'
   | 'harness'
   | 'task_context'
   | 'skills'
@@ -984,6 +1042,8 @@ export interface OptimizationMetricsDto {
     runtimeMs: number | null;
     totalMs: number | null;
     instrumentationMs: number | null;
+    /** Preparing the delivery: building the payload, hashing it, writing the manifest. */
+    deliveryMs?: number | null;
   };
   tools: {
     calls: number | null;
@@ -1016,6 +1076,295 @@ export interface OptimizationMetricsDto {
   guardrails?: GuardrailMetricsDto;
   /** The review of the context the agent was given; absent when the guardrails are off. */
   contextReview?: ContextReviewDto;
+  /** What this execution may use: the limits of its runtime + model and how much the prompt uses. */
+  budget?: ExecutionBudgetDto;
+  /** What the rules did for this execution; absent when none applied. */
+  rules?: RuleMetricsDto;
+  /** The prompt's size by what its text may do (estimates). */
+  authority?: AuthorityMetricsDto;
+  /** What the step had to do with MCP; absent when the workspace has no connection. */
+  mcp?: McpMetricsDto;
+}
+
+/** Mirrors `domain::optimization::McpMetrics`. `null`: the runtime did not report (not zero). */
+export interface McpMetricsDto {
+  connections: number;
+  serversExposed: number;
+  serversLeftOut: number;
+  toolsAuthorized: number;
+  toolsHeldBack: number;
+  toolsReported: number | null;
+  toolsUnauthorized: number;
+  toolsUsed: number | null;
+  serversFailed: number | null;
+}
+
+export type McpServerStatusDto = 'connected' | 'failed' | 'needs_auth' | 'pending' | 'unknown';
+
+/** Mirrors `domain::mcp::McpTransport`. HTTP is part of the contract and refused for now. */
+export type McpTransportDto =
+  | {
+      kind: 'stdio';
+      executable: string;
+      args?: string[];
+      env?: { name: string; value: { kind: 'plain'; value: string } | { kind: 'secret' } }[];
+    }
+  | { kind: 'http'; url: string };
+
+export type McpToolSelectionDto = { kind: 'server' } | { kind: 'only'; tools: string[] };
+
+/** Mirrors `domain::mcp::McpConnection`. */
+export interface McpConnectionDto {
+  id: string;
+  workspaceId: string;
+  name: string;
+  transport: McpTransportDto;
+  enabled: boolean;
+  required: boolean;
+  /** When each secret was stored, by variable name. Never a value. */
+  secrets: Record<string, number>;
+  discovery?: {
+    discoveredAt: number;
+    runtimeId: string;
+    status: McpServerStatusDto;
+    tools: string[];
+  };
+  createdAt: number;
+}
+
+/** Mirrors `domain::mcp::McpGrant`. */
+export interface McpGrantDto {
+  id: string;
+  connectionId: string;
+  agentId: string | null;
+  workflowId: string | null;
+  nodeId: string | null;
+  tools: McpToolSelectionDto;
+}
+
+/** Mirrors `application::mcp::McpPresetInfo`. */
+export interface McpPresetDto {
+  id: string;
+  connectionName: string;
+  /** `needs_http_and_oauth`: listed for what it is, cannot be added. */
+  availability: 'ready' | 'needs_http_and_oauth';
+  risk: 'high';
+  sourceUrl: string;
+  pinnedVersion: string | null;
+  /** What would be started, shown as text. */
+  command: string | null;
+  /** What Atlas looked for on this machine; "not found" is not "missing". */
+  requirements: { requirement: 'node' | 'npx' | 'chrome'; found: boolean }[];
+}
+
+export interface McpOverviewDto {
+  connections: McpConnectionDto[];
+  grants: McpGrantDto[];
+}
+
+/** Why a connection was not given to a step (`domain::mcp::McpProblem`). */
+export type McpProblemDto =
+  | { kind: 'not_enabled' }
+  | { kind: 'no_grant' }
+  | { kind: 'policy_denied' }
+  | { kind: 'runtime_unsupported' }
+  | { kind: 'invalid_configuration'; reason: string }
+  | { kind: 'secret_missing'; name: string }
+  | { kind: 'needs_discovery' };
+
+/** Mirrors `domain::mcp::McpRecord`: the six things about a tool, kept apart. */
+export interface McpRecordDto {
+  servers: {
+    connectionId: string;
+    name: string;
+    enabled: boolean;
+    required: boolean;
+    authorized: boolean;
+    exposed: boolean;
+    problem?: McpProblemDto;
+    discoveredStatus?: McpServerStatusDto;
+    reportedStatus?: McpServerStatusDto;
+  }[];
+  tools: {
+    server: string;
+    tool: string;
+    discovered: boolean;
+    enabled: boolean;
+    authorized: boolean;
+    exposed: boolean;
+    /** What the runtime listed; `null`: it did not say. */
+    reportedExposed: boolean | null;
+    used: boolean | null;
+  }[];
+  heldBack: string[];
+  /** Tools the runtime listed that nobody authorized: the step was stopped. */
+  unauthorized: string[];
+}
+
+/** Mirrors `domain::optimization::RuleMetrics`. */
+export interface RuleMetricsDto {
+  applied: number;
+  mandatory: number;
+  preference: number;
+  informational: number;
+  excluded: number;
+  conflicts: number;
+  omittedForBudget: number;
+  warnings: number;
+  estimatedTokens: number;
+  tokenSource: TokenSourceDto;
+}
+
+/** Mirrors `domain::optimization::AuthorityMetrics`. */
+export interface AuthorityMetricsDto {
+  authoritativeTokens: number;
+  instructionalTokens: number;
+  informationalTokens: number;
+  untrustedTokens: number;
+  tokenSource: TokenSourceDto;
+}
+
+/** What a piece of context may do (`domain::context::ContextAuthority`). */
+export type ContextAuthorityDto = 'authoritative' | 'instructional' | 'informational' | 'untrusted';
+export type RuleScopeDto = 'global' | 'project' | 'workspace' | 'workflow' | 'agent' | 'task';
+export type RuleStrengthDto = 'mandatory' | 'preference' | 'informational';
+export type RuleOriginDto = 'user' | 'project_file' | 'generated' | 'external';
+export type RuleStatusDto =
+  'applied' | 'omitted_for_budget' | 'disabled' | 'duplicate' | 'overridden';
+
+/** Mirrors `domain::context::ManifestRule`. */
+export interface ManifestRuleDto {
+  reference: string;
+  title: string;
+  scope: RuleScopeDto;
+  strength: RuleStrengthDto;
+  authority: ContextAuthorityDto;
+  origin: RuleOriginDto;
+  source: string;
+  status: RuleStatusDto;
+  /** The rule that governs it (overridden) or that it repeats (duplicate). */
+  by?: string;
+  inConflict: boolean;
+  downgraded: boolean;
+}
+
+/** Who stated a figure (`domain::context::FigureSource`). */
+export type FigureSourceDto = 'reported' | 'configured' | 'default' | 'unknown';
+/** How far a figure can be trusted as a measurement (`domain::context::Precision`). */
+export type PrecisionDto = 'exact' | 'estimated' | 'unknown';
+
+/** Mirrors `domain::context::Figure`: a token count (or `null`: not known) with where it came from. */
+export interface FigureDto {
+  value: number | null;
+  source: FigureSourceDto;
+  precision: PrecisionDto;
+  /** How an estimate was made. */
+  method?: 'chars_div_4';
+}
+
+/** Mirrors `domain::context::ExecutionBudget`. */
+export interface ExecutionBudgetDto {
+  runtimeId: string;
+  modelId: string;
+  limits: { input: FigureDto; output: FigureDto; total: FigureDto };
+  outputReserve: FigureDto;
+  safetyMargin: FigureDto;
+  /** What the MCP tools' definitions weigh: unknown, the runtime counts them in its own request. */
+  toolDefinitions?: FigureDto;
+  input: { limit: FigureDto; used: FigureDto; remaining: FigureDto };
+  resolution: {
+    layer: 'settings' | 'workspace' | 'agent';
+    dimension: 'input' | 'output' | 'total';
+    requested: number;
+    outcome: { kind: 'applied' | 'narrowed' | 'kept' | 'clamped'; limit?: number };
+  }[];
+}
+
+/** Mirrors `domain::context::ContextPlan`. */
+export interface ContextPlanDto {
+  sections: { section: PromptSectionKindDto; bytes: number; tokens: FigureDto }[];
+  totalBytes: number;
+  totalTokens: FigureDto;
+  fingerprint: string;
+  engineOmittedItems: number;
+}
+
+export type ContextWarningDto =
+  | 'tokens_estimated'
+  | 'model_limit_unknown'
+  | 'limit_clamped'
+  | 'over_budget'
+  | 'not_delivered'
+  | 'diverged_from_plan'
+  | 'surface_partly_unobserved';
+
+export type SurfaceControlDto =
+  'atlas_controlled' | 'runtime_controlled' | 'user_controlled' | 'unknown';
+export type SurfaceObservationDto = 'reported' | 'declared' | 'not_observed';
+export type SurfaceKindDto =
+  | 'prompt'
+  | 'launch_flags'
+  | 'tools'
+  | 'mcp_servers'
+  | 'skills'
+  | 'plugins'
+  | 'system_prompt'
+  | 'system_channel'
+  | 'user_instructions'
+  | 'hooks'
+  | 'user_settings'
+  | 'auto_memory'
+  | 'other';
+
+/** Mirrors `domain::context::RuntimeSurface`. */
+export interface RuntimeSurfaceDto {
+  runtimeId: string;
+  entries: {
+    kind: SurfaceKindDto;
+    control: SurfaceControlDto;
+    observation: SurfaceObservationDto;
+    /** Only the prompt Atlas delivered is confirmed to have reached the model. */
+    reachesModel: boolean;
+    detail?: string;
+  }[];
+}
+
+/** Mirrors `domain::context::ContextManifest`. */
+export interface ContextManifestDto {
+  executionId: string;
+  workspaceId: string;
+  taskId: string;
+  agentId: string;
+  runtimeId: string;
+  modelId: string;
+  createdAt: number;
+  planFingerprint: string;
+  divergedFromPlan: boolean;
+  sections: PromptPartDto[];
+  delivery: {
+    delivered: boolean;
+    /** `sha256:<hex>` of the exact payload handed to the runtime. */
+    promptHash: string;
+    bytes: number;
+    chars: number;
+    estimatedTokens: FigureDto;
+    /** How Atlas's system instructions travelled. */
+    systemChannel?: SystemPromptChannelDto;
+    systemBytes?: number;
+  };
+  /** The rules that applied to this execution and what became of each. */
+  rules?: ManifestRuleDto[];
+  /** The workspace's MCP connections as this step saw them. */
+  mcp?: McpRecordDto;
+  surface: RuntimeSurfaceDto;
+  warnings: ContextWarningDto[];
+}
+
+interface PromptPartDto {
+  section: PromptSectionKindDto;
+  bytes: number;
+  estimatedTokens: number;
+  tokenSource: TokenSourceDto;
 }
 
 /** Mirrors `domain::guardrail::GuardrailMetrics`. */
@@ -1041,7 +1390,17 @@ export type IssueCodeDto =
   | 'context_trimmed'
   | 'skill_issues'
   | 'secret_in_context'
-  | 'authority_claim';
+  | 'authority_claim'
+  | 'rule_conflict'
+  | 'possible_rule_conflict'
+  | 'rule_over_budget'
+  | 'mcp_unavailable'
+  | 'mcp_approval_required'
+  | 'unknown_provenance';
+
+/** What a text tried to claim for itself (`domain::guardrail::ClaimKind`). */
+export type ClaimKindDto =
+  'override_rules' | 'grant_permission' | 'disable_security' | 'false_approval' | 'elevation';
 
 /** Mirrors `domain::guardrail::ContextReviewResult`. */
 export interface ContextReviewDto {
@@ -1054,10 +1413,14 @@ export interface ContextReviewDto {
     otherSource: PromptSectionKindDto | null;
     message: string;
     excerpt: string;
+    /** For an authority claim: what it tried to claim. */
+    claim?: ClaimKindDto;
   }[];
   sources: {
     source: PromptSectionKindDto;
     trust: 'atlas' | 'configured' | 'untrusted';
+    /** What the source's text may do. */
+    authority?: ContextAuthorityDto;
     estimatedTokens: number;
   }[];
   requiredItems: number;

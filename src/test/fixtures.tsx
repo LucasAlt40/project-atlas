@@ -116,7 +116,8 @@ export const personalities: Personality[] = [architectPersonality, qaPersonality
 const capabilities = {
   modelDiscovery: false,
   streaming: false,
-  systemPrompt: false,
+  systemPrompt: 'unsupported' as const,
+  mcp: 'not_investigated' as const,
   nonInteractiveExecution: true,
   authentication: ['cli_session' as const],
   usageMetrics: true,

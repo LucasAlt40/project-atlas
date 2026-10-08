@@ -91,6 +91,12 @@ export function ContextReviewPanel({
                         })
                       : section(issue.source)}
                   </dd>
+                  {issue.claim && (
+                    <>
+                      <dt>{t('contextReview.issue.claim')}</dt>
+                      <dd>{t(`contextReview.claim.${issue.claim}` as TranslationKey)}</dd>
+                    </>
+                  )}
                   <dt>{t('contextReview.issue.reason')}</dt>
                   <dd>{issue.message}</dd>
                   {issue.excerpt && (
@@ -113,7 +119,10 @@ export function ContextReviewPanel({
           <li key={source.source}>
             <span aria-hidden="true">✓</span> {section(source.source)}{' '}
             <span className={styles.trust}>
-              ({t(`contextReview.trust.${source.trust}` as TranslationKey)})
+              ({t(`contextReview.trust.${source.trust}` as TranslationKey)}
+              {source.authority &&
+                ` · ${t(`contextReview.authority.${source.authority}` as TranslationKey)}`}
+              )
             </span>
           </li>
         ))}

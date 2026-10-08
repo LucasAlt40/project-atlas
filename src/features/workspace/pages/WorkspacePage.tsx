@@ -9,6 +9,7 @@ import { AddAgentPanel } from '../components/AddAgentPanel';
 import { AgentCard } from '../components/AgentCard';
 import { AgentDetailsPanel } from '../components/AgentDetailsPanel';
 import { EditAgentPanel } from '../components/EditAgentPanel';
+import { IntegrationsPanel } from '../components/IntegrationsPanel';
 import { OnboardingPanel } from '../components/OnboardingPanel';
 import { ProjectContextBar } from '../components/ProjectContextBar';
 import { WorkspaceGrid } from '../components/WorkspaceGrid';
@@ -53,6 +54,7 @@ export function WorkspacePage() {
   const workspace = useWorkspace();
   const { navigate } = useNavigation();
   const [adding, setAdding] = useState(false);
+  const [integrationsOpen, setIntegrationsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -202,6 +204,15 @@ export function WorkspacePage() {
           <h1 className={styles.title}>{active.name}</h1>
           <div className={styles.headerRight}>
             <WorkspaceUsageChip workspaceId={active.id} usageVersion={workspace.usageVersion} />
+            <Button
+              variant="secondary"
+              aria-pressed={integrationsOpen}
+              onClick={() => {
+                setIntegrationsOpen((open) => !open);
+              }}
+            >
+              {t('integrations.open')}
+            </Button>
             <Button onClick={openAdd}>{t('workspace.addAgent')}</Button>
           </div>
         </header>
@@ -212,6 +223,16 @@ export function WorkspacePage() {
         <p role="alert" className={styles.notice}>
           {notice}
         </p>
+      )}
+      {integrationsOpen && (
+        <IntegrationsPanel
+          workspaceId={active.id}
+          agents={agents}
+          runtimes={runtimes.status === 'ready' ? runtimes.runtimes : []}
+          onClose={() => {
+            setIntegrationsOpen(false);
+          }}
+        />
       )}
       {editing && (
         <EditAgentPanel

@@ -7,12 +7,13 @@ import { factsFromStored, runFromStored, shortId } from '../model/inspection';
 import type { Message, StoredExecution } from '../types';
 import { AgentActivity } from './AgentActivity';
 import { AgentMessageList } from './AgentMessageList';
+import { ContextPlatformPanel } from './ContextPlatformPanel';
 import { ExecutionDetails, type ExecutionContext } from './ExecutionDetails';
 import styles from './Inspector.module.css';
 import terminalStyles from './Terminal.module.css';
 
-type Tab = 'details' | 'activity' | 'chat' | 'terminal';
-const TABS: readonly Tab[] = ['details', 'activity', 'chat', 'terminal'];
+type Tab = 'details' | 'context' | 'activity' | 'chat' | 'terminal';
+const TABS: readonly Tab[] = ['details', 'context', 'activity', 'chat', 'terminal'];
 
 interface Props {
   execution: StoredExecution;
@@ -99,6 +100,12 @@ export function ExecutionInspector({
             {...(asked ? { asked } : {})}
           />
         )}
+        {tab === 'context' &&
+          (execution.manifest ? (
+            <ContextPlatformPanel execution={execution} />
+          ) : (
+            <p className={styles.note}>{t('inspector.context.none')}</p>
+          ))}
         {tab === 'activity' && <AgentActivity run={runFromStored(execution)} />}
         {tab === 'chat' &&
           (mine.length > 0 ? (
