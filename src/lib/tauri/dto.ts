@@ -1171,7 +1171,7 @@ export interface McpPresetDto {
   /** What would be started, shown as text. */
   command: string | null;
   /** What Atlas looked for on this machine; "not found" is not "missing". */
-  requirements: { requirement: 'node' | 'npx' | 'chrome'; found: boolean }[];
+  requirements: { requirement: 'node' | 'npx' | 'chrome' | 'saved_sign_in'; found: boolean }[];
 }
 
 export interface McpOverviewDto {
@@ -1931,6 +1931,8 @@ export type FailurePolicyDto =
 
 export interface ExecutionPolicyDto {
   isolation: 'from_agent';
+  /** Tell the agent, in its prompt, which integrations (MCP servers) it was given for this step. */
+  announceIntegrations: boolean;
 }
 
 export interface LoopPolicyDto {

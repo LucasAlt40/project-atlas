@@ -287,7 +287,7 @@ impl ExecutionService {
             BTreeMap::from([
                 (
                     "health".to_owned(),
-                    format!("{:?}", review_metrics.health).to_lowercase(),
+                    review_metrics.health.as_str().to_owned(),
                 ),
                 ("warnings".to_owned(), review_metrics.warnings.to_string()),
                 ("errors".to_owned(), review_metrics.errors.to_string()),

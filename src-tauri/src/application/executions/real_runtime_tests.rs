@@ -162,7 +162,7 @@ fn run_with(
     .with_sessions(sessions);
 
     service
-        .run_with_id(
+        .run_step(
             service.next_execution_id(),
             RunAgentRequest {
                 task_id: "t".to_owned(),
@@ -170,9 +170,19 @@ fn run_with(
                 agent_id: agent,
                 description: prompt.to_owned(),
             },
+            StepOptions {
+                announce_integrations: ANNOUNCE.with(std::cell::Cell::get),
+                ..StepOptions::default()
+            },
             &Quiet,
         )
         .unwrap()
+}
+
+thread_local! {
+    /// Whether the step is told which integrations it was given (the default); a test sets it to
+    /// compare.
+    static ANNOUNCE: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
 }
 
 fn report(label: &str, record: &ExecutionRecord) -> String {
@@ -364,4 +374,107 @@ text it returned.";
         crate::domain::execution::ExecutionStatus::Completed
     );
     assert!(answer.contains("Pages"), "{answer}");
+}
+
+/// The Jira entry of the catalogue (Atlassian's remote server through the pinned `mcp-remote`),
+/// with the sign-in the person already saved. The model is asked to call one read-only tool and to
+/// say only whether it worked, so no data of the account is repeated.
+#[test]
+#[ignore = "calls a real model and Atlassian with the saved sign-in (read only): Claude"]
+fn real_model_claude_uses_the_jira_entry_of_the_catalogue() {
+    use crate::application::mcp::McpCatalog;
+    let prompt = "Use the Jira (Atlassian) MCP tools. Call the tool atlassianUserInfo once. Reply \
+with exactly `OK` if it returned information about a user, or `FAILED` if it did not. Do not repeat \
+any of the information.";
+    let record = run_with("claude", "haiku", prompt, &|mcp, workspace_id, agent| {
+        let (name, transport) = McpCatalog::connection_for("jira").unwrap();
+        let connection = mcp.add(workspace_id, name, transport, false).unwrap();
+        mcp.set_enabled(&connection.id, true).unwrap();
+        mcp.grant(
+            &connection.id,
+            Some(agent),
+            None,
+            None,
+            ToolSelection::Server,
+        )
+        .unwrap();
+    });
+
+    // Only the shape of the outcome is printed: no field of the account.
+    let manifest = record.execution.manifest.as_ref().expect("a manifest");
+    eprintln!("REAL jira status={:?}", record.execution.status);
+    eprintln!("REAL jira answer={:?}", record.execution.result);
+    eprintln!("REAL jira servers={:?}", manifest.mcp.servers);
+    eprintln!(
+        "REAL jira used={:?}",
+        manifest
+            .mcp
+            .tools
+            .iter()
+            .filter(|t| t.used == Some(true))
+            .map(|t| t.tool.clone())
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(
+        record.execution.status,
+        crate::domain::execution::ExecutionStatus::Completed
+    );
+    assert_eq!(
+        record.execution.result.as_deref().map(str::trim),
+        Some("OK")
+    );
+    assert!(manifest
+        .mcp
+        .tools
+        .iter()
+        .any(|t| t.tool == "atlassianUserInfo" && t.used == Some(true)));
+}
+
+/// A task that never names an integration, on a runtime and model of modest ability, with the
+/// `DevTools` entry granted: does the model open the page? Printed for the announcement on and off.
+fn unprompted_browse(runtime_id: &str, model: &str, announce: bool) -> (bool, String) {
+    use crate::application::mcp::McpCatalog;
+    ANNOUNCE.with(|a| a.set(announce));
+    let prompt =
+        "Check what is at https://example.com by actually loading it in a browser, and reply \
+with exactly one line: `TITLE:<the title of the page>`.";
+    let record = run_with(runtime_id, model, prompt, &|mcp, workspace_id, agent| {
+        let (name, transport) = McpCatalog::connection_for("chrome-devtools").unwrap();
+        let connection = mcp.add(workspace_id, name, transport, false).unwrap();
+        mcp.set_enabled(&connection.id, true).unwrap();
+        mcp.grant(
+            &connection.id,
+            Some(agent),
+            None,
+            None,
+            ToolSelection::Server,
+        )
+        .unwrap();
+    });
+    let used = record
+        .execution
+        .manifest
+        .as_ref()
+        .is_some_and(|m| m.mcp.tools.iter().any(|t| t.used == Some(true)));
+    let answer = record.execution.result.clone().unwrap_or_default();
+    eprintln!(
+        "REAL unprompted {runtime_id} announce={announce} used_a_tool={used} answer={answer:?}"
+    );
+    (used, answer)
+}
+
+#[test]
+#[ignore = "calls real models and runs npx: compares the announcement on and off, OpenCode and Codex"]
+fn real_model_unprompted_use_with_the_announcement_on_and_off() {
+    for (runtime, model) in [
+        ("opencode", "opencode/big-pickle"),
+        ("codex", "gpt-5.6-luna"),
+    ] {
+        let (with, answer) = unprompted_browse(runtime, model, true);
+        let _ = unprompted_browse(runtime, model, false);
+        assert!(
+            with,
+            "{runtime}: with the announcement the model did not use the tool: {answer}"
+        );
+    }
 }

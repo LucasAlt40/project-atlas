@@ -125,6 +125,18 @@ pub enum DetectionSource {
     Guardrail,
 }
 
+impl DetectionSource {
+    /// The name this has on the wire and in event metadata.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Structured => "structured",
+            Self::Adapter => "adapter",
+            Self::Heuristic => "heuristic",
+            Self::Guardrail => "guardrail",
+        }
+    }
+}
+
 /// What the detector concluded about an execution's output.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

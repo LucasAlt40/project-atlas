@@ -53,7 +53,7 @@ export function addAgentNode(workflow: Workflow, agentId: string, label: string)
     instructions: '',
     retryPolicy: { maxRetries: 0 },
     failurePolicy: { type: 'stop_workflow' },
-    executionPolicy: { isolation: 'from_agent' },
+    executionPolicy: { isolation: 'from_agent', announceIntegrations: true },
     priority: 0,
     loopPolicy: null,
     position: nextPosition(workflow),

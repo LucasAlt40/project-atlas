@@ -392,6 +392,18 @@ pub enum ContextHealth {
     Invalid,
 }
 
+impl ContextHealth {
+    /// The name this has on the wire and in event metadata.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Healthy => "healthy",
+            Self::Partial => "partial",
+            Self::NeedsReview => "needs_review",
+            Self::Invalid => "invalid",
+        }
+    }
+}
+
 /// How much each source contributes, for the inspector.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

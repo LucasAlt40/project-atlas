@@ -312,4 +312,33 @@ describe('IntegrationsPanel', () => {
     expect(within(card).getByLabelText('Only the tools I pick')).toBeDisabled();
     expect(within(card).getByText(/only "all its tools" can be granted/)).toBeInTheDocument();
   });
+
+  it('says how to sign in when the Atlassian sign-in is not saved', async () => {
+    const jira: McpPresetDto = {
+      id: 'jira',
+      connectionName: 'jira',
+      availability: 'ready',
+      risk: 'high',
+      sourceUrl: 'https://example.test/jira',
+      pinnedVersion: '0.1.37',
+      command: 'npx -y mcp-remote@0.1.37 https://mcp.atlassian.com/v1/sse',
+      requirements: [
+        { requirement: 'node', found: true },
+        { requirement: 'saved_sign_in', found: false },
+      ],
+    };
+    vi.mocked(mcp.listMcpCatalog).mockResolvedValue([jira]);
+    vi.mocked(mcp.listMcpConnections).mockResolvedValue({ connections: [], grants: [] });
+    vi.mocked(mcp.listWorkspaceWorkflows).mockResolvedValue([]);
+    render(
+      <I18nProvider language="en-US">
+        <IntegrationsPanel workspaceId="w1" agents={[]} runtimes={[]} onClose={() => undefined} />
+      </I18nProvider>,
+    );
+
+    expect(await screen.findByText(/Sign in once: run/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/mcp-remote@0.1.37 https:\/\/mcp.atlassian.com/, { selector: 'p' }),
+    ).toBeInTheDocument();
+  });
 });

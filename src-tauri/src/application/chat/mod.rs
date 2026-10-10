@@ -57,6 +57,8 @@ pub struct WorkflowStepRequest {
     pub link: WorkflowLink,
     /// The primary worktree of the workflow run, when it has one.
     pub shared_worktree: Option<String>,
+    /// Whether the prompt tells the agent which integrations it was given.
+    pub announce_integrations: bool,
 }
 
 /// How a run ended, as much as a caller driving it needs.
@@ -269,6 +271,7 @@ impl ChatService {
                 announce: None,
                 execution_id,
                 _busy: busy,
+                announce_integrations: true,
             },
         ))
     }
@@ -296,6 +299,7 @@ impl ChatService {
         pending.review = step.review;
         pending.workflow = Some(step.link);
         pending.shared_worktree = step.shared_worktree;
+        pending.announce_integrations = step.announce_integrations;
         pending.announce = Some(sent.user_message.clone());
         Ok((sent, pending))
     }
@@ -355,6 +359,7 @@ pub struct PendingRun {
     brief_parts: Option<BriefParts>,
     review: Option<ReviewAnswer>,
     shared_worktree: Option<String>,
+    announce_integrations: bool,
     workflow: Option<WorkflowLink>,
     /// A message nobody was told about yet (a workflow step's request).
     announce: Option<Message>,
@@ -387,6 +392,7 @@ impl PendingRun {
             detect_interaction: self.workflow.is_some(),
             workflow_id: self.workflow.as_ref().map(|link| link.workflow_id.as_str()),
             node_id: self.workflow.as_ref().map(|link| link.node_id.as_str()),
+            announce_integrations: self.announce_integrations,
             task_rules: &[],
         };
         let result = if options.context_query.is_some() || options.detect_interaction {
@@ -829,6 +835,7 @@ mod tests {
                         iteration: 1,
                     },
                     shared_worktree: None,
+                    announce_integrations: true,
                 })
                 .unwrap();
             pending.run(&Collector::default());

@@ -628,17 +628,7 @@ impl Orchestrator {
             }
             let contract = self.workflows.contract_of(&candidate.agent_id);
             let brief = brief::build(exec, engine.graph(), &candidate.node_id, &contract);
-            let state = exec.node_state(&candidate.node_id);
-            let (attempt, iteration) = state.map_or((1, 1), |s| {
-                (
-                    u32::try_from(s.attempts.len()).unwrap_or(u32::MAX) + 1,
-                    if s.continuing {
-                        s.iterations
-                    } else {
-                        s.iterations + 1
-                    },
-                )
-            });
+            let (attempt, iteration) = next_attempt(exec, &candidate.node_id);
             let request = StepRequest {
                 workspace_id: exec.workspace_id.clone(),
                 agent_id: candidate.agent_id.clone(),
@@ -648,6 +638,7 @@ impl Orchestrator {
                 review: brief.review,
                 display_task: brief.display_task,
                 shared_worktree,
+                announce_integrations: announces_integrations(node),
                 link: WorkflowLink {
                     workflow_id: exec.workflow_id.clone(),
                     workflow_name: exec.workflow.name.clone(),
@@ -1089,4 +1080,28 @@ fn spawn_step(
             },
         });
     }
+}
+
+/// Whether the step of `node` tells its agent which integrations it was given (the node's setting;
+/// on for anything that is not an agent step).
+fn announces_integrations(node: &crate::domain::workflow::WorkflowNode) -> bool {
+    match &node.kind {
+        crate::domain::workflow::NodeKind::Agent(step) => {
+            step.execution_policy.announce_integrations
+        }
+        _ => true,
+    }
+}
+/// The attempt and the iteration the node starts now (the first of each when it has not run).
+fn next_attempt(exec: &WorkflowExecution, node_id: &str) -> (u32, u32) {
+    exec.node_state(node_id).map_or((1, 1), |s| {
+        (
+            u32::try_from(s.attempts.len()).unwrap_or(u32::MAX) + 1,
+            if s.continuing {
+                s.iterations
+            } else {
+                s.iterations + 1
+            },
+        )
+    })
 }

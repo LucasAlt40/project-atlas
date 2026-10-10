@@ -248,6 +248,25 @@ export function NodeInspector({
               }}
             />
           </Field>
+          <Field label={t('workflow.inspector.integrations')}>
+            <label className={styles.checkRow}>
+              <input
+                type="checkbox"
+                checked={node.executionPolicy.announceIntegrations}
+                disabled={disabled}
+                onChange={(e) => {
+                  const announceIntegrations = e.target.checked;
+                  onChange((w) =>
+                    updateAgentNode(w, node.id, {
+                      executionPolicy: { ...node.executionPolicy, announceIntegrations },
+                    }),
+                  );
+                }}
+              />{' '}
+              {t('workflow.inspector.announceIntegrations')}
+            </label>
+            <p className={styles.muted}>{t('workflow.inspector.announceIntegrationsHint')}</p>
+          </Field>
           <Field label={t('workflow.inspector.retries')}>
             <input
               className={styles.control}

@@ -1953,6 +1953,18 @@ export const enUS = {
   'integrations.notStrict':
     'This runtime also loads the integrations set up in its own configuration; Atlas cannot see or hide them.',
   'integrations.typeTools': 'Tool names (separated by commas or spaces)',
+  'workflow.inspector.integrations': 'Integrations',
+  'workflow.inspector.announceIntegrations': 'Tell the agent which integrations it was given',
+  'workflow.inspector.announceIntegrationsHint':
+    'On by default. The prompt names the MCP servers this step receives and asks the agent to use them when the task needs what they offer. It says nothing when no integration is given, and turning it off does not remove the integration.',
+  'integrations.preset.jira.name': 'Jira and Confluence (Atlassian)',
+  'integrations.preset.jira.about':
+    "Lets an agent search, read, create and update Jira issues and Confluence pages through Atlassian's remote server, so a workflow can follow the ticket it is working on.",
+  'integrations.preset.jira.risk':
+    "Its tools can create and change Jira issues, transition them, add comments and worklogs, and create or edit Confluence pages, with your Atlassian account's permissions. Grant it only to the agents and steps that should touch your tickets.",
+  'integrations.req.saved_sign_in': 'Saved Atlassian sign-in',
+  'integrations.signInHint':
+    'Sign in once: run `{command}` in a terminal and approve in the browser. A step started by Atlas cannot open a browser to ask you, so without a saved sign-in the server will not connect.',
 } as const;
 
 export type TranslationKey = keyof typeof enUS;

@@ -193,6 +193,18 @@ impl PromptLayout {
     }
 }
 
+/// What the agent is told of the integrations it was given. A model that is not told tends not to
+/// reach for a tool nobody mentioned (shown with a real agent that never opened the browser it was
+/// granted); it is not told to use them when the task does not need them.
+fn integrations_note(names: &[String]) -> String {
+    format!(
+        "\nIntegrations (MCP servers) given to you for this task: {}.\nUse their tools when the \
+task needs what they offer (opening or testing a page in a browser, reading or changing issues, \
+and so on); do not use them otherwise.",
+        names.join(", ")
+    )
+}
+
 /// What a prompt is assembled from, borrowed: the only place a prompt is assembled.
 pub struct PromptBuilder<'a> {
     pub personality: &'a PersonalityProfile,
@@ -206,6 +218,9 @@ pub struct PromptBuilder<'a> {
     pub harness: Option<&'a str>,
     pub skills: Option<&'a str>,
     pub rules: Option<&'a str>,
+    /// The names of the integrations (MCP servers) this step was given, to tell the agent. Empty:
+    /// nothing is said.
+    pub integrations: &'a [String],
 }
 
 impl PromptBuilder<'_> {
@@ -222,6 +237,7 @@ impl PromptBuilder<'_> {
             harness,
             skills,
             rules,
+            integrations,
         } = *self;
         let atlas_rules = if can_edit {
             ATLAS_RULES_EDITING
@@ -239,6 +255,10 @@ impl PromptBuilder<'_> {
                 context.push_str("\n- ");
                 context.push_str(item);
             }
+        }
+
+        if !integrations.is_empty() {
+            context.push_str(&integrations_note(integrations));
         }
 
         let mut instruction = String::new();
@@ -328,6 +348,7 @@ mod tests {
             harness: None,
             skills: None,
             rules: None,
+            integrations: &[],
         }
         .assemble()
         .0

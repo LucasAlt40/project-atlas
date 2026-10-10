@@ -38,11 +38,29 @@ pub enum IsolationMode {
     FromAgent,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExecutionPolicy {
     #[serde(default)]
     pub isolation: IsolationMode,
+    /// Tell the agent, in its prompt, which integrations (MCP servers) it was given for this step
+    /// and that it should use them when the task needs what they offer. On by default: a model
+    /// that is not told tends not to reach for a tool nobody mentioned.
+    #[serde(default = "announce_by_default")]
+    pub announce_integrations: bool,
+}
+
+fn announce_by_default() -> bool {
+    true
+}
+
+impl Default for ExecutionPolicy {
+    fn default() -> Self {
+        Self {
+            isolation: IsolationMode::default(),
+            announce_integrations: true,
+        }
+    }
 }
 
 /// Bounds a loop: the node may start at most `max_iterations` times in one workflow run. Every

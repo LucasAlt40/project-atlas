@@ -30,6 +30,8 @@ pub struct StepRequest {
     /// The run's shared worktree, when it has one: the step works in it (if its agent is
     /// isolated) instead of in a worktree of its own.
     pub shared_worktree: Option<String>,
+    /// Whether the prompt tells the agent which integrations it was given (the node's setting).
+    pub announce_integrations: bool,
 }
 
 /// Why a step could not be prepared.

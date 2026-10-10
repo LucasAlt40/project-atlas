@@ -32,7 +32,7 @@ export function agentNode(
     instructions: '',
     retryPolicy: { maxRetries: 0 },
     failurePolicy: { type: 'stop_workflow' },
-    executionPolicy: { isolation: 'from_agent' },
+    executionPolicy: { isolation: 'from_agent', announceIntegrations: true },
     priority: 0,
     loopPolicy: loopMax ? { loopId: `loop-${id}`, maxIterations: loopMax } : null,
     position: null,

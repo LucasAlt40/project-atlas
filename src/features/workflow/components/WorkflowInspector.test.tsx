@@ -2,10 +2,11 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import type { OutcomeDto } from '@/lib/tauri/commands';
+import { agent } from '@/test/fixtures';
 import { handoff, nodeState, passwordRecovery, run } from '@/test/workflowFixtures';
 import type { Workflow, WorkflowEdge } from '../types';
 import { HandoffView } from './HandoffView';
-import { EdgeInspector } from './WorkflowInspector';
+import { EdgeInspector, NodeInspector } from './WorkflowInspector';
 
 const PASS_FAIL: OutcomeDto[] = [
   { id: 'pass', label: 'Pass', description: 'Validation passed.' },
@@ -169,5 +170,45 @@ describe('a handoff', () => {
 
     expect(screen.getByText('Execution:', { exact: false })).toHaveTextContent('Execution: failed');
     expect(screen.queryByText(/Outcome:/)).not.toBeInTheDocument();
+  });
+});
+
+describe('the integrations setting of an agent step', () => {
+  function show(onChange = vi.fn()) {
+    const workflow = passwordRecovery();
+    const node = workflow.nodes.find((n) => n.type === 'agent');
+    if (node?.type !== 'agent') throw new Error('no agent node');
+    render(
+      <I18nProvider language="en-US">
+        <NodeInspector
+          workflow={workflow}
+          node={node}
+          editable
+          agents={[agent(node.agentId, 'Dev')]}
+          factsOf={() => undefined}
+          run={undefined}
+          onChange={onChange}
+          onOpenExecution={() => undefined}
+        />
+      </I18nProvider>,
+    );
+    return { onChange, node, workflow };
+  }
+
+  it('is on by default and turning it off changes only that setting of the step', async () => {
+    const { onChange, node, workflow } = show();
+    const box = screen.getByRole('checkbox', {
+      name: /Tell the agent which integrations it was given/,
+    });
+    expect(box).toBeChecked();
+
+    await userEvent.click(box);
+
+    const change = onChange.mock.calls[0]?.[0] as (w: Workflow) => Workflow;
+    const changed = change(workflow).nodes.find((n) => n.id === node.id);
+    expect(changed?.type === 'agent' && changed.executionPolicy).toEqual({
+      isolation: 'from_agent',
+      announceIntegrations: false,
+    });
   });
 });

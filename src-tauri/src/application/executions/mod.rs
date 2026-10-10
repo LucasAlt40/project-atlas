@@ -96,7 +96,7 @@ struct RunFlags {
 
 /// How a workflow step differs from a message: where its Task Context comes from, the worktree it
 /// shares, and whether an answer that is a request for a person pauses it instead of ending it.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct StepOptions<'a> {
     /// The text the Task Context is selected for, when it differs from the instruction itself.
     pub context_query: Option<&'a str>,
@@ -117,6 +117,26 @@ pub struct StepOptions<'a> {
     pub node_id: Option<&'a str>,
     /// Rules that come with the task (scope `Task`).
     pub task_rules: &'a [Rule],
+    /// Tell the agent which integrations (MCP servers) it was given, in the prompt. Off only when
+    /// a workflow step's node says so.
+    pub announce_integrations: bool,
+}
+
+impl Default for StepOptions<'_> {
+    fn default() -> Self {
+        Self {
+            context_query: None,
+            shared_worktree: None,
+            brief_parts: None,
+            review: None,
+            detect_interaction: false,
+            workflow_id: None,
+            node_id: None,
+            task_rules: &[],
+            // On unless a node turns it off.
+            announce_integrations: true,
+        }
+    }
 }
 
 /// The request was not acceptable, so no execution was created. Runtime problems are not
@@ -439,6 +459,7 @@ impl ExecutionService {
             workflow_id: None,
             node_id: None,
             task_rules: &[],
+            announce_integrations: true,
         };
         self.run_step(id, request, options, observer)
     }
@@ -465,6 +486,7 @@ impl ExecutionService {
             workflow_id,
             node_id,
             task_rules,
+            announce_integrations,
         } = options;
         // Read once: a run is measured entirely or not at all.
         let measuring = self
@@ -618,6 +640,31 @@ impl ExecutionService {
             emitter.log("The agent may edit files, but its runtime does not support file editing");
         }
         let can_edit = access == EditAccess::Allowed;
+        // What MCP the step may be given: connections, grants, the agent's policy and what the
+        // runtime can do. Nothing is started or read here.
+        let mcp_policy = self.mcp_permission(&execution, &agent, &task.id);
+        let mut mcp_plan = self.plan_mcp(
+            &McpContext {
+                workspace: &emitter.workspace_id,
+                agent: &agent.id,
+                workflow: workflow_id,
+                node: node_id,
+            },
+            mcp_policy,
+            &runtime.info().capabilities,
+            &runtime.info().id,
+        );
+        let mcp_facts = Self::mcp_facts(&mcp_plan);
+        // The integrations the agent is told about: the ones the plan gives it (the prompt says no
+        // more than what is arranged), unless the step's node turned that off.
+        let announced: Vec<String> = if announce_integrations {
+            mcp_plan
+                .exposed()
+                .map(|server| server.connection.name.clone())
+                .collect()
+        } else {
+            Vec::new()
+        };
         let prompt_timer = measuring.then(std::time::Instant::now);
         // The budget of this runtime + model. A configured limit counts only while the Context
         // Engine, which is what enforces it, is on.
@@ -660,6 +707,7 @@ impl ExecutionService {
                 harness: inputs.harness.as_deref(),
                 skills: inputs.skills_text().as_deref(),
                 rules: inputs.rules_text().as_deref(),
+                integrations: &announced,
             }
             .assemble()
         };
@@ -709,21 +757,6 @@ impl ExecutionService {
             ),
         );
         let rule_facts = Self::rule_facts(&rule_resolution);
-        // What MCP the step may be given: connections, grants, the agent's policy and what the
-        // runtime can do. Nothing is started or read here.
-        let mcp_policy = self.mcp_permission(&execution, &agent, &task.id);
-        let mut mcp_plan = self.plan_mcp(
-            &McpContext {
-                workspace: &emitter.workspace_id,
-                agent: &agent.id,
-                workflow: workflow_id,
-                node: node_id,
-            },
-            mcp_policy,
-            &runtime.info().capabilities,
-            &runtime.info().id,
-        );
-        let mcp_facts = Self::mcp_facts(&mcp_plan);
         // The guardrails look at the context as it is about to be sent: whole, coherent, free of
         // secrets that came from files and other agents. A person decides what needs deciding.
         let mut gate = guardrails::Gate::Proceed;
@@ -1569,10 +1602,7 @@ impl ExecutionService {
             interaction.question.clone(),
             [
                 ("interactionKind".to_owned(), kind.to_owned()),
-                (
-                    "source".to_owned(),
-                    format!("{:?}", interaction.source).to_ascii_lowercase(),
-                ),
+                ("source".to_owned(), interaction.source.as_str().to_owned()),
                 ("confidence".to_owned(), interaction.confidence.to_string()),
             ]
             .into(),

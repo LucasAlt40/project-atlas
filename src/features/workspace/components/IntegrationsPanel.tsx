@@ -152,6 +152,11 @@ function PresetRow({
           ))}
         </ul>
       )}
+      {preset.requirements.some((r) => r.requirement === 'saved_sign_in' && !r.found) && (
+        <p className={styles.warning}>
+          {t('integrations.signInHint', { command: preset.command ?? '' })}
+        </p>
+      )}
       <div className={styles.row}>
         <Button variant="secondary" disabled={planned || added} onClick={onAdd}>
           {added ? t('integrations.added') : t('integrations.add')}

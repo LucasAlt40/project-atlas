@@ -1976,4 +1976,16 @@ export const ptBR: Record<TranslationKey, string> = {
   'integrations.notStrict':
     'Este runtime também carrega as integrações da configuração dele; o Atlas não consegue vê-las nem escondê-las.',
   'integrations.typeTools': 'Nomes das ferramentas (separados por vírgula ou espaço)',
+  'workflow.inspector.integrations': 'Integrações',
+  'workflow.inspector.announceIntegrations': 'Avisar o agente de quais integrações ele recebeu',
+  'workflow.inspector.announceIntegrationsHint':
+    'Ligado por padrão. O prompt cita os servidores MCP que esta etapa recebe e pede ao agente que os use quando a tarefa precisar do que eles oferecem. Não diz nada quando nenhuma integração é entregue, e desligar não retira a integração.',
+  'integrations.preset.jira.name': 'Jira e Confluence (Atlassian)',
+  'integrations.preset.jira.about':
+    'Permite que um agente busque, leia, crie e atualize issues do Jira e páginas do Confluence pelo servidor remoto da Atlassian, para que um workflow acompanhe o ticket em que está trabalhando.',
+  'integrations.preset.jira.risk':
+    'As ferramentas podem criar e alterar issues do Jira, fazer transições, comentar, lançar horas e criar ou editar páginas do Confluence, com as permissões da sua conta Atlassian. Conceda só aos agentes e etapas que devem mexer nos seus tickets.',
+  'integrations.req.saved_sign_in': 'Login da Atlassian salvo',
+  'integrations.signInHint':
+    'Entre uma vez: rode `{command}` em um terminal e aprove no navegador. Uma etapa iniciada pelo Atlas não consegue abrir o navegador para perguntar, então sem um login salvo o servidor não conecta.',
 };

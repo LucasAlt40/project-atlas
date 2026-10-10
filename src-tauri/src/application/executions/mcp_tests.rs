@@ -1229,3 +1229,73 @@ fn a_runtime_that_cannot_hold_a_server_to_named_tools_is_not_given_it() {
     conversation(&world, &world.developer);
     assert_eq!(given(&world), ["files"]);
 }
+
+fn prompt_of_last_run(world: &World) -> String {
+    world
+        .runtime
+        .requests
+        .lock()
+        .unwrap()
+        .last()
+        .map(|r| r.prompt.combined())
+        .unwrap_or_default()
+}
+
+#[test]
+fn the_agent_is_told_which_integrations_it_was_given_and_only_those() {
+    let world = world();
+    let files = connect(&world, "files", false, false);
+    let stranger = connect(&world, "stranger", false, false);
+    grant_all(&world, &files, &world.developer);
+    // Granted to somebody else: not given, so not announced.
+    grant_all(&world, &stranger, &world.reader);
+
+    conversation(&world, &world.developer);
+
+    let prompt = prompt_of_last_run(&world);
+    assert!(
+        prompt.contains("Integrations (MCP servers) given to you for this task: files."),
+        "{prompt}"
+    );
+    assert!(!prompt.contains("stranger"));
+}
+
+#[test]
+fn nothing_is_said_when_nothing_is_given() {
+    let world = world();
+    connect(&world, "files", false, false);
+
+    conversation(&world, &world.developer);
+
+    assert!(!prompt_of_last_run(&world).contains("Integrations (MCP servers)"));
+}
+
+#[test]
+fn a_node_can_turn_the_announcement_off_and_the_integration_is_still_given() {
+    let world = world();
+    let files = connect(&world, "files", false, false);
+    grant_all(&world, &files, &world.developer);
+    let brief = BriefParts::default();
+
+    world
+        .service
+        .run_step(
+            world.service.next_execution_id(),
+            RunAgentRequest {
+                task_id: "t".to_owned(),
+                workspace_id: world.workspace_id.clone(),
+                agent_id: world.developer.clone(),
+                description: "Fix it".to_owned(),
+            },
+            StepOptions {
+                brief_parts: Some(&brief),
+                announce_integrations: false,
+                ..StepOptions::default()
+            },
+            &Quiet::default(),
+        )
+        .unwrap();
+
+    assert!(!prompt_of_last_run(&world).contains("Integrations (MCP servers)"));
+    assert_eq!(given(&world), ["files"]);
+}

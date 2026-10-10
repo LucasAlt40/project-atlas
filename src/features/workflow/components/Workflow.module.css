@@ -825,3 +825,9 @@
   margin: 0;
   color: var(--text-standard);
 }
+
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}

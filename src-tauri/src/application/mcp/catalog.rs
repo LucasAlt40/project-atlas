@@ -16,6 +16,15 @@ use crate::domain::mcp::McpTransport;
 /// version is a change someone makes on purpose here. Node `^20.19 || ^22.12 || >=23`, Apache-2.0.
 pub const DEVTOOLS_VERSION: &str = "1.10.1";
 
+/// The proxy that lets a local client talk to Atlassian's remote server and keeps the OAuth tokens
+/// (in `~/.mcp-auth/mcp-remote-<version>`). Pinned to the version the sign-in cache of the people who
+/// already use it is kept under, so they need not sign in again; MIT, the repository moved from
+/// `geelen` to `punkpeye` (same project).
+pub const MCP_REMOTE_VERSION: &str = "0.1.37";
+
+/// Atlassian's remote MCP server (Jira, Confluence, Compass), reached through [`MCP_REMOTE_VERSION`].
+pub const ATLASSIAN_URL: &str = "https://mcp.atlassian.com/v1/sse";
+
 /// Whether an entry can be added today.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -39,6 +48,8 @@ pub enum Requirement {
     Node,
     Npx,
     Chrome,
+    /// A sign-in the proxy saved earlier (a tokens file under its cache). Looked for, never read.
+    SavedSignIn,
 }
 
 /// What Atlas could see of one requirement on this machine. Atlas starts nothing to find out, so
@@ -73,6 +84,8 @@ fn check(requirement: Requirement, found: bool) -> RequirementCheck {
 pub struct Host {
     runner: Arc<dyn ProcessRunner>,
     chrome_paths: Vec<PathBuf>,
+    /// Where `mcp-remote` keeps its sign-ins (`~/.mcp-auth`).
+    auth_cache: Option<PathBuf>,
 }
 
 impl Host {
@@ -82,6 +95,20 @@ impl Host {
 
     fn chrome_found(&self) -> bool {
         self.chrome_paths.iter().any(|p| p.exists()) || self.has_program("google-chrome")
+    }
+
+    /// Whether the proxy has a saved sign-in for its pinned version. Only a file name is looked
+    /// at: its contents are tokens and Atlas does not open them.
+    fn saved_sign_in(&self) -> bool {
+        self.auth_cache
+            .as_ref()
+            .map(|root| root.join(format!("mcp-remote-{MCP_REMOTE_VERSION}")))
+            .and_then(|dir| std::fs::read_dir(dir).ok())
+            .is_some_and(|entries| {
+                entries
+                    .filter_map(Result::ok)
+                    .any(|e| e.file_name().to_string_lossy().ends_with("_tokens.json"))
+            })
     }
 }
 
@@ -156,6 +183,57 @@ impl McpPreset for ChromeDevTools {
     }
 }
 
+/// Jira and Confluence through Atlassian's remote server, by way of the `mcp-remote` proxy (STDIO
+/// on this side; the sign-in is OAuth in a browser, done once by the person).
+struct Jira;
+
+impl Jira {
+    fn transport() -> McpTransport {
+        McpTransport::Stdio {
+            executable: "npx".to_owned(),
+            args: vec![
+                "-y".to_owned(),
+                format!("mcp-remote@{MCP_REMOTE_VERSION}"),
+                ATLASSIAN_URL.to_owned(),
+            ],
+            env: Vec::new(),
+        }
+    }
+}
+
+impl McpPreset for Jira {
+    fn id(&self) -> &'static str {
+        "jira"
+    }
+
+    fn describe(&self, host: &Host) -> McpPresetInfo {
+        let McpTransport::Stdio {
+            executable, args, ..
+        } = Self::transport()
+        else {
+            unreachable!("the Jira entry is STDIO")
+        };
+        McpPresetInfo {
+            id: "jira",
+            connection_name: "jira",
+            availability: PresetAvailability::Ready,
+            risk: PresetRisk::High,
+            source_url: "https://support.atlassian.com/atlassian-ai-gateway/docs/get-started-with-the-atlassian-remote-mcp-server/",
+            pinned_version: Some(MCP_REMOTE_VERSION),
+            command: Some(format!("{executable} {}", args.join(" "))),
+            requirements: vec![
+                check(Requirement::Node, host.has_program("node")),
+                check(Requirement::Npx, host.has_program("npx")),
+                check(Requirement::SavedSignIn, host.saved_sign_in()),
+            ],
+        }
+    }
+
+    fn connection(&self) -> Result<(&'static str, McpTransport), AppError> {
+        Ok(("jira", Self::transport()))
+    }
+}
+
 /// Figma's official server is remote (HTTP) and needs OAuth: listed for what it is, not addable.
 struct Figma;
 
@@ -188,7 +266,7 @@ pub struct McpPresetFactory;
 impl McpPresetFactory {
     /// Every entry, in the order they are shown.
     pub fn all() -> Vec<Box<dyn McpPreset>> {
-        vec![Box::new(ChromeDevTools), Box::new(Figma)]
+        vec![Box::new(ChromeDevTools), Box::new(Jira), Box::new(Figma)]
     }
 
     pub fn create(id: &str) -> Option<Box<dyn McpPreset>> {
@@ -208,6 +286,9 @@ impl McpCatalog {
             host: Host {
                 runner,
                 chrome_paths: default_chrome_paths(),
+                auth_cache: std::env::var_os("HOME")
+                    .or_else(|| std::env::var_os("USERPROFILE"))
+                    .map(|home| PathBuf::from(home).join(".mcp-auth")),
             },
         }
     }
@@ -215,6 +296,12 @@ impl McpCatalog {
     #[cfg(test)]
     pub fn with_chrome_paths(mut self, paths: Vec<PathBuf>) -> Self {
         self.host.chrome_paths = paths;
+        self
+    }
+
+    #[cfg(test)]
+    pub fn with_auth_cache(mut self, cache: Option<PathBuf>) -> Self {
+        self.host.auth_cache = cache;
         self
     }
 
@@ -341,5 +428,62 @@ mod tests {
             found(catalog(&["node"], vec![PathBuf::from("/nonexistent/chrome")]).list()),
             [true, false, false]
         );
+    }
+
+    #[test]
+    fn the_jira_entry_is_pinned_goes_through_the_proxy_and_passes_the_connection_checks() {
+        let (name, transport) = McpCatalog::connection_for("jira").unwrap();
+        let McpTransport::Stdio {
+            executable,
+            args,
+            env,
+        } = &transport
+        else {
+            panic!("STDIO")
+        };
+
+        assert_eq!(name, "jira");
+        assert_eq!(executable, "npx");
+        assert_eq!(env.len(), 0);
+        assert_eq!(
+            args,
+            &[
+                "-y",
+                &format!("mcp-remote@{MCP_REMOTE_VERSION}"),
+                ATLASSIAN_URL
+            ]
+        );
+        let as_connection = McpConnection {
+            name: name.to_owned(),
+            transport,
+            ..connection("x")
+        };
+        assert_eq!(validate(&as_connection), Ok(()));
+    }
+
+    #[test]
+    fn a_saved_sign_in_is_a_tokens_file_under_the_pinned_version_and_is_never_opened() {
+        let cache = std::env::temp_dir().join(format!("atlas-auth-{}", std::process::id()));
+        let dir = cache.join(format!("mcp-remote-{MCP_REMOTE_VERSION}"));
+        std::fs::create_dir_all(&dir).unwrap();
+        let signed_in = |cache: Option<PathBuf>| {
+            let list = catalog(&["node", "npx"], vec![])
+                .with_auth_cache(cache)
+                .list();
+            let jira = list.iter().find(|p| p.id == "jira").unwrap();
+            jira.requirements
+                .iter()
+                .find(|r| r.requirement == Requirement::SavedSignIn)
+                .unwrap()
+                .found
+        };
+
+        // Client registration alone is not a sign-in.
+        std::fs::write(dir.join("abc_client_info.json"), "{}").unwrap();
+        assert!(!signed_in(Some(cache.clone())));
+        std::fs::write(dir.join("abc_tokens.json"), "{}").unwrap();
+        assert!(signed_in(Some(cache.clone())));
+        assert!(!signed_in(None));
+        let _ = std::fs::remove_dir_all(cache);
     }
 }

@@ -854,6 +854,7 @@ Code: `application/mcp/catalog.rs`; commands `list_mcp_catalog`, `add_mcp_preset
   version is pinned (never `@latest`); the flags and the Node range (`^20.19 || ^22.12 || >=23`) are from the package's own README and
   `engines`. Examining it makes `npx` download and run that package, which the panel says before the click. It is marked high risk (it
   exposes and can change anything in the browser it drives) and the panel shows that note before switching on.
+- **Jira and Confluence** is a second ready entry (Atlassian's remote server through the pinned `mcp-remote`), see ADR 0029.
 - **Figma** is listed for what it is (remote HTTP, OAuth) and cannot be added: `McpPresetUnavailable`.
 - **Requirements** (Node, npx, Chrome) are looked for on disk, never run: the process guard only lets known runtime programs be probed, and no
   exception was made. "Not found" means not found where Atlas looks.

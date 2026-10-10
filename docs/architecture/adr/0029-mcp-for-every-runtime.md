@@ -71,6 +71,28 @@ What the real runs showed, and fixed:
   reached the user's `chrome-devtools-mcp` when the task named it; Atlas shows the call as `mcp__<server>__<tool>`. It does not use a server unless
   the task asks: **the instruction of an agent on Antigravity has to say so**.
 
+## The agent is told which integrations it was given (default on)
+
+A model that is not told tends not to reach for a tool nobody mentioned. Measured with real models on a task that never names an integration
+("check what is at https://example.com by actually loading it in a browser", the DevTools entry granted): **with** the note, OpenCode and Codex
+both loaded the page; **without** it, Codex answered from memory and never touched the browser (OpenCode used it either way).
+
+- The prompt's project-context part gets two lines: `Integrations (MCP servers) given to you for this task: <names>.` and a request to use their
+  tools when the task needs what they offer, and not otherwise. It names only the servers the plan gives the agent, and nothing is said when none is
+  given (so a step that is given nothing has the prompt it always had).
+- It is a setting of the **workflow step** (`executionPolicy.announceIntegrations`, on by default, shown in the node's inspector); a conversation
+  with an agent always has it on. Turning it off does not remove the integration. Older stored workflows read as on.
+- It changes the prompt, so the manifest's hash differs from a run without it; that is the point of the hash.
+
+## Catalogue: Jira and Confluence
+
+`jira` is a catalogue entry: `npx -y mcp-remote@0.1.37 https://mcp.atlassian.com/v1/sse` (Atlassian's remote server through the `mcp-remote` proxy,
+pinned to the version the existing sign-in cache of people who already use it is kept under, so they need not sign in again; the repository moved
+from `geelen` to `punkpeye`, same project). The sign-in is OAuth in a browser, done once by the person; Atlas shows whether a tokens file exists
+under `~/.mcp-auth/mcp-remote-0.1.37` (only the file name, never its content) and says how to sign in when it does not. Verified with a real
+model: Claude, with the saved sign-in, called `atlassianUserInfo` through Atlas and answered `OK` (no account data was printed). Like every entry it is
+added off and granted to nobody.
+
 ## Not verified
 
 - **Gemini CLI**: the account is refused by the CLI ("no longer supported for Gemini Code Assist for individuals"), so no model call was possible.

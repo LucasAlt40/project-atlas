@@ -281,10 +281,7 @@ impl<'a> WorkflowEngine<'a> {
         let details = meta(&[
             ("interactionId", interaction.id.clone()),
             ("kind", interaction.kind.as_str().to_owned()),
-            (
-                "source",
-                format!("{:?}", interaction.source).to_ascii_lowercase(),
-            ),
+            ("source", interaction.source.as_str().to_owned()),
             ("executionId", interaction.execution_id.clone()),
         ]);
         let question = interaction.question.clone();
