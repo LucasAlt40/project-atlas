@@ -1,185 +1,198 @@
-# ADR 0013 — Workflow Engine and Orchestrator
+# ADR 0013 — Workflow Engine e Orchestrator
 
-**Status:** accepted. Builds on [ADR 0009](0009-git-worktree-isolation.md) (isolation),
-[ADR 0010](0010-project-harness.md) / [0012](0012-task-aware-context.md) (context) and
-[ADR 0003](0003-command-permissions.md) / [0007](0007-live-shell-and-process-control.md) (permissions and processes).
+**Status:** aceito. Baseia-se na [ADR 0009](0009-git-worktree-isolation.md) (isolamento), nas
+[ADR 0010](0010-project-harness.md) / [0012](0012-task-aware-context.md) (contexto) e nas
+[ADR 0003](0003-command-permissions.md) / [0007](0007-live-shell-and-process-control.md) (permissões e processos).
 
-## Why
+## Por quê
 
-Until V0.8 the unit of work was one agent doing one task:
-
-```text
-Task ─▶ Agent ─▶ Execution
-```
-
-Real work is a process: someone designs, someone builds, someone checks, someone fixes what the checks found, and the
-checking runs again. V0.9 makes that process a first-class, visible, editable thing, **without** giving anything new the
-power to run processes:
+Até a V0.8 a unidade de trabalho era um agente fazendo uma tarefa:
 
 ```text
-Task ─▶ Workflow ─▶ Workflow Engine ─▶ Orchestrator ─▶ ExecutionService ─▶ RuntimeRegistry ─▶ ModelRuntime
+Tarefa ─▶ Agente ─▶ Execução
 ```
 
-Philosophy: **an AI can suggest and do work; the Workflow Engine controls the process.**
-
-## Who does what
-
-| Part                 | Is                                                         | Knows nothing about                      |
-| -------------------- | ---------------------------------------------------------- | ---------------------------------------- |
-| **Workflow**         | the declarative graph (nodes, edges, conditions, policies) | how it is drawn, how it runs             |
-| **Workflow Engine**  | a pure state machine over a run: what is ready, what next  | clocks, threads, storage, runtimes       |
-| **Orchestrator**     | drives a run: starts steps, hears how they ended, persists | what the graph means (asks the engine)   |
-| **ExecutionService** | one agent execution (unchanged)                            | workflows                                |
-| **Runtime**          | talks to Claude / OpenCode (unchanged)                     | workflows                                |
-| **Graph UI**         | one way to draw and edit a Workflow (`@xyflow/react`)      | the engine; it is never read by the core |
-
-- **Workflow is not Execution.** A workflow is a definition that is edited and versioned; an execution is one agent run.
-  A _workflow execution_ (a run) is an instance of the workflow and owns many executions. Definitions and runs are kept
-  in separate lists (`workflows`, `workflow_executions`) of the same `config.json` (atomic writes; no new database).
-- **The Orchestrator is not an Agent.** An agent is a model with a personality; it can be wrong, be prompted into
-  anything and has no authority. The orchestrator is deterministic code. Nothing an agent writes reaches the graph:
-  see _Authority_.
-- **The graph library does not define the domain.** `@xyflow/react` appears in `features/workflow/components` only.
-  `features/workflow/model/graph.ts` is the single translation between the domain `Workflow` and what the library draws;
-  the persisted model has plain coordinates and its own ids. Rust has never heard of it.
-- **There is no agent-to-agent communication.** Steps do not talk to each other. They leave artifacts, decisions and
-  results in a shared, structured state, and the orchestrator hands each step what it needs. (A conversation between
-  agents would be unbounded, expensive, unreproducible and would make "who decided this" unanswerable.)
-
-## Graph semantics
-
-- **Node** — a unit of work: `agent` (a run of an existing Agent: the node stores only `agent_id`, its own
-  instructions, retry, failure and loop policies — never the personality, runtime or model), `condition` (tests the
-  previous result and records `result.matched`), `end` (a terminal: done / failed / cancelled).
-- **Edge** — a transition, taken when its source completes and its optional **condition** holds for the source's result.
-  A **failure route** (`FailurePolicy::RouteToNode`) is also a transition; the engine treats it as a link like an edge.
-- **Condition** — `{ field, operator, value }` over a closed set of fields (`result.status`, `result.summary`,
-  `result.next_action`, `result.findings`, `result.matched`, `validation.status`) and four operators (`equals`,
-  `not_equals`, `exists`, `not_exists`). No expressions, no code. Validation rejects an unknown field.
-- **Artifact** — a shareable output of a step: type, name, producer node, execution, a _relative path_ and a summary. It
-  references the work; it does not copy it. **Decision** — knowledge later steps must respect (title, decision,
-  rationale, source node).
-- **Workflow Execution** — one instance, holding a **snapshot** of the workflow version it started from.
-
-### Activation, joins and loops
-
-A node becomes ready when it is _activated_ by the links that fired towards it. Links from outside a cycle are
-**requirements** (unconditional edges: all must have fired) or **alternatives** (conditional edges and failure routes:
-any one will do); either group is enough. Links _inside_ a cycle (both ends in the same strongly connected component)
-are always alternatives: any one re-activates the node. That is what lets a join wait for two parallel branches while
-`QA → Bug Fixer → QA` does not deadlock. A link out of a step that failed and was handed to its failure route is ignored
-by joins (it will never fire).
-
-Loops are allowed but **every cycle must be bounded**: validation removes the nodes that carry a loop limit
-(`loop_policy { loop_id, max_iterations }`) and rejects the graph if a cycle remains. A node may _start_ at most
-`max_iterations` times; the next start fails the run with `max_iterations_reached` (loop id and node recorded).
-`QA → Bug Fixer → QA` and `Validator → Bug Fixer → Validator` are two distinct loops with distinct limits.
-
-### States
-
-Node: `pending ▸ ready ▸ running ▸ (waiting_approval) ▸ completed | failed | cancelled`, plus `blocked` (a dependency
-can no longer be satisfied) and `skipped` (the conditions routed around it). Run: `running`, `paused`, `completed`,
-`failed`, `cancelled`, `interrupted`. A run ends when nothing is in flight and nothing is ready; it is `completed` only
-if an End node that means success was reached and nothing failed unhandled. A step whose result matches none of its
-routes fails the run with `no_route_matched`: **it is never guessed at, and never read as a pass.**
-
-### Failure, retry, pause, cancel, approval
-
-- **Failure.** A failed step is retried up to `retry_policy.max_retries` (≤ 5), each attempt with its own execution id
-  and the failed ones kept. Then its `failure_policy`: `stop_workflow` (dependents are `blocked`; the run fails once
-  nothing else can run) or `route_to_node`. The run is not failed while a failure route exists.
-- **Pause** stops _starting_ steps. A step already running is left to finish (and its result is kept); nothing new
-  starts until resume.
-- **Cancel** cancels what has not started, asks the running steps' processes to end (the same control the user has in
-  the terminal, through `SessionRegistry`), keeps everything that completed, and ends the run as `cancelled`.
-- **Approval.** A step is `waiting_approval` only when the _real_ approval mechanism says its execution has a pending
-  approval (`ApprovalBroker::pending`). The workflow offers no approve button and reads nothing an agent says as one:
-  the user answers in the existing security panel. Dependents stay `pending`; the step goes back to `running` when the
-  approval is answered.
-- **Concurrency.** At most `max_parallel_steps` (4) run at once; an agent never runs two steps at once (the existing
-  per-agent, per-workspace busy lock is the one used: a second step of a busy agent simply waits). Ready nodes are
-  ordered by priority, then creation order, then id, so the same history gives the same schedule.
-
-## Context, handoff and results
-
-- **Task context is reused, not duplicated.** For a step, the instruction handed to `ExecutionService` is: the node's
-  instructions, the overall task, a **WORKFLOW CONTEXT** block (workflow, current step and pass, previous steps,
-  artifacts, decisions, the failing reports the step must act on, next steps) and a **RESULT PROTOCOL**. What the Task
-  Context is _selected for_ is a separate `context_query` — the task plus this step's label and instructions — so a
-  Backend step and a Frontend step of one task get different parts of the Harness. The Harness text itself is added by
-  the execution layer as always; the workflow never adds its own copy.
-- **Handoff is by artifact, not transcript.** A later step does not receive earlier agents' text. It receives artifacts
-  (name, path, summary), decisions and the latest failing validation entries (severity, category, evidence,
-  recommendation). Bounded in size.
-- **Structured result.** A step may end its answer with an `atlas-result` JSON block (status, summary, artifacts,
-  decisions, findings, touched files/areas, next action). Without it Atlas keeps a textual summary and the status is
-  `unknown`, which no `pass`/`fail` edge matches. Paths in a result must be relative and cannot leave the project;
-  anything else is dropped.
-- **Overlap.** Touched files and areas are recorded per node. Two steps that could run side by side (neither leads to
-  the other) touching the same place raise `workflow:overlap_detected` and a warning in the shared state. Detected and
-  shown; never resolved.
-
-## Authority — what a workflow cannot do
-
-A workflow gains **no** new authority. It cannot read or write files, run a shell, open the network, approve anything or
-change a policy. The chain is unchanged:
+O trabalho real é um processo: alguém projeta, alguém constrói, alguém confere, alguém corrige o que a conferência
+achou, e a conferência roda de novo. A V0.9 torna esse processo algo de primeira classe, visível e editável, **sem**
+dar a nada de novo o poder de executar processos:
 
 ```text
-Workflow ─▶ Orchestrator ─▶ ExecutionService ─▶ Runtime ─▶ PermissionPolicy ─▶ ProcessRunner      (never: Workflow ─▶ Process)
+Tarefa ─▶ Workflow ─▶ Workflow Engine ─▶ Orchestrator ─▶ ExecutionService ─▶ RuntimeRegistry ─▶ ModelRuntime
 ```
 
-- Each step is an execution like any other through `ChatService` (`send_workflow_step`): the agent's worktree policy
-  (isolation stays the agent's, on by default; a node can only inherit it, never weaken it), the Harness, the
-  runtime registry and the guard all apply. If the agent needs a worktree and the project is not a Git repository the
-  step **fails**; it never falls back to the checkout.
-- The engine does not know Claude, OpenCode, PTYs or `ProcessRunner`; it sees the `StepRunner` port.
-- **What an agent says never changes the workflow.** `next_action` is information. Routing is decided only by the
-  conditions the workflow defines, evaluated on the closed set of facts above; a result cannot add a node, edit an
-  edge, grant or deny an approval, or touch a policy. (There is a test with a result block that tries all of it.)
-- No Tauri command takes a program, a path or an approval; `build.rs` and the capability file list each workflow command.
+Filosofia: **uma IA pode sugerir e fazer o trabalho; o Workflow Engine controla o processo.**
 
-## Versions, snapshots, editing, recovery
+## Quem faz o quê
 
-- A definition has a `version`, incremented by any **structural** change (nodes, edges, policies); moving nodes, the
-  viewport and the name are not. A run records the version and holds a full **snapshot**: editing the definition never
-  changes a run in progress or a finished one.
-- While a workflow has a run in progress (running, paused or interrupted) its definition cannot be edited or deleted; the
-  UI says so and offers to wait or to save a copy. One run at a time per workflow.
-- If the app closes during a run, nothing is resumed on its own and nothing is called finished: on the next start the
-  run is `interrupted` (recoverable), its in-flight attempts are recorded as `interrupted`, and the user can **resume**
-  (the cut-short steps start again as new attempts of the same pass), **restart** (cancel and run again), **cancel** or
-  inspect it.
+| Parte                | É                                                                                     | Não sabe nada sobre                          |
+| -------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------- |
+| **Workflow**         | o grafo declarativo (nós, arestas, condições, políticas)                              | como é desenhado, como executa               |
+| **Workflow Engine**  | uma máquina de estados pura sobre uma execução: o que está pronto, o que vem a seguir | relógios, threads, armazenamento, runtimes   |
+| **Orchestrator**     | conduz uma execução: inicia passos, ouve como terminaram, persiste                    | o que o grafo significa (pergunta ao engine) |
+| **ExecutionService** | uma execução de agente (inalterado)                                                   | workflows                                    |
+| **Runtime**          | conversa com Claude / OpenCode (inalterado)                                           | workflows                                    |
+| **Graph UI**         | uma forma de desenhar e editar um Workflow (`@xyflow/react`)                          | o engine; nunca é lido pelo núcleo           |
 
-## Automatic and Custom
+- **Workflow não é Execution.** Um workflow é uma definição que é editada e versionada; uma execution é uma execução de
+  agente. Uma _execução de workflow_ (um run) é uma instância do workflow e é dona de várias execuções. Definições e
+  runs ficam em listas separadas (`workflows`, `workflow_executions`) do mesmo `config.json` (gravações atômicas; sem
+  novo banco de dados).
+- **O Orchestrator não é um Agente.** Um agente é um modelo com uma personalidade; pode errar, ser induzido a qualquer
+  coisa e não tem autoridade. O orquestrador é código determinístico. Nada que um agente escreve chega ao grafo: veja
+  _Autoridade_.
+- **A biblioteca de grafo não define o domínio.** O `@xyflow/react` aparece apenas em `features/workflow/components`.
+  `features/workflow/model/graph.ts` é a única tradução entre o `Workflow` do domínio e o que a biblioteca desenha; o
+  modelo persistido tem coordenadas simples e ids próprios. O Rust nunca ouviu falar dela.
+- **Não há comunicação agente a agente.** Os passos não conversam entre si. Eles deixam artefatos, decisões e resultados
+  em um estado compartilhado e estruturado, e o orquestrador entrega a cada passo o que ele precisa. (Uma conversa entre
+  agentes seria ilimitada, cara, irreproduzível e tornaria "quem decidiu isto" impossível de responder.)
 
-Both use the same `Workflow` model; only the author differs. **Automatic** picks a template with fixed rules
-(`select_for_task`: refactor / review / bug words, else feature), builds the workflow from the workspace's agents by
-personality, and shows it. **Customize** changes `mode` to `custom`; the graph is then the user's. A template never
-creates an agent: roles with no agent are reported and left empty for the user to fill. Templates live in
-`application/workflow/templates.rs`; a future planner would produce a `Workflow` the same way and hand it to the same
-engine (after human approval). **Not implemented here:** no LLM planner, no adaptive routing, no agent-to-agent chat.
+## Semântica do grafo
 
-## Roles, as the personalities say them
+- **Nó** — uma unidade de trabalho: `agent` (uma execução de um Agente existente: o nó guarda só o `agent_id`, suas
+  próprias instruções e as políticas de retry, falha e loop — nunca a personalidade, o runtime ou o modelo),
+  `condition` (testa o resultado anterior e registra `result.matched`), `end` (um terminal: concluído / falhou /
+  cancelado).
+- **Aresta** — uma transição, tomada quando sua origem conclui e sua **condição** opcional vale para o resultado da
+  origem. Uma **rota de falha** (`FailurePolicy::RouteToNode`) também é uma transição; o engine a trata como um vínculo
+  igual a uma aresta.
+- **Condição** — `{ field, operator, value }` sobre um conjunto fechado de campos (`result.status`, `result.summary`,
+  `result.next_action`, `result.findings`, `result.matched`, `validation.status`) e quatro operadores (`equals`,
+  `not_equals`, `exists`, `not_exists`). Sem expressões, sem código. A validação rejeita um campo desconhecido.
+- **Artefato** — uma saída compartilhável de um passo: tipo, nome, nó produtor, execução, um _caminho relativo_ e um
+  resumo. Ele referencia o trabalho; não o copia. **Decisão** — conhecimento que os passos seguintes devem respeitar
+  (título, decisão, justificativa, nó de origem).
+- **Execução de Workflow** — uma instância, guardando um **snapshot** da versão do workflow de que partiu.
 
-- **Architect** — what must be built, and how?
-- **Developer** — how do I implement it?
-- **Architecture & Code Validator** (read-only) — was it built _correctly_, within the architecture, decisions, Harness
-  and conventions?
-- **QA** — does it _work_?
-- **Bug Fixer** — why did it fail, and how do I correct it (root cause, minimal change, evidence for re-validation)?
+### Ativação, junções e loops
 
-## Events
+Um nó fica pronto quando é _ativado_ pelos vínculos que dispararam em sua direção. Vínculos de fora de um ciclo são
+**requisitos** (arestas incondicionais: todos devem ter disparado) ou **alternativas** (arestas condicionais e rotas de
+falha: qualquer uma serve); qualquer dos dois grupos basta. Vínculos _dentro_ de um ciclo (as duas pontas no mesmo
+componente fortemente conexo) são sempre alternativas: qualquer um reativa o nó. É isso que permite a uma junção esperar
+dois ramos paralelos enquanto `QA → Bug Fixer → QA` não trava. Um vínculo saindo de um passo que falhou e foi entregue à
+sua rota de falha é ignorado pelas junções (nunca vai disparar).
 
-One Tauri event per kind, under `workflow:*`: `started`, `paused`, `resumed`, `completed`, `failed`, `cancelled`,
+Loops são permitidos, mas **todo ciclo precisa ser limitado**: a validação remove os nós que carregam um limite de loop
+(`loop_policy { loop_id, max_iterations }`) e rejeita o grafo se restar um ciclo. Um nó pode _iniciar_ no máximo
+`max_iterations` vezes; a próxima partida faz a execução falhar com `max_iterations_reached` (id do loop e nó
+registrados). `QA → Bug Fixer → QA` e `Validator → Bug Fixer → Validator` são dois loops distintos com limites
+distintos.
+
+### Estados
+
+Nó: `pending ▸ ready ▸ running ▸ (waiting_approval) ▸ completed | failed | cancelled`, mais `blocked` (uma dependência
+não pode mais ser satisfeita) e `skipped` (as condições o contornaram). Execução: `running`, `paused`, `completed`,
+`failed`, `cancelled`, `interrupted`. Uma execução termina quando nada está em andamento e nada está pronto; é
+`completed` somente se um nó End que significa sucesso foi alcançado e nada falhou sem tratamento. Um passo cujo
+resultado não casa com nenhuma de suas rotas faz a execução falhar com `no_route_matched`: **nunca se adivinha, e nunca
+é lido como aprovado.**
+
+### Falha, retry, pausa, cancelamento, aprovação
+
+- **Falha.** Um passo que falha é repetido até `retry_policy.max_retries` (≤ 5), cada tentativa com seu próprio id de
+  execução e as que falharam mantidas. Depois vale a sua `failure_policy`: `stop_workflow` (os dependentes ficam
+  `blocked`; a execução falha quando nada mais pode rodar) ou `route_to_node`. A execução não falha enquanto existir uma
+  rota de falha.
+- **Pausa** impede _iniciar_ passos. Um passo já em execução é deixado terminar (e seu resultado é mantido); nada novo
+  começa até retomar.
+- **Cancelamento** cancela o que não começou, pede aos processos dos passos em execução que terminem (o mesmo controle
+  que o usuário tem no terminal, pelo `SessionRegistry`), mantém tudo o que concluiu e encerra a execução como
+  `cancelled`.
+- **Aprovação.** Um passo fica `waiting_approval` somente quando o mecanismo _real_ de aprovação diz que sua execução
+  tem uma aprovação pendente (`ApprovalBroker::pending`). O workflow não oferece botão de aprovar e não lê nada que um
+  agente diga como uma aprovação: o usuário responde no painel de segurança existente. Os dependentes ficam `pending`; o
+  passo volta a `running` quando a aprovação é respondida.
+- **Concorrência.** No máximo `max_parallel_steps` (4) rodam ao mesmo tempo; um agente nunca roda dois passos ao mesmo
+  tempo (usa-se o lock de ocupado por agente e por workspace já existente: um segundo passo de um agente ocupado
+  simplesmente espera). Os nós prontos são ordenados por prioridade, depois ordem de criação, depois id, de modo que o
+  mesmo histórico dá o mesmo agendamento.
+
+## Contexto, handoff e resultados
+
+- **O contexto da tarefa é reaproveitado, não duplicado.** Para um passo, a instrução entregue ao `ExecutionService` é:
+  as instruções do nó, a tarefa geral, um bloco **WORKFLOW CONTEXT** (workflow, passo e passada atuais, passos
+  anteriores, artefatos, decisões, os relatórios com falha sobre os quais o passo deve agir, próximos passos) e um
+  **RESULT PROTOCOL**. Aquilo para o qual o Task Context é _selecionado_ é um `context_query` separado — a tarefa mais o
+  rótulo e as instruções deste passo — de modo que um passo de Backend e um de Frontend da mesma tarefa recebem partes
+  diferentes do Harness. O texto do Harness em si é acrescentado pela camada de execução como sempre; o workflow nunca
+  acrescenta uma cópia própria.
+- **O handoff é por artefato, não por transcrição.** Um passo posterior não recebe o texto dos agentes anteriores. Ele
+  recebe artefatos (nome, caminho, resumo), decisões e as últimas entradas de validação com falha (severidade,
+  categoria, evidência, recomendação). Com tamanho limitado.
+- **Resultado estruturado.** Um passo pode terminar sua resposta com um bloco JSON `atlas-result` (status, resumo,
+  artefatos, decisões, achados, arquivos/áreas tocados, próxima ação). Sem ele o Atlas guarda um resumo textual e o
+  status é `unknown`, que nenhuma aresta `pass`/`fail` casa. Os caminhos em um resultado devem ser relativos e não podem
+  sair do projeto; qualquer outro é descartado.
+- **Sobreposição.** Arquivos e áreas tocados são registrados por nó. Dois passos que poderiam rodar lado a lado (nenhum
+  leva ao outro) tocando o mesmo lugar geram `workflow:overlap_detected` e um aviso no estado compartilhado. Detectada e
+  mostrada; nunca resolvida.
+
+## Autoridade — o que um workflow não pode fazer
+
+Um workflow **não** ganha nenhuma autoridade nova. Ele não pode ler nem escrever arquivos, executar um shell, abrir a
+rede, aprovar nada nem mudar uma política. A cadeia continua a mesma:
+
+```text
+Workflow ─▶ Orchestrator ─▶ ExecutionService ─▶ Runtime ─▶ PermissionPolicy ─▶ ProcessRunner      (nunca: Workflow ─▶ Process)
+```
+
+- Cada passo é uma execução como qualquer outra por meio do `ChatService` (`send_workflow_step`): a política de worktree
+  do agente (o isolamento continua sendo do agente, ligado por padrão; um nó só pode herdá-lo, nunca enfraquecê-lo), o
+  Harness, o registro de runtimes e o guard se aplicam. Se o agente precisa de um worktree e o projeto não é um
+  repositório Git, o passo **falha**; nunca recorre ao checkout.
+- O engine não conhece Claude, OpenCode, PTYs nem `ProcessRunner`; ele enxerga a porta `StepRunner`.
+- **O que um agente diz nunca muda o workflow.** `next_action` é informação. O roteamento é decidido apenas pelas
+  condições que o workflow define, avaliadas sobre o conjunto fechado de fatos acima; um resultado não pode adicionar um
+  nó, editar uma aresta, conceder ou negar uma aprovação, nem tocar numa política. (Há um teste com um bloco de resultado
+  que tenta tudo isso.)
+- Nenhum comando Tauri recebe um programa, um caminho ou uma aprovação; o `build.rs` e o arquivo de capabilities listam
+  cada comando de workflow.
+
+## Versões, snapshots, edição, recuperação
+
+- Uma definição tem uma `version`, incrementada por qualquer mudança **estrutural** (nós, arestas, políticas); mover
+  nós, a viewport e o nome não contam. Uma execução registra a versão e guarda um **snapshot** completo: editar a
+  definição nunca muda uma execução em andamento nem uma terminada.
+- Enquanto um workflow tem uma execução em andamento (running, paused ou interrupted), sua definição não pode ser
+  editada nem excluída; a UI diz isso e oferece esperar ou salvar uma cópia. Uma execução por vez por workflow.
+- Se o app fecha durante uma execução, nada é retomado sozinho e nada é chamado de terminado: na próxima inicialização a
+  execução fica `interrupted` (recuperável), suas tentativas em andamento são registradas como `interrupted`, e o
+  usuário pode **retomar** (os passos interrompidos começam de novo como novas tentativas da mesma passada),
+  **reiniciar** (cancelar e executar de novo), **cancelar** ou inspecioná-la.
+
+## Automático e Personalizado
+
+Os dois usam o mesmo modelo `Workflow`; só muda o autor. O **Automático** escolhe um template com regras fixas
+(`select_for_task`: palavras de refactor / review / bug, senão feature), monta o workflow a partir dos agentes do
+workspace por personalidade e o mostra. **Personalizar** muda `mode` para `custom`; o grafo passa então a ser do
+usuário. Um template nunca cria um agente: papéis sem agente são informados e deixados vazios para o usuário preencher.
+Os templates ficam em `application/workflow/templates.rs`; um futuro planejador produziria um `Workflow` do mesmo jeito
+e o entregaria ao mesmo engine (depois de aprovação humana). **Não implementado aqui:** nenhum planejador LLM, nenhum
+roteamento adaptativo, nenhum chat entre agentes.
+
+## Papéis, como as personalidades os dizem
+
+- **Architect** — o que deve ser construído, e como?
+- **Developer** — como eu implemento isto?
+- **Architecture & Code Validator** (somente leitura) — foi construído _corretamente_, dentro da arquitetura, das
+  decisões, do Harness e das convenções?
+- **QA** — _funciona_?
+- **Bug Fixer** — por que falhou, e como corrijo (causa raiz, mudança mínima, evidência para revalidação)?
+
+## Eventos
+
+Um evento Tauri por tipo, sob `workflow:*`: `started`, `paused`, `resumed`, `completed`, `failed`, `cancelled`,
 `interrupted`, `node_ready`, `node_started`, `node_waiting_approval`, `node_approval_resolved`, `node_completed`,
 `node_failed`, `node_blocked`, `node_skipped`, `node_retrying`, `artifact_created`, `decision_created`,
-`overlap_detected`. They carry ids, not state: the UI re-reads the run. Steps' own progress and messages use the
-existing `execution:progress` and `conversation:message` events, so the agent cards stay live. The event log of a run is
-kept inside the run (the newest 400).
+`overlap_detected`. Eles carregam ids, não estado: a UI relê a execução. O progresso e as mensagens dos próprios passos
+usam os eventos `execution:progress` e `conversation:message` existentes, então os cards dos agentes continuam vivos. O
+log de eventos de uma execução é guardado dentro dela (os 400 mais novos).
 
-## Known limits
+## Limites conhecidos
 
-- ~~Each isolated step had its own worktree~~ and ~~touched files were what the agent reported~~: both are changed by
-  [ADR 0014](0014-handoff-shared-worktree-and-code-integration.md) (one shared worktree per run; files measured by Git).
-- A step with a process can be stopped on cancel; a runtime without a terminal session finishes on its own.
-- `max_parallel_steps` is fixed at 4 (stored per run; not yet configurable).
+- ~~Cada passo isolado tinha seu próprio worktree~~ e ~~os arquivos tocados eram o que o agente informava~~: os dois
+  foram alterados pela [ADR 0014](0014-handoff-shared-worktree-and-code-integration.md) (um worktree compartilhado por
+  execução; arquivos medidos pelo Git).
+- Um passo com um processo pode ser parado no cancelamento; um runtime sem sessão de terminal termina por conta própria.
+- `max_parallel_steps` é fixo em 4 (guardado por execução; ainda não configurável).

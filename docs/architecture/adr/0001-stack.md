@@ -1,12 +1,13 @@
 # ADR 0001 — Stack
 
-**Status:** accepted
+**Status:** aceito
 
-- **Tauri 2** (pinned to 2.x; crates.io's newest is a 3.0 alpha) with **Rust** for the core.
-- **React 19 + TypeScript (strict) + Vite**, as preferred in the brief.
-- **TypeScript 6.0**, not 7: `typescript-eslint` does not yet support 7. Revisit when it does.
-- **Styling: CSS Modules + CSS custom properties** (design tokens in `styles/global.css`). Built into Vite,
-  zero dependencies, scoped by default, and tokens give a path to a design system.
-- **Testing: Vitest + Testing Library** (shares Vite config), `cargo test` for Rust.
-- **No router, no state library, no UI kit** yet; each is added when a concrete need appears.
-- **npm** as package manager (already installed, no extra tooling).
+- **Tauri 2** (fixado na 2.x; a mais nova do crates.io é uma alpha 3.0) com **Rust** no núcleo.
+- **React 19 + TypeScript (strict) + Vite**, como preferido no briefing.
+- **TypeScript 6.0**, não 7: o `typescript-eslint` ainda não suporta a 7. Rever quando suportar.
+- **Estilo: CSS Modules + propriedades customizadas de CSS** (tokens de design em `styles/global.css`). Já vem no
+  Vite, sem dependências, com escopo local por padrão, e os tokens abrem caminho para um design system.
+- **Testes: Vitest + Testing Library** (compartilham a configuração do Vite) e `cargo test` para o Rust.
+- **Sem roteador, sem biblioteca de estado, sem kit de UI** por enquanto; cada um entra quando surgir uma
+  necessidade concreta.
+- **npm** como gerenciador de pacotes (já instalado, sem ferramenta extra).

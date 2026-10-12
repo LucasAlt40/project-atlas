@@ -1,68 +1,72 @@
 # ADR 0010 — Project Harness
 
-**Status:** accepted. Extended by [ADR 0011](0011-harness-knowledge-model.md) (evidence, provenance, semantic analysis, refresh diff).
+**Status:** aceito. Estendido pela [ADR 0011](0011-harness-knowledge-model.md) (evidências, proveniência, análise
+semântica, diff de atualização).
 
-## What it is
+## O que é
 
-The Harness is what Atlas knows about a project, kept **in the project** under `.atlas/` (not in Atlas's own config, not
-inside a worktree). It is versionable with the project's Git, human-readable, and independent of any provider, model or
-runtime.
+O Harness é o que o Atlas sabe sobre um projeto, guardado **no projeto** em `.atlas/` (não na configuração do próprio
+Atlas, nem dentro de um worktree). Ele é versionável com o Git do projeto, legível por humanos e independente de
+qualquer provedor, modelo ou runtime.
 
 ```
-User → Initialize Project
-        ProjectScanner → ScanSnapshot → ProjectAnalyzer → findings
-                                              ↓ (human review: untick, correct, add context)
-                                        HarnessGenerator → HarnessStore → <project>/.atlas/
+Usuário → Inicializar Projeto
+        ProjectScanner → ScanSnapshot → ProjectAnalyzer → achados
+                                              ↓ (revisão humana: desmarcar, corrigir, adicionar contexto)
+                                        HarnessGenerator → HarnessStore → <projeto>/.atlas/
 
-Execution → HarnessContextBuilder → PromptBuilder → Runtime (in the worktree)
+Execução → HarnessContextBuilder → PromptBuilder → Runtime (no worktree)
 ```
 
 ```
 .atlas/
-├── project.yaml          structural metadata only (version, project, repository, stack, corrections)
+├── project.yaml          só metadados estruturais (versão, projeto, repositório, stack, correções)
 ├── context/              architecture.md, stack.md, conventions.md, business.md, constraints.md
-├── agents/ workflows/ policies/ memory/    (placeholders; Atlas only makes sure they exist)
-└── backups/<timestamp>/  whatever an update replaced
+├── agents/ workflows/ policies/ memory/    (marcadores; o Atlas só garante que existam)
+└── backups/<timestamp>/  o que uma atualização substituiu
 ```
 
-## Pieces
+## Peças
 
-| Piece                                              | Responsibility                                                                                                                            |
-| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `infrastructure/project_scanner.rs`                | The only code that reads a project folder for analysis. Names of entries plus the text of a short whitelist of manifests.                 |
-| `application/harness/analyzer` — `ProjectAnalyzer` | Snapshot in, findings out. `DeterministicAnalyzer` = Git + stack + structure + CI analyzers. A semantic analyzer can implement the trait. |
-| `domain/harness.rs` — `Finding`                    | `category`, `key`, `label`, `value`, `confidence` (high/medium/low), `origin` (fact/inference/user), `source`, `evidence`.                |
-| `application/harness/generator.rs`                 | Findings + user context → files. Says where each claim comes from; absence stays absence ("has not been documented").                     |
-| `infrastructure/harness_store.rs` — `HarnessStore` | The only code that writes `.atlas/`. Backup-before-replace, atomic rename, never through a symlink, paths cannot leave `.atlas/`.         |
-| `application/harness/context.rs`                   | `HarnessContextBuilder`: reads the Harness at the **project root**, renders capped, secret-redacted text for the prompt.                  |
-| `application/harness/mod.rs` — `HarnessService`    | `analyze`, `initialize` (create / use existing / update existing), `refresh`, `get`. Commands are domain-shaped; no generic file access.  |
+| Peça                                               | Responsabilidade                                                                                                                                              |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `infrastructure/project_scanner.rs`                | O único código que lê uma pasta de projeto para análise. Nomes de entradas mais o texto de uma curta lista de manifestos permitidos.                          |
+| `application/harness/analyzer` — `ProjectAnalyzer` | Snapshot entra, achados saem. `DeterministicAnalyzer` = analisadores de Git + stack + estrutura + CI. Um analisador semântico pode implementar a trait.       |
+| `domain/harness.rs` — `Finding`                    | `category`, `key`, `label`, `value`, `confidence` (high/medium/low), `origin` (fact/inference/user), `source`, `evidence`.                                    |
+| `application/harness/generator.rs`                 | Achados + contexto do usuário → arquivos. Diz de onde vem cada afirmação; ausência continua ausência ("não foi documentado").                                 |
+| `infrastructure/harness_store.rs` — `HarnessStore` | O único código que escreve em `.atlas/`. Backup antes de substituir, renomeação atômica, nunca por um symlink, caminhos não saem de `.atlas/`.                |
+| `application/harness/context.rs`                   | `HarnessContextBuilder`: lê o Harness na **raiz do projeto** e renderiza texto limitado e sem segredos para o prompt.                                         |
+| `application/harness/mod.rs` — `HarnessService`    | `analyze`, `initialize` (criar / usar existente / atualizar existente), `refresh`, `get`. Os comandos têm formato de domínio; sem acesso genérico a arquivos. |
 
-## Rules
+## Regras
 
-- **Analysis is reading.** Nothing is executed, built, installed, started or fetched. Symlinks are not followed, so the
-  scan cannot leave the root. Generated folders (`node_modules`, `target`, `dist`, `.git`, …) are noted, not entered.
-  Limits: depth 4, 5 000 entries (hitting the entry limit is reported as _partial_), 256 KiB per manifest.
-- **Secrets never enter the Harness.** `.env` files are noted by name (`.env detected`) and never read. Compose files
-  contribute image names only. Text the user types, and every context file when it is loaded, has secret-looking lines
-  redacted.
-- **No invented context.** Architecture is only ever an inference ("appears to be…", medium confidence at most) and needs
-  several folders side by side; otherwise `unknown`. User corrections win and are recorded in `project.yaml`, so a refresh
-  does not undo them.
-- **Nothing is destroyed.** Creating over an existing manifest is refused. Updating backs up what it replaces. Files
-  that hold the user's words (`business.md`, `constraints.md`) are only rewritten when the user supplies new text.
-- **Context is not permission.** The prompt places the Harness after the Atlas rules and labels it as context without
-  authority. What an agent may do is decided by the process guard, which never reads prompts. The Harness cannot grant
-  filesystem, network, Git, runtime or merge rights.
-- **Worktrees.** The Harness is read once at the project root and reaches the agent as prompt text. It is not copied into
-  worktrees, and the runtime and `WorktreeManager` never see it. Changes to `.atlas/` follow the normal Git lifecycle.
-- Writing the Harness never touches `.gitignore`. Keeping `.atlas/` out of Git is a separate step the user can turn off in
-  the review (**on by default**): it appends one `.atlas/` entry to the project's `.gitignore` (created if missing; nothing
-  else of the file changes; skipped if already ignored or outside a Git repository; a failure is reported, not fatal). It
-  does not untrack files already committed.
+- **Analisar é ler.** Nada é executado, compilado, instalado, iniciado ou baixado. Symlinks não são seguidos, então a
+  varredura não sai da raiz. Pastas geradas (`node_modules`, `target`, `dist`, `.git`, …) são anotadas, não percorridas.
+  Limites: profundidade 4, 5.000 entradas (atingir o limite de entradas é informado como _parcial_), 256 KiB por
+  manifesto.
+- **Segredos nunca entram no Harness.** Arquivos `.env` são anotados pelo nome (`.env detected`) e nunca lidos. Arquivos
+  compose contribuem apenas com nomes de imagens. No texto digitado pelo usuário, e em todo arquivo de contexto quando é
+  carregado, as linhas com aparência de segredo são redigidas.
+- **Sem contexto inventado.** Arquitetura é sempre só uma inferência ("parece ser…", confiança média no máximo) e exige
+  várias pastas lado a lado; do contrário `unknown`. As correções do usuário vencem e são registradas em
+  `project.yaml`, então um refresh não as desfaz.
+- **Nada é destruído.** Criar sobre um manifesto existente é recusado. Atualizar faz backup do que substitui. Arquivos que
+  guardam as palavras do usuário (`business.md`, `constraints.md`) só são reescritos quando o usuário fornece texto novo.
+- **Contexto não é permissão.** O prompt coloca o Harness depois das regras do Atlas e o rotula como contexto sem
+  autoridade. O que um agente pode fazer é decidido pelo guard de processos, que nunca lê prompts. O Harness não pode
+  conceder direitos de sistema de arquivos, rede, Git, runtime ou merge.
+- **Worktrees.** O Harness é lido uma vez na raiz do projeto e chega ao agente como texto de prompt. Ele não é copiado
+  para os worktrees, e o runtime e o `WorktreeManager` nunca o veem. Mudanças em `.atlas/` seguem o ciclo de vida normal
+  do Git.
+- Escrever o Harness nunca toca no `.gitignore`. Manter `.atlas/` fora do Git é uma etapa separada que o usuário pode
+  desligar na revisão (**ligada por padrão**): ela acrescenta uma entrada `.atlas/` ao `.gitignore` do projeto (criado se
+  não existir; nada mais no arquivo muda; ignorada se já estiver ignorado ou fora de um repositório Git; uma falha é
+  informada, não é fatal). Ela não desfaz o rastreamento de arquivos já commitados.
 
-## Known limitations
+## Limitações conhecidas
 
-- Deterministic only; no semantic (LLM) analysis, no business or architecture understanding beyond folder shape.
-- No diff between a regenerated and an edited Harness: an update replaces generated files after backing them up.
-- `harnessStatus` is computed from `.atlas/` on demand (`get_project_harness`), not stored on the workspace.
-- `agents/`, `workflows/`, `policies/` and `memory/` are placeholders: nothing reads or executes them yet.
+- Só determinístico; sem análise semântica (LLM), sem entendimento de negócio ou arquitetura além do formato das pastas.
+- Sem diff entre um Harness regenerado e um editado: uma atualização substitui os arquivos gerados depois de fazer
+  backup deles.
+- `harnessStatus` é calculado a partir de `.atlas/` sob demanda (`get_project_harness`), não guardado no workspace.
+- `agents/`, `workflows/`, `policies/` e `memory/` são marcadores: nada os lê nem executa ainda.

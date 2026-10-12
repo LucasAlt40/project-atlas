@@ -1,50 +1,57 @@
-# 0019 — Review & Delivery: reading a finished workflow and deciding about its code
+# 0019 — Revisão e Entrega: ler um workflow concluído e decidir sobre o seu código
 
-## Context
+## Contexto
 
-A workflow ends with its code in an isolated worktree ([ADR 0014](0014-handoff-shared-worktree-and-code-integration.md),
-[0015](0015-result-contracts-outcomes-and-worktree-lock.md)). The Live Workspace ([0018](0018-live-workspace.md)) shows that code
-while it is written and says REVIEW once the run is over, but the user still had no single place to understand _what the agents
-did, what they found and decided, what changed, and what Apply will do_ before deciding.
+Um workflow termina com seu código em um worktree isolado ([ADR 0014](0014-handoff-shared-worktree-and-code-integration.md),
+[0015](0015-result-contracts-outcomes-and-worktree-lock.md)). O Live Workspace ([0018](0018-live-workspace.md)) mostra esse
+código enquanto ele é escrito e diz REVIEW quando a execução termina, mas o usuário ainda não tinha um lugar único para
+entender _o que os agentes fizeram, o que encontraram e decidiram, o que mudou e o que o Apply vai fazer_ antes de
+decidir.
 
-## Decision
+## Decisão
 
-**Frontend only.** No backend, Apply, `merge_execution`, orchestrator, observer or contract changed. The Review Workspace
-composes what the run already keeps: nodes and attempts (timeline), `state.validationResults` (findings), `state.decisions` /
-`state.artifacts`, `handoffs`, `changes` (change set), `integration`, and the Live Workspace snapshot.
+**Só frontend.** Nenhum backend, Apply, `merge_execution`, orquestrador, observador ou contrato mudou. O Review Workspace
+compõe o que a execução já guarda: nós e tentativas (linha do tempo), `state.validationResults` (achados),
+`state.decisions` / `state.artifacts`, `handoffs`, `changes` (change set), `integration` e o snapshot do Live Workspace.
 
-**One surface, LIVE → REVIEW.** For a run that is over (`completed`, `failed`, `cancelled`) the page renders `ReviewWorkspace`
-instead of the bare live panel; it embeds the same panel (`LiveWorkspaceView`, fed by a single `useLiveWorkspace`) as its code
-viewer, so the worktree is watched and read once and the diff is never computed twice. While the run works, nothing changes.
+**Uma superfície, LIVE → REVIEW.** Para uma execução que acabou (`completed`, `failed`, `cancelled`) a página renderiza o
+`ReviewWorkspace` em vez do painel ao vivo simples; ele embute o mesmo painel (`LiveWorkspaceView`, alimentado por um
+único `useLiveWorkspace`) como visualizador de código, então o worktree é observado e lido uma vez só e o diff nunca é
+calculado duas vezes. Enquanto a execução trabalha, nada muda.
 
-**Kept apart, in the model and on screen.** Execution status (`attempt.status`), outcome (`attempt.outcome`), workflow status,
-change set and integration are separate fields and separate words. `reviewStateOf` derives a _review_ status next to the
-_integration_ status; the review status is derived (nothing is persisted about it): `Ready for review` until the code is applied,
-`Reviewed` after.
+**Separados, no modelo e na tela.** Status de execução (`attempt.status`), desfecho (`attempt.outcome`), status do
+workflow, change set e integração são campos distintos e palavras distintas. `reviewStateOf` deriva um status de
+_revisão_ ao lado do status de _integração_; o status de revisão é derivado (nada sobre ele é persistido): `Pronto para
+revisão` até o código ser aplicado, `Revisado` depois.
 
-**"Integrated" is never shown.** `IntegrationStatus::Integrated` is presented as _Applied to the working tree — uncommitted_.
-"HEAD unchanged" is said only while the backend still says the apply can be taken back (`canUndo`, i.e. `HEAD` is where Apply
-left it); otherwise the screen says Atlas can no longer tell.
+**"Integrado" nunca é mostrado.** `IntegrationStatus::Integrated` é apresentado como _Aplicado à árvore de trabalho —
+sem commit_. "HEAD inalterado" só é dito enquanto o backend ainda diz que o apply pode ser desfeito (`canUndo`, isto é,
+o `HEAD` está onde o Apply o deixou); caso contrário a tela diz que o Atlas não consegue mais saber.
 
-**Findings keep their history.** `state.validationResults` is append-only, so a fixed finding is not erased. A finding is marked
-_later validation passed_ only when a later validation of the same step passed (a derived fact, worded as such). The
-"finding → fixer → validator" story is the timeline from the first non-passing validation to the end of the run.
+**Os achados mantêm o histórico.** `state.validationResults` só recebe acréscimos, então um achado corrigido não é
+apagado. Um achado é marcado como _validação posterior passou_ somente quando uma validação posterior do mesmo passo
+passou (um fato derivado, redigido como tal). A história "achado → corretor → validador" é a linha do tempo desde a
+primeira validação que não passou até o fim da execução.
 
-**Claimed vs detected.** Handoffs already carried both lists; the screen now shows files the agent claimed but Git did not see
-_and_ files Git saw that the agent did not report. Git stays the source of truth.
+**Declarado vs detectado.** Os handoffs já traziam as duas listas; a tela agora mostra os arquivos que o agente declarou
+mas o Git não viu _e_ os arquivos que o Git viu e o agente não informou. O Git continua sendo a fonte da verdade.
 
-**Apply needs a confirmation.** The Apply button opens a dialog that says what it will not do (no commit, no push, no merge) and
-lists the conflicts of the last attempt; confirming calls the unchanged `apply_changes`. A blocked apply shows the conflicting
-files and tells the user to resolve them in their project; Atlas never overwrites, merges or stashes.
+**O Apply exige confirmação.** O botão Apply abre um diálogo que diz o que ele não fará (nenhum commit, nenhum push,
+nenhum merge) e lista os conflitos da última tentativa; confirmar chama o `apply_changes`, inalterado. Um apply
+bloqueado mostra os arquivos em conflito e orienta o usuário a resolvê-los no próprio projeto; o Atlas nunca
+sobrescreve, faz merge ou stash.
 
-**Worktree gone.** When the Live Workspace reports `missing`/`invalid`, the Review says the live content is unavailable, keeps
-showing the saved change set and diff, and offers only what still makes sense (no Apply, Keep or Open in IDE for a worktree that is
-not there; an already applied run keeps Open in IDE, which opens the project).
+**Worktree sumiu.** Quando o Live Workspace informa `missing`/`invalid`, a Revisão diz que o conteúdo ao vivo está
+indisponível, continua mostrando o change set e o diff salvos, e oferece apenas o que ainda faz sentido (sem Apply, Keep
+ou Open in IDE para um worktree que não existe; uma execução já aplicada mantém Open in IDE, que abre o projeto).
 
-**Not added.** Artifacts are shown, not opened (no new file access). No commit, push, PR, AI summary or new persistence.
+**Não adicionado.** Artefatos são mostrados, não abertos (sem novo acesso a arquivos). Nada de commit, push, PR, resumo
+por IA ou nova persistência.
 
-## Limits
+## Limites
 
-- The review status is not persisted: reopening the app derives it again from the integration status.
-- The timeline's runtime/model come from the stored executions; a step whose execution is no longer stored shows only its agent.
-- Severity names unknown to the Review are shown as _Info_ (the agent's own word is kept in the finding line).
+- O status de revisão não é persistido: ao reabrir o app ele é derivado de novo a partir do status de integração.
+- O runtime/modelo da linha do tempo vêm das execuções armazenadas; um passo cuja execução não está mais armazenada
+  mostra apenas o seu agente.
+- Nomes de severidade desconhecidos pela Revisão aparecem como _Info_ (a palavra do próprio agente é mantida na linha do
+  achado).

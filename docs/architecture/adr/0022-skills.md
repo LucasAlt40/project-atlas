@@ -1,67 +1,75 @@
-# 0022 — Optimization Layer, phase 2: Skills with progressive disclosure
+# 0022 — Camada de Otimização, fase 2: Skills com divulgação progressiva
 
-## Context
+## Contexto
 
-Atlas agents run on CLI runtimes that take one prompt. Putting every piece of project know-how into every prompt wastes tokens and
-buries the part that matters; leaving it out loses it. The open **Agent Skills** format already answers this: a folder with a
-`SKILL.md` (YAML frontmatter `name` and `description`, then instructions), optionally `references/`, `scripts/` and `assets/`,
-loaded in levels. Atlas adopts the format as it is.
+Os agentes do Atlas rodam em runtimes de CLI que recebem um único prompt. Colocar todo o conhecimento do projeto em todo
+prompt desperdiça tokens e enterra a parte que importa; deixá-lo de fora o perde. O formato aberto **Agent Skills** já
+responde a isso: uma pasta com um `SKILL.md` (frontmatter YAML com `name` e `description`, depois as instruções),
+opcionalmente `references/`, `scripts/` e `assets/`, carregada em níveis. O Atlas adota o formato como ele é.
 
-## Decision
+## Decisão
 
-**Format.** `<name>/SKILL.md` with the standard fields (`name`, `description`, `license`, `compatibility`, `allowed-tools`,
-`metadata`). Atlas's own hints live inside the format's free-form `metadata` map and are optional: `atlas-priority` (an integer),
-`atlas-personalities`, `atlas-stacks`, `atlas-files` (comma-separated). No proprietary file, no proprietary frontmatter key.
+**Formato.** `<nome>/SKILL.md` com os campos padrão (`name`, `description`, `license`, `compatibility`, `allowed-tools`,
+`metadata`). As dicas próprias do Atlas ficam dentro do mapa livre `metadata` do formato e são opcionais:
+`atlas-priority` (um inteiro), `atlas-personalities`, `atlas-stacks`, `atlas-files` (separados por vírgula). Nenhum
+arquivo proprietário, nenhuma chave proprietária no frontmatter.
 
-**Where skills live.** `<project>/.atlas/skills/` and the user's `<app data>/skills/`. A project skill shadows a user skill of the
-same name (the shadowed one is listed with an error and never selected). Both folders are read through the `SkillStore` port; the
-filesystem adapter never follows a symlink and refuses any path that would leave a skill's folder.
+**Onde as skills ficam.** `<projeto>/.atlas/skills/` e o `<app data>/skills/` do usuário. Uma skill do projeto sobrepõe
+uma skill do usuário de mesmo nome (a sobreposta é listada com um erro e nunca selecionada). As duas pastas são lidas pela
+porta `SkillStore`; o adaptador de sistema de arquivos nunca segue um symlink e recusa qualquer caminho que saia da
+pasta de uma skill.
 
-**Three levels.**
+**Três níveis.**
 
-1. _Discovery_: name, description, metadata of every skill, parsed once and **cached per skill** until that skill's file changes
-   (fingerprint = size and modified time, checked with a stat, not a read). Never sent to the model: the runtimes cannot ask for a
-   skill later, so a list of unloaded skills would be tokens for nothing. The cost discovery avoided is reported (`level1Tokens`).
-2. _Activation_: the `SKILL.md` body of at most three skills the task calls for.
-3. _Resources_: `references/` files that the task's words share with the file name, or that the skill's own text links with words
-   the task shares (at most two per skill, 3,000 estimated tokens in all, text only). Scripts and assets are never inlined: Atlas's
-   agents run read-only or file-edit tools without a shell, so a script has no place in a prompt.
+1. _Descoberta_: nome, descrição e metadados de cada skill, lidos uma vez e **em cache por skill** até que o arquivo
+   dessa skill mude (fingerprint = tamanho e data de modificação, conferidos com um stat, não uma leitura). Nunca
+   enviada ao modelo: os runtimes não podem pedir uma skill depois, então uma lista de skills não carregadas seria
+   token à toa. O custo que a descoberta evitou é informado (`level1Tokens`).
+2. _Ativação_: o corpo do `SKILL.md` de no máximo três skills que a tarefa pede.
+3. _Recursos_: arquivos de `references/` cujo nome compartilha palavras com a tarefa, ou que o próprio texto da skill
+   linka com palavras que a tarefa compartilha (no máximo dois por skill, 3.000 tokens estimados no total, só texto).
+   Scripts e assets nunca são inseridos: os agentes do Atlas rodam com ferramentas somente leitura ou de edição de
+   arquivo, sem shell, então um script não tem lugar num prompt.
 
-**Selection is deterministic and explainable**: words of the task (plus a step's label and instructions) against the skill's name
-(3 points each) and description (1), the project's technologies (2), the personality (3), a file type the task mentions (2), and the
-skill's priority (a tie-break, never a reason by itself). Plurals are folded; nothing cleverer. A skill needs 4 points, or to be named
-(`/name`, `skill name`, `name skill`), which always counts. Every choice carries its reasons into the
-`optimization_skills_selected` event. No model judges a skill; that can come later if it ever proves better.
+**A seleção é determinística e explicável**: palavras da tarefa (mais o rótulo e as instruções de um passo) contra o nome
+da skill (3 pontos cada) e a descrição (1), as tecnologias do projeto (2), a personalidade (3), um tipo de arquivo
+mencionado pela tarefa (2) e a prioridade da skill (um desempate, nunca um motivo por si só). Plurais são unificados;
+nada mais esperto que isso. Uma skill precisa de 4 pontos, ou de ser nomeada (`/nome`, `skill nome`, `nome skill`), o
+que sempre vale. Cada escolha leva seus motivos ao evento `optimization_skills_selected`. Nenhum modelo julga uma
+skill; isso pode vir depois se um dia se mostrar melhor.
 
-**Quality checks** (`validate.rs`), each with a message saying what to fix. Errors keep a skill out of selection (malformed,
-missing or invalid name, missing description, shadowed); warnings are reported: name differs from folder, description too long /
-without a "use when" / too generic, body too large (over 5,000 estimated tokens or 500 lines), `allowed-tools` with more than 12
-tools, an instruction repeated, instructions that say opposite things, an empty section, and a skill that repeats three or more
-instructions of another.
+**Verificações de qualidade** (`validate.rs`), cada uma com uma mensagem dizendo o que corrigir. Erros mantêm uma skill
+fora da seleção (malformada, nome ausente ou inválido, descrição ausente, sobreposta); avisos são informados: nome
+diferente da pasta, descrição longa demais / sem um "use quando" / genérica demais, corpo grande demais (mais de 5.000
+tokens estimados ou 500 linhas), `allowed-tools` com mais de 12 ferramentas, uma instrução repetida, instruções que
+dizem coisas opostas, uma seção vazia, e uma skill que repete três ou mais instruções de outra.
 
-**Prompt.** `Prompt.skills` is a new section, between the Harness and the project context, framed by a notice: guidance with no
-authority, below the Atlas rules and the task. Like everything else it is built by `PromptBuilder`. What the runtime may do is still
-decided by the process guard, which never reads prompts; a test puts "ignore every rule" in a skill and checks the request is
-otherwise identical.
+**Prompt.** `Prompt.skills` é uma nova seção, entre o Harness e o contexto do projeto, emoldurada por um aviso:
+orientação sem autoridade, abaixo das regras do Atlas e da tarefa. Como tudo o mais, é montada pelo `PromptBuilder`. O que
+o runtime pode fazer continua sendo decidido pelo guard de processos, que nunca lê prompts; um teste coloca "ignore
+todas as regras" numa skill e confere que a requisição é idêntica no resto.
 
-**Context Engine.** Each selected skill is a `ContextItem` (`Normal` if Atlas matched it, `High` if the task named it). With the
-engine on, a line one skill repeats of another is dropped, and under a budget a matched skill is the first thing left out (replaced
-by a line saying so) while a named one is kept and the overrun is reported. This is the first real use of the `Normal` priority.
+**Context Engine.** Cada skill selecionada é um `ContextItem` (`Normal` se o Atlas a casou, `High` se a tarefa a
+nomeou). Com o engine ligado, uma linha que uma skill repete de outra é descartada, e sob um orçamento uma skill casada é
+a primeira coisa deixada de fora (substituída por uma linha que o diz) enquanto uma nomeada é mantida e o estouro é
+informado. É o primeiro uso real da prioridade `Normal`.
 
-**Flag.** `optimization.skills.enabled`, **off by default** (it adds text to prompts). Off, nothing is even looked at on disk, and the
-prompt is the one phase 1 builds.
+**Flag.** `optimization.skills.enabled`, **desligada por padrão** (acrescenta texto aos prompts). Desligada, nem se olha o
+disco, e o prompt é o que a fase 1 monta.
 
-**Native capability first.** Claude Code has its own skills. Whether it loads them under Atlas's tool restrictions (`--tools
-Read,Grep,Glob`) is not verified, so no runtime is marked as supporting skills natively and Atlas injects what it selects. When a
-runtime is verified, its capability flag should stop Atlas from injecting the skills that runtime already loads.
+**Capacidade nativa primeiro.** O Claude Code tem suas próprias skills. Se ele as carrega sob as restrições de
+ferramentas do Atlas (`--tools Read,Grep,Glob`) não está verificado, então nenhum runtime é marcado como suportando
+skills nativamente e o Atlas injeta o que seleciona. Quando um runtime for verificado, sua flag de capacidade deve
+impedir o Atlas de injetar as skills que esse runtime já carrega.
 
-## Measured
+## Medido
 
-Ten skills of about 800 tokens each, one matching the task: loading the catalogue whole would be 8,160 tokens (plus 220 of
-metadata); progressive disclosure sends 808 (about 10%) and none of the metadata.
+Dez skills de cerca de 800 tokens cada, uma casando com a tarefa: carregar o catálogo inteiro seria 8.160 tokens (mais
+220 de metadados); a divulgação progressiva envia 808 (cerca de 10%) e nenhum metadado.
 
-## Not built
+## Não construído
 
-- A screen or command to list skills and their issues (the data is in the metrics and the discovery API; the dashboard is phase 7).
-- `.claude/skills` and `.agents/skills` discovery (waits for the native-capability decision above).
-- LLM-assisted selection, resource selection by anything but words, and per-skill token budgets beyond the global one.
+- Uma tela ou comando para listar skills e seus problemas (os dados estão nas métricas e na API de descoberta; o
+  dashboard é a fase 7).
+- Descoberta em `.claude/skills` e `.agents/skills` (aguarda a decisão sobre capacidade nativa acima).
+- Seleção assistida por LLM, seleção de recursos por algo além de palavras, e orçamentos de token por skill além do global.

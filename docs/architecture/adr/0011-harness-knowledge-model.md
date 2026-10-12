@@ -1,177 +1,188 @@
-# ADR 0011 — Harness knowledge model, evidence and semantic analysis
+# ADR 0011 — Modelo de conhecimento do Harness, evidências e análise semântica
 
-**Status:** accepted. Extends [ADR 0010](0010-project-harness.md).
+**Status:** aceito. Estende a [ADR 0010](0010-project-harness.md).
 
-## Principle
+## Princípio
 
-`Evidence > Inference > Guess`, and `Unknown > Invented`. Atlas never teaches an agent something about the project that
-it cannot point to evidence for, and it says what it does not know. An agent that receives only the Harness context and
-its task should be able to tell four things apart:
+`Evidência > Inferência > Palpite`, e `Desconhecido > Inventado`. O Atlas nunca ensina a um agente algo sobre o projeto
+para o qual não consiga apontar evidência, e diz o que não sabe. Um agente que recebe só o contexto do Harness e a sua
+tarefa deve conseguir distinguir quatro coisas:
 
 ```text
-WHAT WE KNOW (read from the repository)   facts
-WHAT WE INFER (candidates, unconfirmed)   medium-confidence inferences
-WHAT THE USER TOLD US                     business, constraints, decisions, corrections, confirmations
-WHAT WE DON'T KNOW                        gaps, weak signals, conflicts, partial analysis
+O QUE SABEMOS (lido do repositório)        fatos
+O QUE INFERIMOS (candidatos, não confirmados)   inferências de confiança média
+O QUE O USUÁRIO NOS DISSE                  negócio, restrições, decisões, correções, confirmações
+O QUE NÃO SABEMOS                          lacunas, sinais fracos, conflitos, análise parcial
 ```
 
 ## Pipeline
 
 ```text
 ProjectScanner ─▶ ScanSnapshot ─▶ DeterministicAnalyzer ──────────────┐
-      │                                                                 ├▶ ConsistencyChecker ─▶ conflicts
+      │                                                                 ├▶ ConsistencyChecker ─▶ conflitos
       └▶ RepositorySampler ─▶ EvidenceBundle ─▶ SemanticAnalyzer (opt-in)┘
                                                           │
-                       findings + conflicts + diff ──▶ HUMAN REVIEW ──▶ HarnessGenerator ─▶ HarnessStore ─▶ .atlas/
-.atlas/ ─▶ HarnessContextBuilder (compact, budgeted summary) ─▶ PromptBuilder ─▶ Runtime ─▶ Agent
+                       achados + conflitos + diff ──▶ REVISÃO HUMANA ──▶ HarnessGenerator ─▶ HarnessStore ─▶ .atlas/
+.atlas/ ─▶ HarnessContextBuilder (resumo compacto, com orçamento) ─▶ PromptBuilder ─▶ Runtime ─▶ Agente
 ```
 
-`ProjectAnalyzer` is the one trait (`analyze_project(&AnalysisInput) -> AnalysisOutput`). `DeterministicAnalyzer` composes
-rule-based `SnapshotAnalyzer`s (Git, stack, structure, CI, build commands, entry points, dependencies, testing).
-`SemanticAnalyzer` is the second implementation. Review is mandatory: a model never writes the Harness.
+`ProjectAnalyzer` é a única trait (`analyze_project(&AnalysisInput) -> AnalysisOutput`). O `DeterministicAnalyzer`
+compõe `SnapshotAnalyzer`s baseados em regras (Git, stack, estrutura, CI, comandos de build, pontos de entrada,
+dependências, testes). O `SemanticAnalyzer` é a segunda implementação. A revisão é obrigatória: um modelo nunca escreve
+o Harness.
 
-## Knowledge model
+## Modelo de conhecimento
 
-A `Finding` is `category`, `key`, `value`, `confidence`, `origin`, optional `reason`, and **`evidence`: a list of
-`{source, field}`**. Every statement that came from analysis has at least one piece of evidence; the only exception is
-Atlas's own `architecture: unknown`, whose origin is `generated`.
+Um `Finding` é `category`, `key`, `value`, `confidence`, `origin`, um `reason` opcional e **`evidence`: uma lista de
+`{source, field}`**. Toda afirmação que veio de análise tem pelo menos uma evidência; a única exceção é o
+`architecture: unknown` do próprio Atlas, cuja origem é `generated`.
 
-| Origin           | Meaning                                         | Trust                       |
-| ---------------- | ----------------------------------------------- | --------------------------- |
-| `user_corrected` | The user replaced a value                       | Highest; survives refresh   |
-| `user_confirmed` | The user confirmed an inference                 | High; survives refresh      |
-| `fact`           | Read from the repository (`package.json` field) | High                        |
-| `inference`      | Concluded from shape or by a model              | Medium at most              |
-| `generated`      | Atlas's own statement, not from evidence        | Not knowledge, only a label |
+| Origem           | Significado                                      | Confiança                     |
+| ---------------- | ------------------------------------------------ | ----------------------------- |
+| `user_corrected` | O usuário substituiu um valor                    | Máxima; sobrevive ao refresh  |
+| `user_confirmed` | O usuário confirmou uma inferência               | Alta; sobrevive ao refresh    |
+| `fact`           | Lido do repositório (campo do `package.json`)    | Alta                          |
+| `inference`      | Concluído pelo formato ou por um modelo          | No máximo média               |
+| `generated`      | Afirmação do próprio Atlas, sem vir de evidência | Não é conhecimento, só rótulo |
 
-Confidence: **high** = direct, unambiguous evidence; **medium** = several signals plus interpretation (`domain/` +
-`application/` + `infrastructure/` side by side → _possible_ clean architecture); **low** = weak signals. A model can
-never produce `high` (it is capped to `medium`). **Low never reaches an agent as knowledge**: the context builder lists it
-under "what we don't know" as a weak signal.
+Confiança: **high** = evidência direta e inequívoca; **medium** = vários sinais mais interpretação (`domain/` +
+`application/` + `infrastructure/` lado a lado → _possível_ arquitetura limpa); **low** = sinais fracos. Um modelo nunca
+pode produzir `high` (é limitado a `medium`). **Low nunca chega a um agente como conhecimento**: o construtor de
+contexto o lista em "o que não sabemos" como sinal fraco.
 
-Categories now include dependencies (curated, not hundreds), data (ORM, migrations), integrations (always "possible":
-a dependency suggests but does not prove use), build/run commands (observed in manifests, **never executed**), entry
-points, testing (framework, test files, kinds of tests, commands and coverage are _separate_ facts: an installed
-framework proves nothing else), conventions (e.g. `*.spec.ts` with sample files as evidence), modules and architecture.
+As categorias agora incluem dependências (curadas, não centenas), dados (ORM, migrações), integrações (sempre
+"possíveis": uma dependência sugere mas não prova o uso), comandos de build/execução (observados nos manifestos,
+**nunca executados**), pontos de entrada, testes (framework, arquivos de teste, tipos de teste, comandos e cobertura são
+fatos _separados_: um framework instalado não prova nada além disso), convenções (p. ex. `*.spec.ts` com arquivos de
+exemplo como evidência), módulos e arquitetura.
 
-## Semantic analysis
+## Análise semântica
 
-Opt-in per request, by choosing an agent. A model gets **only** the prompt: a bounded folder tree, the deterministic facts,
-and a bounded, selected set of files (`RepositorySampler`: README, manifests, entry points, docs, a couple of source and
-test files per layer folder; never `.env`/keys/credentials; secret-looking lines redacted). Limits are explicit
-(`SampleLimits`, `ScanLimits`); reaching one makes the analysis **partial**, recorded in the Harness.
+Opt-in por requisição, escolhendo um agente. Um modelo recebe **somente** o prompt: uma árvore de pastas limitada, os
+fatos determinísticos e um conjunto limitado e selecionado de arquivos (`RepositorySampler`: README, manifestos, pontos
+de entrada, docs, alguns arquivos de código e de teste por pasta de camada; nunca `.env`/chaves/credenciais; linhas com
+aparência de segredo redigidas). Os limites são explícitos (`SampleLimits`, `ScanLimits`); atingir um torna a análise
+**parcial**, registrado no Harness.
 
-- The runtime is run **without tools** (`RuntimeRequest.text_only`; Claude `--tools ""`). A runtime that cannot
-  (OpenCode) is refused (`SemanticUnsupported`). The process guard still starts it, under the agent's own policy.
-- The answer must be JSON in a fixed schema (unknown fields rejected). Prose is never interpreted:
-  `SemanticAnalysisFailed`. Each statement must cite paths that were actually sent, with allowed category/key/length;
-  otherwise it is dropped and counted. The result lists exactly which files were sent.
-- A failed semantic step does not fail the analysis; the deterministic findings stand.
-- Not recorded in conversations or usage (limitation).
+- O runtime é executado **sem ferramentas** (`RuntimeRequest.text_only`; Claude `--tools ""`). Um runtime que não
+  consegue (OpenCode) é recusado (`SemanticUnsupported`). O guard de processos ainda o inicia, sob a política do próprio
+  agente.
+- A resposta deve ser JSON em um esquema fixo (campos desconhecidos rejeitados). Prosa nunca é interpretada:
+  `SemanticAnalysisFailed`. Cada afirmação deve citar caminhos que de fato foram enviados, com categoria/chave/tamanho
+  permitidos; caso contrário é descartada e contada. O resultado lista exatamente quais arquivos foram enviados.
+- Uma etapa semântica que falha não faz a análise falhar; os achados determinísticos permanecem.
+- Não é registrada em conversas nem em uso (limitação).
 
-## Consistency
+## Consistência
 
-`ConsistencyChecker` records contradictions without choosing: model vs. fact, README/docs vs. facts (versions), and a
-user correction the repository has since moved past. A `Conflict` keeps both claims with their evidence; the user's
-decision (a correction for that finding) resolves it and wins. `HarnessHealth`: `Conflicted` > `Partial` > `NeedsReview`
-(unconfirmed medium inferences, or a V0.7 Harness without knowledge) > `Healthy`; `Stale` is modelled, not detected.
+O `ConsistencyChecker` registra contradições sem escolher: modelo vs. fato, README/docs vs. fatos (versões), e uma
+correção do usuário que o repositório já superou. Um `Conflict` guarda as duas afirmações com suas evidências; a
+decisão do usuário (uma correção para aquele achado) o resolve e prevalece. `HarnessHealth`: `Conflicted` > `Partial` >
+`NeedsReview` (inferências médias não confirmadas, ou um Harness da V0.7 sem conhecimento) > `Healthy`; `Stale` é
+modelado, não detectado.
 
-## Files and what Atlas may overwrite
+## Arquivos e o que o Atlas pode sobrescrever
 
 ```text
 .atlas/
-├── project.yaml                 metadata + the user's decisions (corrections, exclusions, confirmations)
-├── knowledge/findings.yaml      GENERATED: raw findings with evidence, conflicts, analysis info
-├── context/architecture.md stack.md conventions.md testing.md      GENERATED views (banner says so)
-├── context/business.md constraints.md decisions.md                 USER-OWNED
-├── agents/ workflows/ policies/ memory/                            placeholders
-└── backups/<timestamp>/         what an update replaced
+├── project.yaml                 metadados + as decisões do usuário (correções, exclusões, confirmações)
+├── knowledge/findings.yaml      GERADO: achados brutos com evidências, conflitos, informações da análise
+├── context/architecture.md stack.md conventions.md testing.md      visões GERADAS (o aviso no topo diz isso)
+├── context/business.md constraints.md decisions.md                 DO USUÁRIO
+├── agents/ workflows/ policies/ memory/                            marcadores
+└── backups/<timestamp>/         o que uma atualização substituiu
 ```
 
-- Generated files are replaced on update, only after the user saw the diff, and with a backup.
-- User-owned files are written only if absent or if the user changed that field in the review. An empty field keeps what
-  the file says. `business.md` is parsed by its four headings; a hand-written shape Atlas cannot reproduce is
-  **left untouched** and reported (it is still sent to agents as the user's word). Typed text has secret-looking lines
-  removed.
-- The raw findings are stored, not the user's choices applied to them, so a refresh can diff raw against raw and reapply
-  corrections. Model findings are carried over by a refresh while their evidence still exists.
+- Os arquivos gerados são substituídos na atualização, só depois que o usuário viu o diff, e com backup.
+- Os arquivos do usuário só são escritos se não existirem ou se o usuário mudou aquele campo na revisão. Um campo vazio
+  mantém o que o arquivo diz. O `business.md` é lido por seus quatro títulos; um formato escrito à mão que o Atlas não
+  consegue reproduzir é **deixado intocado** e informado (ainda é enviado aos agentes como palavra do usuário). Do texto
+  digitado são removidas as linhas com aparência de segredo.
+- São guardados os achados brutos, não as escolhas do usuário aplicadas a eles, para que um refresh possa comparar bruto
+  com bruto e reaplicar as correções. Achados de modelo são carregados por um refresh enquanto a evidência deles ainda
+  existir.
 
 ## Refresh
 
-`refresh_project_harness(confirm=false)` re-analyses (deterministic) and returns diff + conflicts, writing nothing.
-`confirm=true` applies it: generated files updated (backup), corrections/confirmations/exclusions kept, user files
-unchanged. Atlas can therefore go from Angular 18 to 21 without losing business context or decisions.
+`refresh_project_harness(confirm=false)` reanalisa (determinístico) e devolve diff + conflitos, sem escrever nada.
+`confirm=true` aplica: arquivos gerados atualizados (backup), correções/confirmações/exclusões mantidas, arquivos do
+usuário inalterados. O Atlas pode assim ir do Angular 18 ao 21 sem perder o contexto de negócio nem as decisões.
 
-## Context building
+## Construção do contexto
 
-`HarnessContextBuilder` produces a compact _Project Context Summary_ under a budget (default 6 000 characters). Items are
-kept by priority — constraints/decisions (never dropped: each is capped on its own), verified facts and stack,
-what may be outdated and conflicts, architecture, modules, conventions, testing, inferences, business, unknowns — and
-what is omitted is named in the text and logged on the execution. Each item keeps its area so a later task-aware filter
-can select items without changing storage (not implemented). The text begins by stating it is context, not authority.
-Layers, outermost first: global user context → project Harness → workspace context → personality → execution context →
-task. The Security Policy is not a layer: it is enforced by the process guard and cannot be changed by any context.
+O `HarnessContextBuilder` produz um _Resumo de Contexto do Projeto_ compacto sob um orçamento (padrão 6.000
+caracteres). Os itens são mantidos por prioridade — restrições/decisões (nunca descartadas: cada uma é limitada por si),
+fatos verificados e stack, o que pode estar desatualizado e conflitos, arquitetura, módulos, convenções, testes,
+inferências, negócio, desconhecidos — e o que é omitido é nomeado no texto e registrado na execução. Cada item guarda sua
+área para que um filtro posterior ciente da tarefa possa selecionar itens sem mudar o armazenamento (não implementado).
+O texto começa declarando que é contexto, não autoridade. Camadas, da mais externa para a mais interna: contexto global
+do usuário → Harness do projeto → contexto do workspace → personalidade → contexto da execução → tarefa. A Política de
+Segurança não é uma camada: é aplicada pelo guard de processos e não pode ser alterada por nenhum contexto.
 
-## Known limitations
+## Limitações conhecidas
 
-- Semantic analysis only works through runtimes that can run without tools (Claude); it is not tracked in usage.
-- Conventions, modules and data flow beyond the listed rules come only from the model, always as medium/low inferences.
-- Conflict detection covers fact-vs-model, docs-vs-fact versions and user-vs-new-fact; not every possible contradiction.
-- Staleness is detected by comparing relevant files and folders, not by understanding the change: an edit to an ordinary
-  source file is invisible to it, and a relevant change marks only the findings whose evidence lives there (the rest of
-  the Harness still says the project changed). Refresh is user-initiated. Business context is never inferred.
-- Nothing is verified by running a command in V0.7.2; `command_execution` exists in the model for a later version.
+- A análise semântica só funciona por runtimes que conseguem rodar sem ferramentas (Claude); não é contabilizada no uso.
+- Convenções, módulos e fluxo de dados além das regras listadas vêm só do modelo, sempre como inferências média/baixa.
+- A detecção de conflitos cobre fato-vs-modelo, versões docs-vs-fato e usuário-vs-fato-novo; não toda contradição
+  possível.
+- A obsolescência é detectada comparando arquivos e pastas relevantes, não entendendo a mudança: a edição de um arquivo
+  de código comum é invisível para ela, e uma mudança relevante marca só os achados cuja evidência está ali (o resto do
+  Harness ainda diz que o projeto mudou). O refresh é iniciado pelo usuário. O contexto de negócio nunca é inferido.
+- Nada é verificado executando um comando na V0.7.2; `command_execution` existe no modelo para uma versão futura.
 
-## V0.7.2 — Verification, staleness and negative knowledge
+## V0.7.2 — Verificação, obsolescência e conhecimento negativo
 
-The Harness must be able to say what it knows, how it knows, when, and whether that may still hold.
+O Harness precisa conseguir dizer o que sabe, como sabe, quando, e se isso ainda pode valer.
 
-**Provenance and verification are different axes.** `origin` says who made a statement (`fact` read from a repository
-file, `inference`, `user_confirmed`, `user_corrected`); `verification` says whether it was _checked_
-(`unverified` | `verified` + `verifiedAt` + `method` | `stale`). A fact is verified by the very repository file it is read
-from (`repository_file`); an inference is `unverified` until something checks it. `command_execution` is reserved for a
-future version that runs a command on request; V0.7.2 never runs anything to obtain a verification. The user vouching for
-an inference makes it `user_confirmed` with `originalOrigin: inference` — it never becomes a fact. A correction replaces
-the value, so the earlier verification no longer applies. Knowledge written before V0.7.2 is read as it was: its facts
-are stamped verified at the analysis time.
+**Proveniência e verificação são eixos diferentes.** `origin` diz quem fez uma afirmação (`fact` lido de um arquivo do
+repositório, `inference`, `user_confirmed`, `user_corrected`); `verification` diz se ela foi _checada_ (`unverified` |
+`verified` + `verifiedAt` + `method` | `stale`). Um fato é verificado pelo próprio arquivo do repositório de onde é lido
+(`repository_file`); uma inferência é `unverified` até que algo a confira. `command_execution` é reservado para uma
+versão futura que execute um comando sob pedido; a V0.7.2 nunca executa nada para obter uma verificação. O usuário
+avalizar uma inferência a torna `user_confirmed` com `originalOrigin: inference` — ela nunca vira um fato. Uma correção
+substitui o valor, então a verificação anterior deixa de se aplicar. O conhecimento escrito antes da V0.7.2 é lido como
+era: seus fatos são marcados como verificados no momento da análise.
 
-**Evidence is not optional for analysis.** Any non-generated finding without at least one evidence source is rejected
-(counted in `semantic.rejected`), never downgraded to low confidence.
+**Evidência não é opcional na análise.** Qualquer achado não gerado sem pelo menos uma fonte de evidência é rejeitado
+(contado em `semantic.rejected`), nunca rebaixado para confiança baixa.
 
-**Unknown vs not found** (`negative.rs`). _Not found_ is a bounded search that came back empty (database, test framework,
-CI, infrastructure) and says where it looked and that it is not proof of absence. _Unknown_ is what nothing available can
-establish (production deployment, whether commands work, whether an inferred architecture is still enforced). The
-context says "Not found: …" / "Unknown: …" under WHAT WE DON'T KNOW and never states absence or turns either into a
-fact.
+**Desconhecido vs. não encontrado** (`negative.rs`). _Não encontrado_ é uma busca limitada que voltou vazia (banco de
+dados, framework de testes, CI, infraestrutura) e diz onde procurou e que isso não prova ausência. _Desconhecido_ é o
+que nada disponível consegue estabelecer (implantação em produção, se os comandos funcionam, se uma arquitetura
+inferida ainda é respeitada). O contexto diz "Não encontrado: …" / "Desconhecido: …" em O QUE NÃO SABEMOS e nunca afirma
+ausência nem transforma um dos dois em fato.
 
-**Project fingerprint** (`fingerprint.rs`). Stored in `knowledge/findings.yaml` (`analysis.fingerprint`) as one digest
-plus per-part digests, so a later check can name what changed. Parts: manifests and lockfiles, configuration
-(`tsconfig*`, `vite.config.*`, `angular.json`, `tauri.conf.json`, linters, toolchains), CI and containers
-(`.github/workflows`, `Dockerfile`, compose, `docker/`), `README*`, and the _existence_ of folders up to two levels deep.
-Ordinary source files are not parts: editing `Button.tsx` is not relevant, adding `src/infrastructure/` is. Digests are
-FNV-1a over line-ending-normalised text (stable across platforms and Rust versions; not a security boundary), paths use
-`/`, links are never followed, secrets (`.env`, keys) and generated folders (`node_modules`, `target`, `dist`, `.git`…)
-are excluded, and nothing is executed. Files that are not analysed (lockfiles, config) are only digested by the scanner
-(first 4 MiB).
+**Fingerprint do projeto** (`fingerprint.rs`). Guardado em `knowledge/findings.yaml` (`analysis.fingerprint`) como um
+digest mais digests por parte, para que uma verificação posterior possa nomear o que mudou. Partes: manifestos e
+lockfiles, configuração (`tsconfig*`, `vite.config.*`, `angular.json`, `tauri.conf.json`, linters, toolchains), CI e
+contêineres (`.github/workflows`, `Dockerfile`, compose, `docker/`), `README*`, e a _existência_ de pastas até dois
+níveis de profundidade. Arquivos de código comuns não são partes: editar `Button.tsx` não é relevante, adicionar
+`src/infrastructure/` é. Os digests são FNV-1a sobre texto com fins de linha normalizados (estável entre plataformas e
+versões do Rust; não é uma fronteira de segurança), os caminhos usam `/`, links nunca são seguidos, segredos (`.env`,
+chaves) e pastas geradas (`node_modules`, `target`, `dist`, `.git`…) são excluídos, e nada é executado. Arquivos que não
+são analisados (lockfiles, configuração) só são digeridos pelo scanner (primeiros 4 MiB).
 
-**Staleness.** `summarize` and the context builder compare the stored fingerprint with the project as it is now. A
-change marks as `stale` only the findings whose evidence path equals, contains or is contained by a changed path; user
-statements are never marked (they are not claims about the repository). Stale knowledge is moved to WHAT MAY BE OUTDATED
-in the context, with its last verified date, and HARNESS STATUS says the project changed. Nothing is deleted or
-rewritten: staleness is computed on read. A Harness without a fingerprint is `NeedsReview` (`no_fingerprint`), not stale,
-because nothing says whether it changed. If the project cannot be scanned, staleness is not claimed.
+**Obsolescência.** `summarize` e o construtor de contexto comparam o fingerprint guardado com o projeto como está agora.
+Uma mudança marca como `stale` apenas os achados cujo caminho de evidência é igual, contém ou está contido em um
+caminho alterado; afirmações do usuário nunca são marcadas (não são afirmações sobre o repositório). O conhecimento
+obsoleto é movido para O QUE PODE ESTAR DESATUALIZADO no contexto, com a data da última verificação, e o STATUS DO
+HARNESS diz que o projeto mudou. Nada é apagado nem reescrito: a obsolescência é calculada na leitura. Um Harness sem
+fingerprint é `NeedsReview` (`no_fingerprint`), não obsoleto, porque nada diz se ele mudou. Se o projeto não puder ser
+escaneado, a obsolescência não é declarada.
 
-**Health precedence**, strongest first: `Stale > Conflicted > Partial > NeedsReview > Healthy`. Stale outranks the rest
-because its other judgements describe a project that no longer exists as analysed, and refreshing is the first step
-(it may dissolve them); every reason is still listed. `Healthy` means not stale, no unresolved conflict, a complete
-analysis and no relevant inference waiting for confirmation.
+**Precedência da saúde**, da mais forte à mais fraca: `Stale > Conflicted > Partial > NeedsReview > Healthy`. Stale
+supera as demais porque os outros julgamentos descrevem um projeto que não existe mais como foi analisado, e atualizar é
+o primeiro passo (pode dissolvê-los); todo motivo continua listado. `Healthy` significa não obsoleto, sem conflito não
+resolvido, análise completa e nenhuma inferência relevante aguardando confirmação.
 
-**Refresh and human knowledge** are unchanged: refresh previews first (now with the relevant changes), writes only after
-confirmation, with backups, and never overwrites `business.md`, `constraints.md` or `decisions.md` or the user's
-corrections, confirmations and exclusions. After an applied refresh the new fingerprint is stored and the Harness is no
-longer stale. Contradictions between repository evidence and the user's knowledge stay conflicts for the user to decide.
+**Refresh e conhecimento humano** não mudam: o refresh mostra uma prévia primeiro (agora com as mudanças relevantes),
+escreve só depois da confirmação, com backups, e nunca sobrescreve `business.md`, `constraints.md` ou `decisions.md`
+nem as correções, confirmações e exclusões do usuário. Depois de um refresh aplicado o novo fingerprint é guardado e o
+Harness deixa de estar obsoleto. Contradições entre a evidência do repositório e o conhecimento do usuário continuam
+sendo conflitos para o usuário decidir.
 
-**Context shape.** `HARNESS STATUS` (last analysed, stale/conflict notes) → WHAT WE KNOW (verified facts only; a fact
-without verification is told as a candidate) → WHAT WE INFER (always "not verified") → WHAT THE USER TOLD US
-(confirmations say "inferred by Atlas, confirmed by the user") → WHAT WE DON'T KNOW → WHAT MAY BE OUTDATED. The builder
-takes an optional `ProjectScanner` to fingerprint the project at run time; without it no staleness is claimed.
+**Formato do contexto.** `STATUS DO HARNESS` (última análise, notas de obsolescência/conflito) → O QUE SABEMOS (só fatos
+verificados; um fato sem verificação é contado como candidato) → O QUE INFERIMOS (sempre "não verificado") → O QUE O
+USUÁRIO NOS DISSE (as confirmações dizem "inferido pelo Atlas, confirmado pelo usuário") → O QUE NÃO SABEMOS → O QUE
+PODE ESTAR DESATUALIZADO. O construtor recebe um `ProjectScanner` opcional para calcular o fingerprint do projeto em
+tempo de execução; sem ele, nenhuma obsolescência é declarada.

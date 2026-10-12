@@ -1,142 +1,151 @@
-# ADR 0012 — Task-aware context
+# ADR 0012 — Contexto ciente da tarefa
 
-**Status:** accepted. Extends [ADR 0011](0011-harness-knowledge-model.md).
+**Status:** aceito. Estende a [ADR 0011](0011-harness-knowledge-model.md).
 
-## Why
+## Por quê
 
-Until V0.7.2 every execution received the same project context: the whole Harness, cut to a budget by a fixed
-priority. A password-recovery task and a CI fix were told the same things, so the budget was spent on what the task did
-not need and, on a big Harness, could drop what it did.
+Até a V0.7.2, toda execução recebia o mesmo contexto de projeto: o Harness inteiro, cortado até um orçamento por uma
+prioridade fixa. Uma tarefa de recuperação de senha e um ajuste de CI recebiam as mesmas informações, então o orçamento
+era gasto com o que a tarefa não precisava e, num Harness grande, podia descartar o que ela precisava.
 
-V0.8 chooses the part of the Harness a task needs:
+A V0.8 escolhe a parte do Harness de que uma tarefa precisa:
 
 ```text
-Repository ─▶ Harness ─▶ Task Context Selector ─▶ Task Context ─▶ PromptBuilder ─▶ Runtime ─▶ Agent
+Repositório ─▶ Harness ─▶ Seletor de Contexto da Tarefa ─▶ Task Context ─▶ PromptBuilder ─▶ Runtime ─▶ Agente
 ```
 
-The Harness stays the only source of knowledge. The selector **creates no knowledge**: it selects, ranks and orders what
-exists. (The one sentence it can add is the honest one that a technology the task names was not identified in what the
-Harness holds.)
+O Harness continua sendo a única fonte de conhecimento. O seletor **não cria conhecimento**: ele seleciona, ranqueia e
+ordena o que existe. (A única frase que ele pode acrescentar é a honesta, de que uma tecnologia que a tarefa nomeia não
+foi identificada no que o Harness guarda.)
 
-## Harness context vs. Task Context
+## Contexto do Harness vs. Task Context
 
-|                | Harness context (V0.7)                | Task Context (V0.8)                                   |
-| -------------- | ------------------------------------- | ----------------------------------------------------- |
-| Chosen by      | fixed priority per category           | the task's text, then the same budget                 |
-| Same for every | task                                  | never: it changes with the task                       |
-| Explainable    | "dropped for size"                    | every candidate has a score and the matches behind it |
-| Role now       | fallback, and the baseline to compare | the default                                           |
+|                 | Contexto do Harness (V0.7)                 | Task Context (V0.8)                                    |
+| --------------- | ------------------------------------------ | ------------------------------------------------------ |
+| Escolhido por   | prioridade fixa por categoria              | o texto da tarefa, depois o mesmo orçamento            |
+| Igual para toda | tarefa                                     | nunca: muda com a tarefa                               |
+| Explicável      | "descartado por tamanho"                   | todo candidato tem uma pontuação e os acertos por trás |
+| Papel agora     | fallback e a linha de base para comparação | o padrão                                               |
 
-Both are produced by `HarnessContextBuilder` (`build` and `build_for_task`) from the same loaded items, so a finding is
-worded identically in both. Prompt layers are unchanged: Atlas rules → (Task Context | Project Harness) → project
-context → task. The prompt carries one or the other, never both; runtimes never see `.atlas/`.
+Os dois são produzidos pelo `HarnessContextBuilder` (`build` e `build_for_task`) a partir dos mesmos itens carregados,
+então um achado é redigido de forma idêntica nos dois. As camadas do prompt não mudam: regras do Atlas → (Task Context |
+Harness do Projeto) → contexto do projeto → tarefa. O prompt carrega um ou outro, nunca os dois; os runtimes nunca veem
+o `.atlas/`.
 
-## Model
+## Modelo
 
-- `ContextItem` (`domain/task_context.rs`) is a **projection** of a finding (or of the user's constraints, decisions and
-  business files, or of a gap): `id`, `area`, `category`, `content`, `provenance`, `verification`, `confidence`,
-  `evidence`, `source_finding_id`, `tags`. It copies nothing the finding does not hold. It replaced the builder's private
-  `Item`, so there is one representation, not two.
-- **Areas** (closed set, 13): `architecture`, `stack`, `modules`, `conventions`, `business`, `testing`, `dependencies`,
-  `entry_points`, `ci`, `constraints`, `decisions`, `infrastructure` and `general` (statements about the Harness itself).
-  `Area::of(FindingCategory)` maps the existing categories; nothing was added to the stored findings.
-- **Tags** are derived, never stored and never produced by a model. `taxonomy.rs` holds a fixed lexicon (about 20 tags:
-  `authentication`, `password`, `api`, `backend`, `frontend`, `ui`, `database`, `migrations`, `testing`, `build`, `ci`,
-  `deployment`, `caching`, …) with English and Portuguese terms and a few implications (a password is about
-  authentication; an endpoint is backend). A finding's tags come from its category, its words and the words of the paths
-  of its evidence (`src/auth/password-reset.ts` → `authentication`, `password`). A word outside the lexicon is not a tag.
-  The same lexicon reads the task, so a match means the same words were meant on both sides.
-- `TaskContextRequest { task, workspace_id, agent_id }`: the task is only its text. This is not a task manager.
-- `TaskAnalyzer` (`task_context.rs`) → `TaskSignals { keywords, areas, baseline_areas, tags, intent, technologies }`:
-  words are lower-cased, accent-folded and split on camelCase and separators; stop words and intent verbs are not
-  keywords; any language works (words it does not know carry no tag); an empty task has no signals.
+- `ContextItem` (`domain/task_context.rs`) é uma **projeção** de um achado (ou das restrições, decisões e arquivos de
+  negócio do usuário, ou de uma lacuna): `id`, `area`, `category`, `content`, `provenance`, `verification`, `confidence`,
+  `evidence`, `source_finding_id`, `tags`. Não copia nada que o achado não guarde. Substituiu o `Item` privado do
+  construtor, então há uma representação, não duas.
+- **Áreas** (conjunto fechado, 13): `architecture`, `stack`, `modules`, `conventions`, `business`, `testing`,
+  `dependencies`, `entry_points`, `ci`, `constraints`, `decisions`, `infrastructure` e `general` (afirmações sobre o
+  próprio Harness). `Area::of(FindingCategory)` mapeia as categorias existentes; nada foi adicionado aos achados
+  guardados.
+- **Tags** são derivadas, nunca guardadas e nunca produzidas por um modelo. `taxonomy.rs` tem um léxico fixo (cerca de
+  20 tags: `authentication`, `password`, `api`, `backend`, `frontend`, `ui`, `database`, `migrations`, `testing`,
+  `build`, `ci`, `deployment`, `caching`, …) com termos em inglês e português e algumas implicações (uma senha é sobre
+  autenticação; um endpoint é backend). As tags de um achado vêm da sua categoria, das suas palavras e das palavras dos
+  caminhos da sua evidência (`src/auth/password-reset.ts` → `authentication`, `password`). Uma palavra fora do léxico
+  não é uma tag. O mesmo léxico lê a tarefa, então um acerto significa que as mesmas palavras foram pretendidas dos
+  dois lados.
+- `TaskContextRequest { task, workspace_id, agent_id }`: a tarefa é só o seu texto. Isto não é um gerenciador de tarefas.
+- `TaskAnalyzer` (`task_context.rs`) → `TaskSignals { keywords, areas, baseline_areas, tags, intent, technologies }`: as
+  palavras são passadas para minúsculas, sem acentos e separadas por camelCase e separadores; stop words e verbos de
+  intenção não são palavras-chave; qualquer idioma funciona (palavras que ele não conhece não geram tag); uma tarefa
+  vazia não tem sinais.
 
 ## Ranking
 
-An item's score is the sum of weights centralised in `Weights`:
+A pontuação de um item é a soma de pesos centralizados em `Weights`:
 
-| Signal                                                             | Weight                |
-| ------------------------------------------------------------------ | --------------------- |
-| exact tag of the task on the item (at most two count)              | +50 each              |
-| area the task's tags ask for, **only together with another match** | +30                   |
-| area that orients any task of the intent (architecture for _add_)  | +25                   |
-| stack item with no layer tag (language, runtime, tooling)          | +22                   |
-| keyword of the task in the item's text                             | +25                   |
-| category the task's tags ask for                                   | +20                   |
-| a path of the evidence shares a word with the task                 | +20                   |
-| the user confirmed, corrected or wrote it (once anything matches)  | +40                   |
-| verified (once anything matches)                                   | +5                    |
-| item's layer (frontend, backend, database) is not the task's layer | −40                   |
-| constraint or decision                                             | +100, always included |
+| Sinal                                                                 | Peso                  |
+| --------------------------------------------------------------------- | --------------------- |
+| tag exata da tarefa no item (no máximo duas contam)                   | +50 cada              |
+| área que as tags da tarefa pedem, **somente junto com outro acerto**  | +30                   |
+| área que orienta qualquer tarefa da intenção (arquitetura para _add_) | +25                   |
+| item de stack sem tag de camada (linguagem, runtime, ferramentas)     | +22                   |
+| palavra-chave da tarefa no texto do item                              | +25                   |
+| categoria que as tags da tarefa pedem                                 | +20                   |
+| um caminho da evidência compartilha uma palavra com a tarefa          | +20                   |
+| o usuário confirmou, corrigiu ou escreveu (quando algo já casou)      | +40                   |
+| verificado (quando algo já casou)                                     | +5                    |
+| a camada do item (frontend, backend, banco) não é a camada da tarefa  | −40                   |
+| restrição ou decisão                                                  | +100, sempre incluído |
 
-Relevant means `score ≥ 20`. The "area only with another match" rule exists because tags point at areas: without it every
-module is "about authentication" once the task mentions a password.
+Relevante significa `score ≥ 20`. A regra "área só com outro acerto" existe porque as tags apontam para áreas: sem ela,
+todo módulo é "sobre autenticação" assim que a tarefa menciona uma senha.
 
 `SelectionReason { score, matched_areas, matched_tags, matched_categories, matched_paths, matched_keywords,
-always_included, penalties }` is kept for **every** candidate, included or not, and is what the preview shows. Selection
-is a pure function: the same Harness and task always give the same context.
+always_included, penalties }` é guardado para **todo** candidato, incluído ou não, e é o que a prévia mostra. A seleção
+é uma função pura: o mesmo Harness e a mesma tarefa sempre dão o mesmo contexto.
 
-## Constraints, decisions, the user's word, inference, staleness, gaps
+## Restrições, decisões, a palavra do usuário, inferência, obsolescência, lacunas
 
-- **Constraints and decisions are never judged.** They are always included (they are already capped), security
-  constraints first. This is deliberately stricter than "keep the relevant ones": splitting the user's text to decide what
-  a task needs is where a critical constraint would be lost.
-- **The user's word** outranks analysis (+40) and is told under `WHAT THE USER TOLD US`. A conflict in which a claim is the
-  user's is told as _conflict detected; the user's decision is authoritative for project guidance; the repository
-  evidence may indicate drift_, whether or not the user already chose a side. Atlas does not resolve it.
-- **Inference stays inference.** `Possible architecture: … (medium confidence; not verified; evidence: …)`; a verified fact
-  and an inference are never in the same block.
-- **Stale** findings are never `WHAT WE KNOW`: they appear under `WHAT MAY BE OUTDATED` when relevant, with the date they
-  were last verified, and the status line says the project changed.
-- **Not found / unknown** stay distinct. A technology the task names (`Redis`) that no finding, label or evidence path
-  mentions becomes `Not found: Redis was not identified in the analyzed evidence. This does not prove that Redis is not
-used.` — never "the project does not use Redis".
+- **Restrições e decisões nunca são julgadas.** São sempre incluídas (já são limitadas), as de segurança primeiro. Isso é
+  deliberadamente mais rígido que "manter as relevantes": dividir o texto do usuário para decidir do que uma tarefa
+  precisa é onde uma restrição crítica se perderia.
+- **A palavra do usuário** supera a análise (+40) e é contada em `O QUE O USUÁRIO NOS DISSE`. Um conflito em que uma
+  afirmação é do usuário é contado como _conflito detectado; a decisão do usuário é autoritativa para a orientação do
+  projeto; a evidência do repositório pode indicar divergência_, quer o usuário já tenha escolhido um lado ou não. O
+  Atlas não o resolve.
+- **Inferência continua inferência.** `Possível arquitetura: … (confiança média; não verificada; evidência: …)`; um
+  fato verificado e uma inferência nunca ficam no mesmo bloco.
+- Achados **obsoletos** nunca entram em `O QUE SABEMOS`: aparecem em `O QUE PODE ESTAR DESATUALIZADO` quando relevantes,
+  com a data da última verificação, e a linha de status diz que o projeto mudou.
+- **Não encontrado / desconhecido** continuam distintos. Uma tecnologia que a tarefa nomeia (`Redis`) e que nenhum
+  achado, rótulo ou caminho de evidência menciona vira `Não encontrado: Redis não foi identificado nas evidências
+analisadas. Isso não prova que o Redis não é usado.` — nunca "o projeto não usa Redis".
 
-## Budget and what was left out
+## Orçamento e o que ficou de fora
 
-The budget is the same ~6,000 characters but is now spent **after** ranking. Order: security constraints, decisions,
-other constraints, the user's other words, verified facts, architecture, modules, conventions, testing, dependencies,
-other inferences, unknown/not found, outdated; within a class, by score. Constraints and decisions are kept even beyond
-the budget.
+O orçamento é o mesmo de ~6.000 caracteres, mas agora é gasto **depois** do ranking. Ordem: restrições de segurança,
+decisões, outras restrições, as demais palavras do usuário, fatos verificados, arquitetura, módulos, convenções,
+testes, dependências, outras inferências, desconhecido/não encontrado, desatualizado; dentro de uma classe, por
+pontuação. Restrições e decisões são mantidas mesmo além do orçamento.
 
-Nothing is hidden: the text ends with `NOT SELECTED (judged unrelated to this task; …): 3 modules, 2 infrastructure` and,
-when relevant items did not fit, `Context was truncated. Omitted for size: 4 testing finding(s), …`.
+Nada é escondido: o texto termina com `NÃO SELECIONADO (julgado não relacionado a esta tarefa; …): 3 módulos, 2
+infraestrutura` e, quando itens relevantes não couberam, `O contexto foi truncado. Omitido por tamanho: 4 achado(s) de
+testes, …`.
 
-## Fallback and metadata
+## Fallback e metadados
 
-If a selection cannot be made (a Harness from before knowledge existed; a task with no readable signals; nothing relevant)
-the **whole Harness context** is used and the reason is recorded (`harness_without_knowledge`, `task_without_signals`,
-`no_relevant_knowledge`). An execution never runs without context silently: `Execution.context` /
-`StoredExecution.context` records `mode` (`task_aware` | `fallback`), `totalHarnessCharacters`,
-`selectedContextCharacters`, `selectedItems`, `omittedItems` and `fallbackReason`. The text is the prompt the execution
-already stores; it is not duplicated.
+Se uma seleção não puder ser feita (um Harness de antes de existir conhecimento; uma tarefa sem sinais legíveis; nada
+relevante) usa-se o **contexto inteiro do Harness** e o motivo é registrado (`harness_without_knowledge`,
+`task_without_signals`, `no_relevant_knowledge`). Uma execução nunca roda sem contexto em silêncio: `Execution.context` /
+`StoredExecution.context` registra `mode` (`task_aware` | `fallback`), `totalHarnessCharacters`,
+`selectedContextCharacters`, `selectedItems`, `omittedItems` e `fallbackReason`. O texto é o prompt que a execução já
+guarda; não é duplicado.
 
-## Preview
+## Prévia
 
-`preview_task_context(request)` returns the same `TaskContext` a run would use (same builder instance), with the signals,
-every entry with its reason, the included and excluded areas, sizes against the whole Harness and the exact text. It
-reads and writes nothing. The UI shows it, debounced, above the composer; viewing it is optional and it cannot be edited
-in this version. A project's fingerprint (for staleness) is reused for five seconds so typing does not rescan the project.
+`preview_task_context(request)` devolve o mesmo `TaskContext` que uma execução usaria (a mesma instância do construtor),
+com os sinais, cada entrada com o seu motivo, as áreas incluídas e excluídas, os tamanhos frente ao Harness inteiro e o
+texto exato. Não lê nem escreve nada. A UI o mostra, com debounce, acima do campo de entrada; vê-lo é opcional e ele não
+pode ser editado nesta versão. O fingerprint de um projeto (para a obsolescência) é reaproveitado por cinco segundos para
+que digitar não reescaneie o projeto.
 
-## Security
+## Segurança
 
-`TaskContextService` and `taxonomy` are pure: no disk, no commands, no network, no permissions, no worktrees. A test reads
-their source and fails if `std::fs`, `std::process`, `std::net`, `Command::new`, a store or a scanner appear. The Task
-Context keeps the same authority notice as the Harness context: it is background, grants no filesystem, process, network,
-Git or merge permission, and loses to Atlas's rules and to the task. It reads only what V0.7.2 already read (the persisted
-Harness and the existing fingerprint); there is no second scanner.
+`TaskContextService` e `taxonomy` são puros: sem disco, sem comandos, sem rede, sem permissões, sem worktrees. Um teste
+lê o código-fonte deles e falha se aparecer `std::fs`, `std::process`, `std::net`, `Command::new`, um store ou um
+scanner. O Task Context mantém o mesmo aviso de autoridade do contexto do Harness: é pano de fundo, não concede
+permissão de sistema de arquivos, processo, rede, Git ou merge, e perde para as regras do Atlas e para a tarefa. Ele lê
+apenas o que a V0.7.2 já lia (o Harness persistido e o fingerprint existente); não há um segundo scanner.
 
-## Why not RAG, embeddings or a model
+## Por que não RAG, embeddings ou um modelo
 
-The first selector must be **testable and explainable**: for every item we can say which words and which weights put it
-in or out, and the same input gives the same output. A model or vector store would add cost, latency, nondeterminism and a
-second, unauditable opinion about what the agent may not see. A future version can add _semantic re-ranking_ on top of this
-deterministic candidate selection; the `SelectionReason` is the contract such a layer would have to extend.
+O primeiro seletor deve ser **testável e explicável**: para cada item podemos dizer quais palavras e quais pesos o
+colocaram dentro ou fora, e a mesma entrada dá a mesma saída. Um modelo ou um banco vetorial adicionaria custo,
+latência, não determinismo e uma segunda opinião, não auditável, sobre o que o agente não pode ver. Uma versão futura
+pode acrescentar _re-ranqueamento semântico_ sobre esta seleção determinística de candidatos; o `SelectionReason` é o
+contrato que uma camada dessas teria de estender.
 
-## Known limits
+## Limites conhecidos
 
-- The lexicon is small and hand-made; a project whose vocabulary is not in it gets baseline context only (architecture,
-  conventions, testing, stack), plus anything its keywords match in labels and paths.
-- Constraints, decisions and business text are items of the user's files, not split by sentence; a business file that
-  mentions a task keyword is included whole (each field is capped at 1,500 characters).
-- Relevance looks at the Harness, not the code: a task in a module the analysis did not find gets no module-specific context.
+- O léxico é pequeno e feito à mão; um projeto cujo vocabulário não está nele recebe só o contexto base (arquitetura,
+  convenções, testes, stack), mais o que suas palavras-chave casarem em rótulos e caminhos.
+- Restrições, decisões e texto de negócio são itens dos arquivos do usuário, não divididos por frase; um arquivo de
+  negócio que menciona uma palavra-chave da tarefa é incluído inteiro (cada campo é limitado a 1.500 caracteres).
+- A relevância olha o Harness, não o código: uma tarefa em um módulo que a análise não encontrou não recebe contexto
+  específico do módulo.

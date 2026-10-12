@@ -1,8 +1,8 @@
 #!/bin/zsh
-# Zero-cost probe of what `claude -p` loads with an Atlas-generated MCP config: the model does not
-# exist, so the CLI prints its `init` message and fails at the first request. Nothing is spent.
-# usage: SPIKE=<scratch dir> run.sh <label> <ok|die|badschema> <extra claude args...>
-# Create $SPIKE/mcp.json first, e.g.
+# Sonda de custo zero do que o `claude -p` carrega com uma configuração MCP gerada pelo Atlas: o modelo não
+# existe, então a CLI imprime a mensagem `init` e falha na primeira requisição. Nada é gasto.
+# uso: SPIKE=<pasta descartável> run.sh <rótulo> <ok|die|badschema> <argumentos extras do claude...>
+# Crie antes o $SPIKE/mcp.json, por exemplo:
 #   {"mcpServers":{"atlasspike":{"command":"node","args":["<path>/echo-mcp.js"]}}}
 label=$1; mode=$2; shift 2
 cd /tmp

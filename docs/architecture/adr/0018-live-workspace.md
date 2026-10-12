@@ -1,106 +1,123 @@
-# 0018 — Live Workspace: observing a workflow run's worktree while it works
+# 0018 — Live Workspace: observar o worktree de uma execução de workflow enquanto ela trabalha
 
-## Context
+## Contexto
 
-A workflow run's code lives in one isolated worktree ([ADR 0014](0014-handoff-shared-worktree-and-code-integration.md)). Until the
-run ended, the user saw status, timeline and handoffs, but not the code being written; the changes were only measured at the
-end. To follow an agent without opening an IDE, Atlas must show what is _really_ in that worktree, as it changes. This ADR
-covers the backend; the UI is a separate milestone.
+O código de uma execução de workflow vive em um único worktree isolado ([ADR 0014](0014-handoff-shared-worktree-and-code-integration.md)).
+Até a execução terminar, o usuário via status, linha do tempo e handoffs, mas não o código sendo escrito; as mudanças só
+eram medidas no final. Para acompanhar um agente sem abrir uma IDE, o Atlas precisa mostrar o que _realmente_ está nesse
+worktree, conforme muda. Esta ADR cobre o backend; a UI é um marco separado.
 
-## Decision
+## Decisão
 
-**Objective.** Keep, for each running workflow, a derived state of "the files of the run's worktree as they are now, compared with
-where the run started", and tell the UI when it changes. It exists without any UI: a command can read it at any time.
+**Objetivo.** Manter, para cada workflow em execução, um estado derivado de "os arquivos do worktree da execução como
+estão agora, comparados com onde a execução começou", e avisar a UI quando ele muda. Ele existe sem nenhuma UI: um
+comando pode lê-lo a qualquer momento.
 
-**The target is the run's isolated worktree, never the project.** The folder is derived by Atlas from what it stored for the run
-(`WorktreeService::live_target`): a workflow's _primary_ worktree (not a lease, not an ordinary execution), inside Atlas's worktree
-folder, on the run's branch. Anything else is `NotFound` or `Invalid`. The project's own checkout is not observed and not written;
-a test writes in it and checks the state does not move.
+**O alvo é o worktree isolado da execução, nunca o projeto.** A pasta é derivada pelo Atlas a partir do que ele guardou
+para a execução (`WorktreeService::live_target`): o worktree _primário_ de um workflow (não um lease, não uma execução
+comum), dentro da pasta de worktrees do Atlas, no branch da execução. Qualquer outra coisa é `NotFound` ou `Invalid`. O
+checkout do próprio projeto não é observado nem escrito; um teste escreve nele e confere que o estado não se move.
 
-**Source of truth: Git against `base_commit`.** Every file is compared with the commit the workflow started from
-(`baselineRevision`), never with the project's current `HEAD` and never with the agents' own commits (a step's saved work moves
-`currentRevision`, not the changes). The state is read through `WorktreeManager::working_changes`: tracked changes (saved or
-not) and new untracked files, with added/removed lines. Nothing comes from what an agent says it did.
+**Fonte da verdade: o Git contra o `base_commit`.** Todo arquivo é comparado com o commit de que o workflow partiu
+(`baselineRevision`), nunca com o `HEAD` atual do projeto e nunca com os commits dos próprios agentes (o trabalho salvo
+de um passo move `currentRevision`, não as mudanças). O estado é lido pelo `WorktreeManager::working_changes`: mudanças
+rastreadas (salvas ou não) e novos arquivos não rastreados, com linhas adicionadas/removidas. Nada vem do que um agente
+diz ter feito.
 
-**Observation: OS events first, polling as fallback.** `notify` (FSEvents, inotify, …) behind the `WorktreeWatcher` port reports
-_where_ something happened; it reads nothing. If the platform cannot watch the folder, the state says `observation: polling` and the
-worktree is looked at on a schedule that starts at 500 ms and doubles up to 5 s while nothing changes. With events working, a full
-comparison still runs every 10 s (run `running`) or 30 s (otherwise) as a safety net.
+**Observação: eventos do SO primeiro, polling como alternativa.** O `notify` (FSEvents, inotify, …) atrás da porta
+`WorktreeWatcher` informa _onde_ algo aconteceu; ele não lê nada. Se a plataforma não consegue observar a pasta, o estado
+diz `observation: polling` e o worktree é olhado em um cronograma que começa em 500 ms e dobra até 5 s enquanto nada
+muda. Com os eventos funcionando, uma comparação completa ainda roda a cada 10 s (execução `running`) ou 30 s (nos outros
+casos) como rede de segurança.
 
-**Debounce / coalescing.** An event never means "final state". Events collect into a batch that is read once no event has arrived for
-150 ms, and at the latest 1 s after the batch's first event, so a continuous writer still shows progress and a file saved many
-times is read once. Events for `.git` and for paths outside the worktree are dropped.
+**Debounce / coalescência.** Um evento nunca significa "estado final". Os eventos se juntam em um lote que é lido quando
+nenhum evento chegou por 150 ms, e no máximo 1 s depois do primeiro evento do lote, de modo que um escritor contínuo
+ainda mostre progresso e um arquivo salvo várias vezes seja lido uma só vez. Eventos para `.git` e para caminhos fora do
+worktree são descartados.
 
-**Incremental and full reconciliation.**
+**Reconciliação incremental e completa.**
 
-- _Incremental_: only the paths of the batch (a folder stands for what is under it) are compared with the baseline and replace what
-  the state had for them. A path that no longer differs leaves the state.
-- _Full_: the whole worktree is compared and replaces the state. It happens when observation starts (so changes that already exist, as
-  when a run is resumed, are read), when the run enters `waiting_for_input`, `idle` or `cancelled`, when it ends, on an explicit
-  refresh, on the safety/polling schedule, and whenever the incremental path cannot be trusted: more than 200 paths in a batch, a
-  lost or overflowed event queue, Git failing on a path, or a rename involved. Exact-content renames (a deletion plus an identical new
-  file) are paired only on a full read.
+- _Incremental_: apenas os caminhos do lote (uma pasta representa o que há dentro dela) são comparados com a base e
+  substituem o que o estado tinha para eles. Um caminho que deixa de diferir sai do estado.
+- _Completa_: o worktree inteiro é comparado e substitui o estado. Acontece quando a observação começa (para que mudanças
+  que já existem, como quando uma execução é retomada, sejam lidas), quando a execução entra em `waiting_for_input`,
+  `idle` ou `cancelled`, quando termina, em um refresh explícito, no cronograma de segurança/polling, e sempre que o
+  caminho incremental não pode ser confiável: mais de 200 caminhos em um lote, uma fila de eventos perdida ou estourada,
+  o Git falhando em um caminho, ou um rename envolvido. Renames de conteúdo exato (uma exclusão mais um arquivo novo
+  idêntico) só são pareados em uma leitura completa.
 
-**Lifecycle.** `idle` (worktree exists, no step working) → `running` (a step works in it) → `waiting_for_input` (a step stopped to ask
-a person) / `cancelled` (the step was cancelled) → back to `running` with the next attempt → `ended` (the run completed) or `stopped`
-(it failed or was cancelled). The phase only sets how often the worktree is looked at when nothing is reported, and what the UI says;
-the watcher keeps running while a step waits, so an edit made during the wait is seen. `ended` / `stopped` are final: the run is read
-one last time (before `close_shared`, while the worktree certainly exists), observation stops, and that state stays readable. The
-final state equals the run's change set (tested). A run being resumed starts observation again on the same worktree and baseline, and
-`revision` continues.
+**Ciclo de vida.** `idle` (o worktree existe, nenhum passo trabalhando) → `running` (um passo trabalha nele) →
+`waiting_for_input` (um passo parou para perguntar a uma pessoa) / `cancelled` (o passo foi cancelado) → de volta a
+`running` com a próxima tentativa → `ended` (a execução concluiu) ou `stopped` (falhou ou foi cancelada). A fase só
+define com que frequência o worktree é olhado quando nada é informado, e o que a UI diz; o watcher continua rodando
+enquanto um passo espera, então uma edição feita durante a espera é vista. `ended` / `stopped` são finais: a execução é
+lida uma última vez (antes de `close_shared`, enquanto o worktree certamente existe), a observação para, e esse estado
+continua legível. O estado final é igual ao change set da execução (testado). Uma execução sendo retomada reinicia a
+observação sobre o mesmo worktree e base, e `revision` continua.
 
-**Isolation from the agents' Git.** The observer only reads: Git runs with `--no-optional-locks`, it takes no lock the manager's write
-operations hold, and it never commits, stages, merges or writes in the worktree. A test runs it against 40 writes and commits by an
-"agent" without a failure.
+**Isolamento do Git dos agentes.** O observador só lê: o Git roda com `--no-optional-locks`, não pega nenhum lock que as
+operações de escrita do manager seguram, e nunca faz commit, stage, merge ou escrita no worktree. Um teste o executa
+contra 40 escritas e commits de um "agente" sem uma falha.
 
-**Events and state: snapshot + delta.** `get_live_workspace(executionId)` returns the snapshot (`LiveWorkspaceState`);
-`refresh_live_workspace(executionId)` forces a full comparison. Changes arrive as `live_workspace:changed`
-(`LiveWorkspaceUpdate`): `changed` files, `removed` paths, and `full: true` when `changed` is _every_ file. `revision` is monotonic
-and counts state changes: a client holding revision N applies an update with N+1; **any other number (a gap, a repeat, an older one)
-means "read the snapshot again"**. Updates are best effort, like every other event. The commands take the run's id (the same
-`executionId` as `get_workflow_changes`); the webview never names a path.
+**Eventos e estado: snapshot + delta.** `get_live_workspace(executionId)` devolve o snapshot (`LiveWorkspaceState`);
+`refresh_live_workspace(executionId)` força uma comparação completa. As mudanças chegam como `live_workspace:changed`
+(`LiveWorkspaceUpdate`): arquivos `changed`, caminhos `removed` e `full: true` quando `changed` é _todo_ arquivo.
+`revision` é monotônica e conta mudanças de estado: um cliente com a revisão N aplica uma atualização com N+1; **qualquer
+outro número (uma lacuna, uma repetição, uma mais antiga) significa "leia o snapshot de novo"**. As atualizações são de
+melhor esforço, como todo outro evento. Os comandos recebem o id da execução (o mesmo `executionId` do
+`get_workflow_changes`); a webview nunca nomeia um caminho.
 
-**Security.** The only way a folder is chosen is the stored worktree record. Paths given to Git are relative, free of `..`, and
-passed with `--literal-pathspecs` after `--`; refs and commits are ones Atlas derived. No shell. Both commands only read. The frontend
-has no filesystem access; it receives only the models above.
+**Segurança.** A única forma de uma pasta ser escolhida é o registro do worktree guardado. Os caminhos passados ao Git
+são relativos, sem `..`, e passados com `--literal-pathspecs` depois de `--`; refs e commits são os que o Atlas
+derivou. Sem shell. Os dois comandos só leem. O frontend não tem acesso ao sistema de arquivos; ele recebe apenas os
+modelos acima.
 
-**When the worktree disappears.** If the folder is gone (applied and removed, discarded, deleted by hand) the state becomes
-`availability: missing` (`invalid` if it is no longer what Atlas made, e.g. its branch was switched), `observation: stopped`, and
-the observer ends. The last known files are kept: they are the last thing known. For a run whose worktree cannot be read at all, the
-snapshot is built from the record (its stored change set) with `missing`.
+**Quando o worktree desaparece.** Se a pasta sumiu (aplicada e removida, descartada, apagada à mão) o estado passa a
+`availability: missing` (`invalid` se não for mais o que o Atlas criou, p. ex. seu branch foi trocado),
+`observation: stopped`, e o observador termina. Os últimos arquivos conhecidos são mantidos: são a última coisa sabida.
+Para uma execução cujo worktree não pode ser lido de jeito nenhum, o snapshot é montado a partir do registro (seu change
+set guardado) com `missing`.
 
-**No `activeFile`.** Atlas has no reliable signal for which file an agent is editing: the runtimes do not report it, and "the file
-that changed last" would be a guess presented as a fact. The state has none; the UI should say the agent is working and show the
-files as they really change.
+**Sem `activeFile`.** O Atlas não tem um sinal confiável de qual arquivo um agente está editando: os runtimes não o
+informam, e "o arquivo que mudou por último" seria um palpite apresentado como fato. O estado não tem nenhum; a UI deve
+dizer que o agente está trabalhando e mostrar os arquivos como realmente mudam.
 
-**State is in memory.** It is derived, so nothing is persisted. A finished run's last state is kept in memory for the session.
+**O estado fica em memória.** É derivado, então nada é persistido. O último estado de uma execução terminada é mantido
+em memória durante a sessão.
 
-## The viewer (UI)
+## O visualizador (UI)
 
-Two read-only commands serve the viewer, both by `executionId` (the run) and a relative path, never a folder:
-`get_live_file` (the file as it is now) and `get_live_diff` (the worktree as it is now against `baselineRevision`, of one file
-or of everything, new files included). A path must be plain (relative, no `..`, no `.git`); a link is reported and never
-followed, and a link in a folder of the path is refused. A deleted file is reported as `deleted`, not as an error; a text file is cut at 1 MiB (`truncated`).
-After the worktree is gone (changes applied) the screen reads the diff from the saved change set instead and cannot read files.
+Dois comandos somente leitura servem o visualizador, ambos por `executionId` (a execução) e um caminho relativo, nunca
+uma pasta: `get_live_file` (o arquivo como está agora) e `get_live_diff` (o worktree como está agora contra o
+`baselineRevision`, de um arquivo ou de tudo, arquivos novos incluídos). Um caminho deve ser simples (relativo, sem `..`,
+sem `.git`); um link é informado e nunca seguido, e um link em uma pasta do caminho é recusado. Um arquivo excluído é
+informado como `deleted`, não como erro; um arquivo de texto é cortado em 1 MiB (`truncated`). Depois que o worktree
+some (mudanças aplicadas) a tela lê o diff do change set salvo e não consegue ler arquivos.
 
-The screen applies updates by `revision` (only the next one; older ones are dropped; a gap reads the snapshot again) and rereads
-the selected file only when that file's entry was announced as changed. For this the observer remembers each file's size and
-modification time and announces a file whose text changed even when its line counts did not.
+A tela aplica as atualizações por `revision` (só a próxima; as mais antigas são descartadas; uma lacuna lê o snapshot de
+novo) e relê o arquivo selecionado somente quando a entrada daquele arquivo foi anunciada como alterada. Para isso o
+observador lembra o tamanho e a data de modificação de cada arquivo e anuncia um arquivo cujo texto mudou mesmo quando as
+contagens de linhas não mudaram.
 
-## Limits (current)
+## Limites (atuais)
 
-- At most 500 files are listed (`MAX_CHANGESET_FILES`); beyond that the list is cut.
-- Untracked-file line counts are read only for text files up to 1 MiB; larger files are listed without counts.
-- Renames are recognized only on a full read and only for identical content.
-- A writer that pauses longer than the quiet window can be read mid-way; the next event, or the safety look, corrects it.
-- Contents and diffs are not part of this state (only paths, status and counts): they are read on demand from Git by later work.
-- **Known limitation: after the app restarts, a run that already exists can be queried (a snapshot is a single look at its worktree),
-  but observation is not reactivated automatically** until the run is resumed. Recovery and persistence of the Live Workspace are a
-  possible future evolution.
+- No máximo 500 arquivos são listados (`MAX_CHANGESET_FILES`); além disso a lista é cortada.
+- As contagens de linhas de arquivos não rastreados só são lidas para arquivos de texto de até 1 MiB; arquivos maiores
+  são listados sem contagens.
+- Renames só são reconhecidos em uma leitura completa e só para conteúdo idêntico.
+- Um escritor que pausa por mais que a janela de silêncio pode ser lido pela metade; o próximo evento, ou a olhada de
+  segurança, corrige.
+- Conteúdos e diffs não fazem parte deste estado (só caminhos, status e contagens): são lidos sob demanda do Git por
+  trabalho posterior.
+- **Limitação conhecida: depois que o app reinicia, uma execução que já existe pode ser consultada (um snapshot é uma
+  única olhada no seu worktree), mas a observação não é reativada automaticamente** até a execução ser retomada.
+  Recuperação e persistência do Live Workspace são uma possível evolução futura.
 
-## Consequences
+## Consequências
 
-- One new dependency, `notify`, behind a port; tests drive the observer with a scripted watcher or the real one.
-- The runner tells the observer the run's phase; the orchestrator, the engine and the worktree service do not know it exists.
-- It does not touch Apply ([ADR 0015](0015-result-contracts-outcomes-and-worktree-lock.md#workflow-apply-is-not-a-commit)) or
-  `merge_execution`.
+- Uma nova dependência, `notify`, atrás de uma porta; os testes conduzem o observador com um watcher roteirizado ou o
+  real.
+- O runner informa ao observador a fase da execução; o orquestrador, o engine e o serviço de worktree não sabem que ele
+  existe.
+- Não toca no Apply ([ADR 0015](0015-result-contracts-outcomes-and-worktree-lock.md#workflow-apply-não-é-um-commit)) nem
+  no `merge_execution`.

@@ -1,58 +1,68 @@
-# 0020 — Optimization Layer, phase 0: measuring before optimizing
+# 0020 — Camada de Otimização, fase 0: medir antes de otimizar
 
-## Context
+## Contexto
 
-Atlas builds a prompt for every execution (personality, rules, Harness/Task Context, project, agent instructions, and for a
-workflow step a brief with state and handoff) and hands it to a CLI runtime. Nobody could say how big each part is, how long each
-stage takes, or how much of what Atlas assembled became tokens at the model. Optimizing without that would be guessing, and a
-smaller prompt that drops something useful is a regression.
+O Atlas monta um prompt para cada execução (personalidade, regras, Harness/Task Context, projeto, instruções do agente e,
+para um passo de workflow, um brief com estado e handoff) e o entrega a um runtime de CLI. Ninguém sabia dizer o tamanho
+de cada parte, quanto tempo leva cada etapa, nem quanto do que o Atlas montou virou token no modelo. Otimizar sem isso
+seria adivinhar, e um prompt menor que perde algo útil é uma regressão.
 
-The runtimes are CLIs (`claude -p`, `opencode run`, …). Atlas owns the prompt it sends and the answer it reads; it does **not** own
-the CLI's internal tool loop. What a tool printed never passes through Atlas, so tool output and tool selection are not observable
-here (see "Not observable").
+Os runtimes são CLIs (`claude -p`, `opencode run`, …). O Atlas é dono do prompt que envia e da resposta que lê; ele **não**
+é dono do loop interno de ferramentas da CLI. O que uma ferramenta imprimiu nunca passa pelo Atlas, então a saída das
+ferramentas e a seleção de ferramentas não são observáveis aqui (veja "Não observável").
 
-## Decision
+## Decisão
 
-**Phase 0 is observability only.** Metrics on or off, the prompt, the Task Context selection, the runtime request, the permissions
-and the events other than the three below are the same. There is no `if metrics { change the prompt }` anywhere; a test runs the
-same task with the flag on and off and compares the prompt byte for byte and everything else the runtime is handed.
+**A fase 0 é só observabilidade.** Com as métricas ligadas ou desligadas, o prompt, a seleção do Task Context, a
+requisição ao runtime, as permissões e os eventos além dos três abaixo são os mesmos. Não existe em lugar nenhum um
+`if metrics { mudar o prompt }`; um teste roda a mesma tarefa com a flag ligada e desligada e compara o prompt byte a
+byte e tudo o mais que é entregue ao runtime.
 
-- **`PromptBuilder` stays the only assembly.** `assemble` returns the prompt and a `PromptLayout` taken from the very strings it
-  joined; `build_with_access` is the same call without the layout. Nothing is parsed back out of the prompt. A workflow step's
-  `StepBrief` likewise reports a `BriefLayout` (workflow context, handoff, protocols) where it writes them, passed to the execution
-  through `StepRequest` → `WorkflowStepRequest` → `StepOptions`.
-- **`PromptBreakdown`** lists sections (`personality`, `atlas_rules`, `live_narration`, `plan_rule`, `harness` or `task_context`,
-  `project_context`, `agent_instructions`, the three `brief_*`, `task`) and adds the rest as `framing` (headings and separators), so
-  the sections always add up to the bytes sent.
-- **Tokens.** Atlas has no tokenizer. Every figure it computes is `ceil(chars / 4)` and carries `token_source: estimated`. What a
-  runtime reports stays in the existing `UsageMetrics` (`source: runtime_reported`), now with `cached_input_tokens`; there is no
-  second counter. `PromptVersusRuntime` puts the two side by side and marks the runtime side `exact` or `unavailable`.
-- **`OptimizationMetrics`** (domain, no behaviour) is kept on `Execution` and `StoredExecution` as `optimization`, `#[serde(default)]`
-  and skipped when absent, so old history loads and old readers see the old shape. It holds the breakdown, the Harness numbers
-  (from the existing `ContextRecord`), latency, tool calls, handoff bytes and counters. A figure Atlas cannot observe is `None`.
-- **Latency** (milliseconds, f64): context build (only with a Harness service), prompt build, runtime startup (launch → the
-  runtime's own `Waiting` report), runtime execution, runtime total, whole `run_step`, and `instrumentation_ms`, what measuring
-  itself cost. A `RuntimeProbe` watches the progress callback the runtime already calls; it reports nothing of its own.
-- **Events** reuse `ExecutionEvent`/`ExecutionObserver`: `optimization_context_built`, `optimization_prompt_built`,
-  `optimization_metrics_recorded`. They are announced to listeners only (not added to the execution's log).
-- **Flag.** `AppSettings.optimization.metricsEnabled` (`optimization.metrics.enabled`), on by default, read once per execution
-  through the `OptimizationFlags` port. `ExecutionService` built without a flag source measures nothing.
-- **Benchmark base** (`application/optimization/benchmark.rs`, tests only): `BenchmarkRow` and `Comparison` (two runs of a scenario
-  and whether their prompts are identical) and five golden workloads in `executions` tests: simple task, task with Harness,
-  workflow step with handoff, second step of a workflow with Harness, large context. In phase 0 baseline and "optimized" are the
-  same code, so identical prompts are an acceptance criterion, not a result.
+- **O `PromptBuilder` continua sendo a única montagem.** `assemble` devolve o prompt e um `PromptLayout` tirado das
+  próprias strings que juntou; `build_with_access` é a mesma chamada sem o layout. Nada é lido de volta a partir do
+  prompt. O `StepBrief` de um passo de workflow igualmente informa um `BriefLayout` (contexto do workflow, handoff,
+  protocolos) onde os escreve, passado à execução por `StepRequest` → `WorkflowStepRequest` → `StepOptions`.
+- **`PromptBreakdown`** lista as seções (`personality`, `atlas_rules`, `live_narration`, `plan_rule`, `harness` ou
+  `task_context`, `project_context`, `agent_instructions`, os três `brief_*`, `task`) e soma o resto como `framing`
+  (títulos e separadores), de modo que as seções sempre somem os bytes enviados.
+- **Tokens.** O Atlas não tem tokenizador. Todo número que ele calcula é `ceil(chars / 4)` e carrega
+  `token_source: estimated`. O que um runtime informa fica no `UsageMetrics` existente (`source: runtime_reported`), agora
+  com `cached_input_tokens`; não há um segundo contador. `PromptVersusRuntime` coloca os dois lado a lado e marca o lado
+  do runtime como `exact` ou `unavailable`.
+- **`OptimizationMetrics`** (domínio, sem comportamento) é guardado em `Execution` e `StoredExecution` como
+  `optimization`, com `#[serde(default)]` e omitido quando ausente, então históricos antigos carregam e leitores antigos
+  veem o formato antigo. Ele guarda o breakdown, os números do Harness (do `ContextRecord` existente), latência,
+  chamadas de ferramenta, bytes de handoff e contadores. Um número que o Atlas não consegue observar é `None`.
+- **Latência** (milissegundos, f64): montagem do contexto (só com um serviço de Harness), montagem do prompt, partida do
+  runtime (início → o próprio relatório `Waiting` do runtime), execução do runtime, total do runtime, o `run_step`
+  inteiro e `instrumentation_ms`, o que a própria medição custou. Um `RuntimeProbe` observa o callback de progresso que o
+  runtime já chama; ele não reporta nada por conta própria.
+- **Eventos** reaproveitam `ExecutionEvent`/`ExecutionObserver`: `optimization_context_built`,
+  `optimization_prompt_built`, `optimization_metrics_recorded`. São anunciados só aos ouvintes (não entram no log da
+  execução).
+- **Flag.** `AppSettings.optimization.metricsEnabled` (`optimization.metrics.enabled`), ligada por padrão, lida uma vez
+  por execução pela porta `OptimizationFlags`. Um `ExecutionService` construído sem fonte de flag não mede nada.
+- **Base de benchmark** (`application/optimization/benchmark.rs`, só em testes): `BenchmarkRow` e `Comparison` (duas
+  execuções de um cenário e se seus prompts são idênticos) e cinco cargas de referência nos testes de `executions`:
+  tarefa simples, tarefa com Harness, passo de workflow com handoff, segundo passo de um workflow com Harness, contexto
+  grande. Na fase 0 o baseline e o "otimizado" são o mesmo código, então prompts idênticos são um critério de
+  aceitação, não um resultado.
 
-## Not observable (and said so)
+## Não observável (e dito como tal)
 
-- **Tool output bytes and tool selection**: the CLI's tools talk to the model directly. `tools.totalOutputBytes` is always
-  `None`. `tools.calls` is the number of tool events the runtime streamed, and `None` when it streamed none (Atlas cannot tell "no
-  tool used" from "this runtime does not stream tool events").
-- **Caches**: none exist yet; `cacheHits`/`cacheMisses` are `None`. `deduplicatedItems`/`compressedItems` are 0 because phase 0
-  does neither.
-- **Runtime tokens** when the runtime reports none (Gemini's cache figure is not read; the stand-in CLIs report only a cost).
+- **Bytes de saída das ferramentas e a seleção de ferramentas**: as ferramentas da CLI falam direto com o modelo.
+  `tools.totalOutputBytes` é sempre `None`. `tools.calls` é o número de eventos de ferramenta que o runtime transmitiu,
+  e `None` quando não transmitiu nenhum (o Atlas não distingue "nenhuma ferramenta usada" de "este runtime não transmite
+  eventos de ferramenta").
+- **Caches**: ainda não existe nenhum; `cacheHits`/`cacheMisses` são `None`. `deduplicatedItems`/`compressedItems` são 0
+  porque a fase 0 não faz nenhuma das duas coisas.
+- **Tokens do runtime** quando o runtime não informa nenhum (o número de cache do Gemini não é lido; as CLIs de
+  substituição informam só um custo).
 
-## Consequences
+## Consequências
 
-- Phase 1 (Context Engine) can wrap `TaskContextService` and be judged against `PromptBreakdown` and the golden workloads.
-- Tool-output optimization is out of reach of this layer: the data it would measure does not exist here (see ADR 0023).
-- Persistent user configuration is never touched (no agent hooks, no `~/.claude` changes).
+- A fase 1 (Context Engine) pode envolver o `TaskContextService` e ser julgada contra o `PromptBreakdown` e as cargas de
+  referência.
+- A otimização da saída de ferramentas está fora do alcance desta camada: os dados que ela mediria não existem aqui
+  (veja a ADR 0023).
+- A configuração persistente do usuário nunca é tocada (sem hooks de agente, sem mudanças em `~/.claude`).

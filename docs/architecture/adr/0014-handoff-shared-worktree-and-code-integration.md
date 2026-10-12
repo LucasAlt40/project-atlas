@@ -1,120 +1,135 @@
-# ADR 0014 — Handoff, the run's shared worktree and code integration
+# ADR 0014 — Handoff, o worktree compartilhado da execução e a integração do código
 
-**Status:** accepted. Extends [ADR 0013](0013-workflow-engine-and-orchestrator.md) and
+**Status:** aceito. Estende a [ADR 0013](0013-workflow-engine-and-orchestrator.md) e a
 [ADR 0009](0009-git-worktree-isolation.md).
 
-## Why
+## Por quê
 
-V0.9 ran steps, routed their results and said "completed". Three things were missing, and the third was worse than it looked:
+A V0.9 executava passos, roteava seus resultados e dizia "concluído". Faltavam três coisas, e a terceira era pior do que
+parecia:
 
-1. **The communication between agents could not be seen.** What one step produced for the next was spread over state and
-   prompts, with nowhere to inspect it.
-2. **Steps did not share code.** Each isolated step got its own worktree from the base commit, so a Validator opened a
-   tree without what the Developer had written.
-3. **"Workflow completed" was read as "code delivered"** — and could not even be true: _no Atlas agent could write a file._
-   By design since V0.3 the Claude runtime ran with `--tools Read,Grep,Glob`, OpenCode with `--agent plan` (edit denied) and
-   the prompt told every agent it was in "read-only mode". A Developer step completed having changed nothing.
+1. **A comunicação entre agentes não podia ser vista.** O que um passo produzia para o próximo estava espalhado entre
+   estado e prompts, sem lugar onde inspecionar.
+2. **Os passos não compartilhavam código.** Cada passo isolado recebia seu próprio worktree a partir do commit base,
+   então um Validator abria uma árvore sem o que o Developer tinha escrito.
+3. **"Workflow concluído" era lido como "código entregue"** — e nem podia ser verdade: _nenhum agente do Atlas conseguia
+   escrever um arquivo._ Por projeto, desde a V0.3 o runtime do Claude rodava com `--tools Read,Grep,Glob`, o OpenCode com
+   `--agent plan` (edição negada) e o prompt dizia a todo agente que ele estava em "modo somente leitura". Um passo de
+   Developer concluía sem ter mudado nada.
 
 ## Handoff
 
-`AgentHandoff` (`domain/workflow/handoff.rs`) is what one step hands to the next **over one transition**: the edge (or
-`failure:<node>`), the sending execution and pass, the step's `status` and `summary`, its `decisions`, the `artifacts` it
-made, the files **Git** saw it change (`changed_files`) and any not yet committed, what it merely _claimed_ to have touched
-(`reported_files`, kept apart), the `validation` it gave (status, findings) and, for a failure route, the failure. What a
-step did not say stays empty and its status stays `unknown`; nothing is invented.
+`AgentHandoff` (`domain/workflow/handoff.rs`) é o que um passo entrega ao próximo **por uma transição**: a aresta (ou
+`failure:<nó>`), a execução e a passada que enviam, o `status` e o `summary` do passo, suas `decisions`, os `artifacts`
+que produziu, os arquivos que o **Git** viu ele mudar (`changed_files`) e os ainda não commitados, o que ele apenas
+_alegou_ ter tocado (`reported_files`, mantido à parte), a `validation` que deu (status, achados) e, para uma rota de
+falha, a falha. O que um passo não disse fica vazio e seu status fica `unknown`; nada é inventado.
 
-- Built by the orchestrator (`orchestration/handoff.rs::build_handoff`) from the step's `AgentResult` and from Git, right
-  after the engine routes (`WorkflowEngine::taken_links`: the edges whose conditions the result met, or the failure route).
-- Stored in `WorkflowExecution.handoffs` (same `config.json`, same atomic writes; they survive a restart with the run).
-- **Given to the next step**, in the brief (`orchestration/brief.rs::handoff_block`), between `## WORKFLOW HANDOFF` and
-  `END WORKFLOW HANDOFF`, with a sentence saying it is context and grants nothing. For each earlier step only the latest
-  handoff along its transition is sent. Text inside is _quoted_: no line starts at the left edge and the block's own
-  markers are defanged, so it cannot close the block or pose as the prompt's structure. A handoff changes nothing else: it
-  has no path to permissions, policy, approvals, runtime or the workflow definition (tests try each).
-- Not a chat: the orchestrator remains the only owner of the state.
-- UI: nothing on the canvas. Click a **connection** to read what travelled over it; a node has _Input_ and _Output_ folds;
-  the run has a _Handoffs_ tab.
+- Construído pelo orquestrador (`orchestration/handoff.rs::build_handoff`) a partir do `AgentResult` do passo e do Git,
+  logo depois que o engine roteia (`WorkflowEngine::taken_links`: as arestas cujas condições o resultado atendeu, ou a
+  rota de falha).
+- Guardado em `WorkflowExecution.handoffs` (mesmo `config.json`, mesmas gravações atômicas; sobrevive a uma
+  reinicialização junto com a execução).
+- **Entregue ao próximo passo**, no brief (`orchestration/brief.rs::handoff_block`), entre `## WORKFLOW HANDOFF` e
+  `END WORKFLOW HANDOFF`, com uma frase dizendo que é contexto e não concede nada. Para cada passo anterior só o handoff
+  mais recente ao longo da sua transição é enviado. O texto dentro é _citado_: nenhuma linha começa na margem esquerda e
+  os marcadores do próprio bloco são neutralizados, então ele não pode fechar o bloco nem se passar pela estrutura do
+  prompt. Um handoff não muda mais nada: não tem caminho até permissões, política, aprovações, runtime ou a definição do
+  workflow (os testes tentam cada um).
+- Não é um chat: o orquestrador continua sendo o único dono do estado.
+- UI: nada no canvas. Clique em uma **conexão** para ler o que trafegou por ela; um nó tem as dobras _Entrada_ e
+  _Saída_; a execução tem uma aba _Handoffs_.
 
-## The run's shared worktree
+## O worktree compartilhado da execução
 
-When a workflow has agents that work in an isolated worktree, the run gets **one** worktree for all of them, made through
-the existing `WorktreeService::prepare` and marked as the run's (`workflow_execution_id`). Each step gets a **lease**
-(`WorktreeService::attach`): a record with the step's own execution id, the same folder and branch, `shared_with` pointing
-at the primary. Leases exist because the security layer finds an isolated execution's folder by its execution id.
+Quando um workflow tem agentes que trabalham em um worktree isolado, a execução recebe **um** worktree para todos eles,
+criado pelo `WorktreeService::prepare` existente e marcado como da execução (`workflow_execution_id`). Cada passo recebe
+um **lease** (`WorktreeService::attach`): um registro com o id de execução do próprio passo, a mesma pasta e o mesmo
+branch, com `shared_with` apontando para o primário. Os leases existem porque a camada de segurança encontra a pasta de
+uma execução isolada pelo seu id de execução.
 
-- A step ending commits what it left (`finish_step`), so the next step starts from a clean tree and the work is
-  recoverable; the lease records the commit it ended at, and `step_delta` is the diff of that range, by Git.
-- A lease is never merged or removed on its own. The primary is decided once, when the run ends (`close_shared`), and
-  **never merged automatically**, whatever the policy: the user decides what enters the project.
-- Steps whose agent does not isolate work in the checkout as always, and the run then has no code to integrate
-  (`not_applicable`). If no worktree can be made (not a Git repository) steps meet that themselves, as before.
-- A run cut short by a restart keeps its worktree (recorded as interrupted, never merged); resuming it **reopens** the same
-  one (`reopen`), so no second worktree appears; cancelling it ends it like any cancel.
+- Um passo, ao terminar, commita o que deixou (`finish_step`), de modo que o próximo passo comece de uma árvore limpa e o
+  trabalho seja recuperável; o lease registra o commit em que terminou, e `step_delta` é o diff desse intervalo, pelo
+  Git.
+- Um lease nunca é mesclado nem removido sozinho. O primário é decidido uma vez, quando a execução termina
+  (`close_shared`), e **nunca é mesclado automaticamente**, seja qual for a política: o usuário decide o que entra no
+  projeto.
+- Passos cujo agente não isola trabalham no checkout como sempre, e a execução então não tem código a integrar
+  (`not_applicable`). Se nenhum worktree puder ser criado (não é um repositório Git), os passos encontram isso por conta
+  própria, como antes.
+- Uma execução interrompida por uma reinicialização mantém seu worktree (registrada como interrompida, nunca mesclada);
+  retomá-la **reabre** o mesmo (`reopen`), então nenhum segundo worktree aparece; cancelá-la a encerra como todo
+  cancelamento.
 
 ## ChangeSet
 
-`ChangeSet` (`domain/worktree.rs`) is measured by Git and never by an agent: base and current revision, files with status
-(added / modified / deleted / renamed, with the old path), lines added and removed, binary files, and uncommitted paths. The
-diff text is not stored; it is read from Git when asked for (`diff_between`, bounded). Revisions must be full commit ids and
-a file name must be a plain relative path (no `..`, no leading `-` or `:`, no globs): nothing a caller sends becomes an
-option or pathspec magic. After the changes are applied and the worktree is gone, the diff is read from the project's own
-history.
+`ChangeSet` (`domain/worktree.rs`) é medido pelo Git e nunca por um agente: revisão base e atual, arquivos com status
+(adicionado / modificado / excluído / renomeado, com o caminho antigo), linhas adicionadas e removidas, arquivos
+binários e caminhos não commitados. O texto do diff não é guardado; é lido do Git quando pedido (`diff_between`,
+limitado). As revisões devem ser ids de commit completos e o nome de um arquivo deve ser um caminho relativo simples
+(sem `..`, sem `-` ou `:` no início, sem globs): nada que um chamador envia vira uma opção ou mágica de pathspec. Depois
+que as mudanças são aplicadas e o worktree some, o diff é lido do próprio histórico do projeto.
 
-## Workflow completion is not code integration
+## Workflow concluído não é código integrado
 
-`WorkflowExecution.integration` is separate from `status`:
+`WorkflowExecution.integration` é separado de `status`:
 
-| Status              | Meaning                                                                                                                                                              |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `not_applicable`    | no isolated worktree: nothing to integrate                                                                                                                           |
-| `in_progress`       | the agents work in the worktree; nothing is in the project                                                                                                           |
-| `no_changes`        | the run changed no code (the empty worktree is removed)                                                                                                              |
-| `changes_available` | the code is in the worktree, **not in the project**; `can_apply` says whether it may be applied (a cancelled or failed run's work is kept for review, never applied) |
-| `conflicts`         | applying was tried: a file is also changed in the project (or does not apply); nothing was written                                                                   |
-| `blocked`           | applying is not possible now (`block_reason`: branch changed, policy denies, uncommitted…)                                                                           |
-| `integrated`        | **the only state in which the screen says the code is in the project** (uncommitted, in the working tree)                                                            |
-| `kept_isolated`     | the user chose to leave it in the worktree                                                                                                                           |
-| `discarded`         | the user discarded the worktree                                                                                                                                      |
-| `failed`            | applying failed for a reason Git gave                                                                                                                                |
+| Status              | Significado                                                                                                                                                                    |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `not_applicable`    | sem worktree isolado: nada a integrar                                                                                                                                          |
+| `in_progress`       | os agentes trabalham no worktree; nada está no projeto                                                                                                                         |
+| `no_changes`        | a execução não mudou código (o worktree vazio é removido)                                                                                                                      |
+| `changes_available` | o código está no worktree, **não no projeto**; `can_apply` diz se pode ser aplicado (o trabalho de uma execução cancelada ou com falha é mantido para revisão, nunca aplicado) |
+| `conflicts`         | tentou-se aplicar: um arquivo também foi alterado no projeto (ou não se aplica); nada foi escrito                                                                              |
+| `blocked`           | aplicar não é possível agora (`block_reason`: branch mudou, política nega, não commitado…)                                                                                     |
+| `integrated`        | **o único estado em que a tela diz que o código está no projeto** (sem commit, na árvore de trabalho)                                                                          |
+| `kept_isolated`     | o usuário escolheu deixá-lo no worktree                                                                                                                                        |
+| `discarded`         | o usuário descartou o worktree                                                                                                                                                 |
+| `failed`            | aplicar falhou por um motivo informado pelo Git                                                                                                                                |
 
-`WorkflowExecution.status` never changes because of any of this: a run that completed with a blocked or failed integration
-is still a completed run.
+`WorkflowExecution.status` nunca muda por causa de nada disso: uma execução que concluiu com uma integração bloqueada ou
+com falha continua sendo uma execução concluída.
 
-**The user's decisions** (`IntegrationService`, reached only by the commands the user triggers; the orchestrator, the runner
-and agents have no path to them): **apply** (puts the changes in the project's _working tree_, uncommitted; never a merge or a
-commit: see [ADR 0015](0015-result-contracts-outcomes-and-worktree-lock.md#workflow-apply-is-not-a-commit); the agent policy
-for Git writes still applies, and it is that of the _strictest_ agent of the run), **keep isolated**, **discard** (confirmed in the UI; removes the worktree folder, unforced; the
-_branch is kept_ because Atlas never deletes commits that were not merged, so the work stays recoverable with Git),
-**review** (the real diff) and **open in an editor**.
+**As decisões do usuário** (`IntegrationService`, alcançado somente pelos comandos que o usuário aciona; o
+orquestrador, o runner e os agentes não têm caminho até ele): **aplicar** (coloca as mudanças na _árvore de trabalho_ do
+projeto, sem commit; nunca um merge nem um commit: veja a
+[ADR 0015](0015-result-contracts-outcomes-and-worktree-lock.md#workflow-apply-não-é-um-commit); a política de escritas no
+Git do agente ainda se aplica, e é a do agente _mais restrito_ da execução), **manter isolado**, **descartar**
+(confirmado na UI; remove a pasta do worktree, sem forçar; o _branch é mantido_ porque o Atlas nunca apaga commits que
+não foram mesclados, então o trabalho continua recuperável com o Git), **revisar** (o diff real) e **abrir em um
+editor**.
 
-## Opening an editor
+## Abrir um editor
 
-`IdeLauncher` (port) / `SystemIdeLauncher`: a fixed list of editors (VS Code, Cursor, IntelliJ IDEA), found by their own
-command-line launcher on `PATH` (Windows: `.cmd`/`.exe` names) or, on macOS, as an installed application (`open -a`). The
-program is chosen from the list, the folder is one argument of a process started without a shell, and must be an absolute
-path to an existing folder. The folder is never taken from the webview or an agent: it is the run's worktree while the code is
-only there, the project once applied. Visual Studio is not detected yet.
+`IdeLauncher` (porta) / `SystemIdeLauncher`: uma lista fixa de editores (VS Code, Cursor, IntelliJ IDEA), encontrados
+pelo seu próprio lançador de linha de comando no `PATH` (Windows: nomes `.cmd`/`.exe`) ou, no macOS, como um aplicativo
+instalado (`open -a`). O programa é escolhido da lista, a pasta é um argumento de um processo iniciado sem shell, e deve
+ser um caminho absoluto para uma pasta existente. A pasta nunca vem da webview nem de um agente: é o worktree da
+execução enquanto o código está só lá, o projeto depois de aplicado. O Visual Studio ainda não é detectado.
 
-## Letting agents write files
+## Deixar os agentes escreverem arquivos
 
-The root cause above is fixed narrowly, inside the existing security model:
+A causa raiz acima é corrigida de forma estreita, dentro do modelo de segurança existente:
 
-- `RuntimeCapabilities.file_edit` says a runtime _can_ be launched with file-editing tools (Claude: yes; OpenCode: no, still
-  `--agent plan`). `RuntimeRequest.allow_edits` says this execution _gets_ them.
-- `ExecutionService::may_edit` grants them only when **all** hold: the agent works in an isolated worktree (an edit can never
-  reach the project's checkout), the runtime can, and the agent's own policy (workspace ceiling ∩ permission profile) allows
-  file writes. Unknown means no. Agents default to the most restrictive profile, so only an agent the user explicitly gave
-  the _developer_ profile can write.
-- Claude is then launched with `--tools Read,Grep,Glob,Edit,Write --permission-mode acceptEdits`. Still no shell, no web.
-  The scope's `runtime_access` reflects what the tools can do _as launched_, which the guard checks against the policy again.
-- The prompt says what is true: the editing rule for such an execution (isolated worktree, files only, nothing outside it,
-  reviewed before it reaches the project), the read-only rule for every other one.
+- `RuntimeCapabilities.file_edit` diz que um runtime _pode_ ser iniciado com ferramentas de edição de arquivos (Claude:
+  sim; OpenCode: não, ainda `--agent plan`). `RuntimeRequest.allow_edits` diz que esta execução _recebe_ essas
+  ferramentas.
+- `ExecutionService::may_edit` só as concede quando **todas** as condições valem: o agente trabalha em um worktree
+  isolado (uma edição nunca pode alcançar o checkout do projeto), o runtime pode, e a política do próprio agente (teto
+  do workspace ∩ perfil de permissão) permite escrita de arquivos. Desconhecido significa não. Os agentes partem do
+  perfil mais restritivo, então só um agente a quem o usuário deu explicitamente o perfil _developer_ pode escrever.
+- O Claude é então iniciado com `--tools Read,Grep,Glob,Edit,Write --permission-mode acceptEdits`. Ainda sem shell, sem
+  web. O `runtime_access` do escopo reflete o que as ferramentas podem fazer _como foram iniciadas_, o que o guard
+  confere de novo contra a política.
+- O prompt diz o que é verdade: a regra de edição para uma execução assim (worktree isolado, só arquivos, nada fora
+  dele, revisado antes de chegar ao projeto), a regra de somente leitura para todas as outras.
 
-## Known limits
+## Limites conhecidos
 
-- Steps of one run that run in parallel share one tree: their commits can mix and the per-step delta can include the other
-  step's files. Overlap warnings still apply.
-- Only the user applies changes; there is no automatic integration, even for a policy that would allow a merge.
-- OpenCode agents remain read-only. Agents cannot run tests or a shell (a different, larger decision).
-- The step's changes are committed to the run's branch by Atlas when Git writes are not denied; with a policy that denies
-  them the work stays uncommitted and cannot be applied from Atlas.
+- Passos de uma mesma execução que rodam em paralelo compartilham uma árvore: seus commits podem se misturar e o delta
+  por passo pode incluir arquivos do outro passo. Os avisos de sobreposição continuam valendo.
+- Só o usuário aplica mudanças; não há integração automática, mesmo para uma política que permitiria um merge.
+- Os agentes do OpenCode continuam somente leitura. Agentes não podem executar testes nem um shell (uma decisão
+  diferente e maior).
+- As mudanças do passo são commitadas no branch da execução pelo Atlas quando as escritas no Git não são negadas; com uma
+  política que as nega o trabalho fica sem commit e não pode ser aplicado a partir do Atlas.

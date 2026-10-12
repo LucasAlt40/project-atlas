@@ -1,20 +1,20 @@
-# ADR 0004 — Providers, runtimes and models
+# ADR 0004 — Provedores, runtimes e modelos
 
-**Status:** accepted
+**Status:** aceito
 
-V0.2 modelled "provider + model". That conflated two things: _who_ provides an AI (Anthropic) and _how_
-Atlas reaches it on this machine (the Claude CLI today, the Anthropic API later). An agent now references a
-**runtime** (`runtimeId`) and a model; the provider is a property of the runtime, used only for grouping in
-the UI.
+A V0.2 modelava "provedor + modelo". Isso misturava duas coisas: _quem_ fornece uma IA (Anthropic) e _como_ o Atlas a
+alcança nesta máquina (hoje a CLI do Claude, depois a API da Anthropic). Agora um agente referencia um **runtime**
+(`runtimeId`) e um modelo; o provedor é uma propriedade do runtime, usada só para agrupar na interface.
 
-A runtime implements `ModelRuntime` (`info`, `detect`, `list_models`, `execute`) and declares
-`RuntimeCapabilities`. The execution layer sees only that trait, so supporting a new tool means adding an
-adapter, never editing agents, prompts or executions. Differences between tools (no model discovery, no
-system-prompt flag, different auth) are expressed as capabilities and structured status, not as branches in
-shared code.
+Um runtime implementa `ModelRuntime` (`info`, `detect`, `list_models`, `execute`) e declara `RuntimeCapabilities`. A
+camada de execução enxerga apenas essa trait, então suportar uma nova ferramenta significa adicionar um adaptador,
+nunca editar agentes, prompts ou execuções. As diferenças entre ferramentas (sem descoberta de modelos, sem flag de
+system prompt, autenticação diferente) são expressas como capacidades e status estruturado, não como ramificações no
+código compartilhado.
 
-Runtimes own their executable, arguments, environment and working directory. The webview only names a
-`runtimeId`. All process execution goes through the `ProcessRunner` port.
+Os runtimes são donos do seu executável, argumentos, ambiente e diretório de trabalho. A webview só nomeia um
+`runtimeId`. Toda execução de processo passa pela porta `ProcessRunner`.
 
-Authentication is modelled (`AuthKind`, `AuthState`) but only the tool's own signed-in session is
-implemented. API keys must be stored in the operating system's credential store, never in `config.json`.
+A autenticação é modelada (`AuthKind`, `AuthState`), mas só a sessão já logada da própria ferramenta está
+implementada. Chaves de API devem ser guardadas no armazenamento de credenciais do sistema operacional, nunca no
+`config.json`.

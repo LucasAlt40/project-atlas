@@ -1,7 +1,7 @@
-// Harmless MCP stdio server for an Atlas spike. No require(): no fs, no net, no child_process.
-// Reads JSON-RPC lines from stdin and answers with static data. MODE=die exits after tools/list;
-// NONCE makes a tool call answer `atlas-spike-called:<NONCE>`, so a model that really called it can be told from one that guessed.
-// MODE=requireenv starts only if a secret reached it. MODE=slow waits DELAY_MS before it answers. MODE=stubborn does not exit when its input ends; MODE=badschema advertises a tool whose inputSchema is not a valid JSON schema.
+// Servidor MCP stdio inofensivo para um spike do Atlas. Sem require(): sem fs, sem net, sem child_process.
+// Lê linhas JSON-RPC da stdin e responde com dados estáticos. MODE=die sai depois de tools/list;
+// NONCE faz uma chamada de ferramenta responder `atlas-spike-called:<NONCE>`, para distinguir um modelo que realmente a chamou de um que chutou.
+// MODE=requireenv só inicia se um segredo chegou até ele. MODE=slow espera DELAY_MS antes de responder. MODE=stubborn não sai quando a sua entrada termina; MODE=badschema anuncia uma ferramenta cujo inputSchema não é um esquema JSON válido.
 const mode = process.env.MODE || 'ok';
 const send = (o) => process.stdout.write(JSON.stringify(o) + '\n');
 const tools = [
@@ -67,17 +67,17 @@ process.stdin.on('data', (d) => {
       send({ jsonrpc: '2.0', id: m.id, error: { code: -32601, message: 'no' } });
   }
 });
-// MODE=stubborn ignores the end of its input, like a server that keeps running on its own.
+// MODE=stubborn ignora o fim da sua entrada, como um servidor que continua rodando por conta própria.
 process.stdin.on('end', () => {
   if (mode !== 'stubborn') process.exit(0);
 });
 if (mode === 'stubborn') setInterval(() => {}, 1000);
-// MODE=slow answers nothing until DELAY_MS have passed, like a server that has to download itself first.
+// MODE=slow não responde nada até passarem DELAY_MS, como um servidor que precisa se baixar primeiro.
 if (mode === 'slow') {
   process.stdin.pause();
   setTimeout(() => process.stdin.resume(), Number(process.env.DELAY_MS || '0'));
 }
-// MODE=requireenv exits at once unless the variable named by REPORT_ENV holds the value in EXPECT: a
-// server that only starts when a secret really reached it, visible as `connected` or not.
+// MODE=requireenv sai de imediato a menos que a variável nomeada por REPORT_ENV guarde o valor de EXPECT: um
+// servidor que só inicia quando um segredo realmente chegou até ele, visível como `connected` ou não.
 if (mode === 'requireenv' && process.env[process.env.REPORT_ENV || ''] !== process.env.EXPECT)
   process.exit(3);

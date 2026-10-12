@@ -1,108 +1,129 @@
-# ADR 0029 — MCP for every runtime that can take it
+# ADR 0029 — MCP para todo runtime que consegue suportá-lo
 
-Status: accepted. Builds on [ADR 0028](0028-mcp-foundation.md); changes none of its invariants.
+Status: aceito. Baseia-se na [ADR 0028](0028-mcp-foundation.md); não muda nenhuma das suas invariantes.
 
-## Context
+## Contexto
 
-Phase D gave MCP servers to Claude only, because only Claude had been measured. A person who granted an integration to an agent on another
-runtime saw nothing happen: the manifest said `runtime_unsupported`. The ask: every runtime Atlas supports should be able to use MCP.
+A Fase D deu servidores MCP somente ao Claude, porque só o Claude havia sido medido. Uma pessoa que concedia uma
+integração a um agente em outro runtime não via nada acontecer: o manifest dizia `runtime_unsupported`. O pedido: todo
+runtime que o Atlas suporta deve poder usar MCP.
 
-## What was measured (real CLIs, no model call)
+## O que foi medido (CLIs reais, sem chamada de modelo)
 
-| Runtime     | Per-run configuration (nothing of the user's is written)         | Secret                                       | Tool filter                                      | Look without a model                                 | Only Atlas's servers? |
-| ----------- | ---------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------ | ---------------------------------------------------- | --------------------- |
-| Claude      | `--mcp-config <file>` + `--strict-mcp-config`                    | `${VAR}` from the CLI's environment          | deny-list (`--disallowedTools`), needs discovery | `init` report: status **and tool names**             | yes                   |
-| Gemini      | `GEMINI_CLI_SYSTEM_SETTINGS_PATH=<file>` with `mcpServers`       | `$VAR` in `env` values                       | allow-list (`includeTools`), no discovery        | `gemini mcp list`: status only (stderr, no terminal) | no                    |
-| OpenCode    | `OPENCODE_CONFIG_CONTENT=<json>` with `mcp`                      | `{env:VAR}` in `environment` values          | none verified: named-tool grants refused         | `opencode mcp list`: status only                     | no                    |
-| Codex       | `-c mcp_servers.<name>.<key>=<toml>`                             | `env_vars=["NAME"]` forwards `NAME` from env | allow-list (`enabled_tools`), no discovery       | none (`codex exec` reports nothing about servers)    | no                    |
-| Antigravity | none found: `agy mcp add` writes the user's global configuration | —                                            | —                                                | —                                                    | —                     |
+| Runtime     | Configuração por execução (nada do usuário é escrito)                      | Segredo                                        | Filtro de ferramentas                                           | Olhada sem modelo                                        | Só os servidores do Atlas? |
+| ----------- | -------------------------------------------------------------------------- | ---------------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------- | -------------------------- |
+| Claude      | `--mcp-config <arquivo>` + `--strict-mcp-config`                           | `${VAR}` do ambiente da CLI                    | lista de negação (`--disallowedTools`), precisa de descoberta   | relatório `init`: status **e nomes das ferramentas**     | sim                        |
+| Gemini      | `GEMINI_CLI_SYSTEM_SETTINGS_PATH=<arquivo>` com `mcpServers`               | `$VAR` nos valores de `env`                    | lista de permissão (`includeTools`), sem descoberta             | `gemini mcp list`: só status (stderr, sem terminal)      | não                        |
+| OpenCode    | `OPENCODE_CONFIG_CONTENT=<json>` com `mcp`                                 | `{env:VAR}` nos valores de `environment`       | nenhum verificado: concessões de ferramentas nomeadas recusadas | `opencode mcp list`: só status                           | não                        |
+| Codex       | `-c mcp_servers.<nome>.<chave>=<toml>`                                     | `env_vars=["NOME"]` repassa `NOME` do ambiente | lista de permissão (`enabled_tools`), sem descoberta            | nenhuma (`codex exec` não informa nada sobre servidores) | não                        |
+| Antigravity | nenhuma encontrada: `agy mcp add` escreve a configuração global do usuário | —                                              | —                                                               | —                                                        | —                          |
 
-Each "secret" row was shown by a server that starts only if the secret reached it (spike `MODE=requireenv`): `connected` with the right value,
-`failed`/`Disconnected` with a wrong one. Codex's `-c` arguments were checked with `codex mcp get --json`.
+Cada linha de "segredo" foi demonstrada por um servidor que só inicia se o segredo chegou até ele (spike
+`MODE=requireenv`): `connected` com o valor certo, `failed`/`Disconnected` com um errado. Os argumentos `-c` do Codex
+foram conferidos com `codex mcp get --json`.
 
-## Decisions
+## Decisões
 
-1. **Capabilities, not a boolean.** `RuntimeCapabilities.mcp_features` says how a runtime filters tools (`unsupported`, `deny_list`,
-   `allow_list`), what a probe shows (`none`, `status_only`, `tools`) and whether it loads only Atlas's servers (`strict`). The plan uses them:
-   a grant that names tools needs discovery on a deny-list runtime, none on an allow-list one, and is **not honoured** (the server is not given,
-   `tool_filter_unsupported`) where nothing holds the rest back (no runtime is in that state today).
-2. **Antigravity is `CliConfigured`** (amended). Giving it a server for a run would mean changing the user's global configuration, which Atlas
-   does not do, so it cannot be _handed_ one. But it loads the servers of its own configuration, and without being told it does not use them (a
-   QA agent granted `chrome-devtools` never opened the browser: both runs recorded `runtime_unsupported` and the prompt said nothing). So the
-   plan asks the CLI what it has (`agy mcp list`, enabled entries), matches a connection to one of them by name (`chrome-devtools` is
-   `chrome-devtools-mcp`) or by the package it starts, and, when there is one, treats it as exposed _through the CLI_: the prompt names it by
-   the CLI's own name, the manifest records `cliName`, no secret leaves the credential store and nothing is launched. When the CLI does not have
-   it the problem is `not_in_cli_config` (the hub offers the `agy mcp add` command to copy). A grant that names tools is refused
-   (`tool_filter_unsupported`): nothing can hold the CLI's other tools back, and it loads its other servers too (`strict: false`).
-3. **Not strict where not measured.** Gemini, OpenCode and Codex merge Atlas's servers with the user's own. Atlas says so (surface entry
-   "user controlled, not observed"; a note where a grant is made) instead of claiming to have excluded them. Gemini's
-   `--allowed-mcp-server-names` was not passed: its effect was not verified.
-4. **Calls must be allowed.** A non-interactive run cannot ask a person, so Claude gets `--allowedTools` for what was granted and Gemini
-   `trust` on the servers it gives: the person's grant (and the policy and the guardrails before the step) is the decision. Read in the CLIs'
-   references, **not run** (a run costs tokens).
-5. **Names that cannot be told apart cannot coexist.** `web-2` and `web_2` map to one environment variable; they are refused together, a name may
-   not hold `__`, a second server with an already used key is left out of a launch. Configurations may not contain any of the CLIs' expansion
-   syntaxes (`${…}`, `$VAR`, `{env:…}`, `{file:…}`).
-6. **Codex secrets travel under the server's own variable name** (what `env_vars` forwards); two servers using one name cannot be launched together.
+1. **Capacidades, não um booleano.** `RuntimeCapabilities.mcp_features` diz como um runtime filtra ferramentas
+   (`unsupported`, `deny_list`, `allow_list`), o que uma sonda mostra (`none`, `status_only`, `tools`) e se ele carrega
+   apenas os servidores do Atlas (`strict`). O plano as usa: uma concessão que nomeia ferramentas precisa de descoberta
+   em um runtime de lista de negação, nenhuma em um de lista de permissão, e **não é honrada** (o servidor não é dado,
+   `tool_filter_unsupported`) onde nada retém o resto (nenhum runtime está nesse estado hoje).
+2. **O Antigravity é `CliConfigured`** (emendado). Dar a ele um servidor por execução significaria alterar a configuração
+   global do usuário, o que o Atlas não faz, então não é possível _entregar-lhe_ um. Mas ele carrega os servidores da sua
+   própria configuração e, sem ser avisado, não os usa (um agente de QA com `chrome-devtools` concedido nunca abriu o
+   navegador: as duas execuções registraram `runtime_unsupported` e o prompt não dizia nada). Então o plano pergunta à
+   CLI o que ela tem (`agy mcp list`, entradas habilitadas), casa uma conexão com uma delas pelo nome (`chrome-devtools`
+   é `chrome-devtools-mcp`) ou pelo pacote que ela inicia e, quando há uma, a trata como exposta _pela CLI_: o prompt a
+   nomeia pelo nome da própria CLI, o manifest registra `cliName`, nenhum segredo sai do armazenamento de credenciais e
+   nada é iniciado. Quando a CLI não a tem, o problema é `not_in_cli_config` (o hub oferece o comando `agy mcp add` para
+   copiar). Uma concessão que nomeia ferramentas é recusada (`tool_filter_unsupported`): nada consegue reter as outras
+   ferramentas da CLI, e ela carrega também os outros servidores (`strict: false`).
+3. **Não estrito onde não foi medido.** Gemini, OpenCode e Codex mesclam os servidores do Atlas com os do próprio
+   usuário. O Atlas diz isso (entrada de superfície "controlado pelo usuário, não observado"; uma nota onde uma
+   concessão é feita) em vez de afirmar tê-los excluído. O `--allowed-mcp-server-names` do Gemini não foi passado: seu
+   efeito não foi verificado.
+4. **As chamadas precisam ser permitidas.** Uma execução não interativa não pode perguntar a uma pessoa, então o Claude
+   recebe `--allowedTools` para o que foi concedido e o Gemini `trust` nos servidores que dá: a concessão da pessoa (e a
+   política e os guardrails antes do passo) é a decisão. Lido nas referências das CLIs, **não executado** (uma execução
+   custa tokens).
+5. **Nomes que não se distinguem não podem coexistir.** `web-2` e `web_2` mapeiam para uma só variável de ambiente; são
+   recusados juntos, um nome não pode conter `__`, um segundo servidor com uma chave já usada fica de fora de um
+   lançamento. As configurações não podem conter nenhuma das sintaxes de expansão das CLIs (`${…}`, `$VAR`, `{env:…}`,
+   `{file:…}`).
+6. **Os segredos do Codex viajam sob o nome de variável do próprio servidor** (o que `env_vars` repassa); dois
+   servidores que usam o mesmo nome não podem ser lançados juntos.
 
-## Structure: Strategy and Factory
+## Estrutura: Strategy e Factory
 
-`runtimes/mcp_adapter.rs` defines `McpAdapter` (program, features, `prepare`, `probe_plan`, `classify`; `probe` is provided from the plan) with one
-implementation per CLI, and `McpAdapterFactory::create(McpDialect)`. A runtime holds an `Arc<dyn McpAdapter>`: its `execute` calls
-`prepare_for(adapter, request)` and adds the arguments and environment it gets; `probe_mcp` and `mcp_tools_in` delegate; its declared
-capabilities come from `McpAdapterFactory::declared`. The same shape builds the catalogue (`McpPreset`, `McpPresetFactory`). What this removed:
-four copies of the "write a file, build the environment, run the probe, read the answer" sequence, and the capability literals that said the
-same thing in each runtime. The measured behaviour is unchanged (the real-model tests pass before and after).
+`runtimes/mcp_adapter.rs` define `McpAdapter` (programa, recursos, `prepare`, `probe_plan`, `classify`; `probe` é
+fornecido a partir do plano) com uma implementação por CLI, e `McpAdapterFactory::create(McpDialect)`. Um runtime guarda
+um `Arc<dyn McpAdapter>`: seu `execute` chama `prepare_for(adapter, request)` e acrescenta os argumentos e o ambiente que
+recebe; `probe_mcp` e `mcp_tools_in` delegam; suas capacidades declaradas vêm de `McpAdapterFactory::declared`. O mesmo
+formato monta o catálogo (`McpPreset`, `McpPresetFactory`). O que isso removeu: quatro cópias da sequência "escrever um
+arquivo, montar o ambiente, rodar a sonda, ler a resposta", e os literais de capacidade que diziam a mesma coisa em cada
+runtime. O comportamento medido não mudou (os testes com modelo real passam antes e depois).
 
-## Verified with real models (the user authorized the spend; a few tokens each)
+## Verificado com modelos reais (o usuário autorizou o gasto; poucos tokens cada)
 
-Through the whole of Atlas (real guard, real CLI, real MCP service, a step through `ExecutionService`), against a harmless server that returns a
-nonce no model can guess (`executions/real_runtime_tests.rs`, run by exact name):
+Por todo o Atlas (guard real, CLI real, serviço MCP real, um passo pelo `ExecutionService`), contra um servidor
+inofensivo que devolve um nonce que nenhum modelo adivinha (`executions/real_runtime_tests.rs`, executado por nome
+exato):
 
-| Runtime  | Named tools (`echo_static` only, `env_zzz` left out)     | Whole server | Chrome DevTools entry of the catalogue (pinned, headless) |
-| -------- | -------------------------------------------------------- | ------------ | --------------------------------------------------------- |
-| Claude   | called; the other tool: "NOT AVAILABLE"; recorded `used` | both called  | opened `https://example.com`, listed the pages            |
-| Codex    | called; the other tool: "NOT AVAILABLE"; recorded `used` | both called  | opened `https://example.com`, listed the pages            |
-| OpenCode | called; the other tool: "NOT AVAILABLE"; recorded `used` | both called  | opened `https://example.com`, listed the pages            |
+| Runtime  | Ferramentas nomeadas (só `echo_static`, `env_zzz` de fora)           | Servidor inteiro | Entrada Chrome DevTools do catálogo (fixada, headless) |
+| -------- | -------------------------------------------------------------------- | ---------------- | ------------------------------------------------------ |
+| Claude   | chamada; a outra ferramenta: "NOT AVAILABLE"; registrada como `used` | as duas chamadas | abriu `https://example.com`, listou as páginas         |
+| Codex    | chamada; a outra ferramenta: "NOT AVAILABLE"; registrada como `used` | as duas chamadas | abriu `https://example.com`, listou as páginas         |
+| OpenCode | chamada; a outra ferramenta: "NOT AVAILABLE"; registrada como `used` | as duas chamadas | abriu `https://example.com`, listou as páginas         |
 
-What the real runs showed, and fixed:
+O que as execuções reais mostraram, e foi corrigido:
 
-- **Claude refused every call without `--allowedTools`** (a permission denial in a non-interactive run): shown directly, then fixed.
-- **Codex refused with "MCP tool call requires approval, but approval policy is never"** until `default_tools_approval_mode="approve"` was set.
-- **OpenCode** needed nothing for approval; its allow-list is the `tools` map (`<server>_*: false`, `<server>_<tool>: true`). A `permission` rule did
-  not give a clear result and is not used.
-- **A call OpenCode reports only once finished** was not counted: the probe now counts completed calls too (per tool, the larger of started and
-  completed), so `tool_calls` and `used` are right for it.
-- **Antigravity** runs headless with the MCP servers of the user's own configuration (`call_mcp_tool`, with the server and tool as parameters) and
-  reached the user's `chrome-devtools-mcp` when the task named it; Atlas shows the call as `mcp__<server>__<tool>`. It does not use a server unless
-  the task asks: **the instruction of an agent on Antigravity has to say so**.
+- **O Claude recusava toda chamada sem `--allowedTools`** (uma negação de permissão em uma execução não interativa):
+  demonstrado diretamente, depois corrigido.
+- **O Codex recusava com "MCP tool call requires approval, but approval policy is never"** até que
+  `default_tools_approval_mode="approve"` fosse definido.
+- **O OpenCode** não precisou de nada para aprovação; sua lista de permissão é o mapa `tools` (`<servidor>_*: false`,
+  `<servidor>_<ferramenta>: true`). Uma regra `permission` não deu um resultado claro e não é usada.
+- **Uma chamada que o OpenCode só informa quando termina** não era contada: a sonda agora conta também as chamadas
+  concluídas (por ferramenta, o maior entre iniciadas e concluídas), de modo que `tool_calls` e `used` fiquem certos
+  para ele.
+- **O Antigravity** roda headless com os servidores MCP da configuração do próprio usuário (`call_mcp_tool`, com o
+  servidor e a ferramenta como parâmetros) e alcançou o `chrome-devtools-mcp` do usuário quando a tarefa o nomeou; o
+  Atlas mostra a chamada como `mcp__<servidor>__<ferramenta>`. Ele não usa um servidor a menos que a tarefa peça: **a
+  instrução de um agente no Antigravity precisa dizer isso**.
 
-## The agent is told which integrations it was given (default on)
+## O agente é informado de quais integrações recebeu (ligado por padrão)
 
-A model that is not told tends not to reach for a tool nobody mentioned. Measured with real models on a task that never names an integration
-("check what is at https://example.com by actually loading it in a browser", the DevTools entry granted): **with** the note, OpenCode and Codex
-both loaded the page; **without** it, Codex answered from memory and never touched the browser (OpenCode used it either way).
+Um modelo que não é informado tende a não recorrer a uma ferramenta que ninguém mencionou. Medido com modelos reais em
+uma tarefa que nunca nomeia uma integração ("veja o que há em https://example.com carregando-o de fato em um
+navegador", com a entrada do DevTools concedida): **com** a nota, o OpenCode e o Codex carregaram a página; **sem** ela,
+o Codex respondeu de memória e nunca tocou no navegador (o OpenCode o usou nos dois casos).
 
-- The prompt's project-context part gets two lines: `Integrations (MCP servers) given to you for this task: <names>.` and a request to use their
-  tools when the task needs what they offer, and not otherwise. It names only the servers the plan gives the agent, and nothing is said when none is
-  given (so a step that is given nothing has the prompt it always had).
-- It is a setting of the **workflow step** (`executionPolicy.announceIntegrations`, on by default, shown in the node's inspector); a conversation
-  with an agent always has it on. Turning it off does not remove the integration. Older stored workflows read as on.
-- It changes the prompt, so the manifest's hash differs from a run without it; that is the point of the hash.
+- A parte de contexto do projeto do prompt ganha duas linhas: `Integrations (MCP servers) given to you for this task:
+<nomes>.` e um pedido para usar as ferramentas delas quando a tarefa precisar do que oferecem, e não de outro modo. Ela
+  nomeia apenas os servidores que o plano dá ao agente, e nada é dito quando nenhum é dado (então um passo que não recebe
+  nada tem o prompt que sempre teve).
+- É uma configuração do **passo do workflow** (`executionPolicy.announceIntegrations`, ligada por padrão, mostrada no
+  inspetor do nó); uma conversa com um agente sempre a tem ligada. Desligá-la não remove a integração. Workflows antigos
+  guardados são lidos como ligados.
+- Ela muda o prompt, então o hash do manifest difere de uma execução sem ela; esse é o objetivo do hash.
 
-## Catalogue: Jira and Confluence
+## Catálogo: Jira e Confluence
 
-`jira` is a catalogue entry: `npx -y mcp-remote@0.1.37 https://mcp.atlassian.com/v1/sse` (Atlassian's remote server through the `mcp-remote` proxy,
-pinned to the version the existing sign-in cache of people who already use it is kept under, so they need not sign in again; the repository moved
-from `geelen` to `punkpeye`, same project). The sign-in is OAuth in a browser, done once by the person; Atlas shows whether a tokens file exists
-under `~/.mcp-auth/mcp-remote-0.1.37` (only the file name, never its content) and says how to sign in when it does not. Verified with a real
-model: Claude, with the saved sign-in, called `atlassianUserInfo` through Atlas and answered `OK` (no account data was printed). Like every entry it is
-added off and granted to nobody.
+`jira` é uma entrada do catálogo: `npx -y mcp-remote@0.1.37 https://mcp.atlassian.com/v1/sse` (o servidor remoto da
+Atlassian pelo proxy `mcp-remote`, fixado na versão sob a qual o cache de login existente de quem já o usa é mantido,
+para que não precisem entrar de novo; o repositório mudou de `geelen` para `punkpeye`, mesmo projeto). O login é OAuth
+em um navegador, feito uma vez pela pessoa; o Atlas mostra se existe um arquivo de tokens em
+`~/.mcp-auth/mcp-remote-0.1.37` (apenas o nome do arquivo, nunca o seu conteúdo) e diz como entrar quando não existe.
+Verificado com um modelo real: o Claude, com o login salvo, chamou `atlassianUserInfo` pelo Atlas e respondeu `OK`
+(nenhum dado da conta foi impresso). Como toda entrada, é adicionada desligada e concedida a ninguém.
 
-## Not verified
+## Não verificado
 
-- **Gemini CLI**: the account is refused by the CLI ("no longer supported for Gemini Code Assist for individuals"), so no model call was possible.
-  Its settings file, the secret and the probe were verified without a model; `trust` letting a call through was not.
-- Tool names a Gemini run reports (so its `used` stays unknown); Codex reports `mcp_tool_call` items, shown as `mcp__server__tool`, and OpenCode
-  `<server>_<tool>`, both recorded as `used`.
-- A managed Gemini system settings file would be replaced for the run by Atlas's.
+- **Gemini CLI**: a conta é recusada pela CLI ("no longer supported for Gemini Code Assist for individuals"), então
+  nenhuma chamada de modelo foi possível. Seu arquivo de configuração, o segredo e a sonda foram verificados sem modelo;
+  o `trust` deixando uma chamada passar não foi.
+- Nomes de ferramentas que uma execução do Gemini informa (então seu `used` continua desconhecido); o Codex informa
+  itens `mcp_tool_call`, mostrados como `mcp__servidor__ferramenta`, e o OpenCode `<servidor>_<ferramenta>`, ambos
+  registrados como `used`.
+- Um arquivo gerenciado de configurações de sistema do Gemini seria substituído, durante a execução, pelo do Atlas.

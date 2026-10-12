@@ -1,91 +1,85 @@
-# 0017 — Contract-aware workflow validation and assisted route repair
+# 0017 — Validação de workflow ciente do contrato e reparo assistido de rotas
 
-## Context
+## Contexto
 
-A real run ended as `failed` although every step did its job. QA declared the outcomes
-`approved` / `changes_requested` (a `review` contract), while the saved workflow routed QA with
-`result.status = pass` / `fail`. No edge could match `approved`, so the run stopped with
-`no_route_matched`. The engine behaved correctly: the definition was wrong, and nothing told the
-user before the run. The one migration that exists (ADR 0015) retargets `result.status` edges to
-`result.outcome` only when the agent declares that very value, so it rightly did not touch QA.
+Uma execução real terminou como `failed` embora todo passo tivesse feito o seu trabalho. O QA declarava os desfechos
+`approved` / `changes_requested` (um contrato `review`), enquanto o workflow salvo roteava o QA com
+`result.status = pass` / `fail`. Nenhuma aresta podia casar `approved`, então a execução parou com `no_route_matched`. O
+engine se comportou corretamente: a definição estava errada, e nada avisou o usuário antes da execução. A única migração
+que existe (ADR 0015) redireciona arestas `result.status` para `result.outcome` somente quando o agente declara
+exatamente aquele valor, então com razão não tocou no QA.
 
-## Decision
+## Decisão
 
-**Four things stay apart.** The _agent contract_ says which outcomes an agent may produce. The
-_workflow_ says what to do with each. An _End node_ says when the workflow is done. The
-_execution status_ is the technical state of the run. There is no "terminal outcome": `approved`,
-`pass`, `fail` and `changes_requested` are not terminal in themselves; a route to an End node is
-what finishes a workflow. No step ending, and no missing route, ever completes a run.
+**Quatro coisas ficam separadas.** O _contrato do agente_ diz quais desfechos um agente pode produzir. O _workflow_ diz o
+que fazer com cada um. Um _nó End_ diz quando o workflow termina. O _status da execução_ é o estado técnico da
+execução. Não existe "desfecho terminal": `approved`, `pass`, `fail` e `changes_requested` não são terminais em si; o
+que termina um workflow é uma rota até um nó End. Nenhum fim de passo, e nenhuma rota ausente, jamais conclui uma
+execução.
 
-**`result.status` is not `result.outcome`.** `result.status` says whether the step ran
-(`success` / `failed`). `result.outcome` is the verdict the agent declared. Only `pass` and `fail`
-are mirrored into `result.status`, so that edges saved before outcome routing keep working for an
-agent that declares them. Everything else about meaning is read from `result.outcome`.
+**`result.status` não é `result.outcome`.** `result.status` diz se o passo rodou (`success` / `failed`).
+`result.outcome` é o veredito que o agente declarou. Apenas `pass` e `fail` são espelhados em `result.status`, para que
+arestas salvas antes do roteamento por desfecho continuem funcionando para um agente que os declara. Todo o resto do
+significado é lido de `result.outcome`.
 
-**Validation compares contract and routes before the run** (`application/workflow/validation.rs`),
-with a severity per issue; only errors keep a run from starting:
+**A validação compara contrato e rotas antes da execução** (`application/workflow/validation.rs`), com uma severidade
+por problema; só erros impedem uma execução de iniciar:
 
-| Issue                      | Severity | When                                                                                               |
-| -------------------------- | -------- | -------------------------------------------------------------------------------------------------- |
-| `outcome_without_route`    | error    | The agent declares an outcome no edge out of its step would take, while other edges exist          |
-| `outcome_without_route`    | warning  | The step has no edge at all (it is also a `dead_end`)                                              |
-| `status_route_on_contract` | error    | An edge tests `result.status = X` for an agent with a contract, and `X` is not a mirrored outcome  |
-| `undeclared_outcome`       | error    | An edge tests an outcome the agent does not declare (ADR 0015)                                     |
-| `cannot_reach_end`         | error    | An edge leads into a part of the graph from which no End node can be reached (from the graph only) |
+| Problema                   | Severidade | Quando                                                                                              |
+| -------------------------- | ---------- | --------------------------------------------------------------------------------------------------- |
+| `outcome_without_route`    | erro       | O agente declara um desfecho que nenhuma aresta saindo do seu passo tomaria, havendo outras arestas |
+| `outcome_without_route`    | aviso      | O passo não tem nenhuma aresta (também é um `dead_end`)                                             |
+| `status_route_on_contract` | erro       | Uma aresta testa `result.status = X` para um agente com contrato, e `X` não é um desfecho espelhado |
+| `undeclared_outcome`       | erro       | Uma aresta testa um desfecho que o agente não declara (ADR 0015)                                    |
+| `cannot_reach_end`         | erro       | Uma aresta leva a uma parte do grafo da qual nenhum nó End é alcançável (só pelo grafo)             |
 
-**A rule of the workflow engine, not a technical consequence (pending confirmation).** Refusing to
-run an agent that declares an outcome which has no route, while other outcomes of it are routed, is
-a decision about the _semantics_ of workflows: that every verdict an agent may give must lead
-somewhere. Nothing technical forces it. The engine already handles a missing route at run time
-(`no_route_matched`), and the check could as well be a warning, or an error only for outcomes the
-workflow marks as required. It is an error for now, and is not final: the rule is to be confirmed
-before it is relied on. Changing it only changes the severity chosen in `check_outcome_routes`.
+**Uma regra do engine de workflow, não uma consequência técnica (aguardando confirmação).** Recusar-se a executar um
+agente que declara um desfecho sem rota, enquanto outros desfechos dele têm rota, é uma decisão sobre a _semântica_ dos
+workflows: que todo veredito que um agente pode dar deve levar a algum lugar. Nada técnico a força. O engine já trata
+uma rota ausente em tempo de execução (`no_route_matched`), e a verificação poderia muito bem ser um aviso, ou um erro
+só para desfechos que o workflow marca como obrigatórios. É um erro por enquanto, e não é definitivo: a regra deve ser
+confirmada antes de se depender dela. Mudá-la muda apenas a severidade escolhida em `check_outcome_routes`.
 
-An unconditional edge takes every outcome. An edge on another fact counts as possibly taking it:
-validation reports what surely has no route, not what might. Nothing names an agent, a
-personality or an outcome.
+Uma aresta incondicional recebe todo desfecho. Uma aresta sobre outro fato conta como podendo recebê-lo: a validação
+informa o que certamente não tem rota, não o que talvez não tenha. Nada nomeia um agente, uma personalidade ou um
+desfecho.
 
-**`no_route_matched` is unchanged.** Were a definition to run anyway (tests start one without
-validation on purpose), an outcome with no route fails the run deterministically, naming the step
-and the outcome. Never completed, never a guessed edge, never an assumed End.
+**`no_route_matched` não muda.** Se uma definição rodasse mesmo assim (os testes iniciam uma sem validação de
+propósito), um desfecho sem rota faz a execução falhar de forma determinística, nomeando o passo e o desfecho. Nunca
+concluída, nunca uma aresta adivinhada, nunca um End presumido.
 
-**Repair is proposed, confirmed and recorded** (`application/workflow/repair.rs`). Atlas does not
-infer that `pass` means `approved`: `pass` may be a technical check and `approved` a review.
-Validation can detect the mismatch; only the user can say what it was meant to be. So:
+**O reparo é proposto, confirmado e registrado** (`application/workflow/repair.rs`). O Atlas não infere que `pass`
+significa `approved`: `pass` pode ser uma verificação técnica e `approved` uma revisão. A validação consegue detectar a
+incompatibilidade; só o usuário pode dizer o que se pretendia. Então:
 
-1. `suggest_route_repairs` lists the incompatible edges of each step with a _suggestion_ built only
-   from the shape of the workflow (the edges in the order drawn, the unrouted outcomes in the order
-   of the contract). It changes nothing.
-2. The user sees current and suggested side by side, may choose another outcome per edge, and
-   applies or cancels.
-3. `repair_workflow_routes` re-checks every choice against the saved workflow (a stale or unknown
-   choice changes nothing), rewrites the confirmed edges to `result.outcome`, makes a new workflow
-   version, and appends a `RouteRepair` record (edge, step, agent, target, previous condition, new
-   condition, version, time) to `Workflow.route_repairs`. The history lives on the workflow, next
-   to the versions it explains; there is no new audit system, and the permission audit
-   (`AuditLog`) stays about permissions. `update_workflow` never lets a caller rewrite that
-   history.
+1. `suggest_route_repairs` lista as arestas incompatíveis de cada passo com uma _sugestão_ construída apenas a partir do
+   formato do workflow (as arestas na ordem desenhada, os desfechos sem rota na ordem do contrato). Não muda nada.
+2. O usuário vê o atual e o sugerido lado a lado, pode escolher outro desfecho por aresta, e aplica ou cancela.
+3. `repair_workflow_routes` reconfere cada escolha contra o workflow salvo (uma escolha obsoleta ou desconhecida não
+   muda nada), reescreve as arestas confirmadas para `result.outcome`, cria uma nova versão do workflow e acrescenta um
+   registro `RouteRepair` (aresta, passo, agente, alvo, condição anterior, condição nova, versão, hora) a
+   `Workflow.route_repairs`. O histórico vive no workflow, junto das versões que ele explica; não há um novo sistema de
+   auditoria, e a auditoria de permissões (`AuditLog`) continua sendo sobre permissões. O `update_workflow` nunca deixa
+   um chamador reescrever esse histórico.
 
-Repair covers every route that waits for a result its agent cannot give: a `result.status` test, or
-an outcome the contract does not declare.
+O reparo cobre toda rota que espera um resultado que o seu agente não consegue dar: um teste de `result.status`, ou um
+desfecho que o contrato não declara.
 
-**Templates follow the contract of the agent they are given.** A default workflow may never be born
-broken. Where a template has a step that judges (validator, QA), `Builder::gate` routes it on the
-pair declared in full by the agent it got: `pass`/`fail` (the `validation` preset) or
-`approved`/`changes_requested` (the `review` preset). These pairs are Atlas's own presets, not a
-guess about wording. An agent declaring neither pair (a general or custom contract) gets
-`pass`/`fail`, and validation says what it lacks, since no pair can be chosen for it. A test builds
-every template against every combination of the two presets.
+**Os templates seguem o contrato do agente que recebem.** Um workflow padrão nunca pode nascer quebrado. Onde um
+template tem um passo que julga (validator, QA), o `Builder::gate` o roteia pelo par declarado por inteiro pelo agente
+que recebeu: `pass`/`fail` (o preset `validation`) ou `approved`/`changes_requested` (o preset `review`). Esses pares
+são presets do próprio Atlas, não um palpite sobre redação. Um agente que não declara nenhum dos pares (um contrato
+geral ou customizado) recebe `pass`/`fail`, e a validação diz o que lhe falta, já que nenhum par pode ser escolhido para
+ele. Um teste constrói cada template contra cada combinação dos dois presets.
 
-Opening the app, validating and saving never repair anything, so the migration stays idempotent.
+Abrir o app, validar e salvar nunca reparam nada, então a migração continua idempotente.
 
-## Consequences
+## Consequências
 
-- A workflow like the one in the bug is refused with a message that explains status against
-  outcome and names the agent's declared outcomes; the editor offers "Review routes".
-- Warnings are listed apart and do not block a run.
-- Workflows that were valid by accident (an agent with a contract and a partial set of routes) are
-  now refused until the missing outcome is routed. This follows from the semantic rule above, which
-  is still to be confirmed.
-- Resuming a run that stopped for want of a route, once the routes are repaired, can lead straight
-  to an End; the run then completes at once and its code is looked at as for any run that ends.
+- Um workflow como o do bug é recusado com uma mensagem que explica status versus desfecho e nomeia os desfechos
+  declarados do agente; o editor oferece "Revisar rotas".
+- Os avisos são listados à parte e não impedem uma execução.
+- Workflows que eram válidos por acidente (um agente com contrato e um conjunto parcial de rotas) agora são recusados
+  até que o desfecho faltante seja roteado. Isso decorre da regra semântica acima, que ainda precisa ser confirmada.
+- Retomar uma execução que parou por falta de rota, depois que as rotas forem reparadas, pode levar direto a um End; a
+  execução então conclui de imediato e seu código é examinado como em qualquer execução que termina.

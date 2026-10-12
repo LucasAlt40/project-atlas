@@ -1,95 +1,91 @@
-# 0016 — Human in the loop: an agent waiting for a person
+# 0016 — Humano no circuito: um agente esperando por uma pessoa
 
-## Context
+## Contexto
 
-A runtime like `claude -p` or `opencode run` answers once and exits. When the agent needed a
-decision it wrote a question as its answer, the process ended, and Atlas called the execution
-`completed`: the workflow went on to the next step with nothing done.
+Um runtime como `claude -p` ou `opencode run` responde uma vez e encerra. Quando o agente precisava de uma decisão, ele
+escrevia uma pergunta como resposta, o processo terminava e o Atlas chamava a execução de `completed`: o workflow
+seguia para o próximo passo sem que nada tivesse sido feito.
 
-## Decision
+## Decisão
 
-**Waiting is a state of the domain, not a log line.**
+**Esperar é um estado do domínio, não uma linha de log.**
 
-| Level         | State                                                                                            |
-| ------------- | ------------------------------------------------------------------------------------------------ |
-| Execution     | `ExecutionStatus::WaitingForInput` — not `completed` (no result), not `failed`                   |
-| Workflow node | `NodeStatus::WaitingForInput`, attempt `AttemptStatus::WaitingForInput`; the step has no outcome |
-| Workflow run  | `WorkflowExecutionStatus::WaitingForInput`: nothing new starts until the question is answered    |
-| The question  | `PendingInteraction` (`domain/interaction.rs`), kept in `WorkflowExecution.interactions`         |
+| Nível            | Estado                                                                                              |
+| ---------------- | --------------------------------------------------------------------------------------------------- |
+| Execução         | `ExecutionStatus::WaitingForInput` — não é `completed` (sem resultado), nem `failed`                |
+| Nó do workflow   | `NodeStatus::WaitingForInput`, tentativa `AttemptStatus::WaitingForInput`; o passo não tem desfecho |
+| Execução do flow | `WorkflowExecutionStatus::WaitingForInput`: nada novo começa até a pergunta ser respondida          |
+| A pergunta       | `PendingInteraction` (`domain/interaction.rs`), guardada em `WorkflowExecution.interactions`        |
 
-`outcome` stays what the agent's result contract says (`implemented`, `pass`…); "waiting" is never
-an outcome. Process state and logical state are different: the process has usually exited, and the
-step is still waiting.
+O `outcome` continua sendo o que o contrato de resultado do agente diz (`implemented`, `pass`…); "esperando" nunca é um
+desfecho. Estado do processo e estado lógico são coisas diferentes: o processo em geral já saiu, e o passo continua
+esperando.
 
-### Detection
+### Detecção
 
-`ExecutionService` looks at a workflow step's answer (and only a workflow step's: in a conversation
-the person just replies). In order, the first that speaks wins:
+O `ExecutionService` olha a resposta de um passo de workflow (e só de um passo de workflow: numa conversa a pessoa
+simplesmente responde). Em ordem, vale a primeira que se manifestar:
 
-1. the runtime adapter, `ModelRuntime::detect_interaction` (the only place that may know a tool's own
-   protocol; no shipped adapter has one yet);
-2. the `atlas-interaction` block every agent is told to end with when it cannot go on
-   (`application/interaction/structured.rs`) — works with every runtime;
-3. a conservative text analysis of how the answer _ends_ (`heuristic.rs`): the last sentence is a
-   question, addressed to the person, and the answer carries no `atlas-result`. Offers of more work
-   ("Would you like me to also…") and `?` inside code or mid-answer do not count.
+1. o adaptador do runtime, `ModelRuntime::detect_interaction` (o único lugar que pode conhecer o protocolo próprio de uma
+   ferramenta; nenhum adaptador atual tem um);
+2. o bloco `atlas-interaction` com que todo agente é instruído a terminar quando não consegue continuar
+   (`application/interaction/structured.rs`) — funciona com todo runtime;
+3. uma análise conservadora de texto de como a resposta _termina_ (`heuristic.rs`): a última frase é uma pergunta,
+   dirigida à pessoa, e a resposta não traz nenhum `atlas-result`. Ofertas de mais trabalho ("Quer que eu também…") e `?`
+   dentro de código ou no meio da resposta não contam.
 
-No model is asked to classify output. A detection under `MIN_CONFIDENCE` (70) never pauses. An
-`atlas-result` after an interaction block means the agent concluded.
+Nenhum modelo é consultado para classificar a saída. Uma detecção abaixo de `MIN_CONFIDENCE` (70) nunca pausa. Um
+`atlas-result` depois de um bloco de interação significa que o agente concluiu.
 
-The block is data: a closed set of fields, clipped, a closed set of types. For approval, permission
-and runtime confirmation the buttons are Atlas's (`approve/reject`, `allow/deny`, `yes/no`); an agent
-cannot invent them.
+O bloco é dado: um conjunto fechado de campos, truncados, um conjunto fechado de tipos. Para aprovação, permissão e
+confirmação de runtime os botões são do Atlas (`approve/reject`, `allow/deny`, `yes/no`); um agente não pode inventá-los.
 
-### Pause, answer, resume
+### Pausar, responder, retomar
 
-`Orchestrator::handle` turns a `StepStatus::WaitingForInput` into `engine.wait_for_input`: the
-question is persisted with the run, no result is parsed, no handoff is built, no route is taken.
-`answer_interaction` validates the answer against the question (still pending, one of its options,
-bounded text), records it, and sends the node back to `Ready` as a _continuation of the same pass_
-(`continuing`, same iteration). The next start is a new attempt/execution whose instruction carries a
-`HUMAN INPUT` block (the question and the answer, quoted), because one-shot runtimes keep no
-conversation; the files already written are still in the run's worktree.
+O `Orchestrator::handle` transforma um `StepStatus::WaitingForInput` em `engine.wait_for_input`: a pergunta é persistida
+com a execução, nenhum resultado é interpretado, nenhum handoff é construído, nenhuma rota é seguida.
+`answer_interaction` valida a resposta contra a pergunta (ainda pendente, uma das suas opções, texto limitado), registra
+e devolve o nó para `Ready` como uma _continuação da mesma passada_ (`continuing`, mesma iteração). O próximo início é
+uma nova tentativa/execução cuja instrução carrega um bloco `HUMAN INPUT` (a pergunta e a resposta, citadas), porque os
+runtimes de execução única não guardam conversa; os arquivos já escritos continuam no worktree da execução.
 
-A denial is not a completion either: the agent is told it was declined and ends under its own
-contract (`blocked`, `fail`…).
+Uma recusa também não é uma conclusão: o agente é informado de que foi recusado e termina sob o próprio contrato
+(`blocked`, `fail`…).
 
-An answer to a run nobody drives (the app was closed since it asked) is recorded and the run is
-picked up with `resume_interrupted`. A run interrupted while waiting keeps its question.
+Uma resposta a uma execução que ninguém conduz (o app foi fechado depois da pergunta) é registrada e a execução é
+retomada com `resume_interrupted`. Uma execução interrompida enquanto esperava mantém a sua pergunta.
 
-Cancelling the run lapses the question (`cancelled`) and cancels the node.
+Cancelar a execução faz a pergunta expirar (`cancelled`) e cancela o nó.
 
-### Worktree lock
+### Trava do worktree
 
-A step that is waiting keeps its place in `WorktreeLock` (it is still "in flight"), and a step about
-to continue keeps it through the round it is re-dispatched in, so no other writer can slip in between
-the question and the answer. This trades parallel writers' latency for never changing the state under
-an agent that will continue on it. Readers are unaffected by other readers.
+Um passo que está esperando mantém seu lugar no `WorktreeLock` (ainda está "em andamento"), e um passo prestes a
+continuar o mantém durante a rodada em que é reenviado, de modo que nenhum outro escritor possa entrar entre a pergunta e
+a resposta. Isso troca a latência dos escritores paralelos por nunca mudar o estado debaixo de um agente que vai
+continuar nele. Leitores não são afetados por outros leitores.
 
-### Not an integration
+### Não é uma integração
 
-Answering lets the agent continue **inside the run's isolated worktree**. It never applies anything
-to the project and never changes a policy, permission or the integration policy. The ChangeSet is
-reviewed and applied by the person afterwards, as before; a read-only validator or QA still does not
-block it.
+Responder deixa o agente continuar **dentro do worktree isolado da execução**. Isso nunca aplica nada ao projeto e nunca
+muda uma política, uma permissão ou a política de integração. O ChangeSet é revisado e aplicado pela pessoa depois,
+como antes; um validador somente leitura ou o QA continua sem bloqueá-lo.
 
-### Audit
+### Auditoria
 
-Each transition is a workflow event on the run: `interaction_detected`, `node_waiting_for_input`
-(execution paused), `interaction_answered`, `node_input_resolved` (execution resumed),
-`interaction_rejected` (an answer that was refused), `interaction_cancelled`. The questions with their
-answers and times stay in `interactions`.
+Cada transição é um evento de workflow na execução: `interaction_detected`, `node_waiting_for_input` (execução
+pausada), `interaction_answered`, `node_input_resolved` (execução retomada), `interaction_rejected` (uma resposta
+recusada), `interaction_cancelled`. As perguntas com suas respostas e horários ficam em `interactions`.
 
-### Routing
+### Roteamento
 
-Built-in workflow templates route on `result.outcome`, which the validator/QA agents' contracts
-declare (`pass`/`fail`). Workflows that route on `result.status` keep working, but templates no
-longer do; an agent without the outcome is reported by validation before the run.
+Os templates de workflow embutidos roteiam por `result.outcome`, que os contratos dos agentes validador/QA declaram
+(`pass`/`fail`). Workflows que roteiam por `result.status` continuam funcionando, mas os templates não fazem mais isso;
+um agente sem o outcome é apontado pela validação antes da execução.
 
-## Not done
+## Não feito
 
-- No timeout (the model has `expired`; nothing sets it).
-- At most one pending question per step.
-- No runtime reports a structured question event yet; the hook exists.
-- `permission`/`approval` answers are information for the agent. What a tool may really do is still
-  decided by the policy and the approval broker, which keep their own approvals.
+- Sem timeout (o modelo tem `expired`; nada o define).
+- No máximo uma pergunta pendente por passo.
+- Nenhum runtime informa ainda um evento estruturado de pergunta; o gancho existe.
+- Respostas de `permission`/`approval` são informação para o agente. O que uma ferramenta pode de fato fazer continua
+  sendo decidido pela política e pelo broker de aprovação, que mantêm suas próprias aprovações.

@@ -1,58 +1,77 @@
-# ADR 0030 — Workflow templates: purpose, tools and saved copies
+# ADR 0030 — Templates de workflow: propósito, ferramentas e cópias salvas
 
-Status: accepted. Builds on [ADR 0013](0013-workflow-engine-and-orchestrator.md), [ADR 0015](0015-result-contracts-outcomes-and-worktree-lock.md) and
-[ADR 0028](0028-mcp-foundation.md) / [0029](0029-mcp-for-every-runtime.md); changes none of their invariants.
+Status: aceito. Baseia-se na [ADR 0013](0013-workflow-engine-and-orchestrator.md), na
+[ADR 0015](0015-result-contracts-outcomes-and-worktree-lock.md) e nas [ADR 0028](0028-mcp-foundation.md) /
+[0029](0029-mcp-for-every-runtime.md); não muda nenhuma das suas invariantes.
 
-## Context (audited in the code, not assumed)
+## Contexto (auditado no código, não presumido)
 
-- A template was eight pieces of code that each built a graph with one- or two-sentence instructions. No goal, no "done when", no tools, no outputs,
-  nothing to read before starting, and no template of the person's own: a customised workflow could not be kept as a starting point.
-- **No Atlas agent runs commands**: the editing prompt says "You cannot run shell commands" and Claude is launched with `Read,Grep,Glob,Edit,Write`.
-  The old instructions ("run or review the tests") invited an agent to report a test run that never happened.
-- MCP was complete in the core (connections, grants by agent / workflow / step, a plan per runtime) and absent from workflows: the node inspector had
-  one checkbox, the grants were reachable only from the hub, and the prompt named servers but not their tools.
-- A node could not narrow its agent's permissions, so a "read-only" template depended on the agent's profile being read-only.
+- Um template eram oito trechos de código que construíam cada um um grafo com instruções de uma ou duas frases. Sem
+  objetivo, sem "pronto quando", sem ferramentas, sem saídas, nada para ler antes de começar, e nenhum template próprio
+  da pessoa: um workflow personalizado não podia ser guardado como ponto de partida.
+- **Nenhum agente do Atlas executa comandos**: o prompt de edição diz "Você não pode executar comandos de shell" e o
+  Claude é iniciado com `Read,Grep,Glob,Edit,Write`. As instruções antigas ("execute ou revise os testes") convidavam um
+  agente a relatar uma execução de testes que nunca aconteceu.
+- O MCP estava completo no núcleo (conexões, concessões por agente / workflow / passo, um plano por runtime) e ausente
+  dos workflows: o inspetor do nó tinha uma caixa de seleção, as concessões só eram alcançáveis pelo hub, e o prompt
+  nomeava servidores mas não as suas ferramentas.
+- Um nó não podia estreitar as permissões do seu agente, então um template "somente leitura" dependia de o perfil do
+  agente ser somente leitura.
 
-## Decisions
+## Decisões
 
-1. **The three featured templates reuse the existing ids** (`software_feature` → Implementer, `bug_fix` → Debugger, `code_review` → Reviewer), so stored
-   workflows and Automatic mode keep working. The other five stay as variations. Their instructions live in `workflow/template_text.rs`.
-2. **A step says when it is done** (`AgentNode.completion_criteria`, told to the agent after its instructions with "say what is missing instead of
-   reporting it as done") and **may be held to reading** (`ExecutionPolicy.read_only`). Both default to the old behaviour. `read_only` only narrows:
-   it makes the execution take the same path as a policy that denies writes (no edit tools reach the runtime, the prompt says read-only) and lets a
-   step share the worktree with others. It does **not** limit MCP tools: those are what grants are for (the UI says so).
-3. **Honest instructions.** Every step that could be tempted says it cannot run commands, asks for the commands someone should run, and to separate
-   what was read from what was executed. Tools are mentioned only conditionally ("if an integration was given to you") and a missing one is to be
-   reported, not worked around. Proportionality is in the text (the Architect opens with `Size: trivial|moderate|complex`, later steps scale to it) and
-   in Automatic mode, which proposes the quick `feature_basic` for a short task that calls itself small.
-4. **The Debugger is one fixer step with two phases** (evidence and root cause with a stated confidence, then the smallest fix with a regression test),
-   a read-only verification that writes the final report, and a way out: a fixer that declares `blocked` ends the run at an **Inconclusive** end node
-   (`EndOutcome::Failed`) instead of guessing. The route exists only when the fixer's contract declares `fixed`/`blocked` (otherwise the step goes on to
-   the verification), because a node nothing reaches is an invalid workflow. A separate "investigate" step was rejected: the agent's contract is its
-   own, and an investigation cannot honestly end with `fixed`.
-5. **The Reviewer** is one read-only step; the template cannot make a file change whatever the agent's profile. A follow-up fix is a separate run the
-   person starts.
-6. **Tools are suggestions until the person applies them.** A template names a _kind_ of tool per step (`ToolCapability`: browser, issues, docs, repo),
-   matched against the workspace's connections by name (a guess, so it only ever suggests). `template_tools::resolve` says, per suggestion, which
-   connection would serve it with which tools, or why none can (no connection, switched off, missing secret, could not connect, tools never listed, no
-   reading tools). `create_workflow_from_template(applyTools: true)` turns the usable ones into ordinary grants for that agent, workflow and step.
-   A step that only _consults_ gets only the connection's tools whose first word is a reading verb, and only when the server was discovered: without
-   a discovery the writing tools cannot be held back, so nothing is granted and the preview says why. A browser step gets the whole server (its tools act
-   on a page). Nothing is granted without the person's option, and only connections they already switched on.
-7. **The agent is told the truth about its tools.** The integration note lists the tools a grant covers (`jira (tools: getJiraIssue)`) and names what
-   was granted and could not be given (`context7 (its credential is missing)`), with a request to say so in the result instead of guessing.
-8. **Saved templates are copies.** `CustomTemplate` (config field `workflow_templates`, default empty) keeps a workflow's steps, routes and the tools
-   granted to its steps (by connection name and tool selection). Built-in templates are code: they cannot be edited or deleted
-   (`workflow_template_builtin`). Deleting a workflow now also removes the grants made to its steps.
-9. **Three layers, said in the UI:** global (agents, MCP connections), template (steps, instructions, suggested tools), run (the task, and edits to
-   the workflow). The preview lists steps (who, read-only, bounded loop, done-when, instructions), tools with their state in this workspace and the
-   outputs before anything is created. The inspector edits the criteria and the read-only flag and manages the step's grants through the existing grant commands.
+1. **Os três templates em destaque reaproveitam os ids existentes** (`software_feature` → Implementer, `bug_fix` →
+   Debugger, `code_review` → Reviewer), de modo que workflows guardados e o modo Automático continuem funcionando. Os
+   outros cinco continuam como variações. Suas instruções vivem em `workflow/template_text.rs`.
+2. **Um passo diz quando está pronto** (`AgentNode.completion_criteria`, dito ao agente depois das suas instruções com
+   "diga o que falta em vez de relatar como feito") e **pode ser restrito à leitura** (`ExecutionPolicy.read_only`).
+   Ambos têm como padrão o comportamento antigo. `read_only` só estreita: faz a execução seguir o mesmo caminho de uma
+   política que nega escrita (nenhuma ferramenta de edição chega ao runtime, o prompt diz somente leitura) e deixa um
+   passo compartilhar o worktree com outros. Ele **não** limita ferramentas MCP: essas são para o que as concessões
+   servem (a UI diz isso).
+3. **Instruções honestas.** Todo passo que poderia ser tentado diz que não pode executar comandos, pede os comandos que
+   alguém deveria executar, e que separe o que foi lido do que foi executado. As ferramentas são mencionadas só
+   condicionalmente ("se uma integração lhe foi dada") e uma ausente deve ser relatada, não contornada. A
+   proporcionalidade está no texto (o Architect abre com `Size: trivial|moderate|complex`, os passos seguintes se ajustam
+   a ele) e no modo Automático, que propõe o rápido `feature_basic` para uma tarefa curta que se declara pequena.
+4. **O Debugger é um passo corretor com duas fases** (evidência e causa raiz com uma confiança declarada, depois a menor
+   correção com um teste de regressão), uma verificação somente leitura que escreve o relatório final, e uma saída: um
+   corretor que declara `blocked` encerra a execução em um nó End **Inconclusive** (`EndOutcome::Failed`) em vez de
+   adivinhar. A rota só existe quando o contrato do corretor declara `fixed`/`blocked` (do contrário o passo segue para
+   a verificação), porque um nó que nada alcança é um workflow inválido. Um passo "investigar" separado foi rejeitado: o
+   contrato do agente é dele, e uma investigação não pode terminar honestamente com `fixed`.
+5. **O Reviewer** é um passo somente leitura; o template não consegue fazer um arquivo mudar, seja qual for o perfil do
+   agente. Uma correção posterior é uma execução separada que a pessoa inicia.
+6. **Ferramentas são sugestões até a pessoa aplicá-las.** Um template nomeia um _tipo_ de ferramenta por passo
+   (`ToolCapability`: browser, issues, docs, repo), casado com as conexões do workspace pelo nome (um palpite, então só
+   sugere). `template_tools::resolve` diz, por sugestão, qual conexão serviria com quais ferramentas, ou por que nenhuma
+   pode (sem conexão, desligada, segredo ausente, não conseguiu conectar, ferramentas nunca listadas, sem ferramentas de
+   leitura). `create_workflow_from_template(applyTools: true)` transforma as utilizáveis em concessões comuns para aquele
+   agente, workflow e passo. Um passo que só _consulta_ recebe apenas as ferramentas da conexão cuja primeira palavra é
+   um verbo de leitura, e só quando o servidor foi descoberto: sem descoberta as ferramentas de escrita não podem ser
+   retidas, então nada é concedido e a prévia diz por quê. Um passo de navegador recebe o servidor inteiro (suas
+   ferramentas agem sobre uma página). Nada é concedido sem a opção da pessoa, e só conexões que ela já ligou.
+7. **O agente é informado a verdade sobre as suas ferramentas.** A nota de integração lista as ferramentas que uma
+   concessão cobre (`jira (tools: getJiraIssue)`) e nomeia o que foi concedido e não pôde ser dado (`context7 (its
+credential is missing)`), com um pedido para dizer isso no resultado em vez de adivinhar.
+8. **Templates salvos são cópias.** `CustomTemplate` (campo de configuração `workflow_templates`, vazio por padrão)
+   guarda os passos, rotas e as ferramentas concedidas aos passos de um workflow (por nome da conexão e seleção de
+   ferramentas). Templates embutidos são código: não podem ser editados nem excluídos (`workflow_template_builtin`).
+   Excluir um workflow agora também remove as concessões feitas aos seus passos.
+9. **Três camadas, ditas na UI:** global (agentes, conexões MCP), template (passos, instruções, ferramentas sugeridas),
+   execução (a tarefa, e edições no workflow). A prévia lista passos (quem, somente leitura, loop limitado, pronto
+   quando, instruções), ferramentas com o seu estado neste workspace e as saídas antes de qualquer coisa ser criada. O
+   inspetor edita os critérios e a flag de somente leitura e gerencia as concessões do passo pelos comandos de concessão
+   existentes.
 
-## Not done / limits
+## Não feito / limites
 
-- The suggestion match is by connection name; a connection named otherwise is granted by hand in the inspector.
-- `read_only` does not govern MCP tools; the reading-verb filter is a guess from names (Atlas does not know tool descriptions).
-- Named-tool grants are refused where the runtime cannot hold tools back (OpenCode today): the server is then not given and the agent is told.
-- No real model was called: behaviour is covered by the real services over fake runtimes, and by the stand-in CLI stack. How well each instruction
-  steers a real model was not measured.
-- `LIVE_NARRATION` still says to quote paths "in shell commands", which no agent can run. It is product text and was left alone.
+- O casamento das sugestões é pelo nome da conexão; uma conexão com outro nome é concedida à mão no inspetor.
+- `read_only` não governa ferramentas MCP; o filtro de verbos de leitura é um palpite a partir de nomes (o Atlas não
+  conhece as descrições das ferramentas).
+- Concessões de ferramentas nomeadas são recusadas onde o runtime não consegue reter ferramentas (OpenCode hoje): o
+  servidor então não é dado e o agente é informado.
+- Nenhum modelo real foi chamado: o comportamento é coberto pelos serviços reais sobre runtimes falsos e pela pilha de
+  CLI de substituição. Quão bem cada instrução conduz um modelo real não foi medido.
+- `LIVE_NARRATION` ainda diz para citar caminhos "em comandos de shell", que nenhum agente pode executar. É texto de
+  produto e foi deixado como está.

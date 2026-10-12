@@ -1,63 +1,69 @@
-# ADR 0008 — Conversation and execution history
+# ADR 0008 — Histórico de conversas e execuções
 
-**Status:** accepted
+**Status:** aceito
 
-## What it is
+## O que é
 
-Conversations and ended executions survive a restart. Together with ADR 0007 (live process, terminal, interrupt) this makes an
-execution **observable, controllable, persistent, isolated**:
+Conversas e execuções encerradas sobrevivem a uma reinicialização. Junto com a ADR 0007 (processo ao vivo, terminal,
+interrupção), isso torna uma execução **observável, controlável, persistente e isolada**:
 
 ```
-Workspace → Agent → Conversation (messages) + Executions (ended)
+Workspace → Agente → Conversa (mensagens) + Execuções (encerradas)
 ```
 
-- `domain/conversation::Message` and the new `domain/execution::StoredExecution` are what is kept.
-- `application/history::ConversationHistory` is the use case over them. `ChatService` writes through it: the user message when it
-  is sent, the execution (with its timeline) and the assistant message when the run ends.
-- The command `list_executions` returns ended executions, newest first; `list_messages` now returns what was stored.
-- The UI: an agent card has **Chat / Activity / Terminal / Details / Executions**; _Executions_ lists the agent's ended runs
-  (today / earlier) and opens an **Execution Inspector** (Details, Activity, Chat, Terminal note); _Details_ shows the current or
-  latest run. The header shows `● N agents running` while anything runs in _any_ workspace, and picking one opens that agent.
+- `domain/conversation::Message` e o novo `domain/execution::StoredExecution` são o que fica guardado.
+- `application/history::ConversationHistory` é o caso de uso sobre eles. O `ChatService` escreve por meio dele: a mensagem
+  do usuário quando é enviada; a execução (com sua linha do tempo) e a mensagem do assistente quando a execução termina.
+- O comando `list_executions` devolve as execuções encerradas, da mais nova para a mais antiga; `list_messages` agora
+  devolve o que foi armazenado.
+- A interface: o card de um agente tem **Chat / Atividade / Terminal / Detalhes / Execuções**; _Execuções_ lista as
+  execuções encerradas do agente (hoje / anteriores) e abre um **Inspetor de Execução** (Detalhes, Atividade, Chat, nota
+  do Terminal); _Detalhes_ mostra a execução atual ou a mais recente. O cabeçalho mostra `● N agentes em execução`
+  enquanto algo roda em _qualquer_ workspace, e escolher um abre aquele agente.
 
-## What is stored, and what is not
+## O que é guardado e o que não é
 
-| Kept                                                                                                                 | Not kept                                         |
-| -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| messages (both roles, `executionId`, time, failure kind)                                                             | raw terminal output (live only, ADR 0007)        |
-| per execution: status, task, runtime, model, times, failure, usage/cost as reported, metadata, **timeline** (events) | streamed answer text (it becomes the message)    |
-|                                                                                                                      | the assembled prompt (project context, repeated) |
+| Guardado                                                                                                                          | Não guardado                                     |
+| --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| mensagens (os dois papéis, `executionId`, hora, tipo de falha)                                                                    | saída bruta do terminal (só ao vivo, ADR 0007)   |
+| por execução: status, tarefa, runtime, modelo, horários, falha, uso/custo como informado, metadados, **linha do tempo** (eventos) | texto da resposta em streaming (vira a mensagem) |
+|                                                                                                                                   | o prompt montado (contexto do projeto, repetido) |
 
-The answer lives only in the assistant message; the execution does not repeat it.
+A resposta vive só na mensagem do assistente; a execução não a repete.
 
-## Storage: `config.json` is still enough
+## Armazenamento: o `config.json` ainda basta
 
-`messages` and `executions` are two more fields of `UserConfig`, `#[serde(default)]`, so existing files load. No database was
-introduced: the volume is small and **bounded per conversation** (an agent in a workspace): the newest **200 messages**,
-**100 executions** and **300 timeline events** per execution. Writes stay atomic (temp file + rename) and a failed save never
-breaks the chat on screen (it is logged).
+`messages` e `executions` são mais dois campos de `UserConfig`, com `#[serde(default)]`, então arquivos existentes
+continuam carregando. Nenhum banco de dados foi introduzido: o volume é pequeno e **limitado por conversa** (um agente
+em um workspace): as **200 mensagens** mais novas, **100 execuções** e **300 eventos de linha do tempo** por execução. As
+gravações continuam atômicas (arquivo temporário + renomear) e uma falha ao salvar nunca quebra o chat na tela (é
+registrada em log).
 
-**Cost and when to change it.** Every change rewrites the whole file, so the cost grows with the amount kept: worst case a few
-MB per heavy agent. That is acceptable now. Move to SQLite (one table each for messages and executions, same
-`ConversationHistory` interface) when the file regularly exceeds a few MB, when search across history is wanted, or when
-retention should be time-based rather than count-based. Nothing outside `ConversationHistory` would change.
+**Custo e quando mudar.** Toda alteração reescreve o arquivo inteiro, então o custo cresce com o que é guardado: no pior
+caso alguns MB por agente intenso. Isso é aceitável agora. Migrar para SQLite (uma tabela para mensagens e outra para
+execuções, mesma interface `ConversationHistory`) quando o arquivo passar com frequência de alguns MB, quando se quiser
+busca no histórico, ou quando a retenção precisar ser por tempo e não por quantidade. Nada fora de
+`ConversationHistory` mudaria.
 
-## Isolation
+## Isolamento
 
-Everything is keyed by `(workspaceId, agentId)`: queries filter by both, retention is applied per pair, and deleting a workspace
-or an agent deletes its conversations and executions. The frontend filters again by workspace and agent, so a card never shows
-another workspace's run. Switching workspace keeps running executions alive (ADR 0007); the global list reaches them.
+Tudo é indexado por `(workspaceId, agentId)`: as consultas filtram pelos dois, a retenção é aplicada por par, e excluir
+um workspace ou um agente exclui suas conversas e execuções. O frontend filtra de novo por workspace e agente, então um
+card nunca mostra a execução de outro workspace. Trocar de workspace mantém as execuções em andamento vivas (ADR 0007);
+a lista global chega até elas.
 
-## Ids and interrupted runs
+## Ids e execuções interrompidas
 
-- Execution ids are `exec-N`. On start the counter continues after the highest stored id, so an id is never reused across runs
-  of the app.
-- If Atlas was closed (or crashed) while a run was in progress, its user message has no answer. On the next start the history
-  answers it once with a **failed** assistant message and a stored execution of kind `app_closed` ("Atlas was closed while this
-  was running"). It is not shown as cancelled: the user did not cancel it.
+- Os ids de execução são `exec-N`. Ao iniciar, o contador continua após o maior id armazenado, então um id nunca é
+  reutilizado entre execuções do app.
+- Se o Atlas foi fechado (ou travou) durante uma execução, a mensagem do usuário fica sem resposta. Na próxima
+  inicialização o histórico a responde uma vez com uma mensagem de assistente **com falha** e uma execução armazenada do
+  tipo `app_closed` ("O Atlas foi fechado enquanto isto estava rodando"). Ela não aparece como cancelada: o usuário não a
+  cancelou.
 
-## Limitations
+## Limitações
 
-- The timeline of a run in progress is in memory (UI); it is stored when the run ends. A crash loses the timeline of the run
-  that was active, but not the question.
-- A run's usage appears in the inspector only after it ends (runtimes report it at the end).
-- History is per machine and per `config.json`; there is no export or sync.
+- A linha do tempo de uma execução em andamento fica na memória (UI); é armazenada quando a execução termina. Uma queda
+  perde a linha do tempo da execução ativa, mas não a pergunta.
+- O uso de uma execução aparece no inspetor só depois que ela termina (os runtimes informam no final).
+- O histórico é por máquina e por `config.json`; não há exportação nem sincronização.

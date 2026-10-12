@@ -1,34 +1,37 @@
-# ADR 0005 — Workspaces, usage and localization
+# ADR 0005 — Workspaces, uso e localização
 
-**Status:** accepted
+**Status:** aceito
 
-## Workspace and project context
+## Workspace e contexto do projeto
 
-A **workspace** is the unit of work: a project folder plus the agents placed in it and their conversations. Before this
-decision the app had one in-memory layout and a hard-coded project. Now `Workspace { id, name, projectPath,
-description, createdAt, updatedAt, layout }` is persisted, and several can exist.
+Um **workspace** é a unidade de trabalho: uma pasta de projeto mais os agentes colocados nela e suas conversas. Antes
+desta decisão o app tinha um único layout em memória e um projeto fixo no código. Agora `Workspace { id, name,
+projectPath, description, createdAt, updatedAt, layout }` é persistido, e podem existir vários.
 
-Agents, personalities and installed runtimes stay **global** (an agent can be placed in several workspaces, so its
-configuration is reused instead of duplicated). Placement, conversations, runs and usage are **workspace-scoped** and keyed
-by workspace + agent. The 2 × 2 layout and the four-agent display limit are UI/layout data, not domain rules.
+Agentes, personalidades e runtimes instalados continuam **globais** (um agente pode ser colocado em vários workspaces,
+então sua configuração é reaproveitada em vez de duplicada). Posicionamento, conversas, execuções e uso são
+**por workspace** e indexados por workspace + agente. O layout 2 × 2 e o limite de quatro agentes exibidos são dados
+de UI/layout, não regras de domínio.
 
-The project folder is the context boundary. Choosing it records a path and nothing more; the only thing read from it is the
-list of top-level file names (and `package.json` dependency names) to name the technologies, locally and
-deterministically. Permissions and sandboxing are a later milestone.
+A pasta do projeto é o limite de contexto. Escolhê-la registra um caminho e nada mais; a única coisa lida dela é a
+lista de nomes de arquivos do nível superior (e os nomes das dependências do `package.json`) para nomear as
+tecnologias, de forma local e determinística. Permissões e sandbox ficam para um marco posterior.
 
-Persistence reuses `config.json` behind the existing `ConfigStore` port (workspaces, settings, usage ledger). A database is
-deliberately not introduced yet; the port keeps the option open. Secrets are never stored there.
+A persistência reaproveita o `config.json` atrás da porta `ConfigStore` existente (workspaces, configurações, registro
+de uso). Um banco de dados deliberadamente não é introduzido ainda; a porta mantém a opção aberta. Segredos nunca são
+guardados ali.
 
-## Usage is authoritative or unavailable
+## Uso é autoritativo ou indisponível
 
-Every figure is either what a runtime reported for one execution, a sum of those over executions Atlas observed
-(`atlas_calculated`), or a provider-reported quota. A figure a runtime did not report is `null`, never `0`, and
-sums say how many runs they cover. Currencies are not mixed. Runtimes advertise `usageMetrics`, `costMetrics` and
-`quotaMetrics` as capabilities, so the UI says "not available for this runtime" instead of guessing. Atlas-tracked
-usage is not the provider's billing, and the UI says so.
+Todo número é o que um runtime informou para uma execução, uma soma desses valores sobre execuções que o Atlas
+observou (`atlas_calculated`), ou uma cota informada pelo provedor. Um número que o runtime não informou é `null`,
+nunca `0`, e as somas dizem quantas execuções cobrem. Moedas não são misturadas. Os runtimes anunciam `usageMetrics`,
+`costMetrics` e `quotaMetrics` como capacidades, então a interface diz "não disponível para este runtime" em vez de
+adivinhar. O uso registrado pelo Atlas não é a cobrança do provedor, e a interface deixa isso claro.
 
-## Localization
+## Localização
 
-The interface is translated in the frontend (pt-BR default, en-US), with the language persisted as a global setting. The
-core never produces user-facing text: it returns stable codes (`AppError.code`, `failureKind`, runtime `notice`,
-`modelHint`, event kinds) and the UI words them. Adding a language is a new dictionary plus an entry in `LANGUAGES`.
+A interface é traduzida no frontend (pt-BR por padrão, en-US), com o idioma persistido como configuração global. O
+núcleo nunca produz texto para o usuário: ele devolve códigos estáveis (`AppError.code`, `failureKind`, `notice` do
+runtime, `modelHint`, tipos de evento) e a interface os redige. Adicionar um idioma é um novo dicionário mais uma
+entrada em `LANGUAGES`.

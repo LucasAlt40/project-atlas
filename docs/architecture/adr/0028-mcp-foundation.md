@@ -1,84 +1,106 @@
-# 0028 — MCP foundation (Context & Tooling Platform, Phase D)
+# 0028 — Fundação MCP (Context & Tooling Platform, Fase D)
 
-## Context
+## Contexto
 
-ADR 0026 chose the shape (a runtime-agnostic domain, a Claude adapter, strategy A: the runtime's own MCP support, configured by Atlas per
-execution) and measured the Claude CLI without a model call. ADR 0027 fixed the invariant for MCP results: `ContextAuthority::Untrusted`,
-never able to change a rule, permission, approval, policy or guardrail decision. Phase D builds the foundation, STDIO only, with Claude as
-the one runtime that has an adapter. The design is in [context-and-tooling-platform.md](../context-and-tooling-platform.md), section 17.
+A ADR 0026 escolheu o formato (um domínio agnóstico de runtime, um adaptador do Claude, estratégia A: o suporte MCP do
+próprio runtime, configurado pelo Atlas por execução) e mediu a CLI do Claude sem chamada de modelo. A ADR 0027 fixou a
+invariante para resultados de MCP: `ContextAuthority::Untrusted`, nunca capaz de mudar uma rule, permissão, aprovação,
+política ou decisão de guardrail. A Fase D constrói a fundação, só STDIO, com o Claude como o único runtime que tem um
+adaptador. O desenho está em [context-and-tooling-platform.md](../context-and-tooling-platform.md), seção 17.
 
-## Decisions
+## Decisões
 
-1. **The domain names no runtime** (`domain/mcp.rs`): `McpConnection`, `McpTransport`, `McpGrant`, `ToolSelection`, `McpSupport`, `McpProblem`,
-   `McpToolState`, `McpRecord`, `Secret`. The Claude adapter (`runtimes/claude_mcp.rs`) translates; nothing in the domain is a CLI flag.
-2. **A connection is not an authorization.** A connection says "this workspace has this integration" and is stored in the configuration
-   (`UserConfig.mcp_connections`) without any secret, switched off and granted to nobody. A grant (`mcp_grants`) says which agent,
-   optionally which workflow and which step, may use it and which tools. The effective tool set of a step is a pure function
-   (`application/mcp/plan.rs`): enabled → granted → policy allows → runtime has an adapter → configuration valid → tools can be held back
-   → secrets present. The first failure is the reason it is not exposed.
-3. **Six facts per tool, never one flag:** discovered, enabled, authorized, exposed (what Atlas arranged), reported (what the runtime listed:
-   `None` is "did not say"), used. They are in the manifest (`McpRecord`) and the Inspector.
-4. **The policy axis is in `security/`**, not beside it: `SecurityPolicy.mcp` (`Allowed` / `ApprovalRequired` / `Denied`), narrowed like every
-   other setting; the read-only profile denies it, the developer profile allows it, and an older stored policy does not restrict it. Nothing
-   is exposed without a grant either way, so the default is deny. `ApprovalRequired` is a finding (`mcp_approval_required`, Error): an ASK
-   in a workflow step, a DENY without one.
-5. **The guardrails see MCP through the existing path:** `McpFacts` in the Context Review (`mcp_unavailable`: Blocking for a required
-   connection that cannot be given, Warning for an optional one), and `McpPlan::canonical()` in the evaluation fingerprint: connection
-   configuration and credential versions, discovery, what each grant covers, what is held back, the policy. Any of them changing voids an
-   earlier approval. No `McpSecurity`.
-6. **STDIO is `executable + args[] + env`, never a shell.** Validation refuses shells (`sh`, `bash`, `cmd`, `powershell`, `env`…, by name in
-   either path style), relative or spaced executables, dangerous variables (`PATH`, `NODE_OPTIONS`, `LD_*`…, `ATLAS_*`), and **any `${`**:
-   the CLI expands `${VAR}` from Atlas's environment in a server's command, arguments and values, so a configuration could otherwise name a
-   variable holding another connection's secret. Atlas writes those references itself, for its own secrets, and nothing else may.
-7. **Secrets go to the OS credential store** through the `CredentialStore` port (`KeyringCredentialStore`, the `keyring` crate, used only in
-   `infrastructure/`). The configuration holds the name and when each was stored. A secret reaches a server as `${ATLAS_MCP_<SERVER>_<NAME>}`
-   in the config and as a value in the CLI process's **environment**: never in a file, an argument, the prompt, the manifest, the metrics,
-   an event or a log (`Secret` has no `Display`/`Serialize` and a `Debug` that shows nothing). An unset variable is **not** an error for the
-   CLI (the text stays literal), so Atlas checks presence first and reads the secret only after the guardrails allowed the step.
-8. **Discovery is the runtime's own report**, not an MCP client of Atlas: `ModelRuntime::probe_mcp` starts the server through the CLI with a
-   model that does not exist, which reports the server's status and the names of its tools and fails at the first request. It needs the
-   connection to be switched on (that is the user's decision to let Atlas start this process) and its secrets stored. Names only: the report
-   has no descriptions or schemas, and none are invented (the budget's `tool_definitions` stays `Unknown`).
-9. **Holding tools back, and what that cannot do.** `--tools` does not limit MCP tools; `--disallowedTools mcp__<server>__<tool>` hides a
-   discovered one; a tool the server adds later is listed anyway. A grant to the whole server is therefore the default granularity (the user
-   trusts the server), and named tools need a discovery so the rest can be held back. When the runtime lists, before it asks any model
-   anything, an MCP tool nobody authorized (a held-back tool that came back, one a server added, a server Atlas did not launch such as a
-   connector of the user's), Atlas stops the step: it asks the session to terminate (possible only when the run is attached to a terminal),
-   fails the execution (`mcp_tool_not_authorized`) and does not hand its answer on. This is detection plus a best-effort stop, not
-   prevention; a request may already have been sent.
-10. **Failure never becomes permission.** A connection that cannot be started as planned (secret vanished, store locked) is left out of the
-    step, and a **required** one stops it (`mcp_connection_unavailable`). A text-only run is never given a server (`--tools ""` does not turn
-    MCP off, so the only way is not to give it). A runtime nobody investigated gets nothing (`McpSupport::NotInvestigated`).
-11. **The invariant for results stands as in ADR 0027:** an MCP tool's result is `Untrusted`; for a CLI runtime it never passes through Atlas
-    at all. A test shows text claiming a person approved cannot answer the question the policy asks.
+1. **O domínio não nomeia nenhum runtime** (`domain/mcp.rs`): `McpConnection`, `McpTransport`, `McpGrant`,
+   `ToolSelection`, `McpSupport`, `McpProblem`, `McpToolState`, `McpRecord`, `Secret`. O adaptador do Claude
+   (`runtimes/claude_mcp.rs`) traduz; nada no domínio é uma flag de CLI.
+2. **Uma conexão não é uma autorização.** Uma conexão diz "este workspace tem esta integração" e é guardada na
+   configuração (`UserConfig.mcp_connections`) sem nenhum segredo, desligada e concedida a ninguém. Uma concessão
+   (`mcp_grants`) diz qual agente, opcionalmente qual workflow e qual passo, pode usá-la e quais ferramentas. O conjunto
+   efetivo de ferramentas de um passo é uma função pura (`application/mcp/plan.rs`): habilitada → concedida → a política
+   permite → o runtime tem um adaptador → configuração válida → as ferramentas podem ser retidas → segredos presentes. A
+   primeira falha é o motivo de não ser exposta.
+3. **Seis fatos por ferramenta, nunca uma flag só:** descoberta, habilitada, autorizada, exposta (o que o Atlas
+   arranjou), informada (o que o runtime listou: `None` é "não disse"), usada. Estão no manifest (`McpRecord`) e no
+   Inspetor.
+4. **O eixo de política está no `security/`**, não ao lado dele: `SecurityPolicy.mcp` (`Allowed` / `ApprovalRequired` /
+   `Denied`), estreitado como toda outra configuração; o perfil somente leitura o nega, o perfil developer o permite, e
+   uma política antiga guardada não o restringe. Nada é exposto sem uma concessão de qualquer jeito, então o padrão é
+   negar. `ApprovalRequired` é um achado (`mcp_approval_required`, Erro): um ASK em um passo de workflow, um DENY sem
+   um.
+5. **Os guardrails enxergam o MCP pelo caminho existente:** `McpFacts` na Revisão de Contexto (`mcp_unavailable`:
+   Bloqueante para uma conexão obrigatória que não pode ser dada, Aviso para uma opcional), e `McpPlan::canonical()` na
+   impressão digital da avaliação: configuração da conexão e versões das credenciais, descoberta, o que cada concessão
+   cobre, o que é retido, a política. Qualquer um deles mudando anula uma aprovação anterior. Nenhum `McpSecurity`.
+6. **STDIO é `executável + args[] + env`, nunca um shell.** A validação recusa shells (`sh`, `bash`, `cmd`,
+   `powershell`, `env`…, pelo nome em qualquer estilo de caminho), executáveis relativos ou com espaços, variáveis
+   perigosas (`PATH`, `NODE_OPTIONS`, `LD_*`…, `ATLAS_*`) e **qualquer `${`**: a CLI expande `${VAR}` a partir do
+   ambiente do Atlas no comando, argumentos e valores de um servidor, então uma configuração poderia, do contrário,
+   nomear uma variável que guarda o segredo de outra conexão. O Atlas escreve essas referências ele mesmo, para os seus
+   próprios segredos, e nada mais pode.
+7. **Segredos vão para o armazenamento de credenciais do SO** pela porta `CredentialStore` (`KeyringCredentialStore`, o
+   crate `keyring`, usado só em `infrastructure/`). A configuração guarda o nome e quando cada um foi guardado. Um
+   segredo chega a um servidor como `${ATLAS_MCP_<SERVIDOR>_<NOME>}` na configuração e como um valor no **ambiente** do
+   processo da CLI: nunca em um arquivo, um argumento, o prompt, o manifest, as métricas, um evento ou um log (`Secret`
+   não tem `Display`/`Serialize` e tem um `Debug` que não mostra nada). Uma variável não definida **não** é um erro para
+   a CLI (o texto fica literal), então o Atlas confere a presença primeiro e só lê o segredo depois que os guardrails
+   permitiram o passo.
+8. **A descoberta é o relatório do próprio runtime**, não um cliente MCP do Atlas: `ModelRuntime::probe_mcp` inicia o
+   servidor pela CLI com um modelo que não existe, que informa o status do servidor e os nomes das suas ferramentas e
+   falha na primeira requisição. Exige que a conexão esteja ligada (essa é a decisão do usuário de deixar o Atlas iniciar
+   esse processo) e seus segredos guardados. Só nomes: o relatório não tem descrições nem esquemas, e nenhum é inventado
+   (o `tool_definitions` do orçamento continua `Unknown`).
+9. **Reter ferramentas, e o que isso não consegue fazer.** `--tools` não limita ferramentas MCP; `--disallowedTools
+mcp__<servidor>__<ferramenta>` esconde uma descoberta; uma ferramenta que o servidor adiciona depois é listada de
+   qualquer forma. Uma concessão ao servidor inteiro é, portanto, a granularidade padrão (o usuário confia no servidor),
+   e ferramentas nomeadas precisam de uma descoberta para que o resto possa ser retido. Quando o runtime lista, antes de
+   perguntar qualquer coisa a um modelo, uma ferramenta MCP que ninguém autorizou (uma ferramenta retida que voltou, uma
+   que um servidor adicionou, um servidor que o Atlas não iniciou, como um conector do usuário), o Atlas para o passo:
+   pede à sessão que termine (possível só quando a execução está ligada a um terminal), faz a execução falhar
+   (`mcp_tool_not_authorized`) e não repassa a sua resposta. Isso é detecção mais uma parada de melhor esforço, não
+   prevenção; uma requisição pode já ter sido enviada.
+10. **Falha nunca vira permissão.** Uma conexão que não pode ser iniciada como planejado (o segredo sumiu, o cofre está
+    travado) é deixada de fora do passo, e uma **obrigatória** o para (`mcp_connection_unavailable`). Uma execução
+    somente texto nunca recebe um servidor (`--tools ""` não desliga o MCP, então a única forma é não dar nenhum). Um
+    runtime que ninguém investigou não recebe nada (`McpSupport::NotInvestigated`).
+11. **A invariante para resultados vale como na ADR 0027:** o resultado de uma ferramenta MCP é `Untrusted`; para um
+    runtime de CLI ele nunca passa pelo Atlas. Um teste mostra que um texto afirmando que uma pessoa aprovou não consegue
+    responder à pergunta que a política faz.
 
-## Evidence (no model call)
+## Evidência (sem chamada de modelo)
 
-- Claude Code 2.1.285, real CLI, the Phase A harmless server: the probe sees `connected` and `echo_static`; a secret travels environment →
-  `${ATLAS_MCP_…}` → the server, which reports it back as a tool name; a server that cannot start is `failed` with no tools; a held-back
-  tool is not listed and a tool the server adds later is (and the real `init` event reaches Atlas's stream).
-- 20 execution-level tests with the real service, the real security service as policy resolver, the real MCP service over a store in memory
-  (grants by agent, workflow and step; workspace isolation; read-only denial; revoke and switch-off; named tools; required and optional
-  failures; secrets never in anything kept; approvals voided by command, credential version, discovery, grant or policy; the stop on an
-  unauthorized tool, checked by mutation).
+- Claude Code 2.1.285, CLI real, o servidor inofensivo da Fase A: a sonda vê `connected` e `echo_static`; um segredo
+  viaja ambiente → `${ATLAS_MCP_…}` → o servidor, que o devolve como um nome de ferramenta; um servidor que não consegue
+  iniciar fica `failed` sem ferramentas; uma ferramenta retida não é listada e uma que o servidor adiciona depois é (e o
+  evento `init` real chega ao fluxo do Atlas).
+- 20 testes em nível de execução com o serviço real, o serviço de segurança real como resolvedor de políticas, o serviço
+  MCP real sobre um armazenamento em memória (concessões por agente, workflow e passo; isolamento de workspace; negação
+  somente leitura; revogar e desligar; ferramentas nomeadas; falhas obrigatórias e opcionais; segredos nunca em nada que
+  seja guardado; aprovações anuladas por comando, versão da credencial, descoberta, concessão ou política; a parada em
+  uma ferramenta não autorizada, conferida por mutação).
 
-## Consequences
+## Consequências
 
-- Only Claude can be given MCP servers. The other four runtimes are `NotInvestigated`: a connection granted to their agents is simply not given,
-  with a finding.
-- The macOS Keychain round trip was exercised by the ignored real test (exact name). The Windows and Linux stores were not: `keyring` compiles
-  for `x86_64-pc-windows-msvc`, the whole crate could not be built for it here (no `llvm-rc`), the Linux target is not installed.
-- The connection UI arrived in Phase E (doc section 18): the Integrations panel and a catalogue with DevTools (pinned) and Figma (listed, not addable).
-- The stop on an unauthorized tool no longer needs a terminal session: `SessionRegistry::stop` ends a terminal session or makes the pipe runner
-  kill the process group (see doc section 17.7). A request may already have reached the model when the report arrives.
-- Descriptions and schemas of tools are unknown to Atlas, so it cannot show or budget them.
-- HTTP transport and OAuth (Figma's official server) are not built; `McpTransport::Http` exists and is refused.
+- Só o Claude pode receber servidores MCP. Os outros quatro runtimes são `NotInvestigated`: uma conexão concedida aos
+  seus agentes simplesmente não é dada, com um achado.
+- O ciclo completo do Keychain do macOS foi exercitado pelo teste real ignorado (nome exato). Os armazenamentos do
+  Windows e do Linux não: o `keyring` compila para `x86_64-pc-windows-msvc`, o crate inteiro não pôde ser construído
+  para ele aqui (sem `llvm-rc`), o alvo Linux não está instalado.
+- A UI de conexões chegou na Fase E (doc seção 18): o painel de Integrações e um catálogo com o DevTools (fixado) e o
+  Figma (listado, não adicionável).
+- A parada em uma ferramenta não autorizada não precisa mais de uma sessão de terminal: `SessionRegistry::stop`
+  encerra uma sessão de terminal ou faz o runner por pipe matar o grupo de processos (veja doc seção 17.7). Uma
+  requisição pode já ter chegado ao modelo quando o relatório chega.
+- Descrições e esquemas das ferramentas são desconhecidos do Atlas, então ele não pode mostrá-los nem orçá-los.
+- Transporte HTTP e OAuth (o servidor oficial do Figma) não foram construídos; `McpTransport::Http` existe e é
+  recusado.
 
-## Not done
+## Não feito
 
-Chrome DevTools and Figma integrations (Phase E; Figma needs HTTP and OAuth), any UI to add or grant a connection, an MCP client in Atlas,
-a Tool Gateway or proxy, HTTP and its SSRF layer, per-call interception, MCP for the other four runtimes, a real model run.
+Integrações com Chrome DevTools e Figma (Fase E; o Figma precisa de HTTP e OAuth), qualquer UI para adicionar ou
+conceder uma conexão, um cliente MCP no Atlas, um Tool Gateway ou proxy, HTTP e sua camada de SSRF, interceptação por
+chamada, MCP para os outros quatro runtimes, uma execução real com modelo.
 
-## Phase F follow-up
+## Acompanhamento da Fase F
 
-A grant naming a workflow or a step is refused when that workflow or step does not exist, is not an agent step, or runs a different agent than the grant names (doc section 19.1).
+Uma concessão que nomeia um workflow ou um passo é recusada quando esse workflow ou passo não existe, não é um passo de
+agente, ou executa um agente diferente do que a concessão nomeia (doc seção 19.1).

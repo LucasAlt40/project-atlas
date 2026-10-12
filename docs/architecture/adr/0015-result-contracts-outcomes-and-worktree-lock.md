@@ -1,107 +1,120 @@
-# ADR 0015 — Result contracts, outcomes and the shared worktree's lock
+# ADR 0015 — Contratos de resultado, desfechos e a trava do worktree compartilhado
 
-**Status:** accepted. Extends [ADR 0013](0013-workflow-engine-and-orchestrator.md) and
+**Status:** aceito. Estende a [ADR 0013](0013-workflow-engine-and-orchestrator.md) e a
 [ADR 0014](0014-handoff-shared-worktree-and-code-integration.md).
 
-## Why
+## Por quê
 
-Real use of V0.9.1 showed four gaps:
+O uso real da V0.9.1 mostrou quatro lacunas:
 
-1. A validator answered in prose ("the architecture is good, but…") and the workflow could not tell a pass from a fail.
-2. What an agent may conclude with was implicit in the personality, not something an agent (or a workflow editor) could state.
-3. Whether an agent can edit files looked like a property of the runtime's brand instead of a capability plus a permission.
-4. Two steps that write could share the run's worktree at once, mixing their commits and change sets.
+1. Um validador respondia em prosa ("a arquitetura está boa, mas…") e o workflow não conseguia distinguir uma aprovação
+   de uma reprovação.
+2. Aquilo com que um agente pode concluir estava implícito na personalidade, não algo que um agente (ou um editor de
+   workflow) pudesse declarar.
+3. Se um agente pode editar arquivos parecia uma propriedade da marca do runtime, em vez de uma capacidade mais uma
+   permissão.
+4. Dois passos que escrevem podiam compartilhar o worktree da execução ao mesmo tempo, misturando seus commits e
+   change sets.
 
-## Decisions
+## Decisões
 
-**A result contract belongs to the agent.** `Agent.resultContract` is a list of outcomes (`id`, `label`, `description`) with a
-`kind` that is only a preset for the editor (`general`, `validation`, `review`, `implementation`, `custom`). The workflow never
-sees the kind or the personality: only outcome ids. A personality may carry a `suggestedContract`; it is applied by the editor
-when an agent is created and never applies by itself. Agents saved before this exist are `general` (no outcome required).
+**Um contrato de resultado pertence ao agente.** `Agent.resultContract` é uma lista de desfechos (`id`, `label`,
+`description`) com um `kind` que é só um preset para o editor (`general`, `validation`, `review`, `implementation`,
+`custom`). O workflow nunca vê o kind nem a personalidade: apenas os ids dos desfechos. Uma personalidade pode carregar
+um `suggestedContract`; ele é aplicado pelo editor quando um agente é criado e nunca se aplica sozinho. Agentes salvos
+antes disto existir são `general` (nenhum desfecho exigido).
 
-**Execution status and outcome are different things.** `completed` + outcome `fail` is an agent that did its work and concluded
-the work failed; `failed` has no outcome. Each attempt keeps its own outcome (`NodeAttempt.outcome`), so a retry never inherits
-one. The outcome reaches conditions as the fact `result.outcome` (`result.status` still works for older edges, and a `pass`/`fail`
-outcome fills it when the block gave none).
+**Status da execução e desfecho são coisas diferentes.** `completed` + desfecho `fail` é um agente que fez o seu
+trabalho e concluiu que o trabalho falhou; `failed` não tem desfecho. Cada tentativa guarda o seu próprio desfecho
+(`NodeAttempt.outcome`), então uma nova tentativa nunca herda um. O desfecho chega às condições como o fato
+`result.outcome` (`result.status` ainda funciona para arestas antigas, e um desfecho `pass`/`fail` o preenche quando o
+bloco não deu nenhum).
 
-**The outcome is read only from data, and only a declared id is kept.** The step's prompt carries an OUTPUT CONTRACT listing the
-allowed outcomes; the result parser reads the `outcome` field of the `atlas-result` block and checks it against the contract.
-Prose is never searched for "pass" or "fail". A contract that requires an outcome and gets none valid ends the step as
-**failed** ("No valid outcome…"): it takes the usual road of a failed step (retry, failure route, or the run failing). Nothing is
-ever read as pass, success or approved. If an outcome is valid but no edge accepts it, the run fails with `no_route_matched`,
-naming the outcome. There is no AI fallback.
+**O desfecho é lido só de dados, e só um id declarado é mantido.** O prompt do passo carrega um OUTPUT CONTRACT listando
+os desfechos permitidos; o parser de resultado lê o campo `outcome` do bloco `atlas-result` e o confere com o contrato.
+Nunca se procura "pass" ou "fail" em prosa. Um contrato que exige um desfecho e não recebe nenhum válido termina o passo
+como **falho** ("Nenhum desfecho válido…"): ele segue o caminho habitual de um passo falho (nova tentativa, rota de
+falha, ou a execução falhando). Nada é jamais lido como aprovado, sucesso ou pass. Se um desfecho é válido mas nenhuma
+aresta o aceita, a execução falha com `no_route_matched`, nomeando o desfecho. Não há fallback por IA.
 
-**Routes are checked before the run.** An edge on `result.outcome` whose value the source agent's contract does not declare
-(or an agent that declares none) is the validation issue `undeclared_outcome`, so the editor flags it live and the run refuses to
-start. The connection editor only offers the declared outcomes. ADR 0017 extends the checks to outcomes with
-no route, `result.status` routes on an agent with a contract, and routes that cannot reach an End.
+**As rotas são conferidas antes da execução.** Uma aresta em `result.outcome` cujo valor o contrato do agente de origem
+não declara (ou um agente que não declara nenhum) é o problema de validação `undeclared_outcome`, então o editor o
+sinaliza ao vivo e a execução se recusa a iniciar. O editor de conexões só oferece os desfechos declarados. A ADR 0017
+estende as verificações a desfechos sem rota, rotas `result.status` em um agente com contrato e rotas que não alcançam
+um End.
 
-**Handoffs carry the structure.** `AgentHandoff.outcome`, the execution status and findings (severity, category, title, file,
-line, description, evidence, recommendation) go to the next step as context, clearly delimited, with no authority: they grant
-nothing, change no policy and approve nothing.
+**Os handoffs carregam a estrutura.** `AgentHandoff.outcome`, o status da execução e os achados (severidade, categoria,
+título, arquivo, linha, descrição, evidência, recomendação) vão ao passo seguinte como contexto, claramente delimitado,
+sem autoridade: não concedem nada, não mudam política nenhuma e não aprovam nada.
 
-**Editing is a capability, a permission and isolation.** `RuntimeCapabilities.fileEdit` says a runtime can be launched with
-file-editing tools; `PermissionPolicy` says whether this agent may write; the execution must be isolated. Only all three together
-enable editing (`ExecutionService::edit_access`). The reasons are distinct (`RuntimeCannotEdit` vs `PolicyDenied` vs
-`NotIsolated`) and the UI says "This runtime does not support file editing" rather than "denied". No code names a runtime:
-a runtime that gains the capability (and a safe launch for it) gets editing with no architectural change. Claude's
-`--permission-mode acceptEdits` stays an implementation detail of that runtime; the authority is the Atlas policy.
+**Editar é uma capacidade, uma permissão e isolamento.** `RuntimeCapabilities.fileEdit` diz que um runtime pode ser
+iniciado com ferramentas de edição de arquivos; `PermissionPolicy` diz se este agente pode escrever; a execução deve
+estar isolada. Só os três juntos habilitam a edição (`ExecutionService::edit_access`). Os motivos são distintos
+(`RuntimeCannotEdit` vs `PolicyDenied` vs `NotIsolated`) e a UI diz "Este runtime não suporta edição de arquivos" em
+vez de "negado". Nenhum código nomeia um runtime: um runtime que ganhe a capacidade (e uma forma segura de iniciá-lo)
+passa a editar sem mudança arquitetural. O `--permission-mode acceptEdits` do Claude continua sendo um detalhe de
+implementação desse runtime; a autoridade é a política do Atlas.
 
-**The run's worktree has a lock.** The worktree is one resource of the run. A step that would write (effective edit access, never
-a name) needs it exclusively; read-only steps share it. A waiting writer is not overtaken by later readers. The lock lives in the
-orchestrator's loop for that run and is reconciled each round against the steps really in flight, so a step that ended in any
-way (completed, failed, cancelled, panicked, interrupted by shutdown) cannot keep it. Because a writer is alone, Git's
-`revision_before → revision_after` for a step contains only that step's changes.
+**O worktree da execução tem uma trava.** O worktree é um recurso da execução. Um passo que escreveria (acesso efetivo
+de edição, nunca um nome) precisa dele com exclusividade; passos somente leitura o compartilham. Um escritor que espera
+não é ultrapassado por leitores posteriores. A trava vive no loop do orquestrador para aquela execução e é reconciliada
+a cada rodada com os passos realmente em andamento, de modo que um passo que terminou de qualquer forma (concluído,
+falho, cancelado, panic, interrompido por desligamento) não consegue mantê-la. Como um escritor fica sozinho, o
+`revision_before → revision_after` do Git para um passo contém só as mudanças desse passo.
 
-## Workflow Apply is not a commit
+## Workflow Apply não é um commit
 
-ADR 0014 first described "apply" as the worktree merge. That was wrong for the project's history, and is superseded here:
+A ADR 0014 primeiro descreveu "apply" como o merge do worktree. Isso estava errado para o histórico do projeto, e é
+substituído aqui:
 
 ```text
 Workflow Apply
-    -> materialises the run's ChangeSet in the project's main working tree
-    -> UNCOMMITTED (modified / new / deleted in `git status`; HEAD, refs and reflog untouched)
+    -> materializa o ChangeSet da execução na árvore de trabalho principal do projeto
+    -> SEM COMMIT (modificado / novo / excluído em `git status`; HEAD, refs e reflog intocados)
 ```
 
-and **not**:
+e **não**:
 
 ```text
 Apply -> git merge -> commit (-> push)
 ```
 
-- The run's commits (`Atlas: work of …`) live on the run's own branch: history of the run, for traceability and recovery. The
-  project receives the _content_ (`git diff <fork>..<branch>` applied with `git apply`), never those commits.
-- Apply never commits, merges, rebases, cherry-picks, stages, pushes, changes a remote or changes the project's Git
-  configuration. Committing is the developer's.
-- Prepare, validate, detect conflicts, apply, verify: the whole patch is checked against the working tree before a file is
-  written (`git apply` writes all or nothing); a snapshot of HEAD and of the changed paths is taken first and compared again
-  right before writing and after (HEAD must not have moved).
-- The user's own uncommitted work is preserved. A file both the run and the working tree have changed (an untracked file
-  counts) is a **conflict**: nothing is written, the worktree is kept, and the user decides. A dirty checkout alone no longer
-  blocks Apply. A checkout that left the base branch still does.
-- After a successful apply the worktree folder is removed and its **branch is kept** as the record of what was applied
-  (`MergeStatus::Applied`, shown as `integrated`).
-- Proved by real-Git tests: HEAD, reflog, refs, index, `MERGE_HEAD` and a bare remote are unchanged after Apply.
+- Os commits da execução (`Atlas: work of …`) vivem no branch da própria execução: histórico da execução, para
+  rastreabilidade e recuperação. O projeto recebe o _conteúdo_ (`git diff <fork>..<branch>` aplicado com `git apply`),
+  nunca esses commits.
+- O Apply nunca faz commit, merge, rebase, cherry-pick, stage, push, nem muda um remoto ou a configuração Git do
+  projeto. Commitar é do desenvolvedor.
+- Preparar, validar, detectar conflitos, aplicar, verificar: o patch inteiro é conferido contra a árvore de trabalho
+  antes de qualquer arquivo ser escrito (`git apply` escreve tudo ou nada); um snapshot do HEAD e dos caminhos alterados
+  é tirado antes e comparado de novo logo antes de escrever e depois (o HEAD não pode ter se movido).
+- O trabalho não commitado do próprio usuário é preservado. Um arquivo que tanto a execução quanto a árvore de trabalho
+  alteraram (um arquivo não rastreado conta) é um **conflito**: nada é escrito, o worktree é mantido, e o usuário
+  decide. Um checkout sujo sozinho não bloqueia mais o Apply. Um checkout que saiu do branch base ainda bloqueia.
+- Depois de um apply bem-sucedido, a pasta do worktree é removida e seu **branch é mantido** como registro do que foi
+  aplicado (`MergeStatus::Applied`, mostrado como `integrated`).
+- Provado por testes com Git real: HEAD, reflog, refs, index, `MERGE_HEAD` e um remoto bare permanecem inalterados
+  depois do Apply.
 
-**"Keep isolated" after Apply takes the applied changes back out.** The branch is kept, so the same patch (`git diff
-<fork>..<branch>`) is applied in reverse (`git apply -R`), and only that. It is allowed only while the project is on the base
-branch at the `HEAD` recorded when the changes were applied (`appliedHead`): with a new commit the changes may be part of
-the history, and Atlas never rewrites that. The reversed patch is checked as a whole first; an applied file the user changed
-since is a conflict and nothing is written. The user's other changes stay. Afterwards the worktree folder is made again
-from the branch (`git worktree add`, no new branch) and the run is `kept_isolated`, so it can be reviewed or applied again.
-When it cannot be done the changes stay applied and the run says why (`canUndo`, `blockReason: conflict`, or
-`message: project_moved`).
+**"Manter isolado" depois do Apply retira as mudanças aplicadas.** O branch é mantido, então o mesmo patch (`git diff
+<fork>..<branch>`) é aplicado ao contrário (`git apply -R`), e somente ele. Só é permitido enquanto o projeto está no
+branch base no `HEAD` registrado quando as mudanças foram aplicadas (`appliedHead`): com um novo commit, as mudanças
+podem fazer parte do histórico, e o Atlas nunca o reescreve. O patch invertido é conferido inteiro primeiro; um arquivo
+aplicado que o usuário alterou depois é um conflito e nada é escrito. As outras mudanças do usuário permanecem. Depois,
+a pasta do worktree é recriada a partir do branch (`git worktree add`, sem novo branch) e a execução fica
+`kept_isolated`, podendo ser revisada ou aplicada de novo. Quando não é possível, as mudanças continuam aplicadas e a
+execução diz o motivo (`canUndo`, `blockReason: conflict`, ou `message: project_moved`).
 
-After a successful Apply the screen opens the person's editor (the one last chosen, else the first found) on the project.
-None of the supported editors' launchers can open its Git view, so the changes show up in the editor's own Git indicators.
+Depois de um Apply bem-sucedido, a tela abre o editor da pessoa (o último escolhido, senão o primeiro encontrado) no
+projeto. Nenhum dos lançadores dos editores suportados consegue abrir a sua visão do Git, então as mudanças aparecem
+nos indicadores de Git do próprio editor.
 
-**`merge_execution` is a different operation.** The merge of a _single agent's_ isolated execution (the `merge_execution`
-command and the policy-driven automatic merge) is a real `git merge --no-ff` and creates a merge commit on the base branch. It
-is the user's explicit "merge", with its own rules. It is **unchanged by this decision**; whether it should also become a
-working-tree apply is a separate architectural decision, still open. Both paths are chosen by the kind of worktree
-(`WorktreeService::delivers_to_working_tree`): a workflow's worktree can never be merged into history, whichever command
-reaches it.
+**`merge_execution` é uma operação diferente.** O merge da execução isolada de um _único agente_ (o comando
+`merge_execution` e o merge automático guiado por política) é um `git merge --no-ff` de verdade e cria um commit de
+merge no branch base. É o "merge" explícito do usuário, com regras próprias. **Não é alterado por esta decisão**; se ele
+também deve virar um apply na árvore de trabalho é uma decisão arquitetural separada, ainda em aberto. Os dois caminhos
+são escolhidos pelo tipo de worktree (`WorktreeService::delivers_to_working_tree`): o worktree de um workflow nunca pode
+ser mesclado ao histórico, qualquer que seja o comando que o alcance.
 
-## Out of scope
+## Fora de escopo
 
-Agents still run no shell, tests or commands, and have no network. That is a separate milestone.
+Os agentes continuam sem executar shell, testes ou comandos, e sem rede. Isso é um marco separado.

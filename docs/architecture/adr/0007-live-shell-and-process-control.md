@@ -1,173 +1,188 @@
-# ADR 0007 — Live shell and process control
+# ADR 0007 — Shell ao vivo e controle de processos
 
-**Status:** accepted
+**Status:** aceito
 
-## What it is
+## O que é
 
-An execution that runs a CLI runtime (Claude, OpenCode) now runs attached to a **real pseudo-terminal**. While its process
-lives it has a **process session** (`processSessionId`); the UI can show the process's real output (xterm.js), interrupt it
-(Ctrl+C), terminate it, and — only if the runtime reads input — type into it. Chat is what the agent _says_; the terminal is
-what its process _does_; the two are never mixed.
+Uma execução que roda um runtime de CLI (Claude, OpenCode) agora roda ligada a um **pseudo-terminal real**. Enquanto o
+processo vive, ele tem uma **sessão de processo** (`processSessionId`); a UI pode mostrar a saída real do processo
+(xterm.js), interrompê-lo (Ctrl+C), terminá-lo e — só se o runtime lê entrada — digitar nele. O chat é o que o agente
+_diz_; o terminal é o que o seu processo _faz_; os dois nunca se misturam.
 
 ```
-Workspace → Agent → Execution → ProcessSession
-ExecutionService → RuntimeRegistry → ModelRuntime → ProcessRunner (guard → system) → PTY → claude | opencode
+Workspace → Agente → Execução → ProcessSession
+ExecutionService → RuntimeRegistry → ModelRuntime → ProcessRunner (guard → sistema) → PTY → claude | opencode
 ```
 
-It is **observability and process control, not a sandbox.** Security still comes from the `PermissionPolicy`, the runtime's
-own restrictions and, later, an OS sandbox (ADR 0006). The live shell controls a process Atlas already authorized; it cannot
-start one.
+É **observabilidade e controle de processo, não um sandbox.** A segurança continua vindo da `PermissionPolicy`, das
+restrições do próprio runtime e, mais tarde, de um sandbox de SO (ADR 0006). O shell ao vivo controla um processo que o
+Atlas já autorizou; não pode iniciar um.
 
-## Pieces
+## Peças
 
-| Piece                                                           | Responsibility                                                                                                                   |
+| Peça                                                            | Responsabilidade                                                                                                                 |
 | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `application/process.rs` — `ProcessSpec.terminal`               | A runtime asks to run in a terminal. Nothing from the webview reaches it.                                                        |
-| `infrastructure/pty.rs`                                         | Starts the process in a PTY (`portable-pty`), reads its output, ends it, implements `ProcessSession`.                            |
-| `application/sessions.rs` — `ProcessSession`, `SessionRegistry` | Identity, bounded ephemeral output, state, who stopped it, and the **only** control path.                                        |
-| `ExecutionService`                                              | Asks the registry whether the user stopped a run that ended badly → `Cancelled` instead of `Failed`.                             |
+| `application/process.rs` — `ProcessSpec.terminal`               | Um runtime pede para rodar em um terminal. Nada vindo da webview chega até aqui.                                                 |
+| `infrastructure/pty.rs`                                         | Inicia o processo em um PTY (`portable-pty`), lê sua saída, o encerra, implementa `ProcessSession`.                              |
+| `application/sessions.rs` — `ProcessSession`, `SessionRegistry` | Identidade, saída efêmera limitada, estado, quem o parou e o **único** caminho de controle.                                      |
+| `ExecutionService`                                              | Pergunta ao registro se o usuário parou uma execução que terminou mal → `Cancelled` em vez de `Failed`.                          |
 | `commands/terminal.rs`                                          | `get_execution_terminal`, `execution_interrupt`, `execution_terminate`, `execution_terminal_input`, `execution_terminal_resize`. |
-| `commands/events.rs`                                            | `execution:output` (chunks), `execution:status` (state), and activity on the existing `execution:progress`.                      |
-| `commands/exit.rs`                                              | What happens to running agents when Atlas closes.                                                                                |
+| `commands/events.rs`                                            | `execution:output` (trechos), `execution:status` (estado) e atividade no `execution:progress` existente.                         |
+| `commands/exit.rs`                                              | O que acontece com os agentes em execução quando o Atlas fecha.                                                                  |
 
-`ProcessRunner` stays small (`locate`, `run`). A running process's controls are a separate object, `ProcessSession`
-(`write`, `interrupt`, `terminate`, `resize`), reached through the registry — a runner starts, a session controls.
-Runtime-specific behaviour stays in the runtime: `cli::deliver_prompt` is the one shared helper, and no code branches on
-which runtime it is.
+O `ProcessRunner` continua pequeno (`locate`, `run`). Os controles de um processo em execução são um objeto separado,
+`ProcessSession` (`write`, `interrupt`, `terminate`, `resize`), alcançado pelo registro — um runner inicia, uma sessão
+controla. O comportamento específico de cada runtime fica no runtime: `cli::deliver_prompt` é o único auxiliar
+compartilhado, e nenhum código se ramifica conforme o runtime.
 
-## Why a PTY, and not pipes
+## Por que um PTY, e não pipes
 
-With pipes the child sees that stdout is not a terminal; CLIs change behaviour (buffering, colours, prompts, progress
-output) and some refuse to be interactive. A PTY gives the child a terminal: ANSI output, a size it can query and that can
-change (`resize`), and a terminal driver that turns **Ctrl+C into an interrupt for the foreground process group**.
+Com pipes o filho vê que a stdout não é um terminal; as CLIs mudam de comportamento (buffering, cores, prompts, saída de
+progresso) e algumas se recusam a ser interativas. Um PTY dá ao filho um terminal: saída ANSI, um tamanho que ele pode
+consultar e que pode mudar (`resize`), e um driver de terminal que transforma **Ctrl+C em uma interrupção para o grupo
+de processos em primeiro plano**.
 
-Library: **`portable-pty`** (the PTY layer of WezTerm). It supports Unix PTYs and Windows ConPTY behind one API, has no
-async runtime requirement, and is maintained by a project that depends on it for its own terminal. Alternatives considered:
-`pty-process` and `nix::pty` (Unix only, so Windows would need a second implementation), `conpty` (Windows only), and
-hand-rolled `openpty` (needs `unsafe`, which this crate forbids). New dependencies: `portable-pty` and, on Unix only, `nix`
-(already a transitive dependency of `portable-pty`, same version; used for the safe `killpg`). The crate keeps
+Biblioteca: **`portable-pty`** (a camada de PTY do WezTerm). Suporta PTYs Unix e ConPTY do Windows atrás de uma única
+API, não exige runtime assíncrono e é mantida por um projeto que depende dela para o próprio terminal. Alternativas
+consideradas: `pty-process` e `nix::pty` (só Unix, então o Windows exigiria uma segunda implementação), `conpty` (só
+Windows) e `openpty` feito à mão (exige `unsafe`, que este crate proíbe). Novas dependências: `portable-pty` e, só no
+Unix, `nix` (já dependência transitiva do `portable-pty`, mesma versão; usada para o `killpg` seguro). O crate mantém
 `unsafe_code = "forbid"`.
 
-Cost of a PTY, verified against the real CLIs:
+Custo de um PTY, verificado contra as CLIs reais:
 
-- **One output stream.** stdout and stderr merge. The runtimes read their diagnostics from the non-JSON lines of the merged
-  output (`cli::diagnostics`); the `stream` field of `execution:output` is part of the contract but is always `stdout`.
-- **No input channel for a prompt.** `claude -p` and `opencode run` **ignore a terminal's stdin** (they report "input must be
-  provided…"). In a terminal the prompt is therefore the last argument, after `--` so that text starting with `-` is never an
-  option. The pipe path (prompt on stdin) remains for the one case a terminal cannot serve (below).
-- **Control sequences in the output.** The structured result (`stream-json` / `--format json`) still comes through the
-  terminal, but may be wrapped in cursor/colour sequences and CRLF. The runner strips them (a stateful stripper that survives
-  sequences split across reads) before the runtimes parse; the raw bytes go to the terminal view. A test runs the real Claude
-  runtime against a stand-in CLI that prints sequences around its JSON.
-- **Windows `.cmd` shims** cannot take multi-line arguments, so a prompt with newlines on a `.cmd`/`.bat` shim falls back to
-  pipes (that execution has no live terminal). Native `.exe` installs use the terminal.
+- **Um único fluxo de saída.** stdout e stderr se juntam. Os runtimes leem seus diagnósticos das linhas não JSON da saída
+  combinada (`cli::diagnostics`); o campo `stream` de `execution:output` faz parte do contrato mas é sempre `stdout`.
+- **Sem canal de entrada para um prompt.** `claude -p` e `opencode run` **ignoram a stdin de um terminal** (informam
+  "input must be provided…"). Em um terminal, portanto, o prompt é o último argumento, depois de `--`, para que texto
+  começando com `-` nunca seja uma opção. O caminho por pipe (prompt na stdin) permanece para o único caso que um
+  terminal não consegue atender (abaixo).
+- **Sequências de controle na saída.** O resultado estruturado (`stream-json` / `--format json`) ainda passa pelo
+  terminal, mas pode vir envolto em sequências de cursor/cor e CRLF. O runner as remove (um removedor com estado, que
+  sobrevive a sequências divididas entre leituras) antes de os runtimes interpretarem; os bytes brutos vão para a visão
+  do terminal. Um teste executa o runtime real do Claude contra uma CLI de substituição que imprime sequências em torno
+  do seu JSON.
+- **Shims `.cmd` do Windows** não aceitam argumentos de várias linhas, então um prompt com quebras de linha em um shim
+  `.cmd`/`.bat` recorre a pipes (aquela execução não tem terminal ao vivo). Instalações `.exe` nativas usam o terminal.
 
-`--output-format stream-json` is compatible with a terminal: the JSON lines are the process's real output, the runtime's
-`ExecutionResult` is unchanged, and nothing was removed to make the terminal work.
+`--output-format stream-json` é compatível com um terminal: as linhas JSON são a saída real do processo, o
+`ExecutionResult` do runtime não muda, e nada foi removido para o terminal funcionar.
 
-## Identity
+## Identidade
 
-`executionId` (Atlas's own, existed already) and `processSessionId` (new, per live process). The registry is keyed by
-execution. Every control request names **all three of workspace, agent and execution**; a session answers only when all
-three equal the ones it was opened with (taken from the guard-approved `ExecutionScope`, never from the webview). Anything
-else — unknown, other workspace, other agent — is the same `ExecutionNotFound`, so a probe learns nothing. There is no
-"current process" and no singleton: Agent A, B, C and D each have their own execution and session, and interrupting A
-cannot reach B. The frontend knows execution ids, events and capabilities; it never sees a PID, a signal or a process group.
+`executionId` (do próprio Atlas, já existia) e `processSessionId` (novo, por processo ao vivo). O registro é indexado
+por execução. Todo pedido de controle nomeia **os três: workspace, agente e execução**; uma sessão só responde quando os
+três são iguais aos com que foi aberta (tirados do `ExecutionScope` aprovado pelo guard, nunca da webview). Qualquer
+outra coisa — desconhecido, outro workspace, outro agente — é o mesmo `ExecutionNotFound`, então uma sondagem não
+descobre nada. Não existe "processo atual" nem singleton: os Agentes A, B, C e D têm cada um sua execução e sessão, e
+interromper o A não alcança o B. O frontend conhece ids de execução, eventos e capacidades; nunca vê um PID, um sinal ou
+um grupo de processos.
 
-## Ctrl+C, terminate, and process trees
+## Ctrl+C, terminar e árvores de processos
 
-**Interrupt** is the byte `0x03` written to the PTY — one mechanism on every OS:
+**Interromper** é o byte `0x03` escrito no PTY — um mecanismo em todo SO:
 
-- **macOS / Linux:** the terminal driver sends `SIGINT` to the PTY's foreground process group. The CLI gets it as it would
-  from a person, and so does everything it started in the foreground (`node → npm → test`). The child is a session leader
-  (`setsid`, done by `portable-pty`), so its process group is its own.
-- **Windows:** ConPTY translates the input into a console control event for the processes attached to the pseudo-console.
+- **macOS / Linux:** o driver do terminal envia `SIGINT` ao grupo de processos em primeiro plano do PTY. A CLI o recebe
+  como receberia de uma pessoa, e também tudo o que ela iniciou em primeiro plano (`node → npm → test`). O filho é líder
+  de sessão (`setsid`, feito pelo `portable-pty`), então seu grupo de processos é só dele.
+- **Windows:** o ConPTY traduz a entrada em um evento de controle de console para os processos ligados ao
+  pseudo-console.
 
-It is deliberately not `kill(pid)`: that would hit only the root, skip the CLI's graceful shutdown, and could not
-distinguish "stop" from "die". The CLI may handle the interrupt or ignore it; Atlas reports the state (`interrupting`) and
-leaves the next step to the user. A second interrupt is just a second Ctrl+C and cannot panic.
+Deliberadamente não é `kill(pid)`: isso atingiria só a raiz, pularia o encerramento gracioso da CLI e não conseguiria
+distinguir "parar" de "morrer". A CLI pode tratar a interrupção ou ignorá-la; o Atlas informa o estado (`interrupting`)
+e deixa o próximo passo para o usuário. Uma segunda interrupção é só um segundo Ctrl+C e não pode causar pânico.
 
-**Terminate** is the second step, always available and visually secondary:
+**Terminar** é o segundo passo, sempre disponível e visualmente secundário:
 
-- **Unix:** `SIGTERM` to the whole process group (`killpg`), and if the group is still there after 2 s, `SIGKILL` to it.
-- **Windows:** `taskkill /PID <pid> /T /F` (kills the tree; there is no graceful group signal).
+- **Unix:** `SIGTERM` para o grupo de processos inteiro (`killpg`) e, se o grupo ainda existir após 2 s, `SIGKILL` nele.
+- **Windows:** `taskkill /PID <pid> /T /F` (mata a árvore; não existe sinal gracioso de grupo).
 
-Signals are sent while holding a lock that is also held when the child is reaped, so a signal can never reach a PID the OS has
-already reused. When a process ends, its terminal is closed: the kernel hangs up on anything still attached (`SIGHUP`).
-A descendant that deliberately detaches (new session, ignores `SIGHUP`) is outside Atlas's reach.
+Os sinais são enviados segurando um lock que também é mantido quando o filho é recolhido, de modo que um sinal nunca
+possa atingir um PID que o SO já reutilizou. Quando um processo termina, seu terminal é fechado: o kernel desliga
+(`SIGHUP`) tudo o que ainda estiver ligado. Um descendente que se desprende de propósito (nova sessão, ignora `SIGHUP`)
+está fora do alcance do Atlas.
 
-State: `Running → Interrupting | Terminating → Exited` (live, per process, `execution:status`). The persisted execution
-status gained **`Cancelled`**; `Interrupting`/`Terminating` are live session states, not stored. `Timeout` stays a failure kind
-of a `Failed` execution (compatible with what exists); `Queued` and `Starting` were not added: nothing queues, and starting
-is already `starting_runtime`. A run ends as `Cancelled` when it did not complete **and** the user acted on its process;
-a run that finished before the interrupt landed stays `Completed`.
+Estado: `Running → Interrupting | Terminating → Exited` (ao vivo, por processo, `execution:status`). O status
+persistido da execução ganhou **`Cancelled`**; `Interrupting`/`Terminating` são estados de sessão ao vivo, não
+guardados. `Timeout` continua sendo um tipo de falha de uma execução `Failed` (compatível com o que existe); `Queued` e
+`Starting` não foram adicionados: nada entra em fila, e iniciar já é `starting_runtime`. Uma execução termina como
+`Cancelled` quando não completou **e** o usuário agiu sobre o seu processo; uma execução que terminou antes de a
+interrupção chegar continua `Completed`.
 
-## Manual input
+## Entrada manual
 
-Investigated, not assumed: both CLIs run non-interactively (`claude -p`, `opencode run`) and **ignore a terminal's stdin**.
-Both therefore report `terminalInput = false` and their terminal is read-only. Ctrl+C works regardless. The path exists for
-a future interactive runtime (`RuntimeCapabilities.terminal_input`, then `ProcessSpec.terminal.input`), and is enforced in
-the core, not the UI: input is refused unless the runtime enabled it; bytes are passed on **untouched** (Ctrl+D, Ctrl+Z,
-escape sequences and pasted multi-line text are just input to that process's own terminal and are never interpreted as Atlas
-commands); a payload over 64 KiB is refused; and `0x03` is the one exception — alone it is routed through _interrupt_ (so
-the state and the cancellation are tracked), mixed with other bytes it is refused.
+Investigado, não presumido: as duas CLIs rodam de forma não interativa (`claude -p`, `opencode run`) e **ignoram a stdin
+de um terminal**. Portanto as duas informam `terminalInput = false` e seu terminal é somente leitura. O Ctrl+C funciona
+de qualquer jeito. O caminho existe para um futuro runtime interativo (`RuntimeCapabilities.terminal_input`, depois
+`ProcessSpec.terminal.input`) e é imposto no núcleo, não na UI: a entrada é recusada a menos que o runtime a habilite;
+os bytes são repassados **intocados** (Ctrl+D, Ctrl+Z, sequências de escape e texto colado de várias linhas são apenas
+entrada para o terminal do próprio processo e nunca são interpretados como comandos do Atlas); uma carga acima de 64 KiB
+é recusada; e `0x03` é a única exceção — sozinho é encaminhado pela _interrupção_ (para que o estado e o cancelamento
+sejam rastreados), misturado com outros bytes é recusado.
 
-## Capabilities
+## Capacidades
 
-`RuntimeCapabilities` gained `interactiveTerminal`, `interrupt`, `terminalInput`, `terminalResize`.
+`RuntimeCapabilities` ganhou `interactiveTerminal`, `interrupt`, `terminalInput`, `terminalResize`.
 
 | Runtime      | interactiveTerminal | interrupt | terminalInput | terminalResize |
 | ------------ | :-----------------: | :-------: | :-----------: | :------------: |
-| Claude CLI   |         yes         |    yes    |      no       |      yes       |
-| OpenCode CLI |         yes         |    yes    |      no       |      yes       |
-| Codex CLI    |         yes         |    yes    |      no       |      yes       |
+| Claude CLI   |         sim         |    sim    |      não      |      sim       |
+| OpenCode CLI |         sim         |    sim    |      não      |      sim       |
+| Codex CLI    |         sim         |    sim    |      não      |      sim       |
 
-The UI shows only what the runtime can do ("does not provide a terminal", no Interrupt button, read-only badge).
+A UI mostra só o que o runtime pode fazer ("não oferece um terminal", sem botão de Interromper, selo de somente
+leitura).
 
-## Security: relation to `PermissionPolicy`
+## Segurança: relação com a `PermissionPolicy`
 
-- A process session exists only for a process the **guard let start** (`GuardedProcessRunner` evaluates every spec before the
-  system runner is reached; a denied or unknown program never gets a session). The runner never accepts a program from the
-  commands, and **no command starts a process** — there is no shell, no "open terminal", nothing that takes a program or a
-  command line from the webview.
-- The webview is not trusted with authorization: the core re-checks workspace/agent/execution on every request.
-- Terminal output is data for display. It is never parsed as instructions or turned into Atlas actions.
-- The guard still records `LaunchRuntime` and `runtime_exceeds_policy` notes; the live shell adds activity (user vs. agent):
-  `terminal_connected`, `user_interrupted`, `user_terminated`, `process_exited`, `cancelled`.
-- Limits: the live shell is not a sandbox. It cannot stop what the runtime's own tools do inside the process (OpenCode's
-  shell tool runs inside the terminal's process group, for example); Ctrl+C reaches them, nothing here restricts them.
+- Uma sessão de processo só existe para um processo que o **guard deixou iniciar** (o `GuardedProcessRunner` avalia toda
+  especificação antes de chegar ao runner do sistema; um programa negado ou desconhecido nunca recebe uma sessão). O
+  runner nunca aceita um programa vindo dos comandos, e **nenhum comando inicia um processo** — não há shell, nem "abrir
+  terminal", nada que receba um programa ou uma linha de comando da webview.
+- A webview não tem a confiança para autorizar: o núcleo reconfere workspace/agente/execução em todo pedido.
+- A saída do terminal é dado para exibição. Nunca é interpretada como instrução nem convertida em ações do Atlas.
+- O guard ainda registra `LaunchRuntime` e as notas `runtime_exceeds_policy`; o shell ao vivo acrescenta atividade
+  (usuário vs. agente): `terminal_connected`, `user_interrupted`, `user_terminated`, `process_exited`, `cancelled`.
+- Limites: o shell ao vivo não é um sandbox. Ele não pode impedir o que as ferramentas do próprio runtime fazem dentro
+  do processo (a ferramenta de shell do OpenCode roda dentro do grupo de processos do terminal, por exemplo); o Ctrl+C
+  as alcança, nada aqui as restringe.
 
-## Output, persistence and performance
+## Saída, persistência e desempenho
 
-Output reaches the UI as incremental `execution:output` chunks (`seq` per session), reassembled in a `TerminalHub` outside
-React state. The core keeps the last **512 KiB** per session and the last **8** finished sessions so a terminal can be
-re-drawn after a reload or workspace switch (`get_execution_terminal` returns a snapshot with `nextSeq`, so the snapshot and
-the live chunks meet without a gap or repeat). Nothing is persisted: `config.json` never receives terminal output; the
-execution record still holds prompt, answer, status, usage, timestamps and failure. Chunks are as read from the PTY (≤ 8 KiB);
-no batching or backpressure was added — the CLIs produce lines at token rate and this has not shown a need. Revisit if
-a runtime streams megabytes per second.
+A saída chega à UI como trechos incrementais `execution:output` (`seq` por sessão), remontados em um `TerminalHub` fora
+do estado do React. O núcleo guarda os últimos **512 KiB** por sessão e as últimas **8** sessões terminadas, para que um
+terminal possa ser redesenhado depois de um recarregamento ou troca de workspace (`get_execution_terminal` devolve um
+snapshot com `nextSeq`, de modo que o snapshot e os trechos ao vivo se encontrem sem lacuna nem repetição). Nada é
+persistido: o `config.json` nunca recebe saída de terminal; o registro da execução ainda guarda prompt, resposta,
+status, uso, horários e falha. Os trechos são como lidos do PTY (≤ 8 KiB); nenhum agrupamento ou contrapressão foi
+adicionado — as CLIs produzem linhas na velocidade dos tokens e isso não mostrou necessidade. Rever se um runtime
+transmitir megabytes por segundo.
 
-## When Atlas closes
+## Quando o Atlas fecha
 
-- Window closed / quit with executions running: Atlas asks ("Agents are still running": **Cancel executions and exit** /
-  **Keep Atlas open**). The dialog is native and worded by the core in the user's language (the webview is going away).
-- Whichever way the application ends, its agents' processes are ended with it (`RunEvent::Exit` →
-  terminate all, waiting up to 4 s). If Atlas is killed outright (`SIGKILL`, crash, power loss) the PTY master closes and the
-  kernel hangs up on the children, which makes the usual CLIs exit; one that ignores `SIGHUP` could survive. Windows
-  closes the pseudo-console with the same effect, not verified.
-- Switching workspace never touches processes. Sleep/wake: processes simply continue; nothing is done.
+- Janela fechada / saída com execuções em andamento: o Atlas pergunta ("Agentes ainda estão em execução": **Cancelar
+  execuções e sair** / **Manter o Atlas aberto**). O diálogo é nativo e redigido pelo núcleo no idioma do usuário (a
+  webview está indo embora).
+- De qualquer forma que a aplicação termine, os processos dos seus agentes terminam com ela (`RunEvent::Exit` → terminar
+  todos, esperando até 4 s). Se o Atlas for morto de vez (`SIGKILL`, queda, falta de energia) o master do PTY fecha e o
+  kernel desliga os filhos, o que faz as CLIs usuais saírem; uma que ignore `SIGHUP` poderia sobreviver. O Windows fecha
+  o pseudo-console com o mesmo efeito, não verificado.
+- Trocar de workspace nunca toca nos processos. Suspender/acordar: os processos simplesmente continuam; nada é feito.
 
-## Validation and known limitations
+## Validação e limitações conhecidas
 
-- **macOS:** validated, including with the real Claude and OpenCode CLIs (opt-in tests: `cargo test real_ -- --ignored
---nocapture --test-threads=1` — a real long task, output observed, Ctrl+C, process gone, execution `Cancelled`).
-- **Linux:** the Unix code paths are the same and use only POSIX facilities; not run on a Linux machine in this milestone.
-- **Windows:** the code has `cfg(windows)` branches but was **neither run nor compiled** here (the Tauri build script
-  needs the Windows resource compiler, absent on this machine). ConPTY's handling of `0x03` as a console control event,
-  `taskkill` behaviour and `.cmd` shims need a Windows machine; until then treat it as unvalidated.
-- Merged stdout/stderr; prompt visible in the process's argument list (`ps`) while a terminal run is in progress (it was in
-  stdin before); both are consequences of the PTY.
-- Interrupt/terminate are best effort: the process may ignore Ctrl+C (that is what Terminate is for) and a deliberately
-  detached grandchild is out of reach.
-- Terminal output is not searchable after Atlas restarts (ephemeral by design); a log with an explicit limit would be a later,
-  separate decision.
+- **macOS:** validado, inclusive com as CLIs reais do Claude e do OpenCode (testes opt-in: `cargo test real_ --
+--ignored --nocapture --test-threads=1` — uma tarefa longa real, saída observada, Ctrl+C, processo sumido, execução
+  `Cancelled`).
+- **Linux:** os caminhos de código Unix são os mesmos e usam só recursos POSIX; não foram executados em uma máquina
+  Linux neste marco.
+- **Windows:** o código tem ramos `cfg(windows)` mas **não foi executado nem compilado** aqui (o script de build do Tauri
+  precisa do compilador de recursos do Windows, ausente nesta máquina). O tratamento do `0x03` pelo ConPTY como evento
+  de controle de console, o comportamento do `taskkill` e os shims `.cmd` precisam de uma máquina Windows; até lá trate
+  como não validado.
+- stdout/stderr combinados; prompt visível na lista de argumentos do processo (`ps`) enquanto uma execução em terminal
+  está em andamento (antes ia na stdin); ambos são consequências do PTY.
+- Interromper/terminar são de melhor esforço: o processo pode ignorar o Ctrl+C (é para isso que serve Terminar) e um
+  neto desprendido de propósito está fora de alcance.
+- A saída do terminal não é pesquisável depois que o Atlas reinicia (efêmera por projeto); um log com limite explícito
+  seria uma decisão posterior e separada.

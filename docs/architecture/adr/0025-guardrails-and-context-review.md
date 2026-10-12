@@ -1,230 +1,260 @@
-# 0025 — Optimization Layer, phase 5: Guardrails and Context Review
+# 0025 — Camada de Otimização, fase 5: Guardrails e Revisão de Contexto
 
-## Context
+## Contexto
 
-Phase 5 asks for contextual guardrails ("given the agent, task, context, runtime and policy, may this happen?") and a review of
-the context an agent is about to receive. The rule that governs both: **there is one security authority** (`application::security`),
-and nothing an agent, a skill, a handoff or a project file says can be that authority.
+A fase 5 pede guardrails contextuais ("dados o agente, a tarefa, o contexto, o runtime e a política, isto pode
+acontecer?") e uma revisão do contexto que um agente está prestes a receber. A regra que governa as duas coisas: **há
+uma única autoridade de segurança** (`application::security`), e nada que um agente, uma skill, um handoff ou um arquivo
+do projeto diga pode ser essa autoridade.
 
-## Inventory: what `security/` already was
+## Inventário: o que o `security/` já era
 
-| Need               | Already there                                                                                                                                        |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Answers            | `PermissionDecision` (`Allowed` / `Denied` / `RequiresApproval`) = ALLOW / DENY / ASK; `Permission` (denied < approval required < allowed)           |
-| Why                | `Reason` codes the UI words; `Evaluation`                                                                                                            |
-| Policy             | `SecurityPolicy`, `restrict` (every layer can only narrow), profiles (`read_only`, `developer`), `ToolAccess::ceiling` (runtime capability as a cap) |
-| Who may start what | `GuardedProcessRunner` + `evaluator` (paths, symlinks, shells, git classes, network, env)                                                            |
-| Audit              | `AuditLog`, `PermissionEvent` (kept on `Execution::permission_events`, streamed to the UI)                                                           |
-| Approval           | `ApprovalBroker` for process approvals; `PendingInteraction` for questions that pause a step                                                         |
-| Secrets            | `harness::secrets::redact_secrets`                                                                                                                   |
-| Confinement seam   | `SandboxProvider` (only `NoSandbox` today)                                                                                                           |
-| Edit grant         | `edit_access`: policy allows writing + isolated worktree + runtime capability                                                                        |
+| Necessidade             | O que já existia                                                                                                                                         |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Respostas               | `PermissionDecision` (`Allowed` / `Denied` / `RequiresApproval`) = ALLOW / DENY / ASK; `Permission` (negado < aprovação necessária < permitido)          |
+| Por quê                 | Códigos `Reason` que a UI redige; `Evaluation`                                                                                                           |
+| Política                | `SecurityPolicy`, `restrict` (toda camada só pode estreitar), perfis (`read_only`, `developer`), `ToolAccess::ceiling` (capacidade do runtime como teto) |
+| Quem pode iniciar o quê | `GuardedProcessRunner` + `evaluator` (caminhos, symlinks, shells, classes de git, rede, ambiente)                                                        |
+| Auditoria               | `AuditLog`, `PermissionEvent` (guardados em `Execution::permission_events`, transmitidos à UI)                                                           |
+| Aprovação               | `ApprovalBroker` para aprovações de processo; `PendingInteraction` para perguntas que pausam um passo                                                    |
+| Segredos                | `harness::secrets::redact_secrets`                                                                                                                       |
+| Ponto de confinamento   | `SandboxProvider` (hoje só `NoSandbox`)                                                                                                                  |
+| Concessão de edição     | `edit_access`: a política permite escrever + worktree isolado + capacidade do runtime                                                                    |
 
-What is **not** there: any notion of _autonomy_ (Manual / Guided / Auto). No type, setting or code path exists for it. The phase
-brief says to respect the existing modes; since there are none, none was invented. The decisions below do not take an autonomy
-mode, and an `ASK` is possible exactly where a person can answer (a workflow step). Introducing autonomy is a product decision
-to take on its own (see "Decisions left").
+O que **não** existe: qualquer noção de _autonomia_ (Manual / Guiado / Auto). Não existe tipo, configuração nem caminho
+de código para isso. O briefing da fase diz para respeitar os modos existentes; como não há nenhum, nenhum foi
+inventado. As decisões abaixo não recebem um modo de autonomia, e um `ASK` é possível exatamente onde uma pessoa pode
+responder (um passo de workflow). Introduzir autonomia é uma decisão de produto a ser tomada à parte (veja "Decisões
+pendentes").
 
-Also not true of the tool surface: Atlas cannot interpose on what a CLI runtime does inside its process. `Read`, `Grep`, `Edit` and
-`Write` run in Claude's own tool loop; Atlas sees the prompt it sends and the answer it reads (ADR 0023, 0024). So a "before each
-action" or "before each write" guardrail does not exist for those tools: what Atlas controls is what it grants (the tool list, the
-worktree) and what it hands over. Guardrails therefore act at the two moments Atlas owns: **before the agent starts** and **before
-a step's result is handed on**.
+Também não é verdade sobre a superfície de ferramentas: o Atlas não consegue se interpor ao que um runtime de CLI faz
+dentro do seu processo. `Read`, `Grep`, `Edit` e `Write` rodam no loop de ferramentas do próprio Claude; o Atlas vê o
+prompt que envia e a resposta que lê (ADR 0023, 0024). Então um guardrail "antes de cada ação" ou "antes de cada
+escrita" não existe para essas ferramentas: o que o Atlas controla é o que ele concede (a lista de ferramentas, o
+worktree) e o que ele repassa. Os guardrails, portanto, atuam nos dois momentos que o Atlas possui: **antes de o agente
+começar** e **antes de o resultado de um passo ser repassado**.
 
-## Decision
+## Decisão
 
-**One authority, extended not duplicated.**
+**Uma autoridade, estendida e não duplicada.**
 
-- `ALLOW` / `ASK` / `DENY` are `PermissionDecision` under another name (`GuardrailDecision::from`). `TRANSFORM` is the one new answer.
-- Every evaluation is a `PermissionEvent` on the execution's one audit trail (new actions `ReviewContext`, `EditFiles`,
-  `ShareResult`; new outcome `Transformed`; new `Reason` codes). Rule id, matched rules and a description of any transformation
-  travel as notes. **Never content**: targets are names (`context`, `skills`), and the secret itself is never quoted.
-- An `ASK` is a `PendingInteraction` (kind `Permission`, buttons Allow/Deny fixed by Atlas), with a new `DetectionSource::Guardrail`.
-  No second approval system.
-- Policy, permission, capability and the guard are untouched. `restrict` still only narrows.
+- `ALLOW` / `ASK` / `DENY` são `PermissionDecision` com outro nome (`GuardrailDecision::from`). `TRANSFORM` é a única
+  resposta nova.
+- Toda avaliação é um `PermissionEvent` na única trilha de auditoria da execução (novas ações `ReviewContext`,
+  `EditFiles`, `ShareResult`; novo desfecho `Transformed`; novos códigos `Reason`). O id da regra, as regras casadas e a
+  descrição de qualquer transformação viajam como notas. **Nunca conteúdo**: os alvos são nomes (`context`, `skills`), e
+  o próprio segredo nunca é citado.
+- Um `ASK` é um `PendingInteraction` (tipo `Permission`, botões Allow/Deny fixados pelo Atlas), com um novo
+  `DetectionSource::Guardrail`. Nenhum segundo sistema de aprovação.
+- Política, permissão, capacidade e o guard permanecem intocados. `restrict` continua só estreitando.
 
-**Decisions** (`security/guardrails.rs`, all deterministic functions of their inputs):
+**Decisões** (`security/guardrails.rs`, todas funções determinísticas das suas entradas):
 
-| Situation                                                          | Answer                        | Rule / reason                                        |
-| ------------------------------------------------------------------ | ----------------------------- | ---------------------------------------------------- |
-| Context `Healthy` or `Partial`                                     | ALLOW                         | `context.healthy` / `context.partial`                |
-| Context `NeedsReview`, a step that can wait                        | ASK                           | `context.needs_review` / `ContextNeedsReview`        |
-| …and a person answered Allow                                       | ALLOW (by the user)           | `context.needs_review.approved`                      |
-| …and a person answered Deny                                        | DENY (by the user)            | `context.needs_review.declined` / `ApprovalRejected` |
-| …in a conversation (nobody to ask)                                 | ALLOW, reported               | `context.needs_review.unattended`                    |
-| Context `Invalid`                                                  | DENY, whatever anyone answers | `context.invalid` / `ContextInvalid`                 |
-| Edit tools: policy writes, isolated worktree, runtime can edit     | ALLOW                         | `write.worktree_scope`                               |
-| …policy writes but the agent is not isolated                       | DENY (it runs read-only)      | `write.not_isolated` / `WriteNotIsolated`            |
-| …policy writes but the runtime cannot be launched with edit tools  | DENY (read-only)              | `write.runtime_capability` / `RuntimeCannotEdit`     |
-| Secrets in context from files or other agents / in a step's result | TRANSFORM                     | `secrets.redact` / `SecretsRedacted`                 |
+| Situação                                                                             | Resposta                         | Regra / motivo                                       |
+| ------------------------------------------------------------------------------------ | -------------------------------- | ---------------------------------------------------- |
+| Contexto `Healthy` ou `Partial`                                                      | ALLOW                            | `context.healthy` / `context.partial`                |
+| Contexto `NeedsReview`, um passo que pode esperar                                    | ASK                              | `context.needs_review` / `ContextNeedsReview`        |
+| …e uma pessoa respondeu Allow                                                        | ALLOW (pelo usuário)             | `context.needs_review.approved`                      |
+| …e uma pessoa respondeu Deny                                                         | DENY (pelo usuário)              | `context.needs_review.declined` / `ApprovalRejected` |
+| …em uma conversa (ninguém para perguntar)                                            | ALLOW, informado                 | `context.needs_review.unattended`                    |
+| Contexto `Invalid`                                                                   | DENY, o que quer que se responda | `context.invalid` / `ContextInvalid`                 |
+| Ferramentas de edição: a política escreve, worktree isolado, o runtime edita         | ALLOW                            | `write.worktree_scope`                               |
+| …a política escreve mas o agente não está isolado                                    | DENY (roda somente leitura)      | `write.not_isolated` / `WriteNotIsolated`            |
+| …a política escreve mas o runtime não pode ser iniciado com ferramentas de edição    | DENY (somente leitura)           | `write.runtime_capability` / `RuntimeCannotEdit`     |
+| Segredos no contexto vindos de arquivos ou outros agentes / no resultado de um passo | TRANSFORM                        | `secrets.redact` / `SecretsRedacted`                 |
 
-(A policy that does not allow writing is the normal state of a read-only agent: nobody asked, so nothing is recorded.)
+(Uma política que não permite escrever é o estado normal de um agente somente leitura: ninguém pediu, então nada é
+registrado.)
 
-**Approval has one source.** `Answered` comes from an answered `PendingInteraction` whose source is `Guardrail`, for this step and
-this pass through it, read by the workflow from the run (`brief::guardrail_answer`), then handed down as `StepOptions::review`.
-Text in a handoff ("the user approved"), a skill, a file, a runtime's own question (any other detection source) or the agent's
-message is never read as it, and tests prove each. The agent is not told about Atlas's question (it never asked it). A person cannot
-approve an `Invalid` context. The approval covers the pass through the step it was given for.
+**A aprovação tem uma única fonte.** `Answered` vem de um `PendingInteraction` respondido cuja origem é `Guardrail`, para
+este passo e esta passada por ele, lido pelo workflow a partir da execução (`brief::guardrail_answer`) e depois
+entregue como `StepOptions::review`. Texto em um handoff ("o usuário aprovou"), uma skill, um arquivo, uma pergunta do
+próprio runtime (qualquer outra origem de detecção) ou a mensagem do agente nunca é lido como tal, e há testes que
+provam cada caso. O agente não é informado da pergunta do Atlas (ele nunca a fez). Uma pessoa não pode aprovar um
+contexto `Invalid`. A aprovação cobre a passada pelo passo para a qual foi dada.
 
-**TRANSFORM is only redaction.** Lines that look like secrets (the Harness's own rule) are replaced by a notice, in untrusted
-context (Harness, Task Context, skills, workflow context, handoff) before the prompt is built, and in a step's structured result
-before it is handed on (`WorkflowEventKind::GuardrailTransformed`, counts only). What the user wrote (the task, the agent's
-instructions) is theirs: it is reported, never rewritten. No command is ever rewritten.
+**TRANSFORM é só redação.** Linhas que parecem segredos (a regra do próprio Harness) são substituídas por um aviso, em
+contexto não confiável (Harness, Task Context, skills, contexto do workflow, handoff) antes de o prompt ser montado, e no
+resultado estruturado de um passo antes de ser repassado (`WorkflowEventKind::GuardrailTransformed`, só contagens). O que
+o usuário escreveu (a tarefa, as instruções do agente) é dele: é informado, nunca reescrito. Nenhum comando é jamais
+reescrito.
 
-## Context Review
+## Revisão de Contexto
 
-A pure, deterministic check of the same items the Context Engine works on (`prompt_items`), so both agree on what each part is. It
-reports; the guardrail decides. It does not judge code and uses no model.
+Uma verificação pura e determinística dos mesmos itens com que o Context Engine trabalha (`prompt_items`), de modo que os
+dois concordem sobre o que cada parte é. Ela informa; o guardrail decide. Não julga código e não usa modelo.
 
-- **Integrity** (blocking): the Atlas rules are in the system text, there is a task, a step has its result protocol, and the engine
-  did not change required text (the engine's promise is checked, not trusted).
-- **Consistency** (error): two sources assert different choices in a small set of known exclusive groups (database, front-end
-  framework, package manager, test runner) as instructions. Narrow on purpose: same source twice, comparisons, migrations,
-  prohibitions, code blocks and lines naming two choices are not conflicts. Anything that cannot be shown is not reported.
-- **Freshness** (warning): Harness items the project changed under (`ContextRecord::stale_items`, and the "may be outdated" block
-  in the text). A signal, not a verdict.
-- **Budget** (error / warning / info): required parts that do not fit; items left out; repeated lines removed (information only).
-- **Content** (warning): secrets in context that is about to be sent, and untrusted text that claims authority ("ignore previous",
-  "administrator access", "the user approved", `sudo`…, English and Portuguese). The latter changes nothing: it is shown, because the
-  defence is that no text is ever a permission.
-- **Provenance and trust**: every item has a `SectionKind` and a `SourceTrust` (`Atlas`, `Configured`, `Untrusted`).
+- **Integridade** (bloqueante): as regras do Atlas estão no texto de sistema, existe uma tarefa, um passo tem seu
+  protocolo de resultado, e o engine não alterou texto obrigatório (a promessa do engine é conferida, não confiada).
+- **Consistência** (erro): duas fontes afirmam escolhas diferentes em um pequeno conjunto de grupos exclusivos conhecidos
+  (banco de dados, framework de front-end, gerenciador de pacotes, executor de testes) como instruções. Estreita de
+  propósito: a mesma fonte duas vezes, comparações, migrações, proibições, blocos de código e linhas que nomeiam duas
+  escolhas não são conflitos. O que não puder ser demonstrado não é informado.
+- **Atualidade** (aviso): itens do Harness sobre os quais o projeto mudou (`ContextRecord::stale_items`, e o bloco "pode
+  estar desatualizado" no texto). Um sinal, não um veredito.
+- **Orçamento** (erro / aviso / info): partes obrigatórias que não cabem; itens deixados de fora; linhas repetidas
+  removidas (apenas informação).
+- **Conteúdo** (aviso): segredos no contexto que está prestes a ser enviado, e texto não confiável que reivindica
+  autoridade ("ignore previous", "administrator access", "the user approved", `sudo`…, em inglês e português). Este
+  último não muda nada: é mostrado, porque a defesa é que nenhum texto jamais é uma permissão.
+- **Proveniência e confiança**: todo item tem um `SectionKind` e um `SourceTrust` (`Atlas`, `Configured`, `Untrusted`).
 
-Health: `Healthy` (information only) < `Partial` (warnings) < `NeedsReview` (an error) < `Invalid` (a blocking issue). Duplication
-alone is `Healthy`. The result, with each issue's two sides, is kept with the execution (`OptimizationMetrics.contextReview`).
+Saúde: `Healthy` (só informação) < `Partial` (avisos) < `NeedsReview` (um erro) < `Invalid` (um problema bloqueante).
+Duplicação sozinha é `Healthy`. O resultado, com os dois lados de cada problema, é guardado com a execução
+(`OptimizationMetrics.contextReview`).
 
-## Where it runs
+## Onde roda
 
-`ExecutionService::run_step`, after the prompt is built (and after the Context Engine, if on) and before the runtime starts:
-review → redact → decide → record → build again from the inputs if anything was redacted → start, ask or stop. A denied or paused
-execution never starts its runtime. The worktree it was given is kept, as for any failed execution. `Apply` is not touched and
-stays a human decision; nothing here commits, pushes or merges.
+`ExecutionService::run_step`, depois que o prompt é montado (e depois do Context Engine, se ligado) e antes de o runtime
+iniciar: revisar → redigir → decidir → registrar → montar de novo a partir das entradas se algo foi redigido → iniciar,
+perguntar ou parar. Uma execução negada ou pausada nunca inicia seu runtime. O worktree que recebeu é mantido, como em
+qualquer execução que falha. O `Apply` não é tocado e continua sendo uma decisão humana; nada aqui faz commit, push ou
+merge.
 
-Flag: `optimization.guardrails.enabled`, **on by default** (a safety check; it changes a prompt only to remove what looked like a
-secret). Off, none of this runs.
+Flag: `optimization.guardrails.enabled`, **ligada por padrão** (uma verificação de segurança; só muda um prompt para
+remover o que parecia um segredo). Desligada, nada disto roda.
 
-## Measured
+## Medido
 
-- With the real stack and a stand-in CLI: a step whose own instructions say MongoDB while its skill says PostgreSQL pauses before
-  any process starts, asks; a yes runs it to completion without asking again; a no fails the step with the reason and nothing after
-  it runs.
-- With the **real Claude CLI and a model that does not exist** (it starts, reports, fails at its first request, spends nothing): the
-  same pause, no process before the answer, and after the yes the real CLI is started (and fails for its model, not for Atlas).
+- Com a pilha real e uma CLI de substituição: um passo cujas próprias instruções dizem MongoDB enquanto sua skill diz
+  PostgreSQL pausa antes de qualquer processo iniciar e pergunta; um sim o executa até o fim sem perguntar de novo; um
+  não faz o passo falhar com o motivo e nada depois dele roda.
+- Com a **CLI real do Claude e um modelo que não existe** (ela inicia, informa, falha na primeira requisição, não gasta
+  nada): a mesma pausa, nenhum processo antes da resposta, e depois do sim a CLI real é iniciada (e falha por causa do
+  modelo, não do Atlas).
 
-## Hardening (phase 5.1)
+## Endurecimento (fase 5.1)
 
-Three gaps found after phase 5 and closed without adding a feature.
+Três lacunas encontradas depois da fase 5 e fechadas sem acrescentar uma funcionalidade.
 
-### An approval is for one evaluation
+### Uma aprovação vale para uma avaliação
 
-An `ASK` is a `PendingInteraction`; it now carries `evaluation`, the fingerprint of the evaluation it was asked about (the same field
-on `InteractionDetection`, so nothing new exists beside the interaction). The fingerprint is a digest of what the evaluation looked
-at: the stage, each context item's id, source and content, the review's findings, the agent, runtime, model and capabilities, the
-agent's **resolved** policies (not the files they came from), the worktree and the edit access granted. It excludes the execution id,
-because the step is run again (a new execution) after the answer.
+Um `ASK` é um `PendingInteraction`; ele agora carrega `evaluation`, a impressão digital da avaliação sobre a qual foi
+perguntado (o mesmo campo em `InteractionDetection`, então nada novo existe ao lado da interação). A impressão digital é
+um digest do que a avaliação olhou: a etapa, o id, a origem e o conteúdo de cada item de contexto, os achados da
+revisão, o agente, o runtime, o modelo e as capacidades, as políticas **resolvidas** do agente (não os arquivos de onde
+vieram), o worktree e o acesso de edição concedido. Exclui o id da execução, porque o passo é executado de novo (uma
+nova execução) depois da resposta.
 
-The answer reaches the guardrail as `ReviewAnswer { answered, evaluation }`. `brief::guardrail_answer` returns it only for a question
-that was asked in this workflow run, by this step, in this pass, **by the attempt being run again** (an older attempt's question is
-not this one's) and that carries an evaluation (a record from before this change approves nothing). The guardrail then drops it unless
-`evaluation` equals the fingerprint it has just computed; a dropped answer means the question is asked again, and the event says the
-earlier approval no longer applies (`staleApproval`). A declined answer is bound the same way. An invalid context is still denied
-whatever was answered.
+A resposta chega ao guardrail como `ReviewAnswer { answered, evaluation }`. `brief::guardrail_answer` só a devolve para
+uma pergunta feita nesta execução de workflow, por este passo, nesta passada, **pela tentativa que está sendo executada
+de novo** (a pergunta de uma tentativa mais antiga não é desta) e que carrega uma avaliação (um registro de antes desta
+mudança não aprova nada). O guardrail então a descarta a menos que `evaluation` seja igual à impressão digital que acabou
+de calcular; uma resposta descartada significa que a pergunta é feita de novo, e o evento diz que a aprovação anterior
+não vale mais (`staleApproval`). Uma resposta recusada é vinculada da mesma forma. Um contexto inválido continua sendo
+negado qualquer que seja a resposta.
 
-Tests: the same context on its answer goes (A); a changed task text (B), a changed policy (C) and a changed handoff (D) ask again; an
-answer of another agent is not this agent's; a question of step A is nothing for step B (E); of one pass nothing for another (F); of
-an earlier attempt, of another run, or without an evaluation nothing (G).
+Testes: o mesmo contexto na sua resposta passa (A); um texto de tarefa alterado (B), uma política alterada (C) e um
+handoff alterado (D) perguntam de novo; uma resposta de outro agente não é deste agente; uma pergunta do passo A não vale
+nada para o passo B (E); de uma passada nada para outra (F); de uma tentativa anterior, de outra execução, ou sem uma
+avaliação, nada (G).
 
-Limit: the fingerprint is a digest of data Atlas assembled, not a signature. It prevents a stale approval; it does not defend against
-someone who can already rewrite Atlas's run files.
+Limite: a impressão digital é um digest de dados que o Atlas montou, não uma assinatura. Ela impede uma aprovação
+obsoleta; não defende contra quem já consegue reescrever os arquivos de execução do Atlas.
 
-### The ChangeSet is reviewed before Apply
+### O ChangeSet é revisado antes do Apply
 
-`security/changeset.rs` reviews what a run would put in the project, every file, deterministically:
+`security/changeset.rs` revisa o que uma execução colocaria no projeto, arquivo por arquivo, de forma determinística:
 
-| Finding                                                                                                                 | Health        | Answer  |
-| ----------------------------------------------------------------------------------------------------------------------- | ------------- | ------- |
-| `.git` as any component (also a renamed file's old path), any case or separator                                         | `Invalid`     | `DENY`  |
-| absolute path, drive letter, `../` that leaves the project                                                              | `Invalid`     | `DENY`  |
-| a file whose real location (following links, also a linked folder above it) is outside                                  | `Invalid`     | `DENY`  |
-| `.atlas/` at the project root                                                                                           | `NeedsReview` | `ASK`   |
-| `.env`, `.env.*` (not `.example`/`.sample`/`.template`/`.dist`), credentials, private keys, `.ssh/`, `.aws/credentials` | `NeedsReview` | `ASK`   |
-| an added line that looks like a secret (the Harness scanner, `redact_secrets`; added lines only)                        | `NeedsReview` | `ASK`   |
-| a file that could not be read or a link that does not resolve inside                                                    | `NeedsReview` | `ASK`   |
-| nothing                                                                                                                 | `Healthy`     | `ALLOW` |
+| Achado                                                                                                                     | Saúde         | Resposta |
+| -------------------------------------------------------------------------------------------------------------------------- | ------------- | -------- |
+| `.git` como qualquer componente (também o caminho antigo de um arquivo renomeado), qualquer caixa ou separador             | `Invalid`     | `DENY`   |
+| caminho absoluto, letra de unidade, `../` que sai do projeto                                                               | `Invalid`     | `DENY`   |
+| um arquivo cuja localização real (seguindo links, também uma pasta ligada acima dele) está fora                            | `Invalid`     | `DENY`   |
+| `.atlas/` na raiz do projeto                                                                                               | `NeedsReview` | `ASK`    |
+| `.env`, `.env.*` (não `.example`/`.sample`/`.template`/`.dist`), credenciais, chaves privadas, `.ssh/`, `.aws/credentials` | `NeedsReview` | `ASK`    |
+| uma linha adicionada que parece um segredo (o scanner do Harness, `redact_secrets`; só linhas adicionadas)                 | `NeedsReview` | `ASK`    |
+| um arquivo que não pôde ser lido ou um link que não resolve dentro                                                         | `NeedsReview` | `ASK`    |
+| nada                                                                                                                       | `Healthy`     | `ALLOW`  |
 
-Reused, not reinvented: `security/paths.rs` (`NormalizedPath`, `is_inside_physical`) for escapes, `harness/secrets.rs` for content.
-There was no per-path policy to defer to, so the rule for `.atlas/` is fixed here; none was added. The review names a path and a
-code, never content.
+Reaproveitado, não reinventado: `security/paths.rs` (`NormalizedPath`, `is_inside_physical`) para escapes,
+`harness/secrets.rs` para conteúdo. Não havia política por caminho para a qual adiar, então a regra do `.atlas/` é
+fixada aqui; nenhuma foi adicionada. A revisão nomeia um caminho e um código, nunca conteúdo.
 
-It runs in `IntegrationService::apply`, through the blocking mechanism that already exists. `DENY` → the run is `Blocked` with the new
-`BlockReason::ProtectedPaths`, Apply is not offered and trying again changes nothing (Keep isolated and Discard still work).
-`ASK` → the first Apply is answered with `Blocked`/`NeedsReview` and the findings; the person's next Apply on **the same review
-fingerprint** (revisions, files, findings) is their decision. Changed code is a different review and is held again. `ALLOW` → Apply
-goes on as before. In every case Apply is a person's act, **never commits**, and the other checks (conflicts, dirty checkout, policy)
-are the existing ones: a healthy review does not override a conflict, and a ChangeSet with no files is not applied (the run says
-there is nothing to apply). The review is stored on the run (`integration.review`). If the changes cannot be read to be reviewed,
-Apply is held (`Undetermined`, may be retried): the review fails closed.
+Ela roda no `IntegrationService::apply`, pelo mecanismo de bloqueio que já existe. `DENY` → a execução fica `Blocked`
+com o novo `BlockReason::ProtectedPaths`, o Apply não é oferecido e tentar de novo não muda nada (Manter isolado e
+Descartar continuam funcionando). `ASK` → o primeiro Apply é respondido com `Blocked`/`NeedsReview` e os achados; o
+próximo Apply da pessoa **sobre a mesma impressão digital da revisão** (revisões, arquivos, achados) é a decisão dela.
+Código alterado é uma revisão diferente e é segurado de novo. `ALLOW` → o Apply segue como antes. Em todo caso o Apply é
+um ato de uma pessoa, **nunca faz commit**, e as demais verificações (conflitos, checkout sujo, política) são as
+existentes: uma revisão saudável não sobrepõe um conflito, e um ChangeSet sem arquivos não é aplicado (a execução diz que
+não há nada para aplicar). A revisão é guardada na execução (`integration.review`). Se as mudanças não puderem ser lidas
+para serem revisadas, o Apply fica retido (`Undetermined`, pode ser tentado de novo): a revisão falha de forma fechada.
 
-What could not be exercised end to end: Git does not report `.git/…` paths or absolute / `../` paths in a real change set (it refuses
-to add them), so those are proven by the review's own tests only. Symlinks (including one to `/etc`), `.env`, `.atlas/`, secret
-lines, several files at once, conflicts and the empty change set are proven against real Git worktrees.
+O que não pôde ser exercitado de ponta a ponta: o Git não informa caminhos `.git/…` nem caminhos absolutos / `../` em um
+change set real (ele se recusa a adicioná-los), então esses são provados só pelos testes da própria revisão. Symlinks
+(inclusive um para `/etc`), `.env`, `.atlas/`, linhas de segredo, vários arquivos de uma vez, conflitos e o change set
+vazio são provados contra worktrees Git reais.
 
-The audit of this decision is the run's own record (`integration.review`, the `IntegrationChanged` event); it is not on the
-per-execution `AuditLog`, which is keyed by an execution and a `PermissionAction` and has none for it.
+A auditoria desta decisão é o próprio registro da execução (`integration.review`, o evento `IntegrationChanged`); não
+está no `AuditLog` por execução, que é indexado por uma execução e uma `PermissionAction` e não tem nenhuma para isto.
 
-### `--restricted` for Claude: investigated, not adopted
+### `--restricted` para o Claude: investigado, não adotado
 
-Claude CLI 2.1.285. Its help text: `--restricted` removes the built-in tools that run commands or code (Bash, PowerShell, REPL…) and
-`WebFetch` unless `--tools` names them, and ignores user, project and local settings files (managed settings and `--settings` still
-apply); it also confines file tools to the working directories and protects writes to settings, Git and tool-config files, and
-refuses `bypassPermissions` (those three are the CLI's own help text; **not observed here**, see below).
+Claude CLI 2.1.285. Seu texto de ajuda: `--restricted` remove as ferramentas embutidas que executam comandos ou código
+(Bash, PowerShell, REPL…) e o `WebFetch`, a menos que `--tools` as nomeie, e ignora os arquivos de configuração de
+usuário, projeto e locais (as configurações gerenciadas e `--settings` ainda se aplicam); ele também confina as
+ferramentas de arquivo aos diretórios de trabalho, protege escritas em arquivos de configuração, do Git e de ferramentas,
+e recusa `bypassPermissions` (esses três pontos são o próprio texto de ajuda da CLI; **não observados aqui**, veja
+abaixo).
 
-Experiment, no model and no tokens: the real CLI started in an empty directory with `--model not-a-real-model-xyz` and `< /dev/null`,
-which prints its `system/init` and fails its first request with usage 0 and cost 0. Each Atlas configuration (read-only tools, edit
-tools with `--permission-mode acceptEdits`, no tools) with and without `--restricted`, plus the flag alone and with Atlas's isolation
-flags and no `--tools`:
+Experimento, sem modelo e sem tokens: a CLI real iniciada em um diretório vazio com `--model not-a-real-model-xyz` e
+`< /dev/null`, que imprime seu `system/init` e falha na primeira requisição com uso 0 e custo 0. Cada configuração do
+Atlas (ferramentas somente leitura, ferramentas de edição com `--permission-mode acceptEdits`, sem ferramentas) com e sem
+`--restricted`, mais a flag sozinha e com as flags de isolamento do Atlas e sem `--tools`:
 
-| Observed in the CLI's own `init`                                                | Atlas now                                         | Atlas + `--restricted`                                                                                                                  |
-| ------------------------------------------------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| tools, read-only / edit / none                                                  | 3 / 5 / 0                                         | 3 / 5 / 0 (identical)                                                                                                                   |
-| MCP servers, slash commands, skills                                             | 0, 0, 0                                           | 0, 0, 0                                                                                                                                 |
-| permission mode                                                                 | same                                              | same                                                                                                                                    |
-| plugins                                                                         | 4: the user's `atlassian`, `figma` and 2 built-in | 2 built-in only                                                                                                                         |
-| auto-memory path (the user's `~/.claude/projects/…/memory/`)                    | reported                                          | absent                                                                                                                                  |
-| error                                                                           | unrecognized model, exit 1                        | the same                                                                                                                                |
-| without `--tools`: `Bash`, `CronCreate`, `Monitor`, `RemoteTrigger`, `WebFetch` | exposed                                           | removed                                                                                                                                 |
-| the flag alone, without Atlas's other flags                                     | —                                                 | 32 tools, 6 claude.ai MCP servers, 55 slash commands, 19 skills: it does not replace `--strict-mcp-config` / `--disable-slash-commands` |
+| Observado no próprio `init` da CLI                                          | Atlas hoje                                            | Atlas + `--restricted`                                                                                                                        |
+| --------------------------------------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| ferramentas, somente leitura / edição / nenhuma                             | 3 / 5 / 0                                             | 3 / 5 / 0 (idêntico)                                                                                                                          |
+| servidores MCP, slash commands, skills                                      | 0, 0, 0                                               | 0, 0, 0                                                                                                                                       |
+| modo de permissão                                                           | igual                                                 | igual                                                                                                                                         |
+| plugins                                                                     | 4: o `atlassian` e o `figma` do usuário e 2 embutidos | só os 2 embutidos                                                                                                                             |
+| caminho da memória automática (o `~/.claude/projects/…/memory/` do usuário) | informado                                             | ausente                                                                                                                                       |
+| erro                                                                        | modelo não reconhecido, saída 1                       | o mesmo                                                                                                                                       |
+| sem `--tools`: `Bash`, `CronCreate`, `Monitor`, `RemoteTrigger`, `WebFetch` | expostos                                              | removidos                                                                                                                                     |
+| a flag sozinha, sem as outras flags do Atlas                                | —                                                     | 32 ferramentas, 6 servidores MCP do claude.ai, 55 slash commands, 19 skills: não substitui `--strict-mcp-config` / `--disable-slash-commands` |
 
-Findings: with the explicit `--tools` allow-list Atlas already passes, `--restricted` changes no tool, no MCP server and no slash
-command; it is the allow-list, `--strict-mcp-config` and `--disable-slash-commands` that do that work, and `--restricted` does not
-replace them. What it does change is outside the tool list: the user's plugins are not loaded and the user's settings and memory are
-not read. That is a real isolation gain (a plugin or a settings file of the user's no longer reaches a run Atlas starts) that was
-**observed only as the CLI's declared start-up state**.
+Conclusões: com a lista de permissão explícita `--tools` que o Atlas já passa, o `--restricted` não muda nenhuma
+ferramenta, nenhum servidor MCP e nenhum slash command; quem faz esse trabalho é a lista de permissão, o
+`--strict-mcp-config` e o `--disable-slash-commands`, e o `--restricted` não os substitui. O que ele muda está fora da
+lista de ferramentas: os plugins do usuário não são carregados e as configurações e a memória do usuário não são lidas.
+Isso é um ganho real de isolamento (um plugin ou um arquivo de configuração do usuário deixa de alcançar uma execução que
+o Atlas inicia) que foi **observado apenas como o estado declarado de inicialização da CLI**.
 
-Not observed, so not claimed: that file tools are confined to the working directory, that writes to Git or settings files are
-refused, how `--restricted` behaves in a run that really calls tools, whether OAuth/keychain sign-in works under it (the failing
-request was the model check, before authentication was exercised), and what the user's own hooks or `permissions` rules in the
-ignored settings files were doing for them (for example a hook they depend on would stop applying). Each of those needs a model call.
+Não observado, portanto não afirmado: que as ferramentas de arquivo são confinadas ao diretório de trabalho, que
+escritas em arquivos do Git ou de configuração são recusadas, como o `--restricted` se comporta em uma execução que de
+fato chama ferramentas, se o login por OAuth/keychain funciona sob ele (a requisição que falhou era a verificação do
+modelo, antes de a autenticação ser exercitada), e o que os hooks ou regras de `permissions` do próprio usuário, nos
+arquivos de configuração ignorados, faziam por ele (por exemplo, um hook de que ele dependa deixaria de se aplicar). Cada
+um desses pontos precisa de uma chamada de modelo.
 
-**Decision: C, investigate later.** Not adopted. The evidence says it may add isolation from the user's plugins, settings and memory
-and nothing else, and the part that would matter most (confinement of the file tools in an edit run, and sign-in) cannot be shown
-without spending tokens. The next step is one small real run, with the user's go-ahead, in an edit-enabled step in a throwaway
-worktree: ask it to write outside the folder and to touch `.git`, with and without the flag, and check sign-in.
+**Decisão: C, investigar depois.** Não adotado. A evidência diz que ele pode acrescentar isolamento dos plugins,
+configurações e memória do usuário e nada além, e a parte que mais importaria (o confinamento das ferramentas de arquivo
+em uma execução com edição, e o login) não pode ser demonstrada sem gastar tokens. O próximo passo é uma pequena
+execução real, com o aval do usuário, em um passo com edição habilitada em um worktree descartável: pedir que escreva
+fora da pasta e que toque no `.git`, com e sem a flag, e verificar o login.
 
-## Limitations
+## Limitações
 
-- No autonomy modes exist; none was added.
-- No "before each action / write" guardrail for a CLI runtime's own tools (see above). Write confinement for those is what Atlas
-  grants (tool list, isolated worktree) plus the CLI's own rules; `--restricted` was investigated in phase 5.1 and not adopted.
-- The ChangeSet review is path- and pattern-based: a secret that does not look like one, or a harmful change in an ordinary file,
-  is not detected. It stops Git's files, escapes and the obvious sensitive files; it does not judge whether the change is good.
-- An `ASK` exists only in workflow steps. In a conversation a context that needs review is reported and the run goes on.
-- The conflict detector knows four groups; most real contradictions are not detectable by rule and are not reported.
-- Authority-claim and secret detection are pattern lists: they will miss paraphrases. They are signals; safety does not rest on them.
-- An approval is bound to the evaluation it was asked about (phase 5.1), and to one attempt of one pass of one step.
-- Metrics and review are kept per execution; there is no dashboard (phase 7).
+- Não existem modos de autonomia; nenhum foi adicionado.
+- Nenhum guardrail "antes de cada ação / escrita" para as ferramentas próprias de um runtime de CLI (veja acima). O
+  confinamento de escrita para elas é o que o Atlas concede (lista de ferramentas, worktree isolado) mais as regras da
+  própria CLI; o `--restricted` foi investigado na fase 5.1 e não adotado.
+- A revisão do ChangeSet é baseada em caminhos e padrões: um segredo que não parece um, ou uma mudança nociva em um
+  arquivo comum, não é detectado. Ela barra os arquivos do Git, escapes e os arquivos sensíveis óbvios; não julga se a
+  mudança é boa.
+- Um `ASK` existe só em passos de workflow. Em uma conversa, um contexto que precisa de revisão é informado e a execução
+  segue.
+- O detector de conflitos conhece quatro grupos; a maioria das contradições reais não é detectável por regra e não é
+  informada.
+- A detecção de reivindicação de autoridade e de segredos são listas de padrões: deixarão passar paráfrases. São
+  sinais; a segurança não se apoia neles.
+- Uma aprovação é vinculada à avaliação sobre a qual foi perguntada (fase 5.1), e a uma tentativa de uma passada de um
+  passo.
+- As métricas e a revisão são guardadas por execução; não há dashboard (fase 7).
 
-## Decisions left
+## Decisões pendentes
 
-1. Whether to introduce autonomy (Manual / Guided / Auto) and what each means for `ASK`.
-2. `--restricted` for Claude: decision C, a small real run is needed (see above).
-3. Extending the conflict lexicon from real projects.
+1. Se vamos introduzir autonomia (Manual / Guiado / Auto) e o que cada uma significa para o `ASK`.
+2. `--restricted` para o Claude: decisão C, é preciso uma pequena execução real (veja acima).
+3. Estender o léxico de conflitos a partir de projetos reais.

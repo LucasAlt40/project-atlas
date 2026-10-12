@@ -1,14 +1,15 @@
-# ADR 0002 — Ports in `application`, adapters outward
+# ADR 0002 — Portas em `application`, adaptadores para fora
 
-**Status:** accepted
+**Status:** aceito
 
-The brief draws `Commands → Application → Domain → Infrastructure`. Taken literally, application code would
-depend on concrete infrastructure, which hurts testability and cross-platform swapping. Instead,
-`application/` declares traits (ports) and `platform/` / future `infrastructure/` implement them; `lib.rs`
-wires them. The layering of the brief is preserved for calls at runtime, but source dependencies point inward.
+O briefing desenha `Commands → Application → Domain → Infrastructure`. Tomado ao pé da letra, o código de
+aplicação dependeria de infraestrutura concreta, o que prejudica a testabilidade e a troca entre plataformas. Em vez
+disso, `application/` declara traits (portas) e `platform/` / a futura `infrastructure/` as implementam; o `lib.rs`
+faz a ligação. A camada do briefing é preservada nas chamadas em tempo de execução, mas as dependências do código-fonte
+apontam para dentro.
 
-The `infrastructure/` directory from the suggested layout is not created yet: it would be empty. It is
-added together with the first adapter that is not OS-specific.
+O diretório `infrastructure/` do layout sugerido ainda não é criado: ficaria vazio. Ele entra junto com o primeiro
+adaptador que não seja específico de sistema operacional.
 
-**Update (V0.2):** `infrastructure/` now exists: it holds the process runner and the JSON config store,
-the first adapters that are neither OS-specific nor pure.
+**Atualização (V0.2):** `infrastructure/` agora existe: abriga o executor de processos e o armazenamento de
+configuração em JSON, os primeiros adaptadores que não são específicos de SO nem puros.

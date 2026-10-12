@@ -1,68 +1,77 @@
-# 0021 — Optimization Layer, phase 1: the Context Engine
+# 0021 — Camada de Otimização, fase 1: o Context Engine
 
-## Context
+## Contexto
 
-Phase 0 ([ADR 0020](0020-optimization-observability.md)) measured what a prompt is made of. It showed that most of it is fixed,
-required text (the rules, the narration and plan rules, the result and interaction protocols) and that the context that varies is
-the Harness's Task Context, the workflow context and the handoff. The Task Context is already selected deterministically and
-explainably by `TaskContextService` (ADR 0012); selecting again would be a second Context Engine. What nobody did was look at the
-assembled whole: the same artifact and decision appear in the workflow context and again in the handoff.
+A fase 0 ([ADR 0020](0020-optimization-observability.md)) mediu do que um prompt é feito. Mostrou que a maior parte é
+texto fixo e obrigatório (as regras, as regras de narração e de plano, os protocolos de resultado e de interação) e que
+o contexto que varia é o Task Context do Harness, o contexto do workflow e o handoff. O Task Context já é selecionado de
+forma determinística e explicável pelo `TaskContextService` (ADR 0012); selecionar de novo seria um segundo Context
+Engine. O que ninguém fazia era olhar o conjunto montado: o mesmo artefato e a mesma decisão aparecem no contexto do
+workflow e de novo no handoff.
 
-## Decision
+## Decisão
 
-The Context Engine **wraps** the existing selection; it does not replace it. It takes the context a prompt would carry as
-`ContextItem`s (source, priority, stale, provenance, fingerprint, size) and returns a plan with every change recorded.
+O Context Engine **envolve** a seleção existente; não a substitui. Ele recebe o contexto que um prompt carregaria como
+`ContextItem`s (origem, prioridade, obsolescência, proveniência, fingerprint, tamanho) e devolve um plano com cada
+mudança registrada.
 
-**Priorities.** `Required` is never edited, dropped or truncated: the Atlas rules and personality, the project context, the agent's
-instructions, the step's own task, the workflow context (the workflow's minimum) and the protocols. They are only compared
-against. `High` (the Task Context, the handoff) may lose lines that are said elsewhere, never whole. `Normal`/`Optional` exist for
-what later phases add and are the only ones a budget can leave out.
+**Prioridades.** `Required` nunca é editado, descartado ou truncado: as regras e a personalidade do Atlas, o contexto do
+projeto, as instruções do agente, a própria tarefa do passo, o contexto do workflow (o mínimo do workflow) e os
+protocolos. Eles servem apenas de comparação. `High` (o Task Context, o handoff) pode perder linhas que já são ditas em
+outro lugar, nunca inteiro. `Normal`/`Optional` existem para o que fases futuras adicionarem e são os únicos que um
+orçamento pode deixar de fora.
 
-**Deduplication**, line by line, in prompt order, outside code fences, for lines of at least four words that are not headings:
-exact repeat, normalized repeat (case, punctuation, spacing), and overlap (every word of the line is in one earlier line, which
-therefore says at least as much). A line goes only when the same words stay in an earlier part of the prompt; a list heading whose
-bullets all went goes with them. No embeddings: fingerprints, normalized text and word sets.
+**Deduplicação**, linha a linha, na ordem do prompt, fora de blocos de código, para linhas de pelo menos quatro
+palavras que não sejam títulos: repetição exata, repetição normalizada (caixa, pontuação, espaçamento) e sobreposição
+(toda palavra da linha está em uma linha anterior, que portanto diz pelo menos o mesmo). Uma linha só sai quando as
+mesmas palavras permanecem em uma parte anterior do prompt; um título de lista cujos itens saíram todos sai junto. Sem
+embeddings: fingerprints, texto normalizado e conjuntos de palavras.
 
-**Compression** is whitespace only (blank runs, trailing spaces); no word changes.
+**Compressão** é só de espaços em branco (sequências de linhas vazias, espaços no fim); nenhuma palavra muda.
 
-**Budget** (`optimization.context.maxTokens`, estimated tokens, with reservations for output, tools and reasoning): whole `Normal`
-and `Optional` items are left out, stale and larger first, each replaced by a line saying what was left out. If what remains is
-still over, the engine reports a `BudgetOverrun` and an `optimization_budget_warning` event and **cuts nothing**: required and
-relevant context is not truncated to fit. No item of the real prompt is below `High` yet, so today a budget can only warn.
+**Orçamento** (`optimization.context.maxTokens`, tokens estimados, com reservas para saída, ferramentas e raciocínio):
+itens `Normal` e `Optional` inteiros são deixados de fora, os obsoletos e maiores primeiro, cada um substituído por uma
+linha dizendo o que foi deixado de fora. Se o que sobra ainda estiver acima, o engine informa um `BudgetOverrun` e um
+evento `optimization_budget_warning` e **não corta nada**: contexto obrigatório e relevante não é truncado para caber.
+Nenhum item do prompt real está abaixo de `High` ainda, então hoje um orçamento só consegue avisar.
 
-**Integration.** The engine reworks the _inputs_ of `PromptBuilder` (the Harness text and the task text, brief included) and the
-builder, still the only assembly, builds the prompt again. A step's `StepBrief` now carries its `BriefParts` (the exact text of the
-workflow context, handoff and protocols) instead of only sizes; if the task text does not end with them exactly, the engine leaves
-the prompt alone and records why (`skipped`). Everything is in `OptimizationMetrics.contextEngine` (raw and final size, estimates,
-decisions with where the kept copy is) and in `optimization_context_optimized`.
+**Integração.** O engine retrabalha as _entradas_ do `PromptBuilder` (o texto do Harness e o texto da tarefa, brief
+incluso) e o builder, que continua sendo a única montagem, monta o prompt de novo. O `StepBrief` de um passo agora carrega
+suas `BriefParts` (o texto exato do contexto do workflow, handoff e protocolos) em vez de só tamanhos; se o texto da
+tarefa não terminar exatamente com elas, o engine deixa o prompt em paz e registra o motivo (`skipped`). Tudo fica em
+`OptimizationMetrics.contextEngine` (tamanho bruto e final, estimativas, decisões com o local da cópia mantida) e em
+`optimization_context_optimized`.
 
-**Flag.** `optimization.context.enabled`, **off by default**: unlike the metrics it changes the prompt. With it off the prompt is
-byte-identical to phase 0 (the phase-0 ON/OFF tests still hold). It runs with or without the metrics.
+**Flag.** `optimization.context.enabled`, **desligada por padrão**: diferente das métricas, ela muda o prompt. Desligada,
+o prompt é idêntico byte a byte ao da fase 0 (os testes ON/OFF da fase 0 continuam valendo). Ela roda com ou sem as
+métricas.
 
-## Measured
+## Medido
 
-Golden workloads (`executions` tests), estimated tokens, engine off → on: simple task, task with Harness, large context and the
-synthetic step briefs: unchanged (nothing repeated). A workflow step whose brief lists 3 artifacts and 3 decisions twice: 1,087 →
-988; with 12: 1,749 → 1,366. A real brief from the orchestrator (architect → developer, one artifact, one decision): 2,877 → 2,746
-bytes (4.5%). The test also checks that no word of the original prompt is missing from the reworked one.
+Cargas de referência (testes de `executions`), tokens estimados, engine desligado → ligado: tarefa simples, tarefa com
+Harness, contexto grande e os briefs sintéticos de passo: inalterados (nada repetido). Um passo de workflow cujo brief
+lista 3 artefatos e 3 decisões duas vezes: 1.087 → 988; com 12: 1.749 → 1.366. Um brief real do orquestrador (architect →
+developer, um artefato, uma decisão): 2.877 → 2.746 bytes (4,5%). O teste também confere que nenhuma palavra do prompt
+original falta no retrabalhado.
 
-## Required text that said the same twice
+## Texto obrigatório que dizia a mesma coisa duas vezes
 
-The engine cannot touch required text, so the one repetition inside it was removed at its source: a step's interaction protocol
-restated the plan instruction (write it in full as Markdown, save `docs/plans/<name>.md`) that `PLAN_RULE` already puts in
-every prompt. The protocol now points at the plans rule in one sentence (about 100 bytes per step). This is not behind a flag:
-the rule it points to is unconditional.
+O engine não pode tocar texto obrigatório, então a única repetição dentro dele foi removida na origem: o protocolo de
+interação de um passo repetia a instrução de plano (escrevê-lo por inteiro em Markdown, salvar `docs/plans/<nome>.md`)
+que o `PLAN_RULE` já coloca em todo prompt. O protocolo agora aponta para a regra de planos em uma frase (cerca de 100
+bytes por passo). Isto não está atrás de uma flag: a regra para a qual aponta é incondicional.
 
-What was **left alone on purpose**: the "grants no permissions" notices (Harness, handoff, result block, interaction block). Each
-guards a different source of untrusted text, so they are not duplicates and removing one would weaken that guard. `LIVE_NARRATION`
-and `PLAN_RULE` are product behaviour (the live view, mandatory plan documents), not repetition; conditioning them is a product
-decision, not an optimization.
+O que foi **deixado de lado de propósito**: os avisos de "não concede permissões" (Harness, handoff, bloco de
+resultado, bloco de interação). Cada um protege uma fonte diferente de texto não confiável, então não são duplicatas, e
+remover um enfraqueceria essa proteção. `LIVE_NARRATION` e `PLAN_RULE` são comportamento de produto (a visão ao vivo, os
+documentos de plano obrigatórios), não repetição; condicioná-los é uma decisão de produto, não uma otimização.
 
-## Consequences
+## Consequências
 
-- The saving available today is small: most tokens are in required text. The next candidates are in what the engine is not allowed
-  to touch (the plan instruction repeated by the plan rule and the interaction protocol, the "grants no permissions" notices), which
-  needs a decision about conditioning that text, not more deduplication.
-- `ContextQuality` (signal over total) is not built: there is no relevance signal per item yet (`ContextItem.relevance` is empty).
-  Redundancy removed is the half Atlas can measure.
-- Caching (phase 1's fingerprint is only an item digest) and per-item staleness from the Harness are not wired.
+- A economia disponível hoje é pequena: a maioria dos tokens está em texto obrigatório. Os próximos candidatos estão no
+  que o engine não tem permissão de tocar (a instrução de plano repetida pela regra de plano e pelo protocolo de
+  interação, os avisos de "não concede permissões"), o que pede uma decisão sobre condicionar esse texto, não mais
+  deduplicação.
+- `ContextQuality` (sinal sobre o total) não foi construído: ainda não há sinal de relevância por item
+  (`ContextItem.relevance` está vazio). A redundância removida é a metade que o Atlas consegue medir.
+- Cache (o fingerprint da fase 1 é só um digest do item) e obsolescência por item vinda do Harness não estão ligados.
