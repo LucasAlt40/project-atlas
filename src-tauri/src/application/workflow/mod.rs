@@ -8,6 +8,8 @@ pub mod orchestrator;
 pub mod repair;
 pub mod runner;
 pub mod service;
+pub mod template_text;
+pub mod template_tools;
 pub mod templates;
 pub mod validation;
 pub mod worktree_lock;
@@ -20,6 +22,8 @@ mod engine_tests;
 mod orchestrator_tests;
 #[cfg(test)]
 mod routing_tests;
+#[cfg(test)]
+mod template_tests;
 // Stand-in CLIs are shell scripts started in a Unix terminal.
 #[cfg(all(test, unix))]
 mod real_stack_tests;

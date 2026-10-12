@@ -48,6 +48,11 @@ pub struct ExecutionPolicy {
     /// that is not told tends not to reach for a tool nobody mentioned.
     #[serde(default = "announce_by_default")]
     pub announce_integrations: bool,
+    /// The step may not change files, whatever its agent's permission profile allows. It can only
+    /// narrow: `false` leaves the decision to the agent's policy, it never grants editing. It
+    /// does not govern what an MCP tool does: that is what the step's grants are for.
+    #[serde(default)]
+    pub read_only: bool,
 }
 
 fn announce_by_default() -> bool {
@@ -59,6 +64,7 @@ impl Default for ExecutionPolicy {
         Self {
             isolation: IsolationMode::default(),
             announce_integrations: true,
+            read_only: false,
         }
     }
 }
@@ -81,6 +87,11 @@ pub struct AgentNode {
     pub label: String,
     #[serde(default)]
     pub instructions: String,
+    /// What must be true for the step to be done, in the agent's words. Told to the agent with the
+    /// step's instructions and shown to the person; routing still follows the result contract's
+    /// outcome, never this text.
+    #[serde(default)]
+    pub completion_criteria: String,
     #[serde(default)]
     pub retry_policy: RetryPolicy,
     #[serde(default)]

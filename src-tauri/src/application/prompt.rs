@@ -196,13 +196,29 @@ impl PromptLayout {
 /// What the agent is told of the integrations it was given. A model that is not told tends not to
 /// reach for a tool nobody mentioned (shown with a real agent that never opened the browser it was
 /// granted); it is not told to use them when the task does not need them.
-fn integrations_note(names: &[String]) -> String {
-    format!(
-        "\nIntegrations (MCP servers) given to you for this task: {}.\nUse their tools when the \
+fn integrations_note(names: &[String], unavailable: &[String]) -> String {
+    use std::fmt::Write;
+
+    let mut note = String::new();
+    if !names.is_empty() {
+        note = format!(
+            "\nIntegrations (MCP servers) given to you for this task: {}.\nUse their tools when the \
 task needs what they offer (opening or testing a page in a browser, reading or changing issues, \
 and so on); do not use them otherwise.",
-        names.join(", ")
-    )
+            names.join(", ")
+        );
+    }
+    if !unavailable.is_empty() {
+        // Said plainly, so a step that counted on a tool says it is missing instead of inventing
+        // what the tool would have returned.
+        let _ = write!(
+            note,
+            "\nIntegrations meant for this task that could not be given to you: {}. You do not \
+have them: if you need what they offer, say so in your result instead of guessing it.",
+            unavailable.join(", ")
+        );
+    }
+    note
 }
 
 /// What a prompt is assembled from, borrowed: the only place a prompt is assembled.
@@ -221,6 +237,8 @@ pub struct PromptBuilder<'a> {
     /// The names of the integrations (MCP servers) this step was given, to tell the agent. Empty:
     /// nothing is said.
     pub integrations: &'a [String],
+    /// The names of integrations the step was granted and could not be given, with why in short.
+    pub unavailable_integrations: &'a [String],
 }
 
 impl PromptBuilder<'_> {
@@ -238,6 +256,7 @@ impl PromptBuilder<'_> {
             skills,
             rules,
             integrations,
+            unavailable_integrations,
         } = *self;
         let atlas_rules = if can_edit {
             ATLAS_RULES_EDITING
@@ -257,8 +276,8 @@ impl PromptBuilder<'_> {
             }
         }
 
-        if !integrations.is_empty() {
-            context.push_str(&integrations_note(integrations));
+        if !integrations.is_empty() || !unavailable_integrations.is_empty() {
+            context.push_str(&integrations_note(integrations, unavailable_integrations));
         }
 
         let mut instruction = String::new();
@@ -304,6 +323,10 @@ mod tests {
     use crate::domain::task::TaskStatus;
 
     fn build(instructions: &str) -> Prompt {
+        build_with(instructions, &[], &[])
+    }
+
+    fn build_with(instructions: &str, integrations: &[String], unavailable: &[String]) -> Prompt {
         let personality = PersonalityProfile {
             id: "p".to_owned(),
             name: "Architect".to_owned(),
@@ -348,10 +371,32 @@ mod tests {
             harness: None,
             skills: None,
             rules: None,
-            integrations: &[],
+            integrations,
+            unavailable_integrations: unavailable,
         }
         .assemble()
         .0
+    }
+
+    #[test]
+    fn the_agent_is_told_the_tools_it_has_and_the_integrations_it_does_not() {
+        let given = ["jira (tools: getJiraIssue)".to_owned()];
+        let missing = ["context7 (not connected)".to_owned()];
+
+        let prompt = build_with("x", &given, &missing);
+
+        assert!(prompt
+            .context
+            .contains("given to you for this task: jira (tools: getJiraIssue)."));
+        assert!(prompt
+            .context
+            .contains("could not be given to you: context7 (not connected)"));
+        assert!(prompt.context.contains("say so in your result"));
+        // Nothing to say, nothing said.
+        assert!(!build("x").context.contains("Integrations"));
+        let only_missing = build_with("x", &[], &missing).context;
+        assert!(!only_missing.contains("given to you for this task"));
+        assert!(only_missing.contains("could not be given"));
     }
 
     #[test]

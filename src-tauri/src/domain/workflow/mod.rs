@@ -7,6 +7,7 @@ mod execution;
 mod handoff;
 mod integration;
 mod node;
+mod template;
 #[allow(clippy::module_inception)]
 mod workflow;
 
@@ -25,4 +26,5 @@ pub use node::{
 };
 #[cfg(test)]
 pub use node::{ConditionNode, Position};
+pub use template::{CustomTemplate, SuggestionTarget, ToolCapability, ToolSuggestion};
 pub use workflow::{RouteRepair, Viewport, Workflow, WorkflowMode, WorkflowStatus};

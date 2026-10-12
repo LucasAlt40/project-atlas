@@ -32,6 +32,8 @@ pub struct StepRequest {
     pub shared_worktree: Option<String>,
     /// Whether the prompt tells the agent which integrations it was given (the node's setting).
     pub announce_integrations: bool,
+    /// The node's setting: the step reads and does not edit, whatever its agent could do.
+    pub read_only: bool,
 }
 
 /// Why a step could not be prepared.

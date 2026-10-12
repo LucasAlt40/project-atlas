@@ -146,6 +146,9 @@ pub struct UserConfig {
     /// Who may use which connection and which of its tools. Nothing is exposed without one.
     #[serde(default)]
     pub mcp_grants: Vec<crate::domain::mcp::McpGrant>,
+    /// Workflow templates the person saved. The built-in ones are code and are not stored here.
+    #[serde(default)]
+    pub workflow_templates: Vec<crate::domain::workflow::CustomTemplate>,
 }
 
 /// Port: durable storage for [`UserConfig`]. Implemented in `infrastructure/`.

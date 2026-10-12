@@ -269,17 +269,18 @@ impl Collector {
 
 // ---- environment ----------------------------------------------------------------------------------
 
-struct Env {
-    agent_service: Arc<AgentService>,
-    service: Arc<WorkflowService>,
-    store: Arc<MemoryStore>,
-    workspace_id: String,
-    agents: HashMap<&'static str, String>,
+pub(super) struct Env {
+    pub(super) agent_service: Arc<AgentService>,
+    pub(super) service: Arc<WorkflowService>,
+    pub(super) store: Arc<MemoryStore>,
+    pub(super) config: Arc<ConfigRepository>,
+    pub(super) workspace_id: String,
+    pub(super) agents: HashMap<&'static str, String>,
     /// The orchestrator applies the guardrails to what steps hand on.
     guardrails: bool,
 }
 
-fn env() -> Env {
+pub(super) fn env() -> Env {
     let store = Arc::new(MemoryStore::default());
     let config = Arc::new(ConfigRepository::load(Box::new(store.clone())));
     let personalities = Arc::new(PersonalityService::new(config.clone()));
@@ -327,8 +328,9 @@ fn env() -> Env {
     }
     Env {
         agent_service: agents.clone(),
-        service: Arc::new(WorkflowService::new(config, agents, workspaces)),
+        service: Arc::new(WorkflowService::new(config.clone(), agents, workspaces)),
         store,
+        config,
         workspace_id,
         agents: ids,
         guardrails: false,
@@ -338,7 +340,7 @@ fn env() -> Env {
 impl Env {
     /// Makes the validator and QA agents declare the outcomes `pass` and `fail`, as the agents a
     /// template routes on must.
-    fn declare_validation_outcomes(&self) {
+    pub(super) fn declare_validation_outcomes(&self) {
         for key in ["validator", "qa"] {
             self.agent_service
                 .set_result_contract(
@@ -1582,12 +1584,15 @@ fn every_template_builds_a_valid_workflow_from_the_workspaces_agents() {
     for info in templates::list() {
         let built = env
             .service
-            .create_from_template(&env.workspace_id, info.id, None, WorkflowMode::Automatic)
+            .create_from_template(&env.workspace_id, &info.id, None, WorkflowMode::Automatic)
             .unwrap();
         assert!(built.missing_roles.is_empty(), "{}", info.id);
         let report = env.service.validate(&built.workflow);
         assert!(report.valid, "{}: {:?}", info.id, report.issues);
-        assert_eq!(built.workflow.template_id.as_deref(), Some(info.id));
+        assert_eq!(
+            built.workflow.template_id.as_deref(),
+            Some(info.id.as_str())
+        );
         assert_eq!(
             built.workflow.status,
             crate::domain::workflow::WorkflowStatus::Ready
@@ -1760,6 +1765,111 @@ fn running_the_recommended_template_through_a_validator_failure_and_a_qa_failure
     assert!(fixer.contains("Handler talks to the database"));
     assert_eq!(exec.state.iteration_count["architecture_fix"], 2);
     assert_eq!(exec.state.iteration_count["qa_bug_fix"], 2);
+}
+
+#[test]
+fn the_reviewer_runs_one_read_only_step_and_the_implementer_holds_only_its_judges_to_reading() {
+    let env = env();
+    env.declare_validation_outcomes();
+
+    let review = env
+        .service
+        .create_from_template(&env.workspace_id, "code_review", None, WorkflowMode::Custom)
+        .unwrap()
+        .workflow;
+    let runner = Scripted::new();
+    runner.script("validator", vec![outcome("pass", "")]);
+    let (exec, _) = env.run(&runner, &review.id);
+
+    assert_eq!(
+        exec.status,
+        WorkflowExecutionStatus::Completed,
+        "{:?}",
+        exec.failure
+    );
+    assert_eq!(runner.started(), ["validator"]);
+    assert!(runner.requests_for("validator")[0].read_only);
+
+    let feature = env
+        .service
+        .create_from_template(
+            &env.workspace_id,
+            "software_feature",
+            None,
+            WorkflowMode::Custom,
+        )
+        .unwrap()
+        .workflow;
+    let runner = Scripted::new();
+    runner.script("validator", vec![outcome("pass", "")]);
+    runner.script("qa", vec![outcome("pass", "")]);
+    let (exec, _) = env.run(&runner, &feature.id);
+
+    assert_eq!(
+        exec.status,
+        WorkflowExecutionStatus::Completed,
+        "{:?}",
+        exec.failure
+    );
+    let read_only = |node: &str| runner.requests_for(node)[0].read_only;
+    assert!(!read_only("architect") && !read_only("developer"));
+    assert!(read_only("validator") && read_only("qa"));
+}
+
+#[test]
+fn a_debugger_that_cannot_establish_the_cause_ends_inconclusive_without_asking_qa_to_check_nothing()
+{
+    let env = env();
+    env.declare_validation_outcomes();
+    env.agent_service
+        .set_result_contract(
+            &env.agents["fixer"],
+            ResultContract {
+                kind: ContractKind::Custom,
+                outcomes: ["fixed", "blocked"]
+                    .map(|id| crate::domain::result_contract::Outcome {
+                        id: id.to_owned(),
+                        label: id.to_owned(),
+                        description: String::new(),
+                    })
+                    .to_vec(),
+            },
+        )
+        .unwrap();
+    let workflow = env
+        .service
+        .create_from_template(&env.workspace_id, "bug_fix", None, WorkflowMode::Custom)
+        .unwrap()
+        .workflow;
+
+    let blocked = Scripted::new();
+    blocked.script("bug-fixer", vec![outcome("blocked", "")]);
+    let (exec, _) = env.run(&blocked, &workflow.id);
+
+    assert_eq!(blocked.started(), ["bug-fixer"]);
+    assert_eq!(exec.status, WorkflowExecutionStatus::Failed);
+    assert_eq!(
+        exec.failure.as_ref().map(|f| f.code),
+        Some(crate::domain::workflow::FailureCode::EndedInFailure)
+    );
+
+    // The same run when the fixer did fix it, and QA sends it back once.
+    let fixed = Scripted::new();
+    fixed.script("bug-fixer", vec![outcome("fixed", "")]);
+    fixed.script("bug-fixer-retry", vec![outcome("fixed", "")]);
+    fixed.script("qa", vec![outcome("fail", ""), outcome("pass", "")]);
+    let (exec, _) = env.run(&fixed, &workflow.id);
+
+    assert_eq!(
+        exec.status,
+        WorkflowExecutionStatus::Completed,
+        "{:?}",
+        exec.failure
+    );
+    assert_eq!(
+        fixed.started(),
+        ["bug-fixer", "qa", "bug-fixer-retry", "qa"]
+    );
 }
 
 #[test]

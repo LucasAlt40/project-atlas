@@ -390,7 +390,7 @@ fn every_template_validates_with_the_contract_of_the_agents_it_is_given() {
             .collect();
         for template in list() {
             let built = instantiate(
-                template.id,
+                &template.id,
                 "ws-1",
                 "wf-1",
                 None,

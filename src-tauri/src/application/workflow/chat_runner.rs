@@ -152,6 +152,7 @@ impl StepRunner for ChatStepRunner {
             link: request.link,
             shared_worktree: request.shared_worktree.clone(),
             announce_integrations: request.announce_integrations,
+            read_only: request.read_only,
         };
         match self.chat.send_workflow_step(step) {
             Ok((sent, run)) => Ok(Box::new(Prepared {

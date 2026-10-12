@@ -1261,6 +1261,56 @@ fn the_agent_is_told_which_integrations_it_was_given_and_only_those() {
 }
 
 #[test]
+fn the_agent_is_told_the_tools_it_really_has_not_the_ones_held_back() {
+    // Named tools: only those. A whole-server grant: what the server was found to have.
+    let world = world();
+    let files = connect(&world, "files", false, false);
+    discovered(&world, &files, &["read", "write"]);
+    grant_only(&world, &files, "read");
+
+    conversation(&world, &world.developer);
+
+    let prompt = prompt_of_last_run(&world);
+    assert!(
+        prompt.contains("given to you for this task: files (tools: read)."),
+        "{prompt}"
+    );
+    assert!(!prompt.contains("read, write") && !prompt.contains("tools: write"));
+
+    let whole = self::world();
+    let files = connect(&whole, "files", false, false);
+    discovered(&whole, &files, &["read", "write"]);
+    grant_all(&whole, &files, &whole.developer);
+
+    conversation(&whole, &whole.developer);
+
+    assert!(prompt_of_last_run(&whole).contains("files (tools: read, write)."));
+}
+
+#[test]
+fn an_integration_that_was_granted_and_could_not_be_given_is_named_as_missing() {
+    let world = world_with(runtime_with(
+        McpToolFilter::Unsupported,
+        McpProbeKind::StatusOnly,
+    ));
+    let files = connect(&world, "files", false, false);
+    discovered(&world, &files, &["read", "write"]);
+    grant_only(&world, &files, "read");
+
+    conversation(&world, &world.developer);
+
+    let prompt = prompt_of_last_run(&world);
+    assert!(
+        prompt.contains(
+            "could not be given to you: files (the tools it was limited to cannot be enforced)"
+        ),
+        "{prompt}"
+    );
+    assert!(!prompt.contains("given to you for this task"));
+    assert_eq!(given(&world), Vec::<String>::new());
+}
+
+#[test]
 fn nothing_is_said_when_nothing_is_given() {
     let world = world();
     connect(&world, "files", false, false);

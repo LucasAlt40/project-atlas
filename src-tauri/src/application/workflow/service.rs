@@ -8,6 +8,7 @@ use serde::Deserialize;
 
 use super::engine::WorkflowEngine;
 use super::repair::{self, RepairChoice, RepairProposal};
+use super::template_tools::{self, ToolPlanItem};
 use super::templates::{self, AgentChoice, Role, TemplateInfo};
 use super::validation::{validate, AgentCatalog, ValidationReport};
 use crate::application::agents::AgentService;
@@ -16,6 +17,7 @@ use crate::application::errors::{AppError, ErrorCode};
 use crate::application::support::{new_id, now_ms};
 use crate::application::workspace::WorkspaceService;
 use crate::domain::result_contract::ResultContract;
+use crate::domain::workflow::{CustomTemplate, ToolSuggestion};
 use crate::domain::workflow::{
     NodeState, RouteRepair, Viewport, Workflow, WorkflowEdge, WorkflowExecution,
     WorkflowExecutionStatus, WorkflowMode, WorkflowNode, WorkflowStatus,
@@ -45,6 +47,8 @@ pub struct NewWorkflow {
 pub struct FromTemplate {
     pub workflow: Workflow,
     pub missing_roles: Vec<Role>,
+    /// What the template suggests for the workspace's connections, resolved: nothing granted yet.
+    pub tools: Vec<ToolPlanItem>,
 }
 
 pub struct WorkflowService {
@@ -117,9 +121,133 @@ impl WorkflowService {
             .read(|c| c.workflows.iter().find(|w| w.id == id).cloned())
     }
 
-    #[allow(clippy::unused_self)] // the service is how the UI reaches the registry
+    /// The built-in templates, then the ones the person saved.
     pub fn templates(&self) -> Vec<TemplateInfo> {
-        templates::list()
+        let mut all = templates::list();
+        all.extend(
+            self.config
+                .read(|c| c.workflow_templates.clone())
+                .iter()
+                .map(templates::info_of_custom),
+        );
+        all
+    }
+
+    fn custom_template(&self, id: &str) -> Option<CustomTemplate> {
+        self.config
+            .read(|c| c.workflow_templates.iter().find(|t| t.id == id).cloned())
+    }
+
+    /// What a template's suggestions come to in a workspace: which connection would serve each,
+    /// with which tools, or why none can. Reads; changes nothing.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the template is unknown.
+    pub fn tool_plan(
+        &self,
+        workspace_id: &str,
+        template_id: &str,
+    ) -> Result<Vec<ToolPlanItem>, AppError> {
+        let suggestions = self.suggestions_of(template_id)?;
+        Ok(self.config.read(|c| {
+            let connections: Vec<_> = c
+                .mcp_connections
+                .iter()
+                .filter(|m| m.workspace_id == workspace_id)
+                .cloned()
+                .collect();
+            template_tools::resolve(&suggestions, &connections)
+        }))
+    }
+
+    fn suggestions_of(&self, template_id: &str) -> Result<Vec<ToolSuggestion>, AppError> {
+        if let Some(info) = templates::find(template_id) {
+            return Ok(info.tools);
+        }
+        self.custom_template(template_id)
+            .map(|t| t.tools)
+            .ok_or_else(|| AppError::new(ErrorCode::WorkflowTemplateNotFound))
+    }
+
+    /// Saves a copy of a workflow's steps, routes and the tools granted to its steps as a
+    /// template of the person's own. The workflow, and the template it came from, are untouched.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the workflow is unknown, the name is invalid or saving fails.
+    pub fn save_as_template(
+        &self,
+        workflow_id: &str,
+        name: &str,
+        description: &str,
+    ) -> Result<CustomTemplate, AppError> {
+        let workflow = self
+            .get(workflow_id)
+            .ok_or_else(|| AppError::new(ErrorCode::WorkflowNotFound))?;
+        let name = clean_name(name)?;
+        let tools = self.config.read(|c| {
+            c.mcp_grants
+                .iter()
+                .filter(|g| {
+                    g.workflow_id.as_deref() == Some(workflow.id.as_str()) && g.node_id.is_some()
+                })
+                .filter_map(|g| {
+                    let connection = c.mcp_connections.iter().find(|m| m.id == g.connection_id)?;
+                    Some(templates::suggestion_of_grant(
+                        g.node_id.as_deref()?,
+                        &connection.name,
+                        &g.tools,
+                    ))
+                })
+                .collect::<Vec<_>>()
+        });
+        // What it started from, so the list can say so: a built-in template, or the saved one a
+        // copy of a copy came from.
+        let based_on = workflow.template_id.as_ref().and_then(|id| {
+            if templates::find(id).is_some() {
+                Some(id.clone())
+            } else {
+                self.custom_template(id).and_then(|t| t.based_on)
+            }
+        });
+        let now = now_ms();
+        let template = CustomTemplate {
+            id: new_id("template"),
+            name,
+            description: description.trim().to_owned(),
+            based_on,
+            nodes: workflow.nodes,
+            edges: workflow.edges,
+            tools,
+            created_at: now,
+            updated_at: now,
+        };
+        let saved = template.clone();
+        self.config.modify(|config| {
+            config.workflow_templates.push(saved);
+            Ok(())
+        })?;
+        Ok(template)
+    }
+
+    /// Deletes a template the person saved. The built-in ones cannot be deleted. Workflows made
+    /// from it keep working: they are copies.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the template is a built-in one or unknown, or saving fails.
+    pub fn delete_template(&self, id: &str) -> Result<(), AppError> {
+        if templates::find(id).is_some() {
+            return Err(AppError::new(ErrorCode::WorkflowTemplateBuiltin));
+        }
+        if self.custom_template(id).is_none() {
+            return Err(AppError::new(ErrorCode::WorkflowTemplateNotFound));
+        }
+        self.config.modify(|config| {
+            config.workflow_templates.retain(|t| t.id != id);
+            Ok(())
+        })
     }
 
     /// The template Automatic mode proposes for a task.
@@ -211,6 +339,24 @@ impl WorkflowService {
             .workspaces
             .get(workspace_id)
             .ok_or_else(|| AppError::new(ErrorCode::WorkspaceNotFound))?;
+        if let Some(custom) = self.custom_template(template_id) {
+            let name = name.map(clean_name).transpose()?;
+            let mut workflow = templates::instantiate_custom(
+                &custom,
+                workspace_id,
+                &new_id("workflow"),
+                name.as_deref(),
+                mode,
+                now_ms(),
+            );
+            workflow.status = self.status_of(&workflow);
+            self.store(workflow.clone())?;
+            return Ok(FromTemplate {
+                workflow,
+                missing_roles: Vec::new(),
+                tools: self.tool_plan(workspace_id, template_id)?,
+            });
+        }
         let choices: Vec<AgentChoice> = self
             .agents
             .list()
@@ -244,6 +390,16 @@ impl WorkflowService {
         Ok(FromTemplate {
             workflow,
             missing_roles: built.missing_roles,
+            tools: template_tools::resolve(
+                &built.tools,
+                &self.config.read(|c| {
+                    c.mcp_connections
+                        .iter()
+                        .filter(|m| m.workspace_id == workspace_id)
+                        .cloned()
+                        .collect::<Vec<_>>()
+                }),
+            ),
         })
     }
 
@@ -356,6 +512,10 @@ impl WorkflowService {
         }
         self.config.modify(|config| {
             config.workflows.retain(|w| w.id != id);
+            // What was granted to its steps goes with it.
+            config
+                .mcp_grants
+                .retain(|g| g.workflow_id.as_deref() != Some(id));
             Ok(())
         })
     }
@@ -367,6 +527,15 @@ impl WorkflowService {
     /// Fails if saving fails.
     pub fn discard_workspace(&self, workspace_id: &str) -> Result<(), AppError> {
         self.config.modify(|config| {
+            let gone: Vec<String> = config
+                .workflows
+                .iter()
+                .filter(|w| w.workspace_id == workspace_id)
+                .map(|w| w.id.clone())
+                .collect();
+            config
+                .mcp_grants
+                .retain(|g| !g.workflow_id.as_ref().is_some_and(|id| gone.contains(id)));
             config.workflows.retain(|w| w.workspace_id != workspace_id);
             config
                 .workflow_executions
@@ -383,6 +552,7 @@ impl WorkflowService {
     /// # Errors
     ///
     /// Fails if the workflow is unknown, invalid, already running, or the task is empty.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn start(&self, workflow_id: &str, task: &str) -> Result<WorkflowExecution, AppError> {
         self.start_checked(workflow_id, task, true)
     }

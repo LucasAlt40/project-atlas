@@ -9,6 +9,7 @@ use crate::application::ide::Ide;
 use crate::application::workflow::orchestrator::{AnswerDelivery, Control};
 use crate::application::workflow::repair::{RepairChoice, RepairProposal};
 use crate::application::workflow::service::NewWorkflow;
+use crate::application::workflow::template_tools::{self, ToolPlanItem};
 use crate::application::workflow::templates::{Role, TemplateInfo};
 use crate::application::workflow::validation::ValidationReport;
 use crate::domain::interaction::{InteractionAnswer, PendingInteraction};
@@ -25,6 +26,9 @@ use crate::state::AppState;
 pub struct TemplateWorkflow {
     pub workflow: Workflow,
     pub missing_roles: Vec<Role>,
+    /// What the template suggests for the workspace's tools (MCP connections): which were granted
+    /// to which step, and why the others were not.
+    pub tools: Vec<ToolPlanItem>,
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -69,15 +73,73 @@ pub fn create_workflow_from_template(
     template_id: String,
     name: Option<String>,
     mode: WorkflowMode,
+    apply_tools: Option<bool>,
 ) -> Result<TemplateWorkflow, AppError> {
     let built =
         state
             .workflows
             .create_from_template(&workspace_id, &template_id, name.as_deref(), mode)?;
+    let mut tools = built.tools;
+    // The suggestions become grants only when the person asked for that.
+    if apply_tools.unwrap_or(false) {
+        template_tools::apply(&built.workflow, &mut tools, |request| {
+            state
+                .mcp
+                .grant(
+                    request.connection_id,
+                    Some(request.agent_id),
+                    Some(request.workflow_id),
+                    Some(request.node_id),
+                    request.tools,
+                )
+                .map(|_| ())
+        });
+    }
     Ok(TemplateWorkflow {
         workflow: built.workflow,
         missing_roles: built.missing_roles,
+        tools,
     })
+}
+
+/// What a template's suggested tools come to in a workspace. Reads; grants nothing.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command]
+pub fn plan_workflow_template_tools(
+    state: State<'_, AppState>,
+    workspace_id: String,
+    template_id: String,
+) -> Result<Vec<ToolPlanItem>, AppError> {
+    state.workflows.tool_plan(&workspace_id, &template_id)
+}
+
+/// Saves a workflow's steps, routes and granted tools as a template of the person's own.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command]
+pub fn save_workflow_as_template(
+    state: State<'_, AppState>,
+    workflow_id: String,
+    name: String,
+    description: Option<String>,
+) -> Result<TemplateInfo, AppError> {
+    let saved = state.workflows.save_as_template(
+        &workflow_id,
+        &name,
+        description.as_deref().unwrap_or_default(),
+    )?;
+    Ok(crate::application::workflow::templates::info_of_custom(
+        &saved,
+    ))
+}
+
+/// Deletes a template the person saved. The built-in ones cannot be deleted.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command]
+pub fn delete_workflow_template(
+    state: State<'_, AppState>,
+    template_id: String,
+) -> Result<(), AppError> {
+    state.workflows.delete_template(&template_id)
 }
 
 #[allow(clippy::needless_pass_by_value)]

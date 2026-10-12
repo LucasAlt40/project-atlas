@@ -75,6 +75,8 @@ pub enum ErrorCode {
     /// The workflow has a run in progress: it cannot be edited or deleted until that ends.
     WorkflowRunning,
     WorkflowTemplateNotFound,
+    /// A built-in template cannot be changed or deleted; save a copy of a workflow instead.
+    WorkflowTemplateBuiltin,
     WorkflowExecutionNotFound,
     /// The run is not in a state that allows what was asked (pausing a finished run…).
     WorkflowStateInvalid,

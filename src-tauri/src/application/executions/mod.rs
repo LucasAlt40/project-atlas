@@ -120,6 +120,8 @@ pub struct StepOptions<'a> {
     /// Tell the agent which integrations (MCP servers) it was given, in the prompt. Off only when
     /// a workflow step's node says so.
     pub announce_integrations: bool,
+    /// The step's node may not change files, whatever the agent's policy says (it only narrows).
+    pub read_only: bool,
 }
 
 impl Default for StepOptions<'_> {
@@ -135,6 +137,7 @@ impl Default for StepOptions<'_> {
             task_rules: &[],
             // On unless a node turns it off.
             announce_integrations: true,
+            read_only: false,
         }
     }
 }
@@ -460,6 +463,7 @@ impl ExecutionService {
             node_id: None,
             task_rules: &[],
             announce_integrations: true,
+            read_only: false,
         };
         self.run_step(id, request, options, observer)
     }
@@ -487,6 +491,7 @@ impl ExecutionService {
             node_id,
             task_rules,
             announce_integrations,
+            read_only,
         } = options;
         // Read once: a run is measured entirely or not at all.
         let measuring = self
@@ -629,12 +634,19 @@ impl ExecutionService {
             project.path.clone().into()
         };
         project.path = working_dir.to_string_lossy().into_owned();
-        let access = self.edit_access(
-            &execution,
-            &agent,
-            &task.id,
-            runtime.info().capabilities.file_edit,
-        );
+        // A read-only step is held to reading even when its agent could write; the other way
+        // round it grants nothing.
+        let access = if read_only {
+            emitter.log("This workflow step is read-only: it was not given file-editing tools");
+            EditAccess::PolicyDenied
+        } else {
+            self.edit_access(
+                &execution,
+                &agent,
+                &task.id,
+                runtime.info().capabilities.file_edit,
+            )
+        };
         if access == EditAccess::RuntimeCannotEdit {
             // Not a permission problem: the agent may write, this runtime cannot be asked to.
             emitter.log("The agent may edit files, but its runtime does not support file editing");
@@ -674,9 +686,24 @@ impl ExecutionService {
         // The integrations the agent is told about: the ones the plan gives it (the prompt says no
         // more than what is arranged), unless the step's node turned that off.
         let announced: Vec<String> = if announce_integrations {
+            mcp_plan.exposed().map(Self::announced_server).collect()
+        } else {
+            Vec::new()
+        };
+        // What was granted and could not be given: the agent is told, so it says a tool it was
+        // counting on is missing instead of making up what the tool would have said.
+        let unavailable: Vec<String> = if announce_integrations {
             mcp_plan
-                .exposed()
-                .map(|server| server.connection.name.clone())
+                .failed()
+                .filter_map(|server| {
+                    server.problem.as_ref().map(|problem| {
+                        format!(
+                            "{} ({})",
+                            server.connection.name,
+                            Self::short_reason(problem)
+                        )
+                    })
+                })
                 .collect()
         } else {
             Vec::new()
@@ -724,6 +751,7 @@ impl ExecutionService {
                 skills: inputs.skills_text().as_deref(),
                 rules: inputs.rules_text().as_deref(),
                 integrations: &announced,
+                unavailable_integrations: &unavailable,
             }
             .assemble()
         };
@@ -1279,6 +1307,73 @@ impl ExecutionService {
             cli_servers,
             features,
         })
+    }
+
+    /// How an integration is named to the agent: the name it will see, and the tools it was given
+    /// when Atlas knows them (the ones a grant names, or what discovery listed for a whole-server
+    /// grant). A CLI's own copy of a server is known by the CLI's name, and its tools are the
+    /// CLI's to list.
+    fn announced_server(server: &crate::application::mcp::PlannedServer) -> String {
+        if let Some(cli_name) = &server.cli_name {
+            return cli_name.clone();
+        }
+        let name = server.connection.name.clone();
+        let tools: Vec<String> = match &server.selection {
+            Some(crate::domain::mcp::ToolSelection::Only { tools }) => tools.clone(),
+            _ => server
+                .connection
+                .discovery
+                .as_ref()
+                .map(|d| d.tools.clone())
+                .unwrap_or_default(),
+        };
+        if tools.is_empty() {
+            name
+        } else {
+            format!("{name} (tools: {})", tools.join(", "))
+        }
+    }
+
+    /// Why a granted connection is not given, said to the agent: short, and without the details
+    /// of the configuration.
+    fn short_reason(problem: &McpProblem) -> &'static str {
+        match problem {
+            McpProblem::RuntimeUnsupported | McpProblem::NotInCliConfig => {
+                "this agent's runtime cannot use it"
+            }
+            McpProblem::SecretMissing { .. } => "its credential is missing",
+            McpProblem::InvalidConfiguration { .. } => "its configuration is not valid",
+            McpProblem::NeedsDiscovery | McpProblem::ToolFilterUnsupported => {
+                "the tools it was limited to cannot be enforced"
+            }
+            McpProblem::NotEnabled | McpProblem::NoGrant | McpProblem::PolicyDenied => {
+                "it is not available to this step"
+            }
+        }
+    }
+
+    /// Why a granted connection is not given, in a line for the run's log.
+    fn problem_text(problem: &McpProblem) -> String {
+        match problem {
+            McpProblem::RuntimeUnsupported => {
+                "its runtime cannot receive MCP servers from Atlas".to_owned()
+            }
+            McpProblem::NotInCliConfig => {
+                "its CLI only uses the servers of its own configuration and this one is not there"
+                    .to_owned()
+            }
+            McpProblem::SecretMissing { name } => format!("the secret {name} was never stored"),
+            McpProblem::InvalidConfiguration { reason } => {
+                format!("its configuration is not acceptable ({reason})")
+            }
+            McpProblem::NeedsDiscovery => "its tools were never examined".to_owned(),
+            McpProblem::ToolFilterUnsupported => {
+                "its runtime cannot hold a server to the tools named".to_owned()
+            }
+            McpProblem::NotEnabled | McpProblem::NoGrant | McpProblem::PolicyDenied => {
+                "it is not available to this step".to_owned()
+            }
+        }
     }
 
     /// What the review needs of an MCP plan: connections granted and not given, and whether the

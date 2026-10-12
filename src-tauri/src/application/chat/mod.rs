@@ -59,6 +59,8 @@ pub struct WorkflowStepRequest {
     pub shared_worktree: Option<String>,
     /// Whether the prompt tells the agent which integrations it was given.
     pub announce_integrations: bool,
+    /// The step may not edit files (the node's setting; it only narrows the agent's policy).
+    pub read_only: bool,
 }
 
 /// How a run ended, as much as a caller driving it needs.
@@ -272,6 +274,7 @@ impl ChatService {
                 execution_id,
                 _busy: busy,
                 announce_integrations: true,
+                read_only: false,
             },
         ))
     }
@@ -300,6 +303,7 @@ impl ChatService {
         pending.workflow = Some(step.link);
         pending.shared_worktree = step.shared_worktree;
         pending.announce_integrations = step.announce_integrations;
+        pending.read_only = step.read_only;
         pending.announce = Some(sent.user_message.clone());
         Ok((sent, pending))
     }
@@ -360,6 +364,7 @@ pub struct PendingRun {
     review: Option<ReviewAnswer>,
     shared_worktree: Option<String>,
     announce_integrations: bool,
+    read_only: bool,
     workflow: Option<WorkflowLink>,
     /// A message nobody was told about yet (a workflow step's request).
     announce: Option<Message>,
@@ -393,6 +398,7 @@ impl PendingRun {
             workflow_id: self.workflow.as_ref().map(|link| link.workflow_id.as_str()),
             node_id: self.workflow.as_ref().map(|link| link.node_id.as_str()),
             announce_integrations: self.announce_integrations,
+            read_only: self.read_only,
             task_rules: &[],
         };
         let result = if options.context_query.is_some() || options.detect_interaction {
@@ -836,6 +842,7 @@ mod tests {
                     },
                     shared_worktree: None,
                     announce_integrations: true,
+                    read_only: false,
                 })
                 .unwrap();
             pending.run(&Collector::default());

@@ -62,11 +62,23 @@ pub fn build(
         .map(|a| a.instructions.trim().to_owned())
         .unwrap_or_default();
 
+    let criteria = node
+        .and_then(|n| n.agent())
+        .map(|a| a.completion_criteria.trim().to_owned())
+        .unwrap_or_default();
+
     let mut description = String::new();
     if !instructions.is_empty() {
         let _ = write!(
             description,
             "Instructions for this step:\n{instructions}\n\n"
+        );
+    }
+    if !criteria.is_empty() {
+        let _ = write!(
+            description,
+            "This step is done when:\n{criteria}\nIf you cannot meet this, say what is missing \
+instead of reporting it as done.\n\n"
         );
     }
     let _ = write!(description, "Overall task:\n{}\n\n", exec.task.trim());

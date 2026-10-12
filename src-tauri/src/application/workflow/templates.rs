@@ -1,12 +1,20 @@
-//! Deterministic workflow templates and the selector that picks one for a task. No model is
-//! involved: the same task text always gives the same template. A future planner would produce a
-//! [`Workflow`] the same way these do, and the engine would run it unchanged.
+//! Workflow templates and the selector that picks one for a task. No model is involved: the same
+//! task text always gives the same template. A future planner would produce a [`Workflow`] the
+//! same way these do, and the engine would run it unchanged.
+//!
+//! Two kinds of template exist. The **built-in** ones are code, so a person's edits can never
+//! overwrite them. The ones a person **saves** (`CustomTemplate`) are copies of a workflow's steps
+//! and routes. Both answer the same question before anything runs: which steps, which agents,
+//! which tools, what comes out ([`TemplateInfo`]).
 
 use serde::Serialize;
 
+use super::template_text as text;
+use crate::domain::mcp::ToolSelection;
 use crate::domain::workflow::{
-    AgentNode, Condition, EndNode, EndOutcome, ExecutionPolicy, FailurePolicy, LoopPolicy,
-    NodeKind, RetryPolicy, Workflow, WorkflowEdge, WorkflowMode, WorkflowNode, WorkflowStatus,
+    AgentNode, Condition, CustomTemplate, EndNode, EndOutcome, ExecutionPolicy, FailurePolicy,
+    LoopPolicy, NodeKind, RetryPolicy, SuggestionTarget, ToolCapability, ToolSuggestion, Workflow,
+    WorkflowEdge, WorkflowMode, WorkflowNode, WorkflowStatus,
 };
 
 /// The kinds of work Automatic mode chooses between.
@@ -17,6 +25,15 @@ pub enum TemplateCategory {
     BugFix,
     Refactoring,
     CodeReview,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TemplateKind {
+    /// Ships with Atlas; read-only.
+    Builtin,
+    /// Saved by the person; theirs to change or delete.
+    Custom,
 }
 
 /// What a step is for. Each role is looked up among the agents by personality.
@@ -42,16 +59,45 @@ impl Role {
     }
 }
 
+/// One step of a template, as the person reads it before starting.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StepInfo {
+    /// The node's id: the same in every workflow made from the template.
+    pub id: String,
+    pub label: String,
+    /// The role a built-in step is looked up by; a saved template remembers the agent instead.
+    pub role: Option<Role>,
+    pub agent_id: Option<String>,
+    pub instructions: String,
+    pub completion_criteria: String,
+    /// The step may not change files (the node's own restriction).
+    pub read_only: bool,
+    /// A step that can run again, bounded by this many passes.
+    pub max_iterations: Option<u32>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TemplateInfo {
-    pub id: &'static str,
+    pub id: String,
+    pub kind: TemplateKind,
     pub category: TemplateCategory,
     /// The template Automatic mode proposes for its category.
     pub recommended: bool,
-    pub name: &'static str,
-    pub description: &'static str,
+    /// One of the three Atlas leads with (Implementer, Debugger, Reviewer).
+    pub featured: bool,
+    pub name: String,
+    pub description: String,
+    pub goal: String,
     pub roles: Vec<Role>,
+    pub steps: Vec<StepInfo>,
+    pub outputs: Vec<String>,
+    /// No step may change files.
+    pub read_only: bool,
+    pub tools: Vec<ToolSuggestion>,
+    /// The built-in template a saved one started from.
+    pub based_on: Option<String>,
 }
 
 /// An agent a template may use.
@@ -71,103 +117,207 @@ pub struct Instantiated {
     /// Roles no agent could be found for: their nodes have no agent yet and the user must pick
     /// one. Atlas never creates an agent on its own.
     pub missing_roles: Vec<Role>,
+    /// The role each agent step was built for (built-in templates only).
+    pub step_roles: Vec<(String, Role)>,
+    pub tools: Vec<ToolSuggestion>,
 }
 
-const IDS: [(&str, TemplateCategory, bool, &str, &str); 8] = [
-    (
-        "software_feature",
-        TemplateCategory::SoftwareFeature,
-        true,
-        "Software Feature Development",
-        "Architect, Developer, a validator and QA, each with a Bug Fixer loop to repair what they find.",
-    ),
-    (
-        "feature_basic",
-        TemplateCategory::SoftwareFeature,
-        false,
-        "Software Feature",
-        "Architect, then Developer, then QA.",
-    ),
-    (
-        "feature_with_validation",
-        TemplateCategory::SoftwareFeature,
-        false,
-        "Feature with Validation",
-        "Architect, Developer, Architecture & Code Validator, then QA.",
-    ),
-    (
-        "feature_with_bug_fix_loop",
-        TemplateCategory::SoftwareFeature,
-        false,
-        "Feature with Bug Fix Loop",
-        "Architect, Developer and QA; when QA fails a Bug Fixer repairs and QA runs again.",
-    ),
-    (
-        "full_development",
-        TemplateCategory::SoftwareFeature,
-        false,
-        "Full Development",
-        "Architect, Backend, Frontend, validator and QA with both Bug Fixer loops.",
-    ),
-    (
-        "bug_fix",
-        TemplateCategory::BugFix,
-        true,
-        "Bug Fix",
-        "A Bug Fixer finds the cause and fixes it; QA checks, and sends it back if it still fails.",
-    ),
-    (
-        "refactoring",
-        TemplateCategory::Refactoring,
-        true,
-        "Refactoring",
-        "Architect plans, Developer refactors, the validator checks the architecture, QA checks behaviour.",
-    ),
-    (
-        "code_review",
-        TemplateCategory::CodeReview,
-        true,
-        "Code Review",
-        "The Architecture & Code Validator reviews the code, read-only.",
-    ),
+struct Entry {
+    id: &'static str,
+    category: TemplateCategory,
+    recommended: bool,
+    featured: bool,
+    name: &'static str,
+    description: &'static str,
+}
+
+const ENTRIES: [Entry; 8] = [
+    Entry {
+        id: "software_feature",
+        category: TemplateCategory::SoftwareFeature,
+        recommended: true,
+        featured: true,
+        name: "Implementer",
+        description: "Plans, implements, reviews and checks a change, in depth proportional to the task.",
+    },
+    Entry {
+        id: "feature_basic",
+        category: TemplateCategory::SoftwareFeature,
+        recommended: false,
+        featured: false,
+        name: "Software Feature",
+        description: "Architect, then Developer, then QA: the quick way for a small change.",
+    },
+    Entry {
+        id: "feature_with_validation",
+        category: TemplateCategory::SoftwareFeature,
+        recommended: false,
+        featured: false,
+        name: "Feature with Validation",
+        description: "Architect, Developer, Architecture & Code Validator, then QA.",
+    },
+    Entry {
+        id: "feature_with_bug_fix_loop",
+        category: TemplateCategory::SoftwareFeature,
+        recommended: false,
+        featured: false,
+        name: "Feature with Bug Fix Loop",
+        description: "Architect, Developer and QA; when QA fails a Bug Fixer repairs and QA runs again.",
+    },
+    Entry {
+        id: "full_development",
+        category: TemplateCategory::SoftwareFeature,
+        recommended: false,
+        featured: false,
+        name: "Full Development",
+        description: "Architect, Backend, Frontend, validator and QA with both Bug Fixer loops.",
+    },
+    Entry {
+        id: "bug_fix",
+        category: TemplateCategory::BugFix,
+        recommended: true,
+        featured: true,
+        name: "Debugger",
+        description: "Finds the root cause from evidence, fixes it minimally with a regression test, then verifies.",
+    },
+    Entry {
+        id: "refactoring",
+        category: TemplateCategory::Refactoring,
+        recommended: true,
+        featured: false,
+        name: "Refactoring",
+        description: "Architect plans, Developer refactors, the validator checks the architecture, QA checks behaviour.",
+    },
+    Entry {
+        id: "code_review",
+        category: TemplateCategory::CodeReview,
+        recommended: true,
+        featured: true,
+        name: "Reviewer",
+        description: "Audits code and architecture and reports findings by severity. Analysis only: no file is changed.",
+    },
 ];
 
-fn roles_of(id: &str) -> Vec<Role> {
-    use Role::{Architect, BugFixer, Developer, Qa, Validator};
+fn goal_and_outputs(id: &str, fallback: &str) -> (String, Vec<String>) {
+    let owned = |items: &[&str]| items.iter().map(|s| (*s).to_owned()).collect();
     match id {
-        "feature_basic" => vec![Architect, Developer, Qa],
-        "feature_with_validation" => vec![Architect, Developer, Validator, Qa],
-        "feature_with_bug_fix_loop" => vec![Architect, Developer, Qa, BugFixer],
-        "software_feature" | "full_development" | "refactoring" => {
-            vec![Architect, Developer, Validator, BugFixer, Qa]
-        }
-        "bug_fix" => vec![BugFixer, Qa],
-        "code_review" => vec![Validator],
-        _ => vec![],
+        "software_feature" => (text::IMPL_GOAL.to_owned(), owned(&text::IMPL_OUTPUTS)),
+        "bug_fix" => (text::DEBUG_GOAL.to_owned(), owned(&text::DEBUG_OUTPUTS)),
+        "code_review" => (text::REVIEW_GOAL.to_owned(), owned(&text::REVIEW_OUTPUTS)),
+        _ => (fallback.to_owned(), Vec::new()),
     }
 }
 
-pub fn list() -> Vec<TemplateInfo> {
-    IDS.iter()
-        .map(
-            |(id, category, recommended, name, description)| TemplateInfo {
-                id,
-                category: *category,
-                recommended: *recommended,
-                name,
-                description,
-                roles: roles_of(id),
-            },
-        )
+fn info_of(entry: &Entry) -> TemplateInfo {
+    let built = instantiate(entry.id, "", "", None, &[], WorkflowMode::Automatic, 0)
+        .expect("every entry builds");
+    let (goal, outputs) = goal_and_outputs(entry.id, entry.description);
+    let mut roles: Vec<Role> = Vec::new();
+    for (_, role) in &built.step_roles {
+        if !roles.contains(role) {
+            roles.push(*role);
+        }
+    }
+    let steps = steps_of(&built.workflow.nodes, |id| {
+        built
+            .step_roles
+            .iter()
+            .find(|(step, _)| step == id)
+            .map(|(_, role)| *role)
+    });
+    TemplateInfo {
+        id: entry.id.to_owned(),
+        kind: TemplateKind::Builtin,
+        category: entry.category,
+        recommended: entry.recommended,
+        featured: entry.featured,
+        name: entry.name.to_owned(),
+        description: entry.description.to_owned(),
+        goal,
+        roles,
+        read_only: steps.iter().all(|s| s.read_only),
+        steps,
+        outputs,
+        tools: built.tools,
+        based_on: None,
+    }
+}
+
+fn steps_of(nodes: &[WorkflowNode], role_of: impl Fn(&str) -> Option<Role>) -> Vec<StepInfo> {
+    nodes
+        .iter()
+        .filter_map(|node| {
+            let NodeKind::Agent(step) = &node.kind else {
+                return None;
+            };
+            Some(StepInfo {
+                id: node.id.clone(),
+                label: step.label.clone(),
+                role: role_of(&node.id),
+                agent_id: Some(step.agent_id.clone()).filter(|id| !id.is_empty()),
+                instructions: step.instructions.clone(),
+                completion_criteria: step.completion_criteria.clone(),
+                read_only: step.execution_policy.read_only,
+                max_iterations: node.loop_policy.as_ref().map(|l| l.max_iterations),
+            })
+        })
         .collect()
 }
 
-pub fn find(id: &str) -> Option<TemplateInfo> {
-    list().into_iter().find(|t| t.id == id)
+/// A saved template as the person reads it.
+pub fn info_of_custom(custom: &CustomTemplate) -> TemplateInfo {
+    let steps = steps_of(&custom.nodes, |_| None);
+    let category = custom
+        .based_on
+        .as_deref()
+        .and_then(|id| ENTRIES.iter().find(|e| e.id == id))
+        .map_or(TemplateCategory::SoftwareFeature, |e| e.category);
+    TemplateInfo {
+        id: custom.id.clone(),
+        kind: TemplateKind::Custom,
+        category,
+        recommended: false,
+        featured: false,
+        name: custom.name.clone(),
+        description: custom.description.clone(),
+        goal: custom.description.clone(),
+        roles: Vec::new(),
+        read_only: !steps.is_empty() && steps.iter().all(|s| s.read_only),
+        steps,
+        outputs: Vec::new(),
+        tools: custom.tools.clone(),
+        based_on: custom.based_on.clone(),
+    }
 }
 
+/// The built-in templates, the three featured ones first.
+pub fn list() -> Vec<TemplateInfo> {
+    let mut all: Vec<TemplateInfo> = ENTRIES.iter().map(info_of).collect();
+    all.sort_by_key(|info| !info.featured); // stable: the order of the table within each group
+    all
+}
+
+pub fn find(id: &str) -> Option<TemplateInfo> {
+    ENTRIES.iter().find(|e| e.id == id).map(info_of)
+}
+
+/// Words that say the task is a small, local change.
+const SMALL_TASK_WORDS: [&str; 10] = [
+    "typo",
+    "rename",
+    "renomear",
+    "tweak",
+    "small change",
+    "pequena",
+    "pequeno",
+    "one-line",
+    "copy change",
+    "ajuste de texto",
+];
+
 /// The template Automatic mode proposes for a task: by what the task says it is, with the
-/// feature template as the fallback.
+/// feature template as the fallback. A short task that calls itself small gets the quick feature
+/// template instead of the full one.
 pub fn select_for_task(task: &str) -> &'static str {
     let task = task.to_lowercase();
     let mentions = |words: &[&str]| words.iter().any(|w| task.contains(w));
@@ -198,12 +348,15 @@ pub fn select_for_task(task: &str) -> &'static str {
         "regress",
     ]) {
         TemplateCategory::BugFix
+    } else if task.chars().count() <= 140 && mentions(&SMALL_TASK_WORDS) {
+        return "feature_basic";
     } else {
         TemplateCategory::SoftwareFeature
     };
-    IDS.iter()
-        .find(|(_, c, recommended, ..)| *c == category && *recommended)
-        .map_or("software_feature", |(id, ..)| id)
+    ENTRIES
+        .iter()
+        .find(|e| e.category == category && e.recommended)
+        .map_or("software_feature", |e| e.id)
 }
 
 // ---- building -----------------------------------------------------------------------------------
@@ -213,6 +366,8 @@ struct Builder<'a> {
     nodes: Vec<WorkflowNode>,
     edges: Vec<WorkflowEdge>,
     missing: Vec<Role>,
+    roles: Vec<(String, Role)>,
+    tools: Vec<ToolSuggestion>,
 }
 
 impl<'a> Builder<'a> {
@@ -222,6 +377,8 @@ impl<'a> Builder<'a> {
             nodes: Vec::new(),
             edges: Vec::new(),
             missing: Vec::new(),
+            roles: Vec::new(),
+            tools: Vec::new(),
         }
     }
 
@@ -244,12 +401,14 @@ impl<'a> Builder<'a> {
 
     fn step(&mut self, id: &str, label: &str, role: Role, instructions: &str) -> &mut WorkflowNode {
         let agent_id = self.resolve(role);
+        self.roles.push((id.to_owned(), role));
         self.nodes.push(WorkflowNode {
             id: id.to_owned(),
             kind: NodeKind::Agent(AgentNode {
                 agent_id,
                 label: label.to_owned(),
                 instructions: instructions.to_owned(),
+                completion_criteria: String::new(),
                 retry_policy: RetryPolicy::default(),
                 failure_policy: FailurePolicy::StopWorkflow,
                 execution_policy: ExecutionPolicy::default(),
@@ -268,12 +427,49 @@ impl<'a> Builder<'a> {
         });
     }
 
+    /// What must be true for the step to be done.
+    fn done_when(&mut self, id: &str, criteria: &str) {
+        if let Some(step) = self.agent_mut(id) {
+            criteria.clone_into(&mut step.completion_criteria);
+        }
+    }
+
+    /// The step may not change files, whatever its agent could do.
+    fn read_only(&mut self, id: &str) {
+        if let Some(step) = self.agent_mut(id) {
+            step.execution_policy.read_only = true;
+        }
+    }
+
+    fn agent_mut(&mut self, id: &str) -> Option<&mut AgentNode> {
+        self.nodes
+            .iter_mut()
+            .find(|n| n.id == id)
+            .and_then(|n| match &mut n.kind {
+                NodeKind::Agent(step) => Some(step),
+                _ => None,
+            })
+    }
+
+    /// A tool the step is better off with, by kind.
+    fn suggest(&mut self, node_id: &str, capability: ToolCapability, purpose: &str) {
+        self.tools.push(ToolSuggestion {
+            node_id: node_id.to_owned(),
+            target: SuggestionTarget::Capability { capability },
+            purpose: purpose.to_owned(),
+        });
+    }
+
     fn end(&mut self, id: &str, label: &str) {
+        self.end_as(id, label, EndOutcome::Done);
+    }
+
+    fn end_as(&mut self, id: &str, label: &str, outcome: EndOutcome) {
         self.nodes.push(WorkflowNode {
             id: id.to_owned(),
             kind: NodeKind::End(EndNode {
                 label: label.to_owned(),
-                outcome: EndOutcome::Done,
+                outcome,
             }),
             priority: 0,
             loop_policy: None,
@@ -291,6 +487,17 @@ impl<'a> Builder<'a> {
         });
     }
 
+    /// The outcomes the agent of a step declares.
+    fn declared(&self, from: &str) -> Vec<String> {
+        self.nodes
+            .iter()
+            .find(|n| n.id == from)
+            .and_then(|n| n.agent_id())
+            .and_then(|id| self.agents.iter().find(|a| a.id == id))
+            .map(|a| a.outcomes.clone())
+            .unwrap_or_default()
+    }
+
     /// The two ways out of a step that judges: on to `ok_to`, or to `problem_to` to be corrected.
     /// Which outcomes those are comes from the contract of the agent the step got: the pair of
     /// the `validation` preset (`pass`/`fail`) or of the `review` preset (`approved`/
@@ -298,14 +505,7 @@ impl<'a> Builder<'a> {
     /// not a guess about an agent's wording; an agent declaring neither gets `pass`/`fail`, and
     /// validation then says what it lacks, since no pair can be chosen for it.
     fn gate(&mut self, from: &str, ok_to: &str, problem_to: &str) {
-        let declared: Vec<String> = self
-            .nodes
-            .iter()
-            .find(|n| n.id == from)
-            .and_then(|n| n.agent_id())
-            .and_then(|id| self.agents.iter().find(|a| a.id == id))
-            .map(|a| a.outcomes.clone())
-            .unwrap_or_default();
+        let declared = self.declared(from);
         let has = |o: &str| declared.iter().any(|d| d.eq_ignore_ascii_case(o));
         let (ok, problem) = if has("pass") && has("fail") {
             ("pass", "fail")
@@ -316,6 +516,25 @@ impl<'a> Builder<'a> {
         };
         self.on(from, ok_to, ok);
         self.on(from, problem_to, problem);
+    }
+
+    /// A step that fixes: on to `ok_to` when it says it fixed, to `blocked_to` when it says it
+    /// could not. An agent that does not declare that pair (a general one) goes on to `ok_to`
+    /// whatever it says, so the template is never born with a route its agent cannot take.
+    fn fix_gate(&mut self, from: &str, ok_to: &str, blocked_to: &str) {
+        let declared = self.declared(from);
+        let has = |o: &str| declared.iter().any(|d| d.eq_ignore_ascii_case(o));
+        if has("fixed") && has("blocked") {
+            // The way out for a fixer that could not establish the cause. Made here, only when
+            // something can lead to it: a node nothing reaches is a broken workflow.
+            if !self.nodes.iter().any(|n| n.id == blocked_to) {
+                self.end_as(blocked_to, "Inconclusive", EndOutcome::Failed);
+            }
+            self.on(from, ok_to, "fixed");
+            self.on(from, blocked_to, "blocked");
+        } else {
+            self.then(from, ok_to);
+        }
     }
 
     /// An edge taken when the source step ended with this *outcome*, one its agent's result
@@ -331,28 +550,7 @@ impl<'a> Builder<'a> {
     }
 }
 
-const ARCHITECT: &str = "Decide what must be built and how, within the project's architecture. \
-Record the decisions others must follow and describe the contracts. Do not implement.";
-const DEVELOPER: &str =
-    "Implement the task following the architecture and decisions you were given. \
-Keep the change focused and add tests for the behaviour you add.";
-const BACKEND: &str =
-    "Implement only the backend part of the task (APIs, services, data) described \
-by the architecture. Do not change frontend code.";
-const FRONTEND: &str =
-    "Implement only the frontend part of the task (screens, state, calls to the \
-backend contract) described by the architecture. Do not change backend code.";
-const VALIDATOR: &str = "Check, read-only, that the implementation follows the architecture, the \
-decisions, the project's conventions and its Harness. Report status pass, fail or warning with \
-structured findings. Do not modify code.";
-const QA: &str = "Check that the implementation works: run or review the tests, look for bugs and \
-edge cases. Report status pass or fail, with the evidence for a failure.";
-const FIXER: &str =
-    "Investigate the failure reported in the reports you were given, find the root \
-cause and fix only what is needed, adding or adjusting tests. Do not weaken validations to make \
-tests pass. List the files you changed and any residual risk.";
-
-/// Builds the workflow of a template for a workspace. `None` for an unknown template.
+/// Builds the workflow of a built-in template for a workspace. `None` for an unknown template.
 #[allow(clippy::too_many_lines)]
 pub fn instantiate(
     template_id: &str,
@@ -363,13 +561,23 @@ pub fn instantiate(
     mode: WorkflowMode,
     now: u64,
 ) -> Option<Instantiated> {
-    let info = find(template_id)?;
+    let entry = ENTRIES.iter().find(|e| e.id == template_id)?;
     let mut b = Builder::new(agents);
     match template_id {
         "feature_basic" => {
-            b.step("architect", "Architect", Role::Architect, ARCHITECT);
-            b.step("developer", "Developer", Role::Developer, DEVELOPER);
-            b.step("qa", "QA", Role::Qa, QA);
+            b.step(
+                "architect",
+                "Architect",
+                Role::Architect,
+                text::IMPL_ARCHITECT,
+            );
+            b.step(
+                "developer",
+                "Developer",
+                Role::Developer,
+                text::IMPL_DEVELOPER,
+            );
+            b.step("qa", "QA", Role::Qa, text::IMPL_QA);
             b.end("done", "Done");
             for (a, c) in [
                 ("architect", "developer"),
@@ -380,15 +588,15 @@ pub fn instantiate(
             }
         }
         "feature_with_validation" => {
-            b.step("architect", "Architect", Role::Architect, ARCHITECT);
-            b.step("developer", "Developer", Role::Developer, DEVELOPER);
+            b.step("architect", "Architect", Role::Architect, text::ARCHITECT);
+            b.step("developer", "Developer", Role::Developer, text::DEVELOPER);
             b.step(
                 "validator",
                 "Architecture & Code Validator",
                 Role::Validator,
-                VALIDATOR,
+                text::VALIDATOR,
             );
-            b.step("qa", "QA", Role::Qa, QA);
+            b.step("qa", "QA", Role::Qa, text::QA);
             b.end("done", "Done");
             for (a, c) in [
                 ("architect", "developer"),
@@ -400,44 +608,125 @@ pub fn instantiate(
             }
         }
         "feature_with_bug_fix_loop" => {
-            b.step("architect", "Architect", Role::Architect, ARCHITECT);
-            b.step("developer", "Developer", Role::Developer, DEVELOPER);
-            b.looped("qa", "QA", Role::Qa, QA, "qa_bug_fix");
-            b.step("bug-fixer", "Bug Fixer", Role::BugFixer, FIXER);
+            b.step("architect", "Architect", Role::Architect, text::ARCHITECT);
+            b.step("developer", "Developer", Role::Developer, text::DEVELOPER);
+            b.looped("qa", "QA", Role::Qa, text::QA, "qa_bug_fix");
+            b.step("bug-fixer", "Bug Fixer", Role::BugFixer, text::FIXER);
             b.end("done", "Done");
             b.then("architect", "developer");
             b.then("developer", "qa");
             b.gate("qa", "done", "bug-fixer");
             b.then("bug-fixer", "qa");
         }
-        "software_feature" | "full_development" | "refactoring" => {
+        "software_feature" => {
+            // The Implementer: analysis and a plan sized to the task, the change, a read-only review
+            // that sends problems to a fixer, and a behaviour check that does the same.
+            b.step(
+                "architect",
+                "Analyze and plan",
+                Role::Architect,
+                text::IMPL_ARCHITECT,
+            );
+            b.step(
+                "developer",
+                "Implement",
+                Role::Developer,
+                text::IMPL_DEVELOPER,
+            );
+            b.looped(
+                "validator",
+                "Review the change",
+                Role::Validator,
+                text::IMPL_VALIDATOR,
+                "architecture_fix",
+            );
+            b.step(
+                "bug-fixer-architecture",
+                "Fix review findings",
+                Role::BugFixer,
+                text::IMPL_FIXER,
+            );
+            b.looped(
+                "qa",
+                "Check behaviour",
+                Role::Qa,
+                text::IMPL_QA,
+                "qa_bug_fix",
+            );
+            b.step(
+                "bug-fixer-qa",
+                "Fix behaviour problems",
+                Role::BugFixer,
+                text::IMPL_FIXER,
+            );
+            b.end("done", "Done");
+            for (id, criteria) in [
+                ("architect", text::IMPL_ARCHITECT_DONE),
+                ("developer", text::IMPL_DEVELOPER_DONE),
+                ("validator", text::IMPL_VALIDATOR_DONE),
+                ("bug-fixer-architecture", text::IMPL_FIXER_DONE),
+                ("qa", text::IMPL_QA_DONE),
+                ("bug-fixer-qa", text::IMPL_FIXER_DONE),
+            ] {
+                b.done_when(id, criteria);
+            }
+            b.read_only("validator");
+            b.read_only("qa");
+            b.suggest(
+                "architect",
+                ToolCapability::Issues,
+                "Read the ticket the task refers to, when the design depends on it.",
+            );
+            b.suggest(
+                "architect",
+                ToolCapability::Docs,
+                "Read the documentation of a library or API the design relies on.",
+            );
+            b.suggest(
+                "developer",
+                ToolCapability::Docs,
+                "Check an API's documented behaviour before using it.",
+            );
+            b.suggest(
+                "qa",
+                ToolCapability::Browser,
+                "Open the page to see the behaviour when the change is a web interface.",
+            );
+            b.then("architect", "developer");
+            b.then("developer", "validator");
+            b.gate("validator", "qa", "bug-fixer-architecture");
+            b.then("bug-fixer-architecture", "validator");
+            b.gate("qa", "done", "bug-fixer-qa");
+            b.then("bug-fixer-qa", "qa");
+        }
+        "full_development" | "refactoring" => {
             let split = template_id == "full_development";
-            b.step("architect", "Architect", Role::Architect, ARCHITECT);
+            b.step("architect", "Architect", Role::Architect, text::ARCHITECT);
             if split {
-                b.step("backend", "Backend", Role::Developer, BACKEND);
-                b.step("frontend", "Frontend", Role::Developer, FRONTEND);
+                b.step("backend", "Backend", Role::Developer, text::BACKEND);
+                b.step("frontend", "Frontend", Role::Developer, text::FRONTEND);
             } else {
-                b.step("developer", "Developer", Role::Developer, DEVELOPER);
+                b.step("developer", "Developer", Role::Developer, text::DEVELOPER);
             }
             b.looped(
                 "validator",
                 "Architecture & Code Validator",
                 Role::Validator,
-                VALIDATOR,
+                text::VALIDATOR,
                 "architecture_fix",
             );
             b.step(
                 "bug-fixer-architecture",
                 "Bug Fixer (architecture)",
                 Role::BugFixer,
-                FIXER,
+                text::FIXER,
             );
-            b.looped("qa", "QA", Role::Qa, QA, "qa_bug_fix");
+            b.looped("qa", "QA", Role::Qa, text::QA, "qa_bug_fix");
             b.step(
                 "bug-fixer-qa",
                 "Bug Fixer (behaviour)",
                 Role::BugFixer,
-                FIXER,
+                text::FIXER,
             );
             b.end("done", "Done");
             if split {
@@ -454,27 +743,89 @@ pub fn instantiate(
             b.then("bug-fixer-qa", "qa");
         }
         "bug_fix" => {
-            b.step("bug-fixer", "Bug Fixer", Role::BugFixer, FIXER);
-            b.looped("qa", "QA", Role::Qa, QA, "qa_bug_fix");
+            // The Debugger: evidence and root cause first, then the smallest fix with a regression
+            // test, then a read-only verification that writes the final report. A fixer that
+            // reports it is blocked ends the run as inconclusive instead of guessing.
+            b.step(
+                "bug-fixer",
+                "Investigate and fix",
+                Role::BugFixer,
+                text::DEBUG_FIXER,
+            );
+            b.looped(
+                "qa",
+                "Verify the fix",
+                Role::Qa,
+                text::DEBUG_VERIFY,
+                "qa_bug_fix",
+            );
             b.step(
                 "bug-fixer-retry",
-                "Bug Fixer (again)",
+                "Investigate again and fix",
                 Role::BugFixer,
-                FIXER,
+                text::DEBUG_RETRY,
             );
             b.end("done", "Done");
-            b.then("bug-fixer", "qa");
+            b.done_when("bug-fixer", text::DEBUG_FIXER_DONE);
+            b.done_when("bug-fixer-retry", text::DEBUG_FIXER_DONE);
+            b.done_when("qa", text::DEBUG_VERIFY_DONE);
+            b.read_only("qa");
+            b.suggest(
+                "bug-fixer",
+                ToolCapability::Browser,
+                "Reproduce a web problem and read its console and network errors.",
+            );
+            b.suggest(
+                "bug-fixer",
+                ToolCapability::Issues,
+                "Read the bug report and what was said about it.",
+            );
+            b.suggest(
+                "bug-fixer",
+                ToolCapability::Repo,
+                "Look at recent changes and related reports in the repository's history.",
+            );
+            b.suggest(
+                "bug-fixer",
+                ToolCapability::Docs,
+                "Check how a library is documented to behave before blaming it or the code.",
+            );
+            b.suggest(
+                "qa",
+                ToolCapability::Browser,
+                "Load the page again to check the fixed behaviour.",
+            );
+            b.fix_gate("bug-fixer", "qa", "inconclusive");
             b.gate("qa", "done", "bug-fixer-retry");
-            b.then("bug-fixer-retry", "qa");
+            b.fix_gate("bug-fixer-retry", "qa", "inconclusive");
         }
         "code_review" => {
+            // The Reviewer: one read-only audit. It changes nothing; a fix is a separate run the
+            // person starts.
             b.step(
                 "validator",
-                "Architecture & Code Validator",
+                "Review code and architecture",
                 Role::Validator,
-                VALIDATOR,
+                text::REVIEW_AUDIT,
             );
             b.end("done", "Done");
+            b.done_when("validator", text::REVIEW_AUDIT_DONE);
+            b.read_only("validator");
+            b.suggest(
+                "validator",
+                ToolCapability::Issues,
+                "Read the ticket the change was meant to implement.",
+            );
+            b.suggest(
+                "validator",
+                ToolCapability::Docs,
+                "Check that a library is used the way its documentation says.",
+            );
+            b.suggest(
+                "validator",
+                ToolCapability::Repo,
+                "Read the history and the diff of the change under review.",
+            );
             b.then("validator", "done");
         }
         _ => return None,
@@ -483,14 +834,16 @@ pub fn instantiate(
         nodes,
         edges,
         missing,
+        roles,
+        tools,
         ..
     } = b;
     Some(Instantiated {
         workflow: Workflow {
             id: workflow_id.to_owned(),
             workspace_id: workspace_id.to_owned(),
-            name: name.map_or_else(|| info.name.to_owned(), str::to_owned),
-            description: info.description.to_owned(),
+            name: name.map_or_else(|| entry.name.to_owned(), str::to_owned),
+            description: entry.description.to_owned(),
             mode,
             version: 1,
             status: WorkflowStatus::Draft,
@@ -503,5 +856,51 @@ pub fn instantiate(
             updated_at: now,
         },
         missing_roles: missing,
+        step_roles: roles,
+        tools,
     })
+}
+
+/// Builds a workflow from a template a person saved. The steps, routes and agents are the ones it
+/// was saved with; an agent that no longer exists shows up in validation like in any workflow.
+pub fn instantiate_custom(
+    custom: &CustomTemplate,
+    workspace_id: &str,
+    workflow_id: &str,
+    name: Option<&str>,
+    mode: WorkflowMode,
+    now: u64,
+) -> Workflow {
+    Workflow {
+        id: workflow_id.to_owned(),
+        workspace_id: workspace_id.to_owned(),
+        name: name.map_or_else(|| custom.name.clone(), str::to_owned),
+        description: custom.description.clone(),
+        mode,
+        version: 1,
+        status: WorkflowStatus::Draft,
+        template_id: Some(custom.id.clone()),
+        nodes: custom.nodes.clone(),
+        edges: custom.edges.clone(),
+        viewport: None,
+        route_repairs: Vec::new(),
+        created_at: now,
+        updated_at: now,
+    }
+}
+
+/// What a connection was granted to a step, as a suggestion a saved template can carry.
+pub fn suggestion_of_grant(
+    node_id: &str,
+    connection: &str,
+    tools: &ToolSelection,
+) -> ToolSuggestion {
+    ToolSuggestion {
+        node_id: node_id.to_owned(),
+        target: SuggestionTarget::Connection {
+            name: connection.to_owned(),
+            tools: tools.clone(),
+        },
+        purpose: String::new(),
+    }
 }

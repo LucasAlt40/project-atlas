@@ -16,8 +16,15 @@ pub use crate::domain::mcp::ReportedMcpTool;
 pub use catalog::{McpCatalog, McpPresetInfo};
 pub use credentials::{CredentialError, CredentialStore};
 pub use launch::{LaunchEnv, LaunchServer, McpLaunch, McpProbe};
-pub use plan::{plan, McpContext, McpInputs, McpPlan};
-pub use service::{LaunchProblem, McpOverview, McpService};
+pub use plan::{plan, CliServer, McpContext, McpInputs, McpPlan, PlannedServer};
+pub use runtime_files::{RuntimeConfigFiles, RuntimeFileError};
+pub use service::{
+    ApplyReport, ImportReport, LaunchProblem, McpOverview, McpService, RuntimeSource, SyncPlan,
+    SyncReport,
+};
+
+#[cfg(test)]
+pub use runtime_files::memory::MemoryRuntimeFiles;
 
 #[cfg(test)]
 pub use credentials::memory::MemoryCredentials;

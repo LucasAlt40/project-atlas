@@ -3124,6 +3124,59 @@ fn edit_tools_granted_in_an_isolated_worktree_are_recorded_and_the_grant_that_ca
 }
 
 #[test]
+fn a_read_only_step_is_held_to_reading_even_when_its_agent_may_write() {
+    let guarded_git = || {
+        let f = git_fixture_with(Ok("done"), |_| {}, true, true);
+        let policies = Arc::new(crate::application::security::SecurityService::new(
+            f.config.clone(),
+        ));
+        GitFixture {
+            service: f
+                .service
+                .with_policies(policies)
+                .with_optimization(Arc::new(guarded())),
+            ..f
+        }
+    };
+    let run_with = |f: &GitFixture, agent: &str, read_only: bool| {
+        f.service
+            .run_step(
+                f.service.next_execution_id(),
+                RunAgentRequest {
+                    task_id: "task-1".to_owned(),
+                    workspace_id: f.workspace_id.clone(),
+                    agent_id: agent.to_owned(),
+                    description: "review it".to_owned(),
+                },
+                StepOptions {
+                    read_only,
+                    ..StepOptions::default()
+                },
+                &Collector::default(),
+            )
+            .unwrap()
+    };
+
+    // The same agent: with the node's restriction no edit tools reach the runtime, without it
+    // they do (so the restriction is what made the difference).
+    let free = guarded_git();
+    let agent = developer_agent(&free, true);
+    run_with(&free, &agent, false);
+    assert!(free.runtime.requests.lock().unwrap()[0].allow_edits);
+
+    let held = guarded_git();
+    let agent = developer_agent(&held, true);
+    let record = run_with(&held, &agent, true);
+    assert!(!held.runtime.requests.lock().unwrap()[0].allow_edits);
+    assert_eq!(record.execution.status, ExecutionStatus::Completed);
+    // The prompt says what the tools allow: read-only.
+    assert!(held.runtime.requests.lock().unwrap()[0]
+        .prompt
+        .system
+        .contains("read-only mode"));
+}
+
+#[test]
 fn a_read_only_agent_asked_for_nothing_so_nothing_is_denied() {
     let f = with_flags(fixture(vec![("rt-a", Ok("done"))]), guarded());
     let agent = create_agent(&f, "rt-a");

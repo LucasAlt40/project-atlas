@@ -14,8 +14,8 @@ use std::time::Duration;
 use super::engine::{StepCompletion, WorkflowEngine};
 use super::integration::integration_from_close;
 use super::runner::{
-    Refusal, RunEnd, StepOutcome, StepRequest, StepRunner, StepStatus, WorkflowObserver,
-    WorkspaceRequest,
+    Refusal, RunEnd, StepAccess, StepOutcome, StepRequest, StepRunner, StepStatus,
+    WorkflowObserver, WorkspaceRequest,
 };
 use super::service::WorkflowService;
 use super::worktree_lock::WorktreeLock;
@@ -620,6 +620,14 @@ impl Orchestrator {
             let access = shared_worktree.as_ref().and_then(|_| {
                 self.runner
                     .shared_access(&exec.workspace_id, &candidate.agent_id)
+                    // A read-only step never needs the worktree to itself.
+                    .map(|access| {
+                        if reads_only(node) {
+                            StepAccess::Read
+                        } else {
+                            access
+                        }
+                    })
             });
             if let Some(access) = access {
                 if !lock.try_acquire(&candidate.node_id, access) {
@@ -639,6 +647,7 @@ impl Orchestrator {
                 display_task: brief.display_task,
                 shared_worktree,
                 announce_integrations: announces_integrations(node),
+                read_only: reads_only(node),
                 link: WorkflowLink {
                     workflow_id: exec.workflow_id.clone(),
                     workflow_name: exec.workflow.name.clone(),
@@ -1092,6 +1101,13 @@ fn announces_integrations(node: &crate::domain::workflow::WorkflowNode) -> bool 
         _ => true,
     }
 }
+/// Whether the node's step may not edit files (the node's setting; `false` for anything that is not
+/// an agent step).
+fn reads_only(node: &crate::domain::workflow::WorkflowNode) -> bool {
+    node.agent()
+        .is_some_and(|step| step.execution_policy.read_only)
+}
+
 /// The attempt and the iteration the node starts now (the first of each when it has not run).
 fn next_attempt(exec: &WorkflowExecution, node_id: &str) -> (u32, u32) {
     exec.node_state(node_id).map_or((1, 1), |s| {

@@ -25,6 +25,7 @@ pub fn agent(id: &str, agent_id: &str) -> WorkflowNode {
             agent_id: agent_id.to_owned(),
             label: id.to_owned(),
             instructions: String::new(),
+            completion_criteria: String::new(),
             retry_policy: RetryPolicy::default(),
             failure_policy: FailurePolicy::StopWorkflow,
             execution_policy: crate::domain::workflow::ExecutionPolicy::default(),
