@@ -63,6 +63,7 @@ npm run check   # tipos, lint, formatação e testes (frontend e Rust)
 - Resumo em uma página: [docs/RESUMO.md](docs/RESUMO.md)
 - Acompanhar e responder execuções pelo celular (rede local): [docs/guia/08-acesso-pelo-celular.md](docs/guia/08-acesso-pelo-celular.md)
 - Decisões e arquitetura (ADRs): [docs/architecture](docs/architecture/README.md)
+- História e processo (vídeos da primeira versão estável, pre-pre-alpha): [docs/HISTORIA.md](docs/HISTORIA.md)
 
 ## Licença
 
