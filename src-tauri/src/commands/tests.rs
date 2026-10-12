@@ -83,6 +83,7 @@ fn window() -> (tauri::App<MockRuntime>, WebviewWindow<MockRuntime>) {
             super::workflow::delete_workflow,
             super::workflow::validate_workflow,
             super::workflow::start_workflow,
+            super::workflow::set_auto_approve_plans,
             super::workflow::pause_workflow,
             super::workflow::resume_workflow,
             super::workflow::cancel_workflow,

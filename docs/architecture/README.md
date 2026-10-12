@@ -390,3 +390,4 @@ A frontend router and global store are intentionally absent until a second scree
 - [0028 — MCP foundation (Phase D)](adr/0028-mcp-foundation.md)
 - [0029 — MCP for every runtime that can take it](adr/0029-mcp-for-every-runtime.md) — what each CLI offers, measured
 - [0030 — Workflow templates: purpose, tools and saved copies](adr/0030-workflow-templates-and-tools.md) — Implementer, Debugger, Reviewer; MCP per step
+- [0031 — Plans wait for the person](adr/0031-plan-approval.md) — approve, change or redo; automatic approval is the person's setting

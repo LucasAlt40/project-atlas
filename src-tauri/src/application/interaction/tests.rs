@@ -228,3 +228,29 @@ fn a_question_followed_by_a_summary_is_found_in_an_unfinished_message() {
     assert_eq!(found.kind, Some(InteractionKind::Approval));
     assert!(found.document.contains("Add the column"));
 }
+
+#[test]
+fn a_plan_block_needs_no_question_keeps_the_plan_as_its_document_and_has_atlass_buttons() {
+    let found = detect(
+        "## Plan\n\n1. Add the endpoint\n2. Test it\n\n```atlas-interaction\n\
+         {\"type\":\"plan\",\"context\":\"the users endpoint\",\
+         \"options\":[\"apply-to-main\"]}\n```",
+    );
+
+    assert!(should_pause(&found));
+    assert_eq!(found.kind, Some(InteractionKind::Plan));
+    assert_eq!(found.confidence, 100);
+    assert!(found.document.contains("1. Add the endpoint"));
+    assert!(!found.document.contains("atlas-interaction"));
+    assert_eq!(found.question, "Do you approve this plan?");
+    // What the person can answer is Atlas's: an agent cannot add a button.
+    let ids: Vec<&str> = found.options.iter().map(|o| o.id.as_str()).collect();
+    assert_eq!(ids, ["approve", "revise", "redo"]);
+}
+
+#[test]
+fn a_plan_followed_by_a_result_is_not_waiting_for_anyone() {
+    let text = "The plan\n\n```atlas-interaction\n{\"type\":\"plan\"}\n```\n\
+                ```atlas-result\n{\"status\":\"success\",\"summary\":\"done\"}\n```";
+    assert_eq!(pauses(text), None);
+}

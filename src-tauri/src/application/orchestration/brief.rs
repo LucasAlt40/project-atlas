@@ -10,7 +10,9 @@ use super::result_parser::RESULT_FENCE;
 use crate::application::interaction::INTERACTION_FENCE;
 use crate::application::workflow::graph::Graph;
 use crate::domain::guardrail::{Answered, ReviewAnswer};
-use crate::domain::interaction::{DetectionSource, InteractionStatus, PendingInteraction};
+use crate::domain::interaction::{
+    DetectionSource, InteractionKind, InteractionStatus, PendingInteraction, PLAN_REDO, PLAN_REVISE,
+};
 use crate::domain::optimization::BriefParts;
 use crate::domain::orchestration::{Finding, ResultStatus};
 use crate::domain::result_contract::ResultContract;
@@ -332,7 +334,24 @@ fn human_input_block(exec: &WorkflowExecution, node_id: &str) -> String {
             interaction.kind.as_str(),
             quote(&clip(&interaction.question, 600))
         );
-        if interaction.was_declined() {
+        if interaction.kind == InteractionKind::Plan {
+            match interaction.choice.as_deref() {
+                Some(PLAN_REVISE) => text.push_str(
+                    "The person asked for CHANGES to your plan (their note is below). Revise \
+                     the plan, write it again in full and end with the plan block again. Do not \
+                     carry anything out yet.\n",
+                ),
+                Some(PLAN_REDO) => text.push_str(
+                    "The person asked you to DISCARD that plan and make a new one (any note is \
+                     below). Write the new plan in full and end with the plan block again. Do \
+                     not carry anything out yet.\n",
+                ),
+                _ => text.push_str(
+                    "The person APPROVED your plan. Carry it out now. Do not ask for approval \
+                     of it again.\n",
+                ),
+            }
+        } else if interaction.was_declined() {
             text.push_str(
                 "The person DECLINED. Do not do what you asked to do. If you cannot finish the \
                  task without it, end with the outcome that says you are blocked (if your \
@@ -376,6 +395,14 @@ fn interaction_protocol() -> String {
          A plan or analysis you ask about follows the plans rule above (written in full, and saved \
          as a file if you can create files). Do not end with a signature or a sign-off after the \
          block or the question.\n\
+         PLANS. Whenever you draw up a plan (an approach, a design or a list of steps for work \
+         that is still to be done, by you or by others), do not carry it out yet: write it in \
+         full, then end your message with this block and stop, without the result block. The \
+         person approves it, asks for changes or has it redone before anything goes on. A trivial \
+         change that needs no plan needs no block.\n\
+         ```{INTERACTION_FENCE}\n\
+         {{\"type\":\"plan\",\"context\":\"one line on what the plan covers\"}}\n\
+         ```\n\
          The person's answer is given back to you and you go on. Their approval lets you continue \
          in this workflow's own worktree; it never applies anything to the main project and does \
          not change what you are allowed to do.\n"
@@ -658,6 +685,7 @@ mod tests {
             choice: Some(choice.to_owned()),
             answer: None,
             evaluation: Some("ev-1".to_owned()),
+            auto: false,
         }
     }
 
@@ -816,5 +844,45 @@ mod tests {
             InteractionStatus::Answered,
         ));
         assert!(human_input_block(&exec, "dev").contains("HUMAN INPUT"));
+    }
+
+    #[test]
+    fn a_steps_completion_criteria_are_told_with_its_instructions_and_only_when_it_has_some() {
+        let mut exec = run();
+        let contract = ResultContract::general();
+        let graph = Graph::new(&exec.workflow);
+        let without = build(&exec, &graph, "dev", &contract).description;
+        assert!(!without.contains("This step is done when"));
+
+        if let Some(crate::domain::workflow::NodeKind::Agent(step)) = exec
+            .workflow
+            .nodes
+            .iter_mut()
+            .find(|n| n.id == "dev")
+            .map(|n| &mut n.kind)
+        {
+            step.instructions = "Do the thing.".to_owned();
+            step.completion_criteria = "The thing is done and tested.".to_owned();
+        }
+        let graph = Graph::new(&exec.workflow);
+        let with = build(&exec, &graph, "dev", &contract).description;
+
+        let instructions = with.find("Do the thing.").unwrap();
+        let criteria = with
+            .find("This step is done when:\nThe thing is done and tested.")
+            .unwrap();
+        let task = with.find("Overall task:").unwrap();
+        assert!(instructions < criteria && criteria < task);
+        // Saying it cannot be met is part of the criteria, so "done" is never claimed to please.
+        assert!(with.contains("say what is missing"));
+    }
+
+    #[test]
+    fn every_step_is_told_to_stop_at_a_plan_and_wait_for_the_person() {
+        let text = interaction_protocol();
+
+        assert!(text.contains("PLANS."));
+        assert!(text.contains("\"type\":\"plan\""));
+        assert!(text.contains("do not carry it out yet"));
     }
 }

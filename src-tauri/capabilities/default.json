@@ -82,6 +82,7 @@
     "allow-delete-workflow",
     "allow-validate-workflow",
     "allow-start-workflow",
+    "allow-set-auto-approve-plans",
     "allow-pause-workflow",
     "allow-resume-workflow",
     "allow-cancel-workflow",

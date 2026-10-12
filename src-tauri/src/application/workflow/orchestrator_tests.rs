@@ -1951,9 +1951,18 @@ struct Driven {
 
 impl Env {
     fn drive(&self, runner: &Arc<Scripted>, workflow_id: &str) -> Driven {
+        self.drive_with_plans(runner, workflow_id, false)
+    }
+
+    fn drive_with_plans(
+        &self,
+        runner: &Arc<Scripted>,
+        workflow_id: &str,
+        auto_approve_plans: bool,
+    ) -> Driven {
         let exec = self
             .service
-            .start(workflow_id, "Implement the users API")
+            .start_with_plans(workflow_id, "Implement the users API", auto_approve_plans)
             .unwrap();
         let observer = Arc::new(Collector::default());
         let orchestrator = Arc::new(self.orchestrator(runner));
@@ -2270,6 +2279,7 @@ fn a_question_survives_the_app_closing_and_is_answered_into_a_resumed_run() {
         choice: None,
         answer: None,
         evaluation: None,
+        auto: false,
     };
     engine.wait_for_input(&mut exec, "developer", interaction, 3);
     env.service.save_execution(&exec).unwrap();
@@ -2424,6 +2434,7 @@ fn only_one_question_is_pending_for_a_step_at_a_time() {
         choice: None,
         answer: None,
         evaluation: None,
+        auto: false,
     };
     let (a, b) = (make("a"), make("b"));
     assert_eq!(engine.wait_for_input(&mut exec, "developer", a, 3).len(), 2);
@@ -2807,4 +2818,169 @@ fn a_run_stopped_for_want_of_a_route_resumes_after_the_routes_are_repaired_by_co
     assert_eq!(exec.workflow_version, repaired.version);
     assert_eq!(started_count(&runner, "developer"), 1);
     assert_eq!(started_count(&runner, "qa"), 1);
+}
+
+// ---- plans: approval before anything is carried out -------------------------------------------------
+
+fn plan() -> Step {
+    asks(InteractionKind::Plan, "Do you approve this plan?")
+}
+
+#[test]
+fn a_plan_stops_the_run_until_the_person_approves_asks_for_changes_or_has_it_redone() {
+    let env = env();
+    let workflow = dev_flow(&env);
+    let runner = Scripted::new();
+    runner.script("developer", vec![plan(), plan(), plan(), ok("success", "")]);
+    let run = env.drive(&runner, &workflow.id);
+    // The plan that waits, once it is not the one already answered.
+    let waiting = |what: &str, not: &str| {
+        wait_until(what, || {
+            env.run_of(&run.id)
+                .pending_interaction("developer")
+                .is_some_and(|i| i.id != not)
+        });
+        env.run_of(&run.id)
+            .pending_interaction("developer")
+            .cloned()
+            .unwrap()
+    };
+
+    let first = waiting("the first plan", "");
+    assert_eq!(first.kind, InteractionKind::Plan);
+    // The plan itself is kept with the question, to be read in full.
+    assert!(first.document.contains("step one"));
+    assert_eq!(
+        first
+            .options
+            .iter()
+            .map(|o| o.id.as_str())
+            .collect::<Vec<_>>(),
+        ["approve", "revise", "redo"]
+    );
+    assert_eq!(runner.started(), ["developer"], "nothing is carried out");
+
+    // Asking for changes without saying which is refused: the plan keeps waiting.
+    assert!(run.answer(&env, choice("revise")).is_err());
+    assert_eq!(
+        env.run_of(&run.id)
+            .pending_interaction("developer")
+            .map(|i| i.id.clone()),
+        Some(first.id.clone())
+    );
+    assert_eq!(
+        run.answer(
+            &env,
+            InteractionAnswer {
+                choice: Some("revise".to_owned()),
+                text: Some("Split it in two steps".to_owned()),
+            }
+        ),
+        Ok(AnswerDelivery::Delivered)
+    );
+
+    let second = waiting("the revised plan", &first.id);
+    assert_ne!(second.id, first.id);
+    assert_eq!(
+        run.answer(&env, choice("redo")),
+        Ok(AnswerDelivery::Delivered)
+    );
+
+    let third = waiting("the new plan", &second.id);
+    assert_ne!(third.id, second.id);
+    assert_eq!(runner.started(), ["developer", "developer", "developer"]);
+    assert_eq!(
+        run.answer(&env, choice("approve")),
+        Ok(AnswerDelivery::Delivered)
+    );
+    run.thread.join().unwrap();
+
+    let done = env.run_of(&run.id);
+    assert_eq!(done.status, WorkflowExecutionStatus::Completed);
+    // Each pass was told what the person decided, and only the last was told to carry on.
+    let told = |n: usize| runner.requests_for("developer")[n].instruction.clone();
+    assert!(told(1).contains("asked for CHANGES") && told(1).contains("Split it in two steps"));
+    assert!(told(2).contains("DISCARD that plan"));
+    assert!(told(3).contains("APPROVED your plan"));
+    assert!(!told(1).contains("APPROVED your plan"));
+    assert!(done.interactions.iter().all(|i| !i.auto));
+}
+
+#[test]
+fn plans_are_approved_without_asking_when_the_person_said_so_and_the_trail_says_it() {
+    let env = env();
+    let workflow = dev_flow(&env);
+    let runner = Scripted::new();
+    runner.script("developer", vec![plan(), ok("success", "")]);
+
+    let run = env.drive_with_plans(&runner, &workflow.id, true);
+    run.thread.join().unwrap();
+
+    let done = env.run_of(&run.id);
+    assert_eq!(done.status, WorkflowExecutionStatus::Completed);
+    assert!(done.auto_approve_plans);
+    let plan = &done.interactions[0];
+    assert_eq!(plan.status, InteractionStatus::Answered);
+    assert_eq!(plan.choice.as_deref(), Some("approve"));
+    assert!(plan.auto, "answered by the setting, not by a person");
+    assert!(
+        plan.document.contains("step one"),
+        "the plan stays readable"
+    );
+    assert!(runner.requests_for("developer")[1]
+        .instruction
+        .contains("APPROVED your plan"));
+}
+
+#[test]
+fn turning_automatic_approval_on_approves_the_plan_that_waits_and_only_a_plan() {
+    let env = env();
+    let workflow = dev_flow(&env);
+    let runner = Scripted::new();
+    runner.script(
+        "developer",
+        vec![
+            asks(InteractionKind::Clarification, "Which API?"),
+            plan(),
+            ok("success", ""),
+        ],
+    );
+    let run = env.drive_with_plans(&runner, &workflow.id, true);
+
+    // Automatic approval never answers a question: this one waits for the person.
+    wait_until("the question", || {
+        env.run_of(&run.id).status == WorkflowExecutionStatus::WaitingForInput
+    });
+    assert_eq!(
+        env.run_of(&run.id)
+            .pending_interaction("developer")
+            .unwrap()
+            .kind,
+        InteractionKind::Clarification
+    );
+    assert_eq!(
+        run.answer(&env, text_answer("/api/users")),
+        Ok(AnswerDelivery::Delivered)
+    );
+    run.thread.join().unwrap();
+    let done = env.run_of(&run.id);
+    assert_eq!(done.status, WorkflowExecutionStatus::Completed);
+    assert!(!done.interactions[0].auto);
+    assert!(done.interactions[1].auto);
+
+    // Off at the start and on while the plan waits: the waiting plan is approved.
+    let later = Scripted::new();
+    later.script("developer", vec![plan(), ok("success", "")]);
+    let run = env.drive(&later, &workflow.id);
+    wait_until("the plan", || {
+        env.run_of(&run.id).status == WorkflowExecutionStatus::WaitingForInput
+    });
+    assert!(!env.run_of(&run.id).auto_approve_plans);
+    run.orchestrator
+        .set_auto_approve_plans(&run.id, true, run.observer.as_ref())
+        .unwrap();
+    run.thread.join().unwrap();
+    let done = env.run_of(&run.id);
+    assert_eq!(done.status, WorkflowExecutionStatus::Completed);
+    assert!(done.interactions[0].auto);
 }

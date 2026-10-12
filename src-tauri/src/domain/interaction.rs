@@ -35,6 +35,9 @@ pub enum InteractionKind {
     Permission,
     /// The runtime itself asked ("Apply these changes?"). Shown as the runtime asked it.
     RuntimeConfirmation,
+    /// The agent drew up a plan and waits for the person to approve it, ask for changes or have it
+    /// redone before it carries anything out. The document is the plan itself.
+    Plan,
 }
 
 impl InteractionKind {
@@ -44,6 +47,7 @@ impl InteractionKind {
             Self::Approval => "approval",
             Self::Permission => "permission",
             Self::RuntimeConfirmation => "runtime_confirmation",
+            Self::Plan => "plan",
         }
     }
 
@@ -58,6 +62,7 @@ impl InteractionKind {
             "approval" | "approve" | "confirm" | "confirmation" => Some(Self::Approval),
             "permission" | "permission_request" => Some(Self::Permission),
             "runtime_confirmation" | "runtimeconfirmation" => Some(Self::RuntimeConfirmation),
+            "plan" | "plan_approval" | "proposal" => Some(Self::Plan),
             _ => None,
         }
     }
@@ -102,9 +107,21 @@ pub fn decision_options(kind: InteractionKind) -> Vec<InteractionOption> {
             InteractionOption::new("yes", "Yes"),
             InteractionOption::new("no", "No"),
         ],
+        InteractionKind::Plan => vec![
+            InteractionOption::new(PLAN_APPROVE, "Approve plan"),
+            InteractionOption::new(PLAN_REVISE, "Request changes"),
+            InteractionOption::new(PLAN_REDO, "Redo the plan"),
+        ],
         InteractionKind::Clarification => Vec::new(),
     }
 }
+
+/// The three answers to a plan. Atlas's, like every decision's buttons: an agent cannot invent them.
+pub const PLAN_APPROVE: &str = "approve";
+/// Go on with the plan, but changed as the person's note says (the note is required).
+pub const PLAN_REVISE: &str = "revise";
+/// Throw the plan away and make another (a note is optional).
+pub const PLAN_REDO: &str = "redo";
 
 /// Whether the option id means "no" (the agent is told it may not).
 pub fn is_negative(option_id: &str) -> bool {
@@ -221,6 +238,10 @@ pub struct PendingInteraction {
     /// The guardrail evaluation the question is bound to (see [`InteractionDetection`]).
     #[serde(default)]
     pub evaluation: Option<String>,
+    /// Atlas answered it, because the person had asked for plans to be approved automatically.
+    /// Only ever true for a plan, and only by that setting: never by anything an agent wrote.
+    #[serde(default)]
+    pub auto: bool,
 }
 
 impl PendingInteraction {
@@ -279,6 +300,10 @@ pub fn validate_answer(
             return Err(AnswerProblem::Invalid);
         }
     }
+    if interaction.kind == InteractionKind::Plan && choice == Some(PLAN_REVISE) && text.is_none() {
+        // Asking for changes without saying which is not an answer the agent can act on.
+        return Err(AnswerProblem::Invalid);
+    }
     if interaction.kind.is_decision() {
         // A decision is a pick between its options; a note may come with it.
         return choice
@@ -319,6 +344,7 @@ mod tests {
             choice: None,
             answer: None,
             evaluation: None,
+            auto: false,
         }
     }
 
@@ -369,5 +395,35 @@ mod tests {
             text: Some("x".into()),
         };
         assert_eq!(validate_answer(&i, &text), Err(AnswerProblem::NotPending));
+    }
+
+    #[test]
+    fn a_plan_is_approved_or_redone_as_it_is_and_changes_need_their_words() {
+        let i = pending(InteractionKind::Plan);
+        let pick = |choice: &str, text: Option<&str>| InteractionAnswer {
+            choice: Some(choice.into()),
+            text: text.map(Into::into),
+        };
+
+        assert!(validate_answer(&i, &pick("approve", None)).is_ok());
+        assert!(validate_answer(&i, &pick("redo", None)).is_ok());
+        assert!(validate_answer(&i, &pick("redo", Some("simpler"))).is_ok());
+        // "Change it" without saying how is not something an agent can act on.
+        assert_eq!(
+            validate_answer(&i, &pick("revise", None)),
+            Err(AnswerProblem::Invalid)
+        );
+        assert_eq!(
+            validate_answer(&i, &pick("revise", Some("  "))),
+            Err(AnswerProblem::Invalid)
+        );
+        assert!(validate_answer(&i, &pick("revise", Some("split it"))).is_ok());
+        // Neither asking for changes nor redoing is a refusal: the agent is not told "no".
+        assert!(!is_negative("revise") && !is_negative("redo"));
+        // Only its own three answers.
+        assert_eq!(
+            validate_answer(&i, &pick("allow", None)),
+            Err(AnswerProblem::Invalid)
+        );
     }
 }

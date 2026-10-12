@@ -165,6 +165,7 @@ pub fn run() {
             commands::workflow::suggest_route_repairs,
             commands::workflow::repair_workflow_routes,
             commands::workflow::start_workflow,
+            commands::workflow::set_auto_approve_plans,
             commands::workflow::pause_workflow,
             commands::workflow::resume_workflow,
             commands::workflow::cancel_workflow,

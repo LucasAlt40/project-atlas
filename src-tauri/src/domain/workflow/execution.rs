@@ -338,6 +338,10 @@ pub struct WorkflowExecution {
     pub workflow_version: u32,
     pub workflow: Workflow,
     pub task: String,
+    /// The person asked for the plans the steps draw up to be approved without asking them.
+    /// Theirs alone to set (at the start of the run, or while it goes): no step can.
+    #[serde(default)]
+    pub auto_approve_plans: bool,
     pub status: WorkflowExecutionStatus,
     #[serde(default)]
     pub failure: Option<WorkflowFailure>,
@@ -390,6 +394,7 @@ impl WorkflowExecution {
             workflow_version: workflow.version,
             workflow,
             task,
+            auto_approve_plans: false,
             status: WorkflowExecutionStatus::Running,
             failure: None,
             cancel_requested: false,

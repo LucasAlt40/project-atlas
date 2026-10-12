@@ -194,10 +194,32 @@ pub fn start_workflow<R: Runtime>(
     state: State<'_, AppState>,
     workflow_id: String,
     task: String,
+    auto_approve_plans: Option<bool>,
 ) -> Result<WorkflowExecution, AppError> {
-    let execution = state.workflows.start(&workflow_id, &task)?;
+    let execution = state.workflows.start_with_plans(
+        &workflow_id,
+        &task,
+        auto_approve_plans.unwrap_or(false),
+    )?;
     drive(&app, &state, execution.id.clone(), Drive::Fresh);
     Ok(execution)
+}
+
+/// Turns the automatic approval of plans on or off for a run. Turning it on also approves the
+/// plans already waiting. Only the person can do this: no agent's answer can.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command]
+pub fn set_auto_approve_plans<R: Runtime>(
+    app: AppHandle<R>,
+    state: State<'_, AppState>,
+    execution_id: String,
+    enabled: bool,
+) -> Result<(), AppError> {
+    state.orchestrator.set_auto_approve_plans(
+        &execution_id,
+        enabled,
+        &TauriWorkflowObserver { app },
+    )
 }
 
 /// Stops starting new steps. A step already running is left to finish.

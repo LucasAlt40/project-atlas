@@ -554,7 +554,22 @@ impl WorkflowService {
     /// Fails if the workflow is unknown, invalid, already running, or the task is empty.
     #[cfg_attr(not(test), allow(dead_code))]
     pub fn start(&self, workflow_id: &str, task: &str) -> Result<WorkflowExecution, AppError> {
-        self.start_checked(workflow_id, task, true)
+        self.start_checked(workflow_id, task, true, false)
+    }
+
+    /// As [`Self::start`], with the person's standing instruction about the plans the steps draw
+    /// up: approve them without asking.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::start`].
+    pub fn start_with_plans(
+        &self,
+        workflow_id: &str,
+        task: &str,
+        auto_approve_plans: bool,
+    ) -> Result<WorkflowExecution, AppError> {
+        self.start_checked(workflow_id, task, true, auto_approve_plans)
     }
 
     /// Starts without validating: only tests use it, to watch the engine on a definition
@@ -565,7 +580,7 @@ impl WorkflowService {
         workflow_id: &str,
         task: &str,
     ) -> Result<WorkflowExecution, AppError> {
-        self.start_checked(workflow_id, task, false)
+        self.start_checked(workflow_id, task, false, false)
     }
 
     fn start_checked(
@@ -573,6 +588,7 @@ impl WorkflowService {
         workflow_id: &str,
         task: &str,
         validated: bool,
+        auto_approve_plans: bool,
     ) -> Result<WorkflowExecution, AppError> {
         let workflow = self
             .get(workflow_id)
@@ -585,7 +601,8 @@ impl WorkflowService {
             return Err(AppError::new(ErrorCode::WorkflowInvalid));
         }
         let now = now_ms();
-        let execution = WorkflowExecution::new(new_id("wfx"), workflow, task.to_owned(), now);
+        let mut execution = WorkflowExecution::new(new_id("wfx"), workflow, task.to_owned(), now);
+        execution.auto_approve_plans = auto_approve_plans;
         let stored = execution.clone();
         self.config.modify(|config| {
             // One run at a time per workflow: a second would fight the first for its agents.

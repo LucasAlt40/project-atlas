@@ -82,6 +82,7 @@ const COMMANDS: &[&str] = &[
     "delete_workflow",
     "validate_workflow",
     "start_workflow",
+    "set_auto_approve_plans",
     "pause_workflow",
     "resume_workflow",
     "cancel_workflow",

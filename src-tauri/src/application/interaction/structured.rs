@@ -18,6 +18,9 @@ use crate::domain::interaction::{
 
 pub const INTERACTION_FENCE: &str = "atlas-interaction";
 
+/// What the person is asked about a plan whose agent did not word the question.
+const PLAN_QUESTION: &str = "Do you approve this plan?";
+
 pub enum Block {
     /// A valid request for a person.
     Interaction(InteractionDetection),
@@ -55,13 +58,16 @@ fn last_block<'a>(text: &'a str, tag: &str) -> Option<(usize, &'a str)> {
 fn parse(body: &str) -> Option<InteractionDetection> {
     let value: Value = serde_json::from_str(body).ok()?;
     let object = value.as_object()?;
-    let question = clip(object.get("question")?.as_str()?, MAX_QUESTION);
-    if question.is_empty() {
-        return None;
-    }
     let kind = match object.get("type").and_then(Value::as_str) {
         Some(said) => InteractionKind::parse(said)?,
         None => InteractionKind::Clarification,
+    };
+    // A plan is its own question: the agent need not word one.
+    let asked = object.get("question").and_then(Value::as_str);
+    let question = match (asked, kind) {
+        (Some(text), _) if !clip(text, MAX_QUESTION).is_empty() => clip(text, MAX_QUESTION),
+        (_, InteractionKind::Plan) => PLAN_QUESTION.to_owned(),
+        _ => return None,
     };
     let context = object
         .get("context")

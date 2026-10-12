@@ -31,8 +31,8 @@ use crate::application::orchestration::result_parser::{parse_with_contract, Outc
 use crate::application::support::now_ms;
 use crate::domain::execution::WorkflowLink;
 use crate::domain::interaction::{
-    validate_answer, AnswerProblem, InteractionAnswer, InteractionDetection, InteractionStatus,
-    PendingInteraction,
+    validate_answer, AnswerProblem, InteractionAnswer, InteractionDetection, InteractionKind,
+    InteractionStatus, PendingInteraction, PLAN_APPROVE,
 };
 use crate::domain::orchestration::ArtifactType;
 use crate::domain::result_contract::ResultContract;
@@ -63,6 +63,8 @@ enum Message {
         interaction_id: String,
         answer: InteractionAnswer,
     },
+    /// The person turned the automatic approval of plans on or off.
+    AutoPlans(bool),
 }
 
 /// Where an answer went.
@@ -706,6 +708,15 @@ impl Orchestrator {
                 Ok(events) => events,
                 Err(problem) => engine.reject_answer(exec, &interaction_id, &problem, at),
             },
+            Message::AutoPlans(on) => {
+                exec.auto_approve_plans = on;
+                // Turning it on covers the plans already waiting: that is what was asked.
+                if on {
+                    Self::approve_waiting_plans(exec, engine, at)
+                } else {
+                    Vec::new()
+                }
+            }
             Message::Finished {
                 node_id,
                 outcome:
@@ -944,8 +955,81 @@ impl Orchestrator {
             choice: None,
             answer: None,
             evaluation: detection.evaluation,
+            auto: false,
         };
-        engine.wait_for_input(exec, node_id, interaction, at)
+        let mut events = engine.wait_for_input(exec, node_id, interaction, at);
+        // The person asked for plans to be approved without asking them: Atlas answers, and the
+        // trail says so. Nothing else is ever answered this way, and an agent cannot turn it on.
+        if exec.auto_approve_plans {
+            events.extend(Self::approve_waiting_plans(exec, engine, at));
+        }
+        events
+    }
+
+    /// Approves, on the person's standing instruction, every plan that waits for an answer.
+    fn approve_waiting_plans(
+        exec: &mut WorkflowExecution,
+        engine: &WorkflowEngine<'_>,
+        at: u64,
+    ) -> Vec<WorkflowEvent> {
+        let waiting: Vec<String> = exec
+            .interactions
+            .iter()
+            .filter(|i| i.is_pending() && i.kind == InteractionKind::Plan)
+            .map(|i| i.id.clone())
+            .collect();
+        let mut events = Vec::new();
+        for id in waiting {
+            if let Some(found) = exec.interactions.iter_mut().find(|i| i.id == id) {
+                found.auto = true;
+            }
+            let approval = InteractionAnswer {
+                choice: Some(PLAN_APPROVE.to_owned()),
+                text: None,
+            };
+            if let Ok(more) = engine.answer_input(exec, &id, &approval, at) {
+                events.extend(more);
+            }
+        }
+        events
+    }
+
+    /// Turns the automatic approval of plans on or off for a run. While the run is driven the
+    /// change goes to the loop that owns it; otherwise it is written to the stored run.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the run is unknown or already ended.
+    pub fn set_auto_approve_plans(
+        &self,
+        execution_id: &str,
+        on: bool,
+        observer: &dyn WorkflowObserver,
+    ) -> Result<(), AppError> {
+        let mut exec = self
+            .workflows
+            .execution(execution_id)
+            .ok_or_else(|| AppError::new(ErrorCode::WorkflowExecutionNotFound))?;
+        if !exec.status.is_active() {
+            return Err(AppError::new(ErrorCode::WorkflowStateInvalid));
+        }
+        let sender = self.live.lock_or_recover().get(execution_id).cloned();
+        if let Some(sender) = sender {
+            return sender
+                .send(Message::AutoPlans(on))
+                .map_err(|_| AppError::new(ErrorCode::WorkflowStateInvalid));
+        }
+        // Nobody drives it (the app was closed): the instruction is kept for when it is.
+        exec.auto_approve_plans = on;
+        let workflow = exec.workflow.clone();
+        let events = if on {
+            Self::approve_waiting_plans(&mut exec, &WorkflowEngine::new(&workflow), now_ms())
+        } else {
+            Vec::new()
+        };
+        self.workflows.save_execution(&exec)?;
+        announce(observer, &events);
+        Ok(())
     }
 
     /// Reflects in the run which steps are waiting for the user. The answer comes from the real
