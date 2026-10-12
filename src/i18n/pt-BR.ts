@@ -1116,32 +1116,39 @@ export const ptBR: Record<TranslationKey, string> = {
   'workflow.new.mode': 'Como montar',
   'workflow.new.task': 'Tarefa',
   'workflow.new.taskPlaceholder': 'Implementar recuperação de senha',
-  'workflow.new.recommended': 'Workflow recomendado: {name}',
+  'workflow.new.recommended': 'Sugerido para a sua tarefa: {name}',
+  'workflow.new.recommendedBadge': 'Recomendado',
+  'workflow.new.chooseOther': 'Não é isso? Escolha outro workflow',
+  'workflow.new.chosen': 'Workflow escolhido por você: {name}',
+  'workflow.new.blankHelp': 'Um grafo vazio: você monta as etapas.',
   'workflow.new.template': 'Começar de',
   'workflow.new.blank': 'Workflow em branco',
   'workflow.new.namePlaceholder': 'Opcional',
   'workflow.new.create': 'Criar workflow',
-  'workflow.template.software_feature': 'Implementador',
-  'workflow.template.feature_basic': 'Funcionalidade (básico)',
+  'workflow.template.software_feature': 'Implementar',
+  'workflow.template.feature_basic': 'Mudança rápida',
   'workflow.template.feature_with_validation': 'Funcionalidade com validação',
   'workflow.template.feature_with_bug_fix_loop': 'Funcionalidade com ciclo de correção',
-  'workflow.template.full_development': 'Desenvolvimento completo',
-  'workflow.template.bug_fix': 'Corretor / Debugger',
-  'workflow.template.refactoring': 'Refatoração',
-  'workflow.template.code_review': 'Revisor / Auditor',
+  'workflow.template.full_development': 'Desenvolvimento full-stack',
+  'workflow.template.bug_fix': 'Depurar e corrigir',
+  'workflow.template.refactoring': 'Refatorar',
+  'workflow.template.code_review': 'Revisar e auditar',
   'workflow.templateHelp.software_feature':
-    'Analisa e planeja na medida da tarefa, implementa, revisa e confere.',
-  'workflow.templateHelp.feature_basic': 'Arquiteto, Desenvolvedor, QA.',
-  'workflow.templateHelp.feature_with_validation': 'Arquiteto, Desenvolvedor, validador, QA.',
+    'Constrói uma funcionalidade ou mudança: planeja, implementa, revisa e confere.',
+  'workflow.templateHelp.feature_basic':
+    'Arquiteto, Desenvolvedor e QA: o caminho rápido para uma mudança pequena e local.',
+  'workflow.templateHelp.feature_with_validation':
+    'Arquiteto, Desenvolvedor, um validador de código e QA.',
   'workflow.templateHelp.feature_with_bug_fix_loop':
-    'Arquiteto, Desenvolvedor, QA e um ciclo de Bug Fixer.',
+    'Arquiteto, Desenvolvedor e QA, com um Bug Fixer quando o QA reprova.',
   'workflow.templateHelp.full_development':
-    'Etapas de Backend e Frontend, validador, QA e os dois ciclos.',
+    'Etapas separadas de backend e frontend, validador, QA e os dois ciclos de correção.',
   'workflow.templateHelp.bug_fix':
     'Encontra a causa raiz a partir de evidências, corrige o mínimo com teste de regressão e verifica.',
-  'workflow.templateHelp.refactoring': 'Arquiteto, Desenvolvedor, validador, QA.',
+  'workflow.templateHelp.refactoring':
+    'Planeja e executa a refatoração, depois confere a arquitetura e que o comportamento não mudou.',
   'workflow.templateHelp.code_review':
-    'Audita código e arquitetura e relata achados por severidade. Somente análise.',
+    'Audita código e arquitetura e relata achados por severidade. Somente análise: nenhum arquivo é alterado.',
   'error.workflow_template_builtin':
     'Um template padrão não pode ser alterado nem excluído. Salve uma cópia de um workflow como seu próprio template.',
   'workflow.templateGoal.software_feature':

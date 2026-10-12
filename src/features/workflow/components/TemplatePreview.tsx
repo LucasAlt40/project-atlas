@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { Translate, TranslationKey } from '@/i18n';
 import type { ToolPlanItemDto } from '@/lib/tauri/commands';
@@ -49,6 +50,10 @@ export function TemplatePreview({
 }: Props) {
   const { t } = useI18n();
   const goal = goalKey(template);
+  const title =
+    template.kind === 'custom'
+      ? template.name
+      : t(`workflow.template.${template.id}` as TranslationKey);
   const stepLabel = (id: string) => template.steps.find((s) => s.id === id)?.label ?? id;
   const custom = template.kind === 'custom';
   const tools = plan ?? [];
@@ -56,7 +61,7 @@ export function TemplatePreview({
   return (
     <section className={styles.preview} aria-label={t('workflow.template.details')}>
       <header className={styles.previewHeader}>
-        <h3>{template.name}</h3>
+        <h3>{title}</h3>
         <span className={styles.tag} data-kind={template.kind}>
           {t(`workflow.template.badge.${template.kind}` as TranslationKey)}
         </span>
@@ -67,44 +72,54 @@ export function TemplatePreview({
       )}
 
       <h4>{t('workflow.template.steps')}</h4>
-      <ol className={styles.previewSteps}>
-        {template.steps.map((step) => (
+      <ol className={styles.stepList}>
+        {template.steps.map((step, index) => (
           <li key={step.id}>
-            <details>
+            <details className={styles.stepItem}>
               <summary>
-                <strong>{step.label}</strong>
-                <span className={styles.muted}>
-                  {' · '}
-                  {step.role
-                    ? t(`workflow.role.${step.role}` as TranslationKey)
-                    : step.agentId
-                      ? agentName(step.agentId)
-                      : ''}
+                <span className={styles.stepIndex} aria-hidden="true">
+                  {index + 1}
                 </span>
-                {step.readOnly && (
-                  <span className={styles.tag} data-kind="read-only">
-                    {t('workflow.template.step.readOnly')}
-                  </span>
-                )}
-                {step.maxIterations !== null && (
+                <span className={styles.stepMain}>
+                  <strong>{step.label}</strong>
                   <span className={styles.muted}>
-                    {' · '}
-                    {t('workflow.template.step.loop', { max: step.maxIterations })}
+                    {step.role
+                      ? t(`workflow.role.${step.role}` as TranslationKey)
+                      : step.agentId
+                        ? agentName(step.agentId)
+                        : ''}
                   </span>
-                )}
+                </span>
+                <span className={styles.stepChips}>
+                  {step.readOnly && (
+                    <span className={styles.tag} data-kind="read-only">
+                      {t('workflow.template.step.readOnly')}
+                    </span>
+                  )}
+                  {step.maxIterations !== null && (
+                    <span className={styles.tag}>
+                      {t('workflow.template.step.loop', { max: step.maxIterations })}
+                    </span>
+                  )}
+                </span>
+                <span className={styles.stepChevron}>
+                  <Icon name="chevronRight" size={14} />
+                </span>
               </summary>
-              {step.completionCriteria && (
-                <p>
-                  <strong>{t('workflow.template.step.doneWhen')}: </strong>
-                  {step.completionCriteria}
-                </p>
-              )}
-              {step.instructions && (
-                <>
-                  <p className={styles.fieldLabel}>{t('workflow.template.step.instructions')}</p>
-                  <p className={styles.previewText}>{step.instructions}</p>
-                </>
-              )}
+              <div className={styles.stepBody}>
+                {step.completionCriteria && (
+                  <p>
+                    <strong>{t('workflow.template.step.doneWhen')}: </strong>
+                    {step.completionCriteria}
+                  </p>
+                )}
+                {step.instructions && (
+                  <>
+                    <p className={styles.fieldLabel}>{t('workflow.template.step.instructions')}</p>
+                    <p className={styles.previewText}>{step.instructions}</p>
+                  </>
+                )}
+              </div>
             </details>
           </li>
         ))}

@@ -32,6 +32,88 @@ interface Props {
   onCancel?: () => void;
 }
 
+interface CardsProps {
+  templates: WorkflowTemplate[];
+  selected: string;
+  recommended?: string | null;
+  /** A card for starting from nothing. */
+  blank?: boolean;
+  label: (template: WorkflowTemplate) => string;
+  onSelect: (id: string) => void;
+}
+
+/** One card per workflow to start from: the Atlas ones first, then the person's own. */
+function TemplateCards({ templates, selected, recommended, blank, label, onSelect }: CardsProps) {
+  const { t } = useI18n();
+  const ordered = [
+    ...templates.filter((template) => template.kind === 'builtin'),
+    ...templates.filter((template) => template.kind === 'custom'),
+  ];
+  return (
+    <div className={styles.templateGrid}>
+      {ordered.map((template) => (
+        <label
+          key={template.id}
+          className={styles.templateCard}
+          data-selected={selected === template.id}
+        >
+          <input
+            type="radio"
+            name="workflow-template"
+            value={template.id}
+            checked={selected === template.id}
+            onChange={() => {
+              onSelect(template.id);
+            }}
+          />
+          <span className={styles.templateName}>
+            <span>{label(template)}</span>
+            <span className={styles.templateBadges}>
+              {template.id === recommended && (
+                <span className={styles.tag} data-kind="recommended">
+                  {t('workflow.new.recommendedBadge')}
+                </span>
+              )}
+              {template.kind === 'custom' && (
+                <span className={styles.tag} data-kind="custom">
+                  {t('workflow.template.badge.custom')}
+                </span>
+              )}
+            </span>
+          </span>
+          <span className={styles.muted}>
+            {template.kind === 'custom'
+              ? template.description
+              : t(`workflow.templateHelp.${template.id}` as TranslationKey)}
+          </span>
+          <span className={styles.templateMeta}>
+            {t('workflow.template.meta', {
+              steps: template.steps.length,
+              tools: template.tools.length,
+            })}
+            {template.readOnly && ` · ${t('workflow.template.step.readOnly')}`}
+          </span>
+        </label>
+      ))}
+      {blank && (
+        <label className={styles.templateCard} data-selected={selected === ''}>
+          <input
+            type="radio"
+            name="workflow-template"
+            value=""
+            checked={selected === ''}
+            onChange={() => {
+              onSelect('');
+            }}
+          />
+          <span className={styles.templateName}>{t('workflow.new.blank')}</span>
+          <span className={styles.muted}>{t('workflow.new.blankHelp')}</span>
+        </label>
+      )}
+    </div>
+  );
+}
+
 /**
  * Starting a workflow. Automatic: the user gives the task and Atlas proposes a recommended
  * workflow (chosen by fixed rules, not by a model). Custom: start from a template or from
@@ -52,6 +134,8 @@ export function NewWorkflowPanel({
   const [task, setTask] = useState('');
   const [name, setName] = useState('');
   const [templateId, setTemplateId] = useState<string>('');
+  // Automatic mode follows the recommendation until the person picks another workflow.
+  const [override, setOverride] = useState<string | null>(null);
   const [recommended, setRecommended] = useState<string | null>(null);
   const [applyTools, setApplyTools] = useState(true);
   const [plan, setPlan] = useState<{ templateId: string; items: ToolPlanItemDto[] } | null>(null);
@@ -75,14 +159,12 @@ export function NewWorkflowPanel({
   }, [mode, task, recommend]);
 
   const proposal = templates.find((template) => template.id === recommended);
-  const chosen = mode === 'automatic' ? (recommended ?? null) : templateId || null;
+  const chosen = mode === 'automatic' ? (override ?? recommended ?? null) : templateId || null;
   const label = (template: WorkflowTemplate) =>
     template.kind === 'custom'
       ? template.name
       : t(`workflow.template.${template.id}` as TranslationKey);
   const shown = templates.find((template) => template.id === chosen);
-  const builtin = templates.filter((template) => template.kind === 'builtin');
-  const saved = templates.filter((template) => template.kind === 'custom');
 
   // The tools the chosen template would get here: read again when the template (or the list of
   // templates, after one is deleted) changes.
@@ -156,66 +238,38 @@ export function NewWorkflowPanel({
           </label>
           {proposal && (
             <p className={styles.recommendation} role="status">
-              {t('workflow.new.recommended', { name: label(proposal) })}
+              {override === null
+                ? t('workflow.new.recommended', { name: label(proposal) })
+                : t('workflow.new.chosen', { name: label(shown ?? proposal) })}
               <span className={styles.muted}>
                 {' '}
-                — {t(`workflow.templateHelp.${proposal.id}` as TranslationKey)}
+                — {t(`workflow.templateHelp.${(shown ?? proposal).id}` as TranslationKey)}
               </span>
             </p>
           )}
+          <fieldset className={styles.templateGroup}>
+            <legend className={styles.fieldLabel}>{t('workflow.new.chooseOther')}</legend>
+            <TemplateCards
+              templates={templates}
+              selected={chosen ?? ''}
+              recommended={recommended}
+              label={label}
+              onSelect={(id) => {
+                setOverride(id === recommended ? null : id);
+              }}
+            />
+          </fieldset>
         </>
       ) : (
         <fieldset className={styles.templateGroup}>
           <legend className={styles.fieldLabel}>{t('workflow.new.template')}</legend>
-          <div className={styles.templateGrid}>
-            {[...builtin, ...saved].map((template) => (
-              <label
-                key={template.id}
-                className={styles.templateCard}
-                data-selected={templateId === template.id}
-              >
-                <input
-                  type="radio"
-                  name="workflow-template"
-                  value={template.id}
-                  checked={templateId === template.id}
-                  onChange={() => {
-                    setTemplateId(template.id);
-                  }}
-                />
-                <span className={styles.templateName}>
-                  {label(template)}
-                  <span className={styles.tag} data-kind={template.kind}>
-                    {t(`workflow.template.badge.${template.kind}` as TranslationKey)}
-                  </span>
-                </span>
-                <span className={styles.muted}>
-                  {template.kind === 'custom'
-                    ? template.description
-                    : t(`workflow.templateHelp.${template.id}` as TranslationKey)}
-                </span>
-                <span className={styles.templateMeta}>
-                  {t('workflow.template.meta', {
-                    steps: template.steps.length,
-                    tools: template.tools.length,
-                  })}
-                  {template.readOnly && ` · ${t('workflow.template.step.readOnly')}`}
-                </span>
-              </label>
-            ))}
-            <label className={styles.templateCard} data-selected={templateId === ''}>
-              <input
-                type="radio"
-                name="workflow-template"
-                value=""
-                checked={templateId === ''}
-                onChange={() => {
-                  setTemplateId('');
-                }}
-              />
-              <span className={styles.templateName}>{t('workflow.new.blank')}</span>
-            </label>
-          </div>
+          <TemplateCards
+            templates={templates}
+            selected={templateId}
+            blank
+            label={label}
+            onSelect={setTemplateId}
+          />
         </fieldset>
       )}
 
@@ -230,6 +284,7 @@ export function NewWorkflowPanel({
             ? {
                 onDelete: () => {
                   setTemplateId('');
+                  setOverride(null);
                   onDeleteTemplate(shown.id);
                 },
               }

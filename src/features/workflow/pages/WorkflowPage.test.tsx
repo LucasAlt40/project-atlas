@@ -505,7 +505,7 @@ describe('Workflow page', () => {
       expect(await screen.findByRole('form', { name: 'New workflow' })).toBeInTheDocument();
       await user.type(screen.getByLabelText('Task'), 'Implement password recovery');
       expect(await screen.findByRole('status')).toHaveTextContent(
-        'Recommended workflow: Implementer',
+        'Suggested for your task: Implement',
       );
       await user.click(screen.getByRole('button', { name: 'Create workflow' }));
 
@@ -587,7 +587,7 @@ describe('Workflow page', () => {
 
       await user.click(await screen.findByRole('radio', { name: /Custom/ }));
       expect(screen.queryByLabelText('Task')).not.toBeInTheDocument();
-      await user.click(screen.getByRole('radio', { name: /Debugger/ }));
+      await user.click(screen.getByRole('radio', { name: /Debug & fix/ }));
       await user.type(screen.getByLabelText('Name'), 'My bug fix');
       await user.click(screen.getByRole('button', { name: 'Create workflow' }));
 

@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import type { ToolPlanItemDto, WorkflowTemplateDto } from '@/lib/tauri/commands';
@@ -60,7 +60,7 @@ describe('choosing a template', () => {
 
     const details = await screen.findByRole('region', { name: 'Template details' });
 
-    expect(within(details).getByText('Implementer')).toBeInTheDocument();
+    expect(within(details).getByText('Implement')).toBeInTheDocument();
     expect(within(details).getByText('Built-in')).toBeInTheDocument();
     expect(
       within(details).getByText(/Turn a feature request into a reviewed change/),
@@ -140,7 +140,7 @@ describe('choosing a template', () => {
       'template-1',
       '',
     ]);
-    await user.click(screen.getByRole('radio', { name: /Implementer/ }));
+    await user.click(screen.getByRole('radio', { name: /^Implement/ }));
     expect(screen.queryByRole('button', { name: 'Delete template' })).not.toBeInTheDocument();
     expect(screen.getByText('2 steps · 2 suggested tools')).toBeInTheDocument();
 
@@ -150,5 +150,30 @@ describe('choosing a template', () => {
     await user.click(within(details).getByRole('button', { name: 'Delete template' }));
 
     expect(onDeleteTemplate).toHaveBeenCalledWith('template-1');
+  });
+
+  it('in Automatic mode follows the recommendation and always lets the person pick another workflow', async () => {
+    const user = userEvent.setup();
+    const { onCreate } = show([]);
+    // The recommendation (the fixture proposes the Implementer) is the one chosen, and marked.
+    const recommended = await screen.findByRole('radio', { name: /^Implement/ });
+    await waitFor(() => {
+      expect(recommended).toBeChecked();
+    });
+    expect(screen.getByText('Recommended')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Suggested for your task: Implement');
+
+    // Another workflow is one click away, and what is shown and created follows it.
+    await user.click(screen.getByRole('radio', { name: /Debug & fix/ }));
+    expect(screen.getByRole('status')).toHaveTextContent('Workflow chosen by you: Debug & fix');
+    await user.type(screen.getByLabelText('Task'), 'Fix the login');
+    await user.click(screen.getByRole('button', { name: 'Create workflow' }));
+    expect(onCreate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ templateId: 'bug_fix', mode: 'automatic' }),
+    );
+
+    // Going back to the recommended one follows the recommendation again.
+    await user.click(screen.getByRole('radio', { name: /^Implement/ }));
+    expect(screen.getByRole('status')).toHaveTextContent('Suggested for your task');
   });
 });
