@@ -1,5 +1,6 @@
 import { errorMessage } from '@/i18n/messages';
 import { useT } from '@/i18n/I18nProvider';
+import { ImportButton } from '@/features/portability';
 import { PersonalityBrowser } from '../components/PersonalityBrowser';
 import { useCatalog } from '../hooks/useCatalog';
 import styles from './Pages.module.css';
@@ -12,8 +13,14 @@ interface Props {
 /** Personalities are global: they are shared by every agent and every workspace. */
 export function PersonalitiesPage({ onUse }: Props) {
   const t = useT();
-  const { catalog, addPersonality, editPersonality, removePersonality, restorePersonalities } =
-    useCatalog();
+  const {
+    catalog,
+    addPersonality,
+    editPersonality,
+    removePersonality,
+    restorePersonalities,
+    reloadCatalog,
+  } = useCatalog();
 
   if (catalog.status === 'loading') {
     return <p className={styles.muted}>{t('common.loadingCore')}</p>;
@@ -42,6 +49,11 @@ export function PersonalitiesPage({ onUse }: Props) {
             n: catalog.personalities.filter((p) => p.source === 'builtin').length,
           })}
         </span>
+        <ImportButton
+          onImported={() => {
+            void reloadCatalog();
+          }}
+        />
       </header>
       <PersonalityBrowser
         personalities={catalog.personalities}

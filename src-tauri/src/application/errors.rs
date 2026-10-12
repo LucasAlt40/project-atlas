@@ -112,6 +112,21 @@ pub enum ErrorCode {
     McpConfigIo,
     /// The MCP Registry could not be reached or answered with something unusable.
     McpRegistryUnavailable,
+    /// The file is larger than Atlas reads as a configuration file.
+    ImportFileTooLarge,
+    /// The file is not JSON, or not a file Atlas exported (`reason` says which).
+    ImportNotAtlasFile,
+    /// The file comes from a newer Atlas: its schema version is not one this Atlas understands.
+    ImportUnsupportedVersion,
+    /// The file is an Atlas file with something wrong in it (`reason` is a code, `at` where).
+    ImportInvalid,
+    /// The import was refused as a whole, nothing was changed (`reason` is a code, `item` names
+    /// the entry it is about).
+    ImportRejected,
+    /// The configuration to export does not exist.
+    ExportTargetNotFound,
+    /// The configuration file could not be read or written (`detail` says why).
+    ConfigFileIo,
     IdeUnknown,
     IdeNotInstalled,
     IdeLaunchFailed,

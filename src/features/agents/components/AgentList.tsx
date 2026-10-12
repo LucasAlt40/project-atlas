@@ -3,6 +3,7 @@ import { Icon } from '@/components/ui/Icon';
 import type { TranslationKey } from '@/i18n';
 import { errorMessage } from '@/i18n/messages';
 import { useT } from '@/i18n/I18nProvider';
+import { ExportButton } from '@/features/portability';
 import type { Agent, Personality } from '../types';
 import styles from './Panels.module.css';
 
@@ -129,6 +130,7 @@ export function AgentList({
                   </span>
                 ) : (
                   <span className={styles.iconActions}>
+                    <ExportButton kind="agent" id={agent.id} name={agent.name} />
                     <button
                       type="button"
                       className={styles.iconButton}

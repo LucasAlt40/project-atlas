@@ -2365,6 +2365,200 @@ export const enUS = {
   'integrations.req.saved_sign_in': 'Saved Atlassian sign-in',
   'integrations.signInHint':
     'Sign in once: run `{command}` in a terminal and approve in the browser. A step started by Atlas cannot open a browser to ask you, so without a saved sign-in the server will not connect.',
+  // Import and export of configurations (ADR 0032)
+  'portability.import': 'Import',
+  'portability.reloadFailed':
+    'The import worked, but the screen could not be refreshed. Reopen it to see the changes.',
+  'portability.export': 'Export',
+  'portability.exportItem': 'Export {name}',
+  'portability.kind.personality': 'Personality',
+  'portability.kind.agent': 'Agent',
+  'portability.kind.workflow': 'Workflow',
+  'portability.kind.workflow_template': 'Template',
+  'portability.settings.title': 'Import and export',
+  'portability.settings.help':
+    'Share agents, personalities and workflows with other people, move them to another installation or keep a backup. A file never holds API keys, tokens, credentials, conversations, logs or paths of this machine.',
+  'portability.settings.exportAll': 'Export several…',
+  'portability.settings.choose': 'What to export',
+  'portability.settings.group.personality': 'Personalities you made or changed ({n})',
+  'portability.settings.group.agent': 'Agents ({n})',
+  'portability.settings.group.workflow_template': 'Saved workflow templates ({n})',
+  'portability.settings.group.workflow': 'Workflows of the open workspace ({n})',
+  'portability.settings.noWorkspace': 'Open a workspace to export its workflows.',
+  'portability.settings.continue': 'Continue ({n})',
+  'portability.export.title': 'Export “{name}”',
+  'portability.export.titleSet': 'Export configurations',
+  'portability.export.intro':
+    'Atlas writes a file you can share or keep. It never holds API keys, tokens, credentials, conversations, logs or paths of this machine.',
+  'portability.export.deps': 'Include what it needs (agents, personalities)',
+  'portability.export.depsHelp':
+    'Off: the file only names them, and whoever imports it picks their own.',
+  'portability.export.contents': 'The file will contain',
+  'portability.export.external': 'Named, not included',
+  'portability.export.externalHelp':
+    'Whoever imports the file will be asked which of their own to use for these.',
+  'portability.export.warnings': 'Worth a second look',
+  'portability.export.warn.possible_secret':
+    '“{name}” has a text that looks like a credential. Check it before sharing the file.',
+  'portability.export.warn.agent_missing':
+    '“{name}” has a step whose agent no longer exists. It is exported without one.',
+  'portability.export.save': 'Save file…',
+  'portability.export.saved': 'Saved as {file}.',
+  'portability.export.cancelled': 'Nothing was saved.',
+  'portability.import.title': 'Import configuration',
+  'portability.import.intro':
+    'Choose a file exported by Atlas. You will see what it holds and what it would do here before anything is changed.',
+  'portability.safety':
+    'Importing only adds definitions. It runs nothing, starts no workflow and grants no tool; agents that may edit files arrive read-only unless you say otherwise below.',
+  'portability.import.choose': 'Choose file…',
+  'portability.import.reading': 'Reading…',
+  'portability.import.another': 'Choose another file',
+  'portability.import.file': 'File: {file}',
+  'portability.import.from': 'Exported by Atlas {version}',
+  'portability.import.workspace': 'Workspace for the workflows',
+  'portability.import.workspaceNone': 'Choose a workspace…',
+  'portability.import.workspaceHelp':
+    'Workflows belong to a workspace. Their names are compared with the ones in it.',
+  'portability.import.items': 'What the file holds',
+  'portability.import.action': 'Import',
+  'portability.import.working': 'Importing…',
+  'portability.item.chosen': 'Exported',
+  'portability.item.needed': 'Needed by another',
+  'portability.item.dependsOn': 'Needs: {names}',
+  'portability.item.issues': 'About {name}',
+  'portability.fact.runtime': 'Runtime',
+  'portability.fact.model': 'Model',
+  'portability.fact.permissions': 'Permissions',
+  'portability.fact.isolation': 'Isolated worktree',
+  'portability.fact.contract': 'Result',
+  'portability.fact.tags': 'Tags',
+  'portability.fact.steps': 'Steps',
+  'portability.fact.routes': 'Routes',
+  'portability.fact.mode': 'Mode',
+  'portability.fact.tools': 'Suggested tools',
+  'portability.value.on': 'On',
+  'portability.value.off': 'Off',
+  'portability.value.automatic': 'Automatic',
+  'portability.value.custom': 'Custom',
+  'portability.step.agent': 'Agent',
+  'portability.step.condition': 'Condition',
+  'portability.step.end': 'End',
+  'portability.step.readOnly': 'read-only',
+  'portability.details': 'Read the content of {name}',
+  'portability.truncated': 'Only the beginning is shown.',
+  'portability.conflict.identical': 'You already have “{name}”, and it is the same.',
+  'portability.conflict.name': 'You already have “{name}”, with different content.',
+  'portability.conflict.renamed':
+    'It will be added as a new one; the name gets a number because it is taken.',
+  'portability.decision.label': 'What to do with {name}',
+  'portability.decision.create': 'Import as new',
+  'portability.decision.use_existing': 'Use the one I have',
+  'portability.decision.replace': 'Replace the one I have',
+  'portability.decision.skip': 'Do not import',
+  'portability.replace.title': 'Confirm replacement',
+  'portability.replace.warn':
+    'Replacing overwrites “{name}” with the file’s version. This cannot be undone.',
+  'portability.replace.confirm': 'I confirm: overwrite “{name}”',
+  'portability.external.title': 'Needed, but not in the file',
+  'portability.external.hint':
+    'The file was exported without these. Choose which of yours each one should be. Atlas does not pick for you.',
+  'portability.external.pick': '{kind} “{name}” is…',
+  'portability.external.choose': 'Choose…',
+  'portability.external.sameName': 'same name',
+  'portability.external.usedBy': 'Used by: {names}',
+  'portability.permissions.title': 'Permissions',
+  'portability.permissions.keep':
+    'Keep the permission to edit files that the agents were exported with',
+  'portability.permissions.help':
+    'Off: they are imported able only to read, and you can change that later.',
+  'portability.model.original': 'Exported with: {runtime} ({provider}) · {model}',
+  'portability.model.status.available': 'This model is available here.',
+  'portability.model.status.unverified':
+    '{runtime} cannot list its models, so “{model}” cannot be confirmed here. It is kept as it is.',
+  'portability.model.status.model_missing':
+    '{runtime} does not offer “{model}” on this machine. Keep it and set the agent up later, or choose another.',
+  'portability.model.status.runtime_not_ready':
+    '{runtime} is not ready on this machine (not installed, not signed in or failing). The agent can be imported and stays unavailable until it is.',
+  'portability.model.status.runtime_unsupported':
+    '{runtime} cannot run tasks in this Atlas. Choose another runtime and model.',
+  'portability.model.status.runtime_missing':
+    'This Atlas has no runtime “{runtime}”. Choose another runtime and model.',
+  'portability.model.choose': 'Runtime and model for {name}',
+  'portability.model.keep': 'Keep the original',
+  'portability.model.pickOne': 'Choose a runtime and model…',
+  'portability.model.pending':
+    'It will be imported with the original model and needs setting up before it runs.',
+  'portability.model.noAlternative':
+    'No ready runtime lists models here. Make one ready, or do not import this agent.',
+  'portability.summary': '{create} new · {replace} replaced · {reuse} reused · {skip} left out',
+  'portability.blockers': 'Before importing',
+  'portability.blocker.nothing_to_do': 'Nothing would be imported.',
+  'portability.blocker.workspace_required': 'Choose the workspace the workflows go to.',
+  'portability.blocker.model_choice_required': 'Choose a runtime and model for {name}.',
+  'portability.blocker.replace_unconfirmed':
+    'Confirm that {name} is to be overwritten, or choose another option.',
+  'portability.blocker.dependency_skipped': '{name} needs something you chose not to import.',
+  'portability.blocker.external_unbound': 'Choose which of yours “{name}” is.',
+  'portability.issue.invalid_spec': 'It cannot be imported: {reason}.',
+  'portability.issue.grants_editing': 'This agent asks for the permission to edit files.',
+  'portability.issue.runtime_cannot_edit':
+    'Its runtime cannot edit files through Atlas, so that permission would have no effect.',
+  'portability.issue.possible_secret':
+    'A text here looks like a credential. Check it before importing.',
+  'portability.issue.workflow_draft':
+    'It has problems that stop it from running; it is kept as a draft until they are fixed.',
+  'portability.issue.step_without_agent': 'A step has no agent: you will have to choose one.',
+  'portability.issue.tools_suggested':
+    'It suggests tools for some steps. Importing grants none of them.',
+  'portability.issue.permissions_lowered':
+    'Imported able only to read (the file asked for {requested}).',
+  'portability.reason.name_required': 'it has no name',
+  'portability.reason.name_too_long': 'its name is too long',
+  'portability.reason.instructions_required': 'it has no instructions',
+  'portability.reason.runtime_unknown': 'its runtime does not exist in this Atlas',
+  'portability.reason.runtime_unsupported': 'its runtime cannot run tasks',
+  'portability.reason.model_required': 'it has no model',
+  'portability.reason.model_invalid': 'its model id is not acceptable',
+  'portability.reason.permission_profile_invalid': 'its permission profile is unknown',
+  'portability.reason.contract_invalid': 'its result contract is invalid',
+  'portability.reason.invalid': 'it is not valid',
+  'portability.reject.decision_required':
+    'Nothing was imported: decide what to do with “{item}”, which matches something you have.',
+  'portability.reject.no_existing':
+    'Nothing was imported: “{item}” has nothing here to use or replace.',
+  'portability.reject.dependency_unresolved':
+    'Nothing was imported: “{item}” needs something that was left out or not chosen.',
+  'portability.reject.binding_unknown':
+    'Nothing was imported: what you chose for “{item}” does not exist here.',
+  'portability.reject.unknown_item':
+    'Nothing was imported: the choices do not match the file. Open it again.',
+  'portability.reject.workspace_required':
+    'Nothing was imported: choose the workspace “{item}” goes to.',
+  'portability.reject.workflow_running':
+    'Nothing was imported: “{item}” has a run in progress and cannot be replaced.',
+  'portability.reject.invalid_item':
+    'Nothing was imported: “{item}” cannot be created because {reason}.',
+  'portability.done.title': 'Import complete: {n} added or replaced.',
+  'portability.done.list': 'What was imported',
+  'portability.done.next':
+    'Nothing was started and no tool was granted. Check the agents, then run or edit them as usual.',
+  'portability.done.close': 'Done',
+  'portability.result.created': 'Added',
+  'portability.result.replaced': 'Replaced',
+  'portability.result.reused': 'Used yours',
+  'portability.result.skipped': 'Left out',
+  'portability.result.renamed': '“{original}” was taken, so it was saved as “{name}”.',
+  'portability.result.modelKept': 'Runtime and model kept as in the file: {runtime} · {model}.',
+  'portability.result.modelChanged': 'Model changed from {original} to {now}.',
+  'error.import_file_too_large':
+    'The file is larger than {max} MB, which is more than a configuration needs.',
+  'error.import_not_atlas_file': 'This is not a file exported by Atlas.',
+  'error.import_unsupported_version':
+    'This file comes from a newer Atlas (format {found}; this one reads up to {supported}). Update Atlas to import it.',
+  'error.import_invalid': 'The file is damaged or was edited incorrectly ({reason} at {at}).',
+  'error.import_rejected': 'The import was stopped and nothing was changed ({reason}).',
+  'error.export_target_not_found': 'What you chose to export no longer exists.',
+  'error.config_file_io': 'The file could not be read or written.',
 } as const;
 
 export type TranslationKey = keyof typeof enUS;

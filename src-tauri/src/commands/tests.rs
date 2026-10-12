@@ -28,6 +28,11 @@ fn window() -> (tauri::App<MockRuntime>, WebviewWindow<MockRuntime>) {
             super::personalities::update_personality,
             super::personalities::delete_personality,
             super::personalities::restore_default_personalities,
+            super::portability::export_configs,
+            super::portability::save_config_file,
+            super::portability::pick_config_file,
+            super::portability::preview_config_import,
+            super::portability::import_configs,
             super::runtimes::list_runtimes,
             super::agents::list_agents,
             super::agents::create_agent,
@@ -1377,4 +1382,103 @@ fn the_viewer_commands_take_a_run_and_a_relative_path_and_refuse_anything_else()
     )
     .unwrap_err();
     assert_eq!(unknown["code"], "worktree_not_found");
+}
+
+#[test]
+fn a_configuration_goes_out_as_a_file_and_comes_back_through_the_commands() {
+    let (_app, window) = window();
+    let created = create_agent(&window);
+
+    let exported = invoke(
+        &window,
+        "export_configs",
+        json!({ "targets": [{ "kind": "agent", "id": created["id"] }], "includeDependencies": true }),
+    )
+    .unwrap();
+    assert_eq!(exported["fileName"], "architecture-expert.atlas.json");
+    assert_eq!(exported["warnings"], json!([]));
+    let text = exported["text"].as_str().unwrap().to_owned();
+    assert!(
+        !text.contains(created["id"].as_str().unwrap()),
+        "no local id in the file"
+    );
+
+    // Gone from here, so that bringing it back is a real import.
+    invoke(&window, "delete_agent", json!({ "id": created["id"] })).unwrap();
+    let preview = invoke(
+        &window,
+        "preview_config_import",
+        json!({ "text": text, "workspaceId": null }),
+    )
+    .unwrap();
+    let agent = preview["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["kind"] == "agent")
+        .unwrap();
+    assert_eq!(agent["defaultDecision"], "create");
+    assert_eq!(agent["model"]["status"], "available");
+    let decisions: serde_json::Map<String, Value> = preview["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| {
+            (
+                item["ref"].as_str().unwrap().to_owned(),
+                item["defaultDecision"].clone(),
+            )
+        })
+        .collect();
+    let report = invoke(
+        &window,
+        "import_configs",
+        json!({ "text": text, "request": { "decisions": decisions } }),
+    )
+    .unwrap();
+
+    let agents = invoke(&window, "list_agents", json!({})).unwrap();
+    assert_eq!(agents.as_array().unwrap().len(), 1);
+    assert_eq!(agents[0]["name"], "Architecture Expert");
+    assert_eq!(agents[0]["modelId"], "m1");
+    let imported = report["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["kind"] == "agent")
+        .unwrap();
+    assert_eq!(imported["result"], "created");
+    assert_eq!(imported["id"], agents[0]["id"]);
+}
+
+#[test]
+fn the_file_commands_report_coded_errors_and_save_nothing_that_is_not_an_atlas_file() {
+    let (_app, window) = window();
+
+    for (command, body, code) in [
+        (
+            "preview_config_import",
+            json!({ "text": "nope", "workspaceId": null }),
+            "import_not_atlas_file",
+        ),
+        (
+            "import_configs",
+            json!({ "text": "{}", "request": {} }),
+            "import_not_atlas_file",
+        ),
+        (
+            "export_configs",
+            json!({ "targets": [{ "kind": "agent", "id": "ghost" }], "includeDependencies": true }),
+            "export_target_not_found",
+        ),
+        // Refused before any dialog opens: the command cannot be used to write arbitrary text.
+        (
+            "save_config_file",
+            json!({ "fileName": "x.json", "text": "#!/bin/sh\nrm -rf /" }),
+            "import_not_atlas_file",
+        ),
+    ] {
+        let error = invoke(&window, command, body).unwrap_err();
+        assert_eq!(error["code"], code, "{command}");
+    }
 }

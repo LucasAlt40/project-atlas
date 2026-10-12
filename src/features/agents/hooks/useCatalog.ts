@@ -134,6 +134,13 @@ function useCatalogState() {
     [whenReady],
   );
 
+  /** Reads personalities and agents again, for when something other than this hook changed them
+   * (an import). The screens keep showing what they have until the new lists arrive. */
+  const reloadCatalog = useCallback(async () => {
+    const [personalities, agents] = await Promise.all([listPersonalities(), listAgents()]);
+    setCatalog({ status: 'ready', personalities, agents });
+  }, []);
+
   const removeAgent = useCallback(
     async (id: string) => {
       await deleteAgent(id);
@@ -153,6 +160,7 @@ function useCatalogState() {
     addAgent,
     editAgent,
     removeAgent,
+    reloadCatalog,
   };
 }
 

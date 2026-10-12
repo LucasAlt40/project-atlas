@@ -1,7 +1,9 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { fetchAppInfo } from '@/features/home/services/appInfoService';
-import { mockBackend, renderWithProviders } from '@/test/fixtures';
+import { agent, mockBackend, renderWithProviders } from '@/test/fixtures';
+import { exportConfigs } from '@/features/portability/services/portabilityService';
+import { listTemplates, listWorkflows } from '@/features/workflow/services/workflowService';
 import { setLanguage } from '../services/settingsService';
 import { checkForUpdate, installUpdate } from '../services/updateService';
 import { SettingsPage } from './SettingsPage';
@@ -12,6 +14,8 @@ vi.mock('@/features/usage/services/usageService');
 vi.mock('@/features/workspace/services/workspaceService');
 vi.mock('@/features/home/services/appInfoService');
 vi.mock('../services/updateService');
+vi.mock('@/features/portability/services/portabilityService');
+vi.mock('@/features/workflow/services/workflowService');
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -96,5 +100,30 @@ describe('SettingsPage', () => {
     await user.click(await screen.findByRole('button', { name: 'Buscar atualizações' }));
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();
+  });
+
+  it('has one place to import a file and to export several configurations at once', async () => {
+    const user = userEvent.setup();
+    mockBackend({ agents: [agent('agent-1', 'Architect', 'opencode', 'opencode/big-pickle')] });
+    vi.mocked(listTemplates).mockResolvedValue([]);
+    vi.mocked(listWorkflows).mockResolvedValue([]);
+    vi.mocked(exportConfigs).mockResolvedValue({
+      fileName: 'atlas-configs.atlas.json',
+      text: '{}',
+      items: [],
+      external: [],
+      warnings: [],
+    });
+    renderWithProviders(<SettingsPage />);
+
+    expect(await screen.findByRole('heading', { name: 'Import and export' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Import' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Export several…' }));
+    const agents = await screen.findByRole('checkbox', { name: 'Agents (1)' });
+    expect(agents).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Saved workflow templates (0)' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Continue (1)' }));
+
+    expect(exportConfigs).toHaveBeenCalledWith([{ kind: 'agent', id: 'agent-1' }], true);
   });
 });

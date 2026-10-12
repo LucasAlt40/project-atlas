@@ -16,6 +16,7 @@ ligam, como o contexto é gravado, como o workflow roda e como o Harness é gera
 | 4   | [Workflow](04-workflow.md)                                                              | Engine, orquestrador, handoff, contratos, humano no loop, entrega do código |
 | 5   | [Segurança e isolamento](05-seguranca-e-isolamento.md)                                  | Política de permissões, guard, worktrees, PTY e controle de processos       |
 | 6   | [Persistência, eventos e observabilidade](06-persistencia-eventos-e-observabilidade.md) | O que é gravado e onde, uso/custo, eventos, métricas de otimização          |
+| 7   | [Importar e exportar](07-importar-e-exportar.md)                                        | Compartilhar agentes, personalidades e workflows como arquivo               |
 
 ## Ordem de leitura sugerida
 

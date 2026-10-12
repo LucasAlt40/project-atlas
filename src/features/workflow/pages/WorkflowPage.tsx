@@ -4,6 +4,7 @@ import { useNavigation } from '@/app/NavigationContext';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { useCatalog } from '@/features/agents/hooks/useCatalog';
+import { ExportButton, ImportButton } from '@/features/portability';
 import { ExecutionInspector } from '@/features/workspace/components/ExecutionInspector';
 import { useWorkspace } from '@/features/workspace/hooks/WorkspaceProvider';
 import { runKey } from '@/features/workspace/model/agentRuns';
@@ -11,7 +12,7 @@ import type { StoredExecution } from '@/features/workspace/types';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { TranslationKey } from '@/i18n';
 import { errorMessage } from '@/i18n/messages';
-import type { PositionDto } from '@/lib/tauri/commands';
+import type { ImportReportDto, PositionDto } from '@/lib/tauri/commands';
 import { ChangesModal } from '../components/ChangesModal';
 import { InteractionPanel } from '../components/InteractionPanel';
 import { LiveWorkspacePanel } from '../components/LiveWorkspacePanel';
@@ -193,11 +194,23 @@ export function WorkflowPage() {
       });
   };
 
+  const afterImport = (report: ImportReportDto) => {
+    const imported = report.items.find(
+      (item) =>
+        item.kind === 'workflow' && (item.result === 'created' || item.result === 'replaced'),
+    );
+    void space.reload(imported?.id ?? undefined).catch(() => {
+      setNotice(t('portability.reloadFailed'));
+    });
+    setCreating(false);
+  };
+
   if (space.workflows.length === 0 || creating) {
     return (
       <section className={styles.page}>
         <header className={styles.header}>
           <h1 className={styles.title}>{t('workflow.title')}</h1>
+          <ImportButton onImported={afterImport} />
         </header>
         <NewWorkflowPanel
           templates={space.templates}
@@ -365,6 +378,15 @@ export function WorkflowPage() {
                 >
                   {t('workflow.saveTemplate')}
                 </Button>
+                {space.selected && (
+                  <ExportButton
+                    kind="workflow"
+                    id={space.selected.id}
+                    name={space.selected.name}
+                    appearance="button"
+                  />
+                )}
+                <ImportButton onImported={afterImport} />
                 {confirmingDelete ? (
                   <Button
                     variant="danger"

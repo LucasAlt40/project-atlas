@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
+import { ExportButton } from '@/features/portability';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { Translate, TranslationKey } from '@/i18n';
 import type { ToolPlanItemDto } from '@/lib/tauri/commands';
@@ -170,12 +171,22 @@ export function TemplatePreview({
       )}
 
       <p className={styles.muted}>{t('workflow.template.scope')}</p>
-      {custom && onDelete && (
+      {custom && (
         <div className={styles.actions}>
-          <Button type="button" variant="danger" onClick={onDelete}>
-            {t('workflow.template.delete')}
-          </Button>
-          <span className={styles.muted}>{t('workflow.template.deleteHint')}</span>
+          <ExportButton
+            kind="workflow_template"
+            id={template.id}
+            name={template.name}
+            appearance="button"
+          />
+          {onDelete && (
+            <>
+              <Button type="button" variant="danger" onClick={onDelete}>
+                {t('workflow.template.delete')}
+              </Button>
+              <span className={styles.muted}>{t('workflow.template.deleteHint')}</span>
+            </>
+          )}
         </div>
       )}
     </section>

@@ -1,11 +1,25 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { agent, mockBackend, renderWithProviders } from '@/test/fixtures';
-import { createAgent, deleteAgent, listRuntimes, updateAgent } from '../services/catalogService';
+import {
+  createAgent,
+  deleteAgent,
+  listAgents,
+  listRuntimes,
+  updateAgent,
+} from '../services/catalogService';
+import {
+  exportConfigs,
+  importConfigs,
+  pickConfigFile,
+  previewConfigImport,
+} from '@/features/portability/services/portabilityService';
+import { importPreview, previewItem } from '@/test/portabilityFixtures';
 import { claude, opencode } from '@/test/fixtures';
 import { AgentsPage } from './AgentsPage';
 
 vi.mock('../services/catalogService');
+vi.mock('@/features/portability/services/portabilityService');
 vi.mock('@/features/settings/services/settingsService');
 vi.mock('@/features/usage/services/usageService');
 vi.mock('@/features/workspace/services/workspaceService');
@@ -368,5 +382,51 @@ describe('AgentsPage', () => {
         within(form).getByText('This runtime does not support file editing.'),
       ).toBeInTheDocument();
     });
+  });
+
+  it('can export any agent, and shows an imported one without reloading the screen', async () => {
+    const user = userEvent.setup();
+    show();
+    const imported = agent('agent-9', 'Imported Reviewer', 'opencode', 'opencode/big-pickle');
+    vi.mocked(exportConfigs).mockResolvedValue({
+      fileName: 'architecture-expert.atlas.json',
+      text: '{}',
+      items: [{ kind: 'agent', name: 'Architecture Expert', chosen: true }],
+      external: [],
+      warnings: [],
+    });
+    vi.mocked(pickConfigFile).mockResolvedValue({ fileName: 'file.atlas.json', text: '{}' });
+    vi.mocked(previewConfigImport).mockResolvedValue(
+      importPreview([previewItem('agent-1', 'agent', 'Imported Reviewer')]),
+    );
+    vi.mocked(importConfigs).mockResolvedValue({
+      items: [
+        {
+          ref: 'agent-1',
+          kind: 'agent',
+          name: 'Imported Reviewer',
+          id: 'agent-9',
+          result: 'created',
+          renamedTo: null,
+          issues: [],
+          model: null,
+        },
+      ],
+    });
+
+    await user.click(await screen.findByRole('button', { name: 'Export Architecture Expert' }));
+    expect(exportConfigs).toHaveBeenCalledWith([{ kind: 'agent', id: 'agent-1' }], true);
+    await screen.findByRole('dialog', { name: 'Export “Architecture Expert”' });
+    await user.keyboard('{Escape}');
+
+    vi.mocked(listAgents).mockResolvedValue([architect, imported]);
+    await user.click(screen.getByRole('button', { name: 'Import' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Import configuration' });
+    await user.click(await within(dialog).findByRole('button', { name: /Choose file/ }));
+    await user.click(await within(dialog).findByRole('button', { name: 'Import' }));
+    await user.click(await within(dialog).findByRole('button', { name: 'Done' }));
+
+    const list = await screen.findByRole('list', { name: 'Agents' });
+    expect(await within(list).findByText('Imported Reviewer')).toBeInTheDocument();
   });
 });

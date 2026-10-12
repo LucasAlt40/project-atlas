@@ -15,6 +15,7 @@ import {
 import { PersonalitiesPage } from './PersonalitiesPage';
 
 vi.mock('../services/catalogService');
+vi.mock('@/features/portability/services/portabilityService');
 vi.mock('@/features/settings/services/settingsService');
 vi.mock('@/features/usage/services/usageService');
 vi.mock('@/features/workspace/services/workspaceService');
@@ -170,5 +171,15 @@ describe('PersonalitiesPage', () => {
     await user.click(await screen.findByRole('button', { name: 'Restore default personalities' }));
 
     expect(await screen.findByRole('article', { name: 'QA' })).toBeInTheDocument();
+  });
+
+  it('offers to export each personality and to import a file', async () => {
+    const user = userEvent.setup();
+    show();
+
+    const card = await screen.findByRole('article', { name: 'Architect' });
+    expect(within(card).getByRole('button', { name: 'Export Architect' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Import' }));
+    expect(await screen.findByRole('dialog', { name: 'Import configuration' })).toBeInTheDocument();
   });
 });

@@ -8,6 +8,7 @@ use crate::application::lifecycle::AgentLifecycle;
 use crate::application::live_workspace::LiveWorkspaceService;
 use crate::application::mcp::McpService;
 use crate::application::personalities::PersonalityService;
+use crate::application::portability::PortabilityService;
 use crate::application::runtimes::RuntimeRegistry;
 use crate::application::security::{ApprovalBroker, SecurityOverview};
 use crate::application::sessions::SessionRegistry;
@@ -50,6 +51,8 @@ pub struct AppState {
     /// The workspace's MCP connections, their grants and their secrets.
     pub mcp: Arc<McpService>,
     pub mcp_catalog: Arc<crate::application::mcp::McpCatalog>,
+    /// Export and import of configurations as files.
+    pub portability: Arc<PortabilityService>,
 }
 
 #[cfg(test)]
@@ -141,6 +144,11 @@ impl AppState {
             agents.clone(),
             workspaces.clone(),
         ));
+        let portability = Arc::new(PortabilityService::new(
+            config.clone(),
+            runtimes.clone(),
+            workspaces.clone(),
+        ));
         let settings = Arc::new(SettingsService::new(config));
         let chat = ChatService::new(
             agents.clone(),
@@ -212,6 +220,7 @@ impl AppState {
                     Err(crate::application::process::ProcessError::NotFound)
                 }),
             ))),
+            portability,
         }
     }
 }

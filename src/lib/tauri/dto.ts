@@ -17,6 +17,17 @@ export interface CommandMap {
   };
   delete_personality: { args: { id: string }; result: null };
   restore_default_personalities: { args: undefined; result: PersonalityDto[] };
+  export_configs: {
+    args: { targets: ExportTargetDto[]; includeDependencies: boolean };
+    result: ExportedFileDto;
+  };
+  save_config_file: { args: { fileName: string; text: string }; result: string | null };
+  pick_config_file: { args: undefined; result: PickedFileDto | null };
+  preview_config_import: {
+    args: { text: string; workspaceId: string | null };
+    result: ImportPreviewDto;
+  };
+  import_configs: { args: { text: string; request: ImportRequestDto }; result: ImportReportDto };
   list_runtimes: { args: undefined; result: RuntimeStatusDto[] };
   list_agents: { args: undefined; result: AgentDto[] };
   create_agent: { args: { request: CreateAgentRequestDto }; result: AgentDto };
@@ -371,7 +382,14 @@ export type ErrorCodeDto =
   | 'unsafe_project_path'
   | 'storage_failed'
   | 'update_check_failed'
-  | 'update_install_failed';
+  | 'update_install_failed'
+  | 'import_file_too_large'
+  | 'import_not_atlas_file'
+  | 'import_unsupported_version'
+  | 'import_invalid'
+  | 'import_rejected'
+  | 'export_target_not_found'
+  | 'config_file_io';
 
 /**
  * How sure the analysis is. `high`: direct evidence; `medium`: several signals plus
@@ -2754,4 +2772,167 @@ export interface ChangeSetReviewDto {
 export interface IdeDto {
   id: string;
   name: string;
+}
+
+// ---- Import and export of configurations (`application::portability`) ---------------------------
+
+/** What a configuration file can carry. */
+export type PortableKindDto = 'personality' | 'agent' | 'workflow' | 'workflow_template';
+
+export interface ExportTargetDto {
+  kind: PortableKindDto;
+  id: string;
+}
+
+export interface ExportedEntryDto {
+  kind: PortableKindDto;
+  name: string;
+  /** Chosen by the person, as opposed to carried because something chosen needs it. */
+  chosen: boolean;
+}
+
+export interface ExportWarningDto {
+  code: 'possible_secret' | 'agent_missing';
+  name: string;
+}
+
+export interface ExportedFileDto {
+  fileName: string;
+  text: string;
+  items: ExportedEntryDto[];
+  /** Needed but not carried (exported without dependencies). */
+  external: ExportedEntryDto[];
+  warnings: ExportWarningDto[];
+}
+
+export interface PickedFileDto {
+  fileName: string;
+  text: string;
+}
+
+export type ImportDecisionDto = 'create' | 'use_existing' | 'replace' | 'skip';
+
+export interface ImportIssueDto {
+  code: string;
+  severity: 'error' | 'warning' | 'info';
+  params: Record<string, string>;
+}
+
+export interface ImportFactDto {
+  label: string;
+  value: string;
+}
+
+export interface ImportExcerptDto {
+  value: string;
+  truncated: boolean;
+}
+
+export interface ImportStepDto {
+  label: string;
+  kind: 'agent' | 'condition' | 'end';
+  /** The `ref` of the agent that runs it. */
+  agent: string | null;
+  instructions: ImportExcerptDto | null;
+  readOnly: boolean;
+}
+
+export type ImportModelStatusDto =
+  | 'available'
+  | 'unverified'
+  | 'model_missing'
+  | 'runtime_not_ready'
+  | 'runtime_unsupported'
+  | 'runtime_missing';
+
+export interface ImportRuntimeChoiceDto {
+  runtimeId: string;
+  runtimeName: string;
+  models: { id: string; name: string }[];
+}
+
+export interface ImportModelAssessmentDto {
+  original: {
+    runtimeId: string;
+    runtimeName: string | null;
+    provider: string | null;
+    modelId: string;
+  };
+  status: ImportModelStatusDto;
+  /** The agent can be imported with its original runtime and model. */
+  keepAllowed: boolean;
+  alternatives: ImportRuntimeChoiceDto[];
+}
+
+export interface ImportItemPreviewDto {
+  ref: string;
+  kind: PortableKindDto;
+  name: string;
+  description: string;
+  root: boolean;
+  facts: ImportFactDto[];
+  text: ImportExcerptDto | null;
+  steps: ImportStepDto[];
+  /** What it matches here, by name. */
+  existing: { id: string; name: string } | null;
+  identical: boolean;
+  defaultDecision: ImportDecisionDto;
+  allowed: ImportDecisionDto[];
+  dependsOn: string[];
+  model: ImportModelAssessmentDto | null;
+  issues: ImportIssueDto[];
+}
+
+/** Something the file needs and does not carry: the person picks which of theirs it is. */
+export interface ImportExternalDto {
+  ref: string;
+  kind: PortableKindDto;
+  name: string;
+  description: string;
+  /** The one with the same name here. Offered, never applied on its own. */
+  suggested: string | null;
+  candidates: { id: string; name: string }[];
+  usedBy: string[];
+}
+
+export interface ImportPreviewDto {
+  schemaVersion: number;
+  exportedAt: number | null;
+  source: { app: string; appVersion: string };
+  roots: string[];
+  items: ImportItemPreviewDto[];
+  external: ImportExternalDto[];
+  needsWorkspace: boolean;
+  grantsEditing: boolean;
+}
+
+export interface ImportRequestDto {
+  workspaceId: string | null;
+  decisions: Record<string, ImportDecisionDto>;
+  models: Record<string, { runtimeId: string; modelId: string }>;
+  bindings: Record<string, string>;
+  keepPermissionProfiles: boolean;
+}
+
+export type ImportActionDto = 'created' | 'replaced' | 'reused' | 'skipped';
+
+export interface ImportedItemDto {
+  ref: string;
+  kind: PortableKindDto;
+  name: string;
+  id: string | null;
+  result: ImportActionDto;
+  /** The name it got when the file's was taken. */
+  renamedTo: string | null;
+  issues: ImportIssueDto[];
+  model: {
+    originalRuntime: string;
+    originalModel: string;
+    runtime: string;
+    model: string;
+  } | null;
+}
+
+export interface ImportReportDto {
+  items: ImportedItemDto[];
 }

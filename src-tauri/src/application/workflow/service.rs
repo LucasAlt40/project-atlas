@@ -80,7 +80,7 @@ impl AgentCatalog for Catalog<'_> {
     }
 }
 
-fn clean_name(name: &str) -> Result<String, AppError> {
+pub(crate) fn clean_name(name: &str) -> Result<String, AppError> {
     let name = name.trim();
     if name.is_empty() {
         return Err(AppError::new(ErrorCode::NameRequired));

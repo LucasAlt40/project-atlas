@@ -230,6 +230,25 @@ export function useWorkflows(workspaceId: string | undefined) {
     };
   }, [workspaceId]);
 
+  /** Reads definitions and templates again, for when something other than this hook created them
+   * (an import), and shows `selectId` when it is one of them. */
+  const reload = useCallback(
+    async (selectId?: string) => {
+      const [list, saved] = await Promise.all([
+        workspaceId ? listWorkflows(workspaceId) : Promise.resolve([]),
+        listTemplates(),
+      ]);
+      setTemplates(saved);
+      setWorkflows(list);
+      for (const workflow of list) dispatch({ type: 'open', workflow });
+      if (selectId && list.some((w) => w.id === selectId)) {
+        setSelectedId(selectId);
+        setShownRunId(null);
+      }
+    },
+    [workspaceId],
+  );
+
   // Live: an event says a run changed; the run is read again (events carry ids, not state).
   const pending = useRef(new Set<string>());
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -627,6 +646,7 @@ export function useWorkflows(workspaceId: string | undefined) {
     integrate,
     openRunInIde,
     load,
+    reload,
     workflows,
     templates,
     runs: runsOfSelected,

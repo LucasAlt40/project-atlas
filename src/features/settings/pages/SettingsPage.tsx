@@ -1,5 +1,6 @@
 import { AppInfoPanel } from '@/features/home/components/AppInfoPanel';
 import { useAppInfo } from '@/features/home/hooks/useAppInfo';
+import { PortabilitySettings } from '@/features/portability';
 import { LANGUAGES } from '@/i18n';
 import { useI18n } from '@/i18n/I18nProvider';
 import { UpdateChecker } from '../components/UpdateChecker';
@@ -36,6 +37,11 @@ export function SettingsPage() {
           ))}
         </select>
         <p className={styles.help}>{t('settings.languageHelp')}</p>
+      </div>
+
+      <div className={styles.field}>
+        <h2 className={styles.heading}>{t('portability.settings.title')}</h2>
+        <PortabilitySettings />
       </div>
 
       <div className={styles.field}>

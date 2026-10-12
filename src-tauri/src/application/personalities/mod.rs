@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use serde::Deserialize;
 
-use super::config::ConfigRepository;
+use super::config::{ConfigRepository, UserConfig};
 use super::errors::{AppError, ErrorCode};
 use super::support::new_id;
 use crate::domain::personality::{PersonalityProfile, PersonalitySource};
@@ -36,21 +36,7 @@ impl PersonalityService {
     /// Built-ins first (as edited by the user, without the ones they removed), then custom
     /// ones in creation order.
     pub fn list(&self) -> Vec<PersonalityProfile> {
-        let config = self.config.snapshot();
-        let mut all: Vec<_> = builtin_personalities()
-            .into_iter()
-            .filter(|p| !config.hidden_builtins.contains(&p.id))
-            .map(|p| {
-                config
-                    .builtin_overrides
-                    .iter()
-                    .find(|o| o.id == p.id)
-                    .cloned()
-                    .unwrap_or(p)
-            })
-            .collect();
-        all.extend(config.personalities);
-        all
+        effective(&self.config.snapshot())
     }
 
     pub fn find(&self, id: &str) -> Option<PersonalityProfile> {
@@ -174,42 +160,79 @@ impl PersonalityService {
     }
 }
 
+/// The personalities a configuration holds, as the user sees them: built-ins (as edited, without
+/// the ones removed) first, then custom ones in creation order.
+pub(crate) fn effective(config: &UserConfig) -> Vec<PersonalityProfile> {
+    let mut all: Vec<_> = builtin_personalities()
+        .into_iter()
+        .filter(|p| !config.hidden_builtins.contains(&p.id))
+        .map(|p| {
+            config
+                .builtin_overrides
+                .iter()
+                .find(|o| o.id == p.id)
+                .cloned()
+                .unwrap_or(p)
+        })
+        .collect();
+    all.extend(config.personalities.iter().cloned());
+    all
+}
+
 fn not_found() -> AppError {
     AppError::new(ErrorCode::PersonalityNotFound)
 }
 
-/// The validated, cleaned-up fields of a create/update request.
-struct Fields {
-    name: String,
-    description: String,
-    instructions: String,
-    tags: Vec<String>,
+/// The validated, cleaned-up fields of a personality: what a create/update request and an
+/// imported file both have to satisfy.
+pub(crate) struct Fields {
+    pub name: String,
+    pub description: String,
+    pub instructions: String,
+    pub tags: Vec<String>,
 }
 
 impl Fields {
     fn from_request(request: &CreatePersonalityRequest) -> Result<Self, AppError> {
-        let name = request.name.trim();
+        Self::clean(
+            &request.name,
+            &request.description,
+            &request.system_instructions,
+            &request.tags,
+        )
+    }
+
+    /// # Errors
+    ///
+    /// Fails if the name or the instructions are empty, or the name is too long.
+    pub(crate) fn clean(
+        name: &str,
+        description: &str,
+        instructions: &str,
+        tags: &[String],
+    ) -> Result<Self, AppError> {
+        let name = name.trim();
         if name.is_empty() {
             return Err(AppError::new(ErrorCode::NameRequired));
         }
         if name.chars().count() > MAX_NAME_LEN {
             return Err(AppError::new(ErrorCode::NameTooLong).with("max", MAX_NAME_LEN.to_string()));
         }
-        let instructions = request.system_instructions.trim();
+        let instructions = instructions.trim();
         if instructions.is_empty() {
             return Err(AppError::new(ErrorCode::InstructionsRequired));
         }
-        let mut tags: Vec<String> = Vec::new();
-        for tag in request.tags.iter().map(|t| t.trim().to_lowercase()) {
-            if !tag.is_empty() && !tags.contains(&tag) {
-                tags.push(tag);
+        let mut cleaned: Vec<String> = Vec::new();
+        for tag in tags.iter().map(|t| t.trim().to_lowercase()) {
+            if !tag.is_empty() && !cleaned.contains(&tag) {
+                cleaned.push(tag);
             }
         }
         Ok(Self {
             name: name.to_owned(),
-            description: request.description.trim().to_owned(),
+            description: description.trim().to_owned(),
             instructions: instructions.to_owned(),
-            tags,
+            tags: cleaned,
         })
     }
 }

@@ -197,7 +197,7 @@ impl AgentService {
         })
     }
 
-    fn checked_contract(contract: ResultContract) -> Result<ResultContract, AppError> {
+    pub(crate) fn checked_contract(contract: ResultContract) -> Result<ResultContract, AppError> {
         contract.normalized().map_err(|error| {
             AppError::new(ErrorCode::ResultContractInvalid).with(
                 "reason",
@@ -235,36 +235,73 @@ impl AgentService {
 
     /// Checks a create/update request and returns the cleaned name and model id.
     fn validate(&self, request: &CreateAgentRequest) -> Result<(String, String), AppError> {
-        let name = request.name.trim();
-        if name.is_empty() {
-            return Err(AppError::new(ErrorCode::NameRequired));
-        }
-        if name.chars().count() > MAX_NAME_LEN {
-            return Err(AppError::new(ErrorCode::NameTooLong).with("max", MAX_NAME_LEN.to_string()));
-        }
         if self.personalities.find(&request.personality_id).is_none() {
             return Err(AppError::new(ErrorCode::PersonalityRequired));
         }
-        let runtime = self
-            .runtimes
-            .find(&request.runtime_id)
-            .ok_or_else(|| AppError::new(ErrorCode::RuntimeRequired))?;
-        if !runtime.info().capabilities.non_interactive_execution {
-            return Err(AppError::new(ErrorCode::RuntimeNotSupported));
-        }
-        let model_id = request.model_id.trim();
-        if model_id.is_empty() {
-            return Err(AppError::new(ErrorCode::ModelRequired));
-        }
-        if model_id.starts_with('-')
-            || model_id
-                .chars()
-                .any(|c| c.is_whitespace() || c.is_control())
-        {
-            return Err(AppError::new(ErrorCode::ModelInvalid));
-        }
-        Ok((name.to_owned(), model_id.to_owned()))
+        check_fields(
+            &self.runtimes,
+            &request.name,
+            &request.runtime_id,
+            &request.model_id,
+        )
     }
+}
+
+/// The rules every agent obeys, wherever it comes from (the form, or a file being imported): a
+/// name, a runtime that can run tasks, and a model id that cannot pose as a command-line flag.
+/// Returns the cleaned name and model id. Whether the personality exists is for the caller.
+///
+/// # Errors
+///
+/// Fails with the reason the name, runtime or model is not acceptable.
+pub(crate) fn check_fields(
+    runtimes: &RuntimeRegistry,
+    name: &str,
+    runtime_id: &str,
+    model_id: &str,
+) -> Result<(String, String), AppError> {
+    let name = check_name(name)?;
+    let runtime = runtimes
+        .find(runtime_id)
+        .ok_or_else(|| AppError::new(ErrorCode::RuntimeRequired))?;
+    if !runtime.info().capabilities.non_interactive_execution {
+        return Err(AppError::new(ErrorCode::RuntimeNotSupported));
+    }
+    Ok((name, check_model_id(model_id)?))
+}
+
+/// # Errors
+///
+/// Fails if the name is empty or too long.
+pub(crate) fn check_name(name: &str) -> Result<String, AppError> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Err(AppError::new(ErrorCode::NameRequired));
+    }
+    if name.chars().count() > MAX_NAME_LEN {
+        return Err(AppError::new(ErrorCode::NameTooLong).with("max", MAX_NAME_LEN.to_string()));
+    }
+    Ok(name.to_owned())
+}
+
+/// A model id is passed to a command line: it may not look like a flag or hold whitespace.
+///
+/// # Errors
+///
+/// Fails if the id is empty or not acceptable as a command-line argument.
+pub(crate) fn check_model_id(model_id: &str) -> Result<String, AppError> {
+    let model_id = model_id.trim();
+    if model_id.is_empty() {
+        return Err(AppError::new(ErrorCode::ModelRequired));
+    }
+    if model_id.starts_with('-')
+        || model_id
+            .chars()
+            .any(|c| c.is_whitespace() || c.is_control())
+    {
+        return Err(AppError::new(ErrorCode::ModelInvalid));
+    }
+    Ok(model_id.to_owned())
 }
 
 #[cfg(test)]

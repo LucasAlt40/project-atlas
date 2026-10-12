@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { errorMessage } from '@/i18n/messages';
 import { useT } from '@/i18n/I18nProvider';
+import { ExportButton } from '@/features/portability';
 import type { TranslationKey } from '@/i18n';
 import type { Personality } from '../types';
 import styles from './Personality.module.css';
@@ -101,6 +102,7 @@ export function PersonalityCard({ personality, onUse, onEdit, onDelete }: Props)
         >
           {t('personalities.use')}
         </Button>
+        <ExportButton kind="personality" id={personality.id} name={personality.name} />
         <button
           type="button"
           className={styles.linkButton}

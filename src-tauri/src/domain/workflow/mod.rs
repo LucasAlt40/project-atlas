@@ -24,7 +24,6 @@ pub use node::{
     AgentNode, EndNode, EndOutcome, ExecutionPolicy, FailurePolicy, LoopPolicy, NodeKind,
     RetryPolicy, WorkflowNode,
 };
-#[cfg(test)]
 pub use node::{ConditionNode, Position};
 pub use template::{CustomTemplate, SuggestionTarget, ToolCapability, ToolSuggestion};
 pub use workflow::{RouteRepair, Viewport, Workflow, WorkflowMode, WorkflowStatus};

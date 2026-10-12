@@ -93,6 +93,11 @@ pub fn run() {
             commands::personalities::update_personality,
             commands::personalities::delete_personality,
             commands::personalities::restore_default_personalities,
+            commands::portability::export_configs,
+            commands::portability::save_config_file,
+            commands::portability::pick_config_file,
+            commands::portability::preview_config_import,
+            commands::portability::import_configs,
             commands::runtimes::list_runtimes,
             commands::agents::list_agents,
             commands::agents::create_agent,
@@ -315,6 +320,7 @@ fn build_state(
     let ledger = Arc::new(UsageLedger::new(config.clone()));
     let config_for_overview = config.clone();
     let config_for_guardrails = config.clone();
+    let config_for_portability = config.clone();
     // Workflow definitions and runs live in the same config store. A run the previous session
     // never saw end is marked interrupted: nothing is resumed or called finished on its own.
     let workflows = Arc::new(WorkflowService::new(
@@ -372,6 +378,11 @@ fn build_state(
         config_for_overview,
         runtimes.clone(),
     ));
+    let portability = Arc::new(application::portability::PortabilityService::new(
+        config_for_portability,
+        runtimes.clone(),
+        workspaces.clone(),
+    ));
     AppState {
         app_info,
         personalities,
@@ -393,6 +404,7 @@ fn build_state(
         live,
         mcp,
         mcp_catalog,
+        portability,
     }
 }
 

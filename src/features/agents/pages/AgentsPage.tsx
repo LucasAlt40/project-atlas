@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { errorMessage } from '@/i18n/messages';
 import { useT } from '@/i18n/I18nProvider';
+import { ImportButton } from '@/features/portability';
 import { AgentForm } from '../components/AgentForm';
 import { AgentList } from '../components/AgentList';
 import { useCatalog } from '../hooks/useCatalog';
@@ -21,7 +22,8 @@ interface Props {
 /** Agents are global configuration: personality + runtime + model + instructions. */
 export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
   const t = useT();
-  const { catalog, runtimes, refreshRuntimes, addAgent, editAgent, removeAgent } = useCatalog();
+  const { catalog, runtimes, refreshRuntimes, addAgent, editAgent, removeAgent, reloadCatalog } =
+    useCatalog();
   const [creating, setCreating] = useState(startCreating !== undefined);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -106,6 +108,11 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
                 }}
               />
             </label>
+            <ImportButton
+              onImported={() => {
+                void reloadCatalog();
+              }}
+            />
             <Button
               onClick={() => {
                 setEditingId(null);

@@ -14,6 +14,7 @@ pub mod mcp;
 pub mod optimization;
 pub mod orchestration;
 pub mod personalities;
+pub mod portability;
 pub mod process;
 pub mod projects;
 pub mod prompt;
