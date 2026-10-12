@@ -127,6 +127,13 @@ pub fn run() {
             commands::mcp::revoke_mcp_grant,
             commands::mcp::list_mcp_catalog,
             commands::mcp::add_mcp_preset,
+            commands::mcp::import_mcp_config,
+            commands::mcp::export_mcp_config,
+            commands::mcp::read_runtime_mcp_config,
+            commands::mcp::apply_mcp_to_runtime,
+            commands::mcp::plan_mcp_sync,
+            commands::mcp::apply_mcp_sync,
+            commands::mcp::search_mcp_registry,
             commands::security::get_agent_permissions,
             commands::security::set_agent_permission_profile,
             commands::security::list_pending_approvals,
@@ -210,11 +217,15 @@ fn build_state(
     ));
     let runtimes = Arc::new(RuntimeRegistry::with_default_runtimes(&runner));
     // MCP connections live in the configuration; their secrets only in the OS credential store.
-    let mcp = Arc::new(application::mcp::McpService::new(
-        config.clone(),
-        Arc::new(infrastructure::KeyringCredentialStore::new()),
-        runtimes.clone(),
-    ));
+    let mcp = Arc::new(
+        application::mcp::McpService::new(
+            config.clone(),
+            Arc::new(infrastructure::KeyringCredentialStore::new()),
+            runtimes.clone(),
+        )
+        .with_files(Arc::new(infrastructure::FsRuntimeConfigFiles))
+        .with_registry(Arc::new(infrastructure::CurlRegistryClient)),
+    );
     let mcp_catalog = Arc::new(application::mcp::McpCatalog::new(runner.clone()));
     let personalities = Arc::new(PersonalityService::new(config.clone()));
     let agents = Arc::new(AgentService::new(

@@ -25,6 +25,7 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
   const [creating, setCreating] = useState(startCreating !== undefined);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<'all' | 'ready' | 'unavailable'>('all');
 
   if (catalog.status === 'loading') {
     return <p className={styles.muted}>{t('common.loadingCore')}</p>;
@@ -40,9 +41,6 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
   const { personalities, agents } = catalog;
   const editing = agents.find((a) => a.id === editingId);
   const needle = query.trim().toLowerCase();
-  const visible = needle
-    ? agents.filter((a) => `${a.name} ${a.modelId} ${a.runtimeId}`.toLowerCase().includes(needle))
-    : agents;
   const runtimeName = (id: string) =>
     (runtimes.status === 'ready'
       ? runtimes.runtimes.find((r) => r.runtime.id === id)?.runtime.name
@@ -52,6 +50,37 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
     runtimes.status === 'ready'
       ? runtimes.runtimes.find((r) => r.runtime.id === id)?.availability === 'ready'
       : undefined;
+
+  const availability = (a: Agent) => runtimeReady(a.runtimeId);
+  const inFilter = (a: Agent, f: typeof filter) =>
+    f === 'all' || availability(a) === (f === 'ready');
+  const visible = agents.filter(
+    (a) =>
+      inFilter(a, filter) &&
+      (!needle || `${a.name} ${a.modelId} ${a.runtimeId}`.toLowerCase().includes(needle)),
+  );
+  const readyRuntimes =
+    runtimes.status === 'ready'
+      ? runtimes.runtimes.filter((r) => r.availability === 'ready').length
+      : null;
+  const stats: { label: string; value: string }[] = [
+    { label: t('agents.stat.agents'), value: String(agents.length) },
+    {
+      label: t('agents.stat.runtimes'),
+      value:
+        runtimes.status === 'ready'
+          ? `${String(readyRuntimes ?? 0)}/${String(runtimes.runtimes.length)}`
+          : '—',
+    },
+    {
+      label: t('agents.stat.isolated'),
+      value: String(agents.filter((a) => a.worktreeIsolation).length),
+    },
+    {
+      label: t('agents.stat.contract'),
+      value: String(agents.filter((a) => a.resultContract.outcomes.length > 0).length),
+    },
+  ];
 
   return (
     <section className={styles.page}>
@@ -88,6 +117,35 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
             </Button>
           </div>
         </header>
+      )}
+
+      {!creating && !editing && agents.length > 0 && (
+        <>
+          <dl className={styles.stats}>
+            {stats.map(({ label, value }) => (
+              <div key={label} className={styles.stat}>
+                <dt className={styles.statLabel}>{label}</dt>
+                <dd className={styles.statValue}>{value}</dd>
+              </div>
+            ))}
+          </dl>
+          <div className={styles.tabsBar} role="group" aria-label={t('agents.filter.label')}>
+            {(['all', 'ready', 'unavailable'] as const).map((name) => (
+              <button
+                key={name}
+                type="button"
+                className={styles.filterTab}
+                aria-pressed={filter === name}
+                onClick={() => {
+                  setFilter(name);
+                }}
+              >
+                {t(`agents.filter.${name}`)} (
+                {String(agents.filter((a) => inFilter(a, name)).length)})
+              </button>
+            ))}
+          </div>
+        </>
       )}
 
       {notice && (
@@ -142,7 +200,7 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
       {!creating && !editing && (
         <AgentList
           agents={visible}
-          filtered={needle !== ''}
+          filtered={needle !== '' || filter !== 'all'}
           personalities={personalities}
           runtimeName={runtimeName}
           runtimeReady={runtimeReady}

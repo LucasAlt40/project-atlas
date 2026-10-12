@@ -102,6 +102,14 @@ pub enum ErrorCode {
     McpProbeFailed,
     /// The catalogue entry does not exist or cannot be added yet (Figma: HTTP and OAuth).
     McpPresetUnavailable,
+    /// The text or file is not the configuration format it was said to be.
+    McpConfigUnreadable,
+    /// The runtime has no configuration file Atlas can read or write.
+    McpConfigUnsupported,
+    /// The runtime's configuration file could not be read or written (`detail` says why).
+    McpConfigIo,
+    /// The MCP Registry could not be reached or answered with something unusable.
+    McpRegistryUnavailable,
     IdeUnknown,
     IdeNotInstalled,
     IdeLaunchFailed,

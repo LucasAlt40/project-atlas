@@ -2,7 +2,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr));
   gap: var(--space-5);
-  align-items: start;
+  align-items: stretch;
 }
 .card {
   display: flex;
@@ -126,6 +126,11 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-4);
+}
+/* Cards in a row share a height; the actions sit on the bottom edge of each. */
+.card .actions {
+  margin-top: auto;
+  padding-top: var(--space-2);
 }
 .linkButton {
   padding: 0;

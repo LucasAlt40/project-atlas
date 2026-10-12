@@ -3,9 +3,12 @@
 //! grants. Runtime-agnostic: a runtime adapter turns a plan into whatever its CLI needs.
 
 mod catalog;
+pub mod config_io;
 mod credentials;
 mod launch;
 mod plan;
+pub mod registry;
+mod runtime_files;
 mod service;
 pub(crate) mod validate;
 

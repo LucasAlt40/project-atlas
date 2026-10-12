@@ -3,291 +3,33 @@ import { Button } from '@/components/ui/Button';
 import type { Agent, RuntimeStatus } from '@/features/agents/types';
 import type { TranslationKey } from '@/i18n';
 import { useI18n } from '@/i18n/I18nProvider';
-import { errorDetail, errorMessage } from '@/i18n/messages';
 import type { McpConnectionDto, McpGrantDto, WorkflowDto } from '@/lib/tauri/commands';
-import {
-  clearMcpSecret,
-  grantMcpConnection,
-  probeMcpConnection,
-  removeMcpConnection,
-  revokeMcpGrant,
-  setMcpConnectionEnabled,
-  setMcpSecret,
-} from '../services/mcpService';
 import styles from './Integrations.module.css';
 
 /** Programs that fetch and run code from the network the first time they start. */
-const FETCHES_CODE = new Set(['npx', 'uvx', 'bunx', 'pnpx', 'dlx']);
-
-interface Props {
-  connection: McpConnectionDto;
-  grants: McpGrantDto[];
-  agents: Agent[];
-  runtimes: RuntimeStatus[];
-  workflows: WorkflowDto[];
-  /** What the catalogue says about this connection's risk, when it came from there. */
-  riskNoteKey?: TranslationKey | undefined;
-  onChanged: () => void;
-}
+export const FETCHES_CODE = new Set(['npx', 'uvx', 'bunx', 'pnpx', 'dlx']);
 
 /**
- * One connection: switch it on (a decision, with its consequence said first), look at what it
- * offers, store its secrets, and say which agents may use which of its tools. Nothing here starts
- * by itself, and nothing a person has not asked for is granted.
+ * How the runtime an agent uses gets a server: `handed` (Atlas gives it for the run), `cli` (it
+ * only uses the servers of its own configuration; Atlas checks the server is there and tells the
+ * agent) or `none` (it cannot be given any).
  */
-export function ConnectionCard({
-  connection,
-  grants,
-  agents,
-  runtimes,
-  workflows,
-  riskNoteKey,
-  onChanged,
-}: Props) {
-  const { t } = useI18n();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [detail, setDetail] = useState<string | undefined>();
-  const [probing, setProbing] = useState(false);
-  const [confirming, setConfirming] = useState<'on' | 'remove' | null>(null);
+export type Delivery = 'handed' | 'cli' | 'none';
 
-  function run(action: () => Promise<unknown>) {
-    setBusy(true);
-    setError(null);
-    setDetail(undefined);
-    action()
-      .then(() => {
-        setConfirming(null);
-        onChanged();
-      })
-      .catch((e: unknown) => {
-        setError(errorMessage(t, e));
-        setDetail(errorDetail(e));
-      })
-      .finally(() => {
-        setBusy(false);
-        setProbing(false);
-      });
-  }
-
-  const usable = runtimes.filter(
-    (r) =>
-      r.runtime.capabilities.mcp === 'supported' &&
-      r.runtime.capabilities.mcpFeatures.probe !== 'none',
-  );
-  const stdio = connection.transport.kind === 'stdio' ? connection.transport : undefined;
-  const program =
-    stdio?.executable
-      .split(/[\\/]/)
-      .pop()
-      ?.replace(/\.\w+$/, '') ?? '';
-  const secretNames = (stdio?.env ?? [])
-    .filter((e) => e.value.kind === 'secret')
-    .map((e) => e.name);
-  const missing = secretNames.filter((name) => !(name in connection.secrets));
-  const mine = grants.filter((g) => g.connectionId === connection.id);
-
-  return (
-    <li className={styles.card} aria-label={connection.name}>
-      <div className={styles.cardHead}>
-        <strong>{connection.name}</strong>
-        <span className={styles.muted}>
-          {connection.enabled ? t('integrations.on') : t('integrations.off')} ·{' '}
-          {connection.required ? t('integrations.required') : t('integrations.optional')}
-        </span>
-      </div>
-      {stdio && (
-        <code className={styles.mono}>{[stdio.executable, ...(stdio.args ?? [])].join(' ')}</code>
-      )}
-      {error && (
-        <p role="alert" className={styles.error}>
-          {error}
-          {detail && <code className={styles.mono}> {detail}</code>}
-        </p>
-      )}
-
-      {/* Switching on: the consequence first. */}
-      {confirming === 'on' ? (
-        <div className={styles.warning} role="group" aria-label={t('integrations.confirmOn')}>
-          <p>{t('integrations.confirmOnText')}</p>
-          {riskNoteKey && <p>{t(riskNoteKey)}</p>}
-          <div className={styles.row}>
-            <Button
-              disabled={busy}
-              onClick={() => {
-                run(() => setMcpConnectionEnabled(connection.id, true));
-              }}
-            >
-              {t('integrations.confirmOn')}
-            </Button>
-            <button
-              type="button"
-              className={styles.linkButton}
-              onClick={() => {
-                setConfirming(null);
-              }}
-            >
-              {t('common.cancel')}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className={styles.row}>
-          {connection.enabled ? (
-            <Button
-              variant="secondary"
-              disabled={busy}
-              onClick={() => {
-                run(() => setMcpConnectionEnabled(connection.id, false));
-              }}
-            >
-              {t('integrations.switchOff')}
-            </Button>
-          ) : (
-            <Button
-              variant="secondary"
-              disabled={busy}
-              onClick={() => {
-                setConfirming('on');
-              }}
-            >
-              {t('integrations.switchOn')}
-            </Button>
-          )}
-        </div>
-      )}
-
-      {secretNames.length > 0 && (
-        <>
-          <h4 className={styles.heading}>{t('integrations.secrets')}</h4>
-          <p className={styles.muted}>{t('integrations.secretsNote')}</p>
-          {secretNames.map((name) => (
-            <SecretRow
-              key={name}
-              name={name}
-              storedAt={connection.secrets[name]}
-              busy={busy}
-              onSave={(value) => {
-                run(() => setMcpSecret(connection.id, name, value));
-              }}
-              onClear={() => {
-                run(() => clearMcpSecret(connection.id, name));
-              }}
-            />
-          ))}
-        </>
-      )}
-
-      <h4 className={styles.heading}>{t('integrations.examine')}</h4>
-      <p className={styles.muted}>
-        {t('integrations.examineNote')}
-        {FETCHES_CODE.has(program) && ` ${t('integrations.examineDownloads')}`}
-      </p>
-      <ExamineRow
-        connection={connection}
-        runtimes={usable}
-        disabled={busy || !connection.enabled || missing.length > 0}
-        onExamine={(runtimeId) => {
-          setProbing(true);
-          run(() => probeMcpConnection(connection.id, runtimeId));
-        }}
-      />
-      {probing && (
-        <p className={styles.muted} role="status">
-          {t('integrations.examining')}
-        </p>
-      )}
-
-      <h4 className={styles.heading}>{t('integrations.grants')}</h4>
-      <p className={styles.muted}>{t('integrations.grantsNote')}</p>
-      {mine.length === 0 && <p className={styles.muted}>{t('integrations.grantsNone')}</p>}
-      <ul className={styles.list}>
-        {mine.map((grant) => (
-          <li key={grant.id} className={styles.row}>
-            <span>
-              {agents.find((a) => a.id === grant.agentId)?.name ?? t('integrations.anyAgent')}
-              {grant.workflowId !== null && ` · ${scopeLabel(grant, workflows, t)}`}
-              {' — '}
-              {grant.tools.kind === 'server'
-                ? t('integrations.toolsAll')
-                : t('integrations.toolsOnly', { tools: grant.tools.tools.join(', ') })}
-              {!canReceive(
-                agents.find((a) => a.id === grant.agentId),
-                runtimes,
-              ) && <span className={styles.error}> ⚠ {t('integrations.runtimeCannot')}</span>}
-            </span>
-            <button
-              type="button"
-              className={styles.linkButton}
-              disabled={busy}
-              onClick={() => {
-                run(() => revokeMcpGrant(grant.id));
-              }}
-            >
-              {t('integrations.revoke')}
-            </button>
-          </li>
-        ))}
-      </ul>
-      <GrantForm
-        connection={connection}
-        agents={agents}
-        runtimes={runtimes}
-        workflows={workflows}
-        disabled={busy}
-        onGrant={(agentId, tools, scope) => {
-          run(() => grantMcpConnection(connection.id, agentId, tools, scope));
-        }}
-      />
-
-      {confirming === 'remove' ? (
-        <div className={styles.row} role="group" aria-label={t('integrations.removeConfirm')}>
-          <Button
-            variant="danger"
-            disabled={busy}
-            onClick={() => {
-              run(() => removeMcpConnection(connection.id));
-            }}
-          >
-            {t('integrations.removeConfirm')}
-          </Button>
-          <button
-            type="button"
-            className={styles.linkButton}
-            onClick={() => {
-              setConfirming(null);
-            }}
-          >
-            {t('common.cancel')}
-          </button>
-        </div>
-      ) : (
-        <div className={styles.row}>
-          <button
-            type="button"
-            className={styles.linkButton}
-            onClick={() => {
-              setConfirming('remove');
-            }}
-          >
-            {t('integrations.remove')}
-          </button>
-        </div>
-      )}
-    </li>
-  );
+export function deliveryTo(agent: Agent | undefined, runtimes: RuntimeStatus[]): Delivery {
+  if (!agent) return 'handed';
+  const support = runtimes.find((r) => r.runtime.id === agent.runtimeId)?.runtime.capabilities.mcp;
+  if (support === 'supported') return 'handed';
+  return support === 'cli_configured' ? 'cli' : 'none';
 }
 
-/** Whether the runtime an agent uses can be given MCP servers (only Claude, today). */
-function canReceive(agent: Agent | undefined, runtimes: RuntimeStatus[]): boolean {
-  if (!agent) return true;
-  return (
-    runtimes.find((r) => r.runtime.id === agent.runtimeId)?.runtime.capabilities.mcp === 'supported'
-  );
+/** Whether the runtime an agent uses can be given MCP servers by Atlas. */
+export function canReceive(agent: Agent | undefined, runtimes: RuntimeStatus[]): boolean {
+  return deliveryTo(agent, runtimes) === 'handed';
 }
 
 /** Where a grant applies, in words: a workflow, and a step of it when it names one. */
-function scopeLabel(
+export function scopeLabel(
   grant: McpGrantDto,
   workflows: WorkflowDto[],
   t: (key: TranslationKey, params?: Record<string, string | number>) => string,
@@ -300,7 +42,7 @@ function scopeLabel(
   return t('integrations.scopeStep', { workflow: name, step });
 }
 
-function SecretRow({
+export function SecretRow({
   name,
   storedAt,
   busy,
@@ -350,7 +92,7 @@ function SecretRow({
   );
 }
 
-function ExamineRow({
+export function ExamineRow({
   connection,
   runtimes,
   disabled,
@@ -407,7 +149,7 @@ function ExamineRow({
   );
 }
 
-function GrantForm({
+export function GrantForm({
   connection,
   agents,
   runtimes,
@@ -457,12 +199,20 @@ function GrantForm({
   const ready = agent !== '' && (mode === 'server' || (canName && named.length > 0));
   return (
     <div className={styles.field}>
-      {!canReceive(
+      {deliveryTo(
         agents.find((a) => a.id === agent),
         runtimes,
-      ) && (
+      ) === 'none' && (
         <p className={styles.warning} role="alert">
           {t('integrations.runtimeCannotLong')}
+        </p>
+      )}
+      {deliveryTo(
+        agents.find((a) => a.id === agent),
+        runtimes,
+      ) === 'cli' && (
+        <p className={styles.warning} role="note">
+          {t('integrations.viaCliLong')}
         </p>
       )}
       <label>

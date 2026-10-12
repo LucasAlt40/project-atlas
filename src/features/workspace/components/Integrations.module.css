@@ -95,3 +95,30 @@
 .linkButton:hover {
   text-decoration: underline;
 }
+
+.field > label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.field > label:has(input[type='radio']),
+.field > label:has(input[type='checkbox']) {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+}
+.field select,
+.field input:not([type='checkbox']):not([type='radio']),
+.row select,
+.row input:not([type='checkbox']):not([type='radio']) {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-void);
+  color: var(--text-high);
+  color-scheme: dark;
+}
+.field input[type='radio'],
+.field input[type='checkbox'] {
+  accent-color: var(--accent);
+}

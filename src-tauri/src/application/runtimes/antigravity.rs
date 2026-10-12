@@ -4,11 +4,12 @@ use std::time::Duration;
 
 use serde_json::Value;
 
-use super::mcp_adapter::McpAdapterFactory;
 use super::{
     cli, Detection, ModelRuntime, RuntimeError, RuntimeEvent, RuntimeOutput, RuntimeRequest,
 };
+use crate::application::mcp::CliServer;
 use crate::application::process::{ProcessContext, ProcessOutput, ProcessRunner, ProcessSpec};
+use crate::domain::mcp::{McpFeatures, McpProbeKind, McpSupport, McpToolFilter};
 use crate::domain::runtime::{
     AuthKind, AuthState, Authentication, ModelInfo, ProviderRef, RuntimeCapabilities, RuntimeInfo,
     SystemPromptChannel, Transport,
@@ -50,7 +51,42 @@ impl AntigravityRuntime {
     }
 }
 
+/// The servers `agy mcp list` shows that are switched on: `name  type  status  command…`, one per
+/// line under a header.
+pub fn parse_mcp_list(output: &str) -> Vec<CliServer> {
+    output
+        .lines()
+        .filter_map(|line| {
+            let mut words = line.split_whitespace();
+            let (name, _kind, status) = (words.next()?, words.next()?, words.next()?);
+            if name == "NAME" || status != "enabled" {
+                return None;
+            }
+            Some(CliServer {
+                name: name.to_owned(),
+                command_line: words.collect::<Vec<_>>().join(" "),
+            })
+        })
+        .collect()
+}
+
 impl ModelRuntime for AntigravityRuntime {
+    fn configured_mcp_servers(&self) -> Option<Vec<CliServer>> {
+        self.runner.locate(PROGRAM)?;
+        let spec = ProcessSpec {
+            program: PROGRAM.to_owned(),
+            args: vec!["mcp".to_owned(), "list".to_owned()],
+            stdin: None,
+            cwd: None,
+            env: Vec::new(),
+            timeout: Duration::from_secs(30),
+            context: ProcessContext::Probe,
+            terminal: None,
+        };
+        let output = self.runner.run(&spec, &|_| {}).ok()?;
+        Some(parse_mcp_list(&output.stdout))
+    }
+
     fn detect_interaction(
         &self,
         output: &RuntimeOutput,
@@ -61,8 +97,16 @@ impl ModelRuntime for AntigravityRuntime {
     fn info(&self) -> RuntimeInfo {
         // Measured (`agy --help`, `agy mcp --help`): servers are added with `agy mcp add`, which
         // writes the user's own configuration, and no per-run configuration was found. Atlas does
-        // not change the user's global configuration, so there is no adapter.
-        let (mcp, mcp_features) = McpAdapterFactory::declared(None);
+        // not change the user's global configuration, so it cannot hand this CLI a server for a
+        // run. It can see what the CLI already has (`agy mcp list`) and tell the agent to use
+        // that: `CliConfigured`. Nothing can hold a server's tools back, and the CLI loads
+        // everything it has, not only what was granted (so it is not strict).
+        let mcp = McpSupport::CliConfigured;
+        let mcp_features = McpFeatures {
+            tool_filter: McpToolFilter::Unsupported,
+            probe: McpProbeKind::None,
+            strict: false,
+        };
         RuntimeInfo {
             id: "antigravity".to_owned(),
             name: "Antigravity CLI".to_owned(),
@@ -424,6 +468,20 @@ fn parse_run_output(output: &ProcessOutput, model_id: &str) -> Result<RuntimeOut
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_servers_agy_lists_as_enabled_are_read_with_their_commands() {
+        let listing = "NAME   TYPE   STATUS   COMMAND/URL\n\
+            chrome-devtools-mcp   stdio  enabled  npx -y chrome-devtools-mcp@latest\n\
+            figma-dev-mode-mcp-server  http   enabled  http://127.0.0.1:3845/mcp\n\
+            old  stdio  disabled  node old.js\n";
+
+        let servers = parse_mcp_list(listing);
+
+        let names: Vec<_> = servers.iter().map(|s| s.name.as_str()).collect();
+        assert_eq!(names, ["chrome-devtools-mcp", "figma-dev-mode-mcp-server"]);
+        assert_eq!(servers[0].command_line, "npx -y chrome-devtools-mcp@latest");
+    }
+
     use std::cell::RefCell;
     use std::path::PathBuf;
 

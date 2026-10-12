@@ -1,7 +1,12 @@
 use tauri::State;
 
 use crate::application::errors::AppError;
-use crate::application::mcp::{McpCatalog, McpOverview, McpPresetInfo};
+use crate::application::mcp::config_io::ConfigDialect;
+use crate::application::mcp::registry::RegistryPage;
+use crate::application::mcp::{
+    ApplyReport, ImportReport, McpCatalog, McpOverview, McpPresetInfo, RuntimeSource, SyncPlan,
+    SyncReport,
+};
 use crate::domain::mcp::{McpConnection, McpGrant, McpTransport, Secret, ToolSelection};
 use crate::state::AppState;
 
@@ -150,4 +155,94 @@ pub fn add_mcp_preset(
 ) -> Result<McpConnection, AppError> {
     let (name, transport) = McpCatalog::connection_for(&preset_id)?;
     state.mcp.add(&workspace_id, name, transport, false)
+}
+
+/// Adds the servers of a pasted or read configuration (`dialect`, or detected when `None`) as
+/// connections that are off and granted to nobody. Reports what was added, what was left out and
+/// why, and which secrets still need a value.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+pub fn import_mcp_config(
+    state: State<'_, AppState>,
+    workspace_id: String,
+    dialect: Option<ConfigDialect>,
+    text: String,
+) -> Result<ImportReport, AppError> {
+    state.mcp.import(&workspace_id, dialect, &text)
+}
+
+/// The workspace's connections (all, or the ones named) as the text of a CLI's configuration.
+/// Secrets are references to the CLI's environment, never values.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+pub fn export_mcp_config(
+    state: State<'_, AppState>,
+    workspace_id: String,
+    dialect: ConfigDialect,
+    connection_ids: Vec<String>,
+) -> String {
+    state.mcp.export(&workspace_id, dialect, &connection_ids)
+}
+
+/// The CLI's own configuration file, as it is, to import from.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+pub fn read_runtime_mcp_config(
+    state: State<'_, AppState>,
+    workspace_id: String,
+    dialect: ConfigDialect,
+) -> Result<RuntimeSource, AppError> {
+    state.mcp.runtime_source(&workspace_id, dialect)
+}
+
+/// Adds connections to the CLI's own configuration file. Never overwrites a server the file has;
+/// keeps a copy of the file first; secrets are written as references.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+pub fn apply_mcp_to_runtime(
+    state: State<'_, AppState>,
+    workspace_id: String,
+    dialect: ConfigDialect,
+    connection_ids: Vec<String>,
+) -> Result<ApplyReport, AppError> {
+    state
+        .mcp
+        .apply_to_runtime(&workspace_id, dialect, &connection_ids)
+}
+
+/// What each CLI's configuration holds and which servers are not everywhere. Reads files, writes
+/// nothing.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+pub fn plan_mcp_sync(
+    state: State<'_, AppState>,
+    workspace_id: String,
+) -> Result<SyncPlan, AppError> {
+    state.mcp.sync_plan(&workspace_id)
+}
+
+/// Brings every CLI's servers into Atlas (off, granted to nobody) and adds the ones each CLI
+/// lacks to its file. Never overwrites; copies a file before changing it.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+pub fn apply_mcp_sync(
+    state: State<'_, AppState>,
+    workspace_id: String,
+) -> Result<SyncReport, AppError> {
+    state.mcp.sync_apply(&workspace_id)
+}
+
+/// Looks servers up in the official MCP Registry. Reaches the network, so never on the window's
+/// thread.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command]
+pub async fn search_mcp_registry(
+    state: State<'_, AppState>,
+    query: String,
+    cursor: Option<String>,
+) -> Result<RegistryPage, AppError> {
+    let mcp = state.mcp.clone();
+    tauri::async_runtime::spawn_blocking(move || mcp.search_registry(&query, cursor.as_deref()))
+        .await
+        .map_err(|error| AppError::storage(error.to_string()))?
 }

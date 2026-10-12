@@ -46,6 +46,16 @@ const PATHS = {
   stop: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9 9l6 6M15 9l-6 6',
   code: 'M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14',
   panelLeft: 'M4 5h16v14H4zM9 5v14',
+  hub: 'M12 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM5 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM19 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM12 10v3M12 13l-6 3M12 13l6 3',
+  pulse: 'M3 12h4l2-6 4 12 2-6h6',
+  braces:
+    'M8 4c-2 0-3 1-3 3v2c0 1-1 3-2 3 1 0 2 2 2 3v2c0 2 1 3 3 3M16 4c2 0 3 1 3 3v2c0 1 1 3 2 3-1 0-2 2-2 3v2c0 2-1 3-3 3',
+  plug: 'M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0zM12 17v4',
+  wrench: 'M14.7 6.3a4 4 0 0 0-5 5L3 18l3 3 6.7-6.7a4 4 0 0 0 5-5l-2.5 2.5-2.5-.5-.5-2.5z',
+  download: 'M12 4v11M7 11l5 5 5-5M5 20h14',
+  upload: 'M12 16V5M7 9l5-5 5 5M5 20h14',
+  warning: 'M12 4 3 20h18zM12 10v4M12 17h.01',
+  copy: 'M9 9h11v11H9zM5 15V4h11',
 } as const;
 
 export type IconName = keyof typeof PATHS;

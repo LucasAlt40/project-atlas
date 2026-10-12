@@ -105,6 +105,35 @@ export interface CommandMap {
     args: { workspaceId: string; presetId: string };
     result: McpConnectionDto;
   };
+  /** Adds the servers of a configuration text; every one is off and granted to nobody. */
+  import_mcp_config: {
+    args: { workspaceId: string; dialect?: McpConfigDialectDto; text: string };
+    result: McpImportReportDto;
+  };
+  /** The connections as the text of a CLI's configuration; secrets are references. */
+  export_mcp_config: {
+    args: { workspaceId: string; dialect: McpConfigDialectDto; connectionIds: string[] };
+    result: string;
+  };
+  /** The CLI's own configuration file, as it is. */
+  read_runtime_mcp_config: {
+    args: { workspaceId: string; dialect: McpConfigDialectDto };
+    result: McpRuntimeSourceDto;
+  };
+  /** Adds connections to the CLI's own file without overwriting anything in it. */
+  apply_mcp_to_runtime: {
+    args: { workspaceId: string; dialect: McpConfigDialectDto; connectionIds: string[] };
+    result: McpApplyReportDto;
+  };
+  /** What each CLI's configuration holds and which servers are not everywhere. Writes nothing. */
+  plan_mcp_sync: { args: { workspaceId: string }; result: McpSyncPlanDto };
+  /** Brings every CLI's servers into Atlas and adds the missing ones to each CLI's file. */
+  apply_mcp_sync: { args: { workspaceId: string }; result: McpSyncReportDto };
+  /** Looks servers up in the official MCP Registry. */
+  search_mcp_registry: {
+    args: { query: string; cursor?: string };
+    result: McpRegistryPageDto;
+  };
   get_agent_permissions: {
     args: { workspaceId: string; agentId: string };
     result: AgentPermissionsDto;
@@ -637,7 +666,8 @@ export interface ProviderRefDto {
 export type SystemPromptChannelDto = 'unsupported' | 'native' | 'appended';
 
 /** Mirrors `domain::mcp::McpSupport`. */
-export type McpSupportDto = 'unsupported' | 'not_investigated' | 'supported';
+/** `cli_configured`: not handed servers per run; it uses the ones in its own configuration. */
+export type McpSupportDto = 'unsupported' | 'not_investigated' | 'supported' | 'cli_configured';
 
 export type AuthKindDto = 'cli_session' | 'api_key' | 'environment_variable' | 'credential_store';
 
@@ -1174,6 +1204,109 @@ export interface McpPresetDto {
   requirements: { requirement: 'node' | 'npx' | 'chrome' | 'saved_sign_in'; found: boolean }[];
 }
 
+/** Mirrors `application::mcp::config_io::ConfigDialect`. */
+export type McpConfigDialectDto =
+  'mcp' | 'claude' | 'gemini' | 'open_code' | 'codex' | 'antigravity';
+
+/** Mirrors `application::mcp::ImportReport`. */
+export interface McpImportReportDto {
+  dialect: McpConfigDialectDto;
+  added: {
+    connectionId: string;
+    name: string;
+    secretsStored: string[];
+    secretsMissing: string[];
+    credentialStoreFailed: boolean;
+    warnings: string[];
+  }[];
+  /** `reason` is a code (`http_not_supported`, `shell`, `name_taken`…). */
+  skipped: { name: string; reason: string }[];
+}
+
+/** Mirrors `application::mcp::RuntimeSource`: `text` is null when the file does not exist. */
+export interface McpRuntimeSourceDto {
+  path: string;
+  text: string | null;
+}
+
+/** Mirrors `application::mcp::ApplyReport`. */
+export interface McpApplyReportDto {
+  path: string;
+  added: string[];
+  kept: string[];
+  backup: string | null;
+}
+
+/** Mirrors `application::mcp::SyncPlan`. */
+export interface McpSyncPlanDto {
+  runtimes: {
+    dialect: McpConfigDialectDto;
+    path: string | null;
+    /** One of the CLI's files exists; a CLI that is not available is not written to. */
+    available: boolean;
+    /** `unreadable`: the file is not its format and is left alone. */
+    error: string | null;
+  }[];
+  servers: {
+    name: string;
+    inAtlas: boolean;
+    foundIn: McpConfigDialectDto[];
+    missingFrom: McpConfigDialectDto[];
+  }[];
+  skipped: { dialect: McpConfigDialectDto; name: string; reason: string }[];
+}
+
+/** Mirrors `application::mcp::SyncReport`. */
+export interface McpSyncReportDto {
+  imported: McpImportReportDto['added'];
+  applied: {
+    dialect: McpConfigDialectDto;
+    path: string | null;
+    added: string[];
+    backup: string | null;
+    /** An error code (`mcp_config_unreadable`…). */
+    error: string | null;
+  }[];
+  skipped: { dialect: McpConfigDialectDto; name: string; reason: string }[];
+}
+
+/** Mirrors `application::mcp::registry::RegistryPage`. */
+export interface McpRegistryPageDto {
+  servers: McpRegistryServerDto[];
+  nextCursor: string | null;
+}
+
+export interface McpRegistryServerDto {
+  name: string;
+  title: string | null;
+  description: string;
+  version: string;
+  repositoryUrl: string | null;
+  websiteUrl: string | null;
+  installs: {
+    /** `npm` or `pypi`; others are left out by the core. */
+    kind: string;
+    executable: string;
+    args: string[];
+    inputs: {
+      flag: string | null;
+      value: string | null;
+      description: string | null;
+      required: boolean;
+    }[];
+    env: {
+      name: string;
+      description: string | null;
+      required: boolean;
+      secret: boolean;
+      default: string | null;
+    }[];
+  }[];
+  /** HTTP/SSE endpoints: listed, not addable. */
+  remotes: string[];
+  unsupportedPackages: string[];
+}
+
 export interface McpOverviewDto {
   connections: McpConnectionDto[];
   grants: McpGrantDto[];
@@ -1188,7 +1321,8 @@ export type McpProblemDto =
   | { kind: 'invalid_configuration'; reason: string }
   | { kind: 'secret_missing'; name: string }
   | { kind: 'needs_discovery' }
-  | { kind: 'tool_filter_unsupported' };
+  | { kind: 'tool_filter_unsupported' }
+  | { kind: 'not_in_cli_config' };
 
 /** Mirrors `domain::mcp::McpRecord`: the six things about a tool, kept apart. */
 export interface McpRecordDto {
@@ -1200,6 +1334,8 @@ export interface McpRecordDto {
     authorized: boolean;
     exposed: boolean;
     problem?: McpProblemDto;
+    /** The CLI's own name for the server, when its own copy is what the agent uses. */
+    cliName?: string;
     discoveredStatus?: McpServerStatusDto;
     reportedStatus?: McpServerStatusDto;
   }[];

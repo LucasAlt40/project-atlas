@@ -15,6 +15,9 @@ const SettingsPage = lazy(() =>
 const AgentsScreen = lazy(() =>
   import('./AgentsScreen').then((m) => ({ default: m.AgentsScreen })),
 );
+const McpHubPage = lazy(() =>
+  import('@/features/workspace/pages/McpHubPage').then((m) => ({ default: m.McpHubPage })),
+);
 const PersonalitiesScreen = lazy(() =>
   import('./PersonalitiesScreen').then((m) => ({ default: m.PersonalitiesScreen })),
 );
@@ -41,6 +44,7 @@ export const SCREENS: readonly [Screen, ...Screen[]] = [
     icon: 'personalities',
     component: PersonalitiesScreen,
   },
+  { id: 'mcp', labelKey: 'nav.mcp', icon: 'hub', component: McpHubPage },
   { id: 'settings', labelKey: 'nav.settings', icon: 'settings', component: SettingsPage },
 ];
 

@@ -18,7 +18,7 @@ use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use super::mcp::{LaunchServer, McpLaunch, McpProbe};
+use super::mcp::{CliServer, LaunchServer, McpLaunch, McpProbe};
 use super::process::{ExecutionScope, ProcessRunner};
 use super::prompt::Prompt;
 use crate::domain::context::{ReportedLimits, RuntimeSurface};
@@ -168,6 +168,12 @@ pub trait ModelRuntime: Send + Sync {
         Err(RuntimeError::Unavailable(
             "This runtime has no MCP adapter.".to_owned(),
         ))
+    }
+
+    /// The MCP servers this runtime's CLI has in its own configuration, for a runtime that cannot
+    /// be handed servers for a run (`McpSupport::CliConfigured`). `None`: it could not be read.
+    fn configured_mcp_servers(&self) -> Option<Vec<CliServer>> {
+        None
     }
 
     /// Which of the tools the runtime listed at start-up are MCP tools, and of which of the

@@ -224,7 +224,7 @@ classDiagram
 ```
 
 `McpFeatures` is what the plan reads (not a `match` on the runtime): `tool_filter` (deny-list, allow-list, unsupported), `probe`
-(none, status, tools) and `strict`. Antigravity has no adapter, so it declares MCP as unsupported.
+(none, status, tools) and `strict`. Antigravity cannot be handed servers, so it declares `cli_configured`: the plan matches a connection against the servers `agy mcp list` shows and tells the agent to use that one.
 
 ## Keeping these true
 

@@ -643,6 +643,10 @@ impl ExecutionService {
         // What MCP the step may be given: connections, grants, the agent's policy and what the
         // runtime can do. Nothing is started or read here.
         let mcp_policy = self.mcp_permission(&execution, &agent, &task.id);
+        // A CLI that cannot be handed servers is asked what it already has.
+        let cli_servers = (runtime.info().capabilities.mcp
+            == crate::domain::mcp::McpSupport::CliConfigured)
+            .then(|| runtime.configured_mcp_servers().unwrap_or_default());
         let mut mcp_plan = self.plan_mcp(
             &McpContext {
                 workspace: &emitter.workspace_id,
@@ -653,7 +657,19 @@ impl ExecutionService {
             mcp_policy,
             &runtime.info().capabilities,
             &runtime.info().id,
+            cli_servers.as_deref(),
         );
+        // A connection somebody granted and switched on that the agent will not have: said in the
+        // run itself, not only in the manifest afterwards.
+        for server in mcp_plan.failed() {
+            if let Some(problem) = &server.problem {
+                emitter.log(&format!(
+                    "MCP connection {} was granted but not given to this agent: {}",
+                    server.connection.name,
+                    Self::problem_text(problem)
+                ));
+            }
+        }
         let mcp_facts = Self::mcp_facts(&mcp_plan);
         // The integrations the agent is told about: the ones the plan gives it (the prompt says no
         // more than what is arranged), unless the step's node turned that off.
@@ -1237,6 +1253,7 @@ impl ExecutionService {
         policy: Permission,
         capabilities: &crate::domain::runtime::RuntimeCapabilities,
         runtime_id: &str,
+        cli_servers: Option<&[super::mcp::CliServer]>,
     ) -> McpPlan {
         let support = capabilities.mcp;
         let features = capabilities.mcp_features;
@@ -1259,6 +1276,7 @@ impl ExecutionService {
             context: *context,
             policy,
             support,
+            cli_servers,
             features,
         })
     }

@@ -18,7 +18,7 @@ use std::collections::BTreeSet;
 use super::validate::validate;
 use crate::domain::mcp::{
     McpConnection, McpFeatures, McpGrant, McpProblem, McpRecord, McpServerRecord, McpSupport,
-    McpToolFilter, McpToolState, ToolSelection,
+    McpToolFilter, McpToolState, McpTransport, ToolSelection,
 };
 use crate::domain::security::Permission;
 
@@ -31,6 +31,65 @@ pub struct McpContext<'a> {
     pub node: Option<&'a str>,
 }
 
+/// A server a CLI already has in its own configuration.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CliServer {
+    pub name: String,
+    /// The program and arguments it starts, as text.
+    pub command_line: String,
+}
+
+/// What a name comes to when a CLI and a person each wrote it their way: `chrome-devtools-mcp`,
+/// `Chrome_DevTools` and `mcp-chrome-devtools` are one.
+fn name_stem(name: &str) -> String {
+    let lower = name.to_lowercase().replace('_', "-");
+    let lower = lower.strip_prefix("mcp-").unwrap_or(&lower);
+    let lower = lower.strip_suffix("-server").unwrap_or(lower);
+    lower.strip_suffix("-mcp").unwrap_or(lower).to_owned()
+}
+
+/// The package or script a connection starts, without its version: `chrome-devtools-mcp` for
+/// `npx -y chrome-devtools-mcp@1.10.1`.
+fn program_token(connection: &McpConnection) -> Option<String> {
+    let McpTransport::Stdio {
+        executable, args, ..
+    } = &connection.transport
+    else {
+        return None;
+    };
+    let launcher = matches!(
+        executable.rsplit(['/', '\\']).next().unwrap_or(""),
+        "npx" | "uvx" | "bunx" | "pnpx" | "pipx"
+    );
+    let token = if launcher {
+        args.iter().find(|a| !a.starts_with('-'))?
+    } else {
+        executable
+    };
+    // `@scope/name@1.2` keeps its scope; the version after the last `@` goes.
+    let trimmed = match token.rfind('@') {
+        Some(at) if at > 0 => &token[..at],
+        _ => token.as_str(),
+    };
+    (!trimmed.is_empty()).then(|| trimmed.to_owned())
+}
+
+/// The CLI's own server that is this connection, if it has one: by name, or by starting the same
+/// package.
+pub fn cli_match<'a>(
+    connection: &McpConnection,
+    servers: &'a [CliServer],
+) -> Option<&'a CliServer> {
+    let stem = name_stem(&connection.name);
+    let token = program_token(connection);
+    servers.iter().find(|server| {
+        name_stem(&server.name) == stem
+            || token
+                .as_deref()
+                .is_some_and(|t| server.command_line.contains(t))
+    })
+}
+
 pub struct McpInputs<'a> {
     pub connections: &'a [McpConnection],
     pub grants: &'a [McpGrant],
@@ -38,6 +97,9 @@ pub struct McpInputs<'a> {
     /// The agent's resolved MCP policy.
     pub policy: Permission,
     pub support: McpSupport,
+    /// The servers the runtime's CLI has in its own configuration; `Some` only for
+    /// `McpSupport::CliConfigured`.
+    pub cli_servers: Option<&'a [CliServer]>,
     /// How the runtime filters tools (what a grant naming tools needs).
     pub features: McpFeatures,
 }
@@ -50,6 +112,8 @@ pub struct PlannedServer {
     pub selection: Option<ToolSelection>,
     /// Why it is not exposed. `None`: it is.
     pub problem: Option<McpProblem>,
+    /// The CLI's own name for the server when its own copy is what the agent uses.
+    pub cli_name: Option<String>,
 }
 
 impl PlannedServer {
@@ -119,11 +183,15 @@ pub fn plan(inputs: &McpInputs<'_>) -> McpPlan {
                 .filter(|g| covers(g, connection, ctx))
                 .collect();
             let selection = combine(&matching);
-            let problem = problem_of(connection, selection.as_ref(), inputs);
+            let cli = (inputs.support == McpSupport::CliConfigured)
+                .then(|| cli_match(connection, inputs.cli_servers.unwrap_or_default()))
+                .flatten();
+            let problem = problem_of(connection, selection.as_ref(), cli.is_some(), inputs);
             PlannedServer {
                 connection: connection.clone(),
                 selection,
                 problem,
+                cli_name: cli.map(|c| c.name.clone()),
             }
         })
         .collect();
@@ -141,6 +209,7 @@ pub fn plan(inputs: &McpInputs<'_>) -> McpPlan {
 fn problem_of(
     connection: &McpConnection,
     selection: Option<&ToolSelection>,
+    in_cli: bool,
     inputs: &McpInputs<'_>,
 ) -> Option<McpProblem> {
     if !connection.enabled {
@@ -150,8 +219,13 @@ fn problem_of(
     if inputs.policy == Permission::Denied {
         return Some(McpProblem::PolicyDenied);
     }
-    if inputs.support != McpSupport::Supported {
-        return Some(McpProblem::RuntimeUnsupported);
+    match inputs.support {
+        McpSupport::Supported => {}
+        McpSupport::CliConfigured if in_cli => {}
+        McpSupport::CliConfigured => return Some(McpProblem::NotInCliConfig),
+        McpSupport::Unsupported | McpSupport::NotInvestigated => {
+            return Some(McpProblem::RuntimeUnsupported)
+        }
     }
     if let Err(invalid) = validate(connection) {
         return Some(McpProblem::InvalidConfiguration {
@@ -168,6 +242,10 @@ fn problem_of(
             }
             McpToolFilter::DenyList | McpToolFilter::AllowList => {}
         }
+    }
+    // The CLI's own copy has its own credentials: Atlas hands it none.
+    if in_cli {
+        return None;
     }
     connection
         .missing_secret()
@@ -296,6 +374,7 @@ impl McpPlan {
                     authorized: s.selection.is_some(),
                     exposed: s.exposed(),
                     problem: s.problem.clone(),
+                    cli_name: s.cli_name.clone(),
                     discovered_status: s.connection.discovery.as_ref().map(|d| d.status),
                     reported_status: None,
                 })
@@ -326,13 +405,14 @@ impl McpPlan {
                 .map(|d| d.tools.join(","))
                 .unwrap_or_default();
             lines.push(format!(
-                "server|{}|{}|{}|selection={}|problem={}|discovered={}",
+                "server|{}|{}|{}|selection={}|problem={}|discovered={}|cli={}",
                 server.connection.id,
                 server.connection.name,
                 server.connection.configuration_digest(),
                 serde_json::to_string(&server.selection).unwrap_or_default(),
                 serde_json::to_string(&server.problem).unwrap_or_default(),
-                discovered
+                discovered,
+                server.cli_name.as_deref().unwrap_or("")
             ));
         }
         lines.join("\n")
@@ -384,6 +464,7 @@ mod tests {
             grants,
             context: CTX,
             policy,
+            cli_servers: None,
             support,
             features: crate::domain::mcp::McpFeatures {
                 tool_filter: McpToolFilter::DenyList,
@@ -752,5 +833,120 @@ mod tests {
         assert!(record.servers[0].authorized && record.servers[0].exposed);
         assert_eq!(record.servers[1].problem, Some(McpProblem::NotEnabled));
         assert!(!record.servers[1].authorized);
+    }
+
+    fn devtools() -> McpConnection {
+        let mut c = connection("chrome-devtools");
+        c.transport = McpTransport::Stdio {
+            executable: "npx".to_owned(),
+            args: vec![
+                "-y".to_owned(),
+                "chrome-devtools-mcp@1.10.1".to_owned(),
+                "--headless".to_owned(),
+            ],
+            env: Vec::new(),
+        };
+        c
+    }
+
+    fn cli(name: &str, command: &str) -> CliServer {
+        CliServer {
+            name: name.to_owned(),
+            command_line: command.to_owned(),
+        }
+    }
+
+    fn through_cli(
+        connection: McpConnection,
+        grants: &[McpGrant],
+        servers: &[CliServer],
+        filter: McpToolFilter,
+    ) -> McpPlan {
+        plan(&McpInputs {
+            connections: &[connection],
+            grants,
+            context: CTX,
+            policy: Permission::Allowed,
+            support: McpSupport::CliConfigured,
+            cli_servers: Some(servers),
+            features: McpFeatures {
+                tool_filter: filter,
+                probe: crate::domain::mcp::McpProbeKind::None,
+                strict: false,
+            },
+        })
+    }
+
+    #[test]
+    fn a_cli_that_has_the_server_in_its_own_configuration_gets_it_by_the_name_it_knows() {
+        let connection = devtools();
+        let grants = [grant(&connection, ToolSelection::Server)];
+        // Another name, the same package.
+        let servers = [cli(
+            "chrome-devtools-mcp",
+            "npx -y chrome-devtools-mcp@latest",
+        )];
+
+        let result = through_cli(connection, &grants, &servers, McpToolFilter::Unsupported);
+
+        assert!(result.servers[0].exposed());
+        assert_eq!(
+            result.servers[0].cli_name.as_deref(),
+            Some("chrome-devtools-mcp")
+        );
+    }
+
+    #[test]
+    fn a_cli_without_it_is_told_so_and_a_named_tool_grant_is_refused_for_a_cli_that_cannot_hold_tools(
+    ) {
+        let connection = devtools();
+        let whole = [grant(&connection, ToolSelection::Server)];
+        let only = [grant(
+            &connection,
+            ToolSelection::Only {
+                tools: vec!["take_screenshot".to_owned()],
+            },
+        )];
+        let other = [cli("figma", "http://127.0.0.1:3845/mcp")];
+        let has = [cli(
+            "chrome-devtools-mcp",
+            "npx -y chrome-devtools-mcp@latest",
+        )];
+
+        let missing = through_cli(
+            connection.clone(),
+            &whole,
+            &other,
+            McpToolFilter::Unsupported,
+        );
+        let narrowed = through_cli(connection, &only, &has, McpToolFilter::Unsupported);
+
+        assert_eq!(missing.servers[0].problem, Some(McpProblem::NotInCliConfig));
+        assert!(!missing.servers[0].exposed());
+        assert_eq!(
+            narrowed.servers[0].problem,
+            Some(McpProblem::ToolFilterUnsupported)
+        );
+    }
+
+    #[test]
+    fn the_same_name_in_another_spelling_is_the_same_server_and_another_server_is_not() {
+        assert_eq!(
+            name_stem("Chrome_DevTools"),
+            name_stem("mcp-chrome-devtools")
+        );
+        assert_eq!(name_stem("chrome-devtools-mcp"), "chrome-devtools");
+        assert_ne!(name_stem("github"), name_stem("gitlab"));
+        assert_eq!(
+            program_token(&devtools()).as_deref(),
+            Some("chrome-devtools-mcp")
+        );
+        let mut scoped = connection("x");
+        scoped.transport = McpTransport::Stdio {
+            executable: "npx".to_owned(),
+            args: vec!["@acme/jira-mcp@1.2.0".to_owned()],
+            env: Vec::new(),
+        };
+        assert_eq!(program_token(&scoped).as_deref(), Some("@acme/jira-mcp"));
     }
 }

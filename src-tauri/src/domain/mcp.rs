@@ -178,6 +178,10 @@ pub enum McpSupport {
     NotInvestigated,
     /// An adapter exists and its behaviour was measured.
     Supported,
+    /// The CLI cannot be handed servers for one run, but it loads the servers of its own
+    /// configuration (which Atlas looks at and never changes). A grant then means "this one, which
+    /// the CLI already has": Atlas tells the agent about it and cannot hold its tools back.
+    CliConfigured,
 }
 
 /// How a runtime can keep a granted server's other tools from the model. Measured per runtime;
@@ -239,6 +243,8 @@ pub enum McpProblem {
     NeedsDiscovery,
     /// A grant names tools and the runtime has no way to hold the others back.
     ToolFilterUnsupported,
+    /// The CLI only uses the servers of its own configuration, and this one is not among them.
+    NotInCliConfig,
 }
 
 /// The six things kept apart for one tool.
@@ -278,6 +284,10 @@ pub struct McpServerRecord {
     pub exposed: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub problem: Option<McpProblem>,
+    /// The name the CLI itself knows the server by, when it is the CLI's own copy that is used
+    /// (`McpSupport::CliConfigured`): Atlas arranged nothing but the agent's knowledge of it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cli_name: Option<String>,
     /// The status of the last discovery.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub discovered_status: Option<McpServerStatus>,
@@ -534,6 +544,7 @@ pub(crate) mod tests {
                 authorized: true,
                 exposed: true,
                 problem: None,
+                cli_name: None,
                 discovered_status: Some(McpServerStatus::Connected),
                 reported_status: None,
             }],

@@ -26,8 +26,14 @@ Each "secret" row was shown by a server that starts only if the secret reached i
    `allow_list`), what a probe shows (`none`, `status_only`, `tools`) and whether it loads only Atlas's servers (`strict`). The plan uses them:
    a grant that names tools needs discovery on a deny-list runtime, none on an allow-list one, and is **not honoured** (the server is not given,
    `tool_filter_unsupported`) where nothing holds the rest back (no runtime is in that state today).
-2. **Antigravity stays `Unsupported`**, with the evidence. Giving it a server would mean changing the user's global configuration, which Atlas
-   does not do.
+2. **Antigravity is `CliConfigured`** (amended). Giving it a server for a run would mean changing the user's global configuration, which Atlas
+   does not do, so it cannot be _handed_ one. But it loads the servers of its own configuration, and without being told it does not use them (a
+   QA agent granted `chrome-devtools` never opened the browser: both runs recorded `runtime_unsupported` and the prompt said nothing). So the
+   plan asks the CLI what it has (`agy mcp list`, enabled entries), matches a connection to one of them by name (`chrome-devtools` is
+   `chrome-devtools-mcp`) or by the package it starts, and, when there is one, treats it as exposed _through the CLI_: the prompt names it by
+   the CLI's own name, the manifest records `cliName`, no secret leaves the credential store and nothing is launched. When the CLI does not have
+   it the problem is `not_in_cli_config` (the hub offers the `agy mcp add` command to copy). A grant that names tools is refused
+   (`tool_filter_unsupported`): nothing can hold the CLI's other tools back, and it loads its other servers too (`strict: false`).
 3. **Not strict where not measured.** Gemini, OpenCode and Codex merge Atlas's servers with the user's own. Atlas says so (surface entry
    "user controlled, not observed"; a note where a grant is made) instead of claiming to have excluded them. Gemini's
    `--allowed-mcp-server-names` was not passed: its effect was not verified.

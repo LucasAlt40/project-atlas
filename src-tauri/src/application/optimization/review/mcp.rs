@@ -37,6 +37,9 @@ fn what(problem: &McpProblem) -> &'static str {
         McpProblem::ToolFilterUnsupported => {
             "the agent's runtime cannot hold a server to the tools named"
         }
+        McpProblem::NotInCliConfig => {
+            "the agent's CLI only uses its own configured servers and does not have this one"
+        }
     }
 }
 

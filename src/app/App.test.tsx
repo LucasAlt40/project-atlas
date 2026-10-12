@@ -42,7 +42,7 @@ describe('App', () => {
       within(nav)
         .getAllByRole('button')
         .map((b) => b.textContent),
-    ).toEqual(['Workspace', 'Workflow', 'Agentes', 'Personalidades', 'Configurações']);
+    ).toEqual(['Workspace', 'Workflow', 'Agentes', 'Personalidades', 'MCP Hub', 'Configurações']);
     expect(within(nav).getByRole('button', { name: 'Workspace' })).toHaveAttribute(
       'aria-current',
       'page',
