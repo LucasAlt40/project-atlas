@@ -18,6 +18,7 @@ pub mod portability;
 pub mod process;
 pub mod projects;
 pub mod prompt;
+pub mod remote;
 pub mod rules;
 pub mod runtimes;
 pub mod security;

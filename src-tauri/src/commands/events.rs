@@ -1,8 +1,9 @@
-use tauri::{AppHandle, Emitter, Runtime};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 use crate::application::chat::ChatObserver;
 use crate::application::executions::ExecutionObserver;
 use crate::application::live_workspace::LiveSink;
+use crate::application::remote::hub::EventHub;
 use crate::application::security::PermissionSink;
 use crate::application::sessions::SessionSink;
 use crate::application::support::now_ms;
@@ -13,6 +14,7 @@ use crate::domain::live_workspace::LiveWorkspaceUpdate;
 use crate::domain::security::PermissionEvent;
 use crate::domain::terminal::{SessionStatusEvent, TerminalChunk};
 use crate::domain::workflow::WorkflowEvent;
+use crate::state::AppState;
 
 /// Progress of an execution; the payload's `kind` says which step. One channel for every
 /// execution: listeners tell executions apart by `executionId` and `agentId`.
@@ -40,9 +42,18 @@ impl<R: Runtime> TauriEventObserver<R> {
     }
 }
 
+/// What the phone's stream is told. Looked up where it is used: the observers are built in many
+/// places and only hold the app handle.
+fn announce_to_phone<R: Runtime>(app: &AppHandle<R>, tell: impl FnOnce(&EventHub)) {
+    if let Some(state) = app.try_state::<AppState>() {
+        tell(&state.remote.hub);
+    }
+}
+
 impl<R: Runtime> ExecutionObserver for TauriEventObserver<R> {
     fn on_event(&self, event: &ExecutionEvent) {
         self.emit(EXECUTION_PROGRESS_EVENT, event);
+        announce_to_phone(&self.app, |hub| hub.publish_activity(&event.workspace_id));
     }
 }
 
@@ -84,6 +95,7 @@ impl<R: Runtime> WorkflowObserver for TauriWorkflowObserver<R> {
         if let Err(error) = self.app.emit(&name, event) {
             eprintln!("failed to emit {name}: {error}");
         }
+        announce_to_phone(&self.app, |hub| hub.publish_workflow(event));
     }
 }
 
@@ -130,6 +142,7 @@ impl<R: Runtime> SessionSink for TauriSessionSink<R> {
 
     fn on_activity(&self, event: &ExecutionEvent) {
         self.emit(EXECUTION_PROGRESS_EVENT, event);
+        announce_to_phone(&self.app, |hub| hub.publish_activity(&event.workspace_id));
     }
 }
 

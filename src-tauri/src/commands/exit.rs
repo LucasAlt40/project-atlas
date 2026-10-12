@@ -67,7 +67,10 @@ pub fn on_run_event<R: Runtime>(app: &AppHandle<R>, event: &RunEvent, consent: &
                 });
         }
         // Whatever way the application ends, its agents' processes end with it.
-        RunEvent::Exit => state.sessions.terminate_all_and_wait(SHUTDOWN_WAIT),
+        RunEvent::Exit => {
+            super::remote::stop_on_exit(app);
+            state.sessions.terminate_all_and_wait(SHUTDOWN_WAIT);
+        }
         _ => {}
     }
 }

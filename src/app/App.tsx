@@ -5,6 +5,7 @@ import { SidebarFooter } from '@/components/layout/SidebarFooter';
 import { CatalogProvider } from '@/features/agents/hooks/useCatalog';
 import { useAttentionNotifications } from '@/features/workflow/hooks/useAttentionNotifications';
 import { ActionRequired } from '@/features/workflow/components/ActionRequired';
+import { MobileAccessButton } from '@/features/remote/MobileAccessButton';
 import { LanguageSwitch } from '@/features/settings/components/LanguageSwitch';
 import { SettingsProvider } from '@/features/settings/hooks/SettingsProvider';
 import { ActiveExecutions } from '@/features/workspace/components/ActiveExecutions';
@@ -62,6 +63,7 @@ function Shell() {
           <>
             <ActionRequired />
             <ActiveExecutions />
+            <MobileAccessButton />
             <LanguageSwitch />
           </>
         }

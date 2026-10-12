@@ -21,6 +21,8 @@ mod engine_tests;
 #[cfg(test)]
 mod orchestrator_tests;
 #[cfg(test)]
+mod remote_tests;
+#[cfg(test)]
 mod routing_tests;
 #[cfg(test)]
 mod template_tests;

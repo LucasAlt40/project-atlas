@@ -197,6 +197,14 @@ conservative text analysis) lives in `application/interaction`; the orchestrator
 answer through `answer_workflow_interaction`, and starts the step again from it in the same worktree. The UI
 shows "Action required" in the header and on the run; answering never applies code to the project.
 
+## Mobile access
+
+A phone's browser on the same network can follow runs and answer what waits for a person ([ADR 0034](adr/0034-mobile-remote-access.md)).
+Off until the person turns it on in the app. `application/remote` holds the rules (single-use pairing, in-memory sessions, a tiered policy for
+what the phone may do, a redacted read model, a numbered event hub); `infrastructure/remote_server.rs` is a small hyper adapter; the page is a
+second Vite entry (`mobile.html`) served from the app's own embedded files. The gateway **calls** `WorkflowService` and `Orchestrator`: there is no
+second engine, and a remote answer takes exactly the path of a desktop one.
+
 ## Optimization Layer (V0.10)
 
 A cross-cutting layer that measures what each execution sends and costs, and removes what is said twice, without touching required
@@ -393,3 +401,4 @@ A frontend router and global store are intentionally absent until a second scree
 - [0031 — Plans wait for the person](adr/0031-plan-approval.md) — approve, change or redo; automatic approval is the person's setting
 - [0032 — Sharing configurations as a file](adr/0032-configuration-import-export.md) — versioned JSON; preview, decisions and an all-or-nothing import
 - [0033 — Workspaces with several projects](adr/0033-multi-project-workspaces.md) — local Harness per project plus a workspace context; scope, worktrees, migration
+- [0034 — Mobile access](adr/0034-mobile-remote-access.md) — a phone on the local network follows runs and answers what waits; pairing, tiers of action, SSE with a cursor, HTTP limits

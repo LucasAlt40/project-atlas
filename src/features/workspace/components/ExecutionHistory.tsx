@@ -34,7 +34,7 @@ export function ExecutionHistory({ executions, runtimeName, onOpen }: Props) {
       : execution.status === 'waiting_for_input'
         ? t('executions.waitingForInput')
         : execution.status === 'failed'
-          ? `${t('executions.failed')} · ${failureMessage(t, execution.failure?.kind)}`
+          ? `${t('executions.failed')} · ${failureMessage(t, execution.failure?.kind)}${execution.failure?.details ? ` — ${execution.failure.details}` : ''}`
           : t('executions.completed');
   const group = (title: string, items: StoredExecution[]) =>
     items.length > 0 && (

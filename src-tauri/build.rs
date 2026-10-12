@@ -118,6 +118,11 @@ const COMMANDS: &[&str] = &[
     "refresh_live_workspace",
     "get_live_file",
     "get_live_diff",
+    "get_remote_status",
+    "set_remote_enabled",
+    "new_remote_pairing_code",
+    "revoke_remote_device",
+    "revoke_all_remote_devices",
 ];
 
 fn main() {

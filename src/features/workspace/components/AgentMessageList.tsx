@@ -35,6 +35,12 @@ function Byline({ name, at }: { name: string | undefined; at?: number }) {
   );
 }
 
+/** What the core added after its fallback sentence: the runtime's own reason, when it gave one. */
+const FALLBACK_PREFIX = 'Failed to execute request.';
+function failureReason(content: string): string {
+  return content.startsWith(FALLBACK_PREFIX) ? content.slice(FALLBACK_PREFIX.length).trim() : '';
+}
+
 export function AgentMessageList({ messages, liveText, agentName }: Props) {
   const t = useT();
   const list = useRef<HTMLOListElement>(null);
@@ -70,6 +76,7 @@ export function AgentMessageList({ messages, liveText, agentName }: Props) {
                     // The core sends a failure code; the words are ours, in the user's language.
                     <p>
                       {t('chat.failedPrefix')} {failureMessage(t, message.failureKind)}
+                      {failureReason(message.content) && <> {failureReason(message.content)}</>}
                     </p>
                   ) : (
                     <Markdown>{message.content}</Markdown>

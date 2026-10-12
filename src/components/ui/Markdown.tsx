@@ -64,8 +64,13 @@ function CodeBlock({ children }: { children?: ReactNode }) {
   const json = prettyJson(language, source);
   const shown = json ?? source;
 
+  // Absent where the page is not a secure context (the phone's page is plain HTTP).
+  const clipboard = navigator.clipboard as Clipboard | undefined;
+  const canCopy = clipboard !== undefined;
+
   function copy() {
-    void navigator.clipboard.writeText(shown).then(
+    if (!clipboard) return;
+    void clipboard.writeText(shown).then(
       () => {
         setCopied(true);
         setTimeout(() => {
@@ -80,9 +85,11 @@ function CodeBlock({ children }: { children?: ReactNode }) {
     <div className={styles.block}>
       <div className={styles.blockBar}>
         <span>{json ? 'JSON' : language || 'Code'}</span>
-        <button type="button" className={styles.copy} onClick={copy}>
-          {copied ? t('markdown.copied') : t('terminal.copy')}
-        </button>
+        {canCopy && (
+          <button type="button" className={styles.copy} onClick={copy}>
+            {copied ? t('markdown.copied') : t('terminal.copy')}
+          </button>
+        )}
       </div>
       <pre>
         <code>{json ? highlightJson(json) : source}</code>

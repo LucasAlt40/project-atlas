@@ -341,6 +341,66 @@ export interface CommandMap {
   get_live_diff: { args: { executionId: string; path?: string }; result: string };
   list_ides: { args: undefined; result: IdeDto[] };
   open_workflow_in_ide: { args: { executionId: string; ideId: string }; result: null };
+  /** Mobile access (ADR 0034): the server a phone's browser talks to, off until switched on. */
+  get_remote_status: { args: undefined; result: RemoteStatusDto };
+  set_remote_enabled: {
+    args: { enabled: boolean; address: string | null };
+    result: RemoteStatusDto;
+  };
+  new_remote_pairing_code: { args: undefined; result: RemoteStatusDto };
+  revoke_remote_device: { args: { deviceId: string }; result: RemoteStatusDto };
+  revoke_all_remote_devices: { args: undefined; result: RemoteStatusDto };
+}
+
+export type RemoteStateDto = 'disabled' | 'starting' | 'active' | 'error';
+export type RemoteFailureDto =
+  | 'no_network'
+  | 'address_unavailable'
+  | 'port_unavailable'
+  | 'bind_failed'
+  | 'already_running'
+  | 'not_running';
+
+/** An address of this computer that could be offered to a phone. */
+export interface RemoteCandidateDto {
+  address: string;
+  interface: string;
+  kind: 'lan' | 'vpn' | 'loopback';
+  recommended: boolean;
+}
+
+/** The code a phone scans or types once. Kept only while it can still be used. */
+export interface RemotePairingDto {
+  /** As typed: `ABCD-EFGH-IJKL-MNOP`. */
+  code: string;
+  /** What the QR opens. */
+  url: string;
+  qrSvg: string;
+  expiresAt: number;
+}
+
+export interface RemoteDeviceDto {
+  id: string;
+  name: string;
+  address: string;
+  pairedAt: number;
+  lastSeen: number;
+}
+
+export interface RemoteStatusDto {
+  state: RemoteStateDto;
+  error: RemoteFailureDto | null;
+  url: string | null;
+  address: string | null;
+  port: number | null;
+  /** The address the server is on is no longer one of the computer's. */
+  addressLost: boolean;
+  candidates: RemoteCandidateDto[];
+  pairing: RemotePairingDto | null;
+  devices: RemoteDeviceDto[];
+  /** Questions waiting that a phone can answer. */
+  waiting: number;
+  serverTime: number;
 }
 
 /**

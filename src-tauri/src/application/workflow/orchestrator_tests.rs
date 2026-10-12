@@ -49,7 +49,7 @@ impl Gate {
 }
 
 #[derive(Clone)]
-struct Step {
+pub(super) struct Step {
     outcome: StepOutcome,
     hold: Option<Arc<Gate>>,
     millis: u64,
@@ -59,7 +59,7 @@ fn text(status: &str, extra: &str) -> String {
     format!("did the work\n```atlas-result\n{{\"status\":\"{status}\",\"summary\":\"summary of the work\"{extra}}}\n```")
 }
 
-fn ok(status: &str, extra: &str) -> Step {
+pub(super) fn ok(status: &str, extra: &str) -> Step {
     Step {
         outcome: StepOutcome {
             status: StepStatus::Completed,
@@ -78,7 +78,7 @@ fn outcome(outcome: &str, extra: &str) -> Step {
     ok(outcome, &format!(r#","outcome":"{outcome}"{extra}"#))
 }
 
-fn fail(message: &str) -> Step {
+pub(super) fn fail(message: &str) -> Step {
     Step {
         outcome: StepOutcome {
             status: StepStatus::Failed,
@@ -104,7 +104,7 @@ impl Step {
     }
 }
 
-struct Scripted {
+pub(super) struct Scripted {
     steps: Mutex<HashMap<String, VecDeque<Step>>>,
     busy: Mutex<HashSet<String>>,
     running: AtomicUsize,
@@ -117,7 +117,7 @@ struct Scripted {
 }
 
 impl Scripted {
-    fn new() -> Arc<Self> {
+    pub(super) fn new() -> Arc<Self> {
         Arc::new(Self {
             steps: Mutex::default(),
             busy: Mutex::default(),
@@ -131,14 +131,14 @@ impl Scripted {
         })
     }
 
-    fn script(&self, node: &str, steps: Vec<Step>) {
+    pub(super) fn script(&self, node: &str, steps: Vec<Step>) {
         self.steps
             .lock()
             .unwrap()
             .insert(node.to_owned(), steps.into());
     }
 
-    fn requests_for(&self, node: &str) -> Vec<StepRequest> {
+    pub(super) fn requests_for(&self, node: &str) -> Vec<StepRequest> {
         self.requests
             .lock()
             .unwrap()
@@ -148,7 +148,7 @@ impl Scripted {
             .collect()
     }
 
-    fn started(&self) -> Vec<String> {
+    pub(super) fn started(&self) -> Vec<String> {
         self.order.lock().unwrap().clone()
     }
 }
@@ -243,7 +243,7 @@ impl StepRunner for Arc<Scripted> {
 }
 
 #[derive(Default)]
-struct Collector {
+pub(super) struct Collector {
     events: Mutex<Vec<WorkflowEvent>>,
 }
 
@@ -352,7 +352,7 @@ impl Env {
     }
 
     /// A custom workflow whose agent nodes use the agents named by `agent` (a key of `agents`).
-    fn workflow(
+    pub(super) fn workflow(
         &self,
         nodes: Vec<crate::domain::workflow::WorkflowNode>,
         edges: Vec<crate::domain::workflow::WorkflowEdge>,
@@ -376,7 +376,7 @@ impl Env {
             .unwrap()
     }
 
-    fn orchestrator(&self, runner: &Arc<Scripted>) -> Orchestrator {
+    pub(super) fn orchestrator(&self, runner: &Arc<Scripted>) -> Orchestrator {
         let orchestrator = Orchestrator::new(self.service.clone(), Arc::new(runner.clone()))
             .with_poll(Duration::from_millis(5));
         if self.guardrails {
@@ -535,7 +535,7 @@ fn full_flow(env: &Env) -> crate::domain::workflow::Workflow {
     )
 }
 
-fn wait_until(what: &str, mut condition: impl FnMut() -> bool) {
+pub(super) fn wait_until(what: &str, mut condition: impl FnMut() -> bool) {
     let deadline = Instant::now() + Duration::from_secs(5);
     while !condition() {
         assert!(Instant::now() < deadline, "timed out waiting for {what}");
@@ -2010,7 +2010,22 @@ use crate::domain::interaction::{
 };
 
 /// A step whose agent stopped to ask a person.
-fn asks(kind: InteractionKind, question: &str) -> Step {
+pub(super) fn asks(kind: InteractionKind, question: &str) -> Step {
+    asks_with(
+        kind,
+        question,
+        "Plan\n\n- step one",
+        DetectionSource::Structured,
+    )
+}
+
+/// As [`asks`], with the document the question is about and who detected it.
+pub(super) fn asks_with(
+    kind: InteractionKind,
+    question: &str,
+    document: &str,
+    source: DetectionSource,
+) -> Step {
     Step {
         outcome: StepOutcome {
             status: StepStatus::WaitingForInput,
@@ -2022,9 +2037,9 @@ fn asks(kind: InteractionKind, question: &str) -> Step {
                 confidence: 100,
                 question: question.to_owned(),
                 context: "Two modules expose users".to_owned(),
-                document: "Plan\n\n- step one".to_owned(),
+                document: document.to_owned(),
                 options: decision_options(kind),
-                source: DetectionSource::Structured,
+                source,
                 evaluation: None,
             }),
             delta: None,
@@ -2041,7 +2056,7 @@ fn text_answer(text: &str) -> InteractionAnswer {
     }
 }
 
-fn choice(id: &str) -> InteractionAnswer {
+pub(super) fn choice(id: &str) -> InteractionAnswer {
     InteractionAnswer {
         choice: Some(id.to_owned()),
         text: None,
@@ -2106,7 +2121,7 @@ impl Driven {
     }
 }
 
-fn dev_flow(env: &Env) -> crate::domain::workflow::Workflow {
+pub(super) fn dev_flow(env: &Env) -> crate::domain::workflow::Workflow {
     env.workflow(
         vec![
             agent("developer", "developer"),
@@ -2929,7 +2944,7 @@ fn a_run_stopped_for_want_of_a_route_resumes_after_the_routes_are_repaired_by_co
 
 // ---- plans: approval before anything is carried out -------------------------------------------------
 
-fn plan() -> Step {
+pub(super) fn plan() -> Step {
     asks(InteractionKind::Plan, "Do you approve this plan?")
 }
 

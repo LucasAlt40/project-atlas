@@ -13,8 +13,10 @@ mod process;
 mod project_inspector;
 mod project_scanner;
 mod pty;
+mod remote_server;
 mod runtime_config_files;
 mod skill_store;
+mod system_network;
 mod workspace_context_store;
 
 pub use credential_store::KeyringCredentialStore;
@@ -27,6 +29,10 @@ pub use json_config_store::JsonConfigStore;
 pub use process::SystemProcessRunner;
 pub use project_inspector::FsProjectInspector;
 pub use project_scanner::FsProjectScanner;
+#[cfg(test)]
+pub use remote_server::start_in as start_remote_server_in;
+pub use remote_server::{start as start_remote_server, ServerDeps};
 pub use runtime_config_files::FsRuntimeConfigFiles;
 pub use skill_store::FsSkillStore;
+pub use system_network::SystemInterfaces;
 pub use workspace_context_store::FsWorkspaceContextStore;

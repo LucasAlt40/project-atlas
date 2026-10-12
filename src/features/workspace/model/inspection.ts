@@ -48,6 +48,8 @@ export interface ExecutionFacts {
   runtimeId: string;
   modelId: string;
   failureKind: string | null;
+  /** The runtime's own account of why it failed, when it gave one. */
+  failureDetails: string | null;
   /** Runtime-reported usage: `null` is "not reported", not zero. */
   usage: UsageMetricsDto | null;
   /** The run has not ended, so its usage cannot be known yet. */
@@ -76,6 +78,7 @@ export function factsFromStored(execution: StoredExecution): ExecutionFacts {
     runtimeId: execution.runtimeId,
     modelId: execution.modelId,
     failureKind: execution.failure?.kind ?? null,
+    failureDetails: execution.failure?.details ?? null,
     usage: execution.usage,
     usagePending: false,
     process: exited || hadTerminal ? 'exited' : 'none',
@@ -111,6 +114,7 @@ export function factsFromRun(
     runtimeId: agent.runtimeId,
     modelId: agent.modelId,
     failureKind: run.failureKind,
+    failureDetails: null,
     usage: null,
     usagePending: run.status === 'running',
     process: processFact,

@@ -34,3 +34,6 @@ if (!('DOMMatrixReadOnly' in globalThis)) vi.stubGlobal('DOMMatrixReadOnly', Noo
 
 // jsdom has no layout, so no scrolling: elements that scroll themselves into view do nothing.
 Element.prototype.scrollIntoView = () => undefined;
+
+// Nor does it move the page: the phone's page scrolls to the top when it changes screen.
+window.scrollTo = () => undefined;

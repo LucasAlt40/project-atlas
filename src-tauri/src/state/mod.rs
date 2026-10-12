@@ -9,6 +9,7 @@ use crate::application::live_workspace::LiveWorkspaceService;
 use crate::application::mcp::McpService;
 use crate::application::personalities::PersonalityService;
 use crate::application::portability::PortabilityService;
+use crate::application::remote::RemoteAccess;
 use crate::application::runtimes::RuntimeRegistry;
 use crate::application::security::{ApprovalBroker, SecurityOverview};
 use crate::application::sessions::SessionRegistry;
@@ -53,6 +54,9 @@ pub struct AppState {
     pub mcp_catalog: Arc<crate::application::mcp::McpCatalog>,
     /// Export and import of configurations as files.
     pub portability: Arc<PortabilityService>,
+    /// Watching and answering runs from a phone on the local network. Off until the person
+    /// switches it on.
+    pub remote: Arc<RemoteAccess>,
 }
 
 #[cfg(test)]
@@ -195,6 +199,19 @@ impl AppState {
             Arc::new(crate::application::ide::fake::FakeIde::default()),
         ));
         let usage = UsageReporter::new(ledger, chat.clone(), agents.clone());
+        let remote = Arc::new(RemoteAccess::new(
+            Arc::new(crate::application::remote::gateway::RemoteGateway::new(
+                workflows.clone(),
+                workspaces.clone(),
+                agents.clone(),
+                settings.clone(),
+                orchestrator.clone(),
+            )),
+            Arc::new(crate::application::remote::network::fake::Fixed(vec![(
+                "lo0",
+                "127.0.0.1",
+            )])),
+        ));
         Self {
             app_info,
             personalities,
@@ -221,6 +238,7 @@ impl AppState {
                 }),
             ))),
             portability,
+            remote,
         }
     }
 }

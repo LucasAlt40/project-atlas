@@ -252,7 +252,7 @@ describe('WorkspacePage', () => {
     expect(statusOf('Architect')).toHaveTextContent('Completed');
   });
 
-  it('renders a failure inside the right card, worded from its failure kind, never as a raw dump', async () => {
+  it('renders a failure inside the right card, worded from its failure kind, with the runtime reason', async () => {
     const user = userEvent.setup();
     show(['a1', 'a2']);
     vi.mocked(sendMessage).mockResolvedValue({
@@ -283,7 +283,7 @@ describe('WorkspacePage', () => {
         /Failed to execute request\. The runtime needs you to sign in/,
       ),
     ).toBeInTheDocument();
-    expect(within(architectCard).queryByText(/RAW STDERR/)).not.toBeInTheDocument();
+    expect(within(architectCard).getByText(/RAW STDERR/)).toBeInTheDocument();
     await user.click(within(card('Architect')).getByRole('tab', { name: 'Activity' }));
     const activity = within(architectCard).getByRole('list', { name: 'Activity' });
     expect(within(activity).getByText(/Sending prompt/)).toHaveTextContent('✓');

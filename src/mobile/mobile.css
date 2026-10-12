@@ -1,0 +1,25 @@
+/*
+ * The phone's page scrolls like a page, unlike the desktop shell, which is a fixed workspace.
+ * Everything else comes from the same tokens as the desktop (global.css).
+ */
+html,
+body,
+#root {
+  height: auto;
+  min-height: 100%;
+}
+body {
+  overflow: auto;
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

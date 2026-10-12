@@ -17,13 +17,14 @@ ligam, como o contexto é gravado, como o workflow roda e como o Harness é gera
 | 5   | [Segurança e isolamento](05-seguranca-e-isolamento.md)                                  | Política de permissões, guard, worktrees, PTY e controle de processos       |
 | 6   | [Persistência, eventos e observabilidade](06-persistencia-eventos-e-observabilidade.md) | O que é gravado e onde, uso/custo, eventos, métricas de otimização          |
 | 7   | [Importar e exportar](07-importar-e-exportar.md)                                        | Compartilhar agentes, personalidades e workflows como arquivo               |
+| 8   | [Acesso pelo celular](08-acesso-pelo-celular.md)                                        | Acompanhar e responder execuções pelo navegador do celular, na rede local   |
 
 ## Ordem de leitura sugerida
 
 1. **Quem chega agora**: [RESUMO](../RESUMO.md) → 1 → 2.
 2. **Quem vai mexer em IA/prompt/contexto**: 2 → 3 → 6.
 3. **Quem vai mexer em workflows**: 4 → 5.
-4. **Quem vai revisar segurança**: 5 → 4 (seção "O que um workflow não pode fazer").
+4. **Quem vai revisar segurança**: 5 → 4 (seção "O que um workflow não pode fazer") → 8 (o que o celular pode e não pode).
 
 ## Convenções desta documentação
 

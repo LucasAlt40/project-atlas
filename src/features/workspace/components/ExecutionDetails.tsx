@@ -73,7 +73,7 @@ export function ExecutionDetails({
       : t(`inspector.process.${facts.process}`);
   const status =
     facts.status === 'failed'
-      ? `${t('executions.failed')}: ${failureMessage(t, facts.failureKind)}`
+      ? `${t('executions.failed')}: ${failureMessage(t, facts.failureKind)}${facts.failureDetails ? ` ${facts.failureDetails}` : ''}`
       : facts.status === 'cancelled'
         ? t('executions.cancelledByUser')
         : t(`agent.status.${facts.status === 'running' ? 'running' : facts.status}`);

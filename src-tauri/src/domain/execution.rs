@@ -80,6 +80,19 @@ pub struct ExecutionFailure {
     pub details: Option<String>,
 }
 
+impl ExecutionFailure {
+    /// The message followed by the technical details, when there are any: what to show a person
+    /// who needs to know why a run failed, whichever runtime it was.
+    pub fn full_text(&self) -> String {
+        match self.details.as_deref().map(str::trim) {
+            Some(details) if !details.is_empty() && details != self.message => {
+                format!("{} {details}", self.message)
+            }
+            _ => self.message.clone(),
+        }
+    }
+}
+
 /// One attempt to perform a [`Task`].
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]

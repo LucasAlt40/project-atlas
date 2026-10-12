@@ -32,6 +32,17 @@ sha2 = "0.10"
 # secrets. Used only by `infrastructure/`, behind the `CredentialStore` port.
 keyring = "4"
 tauri-plugin-updater = "2"
+# Mobile access (ADR 0034). hyper, Tokio and their helpers are already in the tree through Tauri; only
+# the features the local server needs are switched on. `if-addrs` lists the network interfaces,
+# `qrcode` draws the pairing QR as SVG (no image stack), `getrandom` is the OS CSPRNG.
+tokio = { version = "1", features = ["net", "rt", "sync", "time", "macros"] }
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+http-body-util = "0.1"
+bytes = "1"
+if-addrs = "0.13"
+qrcode = { version = "0.14", default-features = false, features = ["svg"] }
+getrandom = "0.3"
 
 [target.'cfg(unix)'.dependencies]
 # Same crate (and version) `portable-pty` already uses; the `signal` feature adds the safe
@@ -40,6 +51,8 @@ nix = { version = "0.28", features = ["signal"] }
 
 [dev-dependencies]
 tauri = { version = "2", features = ["test"] }
+# The end-to-end tests of mobile access talk to the real server over a socket.
+tokio = { version = "1", features = ["io-util", "time"] }
 
 [lints.rust]
 unsafe_code = "forbid"

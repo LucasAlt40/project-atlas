@@ -56,6 +56,7 @@ const PATHS = {
   upload: 'M12 16V5M7 9l5-5 5 5M5 20h14',
   warning: 'M12 4 3 20h18zM12 10v4M12 17h.01',
   copy: 'M9 9h11v11H9zM5 15V4h11',
+  phone: 'M8 3h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM11 18h2',
 } as const;
 
 export type IconName = keyof typeof PATHS;

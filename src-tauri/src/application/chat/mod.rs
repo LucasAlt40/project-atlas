@@ -438,7 +438,7 @@ impl PendingRun {
                     ExecutionStatus::Failed | ExecutionStatus::Running => {
                         let failure = record.execution.failure.as_ref();
                         (
-                            failure_text(failure.map_or("", |f| f.message.as_str())),
+                            failure_text(failure.and_then(|f| f.details.as_deref()).unwrap_or("")),
                             Some(failure.map_or(FailureKind::ExecutionFailed, |f| f.kind)),
                         )
                     }
@@ -492,7 +492,7 @@ impl PendingRun {
             Ok(record) => RunSummary {
                 status: record.execution.status,
                 result: record.execution.result.clone(),
-                failure: record.execution.failure.as_ref().map(|f| f.message.clone()),
+                failure: record.execution.failure.as_ref().map(ExecutionFailure::full_text),
                 interaction: record.execution.interaction.clone(),
             },
             Err(error) => RunSummary {
@@ -974,7 +974,8 @@ mod tests {
         let assistant = f.chat.messages(None, Some(&f.agent_ids[0])).pop().unwrap();
         assert!(assistant.failed);
         assert_eq!(assistant.failure_kind.as_deref(), Some("execution_failed"));
-        assert!(!assistant.content.contains("raw stderr"));
+        // The runtime's own reason is shown, never hidden behind the generic sentence.
+        assert!(assistant.content.contains("raw stderr"));
         assert_eq!(assistant.execution_id, Some(sent.execution_id));
         let events = observer.events.lock().unwrap();
         assert_eq!(

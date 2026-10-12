@@ -12,6 +12,7 @@ pub mod live_workspace;
 pub mod mcp;
 pub mod personalities;
 pub mod portability;
+pub mod remote;
 pub mod runtimes;
 pub mod security;
 pub mod settings;

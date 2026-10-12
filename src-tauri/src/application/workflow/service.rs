@@ -701,6 +701,26 @@ impl WorkflowService {
         })
     }
 
+    /// Runs, newest first, that have not ended or ended after `since` (milliseconds since the Unix
+    /// epoch): what a listing needs, without copying every run ever made.
+    pub fn executions_since(
+        &self,
+        workspace_id: &str,
+        since: u64,
+        limit: usize,
+    ) -> Vec<WorkflowExecution> {
+        self.config.read(|c| {
+            c.workflow_executions
+                .iter()
+                .rev()
+                .filter(|e| e.workspace_id == workspace_id)
+                .filter(|e| !e.status.is_final() || e.updated_at >= since)
+                .take(limit)
+                .cloned()
+                .collect()
+        })
+    }
+
     /// Whether any run in the workspace has not ended (running, paused or interrupted).
     pub fn has_active_execution(&self, workspace_id: &str) -> bool {
         self.config.read(|c| {

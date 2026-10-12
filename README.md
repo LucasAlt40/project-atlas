@@ -61,6 +61,7 @@ npm run check   # tipos, lint, formatação e testes (frontend e Rust)
 
 - Guia técnico completo (arquitetura, IA, contexto, workflow, segurança): [docs/guia](docs/guia/README.md)
 - Resumo em uma página: [docs/RESUMO.md](docs/RESUMO.md)
+- Acompanhar e responder execuções pelo celular (rede local): [docs/guia/08-acesso-pelo-celular.md](docs/guia/08-acesso-pelo-celular.md)
 - Decisões e arquitetura (ADRs): [docs/architecture](docs/architecture/README.md)
 
 ## Licença

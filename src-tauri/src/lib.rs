@@ -199,6 +199,11 @@ pub fn run() {
             commands::live_workspace::refresh_live_workspace,
             commands::live_workspace::get_live_file,
             commands::live_workspace::get_live_diff,
+            commands::remote::get_remote_status,
+            commands::remote::set_remote_enabled,
+            commands::remote::new_remote_pairing_code,
+            commands::remote::revoke_remote_device,
+            commands::remote::revoke_all_remote_devices,
         ])
         .build(context())
         .expect("error while building Project Atlas")
@@ -390,6 +395,17 @@ fn build_state(
         Arc::new(SystemIdeLauncher::system()),
     ));
     let usage = UsageReporter::new(ledger, chat.clone(), agents.clone());
+    // Off until the person switches it on; nothing listens before that (ADR 0034).
+    let remote = Arc::new(application::remote::RemoteAccess::new(
+        Arc::new(application::remote::gateway::RemoteGateway::new(
+            workflows.clone(),
+            workspaces.clone(),
+            agents.clone(),
+            settings.clone(),
+            orchestrator.clone(),
+        )),
+        Arc::new(infrastructure::SystemInterfaces),
+    ));
     let overview = Arc::new(SecurityOverview::new(
         security,
         config_for_overview,
@@ -422,6 +438,7 @@ fn build_state(
         mcp,
         mcp_catalog,
         portability,
+        remote,
     }
 }
 

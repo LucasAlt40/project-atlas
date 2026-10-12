@@ -11,6 +11,16 @@ export default defineConfig({
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
   clearScreen: false,
+  build: {
+    rollupOptions: {
+      // Two pages from one codebase: the desktop app, and the phone's page that the app's own
+      // server hands to a browser on the local network (ADR 0034).
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        mobile: fileURLToPath(new URL('./mobile.html', import.meta.url)),
+      },
+    },
+  },
   server: {
     port: DEV_PORT,
     strictPort: true,
