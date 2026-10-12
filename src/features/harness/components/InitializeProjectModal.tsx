@@ -45,6 +45,8 @@ import rv from './Review.module.css';
 
 interface Props {
   workspaceId: string;
+  /** The project of the workspace to initialize. The primary one when absent. */
+  projectId?: string;
   onClose: () => void;
   /** Called with the Harness state once it was created, updated or confirmed. */
   onInitialized: (summary: HarnessSummaryDto) => void;
@@ -68,7 +70,7 @@ function problemOf(t: ReturnType<typeof useT>, error: unknown): Problem {
  * until the user confirms the review, a model only ever proposes, and an existing Harness is never
  * replaced without their choice (and a backup).
  */
-export function InitializeProjectModal({ workspaceId, onClose, onInitialized }: Props) {
+export function InitializeProjectModal({ workspaceId, projectId, onClose, onInitialized }: Props) {
   const t = useT();
   const [stage, setStage] = useState<Stage>({ name: 'analyzing' });
   const [busy, setBusy] = useState(false);
@@ -77,7 +79,7 @@ export function InitializeProjectModal({ workspaceId, onClose, onInitialized }: 
 
   useEffect(() => {
     let cancelled = false;
-    analyzeProject(workspaceId)
+    (projectId ? analyzeProject(workspaceId, undefined, projectId) : analyzeProject(workspaceId))
       .then((analysis) => {
         if (!cancelled) setStage({ name: 'findings', analysis });
       })
@@ -87,13 +89,16 @@ export function InitializeProjectModal({ workspaceId, onClose, onInitialized }: 
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, t]);
+  }, [workspaceId, projectId, t]);
 
   function runSemantic(request: SemanticRequestDto, agentName: string) {
     setBusy(true);
     setError(null);
     setRunning({ agentId: request.agentId, agentName });
-    analyzeProject(workspaceId, request)
+    (projectId
+      ? analyzeProject(workspaceId, request, projectId)
+      : analyzeProject(workspaceId, request)
+    )
       .then((analysis) => {
         setStage({ name: 'findings', analysis });
       })
@@ -109,7 +114,11 @@ export function InitializeProjectModal({ workspaceId, onClose, onInitialized }: 
   function submit(analysis: ProjectAnalysisDto, mode: InitModeDto, review: ReviewState) {
     setBusy(true);
     setError(null);
-    initializeProject(workspaceId, buildInput(analysis, review, mode))
+    const input = buildInput(analysis, review, mode);
+    (projectId
+      ? initializeProject(workspaceId, input, projectId)
+      : initializeProject(workspaceId, input)
+    )
       .then((outcome) => {
         onInitialized(outcome.summary);
         setStage({ name: 'done', outcome });

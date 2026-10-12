@@ -1059,6 +1059,7 @@ mod tests {
                     id: "w1".to_owned(),
                     name: "W".to_owned(),
                     project_path: "/p".to_owned(),
+                    projects: Vec::new(),
                     description: None,
                     created_at: 1,
                     updated_at: 1,

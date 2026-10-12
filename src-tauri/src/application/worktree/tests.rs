@@ -102,6 +102,7 @@ impl Env {
                     id: WORKSPACE.to_owned(),
                     name: "tests".to_owned(),
                     project_path: project.path().to_string_lossy().into_owned(),
+                    projects: Vec::new(),
                     description: None,
                     created_at: 1,
                     updated_at: 1,
@@ -1175,6 +1176,7 @@ fn the_guard_holds_an_isolated_execution_to_its_worktree_not_the_checkout() {
             network: false,
         },
         isolated,
+        project_id: None,
     };
     let request = |scope: ExecutionScope, cwd: &Path, args: &[&str]| ProcessSpec {
         program: "git".to_owned(),

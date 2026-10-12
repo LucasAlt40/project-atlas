@@ -12,6 +12,7 @@ import {
   workspace,
 } from '@/test/fixtures';
 import {
+  addWorkspaceProject,
   createWorkspace,
   deleteWorkspace,
   sendMessage,
@@ -110,7 +111,7 @@ describe('WorkspaceSwitcher', () => {
     await user.click(await screen.findByRole('button', { name: /^Workspace:/ }));
     await user.click(screen.getByRole('button', { name: '+ New Workspace' }));
     const dialog = screen.getByRole('dialog', { name: 'Create Workspace' });
-    expect(within(dialog).getByLabelText('Project folder')).toHaveAttribute('readonly');
+    expect(within(dialog).getByText('No folder selected')).toBeVisible();
     await user.click(within(dialog).getByRole('button', { name: 'Select folder' }));
     await user.type(within(dialog).getByLabelText('Description'), 'ERP system');
     await user.click(within(dialog).getByRole('button', { name: 'Create' }));
@@ -159,8 +160,44 @@ describe('WorkspaceSwitcher', () => {
     const dialog = screen.getByRole('dialog', { name: 'Create Workspace' });
     await user.click(within(dialog).getByRole('button', { name: 'Select folder' }));
 
-    expect(within(dialog).getByLabelText('Project folder')).toHaveValue('');
+    expect(within(dialog).getByText('No folder selected')).toBeVisible();
     expect(within(dialog).getByLabelText('Name')).toHaveValue('');
+    expect(within(dialog).getByRole('button', { name: 'Create' })).toBeDisabled();
+  });
+
+  it('creates a workspace with several folders: the first is primary, the others are added', async () => {
+    const user = userEvent.setup();
+    const created = workspace('w3', 'front', '/dev/shop/front');
+    const pick = vi
+      .fn()
+      .mockResolvedValueOnce('/dev/shop/front')
+      .mockResolvedValueOnce('/dev/shop/api')
+      .mockResolvedValueOnce('/dev/shop/api');
+    mount({}, pick);
+    vi.mocked(createWorkspace).mockResolvedValue(created);
+    vi.mocked(addWorkspaceProject).mockResolvedValue(created);
+
+    await user.click(await screen.findByRole('button', { name: /^Workspace:/ }));
+    await user.click(screen.getByRole('button', { name: '+ New Workspace' }));
+    const dialog = screen.getByRole('dialog', { name: 'Create Workspace' });
+    await user.click(within(dialog).getByRole('button', { name: 'Select folder' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Add another folder' }));
+    // The same folder twice is one folder.
+    await user.click(within(dialog).getByRole('button', { name: 'Add another folder' }));
+    const folders = within(dialog).getByRole('list', { name: 'Project folders' });
+    expect(within(folders).getAllByRole('listitem')).toHaveLength(2);
+    await user.click(within(dialog).getByRole('button', { name: 'Create' }));
+
+    await waitFor(() => {
+      expect(addWorkspaceProject).toHaveBeenCalledWith('w3', { path: '/dev/shop/api' });
+    });
+    expect(addWorkspaceProject).toHaveBeenCalledTimes(1);
+    expect(createWorkspace).toHaveBeenCalledWith(
+      expect.objectContaining({ projectPath: '/dev/shop/front' }),
+    );
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
   });
 
   it('renames a workspace and changes its folder', async () => {

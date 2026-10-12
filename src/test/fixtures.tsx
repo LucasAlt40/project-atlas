@@ -25,15 +25,25 @@ import { getAgentUsage, getWorkspaceUsage } from '@/features/usage/services/usag
 import { WorkspaceProvider } from '@/features/workspace/hooks/WorkspaceProvider';
 import {
   addAgentToWorkspace,
+  addWorkspaceProject,
+  buildWorkspaceContext,
   createWorkspace,
   deleteWorkspace,
   getAgentPermissions,
   getExecutionTerminal,
   getProjectContext,
   getProjectHarness,
+  getWorkspaceHarness,
+  getWorkspaceNotes,
   analyzeProject,
   initializeProject,
+  initializeWorkspaceHarness,
+  listWorkspaceProjects,
   refreshProjectHarness,
+  removeWorkspaceProject,
+  saveWorkspaceNotes,
+  subscribeToWorkspaceHarnessProgress,
+  updateWorkspaceProject,
   listExecutions,
   listExecutionWorktrees,
   listMessages,
@@ -64,10 +74,14 @@ import type {
   HarnessSummaryDto,
   InitializeOutcomeDto,
   ProjectAnalysisDto,
+  ProjectHarnessStateDto,
+  ProjectInitUpdateDto,
+  ProjectRoleDto,
   SessionStatusEventDto,
   TaskContextDto,
   TaskContextPreviewDto,
   TerminalChunkDto,
+  WorkspaceContextInfoDto,
   TerminalSnapshotDto,
   UsageTotalsDto,
   WorkspaceUsageSummaryDto,
@@ -184,6 +198,10 @@ export function agent(id: string, name: string, runtimeId = 'claude', modelId = 
   };
 }
 
+function folderOf(path: string): string {
+  return path.split(/[\\/]/).filter(Boolean).at(-1) ?? path;
+}
+
 export function workspace(
   id: string,
   name: string,
@@ -194,6 +212,15 @@ export function workspace(
     id,
     name,
     projectPath,
+    projects: [
+      {
+        id: `${id}-main`,
+        name: folderOf(projectPath),
+        path: projectPath,
+        role: null,
+        dependsOn: [],
+      },
+    ],
     description: null,
     createdAt: 1,
     updatedAt: 1,
@@ -268,6 +295,30 @@ export interface Backend {
   taskContext?: TaskContextPreviewDto;
   /** The permission profile of every agent (by default: `read_only`, as a new agent has). */
   profile?: 'read_only' | 'developer';
+  /** The Harness state of each project of a workspace, by project id (default: not initialized). */
+  projectHarness?: Record<string, ProjectHarnessStateDto>;
+  /** What the workspace's own context is (default: not built yet). */
+  workspaceContext?: WorkspaceContextInfoDto;
+}
+
+/** A project of a workspace as a folder on disk (the fixture's, not the core's). */
+export function workspaceWithProjects(
+  id: string,
+  name: string,
+  projects: [id: string, name: string, path: string, role?: ProjectRoleDto][],
+  placed: string[] = [],
+): Workspace {
+  const base = workspace(id, name, projects[0]?.[2] ?? '/p', placed);
+  return {
+    ...base,
+    projects: projects.map(([projectId, projectName, path, role]) => ({
+      id: projectId,
+      name: projectName,
+      path,
+      role: role ?? null,
+      dependsOn: [],
+    })),
+  };
 }
 
 /** A task context chosen for "Add password recovery endpoint": three items in, two out. */
@@ -471,6 +522,7 @@ let emitMessage: (message: Message) => void = () => undefined;
 let emitOutput: (chunk: TerminalChunkDto) => void = () => undefined;
 let emitHarnessProgress: (update: HarnessProgressDto) => void = () => undefined;
 let emitStatus: (event: SessionStatusEventDto) => void = () => undefined;
+let emitProjectProgress: (update: ProjectInitUpdateDto) => void = () => undefined;
 
 /** Delivers a progress event to the app, as the core would. */
 export function emit(event: ExecutionEvent): void {
@@ -490,6 +542,11 @@ export function emitTerminalOutput(chunk: TerminalChunkDto): void {
 /** Delivers a harness-analysis progress update to the app, as the core would. */
 export function emitHarness(update: HarnessProgressDto): void {
   emitHarnessProgress(update);
+}
+
+/** Delivers the progress of one project's Harness to the app, as the core would. */
+export function emitProjectInit(update: ProjectInitUpdateDto): void {
+  emitProjectProgress(update);
 }
 
 /** Delivers a process state change to the app, as the core would. */
@@ -551,6 +608,43 @@ export function mockBackend(backend: Backend = {}): void {
     });
   });
   vi.mocked(getProjectHarness).mockResolvedValue(backend.harness ?? harnessSummary());
+  vi.mocked(listWorkspaceProjects).mockImplementation((workspaceId) => {
+    const found = (backend.workspaces ?? []).find((w) => w.id === workspaceId);
+    return Promise.resolve(
+      (found?.projects ?? []).map((project, index) => ({
+        ...project,
+        exists: backend.projectHarness?.[project.id] !== 'folder_missing',
+        primary: index === 0,
+        technologies: ['Angular'],
+      })),
+    );
+  });
+  vi.mocked(getWorkspaceHarness).mockImplementation((workspaceId) => {
+    const found = (backend.workspaces ?? []).find((w) => w.id === workspaceId);
+    return Promise.resolve({
+      projects: (found?.projects ?? []).map((project) => {
+        const state = backend.projectHarness?.[project.id] ?? 'not_initialized';
+        return {
+          projectId: project.id,
+          state,
+          summary: harnessSummary(
+            state === 'ready' || state === 'outdated' ? { status: 'initialized' } : {},
+          ),
+        };
+      }),
+      context: backend.workspaceContext ?? {
+        exists: false,
+        generatedAt: null,
+        outdated: false,
+        hasNotes: false,
+      },
+    });
+  });
+  vi.mocked(getWorkspaceNotes).mockResolvedValue('');
+  vi.mocked(subscribeToWorkspaceHarnessProgress).mockImplementation((handler) => {
+    emitProjectProgress = handler;
+    return Promise.resolve(() => undefined);
+  });
   vi.mocked(analyzeProject).mockResolvedValue(backend.analysis ?? projectAnalysis());
   vi.mocked(previewTaskContext).mockResolvedValue(
     backend.taskContext ?? { status: 'missing', context: null },
@@ -598,6 +692,12 @@ export function mockBackend(backend: Backend = {}): void {
     sendMessage,
     initializeProject,
     refreshProjectHarness,
+    addWorkspaceProject,
+    updateWorkspaceProject,
+    removeWorkspaceProject,
+    initializeWorkspaceHarness,
+    buildWorkspaceContext,
+    saveWorkspaceNotes,
   ]) {
     vi.mocked(fn).mockReset();
   }

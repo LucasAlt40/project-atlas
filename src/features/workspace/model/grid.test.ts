@@ -5,6 +5,7 @@ const workspace = (placements: Workspace['layout']['agentPlacements']): Workspac
   id: 'default',
   name: 'W',
   projectPath: '/p',
+  projects: [{ id: 'default-main', name: 'p', path: '/p', role: null, dependsOn: [] }],
   description: null,
   security: {
     filesystem: { scope: 'project_only', write: 'allowed' },

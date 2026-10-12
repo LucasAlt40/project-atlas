@@ -13,6 +13,8 @@ import styles from './Harness.module.css';
 
 interface Props {
   workspaceId: string;
+  /** The project of the workspace to refresh. The primary one when absent. */
+  projectId?: string;
   onClose: () => void;
   onApplied: (summary: HarnessSummaryDto) => void;
 }
@@ -27,7 +29,7 @@ type State =
  * Refresh: re-analyse, compare with the Harness and show what would change. Nothing is applied
  * until the user confirms; their own files and corrections are never touched.
  */
-export function RefreshHarnessModal({ workspaceId, onClose, onApplied }: Props) {
+export function RefreshHarnessModal({ workspaceId, projectId, onClose, onApplied }: Props) {
   const t = useT();
   const [state, setState] = useState<State>({ name: 'loading' });
   const [busy, setBusy] = useState(false);
@@ -35,7 +37,10 @@ export function RefreshHarnessModal({ workspaceId, onClose, onApplied }: Props) 
 
   useEffect(() => {
     let cancelled = false;
-    refreshProjectHarness(workspaceId, false)
+    (projectId
+      ? refreshProjectHarness(workspaceId, false, projectId)
+      : refreshProjectHarness(workspaceId, false)
+    )
       .then((outcome) => {
         if (!cancelled) setState({ name: 'preview', outcome });
       })
@@ -49,12 +54,15 @@ export function RefreshHarnessModal({ workspaceId, onClose, onApplied }: Props) 
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, t]);
+  }, [workspaceId, projectId, t]);
 
   function apply() {
     setBusy(true);
     setError(null);
-    refreshProjectHarness(workspaceId, true)
+    (projectId
+      ? refreshProjectHarness(workspaceId, true, projectId)
+      : refreshProjectHarness(workspaceId, true)
+    )
       .then((outcome) => {
         if (outcome.applied) onApplied(outcome.applied.summary);
         setState({ name: 'applied', outcome });

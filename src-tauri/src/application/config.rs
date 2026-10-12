@@ -187,6 +187,17 @@ fn grant_developer_to_unset_agents(config: &mut UserConfig) -> bool {
     changed
 }
 
+/// Workspaces saved before they could hold several projects have only the folder of the one. Each
+/// gets that project written down (see `Workspace::normalize`), once; the folder, the name, the
+/// layout and everything else stay as they were. Returns whether anything changed.
+fn register_the_project_of_each_workspace(config: &mut UserConfig) -> bool {
+    let mut changed = false;
+    for workspace in &mut config.workspaces {
+        changed |= workspace.normalize();
+    }
+    changed
+}
+
 /// Workflows saved before routing read the agent's declared outcome tested `result.status`, which
 /// only says whether the step ran (`success`/`failed`), so an edge on `pass` or `fail` could never
 /// fire and the run ended with no route. Where the source agent declares that outcome, the edge
@@ -243,7 +254,8 @@ impl ConfigRepository {
             UserConfig::default()
         });
         let outcomes_routed = route_edges_on_declared_outcomes(&mut config);
-        if grant_developer_to_unset_agents(&mut config) || outcomes_routed {
+        let projects_registered = register_the_project_of_each_workspace(&mut config);
+        if grant_developer_to_unset_agents(&mut config) || outcomes_routed || projects_registered {
             if let Err(error) = store.save(&config) {
                 eprintln!("could not save the migrated agent permissions: {error}");
             }
@@ -393,6 +405,75 @@ mod tests {
             profiles,
             [Some("developer".to_owned()), Some("read_only".to_owned())]
         );
+    }
+
+    fn legacy_workspace(id: &str, path: &str) -> Workspace {
+        Workspace {
+            id: id.to_owned(),
+            name: "Atlas".to_owned(),
+            project_path: path.to_owned(),
+            projects: Vec::new(),
+            description: Some("keep me".to_owned()),
+            created_at: 11,
+            updated_at: 22,
+            layout: crate::domain::workspace::WorkspaceLayout {
+                rows: 3,
+                columns: 1,
+                agent_placements: vec![crate::domain::workspace::AgentPlacement {
+                    agent_id: "a".to_owned(),
+                    position: crate::domain::workspace::GridPosition { row: 2, column: 0 },
+                }],
+            },
+            security: crate::domain::security::SecurityPolicy::developer(),
+        }
+    }
+
+    #[test]
+    fn a_workspace_saved_with_one_folder_is_migrated_once_and_loses_nothing() {
+        let store = MemoryStore::default();
+        let mut stored = UserConfig {
+            workspaces: vec![legacy_workspace("ws-1", "/dev/erp")],
+            ..UserConfig::default()
+        };
+        stored.settings.selected_workspace_id = Some("ws-1".to_owned());
+        store.save(&stored).unwrap();
+
+        let repo = ConfigRepository::load(Box::new(store));
+
+        let migrated = repo.snapshot().workspaces.remove(0);
+        let mut expected = legacy_workspace("ws-1", "/dev/erp");
+        expected.projects = vec![crate::domain::workspace::WorkspaceProject {
+            id: "ws-1-main".to_owned(),
+            name: "erp".to_owned(),
+            path: "/dev/erp".to_owned(),
+            role: None,
+            depends_on: Vec::new(),
+        }];
+        // The identity, the description, the layout, the policy and the selection are the same.
+        assert_eq!(migrated, expected);
+        assert_eq!(
+            repo.snapshot().settings.selected_workspace_id.as_deref(),
+            Some("ws-1")
+        );
+    }
+
+    #[test]
+    fn the_migration_is_written_to_disk_and_a_second_load_changes_nothing() {
+        let store = MemoryStore::default();
+        let stored = UserConfig {
+            workspaces: vec![legacy_workspace("ws-1", "/dev/erp")],
+            ..UserConfig::default()
+        };
+        store.save(&stored).unwrap();
+        let first = ConfigRepository::load(Box::new(store));
+        let saved = first.snapshot();
+
+        // What was written is already migrated: loading it again finds nothing to do.
+        let again = MemoryStore::default();
+        again.save(&saved).unwrap();
+        let mut reloaded = saved.clone();
+        assert!(!register_the_project_of_each_workspace(&mut reloaded));
+        assert_eq!(ConfigRepository::load(Box::new(again)).snapshot(), saved);
     }
 
     #[test]

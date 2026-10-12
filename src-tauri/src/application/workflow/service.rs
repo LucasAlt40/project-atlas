@@ -17,6 +17,7 @@ use crate::application::errors::{AppError, ErrorCode};
 use crate::application::support::{new_id, now_ms};
 use crate::application::workspace::WorkspaceService;
 use crate::domain::result_contract::ResultContract;
+use crate::domain::scope::ScopeRequest;
 use crate::domain::workflow::{CustomTemplate, ToolSuggestion};
 use crate::domain::workflow::{
     NodeState, RouteRepair, Viewport, Workflow, WorkflowEdge, WorkflowExecution,
@@ -554,7 +555,7 @@ impl WorkflowService {
     /// Fails if the workflow is unknown, invalid, already running, or the task is empty.
     #[cfg_attr(not(test), allow(dead_code))]
     pub fn start(&self, workflow_id: &str, task: &str) -> Result<WorkflowExecution, AppError> {
-        self.start_checked(workflow_id, task, true, false)
+        self.start_checked(workflow_id, task, true, false, None)
     }
 
     /// As [`Self::start`], with the person's standing instruction about the plans the steps draw
@@ -563,13 +564,30 @@ impl WorkflowService {
     /// # Errors
     ///
     /// As [`Self::start`].
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn start_with_plans(
         &self,
         workflow_id: &str,
         task: &str,
         auto_approve_plans: bool,
     ) -> Result<WorkflowExecution, AppError> {
-        self.start_checked(workflow_id, task, true, auto_approve_plans)
+        self.start_checked(workflow_id, task, true, auto_approve_plans, None)
+    }
+
+    /// As [`Self::start_with_plans`], for a run that works in one project of the workspace and
+    /// may consult others. Every step of the run gets this scope.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::start`], and if the scope names a project the workspace does not have.
+    pub fn start_scoped(
+        &self,
+        workflow_id: &str,
+        task: &str,
+        auto_approve_plans: bool,
+        scope: Option<ScopeRequest>,
+    ) -> Result<WorkflowExecution, AppError> {
+        self.start_checked(workflow_id, task, true, auto_approve_plans, scope)
     }
 
     /// Starts without validating: only tests use it, to watch the engine on a definition
@@ -580,7 +598,7 @@ impl WorkflowService {
         workflow_id: &str,
         task: &str,
     ) -> Result<WorkflowExecution, AppError> {
-        self.start_checked(workflow_id, task, false, false)
+        self.start_checked(workflow_id, task, false, false, None)
     }
 
     fn start_checked(
@@ -589,6 +607,7 @@ impl WorkflowService {
         task: &str,
         validated: bool,
         auto_approve_plans: bool,
+        scope: Option<ScopeRequest>,
     ) -> Result<WorkflowExecution, AppError> {
         let workflow = self
             .get(workflow_id)
@@ -600,9 +619,16 @@ impl WorkflowService {
         if validated && !self.validate(&workflow).valid {
             return Err(AppError::new(ErrorCode::WorkflowInvalid));
         }
+        // A scope is checked against the workspace now, so a run never starts with one it cannot
+        // be given. The default scope is not stored: the run is what it always was.
+        if let Some(requested) = &scope {
+            self.workspaces
+                .resolve_scope(&workflow.workspace_id, Some(requested))?;
+        }
         let now = now_ms();
         let mut execution = WorkflowExecution::new(new_id("wfx"), workflow, task.to_owned(), now);
         execution.auto_approve_plans = auto_approve_plans;
+        execution.scope = scope.filter(|s| *s != ScopeRequest::default());
         let stored = execution.clone();
         self.config.modify(|config| {
             // One run at a time per workflow: a second would fight the first for its agents.

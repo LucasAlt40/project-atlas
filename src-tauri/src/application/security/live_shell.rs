@@ -219,6 +219,7 @@ impl Stack {
             workspace_id: self.workspace_id.clone(),
             agent_id: self.agents[agent].clone(),
             description: "Work for a long time".to_owned(),
+            scope: None,
         };
         let id = execution.to_owned();
         thread::spawn(move || {
@@ -291,6 +292,7 @@ fn a_cancelled_execution_is_not_reported_as_a_failure_and_the_agent_can_run_agai
                 workspace_id: s.workspace_id.clone(),
                 agent_id: s.agents[0].clone(),
                 content: content.to_owned(),
+                scope: None,
             })
             .unwrap()
     };
@@ -310,6 +312,7 @@ fn a_cancelled_execution_is_not_reported_as_a_failure_and_the_agent_can_run_agai
             workspace_id: s.workspace_id.clone(),
             agent_id: s.agents[0].clone(),
             content: "again".to_owned(),
+            scope: None,
         })
         .is_err());
     s.sessions.interrupt(&target).unwrap();
@@ -574,6 +577,7 @@ fn real_cli_can_be_interrupted(runtime_id: &str, model_id: &str) {
             description: "Write a very long, detailed essay (at least 3000 words) about the \
                           history of computing. Do not use any tools."
                 .to_owned(),
+            scope: None,
         };
         let id = execution.clone();
         thread::spawn(move || {

@@ -5,11 +5,14 @@ use serde::Deserialize;
 use super::agents::AgentService;
 use super::config::ConfigRepository;
 use super::errors::{AppError, ErrorCode};
-use super::projects::{project_context, ProjectInspector};
+use super::projects::{folder_name, project_context, ProjectInspector};
 use super::support::{new_id, now_ms};
 use crate::domain::project::ProjectContext;
+use crate::domain::scope::{ProjectScope, ScopeRequest};
 use crate::domain::security::SecurityPolicy;
-use crate::domain::workspace::{AgentPlacement, Workspace, WorkspaceLayout};
+use crate::domain::workspace::{
+    AgentPlacement, ProjectRole, Workspace, WorkspaceLayout, WorkspaceProject,
+};
 
 const MAX_NAME_LEN: usize = 80;
 /// V0.5 shows four agents at once, so the default layout is 2 x 2. The size is data on the
@@ -25,6 +28,46 @@ pub struct WorkspaceInput {
     pub project_path: String,
     #[serde(default)]
     pub description: Option<String>,
+}
+
+/// A project to register in a workspace. The name is the folder's own unless one is given.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectInput {
+    pub path: String,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub role: Option<ProjectRole>,
+    #[serde(default)]
+    pub depends_on: Vec<String>,
+}
+
+/// A change to a registered project. The id never changes; a path change keeps the project's
+/// identity, its role and its Harness-independent settings.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectPatch {
+    pub name: String,
+    pub path: String,
+    #[serde(default)]
+    pub role: Option<ProjectRole>,
+    #[serde(default)]
+    pub depends_on: Vec<String>,
+}
+
+/// What the workspace screen shows of a registered project: the registration and what is true of
+/// the folder right now.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectInfo {
+    #[serde(flatten)]
+    pub project: WorkspaceProject,
+    /// The folder is there and is a folder. A project whose folder is gone stays registered so
+    /// its path can be fixed.
+    pub exists: bool,
+    pub primary: bool,
+    pub technologies: Vec<String>,
 }
 
 /// Use case: project workspaces and where agents sit in them. Persisted in the user config.
@@ -48,9 +91,13 @@ impl WorkspaceService {
         }
     }
 
-    /// Workspaces in creation order.
+    /// Workspaces in creation order, each in the current shape (see [`Workspace::normalize`]).
     pub fn list(&self) -> Vec<Workspace> {
-        self.config.snapshot().workspaces
+        let mut workspaces = self.config.snapshot().workspaces;
+        for workspace in &mut workspaces {
+            workspace.normalize();
+        }
+        workspaces
     }
 
     pub fn get(&self, id: &str) -> Option<Workspace> {
@@ -81,7 +128,14 @@ impl WorkspaceService {
         let workspace = Workspace {
             id: new_id("ws"),
             name: fields.name,
-            project_path: fields.path,
+            project_path: fields.path.clone(),
+            projects: vec![WorkspaceProject {
+                id: new_id("prj"),
+                name: folder_name(&fields.path),
+                path: fields.path,
+                role: None,
+                depends_on: Vec::new(),
+            }],
             description: fields.description,
             created_at: now,
             updated_at: now,
@@ -99,11 +153,13 @@ impl WorkspaceService {
         Ok(workspace)
     }
 
-    /// Renames the workspace and/or points it at another folder. Its layout is kept.
+    /// Renames the workspace and/or points its primary project at another folder. Its layout and
+    /// its other projects are kept.
     ///
     /// # Errors
     ///
-    /// Fails if the workspace does not exist, the new values are invalid, or saving fails.
+    /// Fails if the workspace does not exist, the new values are invalid, the folder is already
+    /// another project of the workspace, or saving fails.
     pub fn update(&self, id: &str, input: &WorkspaceInput) -> Result<Workspace, AppError> {
         let fields = self.validate(input)?;
         self.config.modify(|config| {
@@ -112,12 +168,215 @@ impl WorkspaceService {
                 .iter_mut()
                 .find(|w| w.id == id)
                 .ok_or_else(not_found)?;
+            workspace.normalize();
+            let primary_id = workspace.projects.first().map(|p| p.id.clone());
+            if let Some(primary_id) = &primary_id {
+                self.ensure_free(workspace, &fields.path, Some(primary_id))?;
+            }
             workspace.name = fields.name;
+            if let Some(primary) = workspace.projects.first_mut() {
+                // A project keeps the name the user chose; only a name that was the folder's own
+                // follows the folder.
+                if primary.name == folder_name(&primary.path) {
+                    primary.name = folder_name(&fields.path);
+                }
+                primary.path.clone_from(&fields.path);
+            }
             workspace.project_path = fields.path;
             workspace.description = fields.description;
             workspace.updated_at = now_ms();
             Ok(workspace.clone())
         })
+    }
+
+    /// Registers another project folder in the workspace. Nothing in the folder is read or
+    /// changed.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the workspace is unknown, the folder is missing or not a folder, it is (or
+    /// resolves to) a project the workspace already has, the name is too long, or saving fails.
+    pub fn add_project(
+        &self,
+        workspace_id: &str,
+        input: &ProjectInput,
+    ) -> Result<Workspace, AppError> {
+        let path = self.validate_folder(&input.path)?;
+        let name = match input.name.as_deref().map(str::trim) {
+            Some(name) if !name.is_empty() => check_name(name)?,
+            _ => folder_name(&path),
+        };
+        self.config.modify(|config| {
+            let workspace = config
+                .workspaces
+                .iter_mut()
+                .find(|w| w.id == workspace_id)
+                .ok_or_else(not_found)?;
+            workspace.normalize();
+            self.ensure_free(workspace, &path, None)?;
+            let depends_on = known_dependencies(workspace, &input.depends_on, None);
+            workspace.projects.push(WorkspaceProject {
+                id: new_id("prj"),
+                name,
+                path,
+                role: input.role,
+                depends_on,
+            });
+            workspace.updated_at = now_ms();
+            Ok(workspace.clone())
+        })
+    }
+
+    /// Changes a registered project's name, folder, role or declared dependencies. Its id stays,
+    /// so what refers to it (dependencies, a Harness status, a scope) keeps pointing at it.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::add_project`], and if the project is not in the workspace.
+    pub fn update_project(
+        &self,
+        workspace_id: &str,
+        project_id: &str,
+        patch: &ProjectPatch,
+    ) -> Result<Workspace, AppError> {
+        let folder = self.validate_folder(&patch.path)?;
+        let name = check_name(patch.name.trim())?;
+        self.config.modify(|config| {
+            let workspace = config
+                .workspaces
+                .iter_mut()
+                .find(|w| w.id == workspace_id)
+                .ok_or_else(not_found)?;
+            workspace.normalize();
+            if workspace.project(project_id).is_none() {
+                return Err(AppError::new(ErrorCode::WorkspaceProjectNotFound));
+            }
+            self.ensure_free(workspace, &folder, Some(project_id))?;
+            let depends_on = known_dependencies(workspace, &patch.depends_on, Some(project_id));
+            if let Some(project) = workspace.projects.iter_mut().find(|p| p.id == project_id) {
+                project.name = name;
+                project.path = folder;
+                project.role = patch.role;
+                project.depends_on = depends_on;
+            }
+            workspace.normalize();
+            workspace.updated_at = now_ms();
+            Ok(workspace.clone())
+        })
+    }
+
+    /// Takes a project out of the workspace. Its folder, its `.atlas/` Harness and its Git
+    /// repository are not touched. Removing the primary project makes the next one primary.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the workspace or project is unknown, it is the workspace's only project, or
+    /// saving fails.
+    pub fn remove_project(
+        &self,
+        workspace_id: &str,
+        project_id: &str,
+    ) -> Result<Workspace, AppError> {
+        self.config.modify(|config| {
+            let workspace = config
+                .workspaces
+                .iter_mut()
+                .find(|w| w.id == workspace_id)
+                .ok_or_else(not_found)?;
+            workspace.normalize();
+            if workspace.project(project_id).is_none() {
+                return Err(AppError::new(ErrorCode::WorkspaceProjectNotFound));
+            }
+            if workspace.projects.len() == 1 {
+                return Err(AppError::new(ErrorCode::WorkspaceNeedsAProject));
+            }
+            workspace.projects.retain(|p| p.id != project_id);
+            workspace.normalize();
+            workspace.updated_at = now_ms();
+            Ok(workspace.clone())
+        })
+    }
+
+    /// The workspace's projects with the state of each folder right now.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the workspace does not exist.
+    pub fn projects(&self, workspace_id: &str) -> Result<Vec<ProjectInfo>, AppError> {
+        let workspace = self.get(workspace_id).ok_or_else(not_found)?;
+        Ok(workspace
+            .projects
+            .iter()
+            .enumerate()
+            .map(|(index, project)| {
+                let exists = self.inspector.is_directory(&project.path);
+                ProjectInfo {
+                    project: project.clone(),
+                    exists,
+                    primary: index == 0,
+                    technologies: if exists {
+                        self.inspector.technologies(&project.path)
+                    } else {
+                        Vec::new()
+                    },
+                }
+            })
+            .collect())
+    }
+
+    /// The projects an execution may look at and change. Without a request: the primary project
+    /// alone.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the workspace is unknown or the request names a project it does not have.
+    pub fn resolve_scope(
+        &self,
+        workspace_id: &str,
+        request: Option<&ScopeRequest>,
+    ) -> Result<ProjectScope, AppError> {
+        let workspace = self.get(workspace_id).ok_or_else(not_found)?;
+        ProjectScope::resolve(&workspace, request)
+            .map_err(|unknown| AppError::new(ErrorCode::ScopeInvalid).with("project", unknown.0))
+    }
+
+    /// What agents are told about one project of a scope: name, path and technologies.
+    pub fn context_of(&self, project: &WorkspaceProject) -> ProjectContext {
+        ProjectContext {
+            name: project.name.clone(),
+            path: project.path.clone(),
+            technologies: self.inspector.technologies(&project.path),
+        }
+    }
+
+    /// Fails when `path` is, or resolves to, the folder of a project other than `except`.
+    fn ensure_free(
+        &self,
+        workspace: &Workspace,
+        path: &str,
+        except: Option<&str>,
+    ) -> Result<(), AppError> {
+        let wanted = self.inspector.canonical(path);
+        let taken = workspace
+            .projects
+            .iter()
+            .filter(|p| Some(p.id.as_str()) != except)
+            .any(|p| same_folder(&self.inspector.canonical(&p.path), &wanted));
+        if taken {
+            return Err(AppError::new(ErrorCode::ProjectAlreadyInWorkspace).with("path", path));
+        }
+        Ok(())
+    }
+
+    fn validate_folder(&self, path: &str) -> Result<String, AppError> {
+        let path = path.trim();
+        if path.is_empty() {
+            return Err(AppError::new(ErrorCode::ProjectFolderRequired));
+        }
+        if !self.inspector.is_directory(path) {
+            return Err(AppError::new(ErrorCode::ProjectFolderNotFound).with("path", path));
+        }
+        Ok(path.to_owned())
     }
 
     /// Removes the workspace itself. Its conversations and usage are cleaned up by
@@ -208,23 +467,11 @@ impl WorkspaceService {
     }
 
     fn validate(&self, input: &WorkspaceInput) -> Result<Fields, AppError> {
-        let name = input.name.trim();
-        if name.is_empty() {
-            return Err(AppError::new(ErrorCode::NameRequired));
-        }
-        if name.chars().count() > MAX_NAME_LEN {
-            return Err(AppError::new(ErrorCode::NameTooLong).with("max", MAX_NAME_LEN.to_string()));
-        }
-        let path = input.project_path.trim();
-        if path.is_empty() {
-            return Err(AppError::new(ErrorCode::ProjectFolderRequired));
-        }
-        if !self.inspector.is_directory(path) {
-            return Err(AppError::new(ErrorCode::ProjectFolderNotFound).with("path", path));
-        }
+        let name = check_name(input.name.trim())?;
+        let path = self.validate_folder(&input.project_path)?;
         Ok(Fields {
-            name: name.to_owned(),
-            path: path.to_owned(),
+            name,
+            path,
             description: input
                 .description
                 .as_deref()
@@ -239,6 +486,42 @@ struct Fields {
     name: String,
     path: String,
     description: Option<String>,
+}
+
+fn check_name(name: &str) -> Result<String, AppError> {
+    if name.is_empty() {
+        return Err(AppError::new(ErrorCode::NameRequired));
+    }
+    if name.chars().count() > MAX_NAME_LEN {
+        return Err(AppError::new(ErrorCode::NameTooLong).with("max", MAX_NAME_LEN.to_string()));
+    }
+    Ok(name.to_owned())
+}
+
+/// Two spellings of one folder. Case is ignored on Windows and macOS, whose file systems are
+/// usually case-insensitive, so `C:\Dev\App` and `c:\dev\app` are one project there.
+fn same_folder(a: &str, b: &str) -> bool {
+    if cfg!(any(windows, target_os = "macos")) {
+        a.to_lowercase() == b.to_lowercase()
+    } else {
+        a == b
+    }
+}
+
+/// The declared dependencies that are projects of the workspace (and not the project itself),
+/// each once.
+fn known_dependencies(
+    workspace: &Workspace,
+    wanted: &[String],
+    owner: Option<&str>,
+) -> Vec<String> {
+    let mut known: Vec<String> = Vec::new();
+    for id in wanted {
+        if workspace.project(id).is_some() && Some(id.as_str()) != owner && !known.contains(id) {
+            known.push(id.clone());
+        }
+    }
+    known
 }
 
 fn not_found() -> AppError {
@@ -277,10 +560,16 @@ mod tests {
             Ok("x"),
         ))]));
         let agents = Arc::new(AgentService::new(config.clone(), personalities, runtimes));
-        let inspector = Arc::new(FakeInspector::with(&[
-            ("/dev/erp", &["Angular", ".NET"]),
-            ("/dev/atlas", &["Rust"]),
-        ]));
+        let inspector = Arc::new(
+            FakeInspector::with(&[
+                ("/dev/erp", &["Angular", ".NET"]),
+                ("/dev/atlas", &["Rust"]),
+                ("/dev/shop/front", &["Angular"]),
+                ("/dev/shop/back", &["Maven"]),
+                ("/dev/shop/orders", &["Maven"]),
+            ])
+            .alias("/links/front", "/dev/shop/front"),
+        );
         Fixture {
             service: WorkspaceService::new(config, agents.clone(), inspector),
             agents,
@@ -535,5 +824,259 @@ mod tests {
             .add_agent(&ws, &ids[4])
             .unwrap_err()
             .is(ErrorCode::WorkspaceFull));
+    }
+
+    fn shop(f: &Fixture) -> Workspace {
+        let created = f.service.create(&input("Shop", "/dev/shop/front")).unwrap();
+        f.service
+            .add_project(
+                &created.id,
+                &ProjectInput {
+                    path: "/dev/shop/back".to_owned(),
+                    name: Some("API".to_owned()),
+                    role: Some(ProjectRole::Backend),
+                    depends_on: Vec::new(),
+                },
+            )
+            .unwrap();
+        f.service
+            .add_project(
+                &created.id,
+                &ProjectInput {
+                    path: "/dev/shop/orders".to_owned(),
+                    name: None,
+                    role: Some(ProjectRole::Service),
+                    depends_on: Vec::new(),
+                },
+            )
+            .unwrap()
+    }
+
+    fn only_path(path: &str) -> ProjectInput {
+        ProjectInput {
+            path: path.to_owned(),
+            name: None,
+            role: None,
+            depends_on: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn a_new_workspace_has_its_folder_as_the_primary_project() {
+        let f = fixture();
+
+        let created = f.service.create(&input("ERP", "/dev/erp")).unwrap();
+
+        assert_eq!(created.projects.len(), 1);
+        assert_eq!(created.projects[0].path, "/dev/erp");
+        assert_eq!(created.projects[0].name, "erp");
+        assert_eq!(created.project_path, "/dev/erp");
+    }
+
+    #[test]
+    fn several_projects_live_in_one_workspace_in_the_order_they_were_added() {
+        let f = fixture();
+
+        let workspace = shop(&f);
+
+        let seen: Vec<_> = workspace
+            .projects
+            .iter()
+            .map(|p| (p.name.as_str(), p.role))
+            .collect();
+        assert_eq!(
+            seen,
+            [
+                ("front", None),
+                ("API", Some(ProjectRole::Backend)),
+                ("orders", Some(ProjectRole::Service)),
+            ]
+        );
+        // The ids are distinct and the primary folder is still the workspace's own.
+        let ids: std::collections::BTreeSet<_> = workspace.projects.iter().map(|p| &p.id).collect();
+        assert_eq!(ids.len(), 3);
+        assert_eq!(workspace.project_path, "/dev/shop/front");
+    }
+
+    #[test]
+    fn the_same_folder_cannot_be_added_twice_however_it_is_spelled() {
+        let f = fixture();
+        let workspace = shop(&f);
+
+        for spelling in ["/dev/shop/back", "/dev/shop/back/", "/links/front"] {
+            let error = f
+                .service
+                .add_project(&workspace.id, &only_path(spelling))
+                .unwrap_err();
+            assert!(error.is(ErrorCode::ProjectAlreadyInWorkspace), "{spelling}");
+        }
+        assert_eq!(f.service.get(&workspace.id).unwrap().projects.len(), 3);
+    }
+
+    #[test]
+    fn a_missing_or_empty_folder_is_not_registered() {
+        let f = fixture();
+        let workspace = shop(&f);
+
+        let missing = f
+            .service
+            .add_project(&workspace.id, &only_path("/dev/gone"))
+            .unwrap_err();
+        let empty = f
+            .service
+            .add_project(&workspace.id, &only_path("  "))
+            .unwrap_err();
+
+        assert!(missing.is(ErrorCode::ProjectFolderNotFound));
+        assert!(empty.is(ErrorCode::ProjectFolderRequired));
+        assert_eq!(f.service.get(&workspace.id).unwrap().projects.len(), 3);
+    }
+
+    #[test]
+    fn removing_a_project_keeps_the_others_and_promotes_the_next_primary() {
+        let f = fixture();
+        let workspace = shop(&f);
+        let primary = workspace.projects[0].id.clone();
+
+        let after = f.service.remove_project(&workspace.id, &primary).unwrap();
+
+        assert_eq!(after.projects.len(), 2);
+        assert_eq!(after.projects[0].name, "API");
+        assert_eq!(after.project_path, "/dev/shop/back");
+    }
+
+    #[test]
+    fn the_last_project_cannot_be_removed_and_an_unknown_one_is_reported() {
+        let f = fixture();
+        let created = f.service.create(&input("ERP", "/dev/erp")).unwrap();
+
+        let last = f
+            .service
+            .remove_project(&created.id, &created.projects[0].id)
+            .unwrap_err();
+        let unknown = f.service.remove_project(&created.id, "nope").unwrap_err();
+
+        assert!(last.is(ErrorCode::WorkspaceNeedsAProject));
+        assert!(unknown.is(ErrorCode::WorkspaceProjectNotFound));
+    }
+
+    #[test]
+    fn changing_a_projects_folder_keeps_its_identity_and_refuses_another_projects_folder() {
+        let f = fixture();
+        let workspace = shop(&f);
+        let api = workspace.projects[1].clone();
+        let patch = |path: &str| ProjectPatch {
+            name: "API".to_owned(),
+            path: path.to_owned(),
+            role: Some(ProjectRole::Backend),
+            depends_on: vec![
+                workspace.projects[2].id.clone(),
+                api.id.clone(),
+                "ghost".to_owned(),
+            ],
+        };
+
+        let moved = f
+            .service
+            .update_project(&workspace.id, &api.id, &patch("/dev/erp"))
+            .unwrap();
+        let clash = f
+            .service
+            .update_project(&workspace.id, &api.id, &patch("/dev/shop/orders"))
+            .unwrap_err();
+
+        assert_eq!(moved.projects[1].id, api.id);
+        assert_eq!(moved.projects[1].path, "/dev/erp");
+        // Only a dependency on another project of the workspace is kept.
+        assert_eq!(
+            moved.projects[1].depends_on,
+            [workspace.projects[2].id.clone()]
+        );
+        assert!(clash.is(ErrorCode::ProjectAlreadyInWorkspace));
+    }
+
+    #[test]
+    fn the_projects_are_listed_with_the_state_of_their_folders() {
+        let f = fixture();
+        let workspace = shop(&f);
+        // The folder of one project disappears after it was registered.
+        let mut broken = f.store.saved.lock().unwrap().clone().unwrap();
+        broken.workspaces[0].projects[2].path = "/dev/vanished".to_owned();
+        *f.store.saved.lock().unwrap() = Some(broken);
+        let restarted = build(&f.store);
+
+        let info = restarted.service.projects(&workspace.id).unwrap();
+
+        let seen: Vec<_> = info.iter().map(|p| (p.primary, p.exists)).collect();
+        assert_eq!(seen, [(true, true), (false, true), (false, false)]);
+        assert_eq!(info[0].technologies, ["Angular"]);
+        assert!(info[2].technologies.is_empty());
+    }
+
+    #[test]
+    fn projects_and_their_roles_survive_a_restart() {
+        let f = fixture();
+        let workspace = shop(&f);
+
+        let restarted = build(&f.store);
+
+        assert_eq!(
+            restarted.service.get(&workspace.id).unwrap(),
+            f.service.get(&workspace.id).unwrap()
+        );
+        assert_eq!(
+            restarted.service.get(&workspace.id).unwrap().projects.len(),
+            3
+        );
+    }
+
+    #[test]
+    fn updating_the_workspace_moves_only_the_primary_project() {
+        let f = fixture();
+        let workspace = shop(&f);
+
+        let updated = f
+            .service
+            .update(&workspace.id, &input("Shop", "/dev/erp"))
+            .unwrap();
+        let clash = f
+            .service
+            .update(&workspace.id, &input("Shop", "/dev/shop/back"))
+            .unwrap_err();
+
+        assert_eq!(updated.projects[0].path, "/dev/erp");
+        assert_eq!(updated.projects[0].id, workspace.projects[0].id);
+        assert_eq!(updated.projects[1].path, "/dev/shop/back");
+        assert!(clash.is(ErrorCode::ProjectAlreadyInWorkspace));
+    }
+
+    #[test]
+    fn a_scope_is_resolved_against_the_workspace_and_a_stranger_is_refused() {
+        let f = fixture();
+        let workspace = shop(&f);
+        let request = ScopeRequest {
+            working_project_id: Some(workspace.projects[0].id.clone()),
+            read_project_ids: vec![workspace.projects[1].id.clone()],
+        };
+
+        let scope = f
+            .service
+            .resolve_scope(&workspace.id, Some(&request))
+            .unwrap();
+        let default = f.service.resolve_scope(&workspace.id, None).unwrap();
+        let stranger = f
+            .service
+            .resolve_scope(
+                &workspace.id,
+                Some(&ScopeRequest {
+                    read_project_ids: vec!["ghost".to_owned()],
+                    ..ScopeRequest::default()
+                }),
+            )
+            .unwrap_err();
+
+        assert_eq!(scope.others.len(), 1);
+        assert!(!default.is_multi());
+        assert!(stranger.is(ErrorCode::ScopeInvalid));
     }
 }

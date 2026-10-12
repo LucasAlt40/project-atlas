@@ -111,6 +111,10 @@ pub fn run() {
             commands::workspace::add_agent_to_workspace,
             commands::workspace::remove_agent_from_workspace,
             commands::workspace::get_project_context,
+            commands::workspace::list_workspace_projects,
+            commands::workspace::add_workspace_project,
+            commands::workspace::update_workspace_project,
+            commands::workspace::remove_workspace_project,
             commands::settings::get_settings,
             commands::settings::set_language,
             commands::settings::select_workspace,
@@ -152,6 +156,11 @@ pub fn run() {
             commands::worktree::merge_execution,
             commands::harness::analyze_project,
             commands::harness::initialize_project,
+            commands::harness::get_workspace_harness,
+            commands::harness::initialize_workspace_harness,
+            commands::harness::build_workspace_context,
+            commands::harness::get_workspace_notes,
+            commands::harness::save_workspace_notes,
             commands::harness::get_project_harness,
             commands::harness::refresh_project_harness,
             commands::harness::preview_task_context,
@@ -282,9 +291,16 @@ fn build_state(
             .with_scanner(scanner.clone())
             .with_fingerprint_cache(std::time::Duration::from_secs(5)),
     );
+    // What relates a workspace's projects belongs to the workspace, not to any repository: it is
+    // kept here, in Atlas's own data folder.
+    let workspace_context: Arc<dyn application::harness::workspace_context::WorkspaceContextStore> =
+        Arc::new(infrastructure::FsWorkspaceContextStore::new(
+            data_dir.join("workspace-context"),
+        ));
     let harness = Arc::new(
         HarnessService::new(workspaces.clone(), scanner.clone(), harness_store.clone())
             .with_context_builder(context_builder.clone())
+            .with_workspace_store(workspace_context.clone())
             .with_semantic(Arc::new(RuntimeSemanticFactory {
                 agents: agents.clone(),
                 runtimes: runtimes.clone(),
@@ -304,6 +320,7 @@ fn build_state(
         .with_worktrees(worktrees.clone())
         .with_policies(security.clone())
         .with_harness(context_builder)
+        .with_workspace_context(workspace_context)
         .with_optimization(config.clone())
         .with_mcp(mcp.clone())
         .with_rules(Arc::new(application::rules::RuleService::new(

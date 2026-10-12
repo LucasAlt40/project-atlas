@@ -42,6 +42,10 @@ pub struct ExecutionScope {
     /// worktree in what Atlas stored for this execution, so a path can never be smuggled in
     /// here, and holds the process to that folder instead of the project's.
     pub isolated: bool,
+    /// The project of the workspace the process works in, when it is not the primary one. Only
+    /// an id: the security layer looks the folder up in what Atlas stored, so a path can never be
+    /// smuggled in here either.
+    pub project_id: Option<String>,
 }
 
 #[cfg(test)]
@@ -54,6 +58,7 @@ impl ExecutionScope {
             task_id: "task-1".to_owned(),
             runtime_access: ToolAccess::NONE,
             isolated: false,
+            project_id: None,
         }
     }
 }

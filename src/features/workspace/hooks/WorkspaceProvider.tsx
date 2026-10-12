@@ -11,6 +11,13 @@ import { useCatalog } from '@/features/agents/hooks/useCatalog';
 import { useSettings } from '@/features/settings/hooks/SettingsProvider';
 import { canAddAgent } from '../model/grid';
 import {
+  loadScopes,
+  normalizeChoice,
+  saveScopes,
+  toScopeRequest,
+  type ScopeChoice,
+} from '../model/scope';
+import {
   addAgentToWorkspace,
   createWorkspace,
   deleteWorkspace,
@@ -156,10 +163,44 @@ function useWorkspaceState() {
     setFocus(null);
   }, []);
 
+  // What each agent works in and consults in this workspace. Chosen by the user; the default is
+  // the primary project alone, which is what is sent when nothing was chosen.
+  const [stored, setStored] = useState<{
+    workspaceId: string;
+    scopes: Record<string, ScopeChoice>;
+  } | null>(null);
+  const scopes = useMemo(
+    () =>
+      active && stored?.workspaceId === active.id
+        ? stored.scopes
+        : active
+          ? loadScopes(active.id)
+          : {},
+    [active, stored],
+  );
+  const scopeOf = useCallback(
+    (agentId: string): ScopeChoice | undefined =>
+      active ? normalizeChoice(scopes[agentId], active) : undefined,
+    [active, scopes],
+  );
+  const setScopeOf = useCallback(
+    (agentId: string, choice: ScopeChoice) => {
+      if (!active) return;
+      const next = { ...scopes, [agentId]: choice };
+      saveScopes(active.id, next);
+      setStored({ workspaceId: active.id, scopes: next });
+    },
+    [active, scopes],
+  );
+
   const { send } = conversations;
   const sendToAgent = useCallback(
-    (agentId: string, content: string) => (active ? send(active.id, agentId, content) : undefined),
-    [send, active],
+    (agentId: string, content: string) => {
+      if (!active) return undefined;
+      const scope = toScopeRequest(scopes[agentId], active);
+      return scope ? send(active.id, agentId, content, scope) : send(active.id, agentId, content);
+    },
+    [send, active, scopes],
   );
 
   return {
@@ -182,6 +223,10 @@ function useWorkspaceState() {
     focusAgent,
     clearFocus,
     sendToAgent,
+    scopeOf,
+    setScopeOf,
+    /** A workspace as the core returned it after one of its projects changed. */
+    replaceWorkspace: replace,
   };
 }
 

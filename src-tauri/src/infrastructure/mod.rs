@@ -15,6 +15,7 @@ mod project_scanner;
 mod pty;
 mod runtime_config_files;
 mod skill_store;
+mod workspace_context_store;
 
 pub use credential_store::KeyringCredentialStore;
 pub use curl_registry::CurlRegistryClient;
@@ -28,3 +29,4 @@ pub use project_inspector::FsProjectInspector;
 pub use project_scanner::FsProjectScanner;
 pub use runtime_config_files::FsRuntimeConfigFiles;
 pub use skill_store::FsSkillStore;
+pub use workspace_context_store::FsWorkspaceContextStore;

@@ -3,7 +3,17 @@ import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { TaskContextPreview } from '@/features/harness/components/TaskContextPreview';
 import { useT } from '@/i18n/I18nProvider';
+import type { WorkspaceProjectDto } from '@/lib/tauri/commands';
+import type { ScopeChoice } from '../model/scope';
+import { ScopePicker } from './ScopePicker';
 import styles from './AgentCard.module.css';
+
+/** The projects of the workspace and what this agent was given: its scope picker. */
+export interface AgentScope {
+  projects: WorkspaceProjectDto[];
+  choice: ScopeChoice;
+  onChange: (choice: ScopeChoice) => void;
+}
 
 interface Props {
   workspaceId: string;
@@ -11,9 +21,10 @@ interface Props {
   agentName: string;
   disabled: boolean;
   onSend: (content: string) => void;
+  scope?: AgentScope;
 }
 
-export function AgentComposer({ workspaceId, agentId, agentName, disabled, onSend }: Props) {
+export function AgentComposer({ workspaceId, agentId, agentName, disabled, onSend, scope }: Props) {
   const t = useT();
   const [draft, setDraft] = useState('');
 
@@ -33,6 +44,14 @@ export function AgentComposer({ workspaceId, agentId, agentName, disabled, onSen
     <>
       <TaskContextPreview workspaceId={workspaceId} agentId={agentId} task={draft} />
       <form className={styles.composerPanel} onSubmit={submit}>
+        {scope && scope.projects.length > 1 && (
+          <ScopePicker
+            projects={scope.projects}
+            choice={scope.choice}
+            onChange={scope.onChange}
+            disabled={disabled}
+          />
+        )}
         <span className={styles.composerHint}>
           <Icon name="send" size={14} />
           {t('agent.composer.hint', { name: agentName })}

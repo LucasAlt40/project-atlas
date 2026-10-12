@@ -139,6 +139,7 @@ fn request_for(world: &World, agent_id: &str, task: &str) -> RunAgentRequest {
         workspace_id: world.workspace_id.clone(),
         agent_id: agent_id.to_owned(),
         description: task.to_owned(),
+        scope: None,
     }
 }
 

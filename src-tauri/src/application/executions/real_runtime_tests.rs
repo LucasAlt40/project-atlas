@@ -169,6 +169,7 @@ fn run_with(
                 workspace_id,
                 agent_id: agent,
                 description: prompt.to_owned(),
+                scope: None,
             },
             StepOptions {
                 announce_integrations: ANNOUNCE.with(std::cell::Cell::get),

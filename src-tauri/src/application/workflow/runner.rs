@@ -9,6 +9,7 @@ use crate::domain::execution::WorkflowLink;
 use crate::domain::guardrail::ReviewAnswer;
 use crate::domain::interaction::InteractionDetection;
 use crate::domain::optimization::BriefParts;
+use crate::domain::scope::ScopeRequest;
 use crate::domain::workflow::WorkflowEvent;
 use crate::domain::worktree::{ChangeSet, ExecutionWorktree};
 
@@ -34,6 +35,8 @@ pub struct StepRequest {
     pub announce_integrations: bool,
     /// The node's setting: the step reads and does not edit, whatever its agent could do.
     pub read_only: bool,
+    /// The projects the run works in and may consult: the run's, the same for every step.
+    pub scope: Option<ScopeRequest>,
 }
 
 /// Why a step could not be prepared.
@@ -82,6 +85,8 @@ pub struct WorkspaceRequest {
     pub run_id: String,
     /// The agents of the workflow that work in an isolated worktree.
     pub agent_ids: Vec<String>,
+    /// The project whose repository the worktree is made from. The primary one when `None`.
+    pub working_project_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

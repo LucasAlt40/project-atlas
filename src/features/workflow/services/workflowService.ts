@@ -1,5 +1,10 @@
 import { invokeCommand } from '@/lib/tauri/commands';
-import type { InteractionAnswerDto, NewWorkflowDto, WorkflowModeDto } from '@/lib/tauri/commands';
+import type {
+  InteractionAnswerDto,
+  NewWorkflowDto,
+  ScopeRequestDto,
+  WorkflowModeDto,
+} from '@/lib/tauri/commands';
 import { WORKFLOW_EVENT_NAMES, listenToEvent } from '@/lib/tauri/events';
 import type {
   ChangeSet,
@@ -104,11 +109,13 @@ export function startWorkflow(
   workflowId: string,
   task: string,
   autoApprovePlans = false,
+  scope?: ScopeRequestDto,
 ): Promise<WorkflowRun> {
   return invokeCommand('start_workflow', {
     workflowId,
     task,
     ...(autoApprovePlans ? { autoApprovePlans } : {}),
+    ...(scope ? { scope } : {}),
   });
 }
 

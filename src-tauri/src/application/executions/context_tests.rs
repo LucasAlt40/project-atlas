@@ -131,6 +131,7 @@ fn run(stack: &Stack, description: &str) -> ExecutionRecord {
                 workspace_id: stack.workspace_id.clone(),
                 agent_id: stack.agent_id.clone(),
                 description: description.to_owned(),
+                scope: None,
             },
             &Quiet::default(),
         )
@@ -185,6 +186,7 @@ fn every_adapter_hands_its_process_exactly_the_payload_it_hashes() {
         model_id: model.to_owned(),
         prompt: prompt.clone(),
         working_dir: "/atlas".into(),
+        extra_dirs: Vec::new(),
         scope: ExecutionScope::for_tests(),
         text_only: false,
         allow_edits: false,
@@ -515,6 +517,7 @@ impl ModelRuntime for SplitRuntime {
 }
 
 #[test]
+#[allow(clippy::too_many_lines)]
 fn a_runtime_with_a_system_channel_gets_authoritative_text_there_and_the_manifest_hashes_both_parts(
 ) {
     let spy = Arc::new(FakeProcessRunner::new(&["split"], |_| ok("")));
@@ -585,6 +588,7 @@ fn a_runtime_with_a_system_channel_gets_authoritative_text_there_and_the_manifes
                 workspace_id,
                 agent_id,
                 description: "Explain the layout".to_owned(),
+                scope: None,
             },
             &Quiet::default(),
         )
@@ -638,6 +642,7 @@ fn no_adapter_claims_a_system_channel_it_does_not_use() {
         model_id: "m".to_owned(),
         prompt: prompt.clone(),
         working_dir: "/atlas".into(),
+        extra_dirs: Vec::new(),
         scope: ExecutionScope::for_tests(),
         text_only: false,
         allow_edits: false,

@@ -22,6 +22,7 @@ pub mod knowledge;
 pub mod manifest;
 pub mod negative;
 pub mod sampler;
+pub mod scope_context;
 pub mod secrets;
 pub mod semantic;
 pub mod snapshot;
@@ -29,6 +30,9 @@ pub mod task_context;
 pub mod taxonomy;
 #[cfg(test)]
 mod tests;
+pub mod workspace_context;
+#[cfg(test)]
+pub(crate) mod workspace_tests;
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex};
@@ -64,6 +68,9 @@ pub trait ProjectScanner: Send + Sync {
     ///
     /// `UnsafeProjectPath`, `ProjectNotFound`, `ProjectNotDirectory` or `ProjectAnalysisFailed`.
     fn scan(&self, project_path: &str) -> Result<ScanSnapshot, AppError>;
+
+    /// Whether the project's folder is there and is a folder. Reads nothing in it.
+    fn folder_exists(&self, project_path: &str) -> bool;
 
     /// Whether a project-relative path exists inside the project: a regular file or folder,
     /// reached without a symlink and without leaving the root. Never reads content.
@@ -154,7 +161,11 @@ pub struct HarnessService {
     analyzer: DeterministicAnalyzer,
     semantic: Option<Arc<dyn SemanticModelFactory>>,
     limits: SampleLimits,
+    /// Keyed by the project's folder: two projects of a workspace are analysed apart.
     pending: Mutex<HashMap<String, AnalysisState>>,
+    /// Where the workspace's own context lives (outside every project). Without it a workspace
+    /// has no global context.
+    workspace_store: Option<Arc<dyn workspace_context::WorkspaceContextStore>>,
     /// Chooses what a task is told of the Harness. Shared with the execution service so that a
     /// preview shows what a run would use.
     context: Option<Arc<HarnessContextBuilder>>,
@@ -182,8 +193,19 @@ impl HarnessService {
             semantic: None,
             limits: SampleLimits::default(),
             pending: Mutex::new(HashMap::new()),
+            workspace_store: None,
             context: None,
         }
+    }
+
+    /// Where the workspace-level context is kept.
+    #[must_use]
+    pub fn with_workspace_store(
+        mut self,
+        store: Arc<dyn workspace_context::WorkspaceContextStore>,
+    ) -> Self {
+        self.workspace_store = Some(store);
+        self
     }
 
     /// The builder that previews a task's context.
@@ -246,10 +268,26 @@ impl HarnessService {
     }
 
     fn project_path(&self, workspace_id: &str) -> Result<String, AppError> {
-        self.workspaces
+        self.project_path_of(workspace_id, None)
+    }
+
+    /// The folder of one of the workspace's projects: the primary one when none is named.
+    fn project_path_of(
+        &self,
+        workspace_id: &str,
+        project_id: Option<&str>,
+    ) -> Result<String, AppError> {
+        let workspace = self
+            .workspaces
             .get(workspace_id)
-            .map(|w| w.project_path)
-            .ok_or_else(|| AppError::new(ErrorCode::WorkspaceNotFound))
+            .ok_or_else(|| AppError::new(ErrorCode::WorkspaceNotFound))?;
+        match project_id {
+            None => Ok(workspace.project_path),
+            Some(id) => workspace
+                .project(id)
+                .map(|p| p.path.clone())
+                .ok_or_else(|| AppError::new(ErrorCode::WorkspaceProjectNotFound)),
+        }
     }
 
     /// The state of the project's Harness right now.
@@ -257,8 +295,22 @@ impl HarnessService {
     /// # Errors
     ///
     /// Fails if the workspace does not exist.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn get(&self, workspace_id: &str) -> Result<HarnessSummary, AppError> {
-        let path = self.project_path(workspace_id)?;
+        self.get_in(workspace_id, None)
+    }
+
+    /// [`Self::get`] for one project of the workspace (the primary one when `None`).
+    ///
+    /// # Errors
+    ///
+    /// Fails if the workspace or the project does not exist.
+    pub fn get_in(
+        &self,
+        workspace_id: &str,
+        project_id: Option<&str>,
+    ) -> Result<HarnessSummary, AppError> {
+        let path = self.project_path_of(workspace_id, project_id)?;
         Ok(self.summary_at(&path))
     }
 
@@ -451,12 +503,27 @@ impl HarnessService {
     /// # Errors
     ///
     /// Fails if the workspace or its folder does not exist, the path is unsafe, or the scan fails.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn analyze(
         &self,
         workspace_id: &str,
         semantic: Option<&SemanticRequest>,
     ) -> Result<ProjectAnalysis, AppError> {
-        let path = self.project_path(workspace_id)?;
+        self.analyze_in(workspace_id, None, semantic)
+    }
+
+    /// [`Self::analyze`] for one project of the workspace (the primary one when `None`).
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::analyze`], and if the project is not in the workspace.
+    pub fn analyze_in(
+        &self,
+        workspace_id: &str,
+        project_id: Option<&str>,
+        semantic: Option<&SemanticRequest>,
+    ) -> Result<ProjectAnalysis, AppError> {
+        let path = self.project_path_of(workspace_id, project_id)?;
         let (manifest, knowledge) = self.previous(&path);
         let (_, state) = self.gather(workspace_id, &path, semantic, knowledge.as_ref())?;
         let choices = manifest.as_ref().map(choices_of).unwrap_or_default();
@@ -493,7 +560,7 @@ impl HarnessService {
         self.pending
             .lock()
             .expect("pending analyses lock")
-            .insert(workspace_id.to_owned(), state);
+            .insert(path, state);
         Ok(analysis)
     }
 
@@ -505,12 +572,28 @@ impl HarnessService {
     /// `HarnessNotInitialized` when "use existing" has nothing valid to use, and the analysis and
     /// writing errors.
     #[allow(clippy::needless_pass_by_value)]
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn initialize(
         &self,
         workspace_id: &str,
         input: InitializeInput,
     ) -> Result<InitializeOutcome, AppError> {
-        let path = self.project_path(workspace_id)?;
+        self.initialize_in(workspace_id, None, input)
+    }
+
+    /// [`Self::initialize`] for one project of the workspace (the primary one when `None`).
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::initialize`], and if the project is not in the workspace.
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn initialize_in(
+        &self,
+        workspace_id: &str,
+        project_id: Option<&str>,
+        input: InitializeInput,
+    ) -> Result<InitializeOutcome, AppError> {
+        let path = self.project_path_of(workspace_id, project_id)?;
         let existing = self.store.read_manifest(&path)?;
         match (input.mode, &existing) {
             (InitMode::UseExisting, None) => {
@@ -573,7 +656,7 @@ impl HarnessService {
             .pending
             .lock()
             .expect("pending analyses lock")
-            .remove(workspace_id)
+            .remove(path)
         {
             return Ok(state);
         }
@@ -626,8 +709,23 @@ impl HarnessService {
     /// # Errors
     ///
     /// `HarnessNotInitialized` or `HarnessInvalid` if there is no usable Harness to refresh.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn refresh(&self, workspace_id: &str, confirm: bool) -> Result<RefreshOutcome, AppError> {
-        let path = self.project_path(workspace_id)?;
+        self.refresh_in(workspace_id, None, confirm)
+    }
+
+    /// [`Self::refresh`] for one project of the workspace (the primary one when `None`).
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::refresh`], and if the project is not in the workspace.
+    pub fn refresh_in(
+        &self,
+        workspace_id: &str,
+        project_id: Option<&str>,
+        confirm: bool,
+    ) -> Result<RefreshOutcome, AppError> {
+        let path = self.project_path_of(workspace_id, project_id)?;
         let Some(text) = self.store.read_manifest(&path)? else {
             return Err(AppError::new(ErrorCode::HarnessNotInitialized));
         };
@@ -733,6 +831,10 @@ pub mod fake {
     impl ProjectScanner for FakeScanner {
         fn scan(&self, _: &str) -> Result<ScanSnapshot, AppError> {
             Ok(self.0.lock().unwrap().clone())
+        }
+
+        fn folder_exists(&self, _: &str) -> bool {
+            true
         }
 
         fn exists(&self, _: &str, relative: &str) -> bool {

@@ -7,6 +7,12 @@ import { useCatalog } from '@/features/agents/hooks/useCatalog';
 import { ExportButton, ImportButton } from '@/features/portability';
 import { ExecutionInspector } from '@/features/workspace/components/ExecutionInspector';
 import { useWorkspace } from '@/features/workspace/hooks/WorkspaceProvider';
+import { ScopePicker } from '@/features/workspace/components/ScopePicker';
+import {
+  normalizeChoice,
+  toScopeRequest,
+  type ScopeChoice,
+} from '@/features/workspace/model/scope';
 import { runKey } from '@/features/workspace/model/agentRuns';
 import type { StoredExecution } from '@/features/workspace/types';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -61,6 +67,8 @@ export function WorkflowPage() {
 
   const [selection, setSelection] = useState<Selection>(null);
   const [task, setTask] = useState('');
+  // Where the next run works and what it may consult; the primary project alone until chosen.
+  const [runScope, setRunScope] = useState<ScopeChoice | undefined>(undefined);
   // The person's standing choice about plans: kept between sessions, given to each new run.
   const [autoPlans, setAutoPlans] = useState(loadAutoPlans);
   const [connecting, setConnecting] = useState(false);
@@ -441,7 +449,11 @@ export function WorkflowPage() {
                 onClick={() => {
                   void space
                     .cancel()
-                    .then(() => space.run(shownRun.task, shownRun.autoApprovePlans));
+                    .then(() =>
+                      shownRun.scope
+                        ? space.run(shownRun.task, shownRun.autoApprovePlans, shownRun.scope)
+                        : space.run(shownRun.task, shownRun.autoApprovePlans),
+                    );
                 }}
               >
                 {t('workflow.restart')}
@@ -502,10 +514,19 @@ export function WorkflowPage() {
                 saveAutoPlans(value);
               }}
             />
+            {active.projects.length > 1 && (
+              <ScopePicker
+                projects={active.projects}
+                choice={normalizeChoice(runScope, active)}
+                onChange={setRunScope}
+              />
+            )}
             <Button
               disabled={!canRun}
               onClick={() => {
-                void space.run(task.trim(), autoPlans);
+                const scope = toScopeRequest(runScope, active);
+                if (scope) void space.run(task.trim(), autoPlans, scope);
+                else void space.run(task.trim(), autoPlans);
               }}
             >
               {t('workflow.run')}

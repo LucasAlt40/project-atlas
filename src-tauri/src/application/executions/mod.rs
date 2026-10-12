@@ -27,6 +27,8 @@ use super::sessions::SessionTarget;
 use super::support::now_ms;
 use super::workspace::WorkspaceService;
 use super::worktree::{RunOutcome, WorktreeError, WorktreeService};
+use crate::application::harness::scope_context::{self, WorkspaceText};
+use crate::application::harness::workspace_context::{told, ContextFile, WorkspaceContextStore};
 use crate::domain::context::ManifestIds;
 use crate::domain::execution::{
     Execution, ExecutionEvent, ExecutionEventKind, ExecutionFailure, ExecutionRecord,
@@ -38,7 +40,9 @@ use crate::domain::interaction::InteractionDetection;
 use crate::domain::mcp::{McpProblem, McpServerStatus, ReportedMcpTool};
 use crate::domain::optimization::BriefParts;
 use crate::domain::optimization::{RuleMetrics, SectionKind};
+use crate::domain::project::ProjectNote;
 use crate::domain::rules::{Rule, RuleStrength};
+use crate::domain::scope::{ProjectScope, ScopeRequest};
 use crate::domain::security::{Permission, ToolAccess};
 use crate::domain::task::{Task, TaskStatus};
 use crate::domain::task_context::{ContextMode, ContextRecord};
@@ -76,6 +80,10 @@ pub struct RunAgentRequest {
     pub workspace_id: String,
     pub agent_id: String,
     pub description: String,
+    /// The projects of the workspace the agent works in and may consult. `None`: the primary
+    /// project alone, as before a workspace could have several.
+    #[serde(default)]
+    pub scope: Option<ScopeRequest>,
 }
 
 /// What running a step gave back: the runtime's answer (none if nothing ran or it now waits for a
@@ -151,6 +159,8 @@ pub enum ExecutionError {
     UnknownPersonality(String),
     UnknownRuntime(String),
     UnknownWorkspace(String),
+    /// The scope names a project the workspace does not have.
+    InvalidScope(String),
 }
 
 impl From<&ExecutionError> for AppError {
@@ -161,6 +171,7 @@ impl From<&ExecutionError> for AppError {
             ExecutionError::UnknownPersonality(_) => ErrorCode::PersonalityNotFound,
             ExecutionError::UnknownRuntime(_) => ErrorCode::RuntimeRequired,
             ExecutionError::UnknownWorkspace(_) => ErrorCode::WorkspaceNotFound,
+            ExecutionError::InvalidScope(_) => ErrorCode::ScopeInvalid,
         };
         AppError::new(code).with_detail(error.to_string())
     }
@@ -176,6 +187,7 @@ impl fmt::Display for ExecutionError {
             }
             Self::UnknownRuntime(id) => write!(f, "The agent's runtime is unknown: {id}"),
             Self::UnknownWorkspace(id) => write!(f, "Unknown workspace: {id}"),
+            Self::InvalidScope(id) => write!(f, "The workspace has no project {id}"),
         }
     }
 }
@@ -197,6 +209,9 @@ pub struct ExecutionService {
     /// Where isolated executions get their worktree. Without it an agent that asks for
     /// isolation fails (it never falls back to the project's checkout).
     worktrees: Option<Arc<WorktreeService>>,
+    /// The workspace's own context, told with the Harness when the execution's scope or the
+    /// workspace has several projects. Without it a workspace has none.
+    workspace_context: Option<Arc<dyn WorkspaceContextStore>>,
     /// Where the project's Harness is read from, at the project's own root. Without it prompts
     /// carry no Harness.
     harness: Option<Arc<HarnessContextBuilder>>,
@@ -233,6 +248,7 @@ impl ExecutionService {
             audit,
             sessions: Arc::default(),
             worktrees: None,
+            workspace_context: None,
             harness: None,
             policies: None,
             interactions: Arc::new(LayeredDetector),
@@ -242,6 +258,13 @@ impl ExecutionService {
             mcp: None,
             next_id: AtomicU64::new(1),
         }
+    }
+
+    /// Where the workspace's own context is read from.
+    #[must_use]
+    pub fn with_workspace_context(mut self, store: Arc<dyn WorkspaceContextStore>) -> Self {
+        self.workspace_context = Some(store);
+        self
     }
 
     /// Uses the registry the process runner publishes its sessions to (the default is an empty
@@ -325,6 +348,7 @@ impl ExecutionService {
             task_id: task_id.to_owned(),
             runtime_access: ToolAccess::NONE,
             isolated: agent.worktree_isolation,
+            project_id: None,
         };
         // Whether the policy would allow it, whatever the runtime can do.
         let policy_allows = policies
@@ -351,6 +375,7 @@ impl ExecutionService {
             task_id: task_id.to_owned(),
             runtime_access: ToolAccess::NONE,
             isolated: agent.worktree_isolation,
+            project_id: None,
         };
         match policies.resolve(&scope) {
             Ok(resolved) => format!(
@@ -391,6 +416,7 @@ impl ExecutionService {
             task_id: String::new(),
             runtime_access: ToolAccess::NONE,
             isolated: false,
+            project_id: None,
         };
         let policy_allows = policies
             .resolve(&scope)
@@ -515,10 +541,19 @@ impl ExecutionService {
             .runtimes
             .find(&agent.runtime_id)
             .ok_or_else(|| ExecutionError::UnknownRuntime(agent.runtime_id.clone()))?;
-        let project = self
+        let scope = self
             .workspaces
-            .project_context(&request.workspace_id)
-            .map_err(|_| ExecutionError::UnknownWorkspace(request.workspace_id.clone()))?;
+            .resolve_scope(&request.workspace_id, request.scope.as_ref())
+            .map_err(|error| {
+                if error.code == ErrorCode::ScopeInvalid {
+                    ExecutionError::InvalidScope(
+                        error.params.get("project").cloned().unwrap_or_default(),
+                    )
+                } else {
+                    ExecutionError::UnknownWorkspace(request.workspace_id.clone())
+                }
+            })?;
+        let project = self.workspaces.context_of(&scope.working);
 
         let mut task = Task {
             id: request.task_id,
@@ -562,6 +597,7 @@ impl ExecutionService {
         let context_timer = measuring.then(std::time::Instant::now);
         let (harness, task_aware, context) = self.load_harness(
             &emitter,
+            &scope,
             &project.path,
             context_query.unwrap_or(description),
         );
@@ -652,6 +688,19 @@ impl ExecutionService {
             emitter.log("The agent may edit files, but its runtime does not support file editing");
         }
         let can_edit = access == EditAccess::Allowed;
+        // The projects consulted besides the one worked in. A runtime that edits cannot be given
+        // other folders without being able to edit them too, so they are opened only for a run
+        // that reads: an agent that edits is told about the others through their Harness.
+        let others_mounted = runtime.accepts_extra_dirs() && !can_edit;
+        let other_projects = self.other_project_notes(&scope, others_mounted);
+        let extra_dirs: Vec<std::path::PathBuf> = if others_mounted {
+            scope.others.iter().map(|p| p.path.clone().into()).collect()
+        } else {
+            Vec::new()
+        };
+        if scope.is_multi() {
+            Self::log_scope(&emitter, &scope, others_mounted, can_edit);
+        }
         // What MCP the step may be given: connections, grants, the agent's policy and what the
         // runtime can do. Nothing is started or read here.
         let mcp_policy = self.mcp_permission(&execution, &agent, &task.id);
@@ -752,6 +801,7 @@ impl ExecutionService {
                 rules: inputs.rules_text().as_deref(),
                 integrations: &announced,
                 unavailable_integrations: &unavailable,
+                other_projects: &other_projects,
             }
             .assemble()
         };
@@ -915,11 +965,22 @@ impl ExecutionService {
                 runtime.info().capabilities.tool_access
             },
             isolated: agent.worktree_isolation,
+            // Only a project other than the primary needs naming: the security layer finds its
+            // folder in what Atlas stored.
+            project_id: self
+                .workspaces
+                .get(&execution.workspace_id)
+                .filter(|w| {
+                    w.primary_project()
+                        .is_some_and(|p| p.id != scope.working.id)
+                })
+                .map(|_| scope.working.id.clone()),
         };
         let runtime_request = RuntimeRequest {
             model_id: agent.model_id.clone(),
             prompt,
             working_dir,
+            extra_dirs,
             scope,
             text_only: false,
             allow_edits: can_edit,
@@ -1266,6 +1327,7 @@ impl ExecutionService {
             task_id: task_id.to_owned(),
             runtime_access: ToolAccess::NONE,
             isolated: agent.worktree_isolation,
+            project_id: None,
         };
         policies
             .resolve(&scope)
@@ -1765,18 +1827,98 @@ impl ExecutionService {
         Ok(prepared.working_dir)
     }
 
-    /// The project's Harness as prompt text, chosen for the task, noting in the execution's log
-    /// what became of it. Also says whether the text is a Task Context and how it was chosen.
+    /// The Harness as prompt text, chosen for the task, noting in the execution's log what became
+    /// of it. Also says whether the text is a Task Context and how it was chosen.
+    ///
+    /// With one project and no workspace context this is that project's Harness, as ever. With
+    /// more, it is the workspace context and a fragment of each project's own Harness, within the
+    /// one allocation (see `harness::scope_context`).
     fn load_harness(
         &self,
         emitter: &Emitter<'_>,
+        scope: &ProjectScope,
+        project_path: &str,
+        task: &str,
+    ) -> (Option<String>, bool, Option<ContextRecord>) {
+        let Some(builder) = self.harness.as_ref() else {
+            return (None, false, None);
+        };
+        let workspace_text = self.workspace_text(&emitter.workspace_id);
+        if !scope.is_multi() && workspace_text.is_none() {
+            return Self::load_project_harness(emitter, builder, project_path, task);
+        }
+        let name = self
+            .workspaces
+            .get(&emitter.workspace_id)
+            .map(|w| w.name)
+            .unwrap_or_default();
+        let built = scope_context::build(
+            builder,
+            scope,
+            workspace_text
+                .as_deref()
+                .map(|text| WorkspaceText { name: &name, text }),
+            task,
+            builder.budget().max_chars,
+        );
+        let mut note = emitter.logs.borrow_mut();
+        if built.workspace_told {
+            note.push(if built.workspace_trimmed {
+                "Workspace context loaded (shortened to its share)".to_owned()
+            } else {
+                "Workspace context loaded".to_owned()
+            });
+        }
+        for fragment in &built.fragments {
+            note.push(match &fragment.outcome {
+                scope_context::FragmentOutcome::Included {
+                    task_aware,
+                    characters,
+                } => format!(
+                    "Project Harness of {} ({}): {} characters, {}",
+                    fragment.name,
+                    fragment.access.label(),
+                    characters,
+                    if *task_aware {
+                        "chosen for the task"
+                    } else {
+                        "whole Harness context"
+                    }
+                ),
+                scope_context::FragmentOutcome::Missing => {
+                    format!("Project {} has no Harness", fragment.name)
+                }
+                scope_context::FragmentOutcome::Invalid => format!(
+                    "Project Harness of {} is invalid and was ignored",
+                    fragment.name
+                ),
+                scope_context::FragmentOutcome::NamedOnly => format!(
+                    "Project Harness of {} left out: no room in the context allocation",
+                    fragment.name
+                ),
+            });
+        }
+        (built.text, built.task_aware, built.record)
+    }
+
+    /// The workspace's own context as it is told: what Atlas generated from the projects'
+    /// Harnesses and the user's notes. `None` when there is neither.
+    fn workspace_text(&self, workspace_id: &str) -> Option<String> {
+        let store = self.workspace_context.as_ref()?;
+        told(
+            store.read(workspace_id, ContextFile::Generated).as_deref(),
+            store.read(workspace_id, ContextFile::Notes).as_deref(),
+        )
+    }
+
+    /// One project's Harness, as before a workspace could have several.
+    fn load_project_harness(
+        emitter: &Emitter<'_>,
+        builder: &HarnessContextBuilder,
         project_path: &str,
         task: &str,
     ) -> (Option<String>, bool, Option<ContextRecord>) {
         let note = |text: &str| emitter.logs.borrow_mut().push(text.to_owned());
-        let Some(builder) = self.harness.as_ref() else {
-            return (None, false, None);
-        };
         match builder.build_for_task(project_path, task) {
             TaskContextLoad::Ready(context) => {
                 note("Project Harness loaded");
@@ -1818,6 +1960,51 @@ impl ExecutionService {
                 (None, false, None)
             }
             TaskContextLoad::Missing => (None, false, None),
+        }
+    }
+
+    /// The other projects of the scope as the prompt tells them.
+    fn other_project_notes(&self, scope: &ProjectScope, mounted: bool) -> Vec<ProjectNote> {
+        scope
+            .others
+            .iter()
+            .map(|project| ProjectNote {
+                name: project.name.clone(),
+                path: project.path.clone(),
+                role: project
+                    .role
+                    .and_then(|r| serde_json::to_value(r).ok())
+                    .and_then(|v| v.as_str().map(str::to_owned)),
+                technologies: self.workspaces.context_of(project).technologies,
+                mounted,
+            })
+            .collect()
+    }
+
+    fn log_scope(emitter: &Emitter<'_>, scope: &ProjectScope, mounted: bool, can_edit: bool) {
+        let names = |projects: &[crate::domain::workspace::WorkspaceProject]| {
+            projects
+                .iter()
+                .map(|p| p.name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        let mut logs = emitter.logs.borrow_mut();
+        logs.push(format!(
+            "Scope: working in {}, consulting {}",
+            scope.working.name,
+            names(&scope.others)
+        ));
+        if !mounted {
+            logs.push(if can_edit {
+                "The other projects are not opened for this run: an agent that edits is not given \
+                 folders it could edit; it knows them through their Harness"
+                    .to_owned()
+            } else {
+                "The agent's runtime cannot be given other project folders: it knows them \
+                 through their Harness"
+                    .to_owned()
+            });
         }
     }
 
@@ -2059,5 +2246,7 @@ mod mcp_tests;
 mod real_runtime_tests;
 #[cfg(test)]
 mod rules_tests;
+#[cfg(test)]
+mod scope_tests;
 #[cfg(test)]
 mod tests;

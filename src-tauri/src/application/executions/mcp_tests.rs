@@ -204,6 +204,7 @@ fn conversation(world: &World, agent: &str) -> ExecutionRecord {
                 workspace_id: world.workspace_id.clone(),
                 agent_id: agent.to_owned(),
                 description: "Fix the invoice total".to_owned(),
+                scope: None,
             },
             &Quiet::default(),
         )
@@ -235,6 +236,7 @@ fn step(
                 workspace_id: world.workspace_id.clone(),
                 agent_id: agent.to_owned(),
                 description,
+                scope: None,
             },
             StepOptions {
                 detect_interaction: true,
@@ -1114,6 +1116,7 @@ fn real_a_granted_server_goes_through_guard_cli_and_manifest() {
                 workspace_id,
                 agent_id: agent,
                 description: "ping".to_owned(),
+                scope: None,
             },
             &Quiet::default(),
         )
@@ -1336,6 +1339,7 @@ fn a_node_can_turn_the_announcement_off_and_the_integration_is_still_given() {
                 workspace_id: world.workspace_id.clone(),
                 agent_id: world.developer.clone(),
                 description: "Fix it".to_owned(),
+                scope: None,
             },
             StepOptions {
                 brief_parts: Some(&brief),

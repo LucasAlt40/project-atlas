@@ -1,5 +1,4 @@
-use std::path::Path;
-
+pub use crate::domain::project::folder_name;
 use crate::domain::project::ProjectContext;
 
 /// Port: what Atlas may learn about a project folder. Implemented in `infrastructure/`.
@@ -9,14 +8,12 @@ use crate::domain::project::ProjectContext;
 pub trait ProjectInspector: Send + Sync {
     fn is_directory(&self, path: &str) -> bool;
     fn technologies(&self, path: &str) -> Vec<String>;
-}
-
-/// The folder's own name (the last path component), or the whole path if it has none.
-pub fn folder_name(path: &str) -> String {
-    Path::new(path).file_name().map_or_else(
-        || path.to_owned(),
-        |name| name.to_string_lossy().into_owned(),
-    )
+    /// The folder as it really is: symlinks resolved and, where the file system ignores case, the
+    /// real spelling, so two spellings of one folder compare equal. A folder that cannot be
+    /// resolved comes back as given, without a trailing separator.
+    fn canonical(&self, path: &str) -> String {
+        path.trim_end_matches(['/', '\\']).to_owned()
+    }
 }
 
 /// What an agent is told about the project at `path`.
@@ -38,6 +35,8 @@ pub mod fake {
     #[derive(Default)]
     pub struct FakeInspector {
         pub folders: BTreeMap<String, Vec<String>>,
+        /// Spellings that resolve to another folder (a symlink, a different case).
+        pub aliases: BTreeMap<String, String>,
     }
 
     impl FakeInspector {
@@ -52,17 +51,32 @@ pub mod fake {
                         )
                     })
                     .collect(),
+                aliases: BTreeMap::new(),
             }
+        }
+
+        pub fn alias(mut self, spelling: &str, folder: &str) -> Self {
+            self.aliases.insert(spelling.to_owned(), folder.to_owned());
+            self
         }
     }
 
     impl ProjectInspector for FakeInspector {
         fn is_directory(&self, path: &str) -> bool {
-            self.folders.contains_key(path)
+            let path = path.trim_end_matches('/');
+            self.folders.contains_key(path) || self.aliases.contains_key(path)
         }
 
         fn technologies(&self, path: &str) -> Vec<String> {
             self.folders.get(path).cloned().unwrap_or_default()
+        }
+
+        fn canonical(&self, path: &str) -> String {
+            let path = path.trim_end_matches('/');
+            self.aliases
+                .get(path)
+                .cloned()
+                .unwrap_or_else(|| path.to_owned())
         }
     }
 }

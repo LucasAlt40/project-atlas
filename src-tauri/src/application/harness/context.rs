@@ -127,6 +127,11 @@ impl HarnessContextBuilder {
         }
     }
 
+    /// The allocation a single project's Harness gets.
+    pub fn budget(&self) -> HarnessBudget {
+        self.budget
+    }
+
     /// The text of the project's own rules (`.atlas/context/rules.md`), if it has one. The same
     /// read-only access to `.atlas/` the Harness context uses, at the project's own root.
     pub fn project_rules_text(&self, project_path: &str) -> Option<String> {
@@ -198,12 +203,23 @@ impl HarnessContextBuilder {
     /// evidence-checked knowledge, a task that says nothing the analysis can read, nothing
     /// relevant) the whole Harness context is used and the reason is recorded.
     pub fn build_for_task(&self, project_path: &str, task: &str) -> TaskContextLoad {
+        self.build_for_task_within(project_path, task, self.budget)
+    }
+
+    /// [`Self::build_for_task`] held to `budget` instead of the builder's own: how a task that
+    /// looks at several projects shares one allocation among them.
+    pub fn build_for_task_within(
+        &self,
+        project_path: &str,
+        task: &str,
+        budget: HarnessBudget,
+    ) -> TaskContextLoad {
         let loaded = match self.load(project_path) {
             Ok(loaded) => loaded,
             Err(HarnessLoad::Invalid) => return TaskContextLoad::Invalid,
             Err(_) => return TaskContextLoad::Missing,
         };
-        let (full, omitted) = render_full(&loaded, self.budget);
+        let (full, omitted) = render_full(&loaded, budget);
         let full_chars = full.chars().count();
         let fallback = |reason: &str| {
             TaskContextLoad::Ready(Box::new(TaskContext {
@@ -212,7 +228,7 @@ impl HarnessContextBuilder {
                 signals: None,
                 selected_chars: full_chars,
                 full_harness_chars: full_chars,
-                budget_chars: self.budget.max_chars,
+                budget_chars: budget.max_chars,
                 truncated: !omitted.is_empty(),
                 omitted: Vec::new(),
                 included_areas: Vec::new(),
@@ -232,7 +248,7 @@ impl HarnessContextBuilder {
         let selection = TaskContextService::select(
             &signals,
             loaded.items.clone(),
-            self.budget.max_chars.saturating_sub(header.chars().count()),
+            budget.max_chars.saturating_sub(header.chars().count()),
         );
         let kept: Vec<&ContextItem> = selection.included().collect();
         if kept.iter().all(|i| matches!(i.kind, ItemKind::Notice)) {
@@ -249,7 +265,7 @@ impl HarnessContextBuilder {
             fallback_reason: None,
             selected_chars: text.chars().count(),
             full_harness_chars: full_chars,
-            budget_chars: self.budget.max_chars,
+            budget_chars: budget.max_chars,
             truncated: !selection.over_budget.is_empty(),
             omitted: selection.over_budget.clone(),
             signals: Some(signals),

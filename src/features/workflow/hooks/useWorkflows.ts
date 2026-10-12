@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import type { InteractionAnswerDto, WorkflowModeDto } from '@/lib/tauri/commands';
+import type { InteractionAnswerDto, ScopeRequestDto, WorkflowModeDto } from '@/lib/tauri/commands';
 import { addAgentNode, addConditionNode, addEndNode, asCustom } from '../model/edit';
 import { preferredIde, rememberIde } from '../model/preferredIde';
 import {
@@ -519,7 +519,7 @@ export function useWorkflows(workspaceId: string | undefined) {
   }, [selectedId, workflows, guard]);
 
   const run = useCallback(
-    async (task: string, autoApprovePlans = false) => {
+    async (task: string, autoApprovePlans = false, scope?: ScopeRequestDto) => {
       if (!draft) return undefined;
       return guard(async () => {
         // What is run is what is saved: unsaved edits are saved first.
@@ -529,7 +529,9 @@ export function useWorkflows(workspaceId: string | undefined) {
           upsert(workflow);
           dispatch({ type: 'saved', workflow });
         }
-        const started = await startWorkflow(workflow.id, task, autoApprovePlans);
+        const started = scope
+          ? await startWorkflow(workflow.id, task, autoApprovePlans, scope)
+          : await startWorkflow(workflow.id, task, autoApprovePlans);
         setRuns((current) => [started, ...current.filter((r) => r.id !== started.id)]);
         setShownRunId(started.id);
         return started;

@@ -173,6 +173,7 @@ fn run_as(
                 workspace_id: workspace_id.to_owned(),
                 agent_id: agent_id.to_owned(),
                 description: "Say hi".to_owned(),
+                scope: None,
             },
             observer,
         )

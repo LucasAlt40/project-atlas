@@ -1,7 +1,9 @@
+use std::fmt::Write;
+
 use crate::domain::agent::Agent;
 use crate::domain::optimization::{BriefLayout, PromptBreakdown, SectionKind, TextSize};
 use crate::domain::personality::PersonalityProfile;
-use crate::domain::project::ProjectContext;
+use crate::domain::project::{ProjectContext, ProjectNote};
 use crate::domain::task::Task;
 
 /// Rules Atlas applies to every agent until real permissions exist.
@@ -239,6 +241,43 @@ pub struct PromptBuilder<'a> {
     pub integrations: &'a [String],
     /// The names of integrations the step was granted and could not be given, with why in short.
     pub unavailable_integrations: &'a [String],
+    /// The other projects of the workspace this execution may look at or change. Empty: the
+    /// prompt is the single-project prompt, word for word.
+    pub other_projects: &'a [ProjectNote],
+}
+
+/// What the agent is told about the projects it may reach besides its own: where they are, what
+/// each is, and what it may do there. The limits are stated in the prompt and are the ones the
+/// execution was given: nothing is claimed that was not granted.
+fn other_projects_note(working: &ProjectContext, others: &[ProjectNote]) -> String {
+    let mut note = format!(
+        "\nYou work in {} (the working project). The workspace has other projects you may \
+         reach:",
+        working.name
+    );
+    for other in others {
+        let _ = write!(note, "\n- {}", other.name);
+        if let Some(role) = &other.role {
+            let _ = write!(note, " ({role})");
+        }
+        let _ = write!(
+            note,
+            " at {} — read-only: consult it, never change it",
+            other.path
+        );
+        if !other.mounted {
+            note.push_str("; not opened for you in this run, so its files are not readable");
+        }
+        if !other.technologies.is_empty() {
+            let _ = write!(note, "; {}", other.technologies.join(", "));
+        }
+    }
+    note.push_str(
+        "\nChange files only in the working project. Paths in the project contexts below belong \
+         to the project they are listed under. If the task needs a change in another project, \
+         say so in your result instead of making it.",
+    );
+    note
 }
 
 impl PromptBuilder<'_> {
@@ -257,6 +296,7 @@ impl PromptBuilder<'_> {
             rules,
             integrations,
             unavailable_integrations,
+            other_projects,
         } = *self;
         let atlas_rules = if can_edit {
             ATLAS_RULES_EDITING
@@ -274,6 +314,10 @@ impl PromptBuilder<'_> {
                 context.push_str("\n- ");
                 context.push_str(item);
             }
+        }
+
+        if !other_projects.is_empty() {
+            context.push_str(&other_projects_note(project, other_projects));
         }
 
         if !integrations.is_empty() || !unavailable_integrations.is_empty() {
@@ -373,6 +417,7 @@ mod tests {
             rules: None,
             integrations,
             unavailable_integrations: unavailable,
+            other_projects: &[],
         }
         .assemble()
         .0

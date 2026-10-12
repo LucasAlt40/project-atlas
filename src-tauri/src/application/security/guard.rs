@@ -381,6 +381,7 @@ mod tests {
             id: id.to_owned(),
             name: id.to_owned(),
             project_path: path.to_string_lossy().into_owned(),
+            projects: Vec::new(),
             description: None,
             created_at: 1,
             updated_at: 1,
@@ -459,6 +460,7 @@ mod tests {
             task_id: "task-1".to_owned(),
             runtime_access: access,
             isolated: false,
+            project_id: None,
         }
     }
 

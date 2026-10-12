@@ -109,6 +109,7 @@ fn request(f: &Fixture, agent_id: &str, description: &str) -> RunAgentRequest {
         workspace_id: f.workspace_id.clone(),
         agent_id: agent_id.to_owned(),
         description: description.to_owned(),
+        scope: None,
     }
 }
 
@@ -491,6 +492,7 @@ fn run_git(f: &GitFixture, agent: &str, events: &Collector) -> ExecutionRecord {
                 workspace_id: f.workspace_id.clone(),
                 agent_id: agent.to_owned(),
                 description: "do it".to_owned(),
+                scope: None,
             },
             events,
         )
@@ -706,6 +708,7 @@ fn four_agents_in_two_workspaces_run_at_once_without_sharing_anything() {
                                 workspace_id: (*workspace).clone(),
                                 agent_id: (*agent).clone(),
                                 description: "work".to_owned(),
+                                scope: None,
                             },
                             &events,
                         )
@@ -3147,6 +3150,7 @@ fn a_read_only_step_is_held_to_reading_even_when_its_agent_may_write() {
                     workspace_id: f.workspace_id.clone(),
                     agent_id: agent.to_owned(),
                     description: "review it".to_owned(),
+                    scope: None,
                 },
                 StepOptions {
                     read_only,

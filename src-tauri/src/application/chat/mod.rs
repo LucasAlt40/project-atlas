@@ -22,6 +22,7 @@ use crate::domain::execution::{
 use crate::domain::guardrail::ReviewAnswer;
 use crate::domain::interaction::InteractionDetection;
 use crate::domain::optimization::BriefParts;
+use crate::domain::scope::ScopeRequest;
 use crate::domain::usage::UsageRecord;
 
 /// Port: everything the UI wants to hear about while a message is being answered. The Tauri
@@ -36,6 +37,9 @@ pub struct SendMessageRequest {
     pub workspace_id: String,
     pub agent_id: String,
     pub content: String,
+    /// The projects the agent works in and may consult. `None`: the primary project alone.
+    #[serde(default)]
+    pub scope: Option<ScopeRequest>,
 }
 
 /// A step of a workflow run to be done by an agent. The workflow engine decides *that* it runs;
@@ -61,6 +65,8 @@ pub struct WorkflowStepRequest {
     pub announce_integrations: bool,
     /// The step may not edit files (the node's setting; it only narrows the agent's policy).
     pub read_only: bool,
+    /// The projects the step works in and may consult.
+    pub scope: Option<ScopeRequest>,
 }
 
 /// How a run ended, as much as a caller driving it needs.
@@ -275,6 +281,7 @@ impl ChatService {
                 _busy: busy,
                 announce_integrations: true,
                 read_only: false,
+                scope: request.scope,
             },
         ))
     }
@@ -295,6 +302,7 @@ impl ChatService {
             workspace_id: step.workspace_id,
             agent_id: step.agent_id,
             content: step.display_task,
+            scope: step.scope,
         })?;
         pending.instruction = step.instruction;
         pending.context_query = Some(step.context_query);
@@ -365,6 +373,7 @@ pub struct PendingRun {
     shared_worktree: Option<String>,
     announce_integrations: bool,
     read_only: bool,
+    scope: Option<ScopeRequest>,
     workflow: Option<WorkflowLink>,
     /// A message nobody was told about yet (a workflow step's request).
     announce: Option<Message>,
@@ -386,6 +395,7 @@ impl PendingRun {
             workspace_id: self.workspace_id.clone(),
             agent_id: self.agent_id.clone(),
             description: self.instruction.clone(),
+            scope: self.scope.clone(),
         };
         let options = StepOptions {
             context_query: self.context_query.as_deref(),
@@ -760,6 +770,7 @@ mod tests {
             workspace_id: f.workspace_id.clone(),
             agent_id: agent_id.to_owned(),
             content: content.to_owned(),
+            scope: None,
         }
     }
 
@@ -843,6 +854,7 @@ mod tests {
                     shared_worktree: None,
                     announce_integrations: true,
                     read_only: false,
+                    scope: None,
                 })
                 .unwrap();
             pending.run(&Collector::default());
@@ -1077,6 +1089,7 @@ mod tests {
                 workspace_id: second.clone(),
                 agent_id: agent.clone(),
                 content: "in the second".to_owned(),
+                scope: None,
             })
             .unwrap();
         let observer = Collector::default();
@@ -1295,6 +1308,7 @@ mod tests {
                     workspace_id: workspace.id.clone(),
                     agent_id: agent.clone(),
                     content: "Reply with exactly the word: pong".to_owned(),
+                    scope: None,
                 })
                 .unwrap();
             run.run(&observer);

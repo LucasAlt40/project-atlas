@@ -195,11 +195,13 @@ pub fn start_workflow<R: Runtime>(
     workflow_id: String,
     task: String,
     auto_approve_plans: Option<bool>,
+    scope: Option<crate::domain::scope::ScopeRequest>,
 ) -> Result<WorkflowExecution, AppError> {
-    let execution = state.workflows.start_with_plans(
+    let execution = state.workflows.start_scoped(
         &workflow_id,
         &task,
         auto_approve_plans.unwrap_or(false),
+        scope,
     )?;
     drive(&app, &state, execution.id.clone(), Drive::Fresh);
     Ok(execution)

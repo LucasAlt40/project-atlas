@@ -406,6 +406,113 @@ impl Env {
     }
 }
 
+impl Env {
+    /// As [`Self::run`], for a run that works in the projects of `scope`.
+    fn run_scoped(
+        &self,
+        runner: &Arc<Scripted>,
+        workflow_id: &str,
+        scope: Option<crate::domain::scope::ScopeRequest>,
+    ) -> WorkflowExecution {
+        let exec = self
+            .service
+            .start_scoped(workflow_id, "Implement password recovery", false, scope)
+            .unwrap();
+        self.orchestrator(runner)
+            .run(&exec.id, Arc::new(Collector::default()))
+            .unwrap();
+        self.service.execution(&exec.id).unwrap()
+    }
+}
+
+#[test]
+fn every_step_of_a_run_is_given_the_scope_the_run_was_started_with() {
+    let env = env();
+    env.declare_validation_outcomes();
+    let workflow = env
+        .service
+        .create_from_template(
+            &env.workspace_id,
+            "software_feature",
+            None,
+            WorkflowMode::Custom,
+        )
+        .unwrap()
+        .workflow;
+    let runner = Scripted::new();
+    runner.script("validator", vec![outcome("pass", "")]);
+    runner.script("qa", vec![outcome("pass", "")]);
+    let project = env.config.snapshot().workspaces[0].projects[0].id.clone();
+    let scope = crate::domain::scope::ScopeRequest {
+        working_project_id: Some(project),
+        ..Default::default()
+    };
+
+    let exec = env.run_scoped(&runner, &workflow.id, Some(scope.clone()));
+
+    assert_eq!(
+        exec.status,
+        WorkflowExecutionStatus::Completed,
+        "{:?}",
+        exec.failure
+    );
+    assert_eq!(exec.scope, Some(scope.clone()));
+    for node in ["architect", "developer", "validator", "qa"] {
+        assert_eq!(
+            runner.requests_for(node)[0].scope,
+            Some(scope.clone()),
+            "{node}"
+        );
+    }
+}
+
+#[test]
+fn a_run_started_without_a_scope_or_with_an_empty_one_is_the_run_it_always_was() {
+    let env = env();
+    env.declare_validation_outcomes();
+    let workflow = env
+        .service
+        .create_from_template(&env.workspace_id, "code_review", None, WorkflowMode::Custom)
+        .unwrap()
+        .workflow;
+    for scope in [None, Some(crate::domain::scope::ScopeRequest::default())] {
+        let runner = Scripted::new();
+        runner.script("validator", vec![outcome("pass", "")]);
+
+        let exec = env.run_scoped(&runner, &workflow.id, scope);
+
+        assert_eq!(exec.scope, None);
+        assert_eq!(runner.requests_for("validator")[0].scope, None);
+    }
+}
+
+#[test]
+#[allow(clippy::assert_is_empty)]
+fn a_run_cannot_start_with_a_scope_the_workspace_cannot_give() {
+    let env = env();
+    let workflow = env
+        .service
+        .create_from_template(&env.workspace_id, "code_review", None, WorkflowMode::Custom)
+        .unwrap()
+        .workflow;
+
+    let refused = env
+        .service
+        .start_scoped(
+            &workflow.id,
+            "task",
+            false,
+            Some(crate::domain::scope::ScopeRequest {
+                read_project_ids: vec!["ghost".to_owned()],
+                ..Default::default()
+            }),
+        )
+        .unwrap_err();
+
+    assert!(refused.is(ErrorCode::ScopeInvalid));
+    assert!(env.service.executions(&env.workspace_id, None).is_empty());
+}
+
 fn full_flow(env: &Env) -> crate::domain::workflow::Workflow {
     env.workflow(
         vec![

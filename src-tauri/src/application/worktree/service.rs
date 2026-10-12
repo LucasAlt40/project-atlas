@@ -407,6 +407,7 @@ impl WorktreeService {
             task_id: String::new(),
             runtime_access: ToolAccess::NONE,
             isolated: false,
+            project_id: None,
         };
         self.policies
             .resolve(&scope)

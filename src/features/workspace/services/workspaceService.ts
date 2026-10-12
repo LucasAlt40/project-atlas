@@ -16,6 +16,14 @@ import type {
   TerminalChunkDto,
   TerminalSnapshotDto,
   PendingApprovalDto,
+  ProjectInfoDto,
+  ProjectInitUpdateDto,
+  ProjectInputDto,
+  ProjectPatchDto,
+  ScopeRequestDto,
+  WorkspaceContextInfoDto,
+  WorkspaceHarnessOverviewDto,
+  WorkspaceInitReportDto,
   WorkspaceSecurityDto,
 } from '@/lib/tauri/commands';
 import type {
@@ -62,29 +70,71 @@ export function getProjectContext(workspaceId: string): Promise<ProjectContext> 
   return invokeCommand('get_project_context', { workspaceId });
 }
 
+/** The workspace's projects with the state of each folder. */
+export function listWorkspaceProjects(workspaceId: string): Promise<ProjectInfoDto[]> {
+  return invokeCommand('list_workspace_projects', { workspaceId });
+}
+
+/** Registers another folder in the workspace. Nothing in the folder is read or changed. */
+export function addWorkspaceProject(
+  workspaceId: string,
+  input: ProjectInputDto,
+): Promise<Workspace> {
+  return invokeCommand('add_workspace_project', { workspaceId, input });
+}
+
+export function updateWorkspaceProject(
+  workspaceId: string,
+  projectId: string,
+  patch: ProjectPatchDto,
+): Promise<Workspace> {
+  return invokeCommand('update_workspace_project', { workspaceId, projectId, patch });
+}
+
+/** Takes the project out of the workspace. Its folder and its `.atlas/` are not touched. */
+export function removeWorkspaceProject(workspaceId: string, projectId: string): Promise<Workspace> {
+  return invokeCommand('remove_workspace_project', { workspaceId, projectId });
+}
+
 /**
  * Reads the project and reports what it found. Writes nothing; no project code is run. With
  * `semantic`, an agent also explores the project (or, when `restricted`, reads only selected
- * evidence) and proposes findings. That can take minutes.
+ * evidence) and proposes findings. That can take minutes. Without `projectId`: the primary one.
  */
 export function analyzeProject(
   workspaceId: string,
   semantic?: SemanticRequestDto,
+  projectId?: string,
 ): Promise<ProjectAnalysisDto> {
-  return invokeCommand('analyze_project', semantic ? { workspaceId, semantic } : { workspaceId });
+  return invokeCommand('analyze_project', {
+    workspaceId,
+    ...(projectId ? { projectId } : {}),
+    ...(semantic ? { semantic } : {}),
+  });
 }
 
 /** Creates or updates the project's `.atlas/` Harness from the user's review. */
 export function initializeProject(
   workspaceId: string,
   input: InitializeInputDto,
+  projectId?: string,
 ): Promise<InitializeOutcomeDto> {
-  return invokeCommand('initialize_project', { workspaceId, input });
+  return invokeCommand('initialize_project', {
+    workspaceId,
+    ...(projectId ? { projectId } : {}),
+    input,
+  });
 }
 
 /** Whether the project's Harness exists, is valid, or needs a look. */
-export function getProjectHarness(workspaceId: string): Promise<HarnessSummaryDto> {
-  return invokeCommand('get_project_harness', { workspaceId });
+export function getProjectHarness(
+  workspaceId: string,
+  projectId?: string,
+): Promise<HarnessSummaryDto> {
+  return invokeCommand('get_project_harness', {
+    workspaceId,
+    ...(projectId ? { projectId } : {}),
+  });
 }
 
 /**
@@ -94,8 +144,51 @@ export function getProjectHarness(workspaceId: string): Promise<HarnessSummaryDt
 export function refreshProjectHarness(
   workspaceId: string,
   confirm = false,
+  projectId?: string,
 ): Promise<RefreshOutcomeDto> {
-  return invokeCommand('refresh_project_harness', { workspaceId, confirm });
+  return invokeCommand('refresh_project_harness', {
+    workspaceId,
+    ...(projectId ? { projectId } : {}),
+    confirm,
+  });
+}
+
+/** Where each project stands (its Harness) and whether the workspace's own context is current. */
+export function getWorkspaceHarness(workspaceId: string): Promise<WorkspaceHarnessOverviewDto> {
+  return invokeCommand('get_workspace_harness', { workspaceId });
+}
+
+/**
+ * Starts the Harness of the projects that have none (all of them, or the ones named). One that
+ * fails does not stop the others; one that already has a Harness is left as it is.
+ */
+export function initializeWorkspaceHarness(
+  workspaceId: string,
+  projectIds?: string[],
+): Promise<WorkspaceInitReportDto> {
+  return invokeCommand('initialize_workspace_harness', {
+    workspaceId,
+    ...(projectIds ? { projectIds } : {}),
+  });
+}
+
+export function subscribeToWorkspaceHarnessProgress(
+  handler: (update: ProjectInitUpdateDto) => void,
+): Promise<() => void> {
+  return listenToEvent('harness:workspace-progress', handler);
+}
+
+/** Rebuilds the generated part of the workspace context. The user's notes are untouched. */
+export function buildWorkspaceContext(workspaceId: string): Promise<WorkspaceContextInfoDto> {
+  return invokeCommand('build_workspace_context', { workspaceId });
+}
+
+export function getWorkspaceNotes(workspaceId: string): Promise<string> {
+  return invokeCommand('get_workspace_notes', { workspaceId });
+}
+
+export async function saveWorkspaceNotes(workspaceId: string, notes: string): Promise<void> {
+  await invokeCommand('save_workspace_notes', { workspaceId, notes });
 }
 
 /**
@@ -114,6 +207,8 @@ export interface SendMessageInput {
   workspaceId: string;
   agentId: string;
   content: string;
+  /** The projects the agent works in and may consult. Absent: the primary project alone. */
+  scope?: ScopeRequestDto;
 }
 
 /**

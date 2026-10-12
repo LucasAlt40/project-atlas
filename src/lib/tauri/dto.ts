@@ -53,6 +53,22 @@ export interface CommandMap {
     result: WorkspaceDto;
   };
   get_project_context: { args: { workspaceId: string }; result: ProjectContextDto };
+  /** The workspace's projects, each with the state of its folder. */
+  list_workspace_projects: { args: { workspaceId: string }; result: ProjectInfoDto[] };
+  /** Registers another project folder. Nothing in the folder is read or changed. */
+  add_workspace_project: {
+    args: { workspaceId: string; input: ProjectInputDto };
+    result: WorkspaceDto;
+  };
+  update_workspace_project: {
+    args: { workspaceId: string; projectId: string; patch: ProjectPatchDto };
+    result: WorkspaceDto;
+  };
+  /** Takes the project out of the workspace; its folder and its `.atlas/` are not touched. */
+  remove_workspace_project: {
+    args: { workspaceId: string; projectId: string };
+    result: WorkspaceDto;
+  };
   get_settings: { args: undefined; result: AppSettingsDto };
   set_language: { args: { language: string }; result: AppSettingsDto };
   select_workspace: { args: { workspaceId: string | null }; result: AppSettingsDto };
@@ -181,18 +197,35 @@ export interface CommandMap {
   merge_execution: { args: ExecutionRefArgs; result: ExecutionWorktreeDto };
   /** Reads the project (structure and manifests only; nothing is run) and reports findings. */
   analyze_project: {
-    args: { workspaceId: string; semantic?: SemanticRequestDto };
+    args: { workspaceId: string; projectId?: string; semantic?: SemanticRequestDto };
     result: ProjectAnalysisDto;
   };
   /** Creates or updates `.atlas/` from a fresh analysis and the user's review. */
   initialize_project: {
-    args: { workspaceId: string; input: InitializeInputDto };
+    args: { workspaceId: string; projectId?: string; input: InitializeInputDto };
     result: InitializeOutcomeDto;
   };
-  get_project_harness: { args: { workspaceId: string }; result: HarnessSummaryDto };
+  get_project_harness: {
+    args: { workspaceId: string; projectId?: string };
+    result: HarnessSummaryDto;
+  };
+  /** Where each project stands, and whether the workspace's own context is current. */
+  get_workspace_harness: { args: { workspaceId: string }; result: WorkspaceHarnessOverviewDto };
+  /**
+   * Starts the Harness of the projects (all, or the ones named) that have none. Progress per
+   * project arrives as `harness:workspace-progress`.
+   */
+  initialize_workspace_harness: {
+    args: { workspaceId: string; projectIds?: string[]; ignoreInGit?: boolean };
+    result: WorkspaceInitReportDto;
+  };
+  /** Rebuilds the generated part of the workspace context; the user's notes are untouched. */
+  build_workspace_context: { args: { workspaceId: string }; result: WorkspaceContextInfoDto };
+  get_workspace_notes: { args: { workspaceId: string }; result: string };
+  save_workspace_notes: { args: { workspaceId: string; notes: string }; result: null };
   /** Regenerates what Atlas generates, keeping the user's corrections. */
   refresh_project_harness: {
-    args: { workspaceId: string; confirm?: boolean };
+    args: { workspaceId: string; projectId?: string; confirm?: boolean };
     result: RefreshOutcomeDto;
   };
   /**
@@ -248,7 +281,13 @@ export interface CommandMap {
   };
   /** Returns at once; progress arrives as `workflow:*` events. */
   start_workflow: {
-    args: { workflowId: string; task: string; autoApprovePlans?: boolean };
+    args: {
+      workflowId: string;
+      task: string;
+      autoApprovePlans?: boolean;
+      /** The projects the run works in and may consult; absent: the primary project alone. */
+      scope?: ScopeRequestDto;
+    };
     result: WorkflowExecutionDto;
   };
   /** Approve the plans of a run without asking (also the ones already waiting), or ask again. */
@@ -353,6 +392,10 @@ export type ErrorCodeDto =
   | 'workspace_busy'
   | 'project_folder_required'
   | 'project_folder_not_found'
+  | 'project_already_in_workspace'
+  | 'workspace_project_not_found'
+  | 'workspace_needs_a_project'
+  | 'scope_invalid'
   | 'message_empty'
   | 'approval_not_found'
   | 'execution_not_found'
@@ -860,11 +903,108 @@ export interface WorkspaceLayoutDto {
   agentPlacements: AgentPlacementDto[];
 }
 
+/** What a project does in the system. A label for people and agents; nothing branches on it. */
+export type ProjectRoleDto =
+  'frontend' | 'backend' | 'bff' | 'service' | 'library' | 'infrastructure' | 'other';
+
+/** Mirrors `domain::workspace::WorkspaceProject`: a folder registered in a workspace. */
+export interface WorkspaceProjectDto {
+  /** Stable for as long as the project stays in the workspace, whatever its path becomes. */
+  id: string;
+  name: string;
+  path: string;
+  role: ProjectRoleDto | null;
+  /** Ids of projects of the same workspace this one consumes, declared by the user. */
+  dependsOn: string[];
+}
+
+/** Mirrors `application::workspace::ProjectInfo`: a project and what is true of its folder now. */
+export interface ProjectInfoDto extends WorkspaceProjectDto {
+  exists: boolean;
+  primary: boolean;
+  technologies: string[];
+}
+
+/** Mirrors `application::workspace::ProjectInput`. The name is the folder's own when absent. */
+export interface ProjectInputDto {
+  path: string;
+  name?: string | null;
+  role?: ProjectRoleDto | null;
+  dependsOn?: string[];
+}
+
+/** Mirrors `application::workspace::ProjectPatch`. */
+export interface ProjectPatchDto {
+  name: string;
+  path: string;
+  role: ProjectRoleDto | null;
+  dependsOn: string[];
+}
+
+/**
+ * Mirrors `domain::scope::ScopeRequest`: which project the agent works in (the only one it may
+ * change, in its isolated worktree) and which others it may only consult.
+ */
+export interface ScopeRequestDto {
+  workingProjectId?: string | null;
+  readProjectIds: string[];
+}
+
+/** Mirrors `application::harness::workspace_context::ProjectHarnessState`. */
+export type ProjectHarnessStateDto =
+  'folder_missing' | 'not_initialized' | 'needs_review' | 'outdated' | 'ready';
+
+export interface ProjectHarnessInfoDto {
+  projectId: string;
+  state: ProjectHarnessStateDto;
+  summary: HarnessSummaryDto;
+}
+
+export interface WorkspaceContextInfoDto {
+  exists: boolean;
+  generatedAt: number | null;
+  /** A project, its role, its dependencies or its Harness changed since it was generated. */
+  outdated: boolean;
+  hasNotes: boolean;
+}
+
+export interface WorkspaceHarnessOverviewDto {
+  projects: ProjectHarnessInfoDto[];
+  context: WorkspaceContextInfoDto;
+}
+
+export type ProjectInitStatusDto = 'initialized' | 'already_initialized' | 'failed';
+
+export interface ProjectInitResultDto {
+  projectId: string;
+  status: ProjectInitStatusDto;
+  error: AppErrorDto | null;
+}
+
+export interface WorkspaceInitReportDto {
+  projects: ProjectInitResultDto[];
+  /** Every requested project has a Harness. Never true while one failed. */
+  complete: boolean;
+  context: WorkspaceContextInfoDto | null;
+}
+
+export type ProjectInitProgressDto = 'running' | 'initialized' | 'already_initialized' | 'failed';
+
+/** The payload of `harness:workspace-progress`. */
+export interface ProjectInitUpdateDto {
+  workspaceId: string;
+  projectId: string;
+  state: ProjectInitProgressDto;
+}
+
 /** Mirrors `domain::workspace::Workspace`: a project environment where agents work. */
 export interface WorkspaceDto {
   id: string;
   name: string;
+  /** The primary project's folder (always `projects[0].path`). */
   projectPath: string;
+  /** The registered projects, primary first. */
+  projects: WorkspaceProjectDto[];
   description: string | null;
   createdAt: number;
   updatedAt: number;
@@ -1693,6 +1833,8 @@ export interface SendMessageRequestDto {
   workspaceId: string;
   agentId: string;
   content: string;
+  /** The projects the agent works in and may consult; absent: the primary project alone. */
+  scope?: ScopeRequestDto;
 }
 
 /** Mirrors `application::chat::SentMessage`. */
@@ -2545,6 +2687,8 @@ export interface WorkflowExecutionDto {
   task: string;
   /** Plans the steps draw up are approved without asking the person. */
   autoApprovePlans: boolean;
+  /** The projects the run works in and may consult. Absent: the primary project alone. */
+  scope?: ScopeRequestDto;
   status: WorkflowExecutionStatusDto;
   failure: WorkflowFailureDto | null;
   cancelRequested: boolean;

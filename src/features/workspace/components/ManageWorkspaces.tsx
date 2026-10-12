@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Icon } from '@/components/ui/Icon';
 import { errorMessage } from '@/i18n/messages';
 import { useT } from '@/i18n/I18nProvider';
 import type { Workspace } from '../types';
@@ -42,7 +43,10 @@ export function ManageWorkspaces({ workspaces, onEdit, onDelete }: Props) {
           <li key={workspace.id} className={styles.manageRow}>
             <div>
               <strong>{workspace.name}</strong>
-              <p className={styles.muted}>{workspace.projectPath}</p>
+              <p className={styles.muted}>
+                <Icon name="folder" size={12} /> {workspace.projectPath}
+                {workspace.projects.length > 1 && ` (+${String(workspace.projects.length - 1)})`}
+              </p>
             </div>
             <div className={styles.panelActions}>
               <button

@@ -57,6 +57,7 @@ pub fn guarded_system_runner(
                 id: "ws-1".to_owned(),
                 name: "tests".to_owned(),
                 project_path: project.to_string_lossy().into_owned(),
+                projects: Vec::new(),
                 description: None,
                 created_at: 1,
                 updated_at: 1,

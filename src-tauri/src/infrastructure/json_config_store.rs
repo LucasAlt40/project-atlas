@@ -121,6 +121,7 @@ mod tests {
                 id: "ws-1".to_owned(),
                 name: "Atlas".to_owned(),
                 project_path: "/p".to_owned(),
+                projects: Vec::new(),
                 description: Some("d".to_owned()),
                 created_at: 1,
                 updated_at: 2,

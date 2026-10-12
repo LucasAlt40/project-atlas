@@ -136,6 +136,7 @@ mod tests {
                         instruction: String::new(),
                     },
                     working_dir: std::path::PathBuf::new(),
+                    extra_dirs: Vec::new(),
                     scope: crate::application::process::ExecutionScope::for_tests(),
                     text_only: false,
                     allow_edits: false,

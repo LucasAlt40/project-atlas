@@ -239,6 +239,10 @@ impl ModelRuntime for ClaudeRuntime {
         )
     }
 
+    fn accepts_extra_dirs(&self) -> bool {
+        true
+    }
+
     fn execute(
         &self,
         request: &RuntimeRequest,
@@ -332,6 +336,14 @@ fn launch_args(request: &RuntimeRequest, mcp_args: &[String]) -> Vec<String> {
     // off, so the only way to keep them from it is not to give them).
     if !request.text_only {
         args.extend(mcp_args.iter().cloned());
+        // The other project folders of the execution, each as its own flag value: the option
+        // takes a list, and a prompt or a later flag must never be read as another folder. Only
+        // given to a run that reads (see `ExecutionService`): a folder added here can be edited
+        // by a run that edits.
+        for dir in &request.extra_dirs {
+            args.push("--add-dir".to_owned());
+            args.push(dir.to_string_lossy().into_owned());
+        }
     }
     args.extend(["--strict-mcp-config", "--disable-slash-commands"].map(str::to_owned));
     if request.allow_edits && !request.text_only {
@@ -663,6 +675,7 @@ mod tests {
                 instruction: "INS".to_owned(),
             },
             working_dir: PathBuf::from("/atlas"),
+            extra_dirs: Vec::new(),
             scope: crate::application::process::ExecutionScope::for_tests(),
             text_only: false,
             allow_edits: false,
@@ -1245,6 +1258,32 @@ mod tests {
             .unwrap()
             .metadata;
         assert!(!none.contains_key("toolsExposed") && !none.contains_key("mcpServers"));
+    }
+
+    #[test]
+    fn other_project_folders_are_given_one_flag_each_and_only_to_a_run_with_tools() {
+        let mut req = request("sonnet");
+        req.extra_dirs = vec![PathBuf::from("/shop/back"), PathBuf::from("/shop/orders")];
+
+        let args = launch_args(&req, &[]);
+
+        let dirs: Vec<_> = args
+            .windows(2)
+            .filter(|pair| pair[0] == "--add-dir")
+            .map(|pair| pair[1].as_str())
+            .collect();
+        assert_eq!(dirs, ["/shop/back", "/shop/orders"]);
+        // Each folder is followed by a flag or another folder, never by the end of a list a
+        // later argument could join.
+        let last = args.iter().rposition(|a| a == "--add-dir").unwrap();
+        assert!(args[last + 2].starts_with("--"));
+        // A run with no other project is launched exactly as before.
+        let mut alone = request("sonnet");
+        assert!(!launch_args(&alone, &[]).contains(&"--add-dir".to_owned()));
+        // A text-only run is given no tool, so no folder either.
+        alone.extra_dirs = req.extra_dirs.clone();
+        alone.text_only = true;
+        assert!(!launch_args(&alone, &[]).contains(&"--add-dir".to_owned()));
     }
 
     #[test]

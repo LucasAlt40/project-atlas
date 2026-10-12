@@ -3,6 +3,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
 import { useT } from '@/i18n/I18nProvider';
 import { useWorkspace } from '../hooks/WorkspaceProvider';
+import { addWorkspaceProject } from '../services/workspaceService';
 import type { Workspace } from '../types';
 import { ManageWorkspaces } from './ManageWorkspaces';
 import { WorkspaceForm } from './WorkspaceForm';
@@ -21,7 +22,7 @@ interface Props {
  */
 export function WorkspaceSwitcher({ pickFolder }: Props) {
   const t = useT();
-  const { workspaces, active, select, create, update, remove } = useWorkspace();
+  const { workspaces, active, select, create, update, remove, replaceWorkspace } = useWorkspace();
   const [open, setOpen] = useState(false);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -110,6 +111,11 @@ export function WorkspaceSwitcher({ pickFolder }: Props) {
         <Modal label={t('workspace.form.createTitle')} onClose={closeDialog}>
           <WorkspaceForm
             onSubmit={create}
+            onAddProject={async (workspaceId, path) => {
+              const updated = await addWorkspaceProject(workspaceId, { path });
+              replaceWorkspace(updated);
+              return updated;
+            }}
             onSaved={closeDialog}
             onCancel={closeDialog}
             {...(pickFolder ? { pickFolder } : {})}

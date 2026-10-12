@@ -27,6 +27,14 @@ pub enum ErrorCode {
     WorkspaceBusy,
     ProjectFolderRequired,
     ProjectFolderNotFound,
+    /// The folder (or one that resolves to it) is already a project of the workspace.
+    ProjectAlreadyInWorkspace,
+    /// The workspace has no project with that id.
+    WorkspaceProjectNotFound,
+    /// A workspace always keeps at least one project.
+    WorkspaceNeedsAProject,
+    /// The execution scope names a project the workspace does not have.
+    ScopeInvalid,
     MessageEmpty,
     ApprovalNotFound,
     /// The question the answer is for does not exist.

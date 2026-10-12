@@ -583,6 +583,7 @@ impl SemanticModel for RuntimeSemanticModel {
                 instruction: prompt.to_owned(),
             },
             working_dir: self.project_path.clone(),
+            extra_dirs: Vec::new(),
             scope: ExecutionScope {
                 workspace_id: self.workspace_id.clone(),
                 agent_id: agent.id.clone(),
@@ -590,6 +591,7 @@ impl SemanticModel for RuntimeSemanticModel {
                 task_id: id.clone(),
                 runtime_access: runtime.info().capabilities.tool_access,
                 isolated: false,
+                project_id: None,
             },
             text_only: self.text_only,
             allow_edits: false,

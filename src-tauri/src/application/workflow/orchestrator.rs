@@ -449,6 +449,10 @@ impl Orchestrator {
             workspace_id: exec.workspace_id.clone(),
             run_id: exec.id.clone(),
             agent_ids: agents,
+            working_project_id: exec
+                .scope
+                .as_ref()
+                .and_then(|scope| scope.working_project_id.clone()),
         };
         // No worktree to give (not a Git repository…): the steps meet that themselves, each as
         // it always did, and the run has no code to integrate.
@@ -650,6 +654,7 @@ impl Orchestrator {
                 shared_worktree,
                 announce_integrations: announces_integrations(node),
                 read_only: reads_only(node),
+                scope: exec.scope.clone(),
                 link: WorkflowLink {
                     workflow_id: exec.workflow_id.clone(),
                     workflow_name: exec.workflow.name.clone(),

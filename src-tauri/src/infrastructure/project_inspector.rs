@@ -52,6 +52,18 @@ impl ProjectInspector for FsProjectInspector {
         Path::new(path).is_dir()
     }
 
+    fn canonical(&self, path: &str) -> String {
+        fs::canonicalize(path).map_or_else(
+            |_| path.trim_end_matches(['/', '\\']).to_owned(),
+            |resolved| {
+                let text = resolved.to_string_lossy().into_owned();
+                // Windows reports `\\?\C:\x`; the same folder is `C:\x` everywhere else.
+                text.strip_prefix(r"\\?\")
+                    .map_or_else(|| text.clone(), str::to_owned)
+            },
+        )
+    }
+
     fn technologies(&self, path: &str) -> Vec<String> {
         let root = Path::new(path);
         let Ok(entries) = fs::read_dir(root) else {

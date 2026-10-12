@@ -2,6 +2,7 @@ import { useCallback, useEffect, useReducer, useState } from 'react';
 import type {
   ExecutionRefDto,
   ExecutionWorktreeDto,
+  ScopeRequestDto,
   SessionStatusEventDto,
   TerminalChunkDto,
 } from '@/lib/tauri/commands';
@@ -128,14 +129,22 @@ export function useAgentConversations() {
   useSubscription(subscribeToTerminalOutput, onOutput);
   useSubscription(subscribeToSessionStatus, onProcessStatus);
 
-  const send = useCallback(async (workspaceId: string, agentId: string, content: string) => {
-    try {
-      const sent = await sendMessage({ workspaceId, agentId, content });
-      dispatch({ type: 'sent', sent });
-    } catch (error) {
-      dispatch({ type: 'sendFailed', key: runKey(workspaceId, agentId), error });
-    }
-  }, []);
+  const send = useCallback(
+    async (workspaceId: string, agentId: string, content: string, scope?: ScopeRequestDto) => {
+      try {
+        const sent = await sendMessage({
+          workspaceId,
+          agentId,
+          content,
+          ...(scope ? { scope } : {}),
+        });
+        dispatch({ type: 'sent', sent });
+      } catch (error) {
+        dispatch({ type: 'sendFailed', key: runKey(workspaceId, agentId), error });
+      }
+    },
+    [],
+  );
 
   /** The user's explicit merge. Resolves with the worktree as it is afterwards. */
   const merge = useCallback(async (ref: ExecutionRefDto) => {

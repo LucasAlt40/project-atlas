@@ -15,6 +15,7 @@ pub mod project;
 pub mod result_contract;
 pub mod rules;
 pub mod runtime;
+pub mod scope;
 pub mod security;
 pub mod task;
 pub mod task_context;

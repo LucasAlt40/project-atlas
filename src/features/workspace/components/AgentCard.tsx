@@ -11,7 +11,7 @@ import { factsFromRun, factsFromStored } from '../model/inspection';
 import type { Message, StoredExecution } from '../types';
 import { AgentActivity } from './AgentActivity';
 import styles from './AgentCard.module.css';
-import { AgentComposer } from './AgentComposer';
+import { AgentComposer, type AgentScope } from './AgentComposer';
 import { AgentHeader } from './AgentHeader';
 import { AgentMessageList } from './AgentMessageList';
 import { ExecutionDetails, type ExecutionContext } from './ExecutionDetails';
@@ -46,6 +46,8 @@ interface Props {
   /** Why the last send was rejected, if it was. */
   sendError: unknown;
   onSend: (content: string) => void;
+  /** Where the agent works and what else it may consult. Absent: one project, nothing to choose. */
+  scope?: AgentScope;
   onOpenDetails: () => void;
   /** Takes the user to the workflow run an inspected execution belongs to. */
   onOpenWorkflow?: (link: WorkflowLinkDto) => void;
@@ -82,6 +84,7 @@ export function AgentCard({
   liveText,
   sendError,
   onSend,
+  scope,
   onOpenDetails,
   onOpenWorkflow,
   onEdit,
@@ -274,6 +277,7 @@ export function AgentCard({
             agentName={agent.name}
             disabled={run?.status === 'running'}
             onSend={onSend}
+            {...(scope ? { scope } : {})}
           />
         </div>
       )}

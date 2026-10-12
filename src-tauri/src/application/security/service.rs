@@ -111,7 +111,16 @@ impl PolicyResolver for SecurityService {
                 .ok_or(Reason::UnknownScope)?;
             PathBuf::from(&worktree.working_dir)
         } else {
-            PathBuf::from(&workspace.project_path)
+            // The project the process works in: the primary one unless the execution named
+            // another of this workspace's projects. A project that is not in the workspace
+            // denies, like any scope Atlas does not recognise.
+            match scope.project_id.as_deref() {
+                None => PathBuf::from(&workspace.project_path),
+                Some(id) => workspace
+                    .project(id)
+                    .map(|project| PathBuf::from(&project.path))
+                    .ok_or(Reason::UnknownScope)?,
+            }
         };
         Ok(ResolvedScope {
             project_root,
@@ -227,6 +236,7 @@ impl SecurityOverview {
             task_id: String::new(),
             runtime_access,
             isolated: false,
+            project_id: None,
         };
         let resolved = self
             .security
@@ -269,6 +279,7 @@ mod tests {
                     id: "ws".to_owned(),
                     name: "W".to_owned(),
                     project_path: "/p".to_owned(),
+                    projects: Vec::new(),
                     description: None,
                     created_at: 1,
                     updated_at: 1,
@@ -305,6 +316,7 @@ mod tests {
             task_id: "t".to_owned(),
             runtime_access: access,
             isolated: false,
+            project_id: None,
         }
     }
 
@@ -319,6 +331,39 @@ mod tests {
 
         assert_eq!(policy.network.mode, Permission::ApprovalRequired);
         assert_eq!(policy.git.destructive, Permission::ApprovalRequired);
+    }
+
+    #[test]
+    fn the_process_is_held_to_the_project_it_works_in_not_always_the_primary_one() {
+        use crate::domain::workspace::WorkspaceProject;
+        let config = repo(SecurityPolicy::developer(), Some("developer"));
+        config
+            .modify(|c| {
+                let project = |id: &str, path: &str| WorkspaceProject {
+                    id: id.to_owned(),
+                    name: id.to_owned(),
+                    path: path.to_owned(),
+                    role: None,
+                    depends_on: Vec::new(),
+                };
+                c.workspaces[0].projects = vec![project("p1", "/p"), project("p2", "/q")];
+                Ok(())
+            })
+            .unwrap();
+        let service = SecurityService::new(config);
+        let named = |id: Option<&str>| ExecutionScope {
+            project_id: id.map(str::to_owned),
+            ..scope(ToolAccess::NONE)
+        };
+
+        let primary = service.resolve(&named(None)).unwrap();
+        let other = service.resolve(&named(Some("p2"))).unwrap();
+        let stranger = service.resolve(&named(Some("ghost")));
+
+        assert_eq!(primary.project_root, PathBuf::from("/p"));
+        assert_eq!(other.project_root, PathBuf::from("/q"));
+        // A project the workspace does not have is not a boundary to hold anyone to: it denies.
+        assert_eq!(stranger.unwrap_err(), Reason::UnknownScope);
     }
 
     #[test]

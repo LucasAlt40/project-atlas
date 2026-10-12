@@ -1,0 +1,165 @@
+/* Projects of a workspace and the scope of an execution. Same tokens as the rest of the app. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-5);
+  overflow-y: auto;
+}
+.title {
+  margin: 0;
+  font-size: var(--font-size-xl);
+}
+.intro,
+.muted {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+.rowHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.name {
+  color: var(--text-high);
+  font-weight: 600;
+}
+.tag {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+}
+.path {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+.state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 1px var(--space-3);
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+.state[data-state='ready'] {
+  border-color: var(--success);
+  color: var(--color-success);
+}
+.state[data-state='outdated'],
+.state[data-state='needs_review'] {
+  border-color: var(--warning);
+  color: var(--color-warning);
+}
+.state[data-state='folder_missing'],
+.state[data-state='failed'] {
+  border-color: var(--danger);
+  color: var(--color-danger);
+}
+.state[data-state='running'] {
+  border-color: var(--running);
+  color: var(--running);
+}
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+.problem {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+.sectionTitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  color: var(--text-high);
+}
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.textarea {
+  width: 100%;
+  min-height: 6rem;
+  resize: vertical;
+}
+
+/* The scope picker beside the composer. */
+.scope {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.scopeToggle {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 2px var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.scopeToggle[data-multi='true'] {
+  border-color: var(--accent-soft);
+  color: var(--accent-soft);
+}
+.scopeBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}

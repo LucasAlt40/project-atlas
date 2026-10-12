@@ -385,6 +385,7 @@ mod tests {
                 instruction: "INS".to_owned(),
             },
             working_dir: PathBuf::from("/atlas"),
+            extra_dirs: Vec::new(),
             scope: crate::application::process::ExecutionScope::for_tests(),
             text_only: false,
             allow_edits: false,

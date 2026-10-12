@@ -16,6 +16,7 @@ import { WorkspaceUsageChip } from '../components/WorkspaceUsageChip';
 import { useWorkspace } from '../hooks/WorkspaceProvider';
 import { agentStatus } from '../model/agentStatus';
 import { MAX_WORKSPACE_AGENTS, canAddAgent } from '../model/grid';
+import type { ScopeChoice } from '../model/scope';
 import { runKey, type ConversationsState } from '../model/agentRuns';
 import styles from '../components/Workspace.module.css';
 
@@ -140,6 +141,21 @@ export function WorkspacePage() {
     });
   }
 
+  /** The scope picker of an agent, for a workspace that has more than one project to choose from. */
+  function scopeFor(agentId: string) {
+    const choice = workspace.scopeOf(agentId);
+    if (current.projects.length < 2 || !choice) return {};
+    return {
+      scope: {
+        projects: current.projects,
+        choice,
+        onChange: (next: ScopeChoice) => {
+          workspace.setScopeOf(agentId, next);
+        },
+      },
+    };
+  }
+
   function renderAgent(agentId: string, variant: View) {
     const agent = agents.find((a) => a.id === agentId);
     if (!agent) return null;
@@ -169,6 +185,7 @@ export function WorkspacePage() {
         onSend={(content) => {
           void workspace.sendToAgent(agentId, content);
         }}
+        {...scopeFor(agentId)}
         onOpenDetails={() => {
           setDetailsId(agentId);
         }}
@@ -213,7 +230,7 @@ export function WorkspacePage() {
             <Button onClick={openAdd}>{t('workspace.addAgent')}</Button>
           </div>
         </header>
-        <ProjectContextBar workspace={active} />
+        <ProjectContextBar workspace={active} onWorkspaceChanged={workspace.replaceWorkspace} />
       </div>
 
       {notice && (

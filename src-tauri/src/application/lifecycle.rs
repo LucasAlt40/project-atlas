@@ -241,6 +241,7 @@ mod tests {
                 workspace_id: workspace.to_owned(),
                 agent_id: agent.to_owned(),
                 content: "hello".to_owned(),
+                scope: None,
             })
             .unwrap();
         run.run(&Silent);
@@ -283,6 +284,7 @@ mod tests {
                 workspace_id: f.w2.clone(),
                 agent_id: f.ids[0].clone(),
                 content: "x".to_owned(),
+                scope: None,
             })
             .unwrap();
 
@@ -353,6 +355,7 @@ mod tests {
                 workspace_id: f.w1.clone(),
                 agent_id: f.ids[1].clone(),
                 content: "x".to_owned(),
+                scope: None,
             })
             .unwrap();
 

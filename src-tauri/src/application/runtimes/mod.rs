@@ -46,6 +46,10 @@ pub struct RuntimeRequest {
     pub model_id: String,
     pub prompt: Prompt,
     pub working_dir: PathBuf,
+    /// Other project folders the execution may reach, besides the working directory. Only what
+    /// the execution service decided: a runtime that cannot be given them ignores the list
+    /// (see [`ModelRuntime::accepts_extra_dirs`]).
+    pub extra_dirs: Vec<PathBuf>,
     /// Which execution this is. The runtime hands it to the process port unchanged; it neither
     /// reads policy from it nor can widen it.
     pub scope: ExecutionScope,
@@ -132,6 +136,13 @@ pub trait ModelRuntime: Send + Sync {
         request: &RuntimeRequest,
         progress: &dyn Fn(RuntimeEvent),
     ) -> Result<RuntimeOutput, RuntimeError>;
+
+    /// Whether the runtime can be launched with more folders than its working directory, and
+    /// honours exactly the list it is given. `false` unless an adapter was written and checked
+    /// against the tool.
+    fn accepts_extra_dirs(&self) -> bool {
+        false
+    }
 
     /// The payload this runtime hands to its process for `request`. `execute` must take its
     /// prompt from here and nowhere else: the Context Manifest hashes this very value, so what was
@@ -491,6 +502,8 @@ pub mod fake {
         pub probe: Option<McpProbe>,
         /// The MCP servers it was asked to probe, by name.
         pub probed: Mutex<Vec<String>>,
+        /// Whether it honours the other project folders of a request.
+        pub extra_dirs: bool,
     }
 
     pub type Work = Box<dyn Fn(&RuntimeRequest) + Send + Sync>;
@@ -516,7 +529,13 @@ pub mod fake {
                 reported_tools: None,
                 probe: None,
                 probed: Mutex::new(Vec::new()),
+                extra_dirs: false,
             }
+        }
+
+        pub fn with_extra_dirs(mut self) -> Self {
+            self.extra_dirs = true;
+            self
         }
 
         pub fn with_work(mut self, work: impl Fn(&RuntimeRequest) + Send + Sync + 'static) -> Self {
@@ -594,6 +613,10 @@ pub mod fake {
     }
 
     impl ModelRuntime for FakeRuntime {
+        fn accepts_extra_dirs(&self) -> bool {
+            self.extra_dirs
+        }
+
         fn mcp_tools_in(&self, reported: &[String], launched: &[&str]) -> Vec<ReportedMcpTool> {
             // The same naming as the one adapter that exists, so the guard can be tested.
             super::claude_mcp::ClaudeMcpAdapter::classify(reported, launched)

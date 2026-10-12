@@ -342,6 +342,11 @@ pub struct WorkflowExecution {
     /// Theirs alone to set (at the start of the run, or while it goes): no step can.
     #[serde(default)]
     pub auto_approve_plans: bool,
+    /// The projects of the workspace the run works in and may consult, every step alike. `None`:
+    /// the workspace's primary project alone, as before a workspace could have several. The run
+    /// has one shared worktree, so it has one working project.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope: Option<crate::domain::scope::ScopeRequest>,
     pub status: WorkflowExecutionStatus,
     #[serde(default)]
     pub failure: Option<WorkflowFailure>,
@@ -395,6 +400,7 @@ impl WorkflowExecution {
             workflow,
             task,
             auto_approve_plans: false,
+            scope: None,
             status: WorkflowExecutionStatus::Running,
             failure: None,
             cancel_requested: false,

@@ -153,6 +153,7 @@ impl StepRunner for ChatStepRunner {
             shared_worktree: request.shared_worktree.clone(),
             announce_integrations: request.announce_integrations,
             read_only: request.read_only,
+            scope: request.scope,
         };
         match self.chat.send_workflow_step(step) {
             Ok((sent, run)) => Ok(Box::new(Prepared {
@@ -205,7 +206,13 @@ impl StepRunner for ChatStepRunner {
             self.workspaces.as_ref()?,
             self.executions.as_ref()?,
         );
-        let project = workspaces.get(&request.workspace_id)?.project_path;
+        // The repository of the project the run works in (the primary one unless it named
+        // another), so a run in the backend gets a worktree of the backend.
+        let workspace = workspaces.get(&request.workspace_id)?;
+        let project = match request.working_project_id.as_deref() {
+            Some(id) => workspace.project(id)?.path.clone(),
+            None => workspace.project_path.clone(),
+        };
         // The agent whose policy governs the run's code is the most restricted of its agents:
         // applying the changes asks no more of anyone than the strictest of them allows.
         let agent_id = worktrees.strictest_git_agent(&request.workspace_id, &request.agent_ids)?;

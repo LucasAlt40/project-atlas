@@ -12,6 +12,8 @@ import { useT } from '@/i18n/I18nProvider';
 import { errorMessage } from '@/i18n/messages';
 import { getProjectContext, refreshProjectHarness } from '../services/workspaceService';
 import type { ProjectContext, Workspace } from '../types';
+import { ProjectsSummary } from './ProjectsSummary';
+import { WorkspaceProjectsPanel } from './WorkspaceProjectsPanel';
 import styles from './Workspace.module.css';
 
 interface Loaded {
@@ -23,7 +25,14 @@ interface Loaded {
  * The workspace's project: folder name, path and the technologies recognised from marker files
  * in the folder. Local and deterministic: no model is asked and nothing is uploaded.
  */
-export function ProjectContextBar({ workspace }: { workspace: Workspace }) {
+export function ProjectContextBar({
+  workspace,
+  onWorkspaceChanged,
+}: {
+  workspace: Workspace;
+  /** Called with the workspace after one of its projects changed. Without it, projects are shown, not managed. */
+  onWorkspaceChanged?: (workspace: Workspace) => void;
+}) {
   const t = useT();
   const { id, projectPath } = workspace;
   // What was loaded, and for which workspace folder; anything else is "still loading".
@@ -34,6 +43,8 @@ export function ProjectContextBar({ workspace }: { workspace: Workspace }) {
   const [refreshing, setRefreshing] = useState(false);
   const [fixing, setFixing] = useState(false);
   const [fixError, setFixError] = useState<string | null>(null);
+  const [managing, setManaging] = useState(false);
+  const multi = workspace.projects.length > 1;
 
   /**
    * Brings the Harness up to date in one click. The refresh keeps the user's own files and
@@ -97,7 +108,25 @@ export function ProjectContextBar({ workspace }: { workspace: Workspace }) {
         </span>
       )}
       {result?.error && <span className={styles.notice}>{t('project.folderMissing')}</span>}
-      <div className={harnessStyles.status} role="group" aria-label={t('harness.title')}>
+      {onWorkspaceChanged && (
+        <Button
+          variant="secondary"
+          aria-label={t('projects.openLabel', { name: workspace.name })}
+          onClick={() => {
+            setManaging(true);
+          }}
+        >
+          <Icon name="stack" size={14} />
+          {t('projects.open', { count: workspace.projects.length })}
+        </Button>
+      )}
+      {multi && <ProjectsSummary workspace={workspace} />}
+      <div
+        className={harnessStyles.status}
+        role="group"
+        aria-label={t('harness.title')}
+        hidden={multi}
+      >
         <span className={harnessStyles.statusLabel}>{t('harness.title')}</span>
         {harness.state.status === 'ready' && (
           <>
@@ -171,6 +200,16 @@ export function ProjectContextBar({ workspace }: { workspace: Workspace }) {
             />
           )}
         </div>
+      )}
+      {managing && onWorkspaceChanged && (
+        <WorkspaceProjectsPanel
+          workspace={workspace}
+          onWorkspaceChanged={onWorkspaceChanged}
+          onClose={() => {
+            setManaging(false);
+            harness.reload();
+          }}
+        />
       )}
       {refreshing && (
         <RefreshHarnessModal
