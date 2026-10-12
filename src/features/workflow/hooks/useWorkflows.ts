@@ -8,6 +8,7 @@ import {
   cancelWorkflow,
   createFromTemplate,
   createWorkflow,
+  deleteTemplate,
   deleteWorkflow,
   discardChanges,
   getRecovery,
@@ -19,7 +20,9 @@ import {
   listTemplates,
   listWorkflows,
   pauseWorkflow,
+  planTemplateTools,
   resumeWorkflow,
+  saveAsTemplate,
   selectTemplate,
   startWorkflow,
   subscribeToWorkflowEvents,
@@ -38,6 +41,7 @@ import type {
   Workflow,
   WorkflowEvent,
   WorkflowRun,
+  ToolPlanItem,
   WorkflowTemplate,
 } from '../types';
 
@@ -395,15 +399,23 @@ export function useWorkflows(workspaceId: string | undefined) {
   );
 
   const create = useCallback(
-    async (templateId: string | null, mode: WorkflowModeDto, name: string) => {
+    async (templateId: string | null, mode: WorkflowModeDto, name: string, applyTools = false) => {
       if (!workspaceId) return undefined;
       return guard(async () => {
         let workflow: Workflow;
         let missing: string[] = [];
+        let tools: ToolPlanItem[] = [];
         if (templateId) {
-          const built = await createFromTemplate(workspaceId, templateId, mode, name || undefined);
+          const built = await createFromTemplate(
+            workspaceId,
+            templateId,
+            mode,
+            name || undefined,
+            applyTools,
+          );
           workflow = built.workflow;
           missing = built.missingRoles;
+          tools = built.tools;
         } else {
           workflow = await createWorkflow({ workspaceId, name: name || 'Workflow', mode });
         }
@@ -411,10 +423,40 @@ export function useWorkflows(workspaceId: string | undefined) {
         dispatch({ type: 'open', workflow });
         setSelectedId(workflow.id);
         setShownRunId(null);
-        return { workflow, missing };
+        return { workflow, missing, tools };
       });
     },
     [workspaceId, guard, upsert],
+  );
+
+  /** What a template's suggested tools come to in this workspace (nothing is granted). */
+  const planTools = useCallback(
+    (templateId: string) =>
+      workspaceId ? planTemplateTools(workspaceId, templateId) : Promise.resolve([]),
+    [workspaceId],
+  );
+
+  const removeTemplate = useCallback(
+    async (templateId: string) => {
+      await guard(async () => {
+        await deleteTemplate(templateId);
+        setTemplates((list) => list.filter((template) => template.id !== templateId));
+      });
+    },
+    [guard],
+  );
+
+  /** Saves the stored version of the open workflow as a template of the person's own. */
+  const saveTemplate = useCallback(
+    async (name: string, description: string) => {
+      if (!draft) return undefined;
+      return guard(async () => {
+        const saved = await saveAsTemplate(draft.saved.id, name, description || undefined);
+        setTemplates((list) => [...list, saved]);
+        return saved;
+      });
+    },
+    [draft, guard],
   );
 
   const save = useCallback(async () => {
@@ -608,6 +650,9 @@ export function useWorkflows(workspaceId: string | undefined) {
       edit(asCustom);
     },
     recommend: selectTemplate,
+    planTools,
+    removeTemplate,
+    saveTemplate,
     addAgent: (agentId: string, label: string) => {
       edit((w) => addAgentNode(w, agentId, label));
     },

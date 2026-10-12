@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { TranslationKey } from '@/i18n';
-import type { WorkflowModeDto } from '@/lib/tauri/commands';
+import type { ToolPlanItemDto, WorkflowModeDto } from '@/lib/tauri/commands';
 import type { WorkflowTemplate } from '../types';
+import { canGrantTools } from '../model/templateView';
+import { TemplatePreview } from './TemplatePreview';
 import styles from './Workflow.module.css';
 
 export interface NewWorkflowChoice {
@@ -11,12 +13,19 @@ export interface NewWorkflowChoice {
   mode: WorkflowModeDto;
   name: string;
   task: string;
+  /** Give each step the tools the template suggests for it (only what the workspace can give). */
+  applyTools: boolean;
 }
 
 interface Props {
   templates: WorkflowTemplate[];
   /** The template Automatic mode proposes for a task. */
   recommend: (task: string) => Promise<string>;
+  /** What a template's suggested tools come to in this workspace. */
+  planTools: (templateId: string) => Promise<ToolPlanItemDto[]>;
+  /** The name of an agent, for the steps of a template the person saved. */
+  agentName: (agentId: string) => string;
+  onDeleteTemplate: (templateId: string) => void;
   /** Why creating failed, if it did. */
   error: string | null;
   onCreate: (choice: NewWorkflowChoice) => void;
@@ -28,13 +37,24 @@ interface Props {
  * workflow (chosen by fixed rules, not by a model). Custom: start from a template or from
  * nothing and compose it. Both make the same kind of workflow; only who laid out the graph differs.
  */
-export function NewWorkflowPanel({ templates, recommend, error, onCreate, onCancel }: Props) {
+export function NewWorkflowPanel({
+  templates,
+  recommend,
+  planTools,
+  agentName,
+  onDeleteTemplate,
+  error,
+  onCreate,
+  onCancel,
+}: Props) {
   const { t } = useI18n();
   const [mode, setMode] = useState<WorkflowModeDto>('automatic');
   const [task, setTask] = useState('');
   const [name, setName] = useState('');
   const [templateId, setTemplateId] = useState<string>('');
   const [recommended, setRecommended] = useState<string | null>(null);
+  const [applyTools, setApplyTools] = useState(true);
+  const [plan, setPlan] = useState<{ templateId: string; items: ToolPlanItemDto[] } | null>(null);
 
   useEffect(() => {
     if (mode !== 'automatic') return;
@@ -57,7 +77,29 @@ export function NewWorkflowPanel({ templates, recommend, error, onCreate, onCanc
   const proposal = templates.find((template) => template.id === recommended);
   const chosen = mode === 'automatic' ? (recommended ?? null) : templateId || null;
   const label = (template: WorkflowTemplate) =>
-    t(`workflow.template.${template.id}` as TranslationKey);
+    template.kind === 'custom'
+      ? template.name
+      : t(`workflow.template.${template.id}` as TranslationKey);
+  const shown = templates.find((template) => template.id === chosen);
+  const builtin = templates.filter((template) => template.kind === 'builtin');
+  const saved = templates.filter((template) => template.kind === 'custom');
+
+  // The tools the chosen template would get here: read again when the template (or the list of
+  // templates, after one is deleted) changes.
+  useEffect(() => {
+    if (!chosen) return;
+    let cancelled = false;
+    planTools(chosen)
+      .then((items) => {
+        if (!cancelled) setPlan({ templateId: chosen, items });
+      })
+      .catch(() => {
+        if (!cancelled) setPlan({ templateId: chosen, items: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [chosen, planTools]);
 
   return (
     <form
@@ -65,7 +107,13 @@ export function NewWorkflowPanel({ templates, recommend, error, onCreate, onCanc
       aria-label={t('workflow.new.title')}
       onSubmit={(event) => {
         event.preventDefault();
-        onCreate({ templateId: chosen, mode, name: name.trim(), task: task.trim() });
+        onCreate({
+          templateId: chosen,
+          mode,
+          name: name.trim(),
+          task: task.trim(),
+          applyTools: applyTools && canGrantTools(plan?.templateId === chosen ? plan.items : []),
+        });
       }}
     >
       <h2>{t('workflow.new.title')}</h2>
@@ -117,23 +165,76 @@ export function NewWorkflowPanel({ templates, recommend, error, onCreate, onCanc
           )}
         </>
       ) : (
-        <label className={styles.field}>
-          <span className={styles.fieldLabel}>{t('workflow.new.template')}</span>
-          <select
-            className={styles.control}
-            value={templateId}
-            onChange={(e) => {
-              setTemplateId(e.target.value);
-            }}
-          >
-            <option value="">{t('workflow.new.blank')}</option>
-            {templates.map((template) => (
-              <option key={template.id} value={template.id}>
-                {label(template)}
-              </option>
+        <fieldset className={styles.templateGroup}>
+          <legend className={styles.fieldLabel}>{t('workflow.new.template')}</legend>
+          <div className={styles.templateGrid}>
+            {[...builtin, ...saved].map((template) => (
+              <label
+                key={template.id}
+                className={styles.templateCard}
+                data-selected={templateId === template.id}
+              >
+                <input
+                  type="radio"
+                  name="workflow-template"
+                  value={template.id}
+                  checked={templateId === template.id}
+                  onChange={() => {
+                    setTemplateId(template.id);
+                  }}
+                />
+                <span className={styles.templateName}>
+                  {label(template)}
+                  <span className={styles.tag} data-kind={template.kind}>
+                    {t(`workflow.template.badge.${template.kind}` as TranslationKey)}
+                  </span>
+                </span>
+                <span className={styles.muted}>
+                  {template.kind === 'custom'
+                    ? template.description
+                    : t(`workflow.templateHelp.${template.id}` as TranslationKey)}
+                </span>
+                <span className={styles.templateMeta}>
+                  {t('workflow.template.meta', {
+                    steps: template.steps.length,
+                    tools: template.tools.length,
+                  })}
+                  {template.readOnly && ` · ${t('workflow.template.step.readOnly')}`}
+                </span>
+              </label>
             ))}
-          </select>
-        </label>
+            <label className={styles.templateCard} data-selected={templateId === ''}>
+              <input
+                type="radio"
+                name="workflow-template"
+                value=""
+                checked={templateId === ''}
+                onChange={() => {
+                  setTemplateId('');
+                }}
+              />
+              <span className={styles.templateName}>{t('workflow.new.blank')}</span>
+            </label>
+          </div>
+        </fieldset>
+      )}
+
+      {shown && (
+        <TemplatePreview
+          template={shown}
+          plan={plan?.templateId === shown.id ? plan.items : null}
+          agentName={agentName}
+          applyTools={applyTools}
+          onApplyTools={setApplyTools}
+          {...(shown.kind === 'custom'
+            ? {
+                onDelete: () => {
+                  setTemplateId('');
+                  onDeleteTemplate(shown.id);
+                },
+              }
+            : {})}
+        />
       )}
 
       <label className={styles.field}>

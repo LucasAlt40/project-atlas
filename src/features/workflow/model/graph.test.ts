@@ -20,7 +20,7 @@ import { NODE_STATUS_VIEW, nodeLabel, runProgress } from './status';
 import { invalidNodeIds, issueMessage } from './validation';
 import { createTranslator } from '@/i18n';
 
-const agents = new Map([['a-qa', { name: 'QA Agent', personality: 'QA' }]]);
+const agents = new Map([['a-qa', { name: 'QA Agent', personality: 'QA', personalityId: 'qa' }]]);
 
 describe('domain workflow <-> graph view model', () => {
   it('draws every node and edge of the workflow with its own ids', () => {
@@ -40,6 +40,7 @@ describe('domain workflow <-> graph view model', () => {
     expect(nodes.find((n) => n.id === 'qa')?.data.agent).toEqual({
       name: 'QA Agent',
       personality: 'QA',
+      personalityId: 'qa',
     });
     expect(nodes.find((n) => n.id === 'architect')?.data.agent).toBeNull();
   });

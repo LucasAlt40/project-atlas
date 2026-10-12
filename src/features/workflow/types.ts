@@ -16,7 +16,10 @@ import type {
   NodeAttemptDto,
   NodeStateDto,
   NodeStatusDto,
+  TemplateStepDto,
   TemplateWorkflowDto,
+  ToolPlanItemDto,
+  ToolSuggestionDto,
   ValidationIssueDto,
   ValidationReportDto,
   WorkflowDto,
@@ -42,6 +45,9 @@ export type NodeState = NodeStateDto;
 export type NodeAttempt = NodeAttemptDto;
 export type WorkflowTemplate = WorkflowTemplateDto;
 export type TemplateWorkflow = TemplateWorkflowDto;
+export type TemplateStep = TemplateStepDto;
+export type ToolPlanItem = ToolPlanItemDto;
+export type ToolSuggestion = ToolSuggestionDto;
 export type ValidationReport = ValidationReportDto;
 export type ValidationIssue = ValidationIssueDto;
 export type WorkflowEvent = WorkflowEventDto;

@@ -10,6 +10,15 @@ import styles from './Workflow.module.css';
 /** Initial size, so a node is drawn (and the view fitted) before the library has measured it. */
 export const NODE_SIZE = { width: 232, height: 92 };
 
+/** What a step's icon says about its role: the built-in personalities, and a robot for the rest. */
+const PERSONALITY_ICON: Record<string, string> = {
+  architect: '🧠',
+  developer: '💻',
+  'architecture-validator': '🔬',
+  'bug-fixer': '🪲',
+  qa: '🎯',
+};
+
 function StatusBadge({ status }: { status: NonNullable<FlowNode['data']['status']> }) {
   const { t } = useI18n();
   const view = NODE_STATUS_VIEW[status];
@@ -88,9 +97,16 @@ function AgentNodeView(props: NodeProps<FlowNode>) {
   const { t } = useI18n();
   const { data } = props;
   return (
-    <Frame node={props} selected={props.selected} icon="🧠" kind="workflow.node.agent">
+    <Frame
+      node={props}
+      selected={props.selected}
+      icon={PERSONALITY_ICON[data.agent?.personalityId ?? ''] ?? '🤖'}
+      kind="workflow.node.agent"
+    >
       <span className={styles.nodeMeta}>
-        {data.agent ? `${data.agent.name} · ${data.agent.personality}` : t('workflow.node.noAgent')}
+        {data.agent
+          ? [data.agent.name, data.agent.personality].filter(Boolean).join(' · ')
+          : t('workflow.node.noAgent')}
       </span>
       <Progress data={data} />
     </Frame>

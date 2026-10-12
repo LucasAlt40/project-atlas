@@ -209,6 +209,60 @@ describe('the integrations setting of an agent step', () => {
     expect(changed?.type === 'agent' && changed.executionPolicy).toEqual({
       isolation: 'from_agent',
       announceIntegrations: false,
+      readOnly: false,
     });
+  });
+});
+
+describe('the completion criteria and the read-only setting of an agent step', () => {
+  function show(onChange = vi.fn()) {
+    const workflow = passwordRecovery();
+    const node = workflow.nodes.find((n) => n.type === 'agent');
+    if (node?.type !== 'agent') throw new Error('no agent node');
+    render(
+      <I18nProvider language="en-US">
+        <NodeInspector
+          workflow={workflow}
+          node={node}
+          editable
+          agents={[agent(node.agentId, 'Dev')]}
+          factsOf={() => undefined}
+          run={undefined}
+          onChange={onChange}
+          onOpenExecution={() => undefined}
+        />
+      </I18nProvider>,
+    );
+    return { onChange, node, workflow };
+  }
+  const changed = (onChange: ReturnType<typeof vi.fn>, workflow: Workflow, id: string) => {
+    const change = onChange.mock.calls.at(-1)?.[0] as (w: Workflow) => Workflow;
+    return change(workflow).nodes.find((n) => n.id === id);
+  };
+
+  it('edits when the step is done, and nothing else of it', async () => {
+    const { onChange, node, workflow } = show();
+
+    await userEvent.type(screen.getByLabelText(/Done when/), 'X');
+
+    const next = changed(onChange, workflow, node.id);
+    expect(next?.type === 'agent' && next.completionCriteria).toBe('X');
+    expect(next?.type === 'agent' && next.instructions).toBe(node.instructions);
+  });
+
+  it('is not read-only until someone says so, and then only the file-editing tools are held back', async () => {
+    const { onChange, node, workflow } = show();
+    const box = screen.getByRole('checkbox', { name: /Read-only step/ });
+    expect(box).not.toBeChecked();
+
+    await userEvent.click(box);
+
+    const next = changed(onChange, workflow, node.id);
+    expect(next?.type === 'agent' && next.executionPolicy).toEqual({
+      isolation: 'from_agent',
+      announceIntegrations: true,
+      readOnly: true,
+    });
+    expect(screen.getByText(/Tools granted below are not limited by this/)).toBeInTheDocument();
   });
 });

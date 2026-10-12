@@ -201,9 +201,28 @@ export interface CommandMap {
   create_workflow: { args: { request: NewWorkflowDto }; result: WorkflowDto };
   /** Builds the workflow from the workspace's agents; roles without an agent are reported. */
   create_workflow_from_template: {
-    args: { workspaceId: string; templateId: string; name?: string; mode: WorkflowModeDto };
+    args: {
+      workspaceId: string;
+      templateId: string;
+      name?: string;
+      mode: WorkflowModeDto;
+      /** Grant the suggested tools the workspace can give, to the steps they are for. */
+      applyTools?: boolean;
+    };
     result: TemplateWorkflowDto;
   };
+  /** What a template's suggested tools come to in a workspace. Reads; grants nothing. */
+  plan_workflow_template_tools: {
+    args: { workspaceId: string; templateId: string };
+    result: ToolPlanItemDto[];
+  };
+  /** Saves a workflow's steps, routes and granted tools as a template of the person's own. */
+  save_workflow_as_template: {
+    args: { workflowId: string; name: string; description?: string };
+    result: WorkflowTemplateDto;
+  };
+  /** Only a template the person saved can be deleted. */
+  delete_workflow_template: { args: { templateId: string }; result: null };
   /** Refused while the workflow has a run in progress. */
   update_workflow: { args: { workflow: WorkflowDto }; result: WorkflowDto };
   delete_workflow: { args: { workflowId: string }; result: null };
@@ -2069,6 +2088,8 @@ export interface ExecutionPolicyDto {
   isolation: 'from_agent';
   /** Tell the agent, in its prompt, which integrations (MCP servers) it was given for this step. */
   announceIntegrations: boolean;
+  /** The step may not change files, whatever its agent's profile allows. It only narrows. */
+  readOnly: boolean;
 }
 
 export interface LoopPolicyDto {
@@ -2091,6 +2112,8 @@ export interface AgentNodeFieldsDto {
   agentId: string;
   label: string;
   instructions: string;
+  /** What must be true for the step to be done; told to the agent and shown to the person. */
+  completionCriteria: string;
   retryPolicy: RetryPolicyDto;
   failurePolicy: FailurePolicyDto;
   executionPolicy: ExecutionPolicyDto;
@@ -2184,19 +2207,81 @@ export interface NewWorkflowDto {
 export type WorkflowRoleDto = 'architect' | 'developer' | 'validator' | 'qa' | 'bug_fixer';
 export type TemplateCategoryDto = 'software_feature' | 'bug_fix' | 'refactoring' | 'code_review';
 
+export type TemplateKindDto = 'builtin' | 'custom';
+
+/** A kind of tool a step is better off with; a template names the kind, not a product. */
+export type ToolCapabilityDto = 'browser' | 'issues' | 'docs' | 'repo';
+
+export type SuggestionTargetDto =
+  | { kind: 'capability'; capability: ToolCapabilityDto }
+  | { kind: 'connection'; name: string; tools: McpToolSelectionDto };
+
+/** A tool a step may be given, and why. A suggestion authorizes nothing. */
+export interface ToolSuggestionDto {
+  nodeId: string;
+  target: SuggestionTargetDto;
+  purpose: string;
+}
+
+export interface TemplateStepDto {
+  id: string;
+  label: string;
+  role: WorkflowRoleDto | null;
+  agentId: string | null;
+  instructions: string;
+  completionCriteria: string;
+  readOnly: boolean;
+  maxIterations: number | null;
+}
+
 export interface WorkflowTemplateDto {
   id: string;
+  kind: TemplateKindDto;
   category: TemplateCategoryDto;
   recommended: boolean;
+  featured: boolean;
   name: string;
   description: string;
+  goal: string;
   roles: WorkflowRoleDto[];
+  steps: TemplateStepDto[];
+  outputs: string[];
+  /** No step may change files. */
+  readOnly: boolean;
+  tools: ToolSuggestionDto[];
+  /** The built-in template a saved one started from. */
+  basedOn: string | null;
+}
+
+/** Why a suggested tool cannot be given in this workspace. */
+export type ToolUnavailableDto =
+  | { kind: 'no_connection' }
+  | { kind: 'disabled' }
+  | { kind: 'needs_secret'; name: string }
+  | { kind: 'not_connected' }
+  | { kind: 'needs_discovery' }
+  | { kind: 'no_reading_tools' }
+  | { kind: 'refused' };
+
+/** One suggestion resolved against a workspace's connections. */
+export interface ToolPlanItemDto {
+  nodeId: string;
+  purpose: string;
+  capability: ToolCapabilityDto | null;
+  connectionId: string | null;
+  connection: string | null;
+  /** What would be (or was) granted. */
+  tools: McpToolSelectionDto | null;
+  /** `null`: it can be granted. */
+  reason: ToolUnavailableDto | null;
+  granted: boolean;
 }
 
 export interface TemplateWorkflowDto {
   workflow: WorkflowDto;
   /** Roles no agent was found for: their nodes have no agent yet. */
   missingRoles: WorkflowRoleDto[];
+  tools: ToolPlanItemDto[];
 }
 
 export type ValidationIssueCodeDto =

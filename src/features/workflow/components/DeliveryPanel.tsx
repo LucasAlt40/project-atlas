@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
 import { useI18n } from '@/i18n/I18nProvider';
 import { deliveryOf } from '../model/integration';
@@ -50,8 +51,9 @@ export function DeliveryPanel({
   if (!delivery) {
     if (integration.status === 'in_progress' && isActiveRun(run)) {
       return (
-        <p className={styles.muted} role="status">
-          {t('integration.line.in_progress')}
+        <p className={styles.banner} role="status">
+          <Icon name="shield" size={16} />
+          <span>{t('integration.line.in_progress')}</span>
         </p>
       );
     }

@@ -14,6 +14,8 @@ export const FAILURE_EDGE_PREFIX = 'failure:';
 export interface AgentLabel {
   name: string;
   personality: string;
+  /** The personality's id, for the icon a node wears. */
+  personalityId: string;
 }
 
 export interface FlowNodeData extends Record<string, unknown> {

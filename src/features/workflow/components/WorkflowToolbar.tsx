@@ -1,28 +1,10 @@
 import { useState } from 'react';
-import { useReactFlow } from '@xyflow/react';
+import { useReactFlow, useStore } from '@xyflow/react';
 import type { ReactNode } from 'react';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import type { Agent } from '@/features/agents/types';
 import { useI18n } from '@/i18n/I18nProvider';
 import styles from './Workflow.module.css';
-
-interface Props {
-  editable: boolean;
-  agents: Agent[];
-  hasSelection: boolean;
-  canConnect: boolean;
-  connecting: boolean;
-  canUndo: boolean;
-  canRedo: boolean;
-  onAddAgent: (agent: Agent) => void;
-  onAddCondition: () => void;
-  onAddEnd: () => void;
-  onToggleConnect: () => void;
-  onDelete: () => void;
-  onUndo: () => void;
-  onRedo: () => void;
-  onResetLayout: () => void;
-}
 
 interface ToolProps {
   icon: IconName;
@@ -53,31 +35,37 @@ function Tool({ icon, disabled, pressed, expanded, label, onClick, children }: T
   );
 }
 
-/** What the user can do to the graph. Must sit inside the graph's provider (fit and zoom). */
-export function WorkflowToolbar({
+interface NodeToolsProps {
+  editable: boolean;
+  agents: Agent[];
+  hasSelection: boolean;
+  canConnect: boolean;
+  connecting: boolean;
+  onAddAgent: (agent: Agent) => void;
+  onAddCondition: () => void;
+  onAddEnd: () => void;
+  onToggleConnect: () => void;
+  onDelete: () => void;
+}
+
+/** Adding, connecting and removing nodes: the center of the pipeline bar. */
+export function NodeTools({
   editable,
   agents,
   hasSelection,
   canConnect,
   connecting,
-  canUndo,
-  canRedo,
   onAddAgent,
   onAddCondition,
   onAddEnd,
   onToggleConnect,
   onDelete,
-  onUndo,
-  onRedo,
-  onResetLayout,
-}: Props) {
+}: NodeToolsProps) {
   const { t } = useI18n();
-  const flow = useReactFlow();
   const [choosing, setChoosing] = useState(false);
-
   return (
-    <div className={styles.toolbar} role="toolbar" aria-label={t('workflow.toolbar')}>
-      <div className={styles.toolbarGroup}>
+    <div className={styles.nodeTools} role="toolbar" aria-label={t('workflow.toolbar')}>
+      <div className={styles.toolGroup}>
         <div className={styles.popoverHost}>
           <Tool
             icon="agents"
@@ -129,39 +117,67 @@ export function WorkflowToolbar({
           {t('workflow.toolbar.delete')}
         </Tool>
       </div>
-      <div className={styles.toolbarGroup}>
-        <Tool icon="undo" disabled={!editable || !canUndo} onClick={onUndo}>
-          {t('workflow.toolbar.undo')}
-        </Tool>
-        <Tool icon="redo" disabled={!editable || !canRedo} onClick={onRedo}>
-          {t('workflow.toolbar.redo')}
-        </Tool>
-        <Tool icon="layout" disabled={!editable} onClick={onResetLayout}>
-          {t('workflow.toolbar.resetLayout')}
-        </Tool>
-        <Tool
-          icon="fit"
-          onClick={() => {
-            void flow.fitView({ padding: 0.2, maxZoom: 1.1 });
-          }}
-        >
-          {t('workflow.toolbar.fit')}
-        </Tool>
-        <Tool
-          icon="zoomOut"
-          label={t('workflow.toolbar.zoomOut')}
-          onClick={() => {
-            void flow.zoomOut();
-          }}
-        />
-        <Tool
-          icon="zoomIn"
-          label={t('workflow.toolbar.zoomIn')}
-          onClick={() => {
-            void flow.zoomIn();
-          }}
-        />
-      </div>
+    </div>
+  );
+}
+
+interface CanvasToolsProps {
+  editable: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+  onResetLayout: () => void;
+}
+
+/** History and the view of the canvas: the right end of the pipeline bar. */
+export function CanvasTools({
+  editable,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+  onResetLayout,
+}: CanvasToolsProps) {
+  const { t } = useI18n();
+  const flow = useReactFlow();
+  const zoom = useStore((state) => state.transform[2]);
+  return (
+    <div className={styles.canvasTools} role="toolbar" aria-label={t('workflow.toolbar.canvas')}>
+      <Tool icon="undo" disabled={!editable || !canUndo} onClick={onUndo}>
+        {t('workflow.toolbar.undo')}
+      </Tool>
+      <Tool icon="redo" disabled={!editable || !canRedo} onClick={onRedo}>
+        {t('workflow.toolbar.redo')}
+      </Tool>
+      <Tool icon="layout" disabled={!editable} onClick={onResetLayout}>
+        {t('workflow.toolbar.resetLayout')}
+      </Tool>
+      <Tool
+        icon="fit"
+        onClick={() => {
+          void flow.fitView({ padding: 0.2, maxZoom: 1.1 });
+        }}
+      >
+        {t('workflow.toolbar.fit')}
+      </Tool>
+      <Tool
+        icon="zoomOut"
+        label={t('workflow.toolbar.zoomOut')}
+        onClick={() => {
+          void flow.zoomOut();
+        }}
+      />
+      <span className={styles.zoomValue} aria-label={t('workflow.toolbar.zoomLevel')}>
+        {String(Math.round(zoom * 100))}%
+      </span>
+      <Tool
+        icon="zoomIn"
+        label={t('workflow.toolbar.zoomIn')}
+        onClick={() => {
+          void flow.zoomIn();
+        }}
+      />
     </div>
   );
 }

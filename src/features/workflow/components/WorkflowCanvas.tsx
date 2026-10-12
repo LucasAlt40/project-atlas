@@ -106,6 +106,10 @@ export function WorkflowCanvas({
 
   return (
     <div className={styles.canvas} role="group" aria-label={t('workflow.canvas')}>
+      <div className={styles.canvasHud} aria-hidden="true">
+        <span>{t('workflow.canvas.nodes', { n: workflow.nodes.length })}</span>
+        <span>{t('workflow.canvas.edges', { n: workflow.edges.length })}</span>
+      </div>
       <ReactFlow
         key={`${workflow.id}:${run?.id ?? 'editor'}`}
         nodes={shown}
@@ -144,8 +148,15 @@ export function WorkflowCanvas({
         maxZoom={2}
         colorMode="dark"
       >
-        <Background variant={BackgroundVariant.Dots} gap={22} size={1.5} color="#2d3748" />
-        <MiniMap pannable zoomable ariaLabel={t('workflow.minimap')} />
+        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#272a2e" />
+        <MiniMap
+          pannable
+          zoomable
+          ariaLabel={t('workflow.minimap')}
+          nodeColor={(node) => (node.data.status === 'running' ? '#7bd0ff' : '#323539')}
+          nodeStrokeWidth={0}
+          maskColor="rgb(25 28 32 / 0.7)"
+        />
       </ReactFlow>
     </div>
   );

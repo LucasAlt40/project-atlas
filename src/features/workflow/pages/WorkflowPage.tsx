@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { useNavigation } from '@/app/NavigationContext';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import { useCatalog } from '@/features/agents/hooks/useCatalog';
 import { ExecutionInspector } from '@/features/workspace/components/ExecutionInspector';
 import { useWorkspace } from '@/features/workspace/hooks/WorkspaceProvider';
@@ -17,6 +18,7 @@ import { LiveWorkspacePanel } from '../components/LiveWorkspacePanel';
 import { ReviewWorkspace } from '../components/ReviewWorkspace';
 import { RouteRepairDialog } from '../components/RouteRepairDialog';
 import { NewWorkflowPanel, type NewWorkflowChoice } from '../components/NewWorkflowPanel';
+import { SaveTemplate } from '../components/SaveTemplate';
 import { WorkflowCanvas, type Selection } from '../components/WorkflowCanvas';
 import {
   EdgeInspector,
@@ -25,7 +27,7 @@ import {
   type AgentFacts,
 } from '../components/WorkflowInspector';
 import { EditorOverview, RunOverview } from '../components/WorkflowOverview';
-import { WorkflowToolbar } from '../components/WorkflowToolbar';
+import { CanvasTools, NodeTools } from '../components/WorkflowToolbar';
 import { useWorkflows } from '../hooks/useWorkflows';
 import { connect, disconnect, removeNode, resetLayout } from '../model/edit';
 import { withPositions, type AgentLabel } from '../model/graph';
@@ -50,7 +52,7 @@ export function WorkflowPage() {
   const { t } = useI18n();
   const { catalog, runtimes } = useCatalog();
   const workspace = useWorkspace();
-  const { intent } = useNavigation();
+  const { intent, navigate } = useNavigation();
   const active = workspace.active;
   const space = useWorkflows(active?.id);
 
@@ -59,6 +61,7 @@ export function WorkflowPage() {
   const [connecting, setConnecting] = useState(false);
   const [creating, setCreating] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [inspected, setInspected] = useState<StoredExecution | null>(null);
   /** The diff is open: of all files (`''`) or of one. */
@@ -75,6 +78,7 @@ export function WorkflowPage() {
     for (const agent of agents) {
       map.set(agent.id, {
         name: agent.name,
+        personalityId: agent.personalityId,
         personality: personalities.find((p) => p.id === agent.personalityId)?.name ?? '',
       });
     }
@@ -145,21 +149,44 @@ export function WorkflowPage() {
   };
   const agentName = (agentId: string) => agents.find((a) => a.id === agentId)?.name ?? agentId;
 
+  // Where the dock reads the workspace's MCP connections, and how to get to the hub.
+  const hubTools = {
+    workspaceId: active.id,
+    onOpenHub: () => {
+      navigate('mcp');
+    },
+  };
+
   const create = (choice: NewWorkflowChoice) => {
-    void space.create(choice.templateId, choice.mode, choice.name).then((created) => {
-      if (!created) return;
-      setCreating(false);
-      if (choice.task) setTask(choice.task);
-      setNotice(
-        created.missing.length > 0
-          ? t('workflow.missingAgents', {
+    void space
+      .create(choice.templateId, choice.mode, choice.name, choice.applyTools)
+      .then((created) => {
+        if (!created) return;
+        setCreating(false);
+        if (choice.task) setTask(choice.task);
+        const notices: string[] = [];
+        if (created.missing.length > 0) {
+          notices.push(
+            t('workflow.missingAgents', {
               roles: created.missing
                 .map((role) => t(`workflow.role.${role}` as TranslationKey))
                 .join(', '),
-            })
-          : null,
-      );
-    });
+            }),
+          );
+        }
+        // What the tools option did: said, so a step is never left to guess what it was given.
+        const given = created.tools.filter((item) => item.granted).length;
+        if (given > 0) notices.push(t('workflow.toolsGranted', { count: given }));
+        const refused = created.tools.filter((item) => item.reason?.kind === 'refused');
+        if (refused.length > 0) {
+          notices.push(
+            t('workflow.toolsSkipped', {
+              list: refused.map((item) => item.connection ?? item.nodeId).join(', '),
+            }),
+          );
+        }
+        setNotice(notices.length > 0 ? notices.join(' ') : null);
+      });
   };
 
   if (space.workflows.length === 0 || creating) {
@@ -171,6 +198,9 @@ export function WorkflowPage() {
         <NewWorkflowPanel
           templates={space.templates}
           recommend={space.recommend}
+          planTools={space.planTools}
+          agentName={agentName}
+          onDeleteTemplate={(id) => void space.removeTemplate(id)}
           error={space.error === undefined ? null : errorMessage(t, space.error)}
           onCreate={create}
           {...(space.workflows.length > 0
@@ -215,410 +245,459 @@ export function WorkflowPage() {
   const inspectedAgent = inspected ? agents.find((a) => a.id === inspected.agentId) : undefined;
 
   return (
-    <section className={styles.page}>
-      <header className={styles.header}>
-        <div className={styles.headerLeft}>
-          <h1 className={styles.title}>{t('workflow.title')}</h1>
-          <select
-            className={styles.control}
-            aria-label={t('workflow.select')}
-            value={space.selected?.id ?? ''}
-            onChange={(e) => {
-              space.open(e.target.value);
-            }}
-          >
-            {space.workflows.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name}
-              </option>
-            ))}
-          </select>
-          <Button
-            onClick={() => {
-              setCreating(true);
-            }}
-          >
-            {t('workflow.new')}
-          </Button>
-          {workflow && (
-            <span className={styles.modeBadge} data-mode={workflow.mode}>
-              {t(`workflow.mode.${workflow.mode}` as TranslationKey)}
+    <ReactFlowProvider>
+      <section className={[styles.page, styles.pageFlush].join(' ')}>
+        <header className={styles.bar}>
+          <div className={styles.barLeft}>
+            <h1 className={styles.srOnly}>{t('workflow.title')}</h1>
+            <span className={styles.switcher}>
+              <Icon name="workflow" size={16} />
+              <select
+                className={styles.switcherSelect}
+                aria-label={t('workflow.select')}
+                value={space.selected?.id ?? ''}
+                onChange={(e) => {
+                  space.open(e.target.value);
+                }}
+              >
+                {space.workflows.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
             </span>
-          )}
-          {workflow && (
-            <span className={styles.muted}>
-              {t('workflow.version', { version: workflow.version })}
-            </span>
-          )}
-          {runStatus && (
-            <span
-              className={styles.runBadge}
-              data-status={runStatus}
-              role="status"
-              aria-label={t('workflow.runStatus', { status: t(RUN_STATUS_LABEL[runStatus]) })}
-            >
-              {t(RUN_STATUS_LABEL[runStatus])}
-            </span>
-          )}
-        </div>
-        <div className={styles.headerRight}>
-          {space.runs.length > 0 && (
-            <select
-              className={styles.control}
-              aria-label={t('workflow.runs')}
-              value={shownRun?.id ?? ''}
-              onChange={(e) => {
-                space.showRun(e.target.value || null);
-              }}
-            >
-              <option value="">{t('workflow.runs.editor')}</option>
-              {space.runs.map((run) => (
-                <option key={run.id} value={run.id}>
-                  {new Date(run.startedAt).toLocaleString()} · {t(RUN_STATUS_LABEL[run.status])}
-                </option>
-              ))}
-            </select>
-          )}
-          {workflow?.mode === 'automatic' && editable && (
-            <Button variant="secondary" onClick={space.customize}>
-              {t('workflow.customize')}
-            </Button>
-          )}
-          {editable && (
-            <>
-              <Button disabled={!space.dirty} onClick={() => void space.save()}>
-                {t('common.save')}
-              </Button>
-              {confirmingDelete ? (
-                <Button
-                  variant="danger"
-                  onClick={() => {
-                    setConfirmingDelete(false);
-                    void space.remove();
-                  }}
-                >
-                  {t('common.confirmDelete')}
-                </Button>
-              ) : (
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setConfirmingDelete(true);
-                  }}
-                >
-                  {t('workflow.deleteWorkflow')}
-                </Button>
-              )}
-            </>
-          )}
-          {shownRun && !isActiveRun(shownRun) && !space.activeRun && (
-            <Button
-              variant="secondary"
+            <button
+              type="button"
+              className={styles.newButton}
               onClick={() => {
-                space.showRun(null);
+                setCreating(true);
               }}
             >
-              {t('workflow.backToEditor')}
-            </Button>
-          )}
-          {runStatus === 'running' && (
-            <Button variant="secondary" onClick={() => void space.pause()}>
-              {t('workflow.pause')}
-            </Button>
-          )}
-          {(runStatus === 'paused' || runStatus === 'interrupted') && (
-            <Button onClick={() => void space.resume()}>{t('workflow.resume')}</Button>
-          )}
-          {runStatus === 'interrupted' && shownRun && (
-            <Button
-              variant="secondary"
-              onClick={() => {
-                void space.cancel().then(() => space.run(shownRun.task));
-              }}
-            >
-              {t('workflow.restart')}
-            </Button>
-          )}
-          {shownRun && isActiveRun(shownRun) && (
-            <Button variant="danger" onClick={() => void space.cancel()}>
-              {t('workflow.cancel')}
-            </Button>
-          )}
-        </div>
-      </header>
-
-      {editable && (
-        <div className={styles.runBar}>
-          <input
-            className={styles.control}
-            aria-label={t('workflow.task')}
-            placeholder={t('workflow.task.placeholder')}
-            value={task}
-            onChange={(e) => {
-              setTask(e.target.value);
-            }}
-          />
-          <Button
-            disabled={!canRun}
-            onClick={() => {
-              void space.run(task.trim());
-            }}
-          >
-            {t('workflow.run')}
-          </Button>
-        </div>
-      )}
-
-      {space.error !== undefined && (
-        <p role="alert" className={styles.failure}>
-          {errorMessage(t, space.error)}
-        </p>
-      )}
-      {notice && (
-        <p role="status" className={styles.warning}>
-          {notice}
-        </p>
-      )}
-      {shownRun?.interactions
-        .filter((interaction) => interaction.status === 'pending')
-        .map((interaction) => (
-          <InteractionPanel
-            key={interaction.id}
-            interaction={interaction}
-            busy={space.answering}
-            error={
-              space.answerError?.id === interaction.id
-                ? errorMessage(t, space.answerError.error)
-                : null
-            }
-            onAnswer={(reply) => {
-              void space.answer(interaction.id, reply);
-            }}
-            onCancelRun={() => void space.cancel()}
-          />
-        ))}
-
-      {workflow && (
-        <ReactFlowProvider>
-          <WorkflowToolbar
-            editable={editable}
-            agents={agents}
-            hasSelection={selection !== null}
-            canConnect={selection?.kind === 'node'}
-            connecting={connecting}
-            canUndo={space.canUndo}
-            canRedo={space.canRedo}
-            onAddAgent={(agent) => {
-              space.addAgent(agent.id, agent.name);
-            }}
-            onAddCondition={() => {
-              space.addCondition(t('workflow.node.condition'));
-            }}
-            onAddEnd={() => {
-              space.addEnd(t('workflow.end.done'));
-            }}
-            onToggleConnect={() => {
-              setConnecting((value) => !value);
-            }}
-            onDelete={() => {
-              if (selection?.kind === 'node') {
-                const id = selection.id;
-                space.edit((w) => removeNode(w, id));
-              } else if (selection?.kind === 'edge') {
-                const id = selection.id;
-                space.edit((w) => disconnect(w, id));
-              }
-              setSelection(null);
-            }}
-            onUndo={space.undo}
-            onRedo={space.redo}
-            onResetLayout={() => {
-              space.edit(resetLayout);
-            }}
-          />
-          <div className={styles.workspace}>
-            <WorkflowCanvas
-              workflow={workflow}
-              run={shownRun}
-              agents={labels}
-              invalidNodes={invalid}
+              <Icon name="plus" size={14} />
+              {t('workflow.new')}
+            </button>
+            {workflow && (
+              <span className={styles.modeBadge} data-mode={workflow.mode}>
+                {t(`workflow.mode.${workflow.mode}` as TranslationKey)} ·{' '}
+                {t('workflow.version', { version: workflow.version })}
+              </span>
+            )}
+            {runStatus && (
+              <span
+                className={styles.runBadge}
+                data-status={runStatus}
+                role="status"
+                aria-label={t('workflow.runStatus', { status: t(RUN_STATUS_LABEL[runStatus]) })}
+              >
+                {t(RUN_STATUS_LABEL[runStatus])}
+              </span>
+            )}
+          </div>
+          {workflow && (
+            <NodeTools
               editable={editable}
-              selection={selection}
-              onSelect={onSelect}
-              onMove={(positions: Map<string, PositionDto>) => {
-                space.edit((w) => withPositions(w, positions));
+              agents={agents}
+              hasSelection={selection !== null}
+              canConnect={selection?.kind === 'node'}
+              connecting={connecting}
+              onAddAgent={(agent) => {
+                space.addAgent(agent.id, agent.name);
               }}
-              onConnect={(source, target) => {
-                space.edit((w) => connect(w, source, target));
+              onAddCondition={() => {
+                space.addCondition(t('workflow.node.condition'));
               }}
-              onDeleteNode={(id) => {
-                space.edit((w) => removeNode(w, id));
-                setSelection(null);
+              onAddEnd={() => {
+                space.addEnd(t('workflow.end.done'));
               }}
-              onDeleteEdge={(id) => {
-                space.edit((w) => disconnect(w, id));
+              onToggleConnect={() => {
+                setConnecting((value) => !value);
+              }}
+              onDelete={() => {
+                if (selection?.kind === 'node') {
+                  const id = selection.id;
+                  space.edit((w) => removeNode(w, id));
+                } else if (selection?.kind === 'edge') {
+                  const id = selection.id;
+                  space.edit((w) => disconnect(w, id));
+                }
                 setSelection(null);
               }}
             />
-            <aside className={styles.side} aria-label={t('workflow.side')}>
-              {selectedNode ? (
-                <NodeInspector
-                  workflow={workflow}
-                  node={selectedNode}
-                  editable={editable}
-                  agents={agents}
-                  factsOf={factsOf}
-                  run={shownRun}
-                  onChange={space.edit}
-                  onOpenExecution={openExecution}
-                />
-              ) : shownRun && selection?.kind === 'edge' ? (
-                <LinkInspector
-                  run={shownRun}
-                  linkId={selection.id}
-                  onOpenExecution={openExecution}
-                />
-              ) : selectedEdge ? (
-                <EdgeInspector
-                  workflow={workflow}
-                  edge={selectedEdge}
-                  editable={editable}
-                  outcomesOf={(nodeId) => {
-                    const source = workflow.nodes.find((n) => n.id === nodeId);
-                    return source?.type === 'agent'
-                      ? (factsOf(source.agentId)?.outcomes ?? [])
-                      : [];
+          )}
+          <div className={styles.barRight}>
+            {space.runs.length > 0 && (
+              <select
+                className={styles.control}
+                aria-label={t('workflow.runs')}
+                value={shownRun?.id ?? ''}
+                onChange={(e) => {
+                  space.showRun(e.target.value || null);
+                }}
+              >
+                <option value="">{t('workflow.runs.editor')}</option>
+                {space.runs.map((run) => (
+                  <option key={run.id} value={run.id}>
+                    {new Date(run.startedAt).toLocaleString()} · {t(RUN_STATUS_LABEL[run.status])}
+                  </option>
+                ))}
+              </select>
+            )}
+            {workflow?.mode === 'automatic' && editable && (
+              <Button variant="secondary" onClick={space.customize}>
+                {t('workflow.customize')}
+              </Button>
+            )}
+            {editable && (
+              <>
+                <Button disabled={!space.dirty} onClick={() => void space.save()}>
+                  {t('common.save')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setSavingTemplate((value) => !value);
                   }}
-                  agentName={(nodeId) => {
-                    const source = workflow.nodes.find((n) => n.id === nodeId);
-                    return source?.type === 'agent' ? agentName(source.agentId) : '';
-                  }}
-                  onChange={space.edit}
-                />
-              ) : shownRun ? (
-                <RunOverview
-                  run={shownRun}
-                  agentName={agentName}
-                  onOpenExecution={openExecution}
-                  ides={space.ides}
-                  busy={space.integrating}
-                  recovery={space.recovery}
-                  onResume={() => void space.resume()}
-                  code={{
-                    review: (file) => {
-                      setReviewing(file ?? '');
-                    },
-                    openInIde: (ideId) => {
-                      void space.openRunInIde(ideId);
-                    },
-                    apply: () => void space.integrate('apply'),
-                    keep: () => void space.integrate('keep'),
-                    discard: () => void space.integrate('discard'),
-                  }}
-                />
-              ) : (
-                <EditorOverview
-                  workflow={workflow}
-                  validation={space.validation}
-                  editable={editable}
-                  onRename={(name) => {
-                    space.edit((w) => ({ ...w, name }));
-                  }}
-                  repair={{
-                    available: space.repairs.length > 0,
-                    unsaved: space.dirty,
-                    onReview: () => {
-                      setRepairing(true);
-                    },
-                  }}
-                />
-              )}
-            </aside>
+                >
+                  {t('workflow.saveTemplate')}
+                </Button>
+                {confirmingDelete ? (
+                  <Button
+                    variant="danger"
+                    onClick={() => {
+                      setConfirmingDelete(false);
+                      void space.remove();
+                    }}
+                  >
+                    {t('common.confirmDelete')}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setConfirmingDelete(true);
+                    }}
+                  >
+                    {t('workflow.deleteWorkflow')}
+                  </Button>
+                )}
+              </>
+            )}
+            {shownRun && !isActiveRun(shownRun) && !space.activeRun && (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  space.showRun(null);
+                }}
+              >
+                {t('workflow.backToEditor')}
+              </Button>
+            )}
+            {runStatus === 'running' && (
+              <Button variant="secondary" onClick={() => void space.pause()}>
+                {t('workflow.pause')}
+              </Button>
+            )}
+            {(runStatus === 'paused' || runStatus === 'interrupted') && (
+              <Button onClick={() => void space.resume()}>{t('workflow.resume')}</Button>
+            )}
+            {runStatus === 'interrupted' && shownRun && (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  void space.cancel().then(() => space.run(shownRun.task));
+                }}
+              >
+                {t('workflow.restart')}
+              </Button>
+            )}
+            {shownRun && isActiveRun(shownRun) && (
+              <Button variant="danger" onClick={() => void space.cancel()}>
+                {t('workflow.cancel')}
+              </Button>
+            )}
+            {workflow && (
+              <CanvasTools
+                editable={editable}
+                canUndo={space.canUndo}
+                canRedo={space.canRedo}
+                onUndo={space.undo}
+                onRedo={space.redo}
+                onResetLayout={() => {
+                  space.edit(resetLayout);
+                }}
+              />
+            )}
           </div>
-        </ReactFlowProvider>
-      )}
+        </header>
 
-      {shownRun && !isFinished(shownRun) && <LiveWorkspacePanel key={shownRun.id} run={shownRun} />}
-      {shownRun && isFinished(shownRun) && (
-        <ReviewWorkspace
-          key={shownRun.id}
-          run={shownRun}
-          ides={space.ides}
-          busy={space.integrating}
-          context={{
-            agentName,
-            personality: (agentId) => labels.get(agentId)?.personality ?? '',
-            executionOf: (executionId) => {
-              const stored = workspace.history.find((execution) => execution.id === executionId);
-              return stored
-                ? { runtime: runtimeName(stored.runtimeId), model: stored.modelId }
-                : undefined;
-            },
-          }}
-          onOpenExecution={openExecution}
-          code={{
-            review: (file) => {
-              setReviewing(file ?? '');
-            },
-            openInIde: (ideId) => {
-              void space.openRunInIde(ideId);
-            },
-            apply: () => void space.integrate('apply'),
-            keep: () => void space.integrate('keep'),
-            discard: () => void space.integrate('discard'),
-          }}
-        />
-      )}
+        {editable && savingTemplate && workflow && (
+          <SaveTemplate
+            dirty={space.dirty}
+            defaultName={workflow.name}
+            onCancel={() => {
+              setSavingTemplate(false);
+            }}
+            onSave={(name, description) => {
+              void space.saveTemplate(name, description).then((saved) => {
+                if (!saved) return;
+                setSavingTemplate(false);
+                setNotice(t('workflow.saveTemplate.saved', { name: saved.name }));
+              });
+            }}
+          />
+        )}
 
-      {repairing && workflow && space.repairs.length > 0 && (
-        <RouteRepairDialog
-          workflow={workflow}
-          proposals={space.repairs}
-          busy={false}
-          onCancel={() => {
-            setRepairing(false);
-          }}
-          onApply={(choices) => {
-            void space.repairRoutes(choices).then(() => {
+        {editable && (
+          <div className={styles.runBar}>
+            <input
+              className={styles.control}
+              aria-label={t('workflow.task')}
+              placeholder={t('workflow.task.placeholder')}
+              value={task}
+              onChange={(e) => {
+                setTask(e.target.value);
+              }}
+            />
+            <Button
+              disabled={!canRun}
+              onClick={() => {
+                void space.run(task.trim());
+              }}
+            >
+              {t('workflow.run')}
+            </Button>
+          </div>
+        )}
+
+        {space.error !== undefined && (
+          <p role="alert" className={styles.failure}>
+            {errorMessage(t, space.error)}
+          </p>
+        )}
+        {notice && (
+          <p role="status" className={styles.warning}>
+            {notice}
+          </p>
+        )}
+        {shownRun?.interactions
+          .filter((interaction) => interaction.status === 'pending')
+          .map((interaction) => (
+            <InteractionPanel
+              key={interaction.id}
+              interaction={interaction}
+              busy={space.answering}
+              error={
+                space.answerError?.id === interaction.id
+                  ? errorMessage(t, space.answerError.error)
+                  : null
+              }
+              onAnswer={(reply) => {
+                void space.answer(interaction.id, reply);
+              }}
+              onCancelRun={() => void space.cancel()}
+            />
+          ))}
+
+        {workflow && (
+          <>
+            <div className={styles.workspace} data-drawer={selectedNode ? 'true' : 'false'}>
+              <WorkflowCanvas
+                workflow={workflow}
+                run={shownRun}
+                agents={labels}
+                invalidNodes={invalid}
+                editable={editable}
+                selection={selection}
+                onSelect={onSelect}
+                onMove={(positions: Map<string, PositionDto>) => {
+                  space.edit((w) => withPositions(w, positions));
+                }}
+                onConnect={(source, target) => {
+                  space.edit((w) => connect(w, source, target));
+                }}
+                onDeleteNode={(id) => {
+                  space.edit((w) => removeNode(w, id));
+                  setSelection(null);
+                }}
+                onDeleteEdge={(id) => {
+                  space.edit((w) => disconnect(w, id));
+                  setSelection(null);
+                }}
+              />
+              <aside className={styles.side} aria-label={t('workflow.side')}>
+                {selectedNode ? (
+                  <NodeInspector
+                    workflow={workflow}
+                    node={selectedNode}
+                    editable={editable}
+                    agents={agents}
+                    factsOf={factsOf}
+                    run={shownRun}
+                    onChange={space.edit}
+                    onOpenExecution={openExecution}
+                    tools={{
+                      workspaceId: active.id,
+                      savedNodeIds: new Set(space.selected?.nodes.map((n) => n.id)),
+                    }}
+                    onClose={() => {
+                      setSelection(null);
+                    }}
+                    save={{ dirty: space.dirty, onSave: () => void space.save() }}
+                    valid={!invalid.has(selectedNode.id)}
+                  />
+                ) : shownRun && selection?.kind === 'edge' ? (
+                  <LinkInspector
+                    run={shownRun}
+                    linkId={selection.id}
+                    onOpenExecution={openExecution}
+                  />
+                ) : selectedEdge ? (
+                  <EdgeInspector
+                    workflow={workflow}
+                    edge={selectedEdge}
+                    editable={editable}
+                    outcomesOf={(nodeId) => {
+                      const source = workflow.nodes.find((n) => n.id === nodeId);
+                      return source?.type === 'agent'
+                        ? (factsOf(source.agentId)?.outcomes ?? [])
+                        : [];
+                    }}
+                    agentName={(nodeId) => {
+                      const source = workflow.nodes.find((n) => n.id === nodeId);
+                      return source?.type === 'agent' ? agentName(source.agentId) : '';
+                    }}
+                    onChange={space.edit}
+                  />
+                ) : shownRun ? (
+                  <RunOverview
+                    run={shownRun}
+                    tools={hubTools}
+                    agentName={agentName}
+                    onOpenExecution={openExecution}
+                    ides={space.ides}
+                    busy={space.integrating}
+                    recovery={space.recovery}
+                    onResume={() => void space.resume()}
+                    code={{
+                      review: (file) => {
+                        setReviewing(file ?? '');
+                      },
+                      openInIde: (ideId) => {
+                        void space.openRunInIde(ideId);
+                      },
+                      apply: () => void space.integrate('apply'),
+                      keep: () => void space.integrate('keep'),
+                      discard: () => void space.integrate('discard'),
+                    }}
+                  />
+                ) : (
+                  <EditorOverview
+                    workflow={workflow}
+                    tools={hubTools}
+                    validation={space.validation}
+                    editable={editable}
+                    onRename={(name) => {
+                      space.edit((w) => ({ ...w, name }));
+                    }}
+                    repair={{
+                      available: space.repairs.length > 0,
+                      unsaved: space.dirty,
+                      onReview: () => {
+                        setRepairing(true);
+                      },
+                    }}
+                  />
+                )}
+              </aside>
+            </div>
+          </>
+        )}
+
+        {shownRun && !isFinished(shownRun) && (
+          <LiveWorkspacePanel key={shownRun.id} run={shownRun} />
+        )}
+        {shownRun && isFinished(shownRun) && (
+          <ReviewWorkspace
+            key={shownRun.id}
+            run={shownRun}
+            ides={space.ides}
+            busy={space.integrating}
+            context={{
+              agentName,
+              personality: (agentId) => labels.get(agentId)?.personality ?? '',
+              executionOf: (executionId) => {
+                const stored = workspace.history.find((execution) => execution.id === executionId);
+                return stored
+                  ? { runtime: runtimeName(stored.runtimeId), model: stored.modelId }
+                  : undefined;
+              },
+            }}
+            onOpenExecution={openExecution}
+            code={{
+              review: (file) => {
+                setReviewing(file ?? '');
+              },
+              openInIde: (ideId) => {
+                void space.openRunInIde(ideId);
+              },
+              apply: () => void space.integrate('apply'),
+              keep: () => void space.integrate('keep'),
+              discard: () => void space.integrate('discard'),
+            }}
+          />
+        )}
+
+        {repairing && workflow && space.repairs.length > 0 && (
+          <RouteRepairDialog
+            workflow={workflow}
+            proposals={space.repairs}
+            busy={false}
+            onCancel={() => {
               setRepairing(false);
-            });
-          }}
-        />
-      )}
+            }}
+            onApply={(choices) => {
+              void space.repairRoutes(choices).then(() => {
+                setRepairing(false);
+              });
+            }}
+          />
+        )}
 
-      {reviewing !== null && shownRun && (
-        <ChangesModal
-          run={shownRun}
-          initialFile={reviewing === '' ? null : reviewing}
-          onClose={() => {
-            setReviewing(null);
-          }}
-        />
-      )}
-      {inspected && (
-        <ExecutionInspector
-          execution={inspected}
-          messages={workspace.conversations.messages[runKey(active.id, inspected.agentId)] ?? []}
-          context={{
-            workspaceName: active.name,
-            agentName: inspectedAgent?.name ?? inspected.agentId,
-            personalityName: inspectedAgent
-              ? (labels.get(inspectedAgent.id)?.personality ?? '')
-              : '',
-            runtimeName: runtimeName(inspected.runtimeId),
-            capabilities:
-              runtimes.status === 'ready'
-                ? runtimes.runtimes.find((r) => r.runtime.id === inspected.runtimeId)?.runtime
-                    .capabilities
-                : undefined,
-            worktreeIsolation: inspectedAgent?.worktreeIsolation ?? false,
-          }}
-          {...askedBy(shownRun, inspected.id)}
-          onClose={() => {
-            setInspected(null);
-          }}
-        />
-      )}
-    </section>
+        {reviewing !== null && shownRun && (
+          <ChangesModal
+            run={shownRun}
+            initialFile={reviewing === '' ? null : reviewing}
+            onClose={() => {
+              setReviewing(null);
+            }}
+          />
+        )}
+        {inspected && (
+          <ExecutionInspector
+            execution={inspected}
+            messages={workspace.conversations.messages[runKey(active.id, inspected.agentId)] ?? []}
+            context={{
+              workspaceName: active.name,
+              agentName: inspectedAgent?.name ?? inspected.agentId,
+              personalityName: inspectedAgent
+                ? (labels.get(inspectedAgent.id)?.personality ?? '')
+                : '',
+              runtimeName: runtimeName(inspected.runtimeId),
+              capabilities:
+                runtimes.status === 'ready'
+                  ? runtimes.runtimes.find((r) => r.runtime.id === inspected.runtimeId)?.runtime
+                      .capabilities
+                  : undefined,
+              worktreeIsolation: inspectedAgent?.worktreeIsolation ?? false,
+            }}
+            {...askedBy(shownRun, inspected.id)}
+            onClose={() => {
+              setInspected(null);
+            }}
+          />
+        )}
+      </section>
+    </ReactFlowProvider>
   );
 }

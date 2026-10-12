@@ -10,6 +10,7 @@ import {
 } from '@/test/fixtures';
 import {
   attempt,
+  basicTemplate,
   nodeState,
   passwordRecovery,
   run,
@@ -29,8 +30,10 @@ import {
   listTemplates,
   listWorkflows,
   pauseWorkflow,
+  planTemplateTools,
   repairWorkflowRoutes,
   resumeWorkflow,
+  saveAsTemplate,
   selectTemplate,
   startWorkflow,
   subscribeToWorkflowEvents,
@@ -86,6 +89,7 @@ function show(setup: Setup = {}) {
   vi.mocked(listTemplates).mockResolvedValue(templates);
   vi.mocked(listIdes).mockResolvedValue([{ id: 'vscode', name: 'Visual Studio Code' }]);
   vi.mocked(selectTemplate).mockResolvedValue('software_feature');
+  vi.mocked(planTemplateTools).mockResolvedValue([]);
   vi.mocked(validateWorkflow).mockResolvedValue(setup.validation ?? { valid: true, issues: [] });
   vi.mocked(updateWorkflow).mockImplementation((w) =>
     Promise.resolve({ ...w, version: w.version }),
@@ -102,6 +106,7 @@ function show(setup: Setup = {}) {
     deleteWorkflow,
     createFromTemplate,
     createWorkflow,
+    saveAsTemplate,
   ]) {
     vi.mocked(fn).mockReset();
   }
@@ -145,7 +150,7 @@ describe('Workflow page', () => {
       }
       expect(within(await node('QA')).getByText(/QA agent/)).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'Workflow' })).toBeInTheDocument();
-      expect(screen.getByText('version 1')).toBeInTheDocument();
+      expect(screen.getByText('Automatic · version 1')).toBeInTheDocument();
     });
 
     it('selects a node and shows its configuration, with the agent as the source of truth', async () => {
@@ -154,7 +159,7 @@ describe('Workflow page', () => {
       await clickNode('Developer');
 
       const panel = within(side());
-      expect(panel.getByRole('heading', { name: 'Developer' })).toBeInTheDocument();
+      expect(panel.getByRole('heading', { name: /^Developer/ })).toBeInTheDocument();
       expect(panel.getByLabelText('Agent')).toHaveValue('a-developer');
       expect(panel.getByLabelText('Instructions for this step')).toHaveValue(
         'Implement the endpoint.',
@@ -277,7 +282,7 @@ describe('Workflow page', () => {
     it('is tolerant of an empty selection and clears it on the pane', async () => {
       show();
       await clickNode('QA');
-      expect(within(side()).getByRole('heading', { name: 'QA' })).toBeInTheDocument();
+      expect(within(side()).getByRole('heading', { name: /^QA/ })).toBeInTheDocument();
       expect(within(side()).getByLabelText('Max loop')).toHaveValue(3);
     });
   });
@@ -447,9 +452,9 @@ describe('Workflow page', () => {
       show();
       await canvas();
 
-      expect(screen.getByText('Automatic', { selector: 'span' })).toBeInTheDocument();
+      expect(screen.getByText('Automatic · version 1', { selector: 'span' })).toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: 'Customize workflow' }));
-      expect(screen.getByText('Custom', { selector: 'span' })).toBeInTheDocument();
+      expect(screen.getByText('Custom · version 1', { selector: 'span' })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Customize workflow' })).not.toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: 'Save' }));
@@ -459,18 +464,29 @@ describe('Workflow page', () => {
       expect(saved?.edges).toEqual(passwordRecovery().edges);
     });
 
+    it('shows the pipeline bar: the mode and version in one chip and the zoom of the canvas', async () => {
+      show();
+      await canvas();
+
+      expect(screen.getByText('Automatic · version 1')).toBeInTheDocument();
+      expect(screen.getByLabelText('Zoom level')).toHaveTextContent('100%');
+      expect(screen.getByRole('toolbar', { name: 'Workflow editor' })).toBeInTheDocument();
+      expect(screen.getByRole('toolbar', { name: 'Canvas view' })).toBeInTheDocument();
+    });
+
     it('proposes a recommended workflow for the task in Automatic mode and creates it', async () => {
       const user = userEvent.setup();
       show({ workflows: [] });
       vi.mocked(createFromTemplate).mockResolvedValue({
         workflow: passwordRecovery(),
         missingRoles: [],
+        tools: [],
       });
 
       expect(await screen.findByRole('form', { name: 'New workflow' })).toBeInTheDocument();
       await user.type(screen.getByLabelText('Task'), 'Implement password recovery');
       expect(await screen.findByRole('status')).toHaveTextContent(
-        'Recommended workflow: Software Feature Development',
+        'Recommended workflow: Implementer',
       );
       await user.click(screen.getByRole('button', { name: 'Create workflow' }));
 
@@ -479,10 +495,66 @@ describe('Workflow page', () => {
         'software_feature',
         'automatic',
         undefined,
+        false,
       );
       expect(await node('Architect')).toBeInTheDocument();
       // The task typed to get a recommendation is the task to run.
       expect(screen.getByLabelText('Task')).toHaveValue('Implement password recovery');
+    });
+
+    it('gives the steps the suggested tools when asked, and says how many were given', async () => {
+      const user = userEvent.setup();
+      show({ workflows: [] });
+      const docs = {
+        nodeId: 'architect',
+        purpose: 'Read the docs.',
+        capability: 'docs' as const,
+        connectionId: 'c-docs',
+        connection: 'context7',
+        tools: { kind: 'only' as const, tools: ['get-library-docs'] },
+        reason: null,
+      };
+      vi.mocked(planTemplateTools).mockResolvedValue([{ ...docs, granted: false }]);
+      vi.mocked(createFromTemplate).mockResolvedValue({
+        workflow: passwordRecovery(),
+        missingRoles: [],
+        tools: [{ ...docs, granted: true }],
+      });
+
+      await screen.findByRole('form', { name: 'New workflow' });
+      await screen.findByText(/context7/);
+      await user.type(screen.getByLabelText('Task'), 'Implement password recovery');
+      await user.click(screen.getByRole('button', { name: 'Create workflow' }));
+
+      expect(createFromTemplate).toHaveBeenCalledWith(
+        'w1',
+        'software_feature',
+        'automatic',
+        undefined,
+        true,
+      );
+      expect(await screen.findByText(/1 tool grants were made/)).toBeInTheDocument();
+    });
+
+    it('saves the open workflow as a template of its own and keeps it listed', async () => {
+      const user = userEvent.setup();
+      show();
+      await canvas();
+      vi.mocked(saveAsTemplate).mockResolvedValue({
+        ...basicTemplate,
+        id: 'template-1',
+        kind: 'custom',
+        name: 'House rules',
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Save as template' }));
+      const form = screen.getByRole('form', { name: 'Save as template' });
+      await user.clear(within(form).getByLabelText('Template name'));
+      await user.type(within(form).getByLabelText('Template name'), 'House rules');
+      await user.click(within(form).getByRole('button', { name: 'Save template' }));
+
+      expect(saveAsTemplate).toHaveBeenCalledWith('wf-1', 'House rules', undefined);
+      expect(await screen.findByText('Template "House rules" saved.')).toBeInTheDocument();
     });
 
     it('starts a custom workflow from a chosen template or from a blank one', async () => {
@@ -491,15 +563,22 @@ describe('Workflow page', () => {
       vi.mocked(createFromTemplate).mockResolvedValue({
         workflow: passwordRecovery({ mode: 'custom' }),
         missingRoles: ['qa'],
+        tools: [],
       });
 
       await user.click(await screen.findByRole('radio', { name: /Custom/ }));
       expect(screen.queryByLabelText('Task')).not.toBeInTheDocument();
-      await user.selectOptions(screen.getByLabelText('Start from'), 'bug_fix');
+      await user.click(screen.getByRole('radio', { name: /Debugger/ }));
       await user.type(screen.getByLabelText('Name'), 'My bug fix');
       await user.click(screen.getByRole('button', { name: 'Create workflow' }));
 
-      expect(createFromTemplate).toHaveBeenCalledWith('w1', 'bug_fix', 'custom', 'My bug fix');
+      expect(createFromTemplate).toHaveBeenCalledWith(
+        'w1',
+        'bug_fix',
+        'custom',
+        'My bug fix',
+        false,
+      );
       // A role no agent could fill is said, never filled in by Atlas.
       expect(await screen.findByText(/No agent was found for: QA/)).toBeInTheDocument();
     });
@@ -985,7 +1064,7 @@ describe('Workflow page', () => {
       await canvas();
 
       await user.selectOptions(screen.getByLabelText('Runs'), 'wfx-1');
-      expect(screen.getByText('version 1')).toBeInTheDocument();
+      expect(screen.getByText('Automatic · version 1')).toBeInTheDocument();
       await clickNode('Architect');
       expect(within(side()).getByText(/snapshot of version 1/)).toBeInTheDocument();
     });
@@ -996,7 +1075,7 @@ describe('Workflow page', () => {
       show({ language: 'pt-BR' });
 
       expect(await screen.findByRole('button', { name: 'Novo workflow' })).toBeInTheDocument();
-      expect(screen.getByText('Automático', { selector: 'span' })).toBeInTheDocument();
+      expect(screen.getByText('Automático · versão 1', { selector: 'span' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Personalizar workflow' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Executar' })).toBeInTheDocument();
       // The workflow's name and its nodes are the user's: never translated.

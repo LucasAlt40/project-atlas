@@ -30,9 +30,10 @@ export function agentNode(
     agentId,
     label,
     instructions: '',
+    completionCriteria: '',
     retryPolicy: { maxRetries: 0 },
     failurePolicy: { type: 'stop_workflow' },
-    executionPolicy: { isolation: 'from_agent', announceIntegrations: true },
+    executionPolicy: { isolation: 'from_agent', announceIntegrations: true, readOnly: false },
     priority: 0,
     loopPolicy: loopMax ? { loopId: `loop-${id}`, maxIterations: loopMax } : null,
     position: null,
@@ -228,31 +229,105 @@ export function run(
   };
 }
 
-export const templates: WorkflowTemplateDto[] = [
+function template(
+  base: Pick<WorkflowTemplateDto, 'id' | 'category' | 'recommended' | 'name' | 'roles'>,
+  extra: Partial<WorkflowTemplateDto> = {},
+): WorkflowTemplateDto {
+  return {
+    kind: 'builtin',
+    featured: false,
+    description: '',
+    goal: '',
+    steps: [],
+    outputs: [],
+    readOnly: false,
+    tools: [],
+    basedOn: null,
+    ...base,
+    ...extra,
+  };
+}
+
+export const implementerTemplate = template(
   {
     id: 'software_feature',
     category: 'software_feature',
     recommended: true,
-    name: 'Software Feature Development',
-    description: '',
+    name: 'Implementer',
     roles: ['architect', 'developer', 'validator', 'bug_fixer', 'qa'],
   },
   {
-    id: 'feature_basic',
-    category: 'software_feature',
-    recommended: false,
-    name: 'Software Feature',
-    description: '',
-    roles: ['architect', 'developer', 'qa'],
+    featured: true,
+    goal: 'Turn a request into a reviewed change.',
+    outputs: ['A plan sized to the task'],
+    steps: [
+      {
+        id: 'architect',
+        label: 'Analyze and plan',
+        role: 'architect',
+        agentId: null,
+        instructions: 'Read the code before proposing anything.',
+        completionCriteria: 'The size and the files involved are stated.',
+        readOnly: false,
+        maxIterations: null,
+      },
+      {
+        id: 'qa',
+        label: 'Check behaviour',
+        role: 'qa',
+        agentId: null,
+        instructions: 'Trace the main path.',
+        completionCriteria: 'Edge cases were traced.',
+        readOnly: true,
+        maxIterations: 3,
+      },
+    ],
+    tools: [
+      {
+        nodeId: 'architect',
+        target: { kind: 'capability', capability: 'docs' },
+        purpose: 'Read the documentation of a library the design relies on.',
+      },
+      {
+        nodeId: 'qa',
+        target: { kind: 'capability', capability: 'browser' },
+        purpose: 'Open the page to see the behaviour.',
+      },
+    ],
   },
-  {
-    id: 'bug_fix',
-    category: 'bug_fix',
-    recommended: true,
-    name: 'Bug Fix',
-    description: '',
-    roles: ['bug_fixer', 'qa'],
-  },
+);
+
+export const basicTemplate = template({
+  id: 'feature_basic',
+  category: 'software_feature',
+  recommended: false,
+  name: 'Software Feature',
+  roles: ['architect', 'developer', 'qa'],
+});
+
+export const templates: WorkflowTemplateDto[] = [
+  implementerTemplate,
+  basicTemplate,
+  template(
+    {
+      id: 'bug_fix',
+      category: 'bug_fix',
+      recommended: true,
+      name: 'Debugger',
+      roles: ['bug_fixer', 'qa'],
+    },
+    { featured: true },
+  ),
+  template(
+    {
+      id: 'code_review',
+      category: 'code_review',
+      recommended: true,
+      name: 'Reviewer',
+      roles: ['validator'],
+    },
+    { featured: true, readOnly: true },
+  ),
 ];
 
 export function workflowEvent(
@@ -427,4 +502,12 @@ export function liveUpdate(
     updatedAt: Date.UTC(2026, 9, 5, 10, 32, 15),
     ...extra,
   };
+}
+
+/** The first agent step of a workflow: a test that finds none says so instead of crashing later. */
+export function firstAgentStep(workflow: WorkflowDto): Extract<WorkflowNodeDto, { type: 'agent' }> {
+  for (const node of workflow.nodes) {
+    if (node.type === 'agent') return node;
+  }
+  throw new Error('the workflow has no agent step');
 }

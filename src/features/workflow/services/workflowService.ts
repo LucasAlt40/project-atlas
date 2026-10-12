@@ -9,6 +9,7 @@ import type {
   RepairChoice,
   RepairProposal,
   TemplateWorkflow,
+  ToolPlanItem,
   ValidationReport,
   Workflow,
   WorkflowEvent,
@@ -40,13 +41,40 @@ export function createFromTemplate(
   templateId: string,
   mode: WorkflowModeDto,
   name?: string,
+  applyTools?: boolean,
 ): Promise<TemplateWorkflow> {
   return invokeCommand('create_workflow_from_template', {
     workspaceId,
     templateId,
     mode,
     ...(name ? { name } : {}),
+    ...(applyTools ? { applyTools } : {}),
   });
+}
+
+/** What a template's suggested tools come to in this workspace. Grants nothing. */
+export function planTemplateTools(
+  workspaceId: string,
+  templateId: string,
+): Promise<ToolPlanItem[]> {
+  return invokeCommand('plan_workflow_template_tools', { workspaceId, templateId });
+}
+
+/** Saves the workflow's steps, routes and granted tools as a template of the person's own. */
+export function saveAsTemplate(
+  workflowId: string,
+  name: string,
+  description?: string,
+): Promise<WorkflowTemplate> {
+  return invokeCommand('save_workflow_as_template', {
+    workflowId,
+    name,
+    ...(description ? { description } : {}),
+  });
+}
+
+export async function deleteTemplate(templateId: string): Promise<void> {
+  await invokeCommand('delete_workflow_template', { templateId });
 }
 
 export function updateWorkflow(workflow: Workflow): Promise<Workflow> {
