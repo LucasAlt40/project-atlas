@@ -148,7 +148,7 @@ describe('a handoff', () => {
       'Execution: completed · Outcome: FAIL',
     );
     const finding = screen.getByText(/Domain imports infra/).closest('li');
-    expect(finding).toHaveTextContent('(src/domain/a.rs:12)');
+    expect(finding).toHaveTextContent('src/domain/a.rs:12');
     expect(finding).toHaveTextContent('The domain depends on infrastructure.');
   });
 
@@ -264,5 +264,48 @@ describe('the completion criteria and the read-only setting of an agent step', (
       readOnly: true,
     });
     expect(screen.getByText(/Tools granted below are not limited by this/)).toBeInTheDocument();
+  });
+});
+
+describe('a handoff laid out as the design draws it', () => {
+  it('shows who gave it to whom, the numbered sections and the files as rows with their counts', () => {
+    const workflow = passwordRecovery();
+    const result = run(workflow, 'running', { qa: nodeState('completed') });
+    render(
+      <I18nProvider language="en-US">
+        <HandoffView
+          run={result}
+          index={1}
+          agentName={(id) => `agent ${id}`}
+          onOpenExecution={vi.fn()}
+          handoff={handoff('qa', 'bug-fixer', {
+            status: 'success',
+            outcome: 'fixed',
+            instructions: 'Run the recurrence tests.',
+            changedFiles: [
+              {
+                path: 'src/main/Service.java',
+                oldPath: null,
+                status: 'modified',
+                additions: 47,
+                deletions: 2,
+                binary: false,
+              },
+            ],
+          })}
+        />
+      </I18nProvider>,
+    );
+
+    expect(screen.getByText('HANDOFF #1')).toBeInTheDocument();
+    expect(screen.getByText('Sending agent')).toBeInTheDocument();
+    expect(screen.getByText(/01 · Output contract & result/)).toBeInTheDocument();
+    expect(screen.getByText(/02 · Shared state & context/)).toBeInTheDocument();
+    expect(screen.getByText(/04 · Suggested next action/)).toBeInTheDocument();
+    // The file is a row: its name, its folder and what changed in it.
+    expect(screen.getByText('Service.java')).toBeInTheDocument();
+    expect(screen.getByText('src/main')).toBeInTheDocument();
+    expect(screen.getByText('+47')).toBeInTheDocument();
+    expect(screen.getByText('−2')).toBeInTheDocument();
   });
 });

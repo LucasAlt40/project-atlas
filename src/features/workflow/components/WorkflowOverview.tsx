@@ -12,6 +12,7 @@ import {
   runProgress,
 } from '../model/status';
 import { isFinished } from '../model/review';
+import { clock } from '../model/time';
 import { isActiveRun } from '../types';
 import { isRoutingIssue, issueMessage } from '../model/validation';
 import { useState } from 'react';
@@ -42,13 +43,6 @@ interface RunProps {
 interface ToolsProps {
   workspaceId: string;
   onOpenHub: () => void;
-}
-
-/** mm:ss of a span of milliseconds. */
-function clock(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
 }
 
 type Tab = 'overview' | 'handoffs' | 'changes';
@@ -114,13 +108,49 @@ export function RunOverview({
     </div>
   );
 
+  const changes = run.changes;
+  const footer = (
+    <footer className={styles.dockFoot}>
+      {tab === 'overview' && changes && changes.filesChanged > 0 ? (
+        <>
+          <span className={styles.dockFootStats}>
+            {t('workflow.foot.files', { n: changes.filesChanged })}
+            <span data-sign="add">+{String(changes.additions)}</span>
+            <span data-sign="del">−{String(changes.deletions)}</span>
+          </span>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              code.review();
+            }}
+          >
+            {t('workflow.foot.review')}
+          </Button>
+        </>
+      ) : (
+        <span className={styles.dockFootStats}>
+          <span className={styles.dockDot} data-tone="done" />
+          {t('workflow.foot.done', { n: progress.completed })}
+          <span className={styles.dockDot} data-tone="failed" />
+          {t('workflow.foot.failed', { n: progress.failed })}
+        </span>
+      )}
+    </footer>
+  );
+
   if (tab === 'handoffs') {
     return (
       <section className={styles.overview} aria-label={t('workflow.overview')}>
         {head}
         <div role="tabpanel" className={styles.dockBody}>
-          <HandoffList run={run} handoffs={run.handoffs} onOpenExecution={onOpenExecution} />
+          <HandoffList
+            run={run}
+            handoffs={run.handoffs}
+            agentName={agentName}
+            onOpenExecution={onOpenExecution}
+          />
         </div>
+        {footer}
       </section>
     );
   }
@@ -165,10 +195,6 @@ export function RunOverview({
       <div className={styles.dockBody}>
         {/* Once the run is over, its result and code are the Review Workspace's. */}
         {!isFinished(run) && <DeliveryPanel run={run} ides={ides} busy={busy} actions={code} />}
-        <p className={styles.pipelineStatus} data-status={run.status}>
-          <span>{t('workflow.overview.status')}</span>
-          <strong>{t(RUN_STATUS_LABEL[run.status])}</strong>
-        </p>
         {run.status === 'interrupted' && (
           <p role="status" className={styles.warning}>
             {t('workflow.interrupted')}
@@ -179,6 +205,72 @@ export function RunOverview({
             {failureText(t, run)}
           </p>
         )}
+        <section className={styles.statusCard} aria-label={t('workflow.overview.status')}>
+          <p className={styles.pipelineStatus} data-status={run.status}>
+            <span>{t('workflow.overview.status')}</span>
+            <strong>{t(RUN_STATUS_LABEL[run.status])}</strong>
+          </p>
+          <p className={styles.progressCount}>
+            {t('workflow.progress', { done: progress.completed, total: progress.total })}
+            <span>
+              {String(
+                progress.total === 0 ? 0 : Math.round((progress.completed / progress.total) * 100),
+              )}
+              %
+            </span>
+          </p>
+          <div className={styles.progressBar} aria-hidden="true">
+            <span
+              style={{
+                width: `${String(progress.total === 0 ? 0 : Math.round((progress.completed / progress.total) * 100))}%`,
+              }}
+            />
+          </div>
+          <ul className={styles.progressList}>
+            {counted.map((node) => {
+              const state = run.nodes[node.id];
+              const status = state?.status ?? 'pending';
+              const view = NODE_STATUS_VIEW[status];
+              const loop = looping.find((l) => l.node.id === node.id);
+              const outcome = state?.facts['result.outcome'];
+              const lastRecovery = run.recoveries.at(-1);
+              const lastAttempt = state?.attempts.at(-1);
+              const completedAt = lastAttempt?.completedAt;
+              // Real time only: a step that never started has none.
+              const elapsed = lastAttempt ? (completedAt ?? now) - lastAttempt.startedAt : null;
+              const reused =
+                status === 'completed' &&
+                lastRecovery !== undefined &&
+                completedAt !== null &&
+                completedAt !== undefined &&
+                completedAt <= lastRecovery.at;
+              return (
+                <li key={node.id} data-status={status}>
+                  <span className={styles.stepName}>
+                    <span className={styles.stepDot} data-status={status} aria-hidden="true">
+                      {''}
+                    </span>
+                    <span title={node.label}>
+                      <span className={styles.srOnly}>{view.symbol} </span>
+                      {node.label}
+                    </span>
+                  </span>
+                  <span className={styles.stepState}>
+                    {elapsed !== null && <span className={styles.stepTime}>{clock(elapsed)}</span>}
+                    <span className={status === 'running' ? styles.stepTag : undefined}>
+                      {t(view.label)}
+                      {outcome &&
+                        ` · ${t('workflow.node.outcome', { outcome: outcome.toUpperCase() })}`}
+                      {loop &&
+                        ` · ${t('workflow.node.loop', { n: loop.iteration, max: loop.max })}`}
+                      {reused && ` · ${t('workflow.node.reused')}`}
+                    </span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
         <VerdictList run={run} />
         {run.status === 'failed' && recovery && (
           <RecoveryPanel run={run} plan={recovery} busy={busy} onResume={onResume} />
@@ -188,65 +280,6 @@ export function RunOverview({
             {t('workflow.recovery.count', { n: run.recoveries.length })}
           </p>
         )}
-        <p className={styles.progressCount}>
-          {t('workflow.progress', { done: progress.completed, total: progress.total })}
-          <span>
-            {String(
-              progress.total === 0 ? 0 : Math.round((progress.completed / progress.total) * 100),
-            )}
-            %
-          </span>
-        </p>
-        <div className={styles.progressBar} aria-hidden="true">
-          <span
-            style={{
-              width: `${String(progress.total === 0 ? 0 : Math.round((progress.completed / progress.total) * 100))}%`,
-            }}
-          />
-        </div>
-        <ul className={styles.progressList}>
-          {counted.map((node) => {
-            const state = run.nodes[node.id];
-            const status = state?.status ?? 'pending';
-            const view = NODE_STATUS_VIEW[status];
-            const loop = looping.find((l) => l.node.id === node.id);
-            const outcome = state?.facts['result.outcome'];
-            const lastRecovery = run.recoveries.at(-1);
-            const lastAttempt = state?.attempts.at(-1);
-            const completedAt = lastAttempt?.completedAt;
-            // Real time only: a step that never started has none.
-            const elapsed = lastAttempt ? (completedAt ?? now) - lastAttempt.startedAt : null;
-            const reused =
-              status === 'completed' &&
-              lastRecovery !== undefined &&
-              completedAt !== null &&
-              completedAt !== undefined &&
-              completedAt <= lastRecovery.at;
-            return (
-              <li key={node.id} data-status={status}>
-                <span className={styles.stepName}>
-                  <span className={styles.stepDot} data-status={status} aria-hidden="true">
-                    {''}
-                  </span>
-                  <span title={node.label}>
-                    <span className={styles.srOnly}>{view.symbol} </span>
-                    {node.label}
-                  </span>
-                </span>
-                <span className={styles.stepState}>
-                  {elapsed !== null && <span className={styles.stepTime}>{clock(elapsed)}</span>}
-                  <span className={status === 'running' ? styles.stepTag : undefined}>
-                    {t(view.label)}
-                    {outcome &&
-                      ` · ${t('workflow.node.outcome', { outcome: outcome.toUpperCase() })}`}
-                    {loop && ` · ${t('workflow.node.loop', { n: loop.iteration, max: loop.max })}`}
-                    {reused && ` · ${t('workflow.node.reused')}`}
-                  </span>
-                </span>
-              </li>
-            );
-          })}
-        </ul>
         <dl className={styles.facts}>
           <div>
             <dt>{t('workflow.overview.current')}</dt>
@@ -288,6 +321,7 @@ export function RunOverview({
           {run.state.artifacts[0] && ` · ${shortId(run.state.artifacts[0].executionId)}`}
         </p>
       </div>
+      {footer}
     </section>
   );
 }

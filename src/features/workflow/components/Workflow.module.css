@@ -1752,3 +1752,370 @@
   border-color: var(--success);
   color: var(--success);
 }
+
+/*
+ * The result of a step and the handoffs, as the design draws them (Stitch screens "Resultados de
+ * Execução" and "Handoffs"): quiet cards on the dock, a small mono label above each block, rows for
+ * files and findings, and a fixed footer.
+ */
+.overview {
+  flex: 1;
+}
+.dockFoot {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: auto;
+  padding: var(--space-3);
+  background: var(--st-high);
+  box-shadow: 0 -4px 16px rgb(0 0 0 / 0.3);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}
+.dockFootStats {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--st-on-variant);
+}
+.dockFootStats [data-sign='add'],
+.fileRowCount [data-sign='add'],
+.cardLabelMeta [data-sign='add'] {
+  color: var(--success);
+}
+.dockFootStats [data-sign='del'],
+.fileRowCount [data-sign='del'],
+.cardLabelMeta [data-sign='del'] {
+  color: var(--st-error);
+}
+.dockDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--st-outline);
+}
+.dockDot[data-tone='done'] {
+  background: var(--success);
+}
+.dockDot[data-tone='failed'] {
+  background: var(--st-error);
+}
+.statusCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--st-lowest);
+}
+.statusCard .pipelineStatus {
+  padding: 0;
+  background: transparent;
+}
+.cardLabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  color: #908fa0;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.cardLabelMeta {
+  padding: 0.125rem var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--st-container);
+  color: var(--st-on-variant);
+  font-size: 0.6875rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.cardBlock {
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--st-container);
+  color: var(--text-high);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.rowList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.decisionRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--st-container);
+  line-height: 1.5;
+}
+.decisionRow svg {
+  flex: none;
+  margin-top: 0.1875rem;
+  color: var(--st-primary);
+}
+
+/* The result of a step */
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--st-low);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+.resultHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.resultCheck {
+  display: inline-flex;
+  margin-left: auto;
+  color: var(--success);
+}
+.resultTitle {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+}
+.chip[data-tone='finished'] {
+  border-radius: var(--radius-sm);
+  background: #8083ff;
+  color: #0d0096;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.nextStep {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: var(--space-1) 0 0;
+  color: var(--st-secondary);
+}
+
+/* Files and findings as rows */
+.fileRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--st-container);
+}
+.fileRowText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.fileRowName {
+  overflow-wrap: anywhere;
+  font-weight: 500;
+}
+.fileRowFolder {
+  overflow: hidden;
+  color: #908fa0;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fileRowCount {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+.findingCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--st-container);
+  border-left: 3px solid var(--st-outline);
+}
+.findingCard[data-tone='high'] {
+  border-left-color: var(--st-error);
+}
+.findingCard[data-tone='medium'] {
+  border-left-color: var(--warning);
+}
+.findingHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.findingTag {
+  padding: 0.0625rem var(--space-2);
+  border-radius: var(--radius-sm);
+  background: rgb(247 81 161 / 0.2);
+  color: #ffb0cd;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.findingCard[data-tone='low'] .findingTag {
+  background: var(--st-high);
+  color: var(--st-on-variant);
+}
+.findingWhere {
+  margin-left: auto;
+  color: #908fa0;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  overflow-wrap: anywhere;
+}
+.findingText {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.findingEvidence {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--st-lowest);
+  color: var(--st-on-variant);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  overflow-wrap: anywhere;
+}
+
+/* A handoff */
+.handoff {
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--st-low);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+.handoff h5 {
+  margin: var(--space-2) 0 0;
+}
+.handoffHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.handoffMeta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--st-on-variant);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}
+.handoffMeta strong {
+  color: var(--st-primary);
+  letter-spacing: 0.06em;
+}
+.handoffTitle {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.agentPair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: var(--radius-lg);
+  background: var(--st-lowest);
+}
+.agentBox {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--st-low);
+}
+.agentBox .cardLabel {
+  margin: 0;
+}
+.agentBox strong {
+  overflow-wrap: anywhere;
+}
+.chip[data-tone='success'],
+.chip[data-tone='pass'] {
+  color: var(--st-secondary);
+}
+.chip[data-tone='fail'] {
+  color: var(--st-error);
+}
+.chip[data-tone='warning'] {
+  color: var(--warning);
+}
+.branchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--st-container);
+}
+.branchRow .cardLabel {
+  margin: 0;
+}
+.branchRow code {
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+.handoffFoot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 0;
+}
+.handoffFoot .cardLabel {
+  margin: 0;
+}
+.dockFoot {
+  flex-wrap: wrap;
+}
+.dockFootStats {
+  flex-wrap: wrap;
+  white-space: nowrap;
+}
+.dockFoot button {
+  flex: none;
+  white-space: nowrap;
+}
+.handoff .rowList {
+  padding-left: 0;
+}
+.cardLabelMeta {
+  flex: none;
+  white-space: nowrap;
+}
+.cardLabel {
+  flex-wrap: wrap;
+}
