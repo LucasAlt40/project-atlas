@@ -85,7 +85,7 @@ pub struct TemplateInfo {
     pub category: TemplateCategory,
     /// The template Automatic mode proposes for its category.
     pub recommended: bool,
-    /// One of the three Atlas leads with (Implementer, Debugger, Reviewer).
+    /// One of the three Atlas leads with (Implement, Debug & fix, Review & audit).
     pub featured: bool,
     pub name: String,
     pub description: String,
@@ -137,7 +137,7 @@ const ENTRIES: [Entry; 8] = [
         category: TemplateCategory::SoftwareFeature,
         recommended: true,
         featured: true,
-        name: "Implementer",
+        name: "Implement",
         description: "Plans, implements, reviews and checks a change, in depth proportional to the task.",
     },
     Entry {
@@ -145,7 +145,7 @@ const ENTRIES: [Entry; 8] = [
         category: TemplateCategory::SoftwareFeature,
         recommended: false,
         featured: false,
-        name: "Software Feature",
+        name: "Quick change",
         description: "Architect, then Developer, then QA: the quick way for a small change.",
     },
     Entry {
@@ -153,7 +153,7 @@ const ENTRIES: [Entry; 8] = [
         category: TemplateCategory::SoftwareFeature,
         recommended: false,
         featured: false,
-        name: "Feature with Validation",
+        name: "Feature with validation",
         description: "Architect, Developer, Architecture & Code Validator, then QA.",
     },
     Entry {
@@ -161,7 +161,7 @@ const ENTRIES: [Entry; 8] = [
         category: TemplateCategory::SoftwareFeature,
         recommended: false,
         featured: false,
-        name: "Feature with Bug Fix Loop",
+        name: "Feature with fix loop",
         description: "Architect, Developer and QA; when QA fails a Bug Fixer repairs and QA runs again.",
     },
     Entry {
@@ -169,7 +169,7 @@ const ENTRIES: [Entry; 8] = [
         category: TemplateCategory::SoftwareFeature,
         recommended: false,
         featured: false,
-        name: "Full Development",
+        name: "Full-stack development",
         description: "Architect, Backend, Frontend, validator and QA with both Bug Fixer loops.",
     },
     Entry {
@@ -177,7 +177,7 @@ const ENTRIES: [Entry; 8] = [
         category: TemplateCategory::BugFix,
         recommended: true,
         featured: true,
-        name: "Debugger",
+        name: "Debug & fix",
         description: "Finds the root cause from evidence, fixes it minimally with a regression test, then verifies.",
     },
     Entry {
@@ -185,7 +185,7 @@ const ENTRIES: [Entry; 8] = [
         category: TemplateCategory::Refactoring,
         recommended: true,
         featured: false,
-        name: "Refactoring",
+        name: "Refactor",
         description: "Architect plans, Developer refactors, the validator checks the architecture, QA checks behaviour.",
     },
     Entry {
@@ -193,7 +193,7 @@ const ENTRIES: [Entry; 8] = [
         category: TemplateCategory::CodeReview,
         recommended: true,
         featured: true,
-        name: "Reviewer",
+        name: "Review & audit",
         description: "Audits code and architecture and reports findings by severity. Analysis only: no file is changed.",
     },
 ];
@@ -315,44 +315,153 @@ const SMALL_TASK_WORDS: [&str; 10] = [
     "ajuste de texto",
 ];
 
-/// The template Automatic mode proposes for a task: by what the task says it is, with the
-/// feature template as the fallback. A short task that calls itself small gets the quick feature
-/// template instead of the full one.
+/// What a task says it is, by words: each category has stems (a word that starts with one counts)
+/// and exact words (short ones that would match the middle of other words).
+struct Cues {
+    category: TemplateCategory,
+    stems: &'static [&'static str],
+    exact: &'static [&'static str],
+    /// Phrases, matched anywhere in the text.
+    phrases: &'static [&'static str],
+}
+
+const CUES: [Cues; 4] = [
+    Cues {
+        category: TemplateCategory::Refactoring,
+        stems: &[
+            "refactor",
+            "refator",
+            "reorganiz",
+            "cleanup",
+            "limpar",
+            "reestrutur",
+            "restructur",
+        ],
+        exact: &[],
+        phrases: &[
+            "clean up",
+            "divida tecnica",
+            "tech debt",
+            "simplificar o codigo",
+        ],
+    },
+    Cues {
+        category: TemplateCategory::CodeReview,
+        stems: &["review", "revis", "audit", "avali", "inspecion", "fiscaliz"],
+        exact: &[],
+        phrases: &["analisar o codigo", "analyze the code", "code review"],
+    },
+    Cues {
+        category: TemplateCategory::BugFix,
+        stems: &[
+            "bug",
+            "fix",
+            "error",
+            "erro",
+            "falha",
+            "corrig",
+            "correc",
+            "crash",
+            "broken",
+            "quebrad",
+            "quebra",
+            "exception",
+            "regress",
+            "problem",
+            "acontecendo",
+            "happening",
+            "travando",
+            "errado",
+            "incorret",
+            "inesperad",
+            "unexpected",
+            "wrong",
+            "stuck",
+            "disappear",
+            "sumindo",
+        ],
+        exact: &["issue", "issues", "falhou", "failed", "fails"],
+        phrases: &[
+            "nao funciona",
+            "not working",
+            "doesn't work",
+            "does not work",
+            "nao esta funcionando",
+        ],
+    },
+    Cues {
+        category: TemplateCategory::SoftwareFeature,
+        stems: &[
+            "implement",
+            "adicion",
+            "criar",
+            "create",
+            "feature",
+            "funcionalidade",
+            "construir",
+            "permitir",
+            "integrar",
+            "integrate",
+        ],
+        exact: &["add", "new", "novo", "nova", "build"],
+        phrases: &["suporte a", "support for", "nova funcionalidade"],
+    },
+];
+
+/// Lower case, without accents, so "correção" and "correcao" are the same word.
+fn fold(text: &str) -> String {
+    text.to_lowercase()
+        .chars()
+        .map(|c| match c {
+            'á' | 'à' | 'â' | 'ã' | 'ä' => 'a',
+            'é' | 'è' | 'ê' | 'ë' => 'e',
+            'í' | 'ì' | 'î' | 'ï' => 'i',
+            'ó' | 'ò' | 'ô' | 'õ' | 'ö' => 'o',
+            'ú' | 'ù' | 'û' | 'ü' => 'u',
+            'ç' => 'c',
+            other => other,
+        })
+        .collect()
+}
+
+/// How many of the category's cues the task carries, each counted once.
+fn score(cues: &Cues, folded: &str, words: &[&str]) -> usize {
+    let stems = cues
+        .stems
+        .iter()
+        .filter(|stem| words.iter().any(|w| w.starts_with(**stem)))
+        .count();
+    let exact = cues.exact.iter().filter(|e| words.contains(e)).count();
+    let phrases = cues.phrases.iter().filter(|p| folded.contains(**p)).count();
+    stems + exact + phrases
+}
+
+/// The template Automatic mode proposes for a task, by what the task says it is: the category
+/// whose cues it carries most wins (a tie goes to the more specific one: refactoring, then review,
+/// then bug fix), and the feature template is the fallback. A short task that calls itself small
+/// gets the quick feature template instead of the full one. Never a model: the same text always
+/// gives the same template, and the person can always pick another.
 pub fn select_for_task(task: &str) -> &'static str {
-    let task = task.to_lowercase();
-    let mentions = |words: &[&str]| words.iter().any(|w| task.contains(w));
-    let category = if mentions(&[
-        "refactor",
-        "refator",
-        "reorganiz",
-        "cleanup",
-        "clean up",
-        "limpar",
-    ]) {
-        TemplateCategory::Refactoring
-    } else if mentions(&["review", "revis", "audit", "auditar"]) {
-        TemplateCategory::CodeReview
-    } else if mentions(&[
-        "bug",
-        "fix",
-        "error",
-        "erro",
-        "falha",
-        "corrig",
-        "correç",
-        "correc",
-        "crash",
-        "broken",
-        "quebrad",
-        "exception",
-        "regress",
-    ]) {
-        TemplateCategory::BugFix
-    } else if task.chars().count() <= 140 && mentions(&SMALL_TASK_WORDS) {
+    let folded = fold(task);
+    let words: Vec<&str> = folded
+        .split(|c: char| !c.is_alphanumeric() && c != '\'')
+        .filter(|w| !w.is_empty())
+        .collect();
+    let mut best: Option<(&Cues, usize)> = None;
+    for cues in &CUES {
+        let found = score(cues, &folded, &words);
+        // Strictly more beats an earlier category, so ties keep the more specific one.
+        if found > 0 && best.is_none_or(|(_, top)| found > top) {
+            best = Some((cues, found));
+        }
+    }
+    let category = best.map_or(TemplateCategory::SoftwareFeature, |(c, _)| c.category);
+    if category == TemplateCategory::SoftwareFeature
+        && task.chars().count() <= 140
+        && SMALL_TASK_WORDS.iter().any(|w| folded.contains(w))
+    {
         return "feature_basic";
-    } else {
-        TemplateCategory::SoftwareFeature
-    };
+    }
     ENTRIES
         .iter()
         .find(|e| e.category == category && e.recommended)

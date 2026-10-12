@@ -352,6 +352,45 @@ fn a_small_task_gets_the_quick_template_and_everything_else_is_unchanged() {
     assert_eq!(templates::select_for_task(&long), "software_feature");
 }
 
+#[test]
+fn automatic_mode_reads_what_the_task_says_in_either_language_not_just_a_few_fixed_words() {
+    let cases = [
+        // The task that was wrongly sent to the Implementer: it describes a problem.
+        (
+            "precisamos ajustar a area de pagamentos do projeto. O seguinte problema está acontecendo: \
+             ao fazer uma doação recorrente o registro do pagamento é feito mas o mês seguinte remove \
+             do mês anterior",
+            "bug_fix",
+        ),
+        ("The export button does not work on Safari", "bug_fix"),
+        ("O botão de salvar não funciona depois do login", "bug_fix"),
+        ("Users report unexpected logouts after the update", "bug_fix"),
+        ("Revisar a segurança do módulo de autenticação", "code_review"),
+        ("Audit the payment webhooks for race conditions", "code_review"),
+        ("Reestruturar o módulo de relatórios", "refactoring"),
+        ("Criar uma tela de relatórios com filtros por período", "software_feature"),
+        ("Permitir exportar as doações em CSV", "software_feature"),
+        // No cue at all: the feature template, as before.
+        ("Dark mode", "software_feature"),
+        ("", "software_feature"),
+    ];
+    for (task, expected) in cases {
+        assert_eq!(templates::select_for_task(task), expected, "{task}");
+    }
+    // A tie goes to the more specific category, and the same text always gives the same answer.
+    let tie = "Revisar e corrigir o checkout";
+    assert_eq!(templates::select_for_task(tie), "code_review");
+    assert_eq!(
+        templates::select_for_task(tie),
+        templates::select_for_task(tie)
+    );
+    // A word is not found inside another ("address" is not "add", "debugging" is not a request to build).
+    assert_eq!(
+        templates::select_for_task("Change the address label"),
+        "software_feature"
+    );
+}
+
 // ---- tools: suggestion, not authorization ------------------------------------------------------------
 
 #[test]
