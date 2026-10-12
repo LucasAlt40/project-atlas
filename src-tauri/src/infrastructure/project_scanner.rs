@@ -24,7 +24,9 @@ pub struct ScanLimits {
 impl ScanLimits {
     pub const DEFAULT: Self = Self {
         max_depth: 4,
-        max_entries: 5_000,
+        // Names only, read breadth-first: a real application's source tree is well past 5,000
+        // entries, and cutting it there reported most projects as "partial".
+        max_entries: 30_000,
         max_file_bytes: 256 * 1024,
         max_files_read: 60,
     };
@@ -168,6 +170,10 @@ impl ProjectScanner for FsProjectScanner {
         Ok(snapshot)
     }
 
+    fn folder_exists(&self, project_path: &str) -> bool {
+        fs::metadata(project_path).is_ok_and(|m| m.is_dir())
+    }
+
     fn exists(&self, project_path: &str, relative: &str) -> bool {
         let relative = relative.trim_end_matches('/');
         let Ok(root) = fs::canonicalize(project_path) else {
@@ -296,6 +302,33 @@ mod tests {
         FsProjectScanner::default()
             .scan(&dir.to_string_lossy())
             .unwrap()
+    }
+
+    #[test]
+    fn a_real_sized_source_tree_is_not_reported_as_partial_and_generated_folders_are_skipped() {
+        let dir = project("big", &[("package.json", "{}")]);
+        for folder in 0..60 {
+            let sub = dir.join(format!("src/app/feature-{folder}"));
+            fs::create_dir_all(&sub).unwrap();
+            for file in 0..100 {
+                fs::write(sub.join(format!("c{file}.ts")), "").unwrap();
+            }
+        }
+        // Thousands of entries in a toolchain cache must not use up the budget.
+        let cache = dir.join(".angular/cache");
+        fs::create_dir_all(&cache).unwrap();
+        for file in 0..200 {
+            fs::write(cache.join(format!("{file}.bin")), "").unwrap();
+        }
+
+        let snapshot = scan(&dir);
+
+        assert!(snapshot.entries.len() > 6_000);
+        assert!(!snapshot.truncated);
+        assert!(!snapshot
+            .entries
+            .iter()
+            .any(|e| e.path.starts_with(".angular/")));
     }
 
     #[test]

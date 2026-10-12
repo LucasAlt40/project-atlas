@@ -22,6 +22,19 @@ pub const IGNORED_DIRS: &[&str] = &[
     ".vscode",
     ".turbo",
     ".atlas",
+    // Generated or cached output of common toolchains: thousands of entries, none of them the
+    // project's own structure.
+    ".angular",
+    ".svelte-kit",
+    ".nx",
+    ".parcel-cache",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".terraform",
+    ".dart_tool",
+    ".yarn",
+    ".pnpm-store",
+    "Pods",
 ];
 
 /// What a scanner saw of a project: names of entries and the text of a few well-known manifest
