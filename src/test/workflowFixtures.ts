@@ -116,6 +116,7 @@ export function pendingInteraction(
     answeredAt: null,
     choice: null,
     answer: null,
+    auto: false,
     ...overrides,
   };
 }
@@ -181,6 +182,7 @@ export function run(
     workflowVersion: workflow.version,
     workflow,
     task: 'Implement password recovery',
+    autoApprovePlans: false,
     status,
     failure: null,
     cancelRequested: false,

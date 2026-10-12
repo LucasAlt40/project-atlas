@@ -137,3 +137,36 @@
   color: var(--text-muted);
   font-size: var(--font-size-sm);
 }
+
+/* A plan awaiting approval: the plan is the point, so it gets the room */
+.plan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--accent-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  box-shadow: 0 0 0 3px var(--accent-tint);
+}
+.planHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.planBody {
+  max-height: 28rem;
+  padding: var(--space-4);
+  overflow-y: auto;
+  border-radius: var(--radius-md);
+  background: var(--surface-void);
+}
+.planBody:focus-visible {
+  outline: 1px solid var(--border-focus);
+}
+.planNote {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--text-standard);
+}

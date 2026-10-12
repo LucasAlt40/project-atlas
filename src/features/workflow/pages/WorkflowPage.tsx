@@ -18,7 +18,9 @@ import { LiveWorkspacePanel } from '../components/LiveWorkspacePanel';
 import { ReviewWorkspace } from '../components/ReviewWorkspace';
 import { RouteRepairDialog } from '../components/RouteRepairDialog';
 import { NewWorkflowPanel, type NewWorkflowChoice } from '../components/NewWorkflowPanel';
+import { AutoPlansToggle } from '../components/AutoPlansToggle';
 import { SaveTemplate } from '../components/SaveTemplate';
+import { loadAutoPlans, saveAutoPlans } from '../model/planPreference';
 import { WorkflowCanvas, type Selection } from '../components/WorkflowCanvas';
 import {
   EdgeInspector,
@@ -58,6 +60,8 @@ export function WorkflowPage() {
 
   const [selection, setSelection] = useState<Selection>(null);
   const [task, setTask] = useState('');
+  // The person's standing choice about plans: kept between sessions, given to each new run.
+  const [autoPlans, setAutoPlans] = useState(loadAutoPlans);
   const [connecting, setConnecting] = useState(false);
   const [creating, setCreating] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -393,6 +397,14 @@ export function WorkflowPage() {
                 {t('workflow.backToEditor')}
               </Button>
             )}
+            {space.activeRun && (
+              <AutoPlansToggle
+                checked={space.activeRun.autoApprovePlans}
+                onChange={(value) => {
+                  void space.autoApprovePlans(value);
+                }}
+              />
+            )}
             {runStatus === 'running' && (
               <Button variant="secondary" onClick={() => void space.pause()}>
                 {t('workflow.pause')}
@@ -405,7 +417,9 @@ export function WorkflowPage() {
               <Button
                 variant="secondary"
                 onClick={() => {
-                  void space.cancel().then(() => space.run(shownRun.task));
+                  void space
+                    .cancel()
+                    .then(() => space.run(shownRun.task, shownRun.autoApprovePlans));
                 }}
               >
                 {t('workflow.restart')}
@@ -459,10 +473,17 @@ export function WorkflowPage() {
                 setTask(e.target.value);
               }}
             />
+            <AutoPlansToggle
+              checked={autoPlans}
+              onChange={(value) => {
+                setAutoPlans(value);
+                saveAutoPlans(value);
+              }}
+            />
             <Button
               disabled={!canRun}
               onClick={() => {
-                void space.run(task.trim());
+                void space.run(task.trim(), autoPlans);
               }}
             >
               {t('workflow.run')}

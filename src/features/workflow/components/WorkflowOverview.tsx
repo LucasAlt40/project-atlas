@@ -19,6 +19,7 @@ import type { Ide, RecoveryPlan, ValidationReport, Workflow, WorkflowRun } from 
 import { DeliveryPanel, type CodeActions } from './DeliveryPanel';
 import { FileLine, HandoffList } from './HandoffView';
 import { RecoveryPanel, VerdictList } from './RecoveryPanel';
+import { PlansPanel } from './PlansPanel';
 import { SharedStatePanel } from './SharedStatePanel';
 import { WorkflowTools } from './WorkflowTools';
 import styles from './Workflow.module.css';
@@ -271,7 +272,8 @@ export function RunOverview({
             <dt>{t('workflow.overview.blocked')}</dt>
             <dd data-tone="number">{progress.blocked}</dd>
           </div>
-        </dl>{' '}
+        </dl>
+        <PlansPanel run={run} />
         {tools && (
           <WorkflowTools
             workspaceId={tools.workspaceId}

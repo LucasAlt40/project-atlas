@@ -20,6 +20,95 @@ interface Props {
   onCancelRun: () => void;
 }
 
+interface PlanProps extends Props {
+  rootRef: React.RefObject<HTMLElement | null>;
+}
+
+/**
+ * A plan an agent drew up, in front of the person: the plan itself, large, and the three things
+ * they can do with it. Nothing is carried out until they decide; asking for changes needs their
+ * words, redoing may have them.
+ */
+function PlanPanel({ interaction, busy, error, onAnswer, onCancelRun, rootRef }: PlanProps) {
+  const { t } = useI18n();
+  const [note, setNote] = useState('');
+  const text = note.trim();
+  return (
+    <section
+      ref={rootRef}
+      className={styles.plan}
+      role="alert"
+      aria-labelledby={`interaction-${interaction.id}`}
+      data-kind="plan"
+    >
+      <header className={styles.planHead}>
+        <h2 id={`interaction-${interaction.id}`} className={styles.title}>
+          {t('interaction.plan.title')}
+        </h2>
+        <p className={styles.who}>{t('interaction.plan.intro', { step: interaction.stepLabel })}</p>
+      </header>
+      <div className={styles.planBody} tabIndex={0} aria-label={t('workflow.plans.read')}>
+        {interaction.document ? (
+          <Markdown>{interaction.document}</Markdown>
+        ) : (
+          <p>{interaction.question}</p>
+        )}
+      </div>
+      {interaction.context && <p className={styles.note}>{interaction.context}</p>}
+      <label className={styles.planNote}>
+        <span>{t('interaction.plan.note')}</span>
+        <textarea
+          className={styles.input}
+          placeholder={t('interaction.plan.notePlaceholder')}
+          value={note}
+          disabled={busy}
+          rows={3}
+          onChange={(e) => {
+            setNote(e.target.value);
+          }}
+        />
+      </label>
+      {error && (
+        <p role="alert" className={styles.error}>
+          {error}
+        </p>
+      )}
+      <div className={styles.actions}>
+        <Button
+          disabled={busy}
+          onClick={() => {
+            onAnswer({ choice: 'approve' });
+          }}
+        >
+          {t('interaction.plan.approve')}
+        </Button>
+        <Button
+          variant="secondary"
+          disabled={busy || text === ''}
+          onClick={() => {
+            onAnswer({ choice: 'revise', text });
+          }}
+        >
+          {t('interaction.plan.revise')}
+        </Button>
+        <Button
+          variant="secondary"
+          disabled={busy}
+          onClick={() => {
+            onAnswer({ choice: 'redo', ...(text ? { text } : {}) });
+          }}
+        >
+          {t('interaction.plan.redo')}
+        </Button>
+        <Button variant="danger" disabled={busy} onClick={onCancelRun}>
+          {t('interaction.cancelRun')}
+        </Button>
+      </div>
+      <p className={styles.note}>{t('interaction.worktreeNote')}</p>
+    </section>
+  );
+}
+
 /**
  * "Action required": an agent has stopped and is waiting for the person. It cannot be missed
  * or mistaken for a log line. A clarification takes text; an approval or a permission takes its
@@ -38,6 +127,19 @@ export function InteractionPanel({ interaction, busy, error, onAnswer, onCancelR
       root.current.scrollIntoView({ block: 'nearest' });
     }
   }, [interaction.id]);
+
+  if (interaction.kind === 'plan') {
+    return (
+      <PlanPanel
+        interaction={interaction}
+        busy={busy}
+        error={error ?? null}
+        onAnswer={onAnswer}
+        onCancelRun={onCancelRun}
+        rootRef={root}
+      />
+    );
+  }
 
   const decision = interaction.kind !== 'clarification';
   const optionLabel = (id: string, label: string) =>

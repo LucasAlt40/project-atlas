@@ -21,6 +21,7 @@ import {
   listTemplates,
   listWorkflows,
   selectTemplate,
+  setAutoApprovePlans,
   subscribeToWorkflowEvents,
   validateWorkflow,
 } from '../services/workflowService';
@@ -339,5 +340,96 @@ describe('The global "Action required" indicator', () => {
     expect(await screen.findByRole('button', { name: /1 agent waiting for you/ })).toBeVisible();
     await user.click(screen.getByRole('button', { name: /1 agent waiting for you/ }));
     expect(navigate).toHaveBeenCalled();
+  });
+});
+
+describe('A plan waiting for the person', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    navigate.mockReset();
+  });
+  const planPanel = () => screen.findByRole('alert', { name: /plan awaiting your approval/i });
+  const waitingPlan = () =>
+    waitingRun({
+      kind: 'plan',
+      question: 'Do you approve this plan?',
+      document: '## Plan\n\n1. Add the column\n2. Fix the webhook',
+      options: [
+        { id: 'approve', label: 'Approve plan' },
+        { id: 'revise', label: 'Request changes' },
+        { id: 'redo', label: 'Redo the plan' },
+      ],
+    });
+
+  it('is shown in full with the three things the person can do, and nothing is sent by itself', async () => {
+    show([waitingPlan()]);
+
+    const ask = await planPanel();
+    expect(within(ask).getByText('Fix the webhook')).toBeInTheDocument();
+    expect(within(ask).getByText(/Developer drew up this plan and stopped/)).toBeInTheDocument();
+    expect(within(ask).getByRole('button', { name: 'Approve plan' })).toBeEnabled();
+    expect(within(ask).getByRole('button', { name: 'Request changes' })).toBeDisabled();
+    expect(within(ask).getByRole('button', { name: 'Redo the plan' })).toBeEnabled();
+    expect(answerInteraction).not.toHaveBeenCalled();
+  });
+
+  it('approves as it is', async () => {
+    const user = userEvent.setup();
+    show([waitingPlan()]);
+
+    await user.click(within(await planPanel()).getByRole('button', { name: 'Approve plan' }));
+
+    await waitFor(() => {
+      expect(answerInteraction).toHaveBeenCalledWith('wfx-1', 'q1', { choice: 'approve' });
+    });
+  });
+
+  it('asks for changes only with the words, and redoes with or without a note', async () => {
+    const user = userEvent.setup();
+    show([waitingPlan()]);
+    const ask = await planPanel();
+
+    await user.type(within(ask).getByRole('textbox'), 'Split step 2');
+    await user.click(within(ask).getByRole('button', { name: 'Request changes' }));
+    await waitFor(() => {
+      expect(answerInteraction).toHaveBeenCalledWith('wfx-1', 'q1', {
+        choice: 'revise',
+        text: 'Split step 2',
+      });
+    });
+    await user.click(within(ask).getByRole('button', { name: 'Redo the plan' }));
+    await waitFor(() => {
+      expect(answerInteraction).toHaveBeenLastCalledWith('wfx-1', 'q1', {
+        choice: 'redo',
+        text: 'Split step 2',
+      });
+    });
+  });
+
+  it('can be approved ahead for the whole run, and says which plans were approved that way', async () => {
+    const user = userEvent.setup();
+    vi.mocked(setAutoApprovePlans).mockResolvedValue(undefined);
+    const approved = pendingInteraction({
+      id: 'q0',
+      kind: 'plan',
+      status: 'answered',
+      choice: 'approve',
+      auto: true,
+      document: '## Plan\n\nThe first plan',
+    });
+    const running = run(
+      passwordRecovery(),
+      'running',
+      { architect: nodeState('running', { attempts: [attempt('exec-1')] }) },
+      { interactions: [approved] },
+    );
+    show([running]);
+
+    const plans = await screen.findByRole('region', { name: 'Plans' });
+    expect(within(plans).getByText('Approved automatically')).toBeInTheDocument();
+    await user.click(screen.getByRole('checkbox', { name: 'Approve plans automatically' }));
+    await waitFor(() => {
+      expect(setAutoApprovePlans).toHaveBeenCalledWith('wfx-1', true);
+    });
   });
 });

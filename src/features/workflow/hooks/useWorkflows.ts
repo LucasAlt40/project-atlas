@@ -23,6 +23,7 @@ import {
   planTemplateTools,
   resumeWorkflow,
   saveAsTemplate,
+  setAutoApprovePlans,
   selectTemplate,
   startWorkflow,
   subscribeToWorkflowEvents,
@@ -499,7 +500,7 @@ export function useWorkflows(workspaceId: string | undefined) {
   }, [selectedId, workflows, guard]);
 
   const run = useCallback(
-    async (task: string) => {
+    async (task: string, autoApprovePlans = false) => {
       if (!draft) return undefined;
       return guard(async () => {
         // What is run is what is saved: unsaved edits are saved first.
@@ -509,7 +510,7 @@ export function useWorkflows(workspaceId: string | undefined) {
           upsert(workflow);
           dispatch({ type: 'saved', workflow });
         }
-        const started = await startWorkflow(workflow.id, task);
+        const started = await startWorkflow(workflow.id, task, autoApprovePlans);
         setRuns((current) => [started, ...current.filter((r) => r.id !== started.id)]);
         setShownRunId(started.id);
         return started;
@@ -539,6 +540,20 @@ export function useWorkflows(workspaceId: string | undefined) {
       });
     },
     [shownRun, activeRun, guard, draft, upsert],
+  );
+
+  /** The person's standing instruction about plans, for the run being driven. */
+  const autoApprovePlans = useCallback(
+    async (enabled: boolean) => {
+      const target = activeRun;
+      if (!target) return;
+      await guard(async () => {
+        await setAutoApprovePlans(target.id, enabled);
+        const fresh = await getRun(target.id);
+        if (fresh) setRuns((current) => current.map((r) => (r.id === fresh.id ? fresh : r)));
+      });
+    },
+    [activeRun, guard],
   );
 
   /** The user's decision about the run's code. What comes back is the run as the core now has it. */
@@ -650,6 +665,7 @@ export function useWorkflows(workspaceId: string | undefined) {
       edit(asCustom);
     },
     recommend: selectTemplate,
+    autoApprovePlans,
     planTools,
     removeTemplate,
     saveTemplate,

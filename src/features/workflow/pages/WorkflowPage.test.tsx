@@ -439,7 +439,7 @@ describe('Workflow page', () => {
       await user.type(screen.getByLabelText('Task'), 'Implement password recovery');
       await user.click(screen.getByRole('button', { name: 'Run' }));
 
-      expect(startWorkflow).toHaveBeenCalledWith('wf-1', 'Implement password recovery');
+      expect(startWorkflow).toHaveBeenCalledWith('wf-1', 'Implement password recovery', false);
       expect(
         await screen.findByRole('status', { name: 'Workflow status: Running' }),
       ).toBeInTheDocument();
@@ -462,6 +462,25 @@ describe('Workflow page', () => {
       expect(saved?.mode).toBe('custom');
       expect(saved?.nodes).toEqual(passwordRecovery().nodes);
       expect(saved?.edges).toEqual(passwordRecovery().edges);
+    });
+
+    it('starts a run with plans approved automatically only when the person turned that on, and remembers it', async () => {
+      const user = userEvent.setup();
+      localStorage.removeItem('atlas.autoApprovePlans');
+      show();
+      vi.mocked(startWorkflow).mockResolvedValue(run(passwordRecovery(), 'running', {}));
+      await canvas();
+      expect(await screen.findByText(/The workflow is valid and can run/)).toBeInTheDocument();
+      const toggle = screen.getByRole('checkbox', { name: 'Approve plans automatically' });
+      expect(toggle).not.toBeChecked();
+
+      await user.click(toggle);
+      await user.type(screen.getByLabelText('Task'), 'Implement password recovery');
+      await user.click(screen.getByRole('button', { name: 'Run' }));
+
+      expect(startWorkflow).toHaveBeenCalledWith('wf-1', 'Implement password recovery', true);
+      expect(localStorage.getItem('atlas.autoApprovePlans')).toBe('true');
+      localStorage.removeItem('atlas.autoApprovePlans');
     });
 
     it('shows the pipeline bar: the mode and version in one chip and the zoom of the canvas', async () => {

@@ -236,7 +236,12 @@ export interface CommandMap {
     result: WorkflowDto;
   };
   /** Returns at once; progress arrives as `workflow:*` events. */
-  start_workflow: { args: { workflowId: string; task: string }; result: WorkflowExecutionDto };
+  start_workflow: {
+    args: { workflowId: string; task: string; autoApprovePlans?: boolean };
+    result: WorkflowExecutionDto;
+  };
+  /** Approve the plans of a run without asking (also the ones already waiting), or ask again. */
+  set_auto_approve_plans: { args: { executionId: string; enabled: boolean }; result: null };
   pause_workflow: { args: { executionId: string }; result: null };
   /**
    * Resumes a paused run, picks up one the app's shutdown interrupted, or picks a failed one up
@@ -970,7 +975,7 @@ export type ExecutionStatusDto =
   'running' | 'waiting_for_input' | 'completed' | 'failed' | 'cancelled';
 
 export type InteractionKindDto =
-  'clarification' | 'approval' | 'permission' | 'runtime_confirmation';
+  'clarification' | 'approval' | 'permission' | 'runtime_confirmation' | 'plan';
 
 export type InteractionStatusDto = 'pending' | 'answered' | 'cancelled' | 'expired';
 
@@ -1018,6 +1023,8 @@ export interface PendingInteractionDto {
   answeredAt: number | null;
   choice: string | null;
   answer: string | null;
+  /** Answered by the person's standing instruction to approve plans, not by a person. */
+  auto: boolean;
 }
 
 /** A pick between the question's options and/or free text. */
@@ -2518,6 +2525,8 @@ export interface WorkflowExecutionDto {
   workflowVersion: number;
   workflow: WorkflowDto;
   task: string;
+  /** Plans the steps draw up are approved without asking the person. */
+  autoApprovePlans: boolean;
   status: WorkflowExecutionStatusDto;
   failure: WorkflowFailureDto | null;
   cancelRequested: boolean;

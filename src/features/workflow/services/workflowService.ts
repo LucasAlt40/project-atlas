@@ -100,8 +100,20 @@ export function repairWorkflowRoutes(
   return invokeCommand('repair_workflow_routes', { workflowId, choices });
 }
 
-export function startWorkflow(workflowId: string, task: string): Promise<WorkflowRun> {
-  return invokeCommand('start_workflow', { workflowId, task });
+export function startWorkflow(
+  workflowId: string,
+  task: string,
+  autoApprovePlans = false,
+): Promise<WorkflowRun> {
+  return invokeCommand('start_workflow', {
+    workflowId,
+    task,
+    ...(autoApprovePlans ? { autoApprovePlans } : {}),
+  });
+}
+
+export async function setAutoApprovePlans(executionId: string, enabled: boolean): Promise<void> {
+  await invokeCommand('set_auto_approve_plans', { executionId, enabled });
 }
 
 export async function pauseWorkflow(executionId: string): Promise<void> {
