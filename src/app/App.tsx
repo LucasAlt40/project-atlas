@@ -27,7 +27,8 @@ function Shell() {
     screenId: DEFAULT_SCREEN_ID,
     intent: undefined,
   });
-  const active = SCREENS.find((screen) => screen.id === location.screenId) ?? SCREENS[0];
+  const screens = SCREENS;
+  const active = screens.find((screen) => screen.id === location.screenId) ?? SCREENS[0];
   const ActiveScreen = active.component;
 
   const navigation = useMemo<Navigation>(
@@ -48,7 +49,7 @@ function Shell() {
   return (
     <NavigationContext.Provider value={navigation}>
       <AppShell
-        items={SCREENS.map(({ id, labelKey, icon }) => ({ id, label: t(labelKey), icon }))}
+        items={screens.map(({ id, labelKey, icon }) => ({ id, label: t(labelKey), icon }))}
         navLabel={t('nav.main')}
         collapseLabel={t('nav.collapse')}
         expandLabel={t('nav.expand')}

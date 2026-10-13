@@ -6,6 +6,7 @@ import type {
   MessageDto,
   ProjectInitUpdateDto,
   SessionStatusEventDto,
+  SpecChangedDto,
   TerminalChunkDto,
   WorkflowEventDto,
   WorkflowEventKindDto,
@@ -64,6 +65,8 @@ export interface EventMap extends Record<WorkflowEventName, WorkflowEventDto> {
   'live_workspace:changed': LiveWorkspaceUpdateDto;
   /** A message was added to a conversation; mirrors `commands::events`. */
   'conversation:message': MessageDto;
+  /** A spec changed (any part of it); read it again. Mirrors `commands::specs`. */
+  'spec:changed': SpecChangedDto;
 }
 
 export type EventName = keyof EventMap;

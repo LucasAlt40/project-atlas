@@ -4,7 +4,12 @@ import { createContext, useContext } from 'react';
 export type NavigationIntent =
   | { type: 'create-agent'; personalityId?: string }
   /** Show a workflow, and one of its runs when `executionId` is given. */
-  | { type: 'open-workflow'; workflowId: string; executionId?: string };
+  | { type: 'open-workflow'; workflowId: string; executionId?: string }
+  /** Show a spec, or the form to start a new one. */
+  | { type: 'open-spec'; specId: string }
+  | { type: 'new-spec' }
+  /** Start a workflow from an approved spec (ADR 0035). */
+  | { type: 'workflow-from-spec'; specId: string };
 
 export interface Navigation {
   navigate: (screenId: string, intent?: NavigationIntent) => void;

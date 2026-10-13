@@ -42,7 +42,15 @@ describe('App', () => {
       within(nav)
         .getAllByRole('button')
         .map((b) => b.textContent),
-    ).toEqual(['Workspace', 'Workflow', 'Agentes', 'Personalidades', 'MCP Hub', 'Configurações']);
+    ).toEqual([
+      'Workspace',
+      'Workflow',
+      'Agentes',
+      'Personalidades',
+      'Specs',
+      'MCP Hub',
+      'Configurações',
+    ]);
     expect(within(nav).getByRole('button', { name: 'Workspace' })).toHaveAttribute(
       'aria-current',
       'page',
@@ -50,6 +58,30 @@ describe('App', () => {
     expect(await screen.findByRole('button', { name: /^Workspace: Acme ERP/ })).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: '+ Adicionar agente' })).toBeInTheDocument();
     expect(screen.getByRole('complementary')).toHaveTextContent('Atlas');
+  });
+
+  it('has the Specs screen in the menu', async () => {
+    mockBackend({
+      language: 'pt-BR',
+      workspaces: [workspace('w1', 'Acme ERP', '/dev/acme')],
+      selectedWorkspaceId: 'w1',
+    });
+    render(<App />);
+
+    const nav = await screen.findByRole('navigation', { name: 'Principal' });
+    expect(
+      within(nav)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual([
+      'Workspace',
+      'Workflow',
+      'Agentes',
+      'Personalidades',
+      'Specs',
+      'MCP Hub',
+      'Configurações',
+    ]);
   });
 
   it('switches the whole UI to English from the header without a restart, and remembers it', async () => {

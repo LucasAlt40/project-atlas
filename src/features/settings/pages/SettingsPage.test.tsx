@@ -4,7 +4,7 @@ import { fetchAppInfo } from '@/features/home/services/appInfoService';
 import { agent, mockBackend, renderWithProviders } from '@/test/fixtures';
 import { exportConfigs } from '@/features/portability/services/portabilityService';
 import { listTemplates, listWorkflows } from '@/features/workflow/services/workflowService';
-import { setLanguage } from '../services/settingsService';
+import { setLanguage, setSpecsMaxTokens } from '../services/settingsService';
 import { checkForUpdate, installUpdate } from '../services/updateService';
 import { SettingsPage } from './SettingsPage';
 
@@ -27,6 +27,29 @@ beforeEach(() => {
 });
 
 describe('SettingsPage', () => {
+  it('saves the token limit of a specification, and none when it is left empty', async () => {
+    const user = userEvent.setup();
+    mockBackend({ language: 'en-US' });
+    vi.mocked(setSpecsMaxTokens).mockImplementation((max) =>
+      Promise.resolve({
+        language: 'en-US',
+        selectedWorkspaceId: null,
+        optimization: { metricsEnabled: true, specsMaxTokens: max },
+      }),
+    );
+    renderWithProviders(<SettingsPage />);
+
+    const field = await screen.findByLabelText('Token limit per specification');
+    expect(field).toHaveValue('');
+    await user.type(field, '300000');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(setSpecsMaxTokens).toHaveBeenCalledWith(300000);
+
+    await user.clear(field);
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(setSpecsMaxTokens).toHaveBeenLastCalledWith(null);
+  });
+
   it('is in Portuguese by default and offers both languages', async () => {
     mockBackend({ language: 'pt-BR' });
     renderWithProviders(<SettingsPage />);

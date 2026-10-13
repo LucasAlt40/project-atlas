@@ -273,6 +273,7 @@ export function emptyWorkspaceUsage(): WorkspaceUsageSummaryDto {
 
 export interface Backend {
   language?: string;
+  /** The Specs module is on. */
   selectedWorkspaceId?: string | null;
   personalities?: Personality[];
   agents?: Agent[];

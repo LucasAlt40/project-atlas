@@ -71,6 +71,8 @@ export interface CommandMap {
   };
   get_settings: { args: undefined; result: AppSettingsDto };
   set_language: { args: { language: string }; result: AppSettingsDto };
+  set_specs_max_tokens: { args: { max: number | null }; result: AppSettingsDto };
+  raise_spec_budget: { args: { specId: string }; result: SpecViewDto };
   select_workspace: { args: { workspaceId: string | null }; result: AppSettingsDto };
   send_message: { args: { request: SendMessageRequestDto }; result: SentMessageDto };
   list_messages: { args: { workspaceId?: string; agentId?: string }; result: MessageDto[] };
@@ -287,6 +289,8 @@ export interface CommandMap {
       autoApprovePlans?: boolean;
       /** The projects the run works in and may consult; absent: the primary project alone. */
       scope?: ScopeRequestDto;
+      /** Start from an approved spec (ADR 0035); absent: exactly as before. */
+      specId?: string;
     };
     result: WorkflowExecutionDto;
   };
@@ -350,6 +354,74 @@ export interface CommandMap {
   new_remote_pairing_code: { args: undefined; result: RemoteStatusDto };
   revoke_remote_device: { args: { deviceId: string }; result: RemoteStatusDto };
   revoke_all_remote_devices: { args: undefined; result: RemoteStatusDto };
+  list_specs: { args: { workspaceId: string }; result: SpecSummaryDto[] };
+  get_spec: { args: { specId: string }; result: SpecViewDto };
+  create_spec: { args: { request: NewSpecRequestDto }; result: SpecViewDto };
+  delete_spec: { args: { specId: string }; result: null };
+  assign_spec_agents: {
+    args: { specId: string; authorAgentId: string; reviewerAgentId: string };
+    result: SpecViewDto;
+  };
+  /** The person confirms the request: the first document starts to be written. */
+  start_spec: { args: { specId: string }; result: SpecActionDto };
+  generate_spec_artifact: { args: { specId: string; artifactId: string }; result: SpecActionDto };
+  /** Approve (and go on), ask for changes (the agent revises) or have the document written again. */
+  decide_spec_artifact: {
+    args: {
+      specId: string;
+      artifactId: string;
+      expectedRevision: number;
+      decision: SpecDecisionDto;
+      note: string | null;
+    };
+    result: SpecActionDto;
+  };
+  keep_spec_artifact: {
+    args: { specId: string; artifactId: string; expectedRevision: number };
+    result: SpecViewDto;
+  };
+  answer_spec_question: {
+    args: { specId: string; questionId: string; choice: string | null; answer: string | null };
+    result: SpecActionDto;
+  };
+  answer_spec_findings: {
+    args: { specId: string; answers: { findingId: string; answer: string }[] };
+    result: SpecActionDto;
+  };
+  resolve_spec_finding: {
+    args: { specId: string; findingId: string; status: SpecFindingStatusDto; note: string | null };
+    result: SpecViewDto;
+  };
+  run_spec_review: { args: { specId: string }; result: SpecActionDto };
+  waive_spec_review: { args: { specId: string; note: string }; result: SpecViewDto };
+  approve_spec: { args: { specId: string }; result: SpecViewDto };
+  validate_spec: { args: { specId: string }; result: SpecViewDto };
+  publish_spec: { args: { specId: string; changeId: string | null }; result: SpecViewDto };
+  archive_spec: { args: { specId: string }; result: SpecViewDto };
+  cancel_spec_run: { args: { specId: string }; result: null };
+  list_importable_specs: {
+    args: { workspaceId: string; projectId: string };
+    result: ImportCandidateDto[];
+  };
+  import_spec: {
+    args: {
+      workspaceId: string;
+      projectId: string;
+      changeId: string;
+      authorAgentId: string;
+      reviewerAgentId: string | null;
+    };
+    result: SpecViewDto;
+  };
+  list_ready_specs: { args: { workspaceId: string }; result: SpecSummaryDto[] };
+  /** What each run started from the spec has got through: reported by steps, confirmed by Atlas. */
+  get_spec_progress: { args: { specId: string }; result: SpecProgressDto[] };
+  /** Whether the optional OpenSpec command is installed and a version Atlas reads. */
+  get_openspec_cli_status: { args: { specId: string }; result: CliStatusDto };
+  /** Asks the OpenSpec command to look at the published change (read-only). */
+  check_spec_with_cli: { args: { specId: string }; result: SpecViewDto };
+  /** Has the OpenSpec command archive the published change: moves files in the project. */
+  archive_spec_with_cli: { args: { specId: string }; result: SpecViewDto };
 }
 
 export type RemoteStateDto = 'disabled' | 'starting' | 'active' | 'error';
@@ -492,7 +564,28 @@ export type ErrorCodeDto =
   | 'import_invalid'
   | 'import_rejected'
   | 'export_target_not_found'
-  | 'config_file_io';
+  | 'config_file_io'
+  | 'spec_not_found'
+  | 'spec_artifact_not_found'
+  | 'spec_question_not_found'
+  | 'spec_finding_not_found'
+  | 'spec_invalid'
+  | 'spec_change_id_invalid'
+  | 'spec_state_invalid'
+  | 'spec_dependencies_not_approved'
+  | 'spec_run_in_progress'
+  | 'spec_budget_reached'
+  | 'spec_revision_outdated'
+  | 'spec_note_required'
+  | 'spec_validation_blocking'
+  | 'spec_not_ready'
+  | 'spec_change_exists'
+  | 'spec_publish_failed'
+  | 'spec_already_imported'
+  | 'spec_import_failed'
+  | 'spec_cli_unavailable'
+  | 'spec_cli_failed'
+  | 'spec_in_use';
 
 /**
  * How sure the analysis is. `high`: direct evidence; `medium`: several signals plus
@@ -1092,6 +1185,7 @@ export interface ProjectContextDto {
 export interface AppSettingsDto {
   language: string;
   selectedWorkspaceId: string | null;
+  /** `specs.enabled`: the Specs module (ADR 0035). Off unless the person turns it on. */
   /** `optimization.metrics.enabled`: measure prompts and runs. Never changes what is sent. */
   optimization?: {
     metricsEnabled: boolean;
@@ -1103,6 +1197,8 @@ export interface AppSettingsDto {
     skillsEnabled?: boolean;
     /** `optimization.guardrails.enabled`: review the context before an agent starts. */
     guardrailsEnabled?: boolean;
+    /** `optimization.specs.maxTokens`: what the runs of one spec may use together; none: no limit. */
+    specsMaxTokens?: number | null;
   };
 }
 
@@ -2749,6 +2845,8 @@ export interface WorkflowExecutionDto {
   autoApprovePlans: boolean;
   /** The projects the run works in and may consult. Absent: the primary project alone. */
   scope?: ScopeRequestDto;
+  /** The approved spec this run implements, if it was started from one. */
+  spec?: SpecLinkDto;
   status: WorkflowExecutionStatusDto;
   failure: WorkflowFailureDto | null;
   cancelRequested: boolean;
@@ -3139,4 +3237,423 @@ export interface ImportedItemDto {
 
 export interface ImportReportDto {
   items: ImportedItemDto[];
+}
+
+// ---- Specs (ADR 0035): mirrors `domain::spec` and `application::specs::view` -----------------------
+
+export type SpecArtifactIdDto = 'proposal' | 'specs' | 'design' | 'tasks';
+export type SpecDecisionDto = 'approve' | 'revise' | 'redo';
+export type SpecGenerationModeDto = 'initial' | 'revise' | 'regenerate';
+export type SpecReviewDto = 'none' | 'awaiting_review' | 'changes_requested' | 'approved';
+export type SpecIssueSeverityDto = 'error' | 'warning' | 'suggestion';
+export type SpecFindingSeverityDto = 'low' | 'medium' | 'high';
+export type SpecFindingStatusDto = 'open' | 'resolved' | 'accepted_risk' | 'dismissed';
+
+export type SpecStatusDto =
+  | 'draft'
+  | 'awaiting_generation'
+  | 'generating'
+  | 'waiting_for_input'
+  | 'awaiting_review'
+  | 'changes_requested'
+  | 'awaiting_validation'
+  | 'blocked'
+  | 'approved'
+  | 'ready_for_implementation'
+  | 'published'
+  | 'archived'
+  | 'failed';
+
+export type SpecArtifactPhaseDto =
+  | 'blocked'
+  | 'ready'
+  | 'generating'
+  | 'waiting_for_input'
+  | 'awaiting_review'
+  | 'changes_requested'
+  | 'approved'
+  | 'outdated'
+  | 'failed';
+
+export type SpecGenerationDto =
+  | { state: 'idle' }
+  | { state: 'running'; runId: string; startedAt: number; mode: SpecGenerationModeDto }
+  | { state: 'waiting_for_input'; questionId: string }
+  | { state: 'failed'; message: string; at: number; interrupted: boolean };
+
+export interface SpecFileDto {
+  path: string;
+  content: string;
+}
+
+export interface SpecRevisionDto {
+  number: number;
+  files: SpecFileDto[];
+  origin: 'generated' | 'revised' | 'regenerated' | 'imported';
+  runId: string | null;
+  agentId: string | null;
+  basedOn: Record<string, number>;
+  createdAt: number;
+}
+
+export interface SpecValidationIssueDto {
+  code: string;
+  severity: SpecIssueSeverityDto;
+  file: string | null;
+  line: number | null;
+  message: string;
+  params: Record<string, string>;
+}
+
+export interface SpecArtifactValidationDto {
+  revision: number;
+  validator: string;
+  issues: SpecValidationIssueDto[];
+  at: number;
+}
+
+export interface SpecFeedbackDto {
+  id: string;
+  revision: number;
+  kind: SpecDecisionDto;
+  note: string | null;
+  at: number;
+}
+
+export interface SpecArtifactDto {
+  id: SpecArtifactIdDto;
+  kind: SpecArtifactIdDto;
+  dependsOn: SpecArtifactIdDto[];
+  revisions: SpecRevisionDto[];
+  generation: SpecGenerationDto;
+  review: SpecReviewDto;
+  approvedRevision: number | null;
+  outdated: { because: string; revision: number; at: number } | null;
+  validation: SpecArtifactValidationDto | null;
+  feedback: SpecFeedbackDto[];
+  agentId: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface SpecQuestionDto {
+  id: string;
+  source: 'artifact' | 'review';
+  artifactId: string | null;
+  findingId: string | null;
+  question: string;
+  context: string;
+  options: InteractionOptionDto[];
+  status: 'pending' | 'answered';
+  choice: string | null;
+  answer: string | null;
+  runId: string;
+  askedAt: number;
+  answeredAt: number | null;
+}
+
+export interface SpecFindingDto {
+  id: string;
+  category: string;
+  severity: SpecFindingSeverityDto;
+  title: string;
+  description: string;
+  artifactId: string | null;
+  reference: string;
+  evidence: string;
+  rationale: string;
+  question: string | null;
+  suggestion: string | null;
+  artifactRevision: number | null;
+  status: SpecFindingStatusDto;
+  resolutionNote: string | null;
+  reviewId: string;
+  createdAt: number;
+  resolvedAt: number | null;
+}
+
+export type SpecReviewRunDto =
+  | { state: 'running'; runId: string; startedAt: number }
+  | { state: 'waiting_for_input'; questionId: string }
+  | { state: 'failed'; message: string; at: number; interrupted: boolean }
+  | { state: 'completed'; at: number; summary: string }
+  | { state: 'waived'; note: string; at: number };
+
+export interface SpecAiReviewDto {
+  id: string;
+  agentId: string;
+  revisions: Record<string, number>;
+  run: SpecReviewRunDto;
+  startedAt: number;
+}
+
+export interface SpecConsistencyDto {
+  revisions: Record<string, number>;
+  validator: string;
+  issues: SpecValidationIssueDto[];
+  at: number;
+}
+
+export interface SpecFinalApprovalDto {
+  revisions: Record<string, number>;
+  acknowledgedWarnings: string[];
+  at: number;
+}
+
+export type SpecPublicationDto =
+  | { state: 'not_published' }
+  | {
+      state: 'in_progress';
+      startedAt: number;
+      changeId: string;
+      written: string[];
+      revisions: Record<string, number>;
+    }
+  | {
+      state: 'published';
+      changeId: string;
+      root: string;
+      files: string[];
+      revisions: Record<string, number>;
+      at: number;
+    }
+  | { state: 'failed'; message: string; at: number; changeId: string; written: string[] };
+
+export interface SpecRunDto {
+  id: string;
+  kind: 'generate' | 'review';
+  artifactId: string | null;
+  agentId: string;
+  startedAt: number;
+  endedAt: number | null;
+  outcome:
+    | 'completed'
+    | 'waiting_for_input'
+    | 'failed'
+    | 'cancelled'
+    | 'interrupted'
+    | 'superseded'
+    | null;
+}
+
+export interface SpecImplementationLinkDto {
+  workflowExecutionId: string;
+  workflowId: string;
+  workflowName: string;
+  revisions: Record<string, number>;
+  startedAt: number;
+}
+
+export interface SpecDto {
+  id: string;
+  title: string;
+  request: string;
+  context: string;
+  workspaceId: string;
+  projectId: string;
+  framework: 'openspec';
+  frameworkSchema: string;
+  changeId: string;
+  authorAgentId: string;
+  reviewerAgentId: string;
+  started: boolean;
+  artifacts: SpecArtifactDto[];
+  questions: SpecQuestionDto[];
+  findings: SpecFindingDto[];
+  aiReview: SpecAiReviewDto | null;
+  consistency: SpecConsistencyDto | null;
+  finalApproval: SpecFinalApprovalDto | null;
+  publication: SpecPublicationDto;
+  archived: { at: number; path: string | null; method: string } | null;
+  /** What the OpenSpec command last said of the published change, if it was asked. */
+  cliCheck: SpecCliCheckDto | null;
+  implementations: SpecImplementationLinkDto[];
+  runs: SpecRunDto[];
+  budgetSteps: number;
+  origin: { kind: 'created' } | { kind: 'imported'; path: string; at: number };
+  version: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface SpecBlockerDto {
+  code: string;
+  artifactId: string | null;
+  count: number | null;
+}
+
+export interface SpecTaskDto {
+  id: string;
+  text: string;
+  checked: boolean;
+}
+
+export interface SpecStepOutlineDto {
+  keyword: string;
+  text: string;
+}
+
+export interface SpecScenarioOutlineDto {
+  name: string;
+  line: number;
+  steps: SpecStepOutlineDto[];
+}
+
+export interface SpecRequirementOutlineDto {
+  operation: string;
+  name: string;
+  line: number;
+  text: string;
+  scenarios: SpecScenarioOutlineDto[];
+}
+
+export interface SpecFileOutlineDto {
+  path: string;
+  purpose: string | null;
+  requirements: SpecRequirementOutlineDto[];
+}
+
+export interface SpecViewDto {
+  spec: SpecDto;
+  status: SpecStatusDto;
+  phases: Record<string, SpecArtifactPhaseDto>;
+  readiness: { ready: boolean; blockers: SpecBlockerDto[] };
+  currentRevisions: Record<string, number>;
+  readyToGenerate: SpecArtifactIdDto[];
+  reviewCurrent: boolean;
+  consistencyCurrent: boolean;
+  finalApprovalCurrent: boolean;
+  publicationCurrent: boolean;
+  busy: boolean;
+  pendingQuestions: number;
+  openFindings: number;
+  tasks: SpecTaskDto[];
+  outline: SpecFileOutlineDto[];
+  projectAvailable: boolean;
+  authorAvailable: boolean;
+  reviewerAvailable: boolean;
+  usage: SpecUsageDto;
+  budget: SpecBudgetDto;
+}
+
+/** What one run of an agent used. A field is null when the runtime did not say (that is not zero). */
+export interface SpecRunUsageDto {
+  runId: string;
+  runtimeId: string;
+  modelId: string;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  cachedInputTokens: number | null;
+  cost: number | null;
+  currency: string | null;
+  source: 'runtime_reported' | 'atlas_calculated' | null;
+}
+
+export interface SpecUsageDto {
+  runs: SpecRunUsageDto[];
+  inputTokens: number | null;
+  outputTokens: number | null;
+  cachedInputTokens: number | null;
+  cost: number | null;
+  currency: string | null;
+  /** Runs the spec made, and how many of them have numbers from a runtime. */
+  runsTotal: number;
+  runsMeasured: number;
+}
+
+export interface SpecBudgetDto {
+  limit: number | null;
+  spent: number | null;
+  steps: number;
+  reached: boolean;
+  near: boolean;
+}
+
+export interface SpecSummaryDto {
+  id: string;
+  title: string;
+  request: string;
+  workspaceId: string;
+  projectId: string;
+  changeId: string;
+  status: SpecStatusDto;
+  approved: number;
+  stageTotal: number;
+  currentArtifact: SpecArtifactIdDto | null;
+  pendingQuestions: number;
+  openFindings: number;
+  authorAgentId: string;
+  implementations: number;
+  imported: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface NewSpecRequestDto {
+  workspaceId: string;
+  projectId?: string | null;
+  title: string;
+  request: string;
+  context?: string;
+  authorAgentId: string;
+  reviewerAgentId?: string | null;
+}
+
+/** What a decision or an answer did; `launchError` says why an agent meant to start could not. */
+export interface SpecActionDto {
+  view: SpecViewDto;
+  launchError: AppErrorDto | null;
+}
+
+export interface ImportCandidateDto {
+  changeId: string;
+  artifacts: SpecArtifactIdDto[];
+  problems: string[];
+  importedAs: string | null;
+}
+
+/** The payload of the `spec:changed` event. */
+export interface SpecChangedDto {
+  specId: string;
+  version: number;
+}
+
+/** What a run was given of the spec it implements. Mirrors `domain::workflow::SpecLink`. */
+export interface SpecLinkDto {
+  specId: string;
+  title: string;
+  changeId: string;
+  revisions: Record<string, number>;
+  digest: string;
+  tasks: { id: string; text: string }[];
+  publishedRoot: string | null;
+}
+
+export type SpecTaskStateDto = 'pending' | 'reported' | 'confirmed';
+
+/** Mirrors `application::specs::progress::ImplementationProgress`. */
+export interface SpecProgressDto {
+  workflowExecutionId: string;
+  workflowName: string;
+  status: WorkflowExecutionStatusDto | null;
+  specChanged: boolean;
+  tasks: { id: string; text: string; state: SpecTaskStateDto }[];
+  reported: number;
+  confirmed: number;
+}
+
+export interface CliStatusDto {
+  available: boolean;
+  version: string | null;
+  compatible: boolean;
+  /** `not_installed`, `inside_project`, `version_unreadable`, `too_old`. */
+  reason: string | null;
+}
+
+export interface SpecCliCheckDto {
+  revisions: Record<string, number>;
+  cliVersion: string;
+  valid: boolean;
+  issues: { level: string; path: string; message: string }[];
+  at: number;
 }

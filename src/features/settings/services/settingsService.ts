@@ -14,3 +14,8 @@ export function setLanguage(language: string): Promise<AppSettingsDto> {
 export function selectWorkspace(workspaceId: string | null): Promise<AppSettingsDto> {
   return invokeCommand('select_workspace', { workspaceId });
 }
+
+/** The most tokens the runs of one specification may use together (`null`: no limit). */
+export function setSpecsMaxTokens(max: number | null): Promise<AppSettingsDto> {
+  return invokeCommand('set_specs_max_tokens', { max });
+}

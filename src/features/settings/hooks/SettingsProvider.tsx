@@ -10,14 +10,22 @@ import {
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { DEFAULT_LANGUAGE, isLanguage, type Language } from '@/i18n';
 import type { AppSettingsDto } from '@/lib/tauri/commands';
-import { getSettings, selectWorkspace, setLanguage } from '../services/settingsService';
+import {
+  getSettings,
+  selectWorkspace,
+  setLanguage,
+  setSpecsMaxTokens,
+} from '../services/settingsService';
 
 interface Settings {
   language: Language;
   /** The workspace that was open last (`null`: none yet). */
   selectedWorkspaceId: string | null;
+  /** The most tokens the runs of one spec may use together (`null`: no limit). */
+  specsMaxTokens: number | null;
   changeLanguage: (language: Language) => Promise<void>;
   rememberWorkspace: (workspaceId: string | null) => Promise<void>;
+  changeSpecsMaxTokens: (max: number | null) => Promise<void>;
 }
 
 const SettingsContext = createContext<Settings | null>(null);
@@ -59,16 +67,22 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setSettings(await selectWorkspace(workspaceId));
   }, []);
 
+  const changeSpecsMaxTokens = useCallback(async (max: number | null) => {
+    setSettings(await setSpecsMaxTokens(max));
+  }, []);
+
   const language = settings && isLanguage(settings.language) ? settings.language : DEFAULT_LANGUAGE;
   const value = useMemo<Settings | null>(
     () =>
       settings && {
         language,
         selectedWorkspaceId: settings.selectedWorkspaceId,
+        specsMaxTokens: settings.optimization?.specsMaxTokens ?? null,
         changeLanguage,
         rememberWorkspace,
+        changeSpecsMaxTokens,
       },
-    [settings, language, changeLanguage, rememberWorkspace],
+    [settings, language, changeLanguage, rememberWorkspace, changeSpecsMaxTokens],
   );
 
   if (!value) return null;
