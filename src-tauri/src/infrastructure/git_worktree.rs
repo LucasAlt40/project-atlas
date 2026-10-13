@@ -730,6 +730,29 @@ impl WorktreeManager for GitWorktreeManager {
                 .is_ok_and(|o| o.ok() && o.text() == "true")
     }
 
+    fn highest_execution_branch(&self, project: &Path) -> Option<u64> {
+        if !self.is_git_repository(project) {
+            return None;
+        }
+        let output = self
+            .run(
+                project,
+                [
+                    "for-each-ref",
+                    "--format=%(refname:short)",
+                    "refs/heads/atlas/",
+                ],
+                None,
+            )
+            .ok()
+            .filter(Output::ok)?;
+        lines(&output)
+            .iter()
+            .filter_map(|branch| branch.strip_prefix("atlas/"))
+            .filter_map(|id| WorktreeLayout::execution_number(id).ok())
+            .max()
+    }
+
     fn inspect_base(&self, project: &Path) -> Result<BaseInfo, WorktreeError> {
         if !self.is_git_repository(project) {
             if !project.is_dir() {

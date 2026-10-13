@@ -1288,6 +1288,20 @@ fn new_execution_ids_continue_after_every_worktree_still_around_even_without_his
     );
 }
 
+#[test]
+fn new_execution_ids_go_past_branches_another_install_left_in_the_project() {
+    let env = Env::new(Permission::Allowed);
+    // Not in this install's records: made by another data folder on the same repository.
+    git(env.project.path(), &["branch", "atlas/exec-000059"]);
+    git(env.project.path(), &["branch", "atlas/exec-000122"]);
+    git(env.project.path(), &["branch", "feature/exec-000999"]);
+    let projects = [env.project.path().to_path_buf()];
+
+    assert_eq!(env.service.next_execution_number_in(1, &projects), 123);
+    assert_eq!(env.service.next_execution_number_in(500, &projects), 500);
+    assert_eq!(env.service.next_execution_number_in(1, &[]), 1);
+}
+
 // ---- a workflow's shared worktree ---------------------------------------------------------------
 
 mod shared {

@@ -197,6 +197,13 @@ pub enum UnapplyOutcome {
 pub trait WorktreeManager: Send + Sync {
     fn is_git_repository(&self, project: &Path) -> bool;
 
+    /// The highest execution number among the `atlas/exec-N` branches the repository already
+    /// has, whoever made them (another install, an earlier data folder). `None` when there are
+    /// none or the repository cannot be read.
+    fn highest_execution_branch(&self, _project: &Path) -> Option<u64> {
+        None
+    }
+
     /// # Errors
     ///
     /// [`WorktreeError::GitRepositoryRequired`] outside a repository;

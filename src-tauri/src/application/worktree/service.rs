@@ -267,6 +267,24 @@ impl WorktreeService {
             .map_or(from_history, |highest| from_history.max(highest + 1))
     }
 
+    /// As [`Self::next_execution_number`], and after every `atlas/exec-N` branch the projects
+    /// already have too: branches made by another install of Atlas (or by an earlier data
+    /// folder) are not in this one's records, and a new execution must not meet one of them.
+    pub fn next_execution_number_in(
+        &self,
+        from_history: u64,
+        projects: &[std::path::PathBuf],
+    ) -> u64 {
+        let highest_branch = projects
+            .iter()
+            .filter_map(|project| self.manager.highest_execution_branch(project))
+            .max();
+        highest_branch.map_or_else(
+            || self.next_execution_number(from_history),
+            |highest| self.next_execution_number(from_history.max(highest + 1)),
+        )
+    }
+
     /// The highest execution number that has a worktree.
     fn highest_execution_number(&self) -> Option<u64> {
         self.config.read(|config| {
