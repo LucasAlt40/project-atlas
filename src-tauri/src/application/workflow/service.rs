@@ -18,7 +18,7 @@ use crate::application::support::{new_id, now_ms};
 use crate::application::workspace::WorkspaceService;
 use crate::domain::result_contract::ResultContract;
 use crate::domain::scope::ScopeRequest;
-use crate::domain::workflow::{CustomTemplate, ToolSuggestion};
+use crate::domain::workflow::{CustomTemplate, SpecLink, ToolSuggestion};
 use crate::domain::workflow::{
     NodeState, RouteRepair, Viewport, Workflow, WorkflowEdge, WorkflowExecution,
     WorkflowExecutionStatus, WorkflowMode, WorkflowNode, WorkflowStatus,
@@ -555,7 +555,7 @@ impl WorkflowService {
     /// Fails if the workflow is unknown, invalid, already running, or the task is empty.
     #[cfg_attr(not(test), allow(dead_code))]
     pub fn start(&self, workflow_id: &str, task: &str) -> Result<WorkflowExecution, AppError> {
-        self.start_checked(workflow_id, task, true, false, None)
+        self.start_checked(workflow_id, task, true, false, None, None)
     }
 
     /// As [`Self::start`], with the person's standing instruction about the plans the steps draw
@@ -571,7 +571,7 @@ impl WorkflowService {
         task: &str,
         auto_approve_plans: bool,
     ) -> Result<WorkflowExecution, AppError> {
-        self.start_checked(workflow_id, task, true, auto_approve_plans, None)
+        self.start_checked(workflow_id, task, true, auto_approve_plans, None, None)
     }
 
     /// As [`Self::start_with_plans`], for a run that works in one project of the workspace and
@@ -587,7 +587,31 @@ impl WorkflowService {
         auto_approve_plans: bool,
         scope: Option<ScopeRequest>,
     ) -> Result<WorkflowExecution, AppError> {
-        self.start_checked(workflow_id, task, true, auto_approve_plans, scope)
+        self.start_checked(workflow_id, task, true, auto_approve_plans, scope, None)
+    }
+
+    /// As [`Self::start_scoped`], for a run that implements an approved spec (ADR 0035): the run
+    /// keeps what it was given of the spec.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::start_scoped`].
+    pub fn start_for_spec(
+        &self,
+        workflow_id: &str,
+        task: &str,
+        auto_approve_plans: bool,
+        scope: Option<ScopeRequest>,
+        spec: SpecLink,
+    ) -> Result<WorkflowExecution, AppError> {
+        self.start_checked(
+            workflow_id,
+            task,
+            true,
+            auto_approve_plans,
+            scope,
+            Some(spec),
+        )
     }
 
     /// Starts without validating: only tests use it, to watch the engine on a definition
@@ -598,7 +622,7 @@ impl WorkflowService {
         workflow_id: &str,
         task: &str,
     ) -> Result<WorkflowExecution, AppError> {
-        self.start_checked(workflow_id, task, false, false, None)
+        self.start_checked(workflow_id, task, false, false, None, None)
     }
 
     fn start_checked(
@@ -608,6 +632,7 @@ impl WorkflowService {
         validated: bool,
         auto_approve_plans: bool,
         scope: Option<ScopeRequest>,
+        spec: Option<SpecLink>,
     ) -> Result<WorkflowExecution, AppError> {
         let workflow = self
             .get(workflow_id)
@@ -629,6 +654,7 @@ impl WorkflowService {
         let mut execution = WorkflowExecution::new(new_id("wfx"), workflow, task.to_owned(), now);
         execution.auto_approve_plans = auto_approve_plans;
         execution.scope = scope.filter(|s| *s != ScopeRequest::default());
+        execution.spec = spec;
         let stored = execution.clone();
         self.config.modify(|config| {
             // One run at a time per workflow: a second would fight the first for its agents.

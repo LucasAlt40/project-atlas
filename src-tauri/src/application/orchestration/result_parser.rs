@@ -204,6 +204,10 @@ fn from_value(value: &Value) -> AgentResult {
             .collect(),
         touched_files: paths(value, &["touchedFiles", "touched_files"], true),
         touched_areas: paths(value, &["touchedAreas", "touched_areas"], false),
+        completed_tasks: paths(value, &["completedTasks", "completed_tasks"], false)
+            .into_iter()
+            .map(|t| t.chars().take(24).collect())
+            .collect(),
         validation: value.get("validation").and_then(|v| {
             let status = v
                 .as_str()
@@ -488,5 +492,18 @@ mod contract_tests {
 
         assert_eq!(parsed.result.findings[0].file, None);
         assert_eq!(parsed.result.findings[0].line, None);
+    }
+
+    #[test]
+    fn the_tasks_a_step_says_it_finished_are_read_as_text_and_bounded() {
+        let result = parse_agent_result(
+            "```atlas-result\n{\"status\":\"success\",\"completedTasks\":[\"1.1\",\"2.3\",5,\"\"]}\n```",
+        );
+
+        assert_eq!(result.completed_tasks, ["1.1", "2.3"]);
+        assert_eq!(
+            parse_agent_result("no block").completed_tasks,
+            Vec::<String>::new()
+        );
     }
 }

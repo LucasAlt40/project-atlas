@@ -157,6 +157,13 @@ pub fn record_result(
         report.node_id.to_owned(),
         result.touched_areas.iter().cloned().collect(),
     );
+    if !result.completed_tasks.is_empty() {
+        exec.state
+            .completed_tasks
+            .entry(report.node_id.to_owned())
+            .or_default()
+            .extend(result.completed_tasks.iter().cloned());
+    }
     events.extend(detect_overlaps(exec, graph, report.node_id, at));
     events
 }

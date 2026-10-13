@@ -196,13 +196,19 @@ pub fn start_workflow<R: Runtime>(
     task: String,
     auto_approve_plans: Option<bool>,
     scope: Option<crate::domain::scope::ScopeRequest>,
+    spec_id: Option<String>,
 ) -> Result<WorkflowExecution, AppError> {
-    let execution = state.workflows.start_scoped(
-        &workflow_id,
-        &task,
-        auto_approve_plans.unwrap_or(false),
-        scope,
-    )?;
+    let auto = auto_approve_plans.unwrap_or(false);
+    // A run started from an approved spec carries what it was given of it (ADR 0035); a run
+    // started any other way is exactly what it always was.
+    let execution = match spec_id {
+        Some(spec_id) => state
+            .spec_work
+            .start(&spec_id, &workflow_id, &task, auto, scope)?,
+        None => state
+            .workflows
+            .start_scoped(&workflow_id, &task, auto, scope)?,
+    };
     drive(&app, &state, execution.id.clone(), Drive::Fresh);
     Ok(execution)
 }

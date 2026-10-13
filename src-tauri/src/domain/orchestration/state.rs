@@ -46,6 +46,9 @@ pub struct SharedExecutionState {
     /// Areas and files each node reported touching, by node id.
     pub touched_areas: BTreeMap<String, BTreeSet<String>>,
     pub touched_files: BTreeMap<String, BTreeSet<String>>,
+    /// The tasks of a spec each node said it finished, by node id: reported, not confirmed.
+    #[serde(default)]
+    pub completed_tasks: BTreeMap<String, BTreeSet<String>>,
     pub validation_results: Vec<ValidationEntry>,
     pub warnings: Vec<OverlapWarning>,
     /// How many times each loop has gone round, by loop id.

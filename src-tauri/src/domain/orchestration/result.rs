@@ -116,6 +116,10 @@ pub struct AgentResult {
     pub touched_files: Vec<String>,
     #[serde(default)]
     pub touched_areas: Vec<String>,
+    /// The numbers of the tasks of a spec's task list the agent says it finished (`1.1`…). What
+    /// the agent *reports*: Atlas confirms nothing from it alone.
+    #[serde(default)]
+    pub completed_tasks: Vec<String>,
     #[serde(default)]
     pub validation: Option<ValidationSummary>,
     /// What the agent thinks should happen next. Information for the user: the workflow decides.

@@ -329,6 +329,33 @@ pub struct RecoveryRecord {
 
 /// One run of a workflow. Definition and run are kept apart: the run holds the snapshot of the
 /// definition it started from, so editing the definition never changes a run in progress.
+/// A task of the spec's task list, as the run was given it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpecTaskRef {
+    pub id: String,
+    pub text: String,
+}
+
+/// The approved specification a run implements (ADR 0035): which spec, which revisions of each
+/// document, what the agents were told of it, and the tasks to follow. Kept with the run, so the
+/// spec changing afterwards changes nothing the run was given, and can be told apart from it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpecLink {
+    pub spec_id: String,
+    pub title: String,
+    pub change_id: String,
+    /// The revision of each document the run was given.
+    pub revisions: BTreeMap<String, u32>,
+    /// What the documents say, bounded, as every step's brief carries it.
+    pub digest: String,
+    pub tasks: Vec<SpecTaskRef>,
+    /// Where the files are in the project, when they were published.
+    #[serde(default)]
+    pub published_root: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkflowExecution {
@@ -347,6 +374,9 @@ pub struct WorkflowExecution {
     /// has one shared worktree, so it has one working project.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scope: Option<crate::domain::scope::ScopeRequest>,
+    /// The approved spec this run implements, if it was started from one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub spec: Option<SpecLink>,
     pub status: WorkflowExecutionStatus,
     #[serde(default)]
     pub failure: Option<WorkflowFailure>,
@@ -401,6 +431,7 @@ impl WorkflowExecution {
             task,
             auto_approve_plans: false,
             scope: None,
+            spec: None,
             status: WorkflowExecutionStatus::Running,
             failure: None,
             cancel_requested: false,
