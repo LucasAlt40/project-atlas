@@ -422,3 +422,5 @@ ou um estado compartilhado precise deles.
 - [0032 — Compartilhar configurações como arquivo](adr/0032-configuration-import-export.md) — JSON versionado; prévia, decisões e uma importação de tudo ou nada
 - [0033 — Workspaces com vários projetos](adr/0033-multi-project-workspaces.md) — Harness local por projeto mais um contexto do workspace; escopo, worktrees, migração
 - [0034 — Acesso pelo celular](adr/0034-mobile-remote-access.md) — um celular na rede local acompanha execuções e responde o que espera; pareamento, níveis de ação, SSE com cursor, limites do HTTP
+- [0036 — Custo do SDD](adr/0036-custo-do-sdd.md) — consumo por spec medido, limite de tokens, alteração por seções, revisão que sabe o que mudou; o que ainda não foi feito
+- [0035 — Specs (SDD)](adr/0035-spec-driven-development.md) — especificação escrita por agentes e aprovada pela pessoa antes do workflow; OpenSpec como primeiro formato, motor interno, validação em duas camadas, publicação segura, CLI opcional

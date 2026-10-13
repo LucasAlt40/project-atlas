@@ -18,6 +18,7 @@ ligam, como o contexto é gravado, como o workflow roda e como o Harness é gera
 | 6   | [Persistência, eventos e observabilidade](06-persistencia-eventos-e-observabilidade.md) | O que é gravado e onde, uso/custo, eventos, métricas de otimização          |
 | 7   | [Importar e exportar](07-importar-e-exportar.md)                                        | Compartilhar agentes, personalidades e workflows como arquivo               |
 | 8   | [Acesso pelo celular](08-acesso-pelo-celular.md)                                        | Acompanhar e responder execuções pelo navegador do celular, na rede local   |
+| 9   | [Specs (SDD)](09-specs-sdd.md)                                                          | Escrever, validar e aprovar uma especificação antes do workflow (OpenSpec)  |
 
 ## Ordem de leitura sugerida
 
