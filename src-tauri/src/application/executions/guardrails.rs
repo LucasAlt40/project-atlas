@@ -140,7 +140,9 @@ impl ExecutionService {
         let harness_text = ctx.inputs.harness.as_deref().unwrap_or("");
         let review = review::review(&ReviewInput {
             items: &items.items,
-            is_step: ctx.step,
+            // A protocol is required of a step that has a brief. A turn that waits for an answer
+            // without one (a specification step) carries its own protocol in its text.
+            is_step: ctx.step && ctx.inputs.parts.is_some(),
             engine: ctx.engine,
             stale_items: ctx
                 .record

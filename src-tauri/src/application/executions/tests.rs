@@ -2631,6 +2631,28 @@ fn with_nobody_to_ask_a_conversation_is_told_and_goes_on() {
 }
 
 #[test]
+fn a_turn_that_can_wait_for_an_answer_but_has_no_brief_is_not_asked_for_a_result_protocol() {
+    let f = with_flags(fixture(vec![("rt-a", Ok("done"))]), guarded());
+    let agent = create_agent(&f, "rt-a");
+
+    let record = f
+        .service
+        .run_step(
+            f.service.next_execution_id(),
+            request(&f, &agent, "Write the proposal\n\n"),
+            StepOptions {
+                detect_interaction: true,
+                ..StepOptions::default()
+            },
+            &Collector::default(),
+        )
+        .unwrap();
+
+    assert_eq!(record.execution.status, ExecutionStatus::Completed);
+    assert_eq!(f.runtimes[0].requests.lock().unwrap().len(), 1);
+}
+
+#[test]
 fn a_step_without_its_result_protocol_is_never_started() {
     let f = with_flags(fixture(vec![("rt-a", Ok("done"))]), guarded());
     let agent = create_agent(&f, "rt-a");
