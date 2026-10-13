@@ -5,6 +5,8 @@ import type { TranslationKey } from '@/i18n';
 import type { ToolPlanItemDto, WorkflowModeDto } from '@/lib/tauri/commands';
 import type { WorkflowTemplate } from '../types';
 import { canGrantTools } from '../model/templateView';
+import { StartChoice, type StartFrom } from '@/features/specs/components/StartChoice';
+import type { SpecSummary } from '@/features/specs/types';
 import { TemplatePreview } from './TemplatePreview';
 import styles from './Workflow.module.css';
 
@@ -30,6 +32,14 @@ interface Props {
   error: string | null;
   onCreate: (choice: NewWorkflowChoice) => void;
   onCancel?: () => void;
+  /**
+   * The specs a run could be started from, when the Specs module is on: the form then asks how to
+   * start, vibe coding or a spec. Absent, the form is what it always was.
+   */
+  specs?: SpecSummary[];
+  startFrom?: StartFrom;
+  onStartFrom?: (value: StartFrom) => void;
+  onNewSpec?: () => void;
 }
 
 interface CardsProps {
@@ -128,6 +138,10 @@ export function NewWorkflowPanel({
   error,
   onCreate,
   onCancel,
+  specs,
+  startFrom,
+  onStartFrom,
+  onNewSpec,
 }: Props) {
   const { t } = useI18n();
   const [mode, setMode] = useState<WorkflowModeDto>('automatic');
@@ -199,6 +213,15 @@ export function NewWorkflowPanel({
       }}
     >
       <h2>{t('workflow.new.title')}</h2>
+      {specs && startFrom && onStartFrom && onNewSpec && (
+        <StartChoice
+          name="start-from-new"
+          specs={specs}
+          value={startFrom}
+          onChange={onStartFrom}
+          onNewSpec={onNewSpec}
+        />
+      )}
       <fieldset className={styles.modes}>
         <legend>{t('workflow.new.mode')}</legend>
         {(['automatic', 'custom'] as const).map((value) => (

@@ -24,6 +24,9 @@ import { InteractionPanel } from '../components/InteractionPanel';
 import { LiveWorkspacePanel } from '../components/LiveWorkspacePanel';
 import { ReviewWorkspace } from '../components/ReviewWorkspace';
 import { RouteRepairDialog } from '../components/RouteRepairDialog';
+import { SpecRunPanel } from '@/features/specs/components/SpecRunPanel';
+import { StartChoice, VIBE, type StartFrom } from '@/features/specs/components/StartChoice';
+import { useReadySpecs } from '@/features/specs/hooks/useReadySpecs';
 import { NewWorkflowPanel, type NewWorkflowChoice } from '../components/NewWorkflowPanel';
 import { AutoPlansToggle } from '../components/AutoPlansToggle';
 import { SaveTemplate } from '../components/SaveTemplate';
@@ -64,6 +67,13 @@ export function WorkflowPage() {
   const { intent, navigate } = useNavigation();
   const active = workspace.active;
   const space = useWorkflows(active?.id);
+  // Starting from an approved spec (ADR 0035): only while the module is on.
+  const readySpecs = useReadySpecs(active?.id);
+  const [startFrom, setStartFrom] = useState<StartFrom>(
+    intent?.type === 'workflow-from-spec' ? { kind: 'spec', specId: intent.specId } : VIBE,
+  );
+  const startSpec =
+    startFrom.kind === 'spec' ? readySpecs.find((s) => s.id === startFrom.specId) : undefined;
 
   const [selection, setSelection] = useState<Selection>(null);
   const [task, setTask] = useState('');
@@ -228,6 +238,12 @@ export function WorkflowPage() {
           onDeleteTemplate={(id) => void space.removeTemplate(id)}
           error={space.error === undefined ? null : errorMessage(t, space.error)}
           onCreate={create}
+          specs={readySpecs}
+          startFrom={startFrom}
+          onStartFrom={setStartFrom}
+          onNewSpec={() => {
+            navigate('specs', { type: 'new-spec' });
+          }}
           {...(space.workflows.length > 0
             ? {
                 onCancel: () => {
@@ -266,7 +282,10 @@ export function WorkflowPage() {
     selection?.kind === 'edge' ? workflow?.edges.find((e) => e.id === selection.id) : undefined;
 
   const runStatus = shownRun?.status;
-  const canRun = editable && task.trim() !== '' && (space.validation?.valid ?? false);
+  const canRun =
+    editable &&
+    (startFrom.kind === 'spec' ? startSpec !== undefined : task.trim() !== '') &&
+    (space.validation?.valid ?? false);
   const inspectedAgent = inspected ? agents.find((a) => a.id === inspected.agentId) : undefined;
 
   return (
@@ -497,6 +516,17 @@ export function WorkflowPage() {
         )}
 
         {editable && (
+          <StartChoice
+            name="start-from-run"
+            specs={readySpecs}
+            value={startFrom}
+            onChange={setStartFrom}
+            onNewSpec={() => {
+              navigate('specs', { type: 'new-spec' });
+            }}
+          />
+        )}
+        {editable && (
           <div className={styles.runBar}>
             <input
               className={styles.control}
@@ -525,7 +555,14 @@ export function WorkflowPage() {
               disabled={!canRun}
               onClick={() => {
                 const scope = toScopeRequest(runScope, active);
-                if (scope) void space.run(task.trim(), autoPlans, scope);
+                if (startFrom.kind === 'spec') {
+                  void space
+                    .run(task.trim(), autoPlans, scope, startFrom.specId)
+                    .then((started) => {
+                      // A spec is built from on purpose, not by leaving the choice where it was.
+                      if (started) setStartFrom(VIBE);
+                    });
+                } else if (scope) void space.run(task.trim(), autoPlans, scope);
                 else void space.run(task.trim(), autoPlans);
               }}
             >
@@ -538,6 +575,16 @@ export function WorkflowPage() {
           <p role="alert" className={styles.failure}>
             {errorMessage(t, space.error)}
           </p>
+        )}
+        {shownRun?.spec && (
+          <SpecRunPanel
+            link={shownRun.spec}
+            runId={shownRun.id}
+            stamp={shownRun.updatedAt}
+            onOpenSpec={(specId) => {
+              navigate('specs', { type: 'open-spec', specId });
+            }}
+          />
         )}
         {notice && (
           <p role="status" className={styles.warning}>

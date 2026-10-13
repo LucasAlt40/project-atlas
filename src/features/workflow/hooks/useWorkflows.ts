@@ -519,7 +519,7 @@ export function useWorkflows(workspaceId: string | undefined) {
   }, [selectedId, workflows, guard]);
 
   const run = useCallback(
-    async (task: string, autoApprovePlans = false, scope?: ScopeRequestDto) => {
+    async (task: string, autoApprovePlans = false, scope?: ScopeRequestDto, specId?: string) => {
       if (!draft) return undefined;
       return guard(async () => {
         // What is run is what is saved: unsaved edits are saved first.
@@ -529,9 +529,11 @@ export function useWorkflows(workspaceId: string | undefined) {
           upsert(workflow);
           dispatch({ type: 'saved', workflow });
         }
-        const started = scope
-          ? await startWorkflow(workflow.id, task, autoApprovePlans, scope)
-          : await startWorkflow(workflow.id, task, autoApprovePlans);
+        const started = specId
+          ? await startWorkflow(workflow.id, task, autoApprovePlans, scope, specId)
+          : scope
+            ? await startWorkflow(workflow.id, task, autoApprovePlans, scope)
+            : await startWorkflow(workflow.id, task, autoApprovePlans);
         setRuns((current) => [started, ...current.filter((r) => r.id !== started.id)]);
         setShownRunId(started.id);
         return started;
