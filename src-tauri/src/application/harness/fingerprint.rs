@@ -30,6 +30,9 @@ use crate::domain::harness::{
 pub const STRUCTURE_DEPTH: usize = 2;
 /// Files count down to this depth.
 const FILE_DEPTH: usize = 3;
+/// Where specifications are kept (ADR 0035): documents about a change, not part of what the Harness
+/// knows about the project. Publishing a spec must not make the Harness out of date.
+const SPEC_FOLDER: &str = "openspec";
 /// Marks a folder part, so it cannot collide with a file path.
 const DIR_PREFIX: &str = "dir:";
 /// Only the first bytes of a large file are digested.
@@ -93,7 +96,10 @@ const EXTENSIONS: &[&str] = &["csproj", "fsproj", "sln"];
 
 /// Whether a file is a part of the fingerprint. Never true for anything secret.
 pub fn is_relevant_file(path: &str) -> bool {
-    if depth(path) > FILE_DEPTH || super::sampler::looks_secret_path(path) {
+    if depth(path) > FILE_DEPTH
+        || path.split('/').next() == Some(SPEC_FOLDER)
+        || super::sampler::looks_secret_path(path)
+    {
         return false;
     }
     let name = file_name(path).to_ascii_lowercase();
@@ -133,7 +139,9 @@ pub fn compute(snapshot: &ScanSnapshot) -> ProjectFingerprint {
             // entered, and are not structure either.
             if depth(path) < STRUCTURE_DEPTH
                 && !is_ignored_dir(file_name(path))
-                && !path.split('/').any(is_ignored_dir)
+                && !path
+                    .split('/')
+                    .any(|name| is_ignored_dir(name) || name == SPEC_FOLDER)
             {
                 parts.insert(format!("{DIR_PREFIX}{path}"), "dir".to_owned());
             }
@@ -331,6 +339,18 @@ mod tests {
             .files
             .insert(".env".into(), "TOKEN=other".into());
         assert_eq!(fingerprint, compute(&with_secret));
+    }
+
+    #[test]
+    fn publishing_a_spec_does_not_change_the_fingerprint() {
+        let before = compute(&project());
+        let mut published = project();
+        published.dir("openspec");
+        published.dir("openspec/changes");
+        published.file("openspec/changes/README.md", Some("# changes"));
+        published.file("openspec/README.md", Some("# specs"));
+
+        assert_eq!(before, compute(&published));
     }
 
     #[test]
