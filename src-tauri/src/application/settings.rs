@@ -34,6 +34,18 @@ impl SettingsService {
         })
     }
 
+    /// The most tokens the runs of one specification may use together (`None`: no limit).
+    ///
+    /// # Errors
+    ///
+    /// Fails if saving fails.
+    pub fn set_specs_max_tokens(&self, max: Option<u64>) -> Result<AppSettings, AppError> {
+        self.config.modify(|config| {
+            config.settings.optimization.specs_max_tokens = max.filter(|m| *m > 0);
+            Ok(config.settings.clone())
+        })
+    }
+
     /// Remembers which workspace is open (`None`: none).
     ///
     /// # Errors
@@ -112,6 +124,19 @@ mod tests {
                 optimization: crate::application::config::OptimizationSettings::default(),
             }
         );
+    }
+
+    #[test]
+    fn the_token_limit_of_a_spec_persists_and_zero_means_none() {
+        let (service, store) = service_with_workspace();
+        assert_eq!(service.get().optimization.specs_max_tokens, None);
+
+        service.set_specs_max_tokens(Some(250_000)).unwrap();
+        let restarted = SettingsService::new(Arc::new(ConfigRepository::load(Box::new(store))));
+        assert_eq!(restarted.get().optimization.specs_max_tokens, Some(250_000));
+
+        restarted.set_specs_max_tokens(Some(0)).unwrap();
+        assert_eq!(restarted.get().optimization.specs_max_tokens, None);
     }
 
     #[test]

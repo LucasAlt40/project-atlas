@@ -42,8 +42,8 @@ use application::workflow::service::WorkflowService;
 use application::workspace::WorkspaceService;
 use application::worktree::{WorktreeLayout, WorktreeService};
 use infrastructure::{
-    FsHarnessStore, FsProjectInspector, FsProjectScanner, FsSkillStore, GitWorktreeManager,
-    JsonConfigStore, SystemIdeLauncher, SystemProcessRunner,
+    FsHarnessStore, FsProjectFiles, FsProjectInspector, FsProjectScanner, FsSkillStore,
+    FsSpecStore, GitWorktreeManager, JsonConfigStore, SystemIdeLauncher, SystemProcessRunner,
 };
 use platform::OsPlatform;
 use state::AppState;
@@ -81,7 +81,18 @@ pub fn run() {
                 Arc::new(commands::events::TauriLiveSink {
                     app: app.handle().clone(),
                 });
-            app.manage(build_state(&data_dir, sink, sessions, Some(progress), live));
+            let spec_events: Arc<dyn application::specs::service::SpecEvents> =
+                Arc::new(commands::specs::TauriSpecEvents {
+                    app: app.handle().clone(),
+                });
+            app.manage(build_state(
+                &data_dir,
+                sink,
+                sessions,
+                Some(progress),
+                live,
+                spec_events,
+            ));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -117,6 +128,8 @@ pub fn run() {
             commands::workspace::remove_workspace_project,
             commands::settings::get_settings,
             commands::settings::set_language,
+            commands::settings::set_specs_max_tokens,
+            commands::specs::raise_spec_budget,
             commands::settings::select_workspace,
             commands::chat::send_message,
             commands::chat::list_messages,
@@ -204,6 +217,32 @@ pub fn run() {
             commands::remote::new_remote_pairing_code,
             commands::remote::revoke_remote_device,
             commands::remote::revoke_all_remote_devices,
+            commands::specs::list_specs,
+            commands::specs::get_spec,
+            commands::specs::create_spec,
+            commands::specs::delete_spec,
+            commands::specs::assign_spec_agents,
+            commands::specs::start_spec,
+            commands::specs::generate_spec_artifact,
+            commands::specs::decide_spec_artifact,
+            commands::specs::keep_spec_artifact,
+            commands::specs::answer_spec_question,
+            commands::specs::answer_spec_findings,
+            commands::specs::resolve_spec_finding,
+            commands::specs::run_spec_review,
+            commands::specs::waive_spec_review,
+            commands::specs::approve_spec,
+            commands::specs::validate_spec,
+            commands::specs::publish_spec,
+            commands::specs::archive_spec,
+            commands::specs::cancel_spec_run,
+            commands::specs::list_importable_specs,
+            commands::specs::import_spec,
+            commands::specs::list_ready_specs,
+            commands::specs::get_spec_progress,
+            commands::specs::get_openspec_cli_status,
+            commands::specs::check_spec_with_cli,
+            commands::specs::archive_spec_with_cli,
         ])
         .build(context())
         .expect("error while building Project Atlas")
@@ -217,6 +256,7 @@ fn build_state(
     session_sink: Arc<dyn SessionSink>,
     harness_progress: Option<Arc<dyn application::harness::semantic::HarnessProgress>>,
     live_sink: Arc<dyn application::live_workspace::LiveSink>,
+    spec_events: Arc<dyn application::specs::service::SpecEvents>,
 ) -> AppState {
     let app_info = AppInfoService::new(env!("CARGO_PKG_VERSION").to_owned(), Arc::new(OsPlatform));
     let config = Arc::new(ConfigRepository::load(Box::new(JsonConfigStore::new(
@@ -230,14 +270,17 @@ fn build_state(
     // The runner publishes each terminal process it starts here; the same registry is what the
     // terminal commands control. A session exists only for a process the guard let start.
     let sessions = Arc::new(SessionRegistry::with_sink(session_sink));
-    let runner: Arc<dyn ProcessRunner> = Arc::new(GuardedProcessRunner::new(
-        Arc::new(SystemProcessRunner::new().with_sessions(sessions.clone())),
-        security.clone(),
-        approvals.clone(),
-        audit.clone(),
-        Arc::new(NoSandbox),
-        RUNTIME_PROGRAMS.map(str::to_owned).to_vec(),
-    ));
+    let runner: Arc<dyn ProcessRunner> = Arc::new(
+        GuardedProcessRunner::new(
+            Arc::new(SystemProcessRunner::new().with_sessions(sessions.clone())),
+            security.clone(),
+            approvals.clone(),
+            audit.clone(),
+            Arc::new(NoSandbox),
+            RUNTIME_PROGRAMS.map(str::to_owned).to_vec(),
+        )
+        .with_tools(vec!["openspec".to_owned()]),
+    );
     let runtimes = Arc::new(RuntimeRegistry::with_default_runtimes(&runner));
     // MCP connections live in the configuration; their secrets only in the OS credential store.
     let mcp = Arc::new(
@@ -312,7 +355,15 @@ fn build_state(
                 progress: harness_progress,
             })),
     );
-    let first_id = worktrees.next_execution_number(history.next_execution_number());
+    // Branches `atlas/exec-N` that the projects already have, made by another install or an
+    // earlier data folder, are not in this one's records: numbering goes past them as well.
+    let project_paths: Vec<std::path::PathBuf> = workspaces
+        .list()
+        .iter()
+        .flat_map(|w| w.projects.iter().map(|p| std::path::PathBuf::from(&p.path)))
+        .collect();
+    let first_id =
+        worktrees.next_execution_number_in(history.next_execution_number(), &project_paths);
     let executions = Arc::new(
         ExecutionService::new(
             agents.clone(),
@@ -351,6 +402,7 @@ fn build_state(
         workspaces.clone(),
     ));
     workflows.recover_interrupted();
+    let config_for_spec_budget = config.clone();
     let settings = Arc::new(SettingsService::new(config));
     let chat = ChatService::with_history(
         agents.clone(),
@@ -359,6 +411,25 @@ fn build_state(
         ledger.clone(),
         history,
     );
+    // Specifications live in Atlas's own data folder, apart from `config.json`, and are written to
+    // the project only when the person publishes one (ADR 0035). A run an earlier session never
+    // saw end is reported as interrupted; nothing is resumed on its own.
+    let specs = Arc::new(
+        application::specs::service::SpecService::new(
+            Arc::new(FsSpecStore::new(data_dir.join("specs"))),
+            Arc::new(FsProjectFiles),
+            Arc::new(application::specs::openspec::OpenSpecAdapter),
+            workspaces.clone(),
+            agents.clone(),
+            spec_events,
+        )
+        .with_usage(ledger.clone())
+        .with_budget({
+            let config = config_for_spec_budget;
+            Arc::new(move || config.snapshot().settings.optimization.specs_max_tokens)
+        }),
+    );
+    specs.recover();
     let lifecycle = AgentLifecycle::new(
         agents.clone(),
         chat.clone(),
@@ -366,7 +437,23 @@ fn build_state(
         ledger.clone(),
         settings.clone(),
     )
-    .with_workflows(workflows.clone());
+    .with_workflows(workflows.clone())
+    .with_specs(specs.clone());
+    let spec_runner = Arc::new(application::specs::runner::SpecRunner::new(
+        specs.clone(),
+        chat.clone(),
+        sessions.clone(),
+    ));
+    let spec_cli = Arc::new(application::specs::cli_service::SpecCliService::new(
+        specs.clone(),
+        workflows.clone(),
+        application::specs::cli::OpenSpecCli::new(runner.clone()),
+        Arc::new(FsProjectFiles),
+    ));
+    let spec_work = Arc::new(application::specs::implementation::SpecImplementation::new(
+        specs.clone(),
+        workflows.clone(),
+    ));
     // A workflow step is an execution like any other: it goes through the chat layer, so
     // through the agent's worktree policy, the task context, the runtimes and the guard.
     let live = Arc::new(application::live_workspace::LiveWorkspaceService::new(
@@ -439,6 +526,10 @@ fn build_state(
         mcp_catalog,
         portability,
         remote,
+        specs,
+        spec_runner,
+        spec_work,
+        spec_cli,
     }
 }
 

@@ -4,6 +4,7 @@ use super::agents::AgentService;
 use super::chat::{AgentLock, ChatService};
 use super::errors::{AppError, ErrorCode};
 use super::settings::SettingsService;
+use super::specs::service::SpecService;
 use super::usage::UsageLedger;
 use super::workflow::service::WorkflowService;
 use super::workspace::WorkspaceService;
@@ -20,6 +21,8 @@ pub struct AgentLifecycle {
     settings: Arc<SettingsService>,
     /// Workflows belong to a workspace and go with it.
     workflows: Option<Arc<WorkflowService>>,
+    /// So do the specs written for it.
+    specs: Option<Arc<SpecService>>,
 }
 
 impl AgentLifecycle {
@@ -37,7 +40,15 @@ impl AgentLifecycle {
             ledger,
             settings,
             workflows: None,
+            specs: None,
         }
+    }
+
+    /// Also discards a workspace's specs (their records; the project's files are not touched).
+    #[must_use]
+    pub fn with_specs(mut self, specs: Arc<SpecService>) -> Self {
+        self.specs = Some(specs);
+        self
     }
 
     /// Also discards a workspace's workflows (and refuses to delete one that has a run going).
@@ -96,6 +107,9 @@ impl AgentLifecycle {
         self.chat.discard_workspace(workspace_id);
         if let Some(workflows) = &self.workflows {
             workflows.discard_workspace(workspace_id)?;
+        }
+        if let Some(specs) = &self.specs {
+            specs.discard_workspace(workspace_id);
         }
         Ok(self.workspaces.list())
     }

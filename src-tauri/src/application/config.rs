@@ -60,6 +60,11 @@ pub struct OptimizationSettings {
     /// a prompt only to remove something that looked like a secret.
     #[serde(default = "default_guardrails_enabled")]
     pub guardrails_enabled: bool,
+    /// `optimization.specs.maxTokens`: what the runs of one specification may use together (input
+    /// plus output, as the runtimes reported it). When it is reached no new run starts for the
+    /// spec until the person says to go on. `None`: no limit.
+    #[serde(default)]
+    pub specs_max_tokens: Option<u64>,
 }
 
 fn default_guardrails_enabled() -> bool {
@@ -78,6 +83,7 @@ impl Default for OptimizationSettings {
             context_max_tokens: None,
             skills_enabled: false,
             guardrails_enabled: true,
+            specs_max_tokens: None,
         }
     }
 }

@@ -69,6 +69,22 @@ pub struct WorkflowStepRequest {
     pub scope: Option<ScopeRequest>,
 }
 
+/// An agent's turn on a document of a specification (ADR 0035): read-only, and it may stop to
+/// ask the person. Not a workflow step: no run of a workflow is behind it.
+#[derive(Debug, Clone)]
+pub struct SpecStepRequest {
+    pub workspace_id: String,
+    pub agent_id: String,
+    /// What the conversation shows as the request.
+    pub display_task: String,
+    /// The instruction sent to the agent.
+    pub instruction: String,
+    /// What the Task Context is selected for.
+    pub context_query: String,
+    /// The project the agent reads: the spec's own.
+    pub scope: Option<ScopeRequest>,
+}
+
 /// How a run ended, as much as a caller driving it needs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RunSummary {
@@ -276,6 +292,7 @@ impl ChatService {
                 review: None,
                 shared_worktree: None,
                 workflow: None,
+                detect_interaction: false,
                 announce: None,
                 execution_id,
                 _busy: busy,
@@ -312,6 +329,32 @@ impl ChatService {
         pending.shared_worktree = step.shared_worktree;
         pending.announce_integrations = step.announce_integrations;
         pending.read_only = step.read_only;
+        pending.announce = Some(sent.user_message.clone());
+        Ok((sent, pending))
+    }
+
+    /// Records the request for a document of a specification and reserves its execution, as
+    /// [`Self::send_workflow_step`] does for a step: it is an execution like any other, with the
+    /// agent's policy, the project's context and the guard, but it may never edit a file and its
+    /// answer is read for a question to the person.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::send`].
+    pub fn send_spec_step(
+        &self,
+        step: SpecStepRequest,
+    ) -> Result<(SentMessage, PendingRun), ChatError> {
+        let (sent, mut pending) = self.send(SendMessageRequest {
+            workspace_id: step.workspace_id,
+            agent_id: step.agent_id,
+            content: step.display_task,
+            scope: step.scope,
+        })?;
+        pending.instruction = step.instruction;
+        pending.context_query = Some(step.context_query);
+        pending.read_only = true;
+        pending.detect_interaction = true;
         pending.announce = Some(sent.user_message.clone());
         Ok((sent, pending))
     }
@@ -375,6 +418,9 @@ pub struct PendingRun {
     read_only: bool,
     scope: Option<ScopeRequest>,
     workflow: Option<WorkflowLink>,
+    /// Look at the answer for a request for a person even though no workflow is behind the run
+    /// (a spec's document: ADR 0035).
+    detect_interaction: bool,
     /// A message nobody was told about yet (a workflow step's request).
     announce: Option<Message>,
     execution_id: String,
@@ -404,7 +450,7 @@ impl PendingRun {
             shared_worktree: self.shared_worktree.as_deref(),
             // A workflow step that asks a person something waits for the answer; in a
             // conversation the person just replies.
-            detect_interaction: self.workflow.is_some(),
+            detect_interaction: self.workflow.is_some() || self.detect_interaction,
             workflow_id: self.workflow.as_ref().map(|link| link.workflow_id.as_str()),
             node_id: self.workflow.as_ref().map(|link| link.node_id.as_str()),
             announce_integrations: self.announce_integrations,
@@ -492,7 +538,11 @@ impl PendingRun {
             Ok(record) => RunSummary {
                 status: record.execution.status,
                 result: record.execution.result.clone(),
-                failure: record.execution.failure.as_ref().map(ExecutionFailure::full_text),
+                failure: record
+                    .execution
+                    .failure
+                    .as_ref()
+                    .map(ExecutionFailure::full_text),
                 interaction: record.execution.interaction.clone(),
             },
             Err(error) => RunSummary {

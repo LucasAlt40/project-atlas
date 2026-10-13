@@ -143,6 +143,44 @@ pub enum ErrorCode {
     UpdateCheckFailed,
     /// The update was found but downloading, verifying or installing it failed.
     UpdateInstallFailed,
+    SpecNotFound,
+    SpecArtifactNotFound,
+    SpecQuestionNotFound,
+    SpecFindingNotFound,
+    /// What was asked for a new spec is not acceptable (`reason` is a code: title, request, agent…).
+    SpecInvalid,
+    /// The change id is not kebab-case (`reason`: `empty`, `format`, `too_long`).
+    SpecChangeIdInvalid,
+    /// The spec is not in a state that allows what was asked (`reason` is a code).
+    SpecStateInvalid,
+    /// The documents this one is written from are not all approved (`artifacts` lists them).
+    SpecDependenciesNotApproved,
+    /// An agent is already working on the spec: one run at a time.
+    SpecRunInProgress,
+    /// What the spec's runs used reached the budget (`spent`, `limit`): the person decides.
+    SpecBudgetReached,
+    /// The person was looking at an older revision (`current` is the latest).
+    SpecRevisionOutdated,
+    /// Asking for changes, accepting a risk or going without the review needs the person's words.
+    SpecNoteRequired,
+    /// The document has errors the checks found: they have to be fixed first.
+    SpecValidationBlocking,
+    /// Something still keeps the spec from being ready (the interface lists what).
+    SpecNotReady,
+    /// The change folder is already in the project (`change` names it); nothing was written.
+    SpecChangeExists,
+    /// Writing the files stopped half way (`detail` says why); doing it again picks up from there.
+    SpecPublishFailed,
+    /// That change is already one of this workspace's specs.
+    SpecAlreadyImported,
+    /// The change could not be read from the project (`reason`).
+    SpecImportFailed,
+    /// The `OpenSpec` command is not installed or is a version Atlas does not know.
+    SpecCliUnavailable,
+    /// The `OpenSpec` command ran and said no (`detail`).
+    SpecCliFailed,
+    /// An implementation run still uses the spec, so it cannot be deleted.
+    SpecInUse,
 }
 
 /// A failure with a stable code, values for the message (`params`), and an optional technical

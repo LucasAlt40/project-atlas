@@ -12,6 +12,15 @@ pub fn get_settings(state: State<'_, AppState>) -> AppSettings {
 
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command]
+pub fn set_specs_max_tokens(
+    state: State<'_, AppState>,
+    max: Option<u64>,
+) -> Result<AppSettings, AppError> {
+    state.settings.set_specs_max_tokens(max)
+}
+
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command]
 pub fn set_language(state: State<'_, AppState>, language: String) -> Result<AppSettings, AppError> {
     state.settings.set_language(&language)
 }

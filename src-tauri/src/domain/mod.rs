@@ -17,6 +17,7 @@ pub mod rules;
 pub mod runtime;
 pub mod scope;
 pub mod security;
+pub mod spec;
 pub mod task;
 pub mod task_context;
 pub mod terminal;

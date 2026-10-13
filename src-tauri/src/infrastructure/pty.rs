@@ -279,7 +279,7 @@ pub fn run_in_terminal(
 
     let scope = match &spec.context {
         ProcessContext::Runtime(scope) | ProcessContext::AgentRequested(scope) => Some(scope),
-        ProcessContext::Probe => None,
+        ProcessContext::Probe | ProcessContext::Tool => None,
     };
     let session = sessions.zip(scope).map(|(registry, scope)| {
         registry.open(OpenSession {

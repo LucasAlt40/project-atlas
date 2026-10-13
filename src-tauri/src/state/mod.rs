@@ -14,6 +14,8 @@ use crate::application::runtimes::RuntimeRegistry;
 use crate::application::security::{ApprovalBroker, SecurityOverview};
 use crate::application::sessions::SessionRegistry;
 use crate::application::settings::SettingsService;
+use crate::application::specs::runner::SpecRunner;
+use crate::application::specs::service::SpecService;
 use crate::application::usage_reports::UsageReporter;
 use crate::application::workflow::integration::IntegrationService;
 use crate::application::workflow::orchestrator::Orchestrator;
@@ -57,6 +59,12 @@ pub struct AppState {
     /// Watching and answering runs from a phone on the local network. Off until the person
     /// switches it on.
     pub remote: Arc<RemoteAccess>,
+    /// Specifications (ADR 0035): their records and the checks, and the agents' turns on them.
+    pub specs: Arc<SpecService>,
+    pub spec_runner: Arc<SpecRunner>,
+    pub spec_work: Arc<crate::application::specs::implementation::SpecImplementation>,
+    /// The optional `OpenSpec` command (a second look at a published change, and the archive).
+    pub spec_cli: Arc<crate::application::specs::cli_service::SpecCliService>,
 }
 
 #[cfg(test)]
@@ -160,6 +168,14 @@ impl AppState {
             workspaces.clone(),
             ledger.clone(),
         );
+        let specs = Arc::new(SpecService::new(
+            Arc::new(crate::application::specs::ports::MemorySpecStore::default()),
+            Arc::new(crate::application::specs::ports::MemoryProjectFiles::default()),
+            Arc::new(crate::application::specs::openspec::OpenSpecAdapter),
+            workspaces.clone(),
+            agents.clone(),
+            Arc::new(crate::application::specs::service::NoEvents),
+        ));
         let lifecycle = AgentLifecycle::new(
             agents.clone(),
             chat.clone(),
@@ -167,9 +183,31 @@ impl AppState {
             ledger.clone(),
             settings.clone(),
         )
-        .with_workflows(workflows.clone());
+        .with_workflows(workflows.clone())
+        .with_specs(specs.clone());
         let approvals = Arc::new(ApprovalBroker::new());
         let sessions = Arc::new(crate::application::sessions::SessionRegistry::default());
+        let spec_runner = Arc::new(SpecRunner::new(
+            specs.clone(),
+            chat.clone(),
+            sessions.clone(),
+        ));
+        let spec_cli = Arc::new(crate::application::specs::cli_service::SpecCliService::new(
+            specs.clone(),
+            workflows.clone(),
+            crate::application::specs::cli::OpenSpecCli::new(Arc::new(
+                crate::application::process::fake::FakeProcessRunner::new(&[], |_| {
+                    Err(crate::application::process::ProcessError::NotFound)
+                }),
+            )),
+            Arc::new(crate::application::specs::ports::MemoryProjectFiles::default()),
+        ));
+        let spec_work = Arc::new(
+            crate::application::specs::implementation::SpecImplementation::new(
+                specs.clone(),
+                workflows.clone(),
+            ),
+        );
         let live = Arc::new(LiveWorkspaceService::new(
             worktrees.clone(),
             workflows.clone(),
@@ -239,6 +277,10 @@ impl AppState {
             ))),
             portability,
             remote,
+            specs,
+            spec_runner,
+            spec_work,
+            spec_cli,
         }
     }
 }

@@ -71,6 +71,10 @@ pub enum ProcessContext {
     Probe,
     /// Atlas starting a runtime's CLI to perform an execution.
     Runtime(ExecutionScope),
+    /// Atlas itself running a tool one of its features uses on a project folder (the `OpenSpec`
+    /// command, ADR 0035): never an agent's request. Only a known tool, by bare name, in a folder
+    /// it names, with a subcommand the guard knows.
+    Tool,
     /// A command an agent asked Atlas to run on its behalf. No Atlas feature issues these yet
     /// (the runtimes run their own tools inside their process); the security layer is ready
     /// for the first one.

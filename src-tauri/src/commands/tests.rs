@@ -17,6 +17,7 @@ impl PlatformInfo for FakePlatform {
     }
 }
 
+#[allow(clippy::too_many_lines)] // the command list
 fn window() -> (tauri::App<MockRuntime>, WebviewWindow<MockRuntime>) {
     let app_info = AppInfoService::new("9.9.9".to_owned(), std::sync::Arc::new(FakePlatform));
     let app = mock_builder()
@@ -48,6 +49,8 @@ fn window() -> (tauri::App<MockRuntime>, WebviewWindow<MockRuntime>) {
             super::workspace::get_project_context,
             super::settings::get_settings,
             super::settings::set_language,
+            super::settings::set_specs_max_tokens,
+            super::specs::raise_spec_budget,
             super::settings::select_workspace,
             super::chat::send_message,
             super::chat::list_messages,
@@ -103,6 +106,14 @@ fn window() -> (tauri::App<MockRuntime>, WebviewWindow<MockRuntime>) {
             super::workflow::discard_workflow_changes,
             super::workflow::list_ides,
             super::workflow::open_workflow_in_ide,
+            super::specs::list_specs,
+            super::specs::get_spec,
+            super::specs::create_spec,
+            super::specs::delete_spec,
+            super::specs::decide_spec_artifact,
+            super::specs::approve_spec,
+            super::specs::publish_spec,
+            super::specs::list_ready_specs,
         ])
         .build(crate::context())
         .expect("failed to build mock app");
@@ -448,8 +459,9 @@ fn settings_default_to_portuguese_and_persist_language_and_selected_workspace() 
                 "contextEnabled": false,
                 "contextMaxTokens": null,
                 "skillsEnabled": false,
-                "guardrailsEnabled": true
-            }
+                "guardrailsEnabled": true,
+                "specsMaxTokens": null
+            },
         })
     );
     invoke(&window, "set_language", json!({ "language": "en-US" })).unwrap();
@@ -1481,4 +1493,74 @@ fn the_file_commands_report_coded_errors_and_save_nothing_that_is_not_an_atlas_f
         let error = invoke(&window, command, body).unwrap_err();
         assert_eq!(error["code"], code, "{command}");
     }
+}
+
+fn spec_body(workspace: &Value, agent: &Value) -> Value {
+    json!({ "request": {
+        "workspaceId": workspace["id"], "title": "Dark mode",
+        "request": "Add a dark mode", "context": "",
+        "authorAgentId": agent["id"],
+    }})
+}
+
+#[test]
+fn a_spec_can_be_created_listed_read_and_deleted_through_the_commands() {
+    let (_app, window) = window();
+    let ws = create_workspace(&window, "A", "/atlas");
+    let agent = create_agent(&window);
+    invoke(
+        &window,
+        "add_agent_to_workspace",
+        json!({ "workspaceId": ws["id"], "agentId": agent["id"] }),
+    )
+    .unwrap();
+
+    let created = invoke(&window, "create_spec", spec_body(&ws, &agent)).unwrap();
+
+    assert_eq!(created["status"], "draft");
+    assert_eq!(created["spec"]["changeId"], "dark-mode");
+    assert_eq!(created["spec"]["started"], false);
+    let id = created["spec"]["id"].clone();
+    let list = invoke(&window, "list_specs", json!({ "workspaceId": ws["id"] })).unwrap();
+    assert_eq!(list[0]["id"], id);
+    assert_eq!(list[0]["status"], "draft");
+    let read = invoke(&window, "get_spec", json!({ "specId": id })).unwrap();
+    assert_eq!(read["spec"]["artifacts"].as_array().unwrap().len(), 4);
+    assert_eq!(read["readiness"]["ready"], false);
+    // Nothing was written yet, so nothing can be approved or published.
+    let error = invoke(&window, "approve_spec", json!({ "specId": id })).unwrap_err();
+    assert_eq!(error["code"], "spec_not_ready");
+    let error = invoke(&window, "publish_spec", json!({ "specId": id })).unwrap_err();
+    assert_eq!(error["code"], "spec_not_ready");
+    let error = invoke(
+        &window,
+        "decide_spec_artifact",
+        json!({ "specId": id, "artifactId": "proposal", "expectedRevision": 1, "decision": "approve", "note": null }),
+    )
+    .unwrap_err();
+    assert_eq!(error["code"], "spec_state_invalid");
+    let error = invoke(
+        &window,
+        "decide_spec_artifact",
+        json!({ "specId": id, "artifactId": "proposal", "expectedRevision": 1, "decision": "yolo", "note": null }),
+    )
+    .unwrap_err();
+    assert_eq!(error["code"], "spec_invalid");
+    invoke(&window, "delete_spec", json!({ "specId": id })).unwrap();
+    assert_eq!(
+        invoke(&window, "list_specs", json!({ "workspaceId": ws["id"] })).unwrap(),
+        json!([])
+    );
+}
+
+#[test]
+fn a_spec_for_an_agent_that_is_not_in_the_workspace_is_refused_with_a_code() {
+    let (_app, window) = window();
+    let ws = create_workspace(&window, "A", "/atlas");
+    let agent = create_agent(&window);
+
+    let error = invoke(&window, "create_spec", spec_body(&ws, &agent)).unwrap_err();
+
+    assert_eq!(error["code"], "spec_invalid");
+    assert_eq!(error["params"]["reason"], "agent_invalid");
 }

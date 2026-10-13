@@ -163,6 +163,42 @@ pub fn evaluate_probe(spec: &ProcessSpec, known_programs: &[String]) -> Evaluati
     Evaluation::ALLOWED
 }
 
+/// The subcommands of a tool Atlas may start itself, by tool. Anything else is refused whatever
+/// the caller says: a feature gets the operations it was written for, not the whole tool.
+pub const TOOL_SUBCOMMANDS: [(&str, &[&str]); 1] =
+    [("openspec", &["--version", "validate", "status", "archive"])];
+
+/// Atlas running a tool of one of its own features in a project folder (not an agent's command):
+/// a known tool by bare name, no shell, no environment override, an absolute working directory
+/// that exists, and one of the subcommands allowed for that tool.
+pub fn evaluate_tool(spec: &ProcessSpec, known_tools: &[String]) -> Evaluation {
+    let stem = program_stem(&spec.program);
+    if is_shell(&stem) {
+        return Evaluation::denied(Reason::ShellNotPermitted);
+    }
+    if has_path(&spec.program) || !known_tools.contains(&stem) || spec.program != stem {
+        return Evaluation::denied(Reason::UnknownProgram);
+    }
+    if spec.env.iter().any(|(key, _)| is_dangerous_env(key)) {
+        return Evaluation::denied(Reason::EnvironmentOverride);
+    }
+    match &spec.cwd {
+        None => return Evaluation::denied(Reason::NoWorkingDirectory),
+        Some(cwd) if !cwd.is_absolute() || !cwd.is_dir() => {
+            return Evaluation::denied(Reason::ProjectUnavailable)
+        }
+        Some(_) => {}
+    }
+    let allowed = TOOL_SUBCOMMANDS
+        .iter()
+        .find(|(tool, _)| *tool == stem)
+        .map_or(&[][..], |(_, subs)| *subs);
+    match spec.args.first() {
+        Some(first) if allowed.contains(&first.as_str()) => Evaluation::ALLOWED,
+        _ => Evaluation::denied(Reason::NotInAllowedList),
+    }
+}
+
 /// A command an agent asked Atlas to run.
 pub fn evaluate_agent_request(
     policy: &SecurityPolicy,
@@ -783,5 +819,111 @@ mod tests {
             eval(&developer(), &p, "npm", &["run", "escape/file.js"]).reason,
             Some(Reason::OutsideProject)
         );
+    }
+
+    fn tool(root: &Path, program: &str, args: &[&str]) -> ProcessSpec {
+        ProcessSpec {
+            program: program.to_owned(),
+            args: args.iter().map(|a| (*a).to_owned()).collect(),
+            stdin: None,
+            cwd: Some(root.to_path_buf()),
+            env: vec![("OPENSPEC_TELEMETRY".to_owned(), "0".to_owned())],
+            timeout: Duration::from_secs(5),
+            context: ProcessContext::Tool,
+            terminal: None,
+        }
+    }
+
+    fn tools() -> Vec<String> {
+        vec!["openspec".to_owned()]
+    }
+
+    #[test]
+    fn a_known_tool_runs_in_a_project_folder_with_a_subcommand_it_was_given() {
+        let p = project();
+
+        for sub in ["--version", "validate", "status", "archive"] {
+            let spec = tool(&p.root, "openspec", &[sub, "x"]);
+            assert_eq!(evaluate_tool(&spec, &tools()), Evaluation::ALLOWED, "{sub}");
+        }
+    }
+
+    #[test]
+    fn a_tool_is_refused_when_it_is_not_known_has_a_path_or_is_a_shell() {
+        let p = project();
+
+        for program in [
+            "rm",
+            "openspec-evil",
+            "./openspec",
+            "/usr/bin/openspec",
+            "sh",
+            "bash",
+        ] {
+            let spec = tool(&p.root, program, &["validate"]);
+            assert_ne!(
+                evaluate_tool(&spec, &tools()),
+                Evaluation::ALLOWED,
+                "{program}"
+            );
+        }
+        assert_eq!(
+            evaluate_tool(&tool(&p.root, "sh", &["validate"]), &tools()),
+            Evaluation::denied(Reason::ShellNotPermitted)
+        );
+        assert_ne!(
+            evaluate_tool(&tool(&p.root, "openspec", &["validate"]), &[]),
+            Evaluation::ALLOWED,
+            "without a list of tools there are none"
+        );
+    }
+
+    #[test]
+    fn a_tool_needs_a_real_absolute_folder_and_no_environment_override() {
+        let p = project();
+        let mut no_cwd = tool(&p.root, "openspec", &["validate"]);
+        no_cwd.cwd = None;
+        let mut relative = tool(&p.root, "openspec", &["validate"]);
+        relative.cwd = Some(PathBuf::from("src"));
+        let mut missing = tool(&p.root, "openspec", &["validate"]);
+        missing.cwd = Some(p.root.join("nowhere"));
+        let mut path_env = tool(&p.root, "openspec", &["validate"]);
+        path_env.env.push(("PATH".to_owned(), "/tmp".to_owned()));
+
+        assert_eq!(
+            evaluate_tool(&no_cwd, &tools()),
+            Evaluation::denied(Reason::NoWorkingDirectory)
+        );
+        assert_eq!(
+            evaluate_tool(&relative, &tools()),
+            Evaluation::denied(Reason::ProjectUnavailable)
+        );
+        assert_eq!(
+            evaluate_tool(&missing, &tools()),
+            Evaluation::denied(Reason::ProjectUnavailable)
+        );
+        assert_eq!(
+            evaluate_tool(&path_env, &tools()),
+            Evaluation::denied(Reason::EnvironmentOverride)
+        );
+    }
+
+    #[test]
+    fn a_tool_gets_only_the_subcommands_a_feature_was_written_for() {
+        let p = project();
+
+        for args in [
+            &["config", "set", "x"][..],
+            &["init"],
+            &["update"],
+            &["store", "remove"],
+            &[],
+        ] {
+            assert_eq!(
+                evaluate_tool(&tool(&p.root, "openspec", args), &tools()),
+                Evaluation::denied(Reason::NotInAllowedList),
+                "{args:?}"
+            );
+        }
     }
 }

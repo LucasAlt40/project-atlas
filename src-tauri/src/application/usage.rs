@@ -59,6 +59,18 @@ impl UsageLedger {
         self.config.snapshot().usage
     }
 
+    /// The records of these executions only, without copying the rest of the configuration.
+    pub fn records_of(&self, execution_ids: &[&str]) -> Vec<UsageRecord> {
+        self.config.read(|config| {
+            config
+                .usage
+                .iter()
+                .filter(|r| execution_ids.contains(&r.execution_id.as_str()))
+                .cloned()
+                .collect()
+        })
+    }
+
     pub fn quota_of(&self, runtime_id: &str) -> Option<QuotaInfo> {
         self.config.snapshot().quotas.get(runtime_id).cloned()
     }

@@ -16,6 +16,7 @@ pub mod remote;
 pub mod runtimes;
 pub mod security;
 pub mod settings;
+pub mod specs;
 pub mod terminal;
 pub mod updater;
 pub mod usage;

@@ -22,7 +22,7 @@ use std::time::Duration;
 use super::approvals::{Answer, ApprovalBroker, PendingApproval};
 use super::audit::AuditLog;
 use super::evaluator::{
-    evaluate_agent_request, evaluate_probe, evaluate_runtime_launch, Evaluation,
+    evaluate_agent_request, evaluate_probe, evaluate_runtime_launch, evaluate_tool, Evaluation,
 };
 use super::sandbox::SandboxProvider;
 use super::service::{PolicyResolver, ResolvedScope};
@@ -47,6 +47,8 @@ pub struct GuardedProcessRunner {
     sandbox: Arc<dyn SandboxProvider>,
     /// Programs of the runtimes Atlas knows: the only ones it starts on its own behalf.
     known_programs: Vec<String>,
+    /// Tools a feature of Atlas runs on a project folder (see [`ProcessContext::Tool`]).
+    known_tools: Vec<String>,
     approval_timeout: Duration,
 }
 
@@ -66,8 +68,16 @@ impl GuardedProcessRunner {
             audit,
             sandbox,
             known_programs,
+            known_tools: Vec::new(),
             approval_timeout: APPROVAL_TIMEOUT,
         }
+    }
+
+    /// Names the tools Atlas may run for its own features. Without it none is.
+    #[must_use]
+    pub fn with_tools(mut self, tools: Vec<String>) -> Self {
+        self.known_tools = tools;
+        self
     }
 
     #[cfg(test)]
@@ -312,6 +322,10 @@ impl ProcessRunner for GuardedProcessRunner {
     ) -> Result<ProcessOutput, ProcessError> {
         match &spec.context {
             ProcessContext::Probe => match refusal(evaluate_probe(spec, &self.known_programs)) {
+                Some(reason) => Err(ProcessError::PermissionDenied(reason)),
+                None => self.inner.run(spec, on_event),
+            },
+            ProcessContext::Tool => match refusal(evaluate_tool(spec, &self.known_tools)) {
                 Some(reason) => Err(ProcessError::PermissionDenied(reason)),
                 None => self.inner.run(spec, on_event),
             },
