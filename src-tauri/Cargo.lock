@@ -234,7 +234,7 @@ dependencies = [
 
 [[package]]
 name = "atlas"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "bytes",
  "getrandom 0.3.4",
