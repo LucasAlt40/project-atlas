@@ -208,7 +208,7 @@ impl ContextEngine {
             };
             let item = &mut plan.items[index];
             let notice = format!(
-                "[Left out to fit the context budget: {} ({} estimated tokens)]",
+                "{LEFT_OUT_PREFIX} {} ({} estimated tokens)]",
                 item.id,
                 item.estimated_tokens()
             );
@@ -239,9 +239,11 @@ impl ContextEngine {
     }
 }
 
+/// How the note an omitted item leaves behind begins.
+pub(crate) const LEFT_OUT_PREFIX: &str = "[Left out to fit the context budget:";
+
 fn is_notice(item: &ContextItem) -> bool {
-    item.content
-        .starts_with("[Left out to fit the context budget:")
+    item.content.starts_with(LEFT_OUT_PREFIX)
 }
 
 /// Markers that structure the prompt itself (the handoff's start and end lines) are not content.

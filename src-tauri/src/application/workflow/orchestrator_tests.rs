@@ -738,6 +738,7 @@ fn the_context_engine_finds_what_a_real_brief_says_twice_and_keeps_every_fact() 
         harness: None,
         task_aware: false,
         skills: None,
+        memories: None,
         rules: None,
         context: "Project: atlas".to_owned(),
         instruction: format!("Task:\n{}", step.instruction.trim()),
@@ -750,6 +751,7 @@ fn the_context_engine_finds_what_a_real_brief_says_twice_and_keeps_every_fact() 
         task_description: step.instruction.trim(),
         brief: Some(&step.brief_parts),
         skills: &[],
+        memories: &[],
         rules: &[],
         budget: &ExecutionBudget::resolve(ModelLimits::unknown("rt", "m"), &[]),
     });

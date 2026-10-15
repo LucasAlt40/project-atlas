@@ -91,6 +91,9 @@ pub enum SectionKind {
     TaskContext,
     /// The instructions of the skills selected for the task, and the notice that frames them.
     Skills,
+    /// Notes from earlier work the person or an agent left (`application::memory`): hints, never
+    /// instructions.
+    Memory,
     /// Project name, path and detected technologies.
     ProjectContext,
     /// The agent's standing instructions.

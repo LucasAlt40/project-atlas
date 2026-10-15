@@ -99,6 +99,14 @@ pub enum ErrorCode {
     McpConnectionInvalid,
     /// Another connection of the workspace already has that name.
     McpNameTaken,
+    /// The memory does not exist.
+    MemoryNotFound,
+    /// The memory is not in the shape a memory may have (`reason` says which: `empty_title`,
+    /// `empty_content`, `title_too_long`, `content_too_long`, `owner_mismatch`, `bad_status`).
+    MemoryInvalid,
+    /// The text of the memory looks like a secret; a memory is stored in the clear and sent to a
+    /// model.
+    MemoryLooksLikeSecret,
     McpGrantInvalid,
     /// The OS credential store could not be reached (locked, missing).
     McpCredentialStoreUnavailable,

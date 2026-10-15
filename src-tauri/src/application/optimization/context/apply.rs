@@ -4,6 +4,7 @@
 
 use super::engine::{ContextEngine, EnginePlan};
 use super::item::{ContextItem, Priority};
+use crate::application::memory::MemoryBlock;
 use crate::application::optimization::skills::SkillBlock;
 use crate::application::prompt::Prompt;
 use crate::application::rules::{self, RuleBlock};
@@ -28,6 +29,8 @@ pub struct ContextInputs<'a> {
     pub skills: &'a [SkillBlock],
     /// The rules in the prompt, one block each.
     pub rules: &'a [RuleBlock],
+    /// The memories in the prompt, one block each.
+    pub memories: &'a [MemoryBlock],
     pub budget: &'a ExecutionBudget,
 }
 
@@ -38,6 +41,8 @@ pub struct ContextOutcome {
     pub skill_blocks: Vec<SkillBlock>,
     /// The rules as they will be, block by block.
     pub rule_blocks: Vec<RuleBlock>,
+    /// The memories as they will be, block by block.
+    pub memory_blocks: Vec<MemoryBlock>,
     pub task_description: String,
     /// The brief as it will be, when it was taken apart.
     pub brief_parts: Option<BriefParts>,
@@ -78,6 +83,7 @@ pub(crate) fn prompt_items(
     brief: Option<&BriefParts>,
     skills: &[SkillBlock],
     rules: &[RuleBlock],
+    memories: &[MemoryBlock],
 ) -> PromptItems {
     let mut items: Vec<ContextItem> = Vec::new();
     items.push(ContextItem::new(
@@ -153,6 +159,25 @@ pub(crate) fn prompt_items(
                     Priority::Normal
                 },
                 "skills",
+                &block.text,
+            ));
+        }
+    }
+    if !memories.is_empty() {
+        items.push(ContextItem::new(
+            "memory_notice",
+            SectionKind::Memory,
+            Priority::Required,
+            "atlas",
+            crate::application::memory::block::notice(),
+        ));
+        for block in memories {
+            // A note is a hint: the first thing a budget gives up, before any skill or rule.
+            items.push(ContextItem::new(
+                &format!("memory:{}", block.id),
+                SectionKind::Memory,
+                Priority::Optional,
+                &block.provenance(),
                 &block.text,
             ));
         }
@@ -268,6 +293,7 @@ pub fn optimize_prompt_inputs(inputs: &ContextInputs<'_>) -> ContextOutcome {
         inputs.brief,
         inputs.skills,
         inputs.rules,
+        inputs.memories,
     );
 
     let whole = TextSize::of(inputs.combined);
@@ -326,6 +352,18 @@ pub fn optimize_prompt_inputs(inputs: &ContextInputs<'_>) -> ContextOutcome {
             ..block.clone()
         })
         .collect();
+    let memory_blocks: Vec<MemoryBlock> = inputs
+        .memories
+        .iter()
+        .map(|block| MemoryBlock {
+            // A note left out is not worth a marker: it costs tokens to say nothing. The
+            // decision is in the engine's record and the manifest.
+            text: content_of(&format!("memory:{}", block.id))
+                .filter(|text| !text.starts_with(super::engine::LEFT_OUT_PREFIX))
+                .unwrap_or_default(),
+            ..block.clone()
+        })
+        .collect();
     let brief_parts = split.as_ref().map(|_| BriefParts {
         workflow_context: content_of("workflow_context").unwrap_or_default(),
         handoff: content_of("handoff").unwrap_or_default(),
@@ -336,6 +374,7 @@ pub fn optimize_prompt_inputs(inputs: &ContextInputs<'_>) -> ContextOutcome {
         harness,
         skill_blocks,
         rule_blocks,
+        memory_blocks,
         task_description,
         brief_parts,
         changed,

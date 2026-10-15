@@ -129,6 +129,15 @@ pub fn run() {
             commands::settings::get_settings,
             commands::settings::set_language,
             commands::settings::set_specs_max_tokens,
+            commands::memory::list_memories,
+            commands::memory::create_memory,
+            commands::memory::edit_memory,
+            commands::memory::approve_memory,
+            commands::memory::set_memory_status,
+            commands::memory::delete_memory,
+            commands::memory::promote_memory,
+            commands::memory::delete_automatic_memories,
+            commands::memory::set_memory_settings,
             commands::specs::raise_spec_budget,
             commands::specs::set_spec_integrations,
             commands::settings::select_workspace,
@@ -296,6 +305,11 @@ fn build_state(
         .with_registry(Arc::new(infrastructure::CurlRegistryClient)),
     );
     let mcp_catalog = Arc::new(application::mcp::McpCatalog::new(runner.clone()));
+    // Notes of earlier work live in Atlas's own data folder, never in a project (ADR 0037).
+    let memory = Arc::new(application::memory::MemoryService::new(
+        Arc::new(infrastructure::FsMemoryStore::new(data_dir.join("memory"))),
+        Arc::new(infrastructure::FsProjectProbe),
+    ));
     let personalities = Arc::new(PersonalityService::new(config.clone()));
     let agents = Arc::new(AgentService::new(
         config.clone(),
@@ -382,6 +396,7 @@ fn build_state(
         .with_workspace_context(workspace_context)
         .with_optimization(config.clone())
         .with_mcp(mcp.clone())
+        .with_memory(memory.clone())
         .with_rules(Arc::new(application::rules::RuleService::new(
             config.clone(),
         )))
@@ -528,6 +543,7 @@ fn build_state(
         live,
         mcp,
         mcp_catalog,
+        memory,
         portability,
         remote,
         specs,

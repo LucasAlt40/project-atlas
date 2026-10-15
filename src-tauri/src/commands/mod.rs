@@ -10,6 +10,7 @@ pub mod exit;
 pub mod harness;
 pub mod live_workspace;
 pub mod mcp;
+pub mod memory;
 pub mod personalities;
 pub mod portability;
 pub mod remote;

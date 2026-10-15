@@ -9,6 +9,7 @@
 use std::collections::BTreeMap;
 
 use super::{EditAccess, Emitter, Execution, ExecutionService};
+use crate::application::memory::{block as memory_block, MemoryBlock};
 use crate::application::optimization::context::{prompt_items, rebuild_task};
 use crate::application::optimization::review::{self, McpFacts, ReviewInput, RuleFacts};
 use crate::application::optimization::skills::{SkillBlock, SkillPlan};
@@ -36,6 +37,8 @@ pub(super) struct PromptInputs {
     pub parts: Option<BriefParts>,
     /// The rules in the prompt, one block each.
     pub rules: Vec<RuleBlock>,
+    /// The memories in the prompt, one block each.
+    pub memories: Vec<MemoryBlock>,
 }
 
 impl PromptInputs {
@@ -47,6 +50,11 @@ impl PromptInputs {
         }
         let blocks: Vec<&str> = self.rules.iter().map(|b| b.text.as_str()).collect();
         Some(SkillPlan::render(rules::notice(), &blocks))
+    }
+
+    /// The prompt's notes section, or `None`: no memory was recovered.
+    pub fn memories_text(&self) -> Option<String> {
+        memory_block::render(&self.memories)
     }
 
     pub fn skills_text(&self) -> Option<String> {
@@ -136,6 +144,7 @@ impl ExecutionService {
             ctx.inputs.parts.as_ref(),
             &ctx.inputs.skills,
             &ctx.inputs.rules,
+            &ctx.inputs.memories,
         );
         let harness_text = ctx.inputs.harness.as_deref().unwrap_or("");
         let review = review::review(&ReviewInput {
@@ -174,6 +183,11 @@ impl ExecutionService {
                     }
                     id => {
                         if let Some(block) = id
+                            .strip_prefix("memory:")
+                            .and_then(|memory| inputs.memories.iter_mut().find(|b| b.id == memory))
+                        {
+                            block.text.clone_from(&found.text);
+                        } else if let Some(block) = id
                             .strip_prefix("skill:")
                             .and_then(|name| inputs.skills.iter_mut().find(|b| b.name == name))
                         {

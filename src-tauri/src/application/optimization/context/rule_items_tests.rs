@@ -28,6 +28,7 @@ fn prompt() -> Prompt {
         harness: None,
         task_aware: false,
         skills: None,
+        memories: None,
         rules: Some("rules text".to_owned()),
         context: "CTX".to_owned(),
         instruction: "Task:\nDo it".to_owned(),
@@ -35,7 +36,7 @@ fn prompt() -> Prompt {
 }
 
 fn items_for(rules: &[crate::domain::rules::Rule]) -> Vec<ContextItem> {
-    prompt_items(&prompt(), "", "Do it", None, &[], &blocks(rules)).items
+    prompt_items(&prompt(), "", "Do it", None, &[], &blocks(rules), &[]).items
 }
 
 fn filler(seed: &str) -> String {

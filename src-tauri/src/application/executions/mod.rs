@@ -13,6 +13,7 @@ use super::errors::{AppError, ErrorCode};
 use super::harness::context::{HarnessContextBuilder, TaskContextLoad};
 use super::interaction::{should_pause, InteractionDetector, InteractionSignals, LayeredDetector};
 use super::mcp::{LaunchProblem, McpContext, McpInputs, McpLaunch, McpPlan, McpService};
+use super::memory::{MemoryBlock, MemoryService, RecallRequest};
 use super::optimization::review::{MandatoryRule, McpFacts, McpFailure, RuleFacts};
 use super::optimization::skills::{SelectionInput, SkillService};
 use super::optimization::{self, OptimizationFlags, PreRuntime, RuntimeProbe};
@@ -229,6 +230,8 @@ pub struct ExecutionService {
     rules: Option<Arc<RuleService>>,
     /// The workspace's MCP connections and grants. Without it no step is ever given an MCP server.
     mcp: Option<Arc<McpService>>,
+    /// Where memories are recovered from. Without it (or with every scope off) no prompt carries one.
+    memory: Option<Arc<MemoryService>>,
     next_id: AtomicU64,
 }
 
@@ -256,6 +259,7 @@ impl ExecutionService {
             skills: None,
             rules: None,
             mcp: None,
+            memory: None,
             next_id: AtomicU64::new(1),
         }
     }
@@ -308,6 +312,14 @@ impl ExecutionService {
     #[must_use]
     pub fn with_mcp(mut self, mcp: Arc<McpService>) -> Self {
         self.mcp = Some(mcp);
+        self
+    }
+
+    /// Lets executions recover the notes of earlier work, for the scopes the settings turn on
+    /// (see `application::memory`).
+    #[must_use]
+    pub fn with_memory(mut self, memory: Arc<MemoryService>) -> Self {
+        self.memory = Some(memory);
         self
     }
 
@@ -641,6 +653,15 @@ impl ExecutionService {
                 );
                 plan
             });
+        // Notes from earlier work: chosen for this task and this workspace/agent, only for the
+        // scopes the person turned on. Nothing recovered, nothing added to the prompt.
+        let memory_proposals = self.memory_proposals_on();
+        let recalled = self.recall_memories(
+            &emitter.workspace_id,
+            &agent.id,
+            context_query.unwrap_or(description),
+            &project.path,
+        );
         // Rules are read like the Harness: at the project's own root, before the path is swapped
         // for the worktree's, and they reach the agent as prompt text only.
         let rule_resolution = self.resolve_rules(
@@ -783,6 +804,7 @@ impl ExecutionService {
             description: task.description.clone(),
             parts: brief_parts.cloned(),
             rules: rule_resolution.applied.iter().map(RuleBlock::of).collect(),
+            memories: recalled.selected.iter().map(MemoryBlock::of).collect(),
         };
         let build = |inputs: &guardrails::PromptInputs| {
             let reworked = Task {
@@ -799,6 +821,8 @@ impl ExecutionService {
                 tools_are_commands: runtime.info().capabilities.tool_access.process_execution,
                 harness: inputs.harness.as_deref(),
                 skills: inputs.skills_text().as_deref(),
+                memories: inputs.memories_text().as_deref(),
+                memory_proposals,
                 rules: inputs.rules_text().as_deref(),
                 integrations: &announced,
                 unavailable_integrations: &unavailable,
@@ -819,6 +843,7 @@ impl ExecutionService {
                     brief: brief_parts,
                     skills: &inputs.skills,
                     rules: &inputs.rules,
+                    memories: &inputs.memories,
                     budget: &budget,
                 },
             );
@@ -826,6 +851,7 @@ impl ExecutionService {
                 inputs.harness.clone_from(&outcome.harness);
                 inputs.skills.clone_from(&outcome.skill_blocks);
                 inputs.rules.clone_from(&outcome.rule_blocks);
+                inputs.memories.clone_from(&outcome.memory_blocks);
                 inputs.description.clone_from(&outcome.task_description);
                 if outcome.brief_parts.is_some() {
                     inputs.parts.clone_from(&outcome.brief_parts);
@@ -923,6 +949,7 @@ impl ExecutionService {
                 inputs.parts.as_ref(),
                 &inputs.skills,
                 &inputs.rules,
+                &inputs.memories,
             )
             .items;
             PreRuntime {
@@ -998,6 +1025,7 @@ impl ExecutionService {
             .filter(|block| block.text.starts_with("[Left out"))
             .map(|block| block.reference.clone())
             .collect();
+        let memory_records = recalled.manifest(&inputs.memories);
         execution.manifest = Some(optimization::platform::manifest_of(
             &optimization::platform::ManifestSource {
                 ids: ManifestIds {
@@ -1014,6 +1042,8 @@ impl ExecutionService {
                 delivery: &delivery,
                 will_deliver,
                 rules: rule_resolution.records(&omitted),
+                memories: memory_records.0,
+                memories_not_relevant: memory_records.1,
                 mcp: mcp_plan.record(),
                 surface: runtime.surface(&runtime_request),
                 budget: &budget,
@@ -1037,6 +1067,12 @@ impl ExecutionService {
         );
         if let Some(outcome) = outcome {
             self.conclude(outcome, &emitter, &mut execution, &mut task);
+        }
+        // A note counts as used only when it reached the prompt of a step that completed, and only
+        // the ones that were still there after the engine and the guardrails.
+        if execution.status == ExecutionStatus::Completed {
+            self.record_memory_use(&inputs.memories);
+            self.collect_memory_proposals(&emitter.workspace_id, &agent.id, &mut execution);
         }
         // What the runtime listed at start-up, when its output did not carry it.
         if let Some(list) = &listed {
@@ -1131,6 +1167,111 @@ impl ExecutionService {
             .as_ref()
             .and_then(|harness| harness.project_rules_text(project_path));
         rules::resolve(&service.collect(project_rules.as_deref(), task_rules), ctx)
+    }
+
+    /// The memories for this execution, for the scopes the settings turn on; empty when memory is
+    /// not wired or is off.
+    fn recall_memories(
+        &self,
+        workspace: &str,
+        agent: &str,
+        task: &str,
+        project_root: &str,
+    ) -> crate::application::memory::Recall {
+        let (Some(service), Some(flags)) = (self.memory.as_ref(), self.optimization.as_ref())
+        else {
+            return crate::application::memory::Recall::default();
+        };
+        let settings = flags.memory_settings();
+        if !settings.any_on() {
+            return crate::application::memory::Recall::default();
+        }
+        service.recall(&RecallRequest {
+            workspace,
+            agent,
+            task,
+            project_root,
+            settings,
+            budget_tokens: None,
+            now: now_ms(),
+        })
+    }
+
+    /// Whether the person let agents propose notes (and memory is wired at all).
+    fn memory_proposals_on(&self) -> bool {
+        self.memory.is_some()
+            && self
+                .optimization
+                .as_ref()
+                .is_some_and(|flags| flags.memory_settings().proposals_on())
+    }
+
+    /// Reads the `atlas-memory` block of a finished step and hands it to the Memory, which decides
+    /// what waits for a person and what (in `Auto` mode, after every check) enters by itself.
+    /// What came of it is recorded on the execution; the answer's text is left as it was.
+    fn collect_memory_proposals(&self, workspace: &str, agent: &str, execution: &mut Execution) {
+        use crate::application::memory::proposal;
+        use crate::application::memory::{Decision, SubmitContext};
+
+        let (Some(service), Some(flags)) = (self.memory.as_ref(), self.optimization.as_ref())
+        else {
+            return;
+        };
+        let settings = flags.memory_settings();
+        let Some(answer) = execution
+            .result
+            .as_deref()
+            .filter(|_| settings.proposals_on())
+        else {
+            return;
+        };
+        let proposals = proposal::parse(answer);
+        if proposals.is_empty() {
+            return;
+        }
+        let cleaned = proposal::strip(answer);
+        let submitted = service.submit(
+            &proposals,
+            &SubmitContext {
+                workspace,
+                agent,
+                execution_id: &execution.id,
+                settings,
+                step_succeeded: proposal::answer_allows_auto(answer),
+                now: now_ms(),
+            },
+        );
+        let count = |wanted: fn(&Decision) -> bool| {
+            submitted
+                .iter()
+                .filter(|s| wanted(&s.decision))
+                .count()
+                .to_string()
+        };
+        execution.result = Some(cleaned);
+        execution.metadata.insert(
+            "memoryProposed".to_owned(),
+            count(|d| matches!(d, Decision::Proposed)),
+        );
+        execution.metadata.insert(
+            "memoryAccepted".to_owned(),
+            count(|d| matches!(d, Decision::Accepted)),
+        );
+        execution.metadata.insert(
+            "memoryDiscarded".to_owned(),
+            count(|d| matches!(d, Decision::Discarded(_))),
+        );
+    }
+
+    fn record_memory_use(&self, blocks: &[MemoryBlock]) {
+        if let (Some(service), false) = (self.memory.as_ref(), blocks.is_empty()) {
+            let ids: Vec<String> = blocks
+                .iter()
+                .filter(|b| !b.text.trim().is_empty())
+                .map(|b| b.id.clone())
+                .collect();
+            service.record_use(&ids, now_ms());
+        }
     }
 
     /// What the review needs of a resolution.
@@ -2243,6 +2384,8 @@ impl Emitter<'_> {
 mod context_tests;
 #[cfg(test)]
 mod mcp_tests;
+#[cfg(test)]
+mod memory_tests;
 #[cfg(test)]
 mod real_runtime_tests;
 #[cfg(test)]

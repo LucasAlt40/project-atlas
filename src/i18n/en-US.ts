@@ -1039,6 +1039,7 @@ export const enUS = {
   'contextReview.section.harness': 'Project Harness',
   'contextReview.section.task_context': 'Task context',
   'contextReview.section.skills': 'Skills',
+  'contextReview.section.memory': 'Notes from earlier work',
   'contextReview.section.project_context': 'Project',
   'contextReview.section.agent_instructions': 'Agent instructions',
   'contextReview.section.brief_workflow_context': 'Workflow context',
@@ -2130,6 +2131,10 @@ export const enUS = {
   'error.mcp_connection_not_found': 'That MCP connection no longer exists.',
   'error.mcp_connection_invalid': 'That MCP configuration is not acceptable ({reason}).',
   'error.mcp_name_taken': 'Another connection in this workspace already has that name.',
+  'error.memory_not_found': 'That memory no longer exists.',
+  'error.memory_invalid': 'That memory is not acceptable ({reason}).',
+  'error.memory_looks_like_secret':
+    'That text looks like a secret (a key, a token or a password). A memory is stored in the clear and sent to a model, so it was not saved.',
   'error.mcp_grant_invalid': 'That grant is not valid.',
   'error.mcp_credential_store_unavailable': 'The system credential store could not be reached.',
   'error.mcp_secret_unknown': 'That connection does not declare that secret.',

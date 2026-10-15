@@ -24,6 +24,15 @@ fn window() -> (tauri::App<MockRuntime>, WebviewWindow<MockRuntime>) {
         .manage(AppState::for_tests(app_info))
         .invoke_handler(tauri::generate_handler![
             super::app::get_app_info,
+            super::memory::list_memories,
+            super::memory::create_memory,
+            super::memory::edit_memory,
+            super::memory::approve_memory,
+            super::memory::set_memory_status,
+            super::memory::delete_memory,
+            super::memory::promote_memory,
+            super::memory::delete_automatic_memories,
+            super::memory::set_memory_settings,
             super::personalities::list_personalities,
             super::personalities::create_personality,
             super::personalities::update_personality,
@@ -469,7 +478,8 @@ fn settings_default_to_portuguese_and_persist_language_and_selected_workspace() 
                 "contextMaxTokens": null,
                 "skillsEnabled": false,
                 "guardrailsEnabled": true,
-                "specsMaxTokens": null
+                "specsMaxTokens": null,
+                "memory": { "user": "off", "workspace": "off", "agent": "off", "maxTokens": 600 }
             },
         })
     );

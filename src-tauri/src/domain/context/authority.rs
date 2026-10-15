@@ -47,7 +47,9 @@ impl ContextAuthority {
             | SectionKind::Harness
             | SectionKind::TaskContext
             | SectionKind::BriefWorkflowContext => Self::Informational,
-            SectionKind::Skills | SectionKind::BriefHandoff => Self::Untrusted,
+            SectionKind::Skills | SectionKind::Memory | SectionKind::BriefHandoff => {
+                Self::Untrusted
+            }
         }
     }
 
@@ -76,7 +78,7 @@ mod tests {
     use crate::domain::rules::tests::rule;
     use crate::domain::rules::{RuleOrigin, RuleScope};
 
-    const ALL: [SectionKind; 15] = [
+    const ALL: [SectionKind; 16] = [
         SectionKind::Personality,
         SectionKind::AtlasRules,
         SectionKind::LiveNarration,
@@ -85,6 +87,7 @@ mod tests {
         SectionKind::Harness,
         SectionKind::TaskContext,
         SectionKind::Skills,
+        SectionKind::Memory,
         SectionKind::ProjectContext,
         SectionKind::AgentInstructions,
         SectionKind::BriefWorkflowContext,
@@ -122,6 +125,7 @@ mod tests {
             Informational
         );
         assert_eq!(ContextAuthority::of_section(SectionKind::Skills), Untrusted);
+        assert_eq!(ContextAuthority::of_section(SectionKind::Memory), Untrusted);
         assert_eq!(
             ContextAuthority::of_section(SectionKind::BriefHandoff),
             Untrusted

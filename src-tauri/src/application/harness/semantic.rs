@@ -573,6 +573,7 @@ impl SemanticModel for RuntimeSemanticModel {
             model_id: agent.model_id.clone(),
             prompt: Prompt {
                 skills: None,
+                memories: None,
                 rules: None,
                 system: if self.text_only {
                     RESTRICTED_RULES

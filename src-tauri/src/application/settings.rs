@@ -46,6 +46,22 @@ impl SettingsService {
         })
     }
 
+    /// Which scopes of the Memory are recovered and proposed to, and how much a prompt may spend
+    /// on them. All off is the default: it adds text to prompts.
+    ///
+    /// # Errors
+    ///
+    /// Fails if saving fails.
+    pub fn set_memory_settings(
+        &self,
+        memory: crate::domain::memory::MemorySettings,
+    ) -> Result<AppSettings, AppError> {
+        self.config.modify(|config| {
+            config.settings.optimization.memory = memory;
+            Ok(config.settings.clone())
+        })
+    }
+
     /// Remembers which workspace is open (`None`: none).
     ///
     /// # Errors

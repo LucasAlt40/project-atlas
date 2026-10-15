@@ -1049,6 +1049,7 @@ export const ptBR: Record<TranslationKey, string> = {
   'contextReview.section.harness': 'Harness do projeto',
   'contextReview.section.task_context': 'Contexto da tarefa',
   'contextReview.section.skills': 'Skills',
+  'contextReview.section.memory': 'Notas de trabalhos anteriores',
   'contextReview.section.project_context': 'Projeto',
   'contextReview.section.agent_instructions': 'Instruções do agente',
   'contextReview.section.brief_workflow_context': 'Contexto do workflow',
@@ -2155,6 +2156,10 @@ export const ptBR: Record<TranslationKey, string> = {
   'error.mcp_connection_not_found': 'Essa conexão MCP não existe mais.',
   'error.mcp_connection_invalid': 'Essa configuração de MCP não é aceitável ({reason}).',
   'error.mcp_name_taken': 'Outra conexão deste workspace já tem esse nome.',
+  'error.memory_not_found': 'Essa memória não existe mais.',
+  'error.memory_invalid': 'Essa memória não é aceitável ({reason}).',
+  'error.memory_looks_like_secret':
+    'Esse texto parece um segredo (uma chave, um token ou uma senha). Uma memória é guardada em texto puro e enviada a um modelo, por isso não foi salva.',
   'error.mcp_grant_invalid': 'Essa concessão não é válida.',
   'error.mcp_credential_store_unavailable':
     'Não foi possível acessar o cofre de credenciais do sistema.',

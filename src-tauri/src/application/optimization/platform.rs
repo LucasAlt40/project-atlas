@@ -6,7 +6,7 @@
 use crate::application::runtimes::{sha256_hex, Delivery, ModelRuntime};
 use crate::domain::context::{
     ContextManifest, ContextPlan, ExecutionBudget, Figure, LimitOverride, ManifestIds,
-    ManifestRule, ModelLimits, OverrideLayer, RuntimeSurface,
+    ManifestMemory, ManifestRule, ModelLimits, OverrideLayer, RuntimeSurface,
 };
 use crate::domain::mcp::McpRecord;
 use crate::domain::optimization::PromptBreakdown;
@@ -65,6 +65,8 @@ pub struct ManifestSource<'a> {
     /// False when the guardrails stopped or paused the step.
     pub will_deliver: bool,
     pub rules: Vec<ManifestRule>,
+    pub memories: Vec<ManifestMemory>,
+    pub memories_not_relevant: u32,
     pub mcp: McpRecord,
     pub surface: RuntimeSurface,
     pub budget: &'a ExecutionBudget,
@@ -85,6 +87,8 @@ pub fn manifest_of(source: &ManifestSource<'_>) -> ContextManifest {
         sections: source.delivered.sections.clone(),
         delivery: source.delivery.record(source.will_deliver),
         rules: source.rules.clone(),
+        memories: source.memories.clone(),
+        memories_not_relevant: source.memories_not_relevant,
         mcp: source.mcp.clone(),
         surface: source.surface.clone(),
         warnings: Vec::new(),
@@ -118,6 +122,7 @@ mod tests {
             harness: None,
             task_aware: false,
             skills: None,
+            memories: None,
             rules: None,
             context: "CTX".to_owned(),
             instruction: "INS".to_owned(),
@@ -148,6 +153,8 @@ mod tests {
             delivery: &delivery,
             will_deliver,
             rules: Vec::new(),
+            memories: Vec::new(),
+            memories_not_relevant: 0,
             mcp: McpRecord::default(),
             surface: RuntimeSurface::baseline("rt", SystemPromptChannel::Unsupported),
             budget: &budget,

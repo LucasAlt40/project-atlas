@@ -21,7 +21,10 @@ pub use budget::{
     defaults, ExecutionBudget, LimitOverride, ModelLimits, OverrideLayer, ReportedLimits,
 };
 pub use figure::Figure;
-pub use manifest::{ContextManifest, DeliveryRecord, ManifestIds, ManifestRule, RuleStatus};
+pub use manifest::{
+    ContextManifest, DeliveryRecord, ManifestIds, ManifestMemory, ManifestRule,
+    MemoryStatusInPrompt, RuleStatus,
+};
 pub use plan::ContextPlan;
 pub use surface::{Observation, RuntimeSurface, SurfaceControl, SurfaceEntry, SurfaceKind};
 

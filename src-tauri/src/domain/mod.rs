@@ -8,6 +8,7 @@ pub mod harness;
 pub mod interaction;
 pub mod live_workspace;
 pub mod mcp;
+pub mod memory;
 pub mod optimization;
 pub mod orchestration;
 pub mod personality;

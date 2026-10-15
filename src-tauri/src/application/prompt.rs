@@ -1,5 +1,6 @@
 use std::fmt::Write;
 
+use crate::application::memory::proposal::RULE as MEMORY_RULE;
 use crate::domain::agent::Agent;
 use crate::domain::optimization::{BriefLayout, PromptBreakdown, SectionKind, TextSize};
 use crate::domain::personality::PersonalityProfile;
@@ -67,6 +68,10 @@ pub struct Prompt {
     /// `optimization::skills`). Guidance only: it sits below the Atlas rules and cannot grant
     /// anything. `None` if no skill was selected.
     pub skills: Option<String>,
+    /// The notes from earlier work recovered for the task (`application::memory`), with the notice
+    /// that frames them: hints that grant nothing. `None` when none were recovered (the prompt is
+    /// then byte-identical to one built before memories existed).
+    pub memories: Option<String>,
     /// The rules that apply to this execution (`application::rules`), with the notice that frames
     /// them: authoritative guidance that grants no permission. `None` when none apply (the prompt
     /// is then byte-identical to one built before rules existed).
@@ -96,8 +101,11 @@ impl Prompt {
             .skills
             .as_ref()
             .map_or_else(String::new, |text| format!("SKILLS\n\n{text}\n\n"));
+        let memories = self.memories.as_ref().map_or_else(String::new, |text| {
+            format!("NOTES FROM EARLIER WORK\n\n{text}\n\n")
+        });
         format!(
-            "{harness}{skills}PROJECT CONTEXT\n\n{}\n\nUSER INSTRUCTION\n\n{}\n",
+            "{harness}{skills}{memories}PROJECT CONTEXT\n\n{}\n\nUSER INSTRUCTION\n\n{}\n",
             self.context, self.instruction
         )
     }
@@ -137,6 +145,8 @@ pub struct PromptLayout {
     atlas_rules: TextSize,
     live_narration: TextSize,
     plan_rule: TextSize,
+    /// The rule that lets an agent propose notes; empty when proposals are off.
+    memory_rule: TextSize,
     project_context: TextSize,
     agent_instructions: TextSize,
     /// The task text, trimmed, as it follows `Task:` in the instruction.
@@ -197,6 +207,16 @@ impl PromptLayout {
                         .as_deref()
                         .map_or_else(TextSize::default, TextSize::of),
                 ),
+                (SectionKind::Memory, {
+                    let notes = prompt
+                        .memories
+                        .as_deref()
+                        .map_or_else(TextSize::default, TextSize::of);
+                    TextSize {
+                        bytes: notes.bytes + self.memory_rule.bytes,
+                        chars: notes.chars + self.memory_rule.chars,
+                    }
+                }),
                 (SectionKind::ProjectContext, self.project_context),
                 (SectionKind::AgentInstructions, self.agent_instructions),
                 (SectionKind::BriefWorkflowContext, brief.workflow_context),
@@ -237,6 +257,7 @@ have them: if you need what they offer, say so in your result instead of guessin
 }
 
 /// What a prompt is assembled from, borrowed: the only place a prompt is assembled.
+#[allow(clippy::struct_excessive_bools)] // independent facts about one execution
 pub struct PromptBuilder<'a> {
     pub personality: &'a PersonalityProfile,
     pub project: &'a ProjectContext,
@@ -250,6 +271,10 @@ pub struct PromptBuilder<'a> {
     pub tools_are_commands: bool,
     pub harness: Option<&'a str>,
     pub skills: Option<&'a str>,
+    /// The recovered memories, already rendered (see `application::memory`). `None`: none.
+    pub memories: Option<&'a str>,
+    /// The agent may propose notes for the next run (`optimization.memory`): the prompt says how.
+    pub memory_proposals: bool,
     pub rules: Option<&'a str>,
     /// The names of the integrations (MCP servers) this step was given, to tell the agent. Empty:
     /// nothing is said.
@@ -309,6 +334,8 @@ impl PromptBuilder<'_> {
             tools_are_commands,
             harness,
             skills,
+            memories,
+            memory_proposals,
             rules,
             integrations,
             unavailable_integrations,
@@ -322,8 +349,16 @@ impl PromptBuilder<'_> {
             ATLAS_RULES
         };
         let personality_text = personality.system_instructions.trim();
-        let system =
+        let mut system =
             format!("{personality_text}\n\n{atlas_rules}\n\n{LIVE_NARRATION}\n\n{PLAN_RULE}");
+        // Only when the person turned proposals on: otherwise the prompt is the one there was.
+        let memory_rule = if memory_proposals {
+            system.push_str("\n\n");
+            system.push_str(MEMORY_RULE);
+            TextSize::of(MEMORY_RULE)
+        } else {
+            TextSize::default()
+        };
 
         let mut context = format!("Project: {}\nPath: {}", project.name, project.path);
         if !project.technologies.is_empty() {
@@ -361,6 +396,7 @@ impl PromptBuilder<'_> {
             atlas_rules: TextSize::of(atlas_rules),
             live_narration: TextSize::of(LIVE_NARRATION),
             plan_rule: TextSize::of(PLAN_RULE),
+            memory_rule,
             project_context: TextSize::of(&context),
             agent_instructions,
             task: TextSize::of(task_text),
@@ -370,6 +406,7 @@ impl PromptBuilder<'_> {
             harness: harness.map(str::to_owned),
             task_aware,
             skills: skills.map(str::to_owned),
+            memories: memories.map(str::to_owned),
             rules: rules.map(str::to_owned),
             context,
             instruction,
@@ -443,6 +480,8 @@ mod tests {
             tools_are_commands,
             harness: None,
             skills: None,
+            memories: None,
+            memory_proposals: false,
             rules: None,
             integrations,
             unavailable_integrations: unavailable,

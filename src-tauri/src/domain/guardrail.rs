@@ -259,6 +259,7 @@ impl SourceTrust {
             SectionKind::Harness
             | SectionKind::TaskContext
             | SectionKind::Skills
+            | SectionKind::Memory
             | SectionKind::BriefWorkflowContext
             | SectionKind::BriefHandoff => Self::Untrusted,
         }

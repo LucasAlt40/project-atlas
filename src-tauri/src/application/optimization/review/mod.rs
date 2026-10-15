@@ -304,6 +304,11 @@ fn check_content(input: &ReviewInput<'_>, issues: &mut Vec<ReviewIssue>) {
     }
 }
 
+/// Whether text claims an authority it cannot have (to approve, to grant, to lift a restriction).
+pub fn claims_authority(text: &str) -> bool {
+    claims::find_claim(text).is_some()
+}
+
 /// A secret removed from context that was about to be sent.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Redaction {

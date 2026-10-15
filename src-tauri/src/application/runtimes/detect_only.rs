@@ -130,6 +130,7 @@ mod tests {
                         harness: None,
                         task_aware: false,
                         skills: None,
+                        memories: None,
                         rules: None,
                         system: String::new(),
                         context: String::new(),

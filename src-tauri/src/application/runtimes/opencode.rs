@@ -457,6 +457,7 @@ mod tests {
                 harness: None,
                 task_aware: false,
                 skills: None,
+                memories: None,
                 rules: None,
                 system: "SYS".to_owned(),
                 context: "CTX".to_owned(),

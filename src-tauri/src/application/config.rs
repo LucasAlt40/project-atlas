@@ -65,6 +65,10 @@ pub struct OptimizationSettings {
     /// spec until the person says to go on. `None`: no limit.
     #[serde(default)]
     pub specs_max_tokens: Option<u64>,
+    /// `optimization.memory`: which scopes of the Memory are recovered and proposed to (ADR 0037).
+    /// All off by default: it adds text to prompts.
+    #[serde(default)]
+    pub memory: crate::domain::memory::MemorySettings,
 }
 
 fn default_guardrails_enabled() -> bool {
@@ -84,6 +88,7 @@ impl Default for OptimizationSettings {
             skills_enabled: false,
             guardrails_enabled: true,
             specs_max_tokens: None,
+            memory: crate::domain::memory::MemorySettings::default(),
         }
     }
 }

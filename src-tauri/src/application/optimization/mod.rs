@@ -49,6 +49,11 @@ pub trait OptimizationFlags: Send + Sync {
         false
     }
 
+    /// `optimization.memory`: which scopes of the Memory are recovered. All off unless said.
+    fn memory_settings(&self) -> crate::domain::memory::MemorySettings {
+        crate::domain::memory::MemorySettings::default()
+    }
+
     /// `optimization.context.maxTokens`: a budget for the prompt, in estimated tokens. `None`: no
     /// budget, nothing is ever left out for size.
     fn context_max_tokens(&self) -> Option<u64> {
@@ -76,6 +81,10 @@ impl OptimizationFlags for ConfigRepository {
     fn guardrails_enabled(&self) -> bool {
         self.read(|config| config.settings.optimization.guardrails_enabled)
     }
+
+    fn memory_settings(&self) -> crate::domain::memory::MemorySettings {
+        self.read(|config| config.settings.optimization.memory)
+    }
 }
 
 /// A fixed answer, for tests.
@@ -88,6 +97,7 @@ pub struct FixedFlags {
     pub max_tokens: Option<u64>,
     pub skills: bool,
     pub guardrails: bool,
+    pub memory: crate::domain::memory::MemorySettings,
 }
 
 #[cfg(test)]
@@ -118,7 +128,14 @@ impl FixedFlags {
             max_tokens,
             skills: false,
             guardrails: false,
+            memory: crate::domain::memory::MemorySettings::default(),
         }
+    }
+
+    #[must_use]
+    pub fn with_memory(mut self, memory: crate::domain::memory::MemorySettings) -> Self {
+        self.memory = memory;
+        self
     }
 }
 
@@ -142,6 +159,10 @@ impl OptimizationFlags for FixedFlags {
 
     fn guardrails_enabled(&self) -> bool {
         self.guardrails
+    }
+
+    fn memory_settings(&self) -> crate::domain::memory::MemorySettings {
+        self.memory
     }
 }
 

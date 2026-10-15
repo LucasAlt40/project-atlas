@@ -81,6 +81,39 @@ pub struct ManifestRule {
     pub downgraded: bool,
 }
 
+/// What became of a memory that could have gone into the prompt.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MemoryStatusInPrompt {
+    /// It is in the prompt.
+    Sent,
+    /// Relevant, but the memory ceiling for the prompt was reached first.
+    OverBudget,
+    /// Left out by the Context Engine for the prompt's budget.
+    OmittedForBudget,
+    /// Another memory of the same topic ranked higher.
+    Superseded,
+    /// What it depended on is gone from the project; it was set aside.
+    Stale,
+    /// An automatic memory unused for too long; it was archived.
+    Expired,
+}
+
+/// One memory as the manifest records it, without its text (the prompt is the record of that).
+/// Memories that shared nothing with the task are only counted, not listed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ManifestMemory {
+    pub id: String,
+    pub title: String,
+    pub status: MemoryStatusInPrompt,
+    /// Why, when there is more to say (what is gone from the project, which memory won).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    /// It entered without a person deciding.
+    pub automatic: bool,
+}
+
 /// What Atlas actually prepared and delivered to the runtime for one execution, as opposed to the
 /// [`ContextPlan`](super::ContextPlan) it meant to. The budget it was prepared under is
 /// `OptimizationMetrics::budget`; it is not copied here.
@@ -105,6 +138,12 @@ pub struct ContextManifest {
     /// The rules that applied to this execution and what became of each.
     #[serde(default)]
     pub rules: Vec<ManifestRule>,
+    /// The notes of earlier work that could have gone into the prompt, and what became of each.
+    #[serde(default)]
+    pub memories: Vec<ManifestMemory>,
+    /// How many notes of an active scope had nothing to do with the task, and so cost nothing.
+    #[serde(default)]
+    pub memories_not_relevant: u32,
     /// The MCP connections of the workspace as this step saw them: authorized, exposed, reported,
     /// used. Empty when the workspace has none.
     #[serde(default)]

@@ -72,6 +72,31 @@ export interface CommandMap {
   get_settings: { args: undefined; result: AppSettingsDto };
   set_language: { args: { language: string }; result: AppSettingsDto };
   set_specs_max_tokens: { args: { max: number | null }; result: AppSettingsDto };
+  list_memories: { args: undefined; result: MemoryDto[] };
+  create_memory: {
+    args: {
+      scope: MemoryScopeDto;
+      owner?: string | null;
+      kind: MemoryKindDto;
+      title: string;
+      content: string;
+      topic?: string | null;
+      validity?: MemoryValidityDto;
+    };
+    result: MemoryDto;
+  };
+  edit_memory: {
+    args: { id: string; title: string; content: string; topic?: string | null };
+    result: MemoryDto;
+  };
+  approve_memory: { args: { id: string }; result: MemoryDto };
+  set_memory_status: { args: { id: string; status: MemoryStatusDto }; result: MemoryDto };
+  delete_memory: { args: { id: string }; result: null };
+  /** Makes an automatic note the person's own. */
+  promote_memory: { args: { id: string }; result: MemoryDto };
+  /** Deletes the automatic notes nobody took as theirs; the number deleted. */
+  delete_automatic_memories: { args: undefined; result: number };
+  set_memory_settings: { args: { memory: MemorySettingsDto }; result: AppSettingsDto };
   raise_spec_budget: { args: { specId: string }; result: SpecViewDto };
   set_spec_integrations: { args: { specId: string; connectionIds: string[] }; result: SpecViewDto };
   select_workspace: { args: { workspaceId: string | null }; result: AppSettingsDto };
@@ -1212,7 +1237,53 @@ export interface AppSettingsDto {
     guardrailsEnabled?: boolean;
     /** `optimization.specs.maxTokens`: what the runs of one spec may use together; none: no limit. */
     specsMaxTokens?: number | null;
+    /** `optimization.memory`: which scopes of the Memory are recovered and proposed to. */
+    memory?: MemorySettingsDto;
   };
+}
+
+export type MemoryModeDto = 'off' | 'propose' | 'auto';
+
+export interface MemorySettingsDto {
+  user: MemoryModeDto;
+  workspace: MemoryModeDto;
+  agent: MemoryModeDto;
+  /** The most the memories of one prompt may add, in estimated tokens. */
+  maxTokens: number;
+}
+
+export type MemoryScopeDto = 'user' | 'workspace' | 'agent';
+export type MemoryKindDto = 'how_to' | 'pitfall' | 'preference' | 'decision';
+export type MemoryStatusDto = 'candidate' | 'active' | 'stale' | 'archived';
+
+export interface MemoryValidityDto {
+  paths: string[];
+  scripts: string[];
+  expiresAfterDays?: number | null;
+}
+
+/** A short lesson left for the next session: a hint, never an instruction (ADR 0037). */
+export interface MemoryDto {
+  id: string;
+  scope: MemoryScopeDto;
+  /** The workspace or agent id; none for the user's own. */
+  owner?: string | null;
+  kind: MemoryKindDto;
+  title: string;
+  content: string;
+  topic?: string | null;
+  provenance: {
+    origin: 'user' | 'agent' | 'imported';
+    executionId?: string | null;
+    /** It entered without a person deciding. */
+    automatic: boolean;
+  };
+  status: MemoryStatusDto;
+  validity: MemoryValidityDto;
+  uses: number;
+  createdAt: number;
+  updatedAt: number;
+  lastUsedAt?: number | null;
 }
 
 export type TaskStatusDto = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
@@ -1407,6 +1478,7 @@ export type PromptSectionKindDto =
   | 'harness'
   | 'task_context'
   | 'skills'
+  | 'memory'
   | 'project_context'
   | 'agent_instructions'
   | 'brief_workflow_context'
@@ -1837,6 +1909,15 @@ export interface RuntimeSurfaceDto {
 }
 
 /** Mirrors `domain::context::ContextManifest`. */
+export interface ManifestMemoryDto {
+  id: string;
+  title: string;
+  status: 'sent' | 'over_budget' | 'omitted_for_budget' | 'superseded' | 'stale' | 'expired';
+  reason?: string;
+  /** It entered without a person deciding. */
+  automatic: boolean;
+}
+
 export interface ContextManifestDto {
   executionId: string;
   workspaceId: string;
@@ -1861,6 +1942,10 @@ export interface ContextManifestDto {
   };
   /** The rules that applied to this execution and what became of each. */
   rules?: ManifestRuleDto[];
+  /** The notes of earlier work that could have gone into the prompt, and what became of each. */
+  memories?: ManifestMemoryDto[];
+  /** How many notes had nothing to do with the task (counted, not listed). */
+  memoriesNotRelevant?: number;
   /** The workspace's MCP connections as this step saw them. */
   mcp?: McpRecordDto;
   surface: RuntimeSurfaceDto;
