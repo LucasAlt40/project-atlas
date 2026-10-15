@@ -1,6 +1,6 @@
 # ADR 0037 — Memory: lições duráveis entre sessões, propostas pelo agente e decididas pela pessoa
 
-Status: proposto; **Fases M1 e M2 implementadas** (M1: domínio, armazenamento, recuperação, prompt, manifest, comandos; M2: protocolo `atlas-memory`, candidatos, aprovação e modo automático). M3–M4 pendentes. Baseia-se na seção 6 de
+Status: proposto; **Fases M1, M2 e M3 implementadas** (M1: domínio, armazenamento, recuperação, prompt, manifest, comandos; M2: protocolo `atlas-memory`, candidatos, aprovação e modo automático; M3: painel nas Configurações e notas no Inspetor, em pt-BR e en-US). M4 pendente. Baseia-se na seção 6 de
 [context-and-tooling-platform.md](../context-and-tooling-platform.md), na [ADR 0021](0021-context-engine.md) (Context
 Engine), na [ADR 0025](0025-guardrails-and-context-review.md) (guardrails), na [ADR 0026](0026-context-and-tooling-platform.md)
 (orçamento e manifest) e na [ADR 0027](0027-rules-context-authority-and-system-prompt-channel.md) (autoridade de contexto).

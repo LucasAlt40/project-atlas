@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AppInfoPanel } from '@/features/home/components/AppInfoPanel';
 import { useAppInfo } from '@/features/home/hooks/useAppInfo';
+import { MemorySettings } from '@/features/memory';
 import { PortabilitySettings } from '@/features/portability';
 import { LANGUAGES } from '@/i18n';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -71,6 +72,11 @@ export function SettingsPage() {
         </div>
         <p className={styles.help}>{t('settings.specsBudgetHelp')}</p>
       </form>
+
+      <div className={styles.field}>
+        <h2 className={styles.heading}>{t('memory.title')}</h2>
+        <MemorySettings />
+      </div>
 
       <div className={styles.field}>
         <h2 className={styles.heading}>{t('portability.settings.title')}</h2>

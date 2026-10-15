@@ -10,6 +10,7 @@ import { SettingsPage } from './SettingsPage';
 
 vi.mock('@/features/agents/services/catalogService');
 vi.mock('@/features/settings/services/settingsService');
+vi.mock('@/features/memory/services/memoryService');
 vi.mock('@/features/usage/services/usageService');
 vi.mock('@/features/workspace/services/workspaceService');
 vi.mock('@/features/home/services/appInfoService');

@@ -1,4 +1,4 @@
-import { invokeCommand, type AppSettingsDto } from '@/lib/tauri/commands';
+import { invokeCommand, type AppSettingsDto, type MemorySettingsDto } from '@/lib/tauri/commands';
 
 /** Settings of the whole application (not of any workspace), stored by the core. */
 
@@ -13,6 +13,11 @@ export function setLanguage(language: string): Promise<AppSettingsDto> {
 /** Remembers which workspace is open, so it opens again next time (`null`: none). */
 export function selectWorkspace(workspaceId: string | null): Promise<AppSettingsDto> {
   return invokeCommand('select_workspace', { workspaceId });
+}
+
+/** Which scopes of the Memory are recalled and proposed to, and the most a prompt may spend. */
+export function setMemorySettings(memory: MemorySettingsDto): Promise<AppSettingsDto> {
+  return invokeCommand('set_memory_settings', { memory });
 }
 
 /** The most tokens the runs of one specification may use together (`null`: no limit). */

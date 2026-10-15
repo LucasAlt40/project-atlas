@@ -494,3 +494,40 @@ describe('Execution Inspector context tab', () => {
     expect(screen.getByText(/No context record for this execution/)).toBeInTheDocument();
   });
 });
+
+it('lists the notes of earlier work with what became of each, and counts the unrelated ones', () => {
+  show(
+    'en-US',
+    execution({
+      manifest: manifest({
+        memories: [
+          { id: 'm1', title: 'Invoice rounding', status: 'sent', automatic: true },
+          {
+            id: 'm2',
+            title: 'Old script',
+            status: 'stale',
+            reason: 'scripts/old.sh is not in the project any more',
+            automatic: false,
+          },
+        ],
+        memoriesNotRelevant: 3,
+      }),
+    }),
+  );
+
+  const notes = screen.getByRole('region', { name: 'Notes of earlier work' });
+  expect(within(notes).getByText('Invoice rounding').closest('li')).toHaveTextContent(
+    'sent · Automatic',
+  );
+  expect(within(notes).getByText('Old script').closest('li')).toHaveTextContent(
+    'out of date, set aside · scripts/old.sh is not in the project any more',
+  );
+  expect(notes).toHaveTextContent('3 other note(s) had nothing to do with the task');
+  expect(notes).toHaveTextContent('never as instructions');
+});
+
+it('shows no notes panel when no note could have been sent', () => {
+  show('en-US', execution({ manifest: manifest({ memories: [], memoriesNotRelevant: 2 }) }));
+
+  expect(screen.queryByRole('region', { name: 'Notes of earlier work' })).not.toBeInTheDocument();
+});

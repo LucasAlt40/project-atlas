@@ -9,6 +9,7 @@ import type {
 } from '@/lib/tauri/commands';
 import styles from './ContextReview.module.css';
 import { McpPanel } from './McpPanel';
+import { MemoryPanel } from './MemoryPanel';
 import { RulesPanel } from './RulesPanel';
 
 const CONTROLS: readonly SurfaceControlDto[] = [
@@ -126,6 +127,9 @@ export function ContextPlatformPanel({ execution }: { execution: StoredExecution
         </section>
       )}
       {manifest && <RulesPanel rules={manifest.rules ?? []} />}
+      {manifest?.memories && manifest.memories.length > 0 && (
+        <MemoryPanel memories={manifest.memories} notRelevant={manifest.memoriesNotRelevant ?? 0} />
+      )}
       {manifest?.mcp && manifest.mcp.servers.length > 0 && <McpPanel record={manifest.mcp} />}
       {surface && (
         <section className={styles.panel} aria-label={t('context.surface.title')}>

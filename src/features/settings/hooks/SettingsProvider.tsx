@@ -9,11 +9,12 @@ import {
 } from 'react';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { DEFAULT_LANGUAGE, isLanguage, type Language } from '@/i18n';
-import type { AppSettingsDto } from '@/lib/tauri/commands';
+import type { AppSettingsDto, MemorySettingsDto } from '@/lib/tauri/commands';
 import {
   getSettings,
   selectWorkspace,
   setLanguage,
+  setMemorySettings,
   setSpecsMaxTokens,
 } from '../services/settingsService';
 
@@ -26,9 +27,19 @@ interface Settings {
   changeLanguage: (language: Language) => Promise<void>;
   rememberWorkspace: (workspaceId: string | null) => Promise<void>;
   changeSpecsMaxTokens: (max: number | null) => Promise<void>;
+  /** Which scopes of the Memory are recalled and proposed to (all off by default). */
+  memory: MemorySettingsDto;
+  changeMemorySettings: (memory: MemorySettingsDto) => Promise<void>;
 }
 
 const SettingsContext = createContext<Settings | null>(null);
+
+const MEMORY_OFF: MemorySettingsDto = {
+  user: 'off',
+  workspace: 'off',
+  agent: 'off',
+  maxTokens: 600,
+};
 
 const DEFAULTS: AppSettingsDto = { language: DEFAULT_LANGUAGE, selectedWorkspaceId: null };
 
@@ -71,6 +82,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setSettings(await setSpecsMaxTokens(max));
   }, []);
 
+  const changeMemorySettings = useCallback(async (memory: MemorySettingsDto) => {
+    setSettings(await setMemorySettings(memory));
+  }, []);
+
   const language = settings && isLanguage(settings.language) ? settings.language : DEFAULT_LANGUAGE;
   const value = useMemo<Settings | null>(
     () =>
@@ -81,8 +96,17 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         changeLanguage,
         rememberWorkspace,
         changeSpecsMaxTokens,
+        memory: settings.optimization?.memory ?? MEMORY_OFF,
+        changeMemorySettings,
       },
-    [settings, language, changeLanguage, rememberWorkspace, changeSpecsMaxTokens],
+    [
+      settings,
+      language,
+      changeLanguage,
+      rememberWorkspace,
+      changeSpecsMaxTokens,
+      changeMemorySettings,
+    ],
   );
 
   if (!value) return null;
