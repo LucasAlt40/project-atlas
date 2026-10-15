@@ -72,6 +72,8 @@ export interface CommandMap {
   get_settings: { args: undefined; result: AppSettingsDto };
   set_language: { args: { language: string }; result: AppSettingsDto };
   set_specs_max_tokens: { args: { max: number | null }; result: AppSettingsDto };
+  get_sandbox_status: { args: undefined; result: SandboxStatusDto };
+  set_sandbox_settings: { args: { sandbox: SandboxSettingsDto }; result: AppSettingsDto };
   list_memories: { args: undefined; result: MemoryDto[] };
   create_memory: {
     args: {
@@ -1240,6 +1242,23 @@ export interface AppSettingsDto {
     /** `optimization.memory`: which scopes of the Memory are recovered and proposed to. */
     memory?: MemorySettingsDto;
   };
+  /** Whether the runtime process is confined by the OS (ADR 0038). */
+  sandbox?: SandboxSettingsDto;
+}
+
+export type SandboxModeDto = 'off' | 'auto' | 'required';
+
+export interface SandboxSettingsDto {
+  mode: SandboxModeDto;
+  /** Let a confined process write the caches of the common developer tools. */
+  devCaches: boolean;
+}
+
+export interface SandboxStatusDto {
+  /** This system can confine a process (macOS with `sandbox-exec`). */
+  available: boolean;
+  platform: string;
+  settings: SandboxSettingsDto;
 }
 
 export type MemoryModeDto = 'off' | 'propose' | 'auto';

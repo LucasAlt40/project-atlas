@@ -62,6 +62,21 @@ impl SettingsService {
         })
     }
 
+    /// Whether, and how strictly, the runtime process of an execution is confined by the OS.
+    ///
+    /// # Errors
+    ///
+    /// Fails if saving fails.
+    pub fn set_sandbox_settings(
+        &self,
+        sandbox: crate::domain::security::SandboxSettings,
+    ) -> Result<AppSettings, AppError> {
+        self.config.modify(|config| {
+            config.settings.sandbox = sandbox;
+            Ok(config.settings.clone())
+        })
+    }
+
     /// Remembers which workspace is open (`None`: none).
     ///
     /// # Errors
@@ -138,6 +153,7 @@ mod tests {
                 language: "pt-BR".to_owned(),
                 selected_workspace_id: None,
                 optimization: crate::application::config::OptimizationSettings::default(),
+                sandbox: crate::domain::security::SandboxSettings::default(),
             }
         );
     }

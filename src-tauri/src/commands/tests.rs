@@ -33,6 +33,8 @@ fn window() -> (tauri::App<MockRuntime>, WebviewWindow<MockRuntime>) {
             super::memory::promote_memory,
             super::memory::delete_automatic_memories,
             super::memory::set_memory_settings,
+            super::sandbox::get_sandbox_status,
+            super::sandbox::set_sandbox_settings,
             super::personalities::list_personalities,
             super::personalities::create_personality,
             super::personalities::update_personality,
@@ -481,6 +483,7 @@ fn settings_default_to_portuguese_and_persist_language_and_selected_workspace() 
                 "specsMaxTokens": null,
                 "memory": { "user": "off", "workspace": "off", "agent": "off", "maxTokens": 600 }
             },
+            "sandbox": { "mode": "off", "devCaches": true },
         })
     );
     invoke(&window, "set_language", json!({ "language": "en-US" })).unwrap();

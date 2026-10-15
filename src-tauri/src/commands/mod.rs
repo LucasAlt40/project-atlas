@@ -15,6 +15,7 @@ pub mod personalities;
 pub mod portability;
 pub mod remote;
 pub mod runtimes;
+pub mod sandbox;
 pub mod security;
 pub mod settings;
 pub mod specs;

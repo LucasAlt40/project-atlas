@@ -45,6 +45,16 @@ function unenforcedOf(entry: ActivityEntry): string[] {
     .map((note) => note.slice('runtime_exceeds_policy:'.length));
 }
 
+/** What the core said about the sandbox of a runtime process (`sandbox:confined`, …). */
+function sandboxOf(entry: ActivityEntry): { confined: boolean; missing: string | null } {
+  const notes = (entry.metadata.notes ?? '').split(',');
+  const missing = notes.find((note) => note.startsWith('sandbox:unavailable:'));
+  return {
+    confined: notes.includes('sandbox:confined'),
+    missing: missing ? missing.slice('sandbox:unavailable:'.length) : null,
+  };
+}
+
 /** How a permission entry is shown: ✓ done, ✕ refused, ⚠ needs the user or a limit of Atlas. */
 export function permissionTone(
   entry: ActivityEntry,
@@ -57,7 +67,9 @@ export function permissionTone(
     case 'approval_requested':
       return entry.metadata.approvalId === pendingApprovalId ? 'attention' : 'ok';
     case 'allowed':
-      return unenforcedOf(entry).length > 0 ? 'attention' : 'ok';
+      return unenforcedOf(entry).length > 0 || sandboxOf(entry).missing !== null
+        ? 'attention'
+        : 'ok';
     default:
       return 'ok';
   }
@@ -76,11 +88,24 @@ function permissionLabel(t: Translate, entry: ActivityEntry): string {
         `agent.activity.permission.allowed.${metadata.action ?? 'run_process'}` as TranslationKey,
         params,
       );
-      return unenforced.length === 0
-        ? base
-        : `${base} ${t('agent.activity.permission.unenforced', {
+      const sandbox = sandboxOf(entry);
+      const parts = [base];
+      if (unenforced.length > 0) {
+        parts.push(
+          t('agent.activity.permission.unenforced', {
             what: unenforced.map((c) => t(`security.capability.${c}` as TranslationKey)).join(', '),
-          })}`;
+          }),
+        );
+      }
+      if (sandbox.confined) parts.push(t('agent.activity.permission.sandboxed'));
+      if (sandbox.missing !== null) {
+        parts.push(
+          t('agent.activity.permission.unsandboxed', {
+            why: t(`settings.sandbox.why.${sandbox.missing}` as TranslationKey),
+          }),
+        );
+      }
+      return parts.join(' ');
     }
     case 'denied':
       return t('agent.activity.permission.denied', params);

@@ -2391,6 +2391,8 @@ mod real_runtime_tests;
 #[cfg(test)]
 mod rules_tests;
 #[cfg(test)]
+mod sandbox_real_tests;
+#[cfg(test)]
 mod scope_tests;
 #[cfg(test)]
 mod tests;

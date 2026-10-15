@@ -86,3 +86,46 @@ describe('permission events', () => {
     expect(applyApprovalEvent([], request)).toHaveLength(1);
   });
 });
+
+describe('the sandbox on a runtime launch', () => {
+  const launch = (notes: string) =>
+    toActivityEntry(
+      permission({ decision: 'allowed', action: 'launch_runtime', target: 'claude -p', notes }),
+      0,
+    );
+
+  it('says the system confines the process when it does', () => {
+    const t = createTranslator('en-US');
+    const entry = launch('sandbox:confined');
+
+    expect(activityLabel(t, entry)).toContain('confined by the system');
+  });
+
+  it('warns, with the reason, when a sandbox was wanted and not given', () => {
+    const t = createTranslator('en-US');
+    const entry = launch('sandbox:unavailable:platform');
+
+    expect(activityLabel(t, entry)).toContain('not confined: this system has no sandbox');
+  });
+
+  it('says nothing about the sandbox when it is off', () => {
+    const t = createTranslator('en-US');
+
+    expect(activityLabel(t, launch(''))).not.toMatch(/confined|sandbox/i);
+  });
+
+  it('shows a refused launch with the reason in the person’s language', () => {
+    const t = createTranslator('pt-BR');
+    const entry = toActivityEntry(
+      permission({
+        decision: 'denied',
+        action: 'launch_runtime',
+        target: 'claude -p',
+        reason: 'sandbox_unavailable',
+      }),
+      0,
+    );
+
+    expect(activityLabel(t, entry)).toContain('Um sandbox é obrigatório');
+  });
+});

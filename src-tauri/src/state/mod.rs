@@ -54,6 +54,8 @@ pub struct AppState {
     /// The workspace's MCP connections, their grants and their secrets.
     pub mcp: Arc<McpService>,
     pub mcp_catalog: Arc<crate::application::mcp::McpCatalog>,
+    /// The OS sandbox of runtime processes (ADR 0038).
+    pub sandbox: Arc<crate::application::security::MacosSandbox>,
     /// The notes of earlier work (ADR 0037).
     pub memory: Arc<crate::application::memory::MemoryService>,
     /// Export and import of configurations as files.
@@ -277,6 +279,10 @@ impl AppState {
                     Err(crate::application::process::ProcessError::NotFound)
                 }),
             ))),
+            sandbox: Arc::new(crate::application::security::MacosSandbox::new(
+                Arc::new(crate::domain::security::SandboxSettings::default),
+                std::env::temp_dir().join("atlas-test-sandbox"),
+            )),
             memory: Arc::new(crate::application::memory::MemoryService::new(
                 Arc::new(crate::application::memory::ports::MemoryMemoryStore::default()),
                 Arc::new(crate::application::memory::ports::FakeProbe::default()),

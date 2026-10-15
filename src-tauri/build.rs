@@ -46,6 +46,8 @@ const COMMANDS: &[&str] = &[
     "promote_memory",
     "delete_automatic_memories",
     "set_memory_settings",
+    "get_sandbox_status",
+    "set_sandbox_settings",
     "raise_spec_budget",
     "set_spec_integrations",
     "select_workspace",

@@ -136,6 +136,7 @@ mod tests {
                 language: "en-US".to_owned(),
                 selected_workspace_id: Some("ws-1".to_owned()),
                 optimization: crate::application::config::OptimizationSettings::default(),
+                sandbox: crate::domain::security::SandboxSettings::default(),
             },
             worktrees: vec![ExecutionWorktree {
                 execution_id: "exec-42".to_owned(),

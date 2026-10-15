@@ -5,6 +5,7 @@ import { MemorySettings } from '@/features/memory';
 import { PortabilitySettings } from '@/features/portability';
 import { LANGUAGES } from '@/i18n';
 import { useI18n } from '@/i18n/I18nProvider';
+import { SandboxSettings } from '../components/SandboxSettings';
 import { UpdateChecker } from '../components/UpdateChecker';
 import { useSettings } from '../hooks/SettingsProvider';
 import styles from './SettingsPage.module.css';
@@ -72,6 +73,11 @@ export function SettingsPage() {
         </div>
         <p className={styles.help}>{t('settings.specsBudgetHelp')}</p>
       </form>
+
+      <div className={styles.field}>
+        <h2 className={styles.heading}>{t('settings.sandbox.title')}</h2>
+        <SandboxSettings />
+      </div>
 
       <div className={styles.field}>
         <h2 className={styles.heading}>{t('memory.title')}</h2>

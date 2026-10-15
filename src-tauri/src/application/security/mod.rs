@@ -11,7 +11,7 @@
 //! - [`approvals`]: the explicit, UI-only way to let a "requires approval" command run
 //! - [`audit`]: every decision, per execution
 //! - [`guard`]: the `ProcessRunner` wrapper that enforces all of it
-//! - [`sandbox`]: the seam for a future OS-level sandbox
+//! - [`sandbox`]: the OS-level sandbox (macOS `sandbox-exec`) and the seam for others
 
 pub mod approvals;
 pub mod audit;
@@ -34,5 +34,7 @@ pub mod testutil;
 pub use approvals::ApprovalBroker;
 pub use audit::{AuditLog, PermissionSink};
 pub use guard::GuardedProcessRunner;
+pub use sandbox::MacosSandbox;
+#[cfg(test)]
 pub use sandbox::NoSandbox;
 pub use service::{PolicyResolver, SecurityOverview, SecurityService};

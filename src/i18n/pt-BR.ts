@@ -2156,6 +2156,29 @@ export const ptBR: Record<TranslationKey, string> = {
   'error.mcp_connection_not_found': 'Essa conexão MCP não existe mais.',
   'error.mcp_connection_invalid': 'Essa configuração de MCP não é aceitável ({reason}).',
   'error.mcp_name_taken': 'Outra conexão deste workspace já tem esse nome.',
+  'permission.reason.sandbox_unavailable':
+    'Um sandbox é obrigatório e este sistema não consegue oferecer um.',
+  'agent.activity.permission.sandboxed':
+    '(confinado pelo sistema: só escreve no worktree e nas próprias pastas)',
+  'agent.activity.permission.unsandboxed': '(⚠ sem confinamento: {why})',
+  'settings.sandbox.title': 'Sandbox dos runtimes',
+  'settings.sandbox.help':
+    'O sistema operacional confina o programa do runtime e tudo o que ele inicia: só escreve no worktree, nas próprias pastas e numa pasta temporária da execução, e não lê suas chaves SSH, credenciais de nuvem nem dados do navegador. A rede continua aberta (um sandbox não filtra por site), então isto protege seus arquivos, não o que sai pela conexão. Desligado por padrão: ligue depois de testar uma tarefa.',
+  'settings.sandbox.mode': 'Sandbox',
+  'settings.sandbox.mode.off': 'Desligado',
+  'settings.sandbox.mode.auto': 'Ligado quando o sistema puder',
+  'settings.sandbox.mode.required': 'Obrigatório: não iniciar sem ele',
+  'settings.sandbox.devCaches': 'Deixar escrever nos caches de ferramentas (npm, cargo, pip…)',
+  'settings.sandbox.devCachesHelp':
+    'Sem eles, instalar e testar falham dentro do sandbox. Com eles, um processo poderia alterar um cache que outros projetos usam.',
+  'settings.sandbox.available': 'Este sistema consegue confinar processos.',
+  'settings.sandbox.unavailable':
+    'Este sistema não consegue confinar processos (só macOS, com sandbox-exec). “Ligado quando o sistema puder” roda sem confinamento e avisa na atividade; “Obrigatório” se recusa a iniciar.',
+  'settings.sandbox.why.platform': 'este sistema não tem sandbox',
+  'settings.sandbox.why.no_sandbox_exec': 'o sandbox-exec não foi encontrado',
+  'settings.sandbox.why.unknown_runtime': 'o Atlas não sabe do que este runtime precisa',
+  'settings.sandbox.why.no_working_dir': 'o processo não tem pasta de trabalho',
+  'settings.sandbox.why.no_home': 'a pasta pessoal é desconhecida',
   'memory.title': 'Notas de trabalhos anteriores',
   'memory.help':
     'Lições curtas que os agentes e você deixam para a próxima execução (um comando que funciona, uma armadilha, uma escolha). Uma nota é uma dica que o agente pode usar: não é instrução e não concede nada. Tudo fica desligado até você ligar um escopo.',

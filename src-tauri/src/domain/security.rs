@@ -341,6 +341,8 @@ pub enum Reason {
     FilesystemWrite,
     UnknownProgram,
     SandboxRefused,
+    /// The person requires a sandbox and this system, this runtime or this execution cannot have one.
+    SandboxUnavailable,
     ApprovalRejected,
     ApprovalTimeout,
     /// The context to be sent has a blocking problem.
@@ -384,6 +386,7 @@ impl Reason {
             Self::FilesystemWrite => "filesystem_write",
             Self::UnknownProgram => "unknown_program",
             Self::SandboxRefused => "sandbox_refused",
+            Self::SandboxUnavailable => "sandbox_unavailable",
             Self::ApprovalRejected => "approval_rejected",
             Self::ApprovalTimeout => "approval_timeout",
             Self::ContextInvalid => "context_invalid",
@@ -456,6 +459,45 @@ pub struct PermissionEvent {
     /// Facts worth keeping next to the decision (for example capabilities Atlas could not
     /// restrict).
     pub notes: Vec<String>,
+}
+
+/// Whether the runtime process of an execution is confined by the operating system (ADR 0038).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SandboxMode {
+    /// No confinement: the process has the person's own rights, as before the sandbox existed.
+    #[default]
+    Off,
+    /// Confine when this system can, and say so on the audit trail when it cannot.
+    Auto,
+    /// Confine, or do not start: an execution that cannot be confined is refused.
+    Required,
+}
+
+/// The sandbox's settings: one switch and one choice about developer tools' caches.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SandboxSettings {
+    #[serde(default)]
+    pub mode: SandboxMode,
+    /// Let a confined process write the caches of the common developer tools (`~/.npm`,
+    /// `~/.cargo/registry`, `~/.cache`…). Without them `npm ci` and `cargo test` fail; with them a
+    /// process can poison a cache other projects use.
+    #[serde(default = "dev_caches_default")]
+    pub dev_caches: bool,
+}
+
+const fn dev_caches_default() -> bool {
+    true
+}
+
+impl Default for SandboxSettings {
+    fn default() -> Self {
+        Self {
+            mode: SandboxMode::Off,
+            dev_caches: true,
+        }
+    }
 }
 
 #[cfg(test)]

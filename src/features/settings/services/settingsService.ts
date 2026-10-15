@@ -1,4 +1,10 @@
-import { invokeCommand, type AppSettingsDto, type MemorySettingsDto } from '@/lib/tauri/commands';
+import {
+  invokeCommand,
+  type AppSettingsDto,
+  type MemorySettingsDto,
+  type SandboxSettingsDto,
+  type SandboxStatusDto,
+} from '@/lib/tauri/commands';
 
 /** Settings of the whole application (not of any workspace), stored by the core. */
 
@@ -13,6 +19,15 @@ export function setLanguage(language: string): Promise<AppSettingsDto> {
 /** Remembers which workspace is open, so it opens again next time (`null`: none). */
 export function selectWorkspace(workspaceId: string | null): Promise<AppSettingsDto> {
   return invokeCommand('select_workspace', { workspaceId });
+}
+
+/** What this system can confine, and the person's choice (ADR 0038). */
+export function getSandboxStatus(): Promise<SandboxStatusDto> {
+  return invokeCommand('get_sandbox_status');
+}
+
+export function setSandboxSettings(sandbox: SandboxSettingsDto): Promise<AppSettingsDto> {
+  return invokeCommand('set_sandbox_settings', { sandbox });
 }
 
 /** Which scopes of the Memory are recalled and proposed to, and the most a prompt may spend. */

@@ -2131,6 +2131,28 @@ export const enUS = {
   'error.mcp_connection_not_found': 'That MCP connection no longer exists.',
   'error.mcp_connection_invalid': 'That MCP configuration is not acceptable ({reason}).',
   'error.mcp_name_taken': 'Another connection in this workspace already has that name.',
+  'permission.reason.sandbox_unavailable': 'A sandbox is required and this system cannot give one.',
+  'agent.activity.permission.sandboxed':
+    '(confined by the system: it can only write its worktree and its own folders)',
+  'agent.activity.permission.unsandboxed': '(⚠ not confined: {why})',
+  'settings.sandbox.title': 'Sandbox of the runtimes',
+  'settings.sandbox.help':
+    'The operating system confines the runtime’s program, and everything it starts: it can write only its worktree, its own folders and a temporary folder of the execution, and it cannot read your SSH keys, cloud credentials or browser data. The network stays open (a sandbox cannot filter by site), so this protects your files, not what leaves through the connection. Off by default: turn it on after trying a task.',
+  'settings.sandbox.mode': 'Sandbox',
+  'settings.sandbox.mode.off': 'Off',
+  'settings.sandbox.mode.auto': 'On when the system can',
+  'settings.sandbox.mode.required': 'Required: do not start without it',
+  'settings.sandbox.devCaches': 'Let it write the caches of developer tools (npm, cargo, pip…)',
+  'settings.sandbox.devCachesHelp':
+    'Without them installing and testing fail inside the sandbox. With them, a process could change a cache other projects use.',
+  'settings.sandbox.available': 'This system can confine processes.',
+  'settings.sandbox.unavailable':
+    'This system cannot confine processes (macOS only, with sandbox-exec). “On when the system can” runs unconfined and says so on the activity; “Required” refuses to start.',
+  'settings.sandbox.why.platform': 'this system has no sandbox',
+  'settings.sandbox.why.no_sandbox_exec': 'sandbox-exec was not found',
+  'settings.sandbox.why.unknown_runtime': 'Atlas does not know what this runtime needs',
+  'settings.sandbox.why.no_working_dir': 'the process has no working folder',
+  'settings.sandbox.why.no_home': 'the home folder is unknown',
   'memory.title': 'Notes of earlier work',
   'memory.help':
     'Short lessons that agents and you leave for the next run (a command that works, a trap, a choice). A note is a hint the agent may use: it is not an instruction and it grants nothing. Everything is off until you turn a scope on.',

@@ -24,7 +24,7 @@ use super::audit::AuditLog;
 use super::evaluator::{
     evaluate_agent_request, evaluate_probe, evaluate_runtime_launch, evaluate_tool, Evaluation,
 };
-use super::sandbox::SandboxProvider;
+use super::sandbox::{SandboxProvider, SandboxRefusal, SandboxRequest};
 use super::service::{PolicyResolver, ResolvedScope};
 use crate::application::process::{
     ExecutionScope, ProcessContext, ProcessError, ProcessEvent, ProcessOutput, ProcessRunner,
@@ -130,18 +130,29 @@ impl GuardedProcessRunner {
         ProcessError::PermissionDenied(reason)
     }
 
-    /// Passes an approved request to the OS (through the sandbox hook), unchanged.
-    fn start(
+    /// Puts an approved request through the sandbox hook. The note says how it will run, for the
+    /// audit trail (`None`: the sandbox is off). A refusal is recorded and the process does not
+    /// start.
+    fn confine(
         &self,
         spec: &ProcessSpec,
         policy: &SecurityPolicy,
         scope: &ExecutionScope,
         action: PermissionAction,
-        on_event: &dyn Fn(ProcessEvent),
-    ) -> Result<ProcessOutput, ProcessError> {
-        match self.sandbox.prepare(spec.clone(), policy) {
-            Ok(prepared) => self.inner.run(&prepared, on_event),
-            Err(_) => Err(self.record_denied(scope, spec, action, Reason::SandboxRefused)),
+    ) -> Result<(ProcessSpec, Vec<String>), ProcessError> {
+        let request = SandboxRequest {
+            policy,
+            scope,
+            program_path: self.inner.locate(&spec.program),
+        };
+        match self.sandbox.prepare(spec.clone(), &request) {
+            Ok(prepared) => Ok((prepared.spec, prepared.notes)),
+            Err(SandboxRefusal::Unavailable(_)) => {
+                Err(self.record_denied(scope, spec, action, Reason::SandboxUnavailable))
+            }
+            Err(SandboxRefusal::Failed(_)) => {
+                Err(self.record_denied(scope, spec, action, Reason::SandboxRefused))
+            }
         }
     }
 
@@ -169,6 +180,9 @@ impl GuardedProcessRunner {
         if let Some(reason) = refusal(evaluation) {
             return Err(self.record_denied(scope, spec, action, reason));
         }
+        // How the process will run is decided before it is allowed on the record, so the record
+        // says whether the operating system confines it.
+        let (confined, notes) = self.confine(spec, &resolved.policy, scope, action)?;
         // What the runtime's own tools can do beyond the policy is recorded, not hidden: Atlas
         // cannot narrow it from outside the process.
         let mut allowed = Self::event(
@@ -185,8 +199,9 @@ impl GuardedProcessRunner {
             .into_iter()
             .map(|capability| format!("runtime_exceeds_policy:{capability}"))
             .collect();
+        allowed.notes.extend(notes);
         self.audit.record(allowed);
-        self.start(spec, &resolved.policy, scope, action, on_event)
+        self.inner.run(&confined, on_event)
     }
 
     fn run_agent_request(
@@ -219,7 +234,8 @@ impl GuardedProcessRunner {
                 self.await_approval(scope, spec, &resolved, reason)?
             }
         };
-        self.start(spec, &policy, scope, action, on_event)
+        let (confined, _) = self.confine(spec, &policy, scope, action)?;
+        self.inner.run(&confined, on_event)
     }
 
     /// Parks the execution until the user answers. Returns the policy to start under.
@@ -345,7 +361,7 @@ mod tests {
     use crate::application::config::memory::MemoryStore;
     use crate::application::config::ConfigRepository;
     use crate::application::process::fake::{ok, FakeProcessRunner};
-    use crate::application::security::sandbox::NoSandbox;
+    use crate::application::security::sandbox::{NoSandbox, Prepared};
     use crate::application::security::service::SecurityService;
     use crate::application::security::testutil::TempDir;
     use crate::application::security::PermissionSink;
@@ -1027,10 +1043,13 @@ mod tests {
         fn prepare(
             &self,
             mut spec: ProcessSpec,
-            _policy: &SecurityPolicy,
-        ) -> Result<ProcessSpec, String> {
+            _request: &SandboxRequest<'_>,
+        ) -> Result<Prepared, SandboxRefusal> {
             spec.args.insert(0, "--sandboxed".to_owned());
-            Ok(spec)
+            Ok(Prepared {
+                spec,
+                notes: vec!["sandbox:test".to_owned()],
+            })
         }
     }
 
@@ -1040,9 +1059,21 @@ mod tests {
         fn prepare(
             &self,
             _spec: ProcessSpec,
-            _policy: &SecurityPolicy,
-        ) -> Result<ProcessSpec, String> {
-            Err("cannot confine".to_owned())
+            _request: &SandboxRequest<'_>,
+        ) -> Result<Prepared, SandboxRefusal> {
+            Err(SandboxRefusal::Failed("cannot confine".to_owned()))
+        }
+    }
+
+    struct Unavailable;
+
+    impl SandboxProvider for Unavailable {
+        fn prepare(
+            &self,
+            _spec: ProcessSpec,
+            _request: &SandboxRequest<'_>,
+        ) -> Result<Prepared, SandboxRefusal> {
+            Err(SandboxRefusal::Unavailable("platform".to_owned()))
         }
     }
 
@@ -1074,6 +1105,39 @@ mod tests {
             ProcessError::PermissionDenied(Reason::SandboxRefused)
         );
         assert_eq!(started(&w), 1);
+    }
+
+    #[test]
+    fn how_a_runtime_will_run_is_on_the_record_and_a_required_sandbox_that_is_missing_stops_it() {
+        let w = world();
+        let build = |sandbox: Arc<dyn SandboxProvider>| {
+            GuardedProcessRunner::new(
+                w.fake.clone(),
+                Arc::new(SecurityService::new(w.config.clone())),
+                w.broker.clone(),
+                w.audit.clone(),
+                sandbox,
+                vec!["claude".to_owned()],
+            )
+        };
+        let s = scope("ws-a", "reader", ToolAccess::NONE);
+        let launch = runtime_launch(s.clone(), &w.a);
+
+        build(Arc::new(Wrapping)).run(&launch, &|_| {}).unwrap();
+        let recorded = w.audit.take(&s.execution_id);
+        assert_eq!(recorded.len(), 1);
+        assert!(recorded[0].notes.contains(&"sandbox:test".to_owned()));
+
+        let refused = build(Arc::new(Unavailable)).run(&launch, &|_| {});
+        assert_eq!(
+            refused.unwrap_err(),
+            ProcessError::PermissionDenied(Reason::SandboxUnavailable)
+        );
+        assert_eq!(started(&w), 1, "nothing started the second time");
+        let recorded = w.audit.take(&s.execution_id);
+        assert_eq!(recorded.len(), 1);
+        assert_eq!(recorded[0].decision, PermissionOutcome::Denied);
+        assert_eq!(recorded[0].reason, Some(Reason::SandboxUnavailable));
     }
 
     // ── real processes ──────────────────────────────────────────────────────────────────

@@ -27,6 +27,9 @@ pub struct AppSettings {
     /// Switches of the Optimization Layer.
     #[serde(default)]
     pub optimization: OptimizationSettings,
+    /// Whether the runtime process of an execution is confined by the OS (ADR 0038).
+    #[serde(default)]
+    pub sandbox: crate::domain::security::SandboxSettings,
 }
 
 /// Which parts of the Optimization Layer are on. Phase 0 has only the metrics, and they only
@@ -99,6 +102,7 @@ impl Default for AppSettings {
             language: DEFAULT_LANGUAGE.to_owned(),
             selected_workspace_id: None,
             optimization: OptimizationSettings::default(),
+            sandbox: crate::domain::security::SandboxSettings::default(),
         }
     }
 }

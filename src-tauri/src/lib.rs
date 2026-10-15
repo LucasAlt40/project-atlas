@@ -28,7 +28,7 @@ use application::personalities::PersonalityService;
 use application::process::ProcessRunner;
 use application::runtimes::{RuntimeRegistry, RUNTIME_PROGRAMS};
 use application::security::{
-    ApprovalBroker, AuditLog, GuardedProcessRunner, NoSandbox, PermissionSink, SecurityOverview,
+    ApprovalBroker, AuditLog, GuardedProcessRunner, PermissionSink, SecurityOverview,
     SecurityService,
 };
 use application::sessions::{SessionRegistry, SessionSink};
@@ -138,6 +138,8 @@ pub fn run() {
             commands::memory::promote_memory,
             commands::memory::delete_automatic_memories,
             commands::memory::set_memory_settings,
+            commands::sandbox::get_sandbox_status,
+            commands::sandbox::set_sandbox_settings,
             commands::specs::raise_spec_budget,
             commands::specs::set_spec_integrations,
             commands::settings::select_workspace,
@@ -282,13 +284,22 @@ fn build_state(
     // The runner publishes each terminal process it starts here; the same registry is what the
     // terminal commands control. A session exists only for a process the guard let start.
     let sessions = Arc::new(SessionRegistry::with_sink(session_sink));
+    // The runtime's CLI is confined by the OS when the person asked for it (ADR 0038); the setting
+    // is read at every start, so a change applies to the next execution.
+    let sandbox = Arc::new(application::security::MacosSandbox::new(
+        {
+            let config = config.clone();
+            Arc::new(move || config.read(|c| c.settings.sandbox))
+        },
+        data_dir.join("sandbox"),
+    ));
     let runner: Arc<dyn ProcessRunner> = Arc::new(
         GuardedProcessRunner::new(
             Arc::new(SystemProcessRunner::new().with_sessions(sessions.clone())),
             security.clone(),
             approvals.clone(),
             audit.clone(),
-            Arc::new(NoSandbox),
+            sandbox.clone(),
             RUNTIME_PROGRAMS.map(str::to_owned).to_vec(),
         )
         .with_tools(vec!["openspec".to_owned()]),
@@ -543,6 +554,7 @@ fn build_state(
         live,
         mcp,
         mcp_catalog,
+        sandbox,
         memory,
         portability,
         remote,

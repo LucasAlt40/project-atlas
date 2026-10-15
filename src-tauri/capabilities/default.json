@@ -14,6 +14,8 @@
     "allow-promote-memory",
     "allow-delete-automatic-memories",
     "allow-set-memory-settings",
+    "allow-get-sandbox-status",
+    "allow-set-sandbox-settings",
     "allow-check-for-update",
     "allow-install-update",
     "allow-list-mcp-connections",
