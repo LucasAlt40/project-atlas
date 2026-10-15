@@ -121,6 +121,16 @@ pub trait HarnessStore: Send + Sync {
     fn ensure_gitignored(&self, _project_path: &str) -> Result<GitIgnoreStatus, AppError> {
         Ok(GitIgnoreStatus::Skipped)
     }
+    /// Removes what the Harness itself made under `.atlas/` (manifest, knowledge, generated and
+    /// business context, backups). Other things that live in `.atlas/` (skills, MCP files, the
+    /// agents/workflows/policies/memory folders when they hold anything) are left alone.
+    ///
+    /// # Errors
+    ///
+    /// `HarnessGenerationFailed` if something cannot be removed safely (a link, for one).
+    fn reset(&self, _project_path: &str) -> Result<(), AppError> {
+        Ok(())
+    }
 }
 
 /// What an analysis found, kept between "analyze" and "initialize" so the Harness is built from
@@ -311,6 +321,26 @@ impl HarnessService {
         project_id: Option<&str>,
     ) -> Result<HarnessSummary, AppError> {
         let path = self.project_path_of(workspace_id, project_id)?;
+        Ok(self.summary_at(&path))
+    }
+
+    /// Wipes the Harness of one project (the primary one when `None`) so it can be generated
+    /// again from scratch. The project's own files and the rest of `.atlas/` are not touched.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the workspace or the project does not exist, or the files cannot be removed.
+    pub fn reset_in(
+        &self,
+        workspace_id: &str,
+        project_id: Option<&str>,
+    ) -> Result<HarnessSummary, AppError> {
+        let path = self.project_path_of(workspace_id, project_id)?;
+        self.store.reset(&path)?;
+        self.pending
+            .lock()
+            .expect("pending analyses lock")
+            .remove(&path);
         Ok(self.summary_at(&path))
     }
 
@@ -919,6 +949,11 @@ pub mod fake {
                 report.written.push(file.path.clone());
             }
             Ok(report)
+        }
+
+        fn reset(&self, _: &str) -> Result<(), AppError> {
+            self.files.lock().unwrap().clear();
+            Ok(())
         }
 
         fn ensure_gitignored(

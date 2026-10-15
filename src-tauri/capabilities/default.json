@@ -85,6 +85,8 @@
     "allow-save-workspace-notes",
     "allow-get-project-harness",
     "allow-refresh-project-harness",
+    "allow-reset-project-harness",
+    "allow-reset-workspace-harness",
     "allow-preview-task-context",
     "allow-list-workflows",
     "allow-get-workflow",

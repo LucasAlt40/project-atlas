@@ -56,6 +56,34 @@ pub fn get_project_harness(
     state.harness.get_in(&workspace_id, project_id.as_deref())
 }
 
+/// Wipes the Harness of one project so it can be generated again. Nothing else of the project
+/// is touched.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+pub fn reset_project_harness(
+    state: State<'_, AppState>,
+    workspace_id: String,
+    project_id: Option<String>,
+) -> Result<HarnessSummary, AppError> {
+    state
+        .harness
+        .reset_in(&workspace_id, project_id.as_deref())
+}
+
+/// Wipes the Harness of the workspace's projects (or of the ones named) and rebuilds the
+/// workspace context. The workspace notes stay.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+pub fn reset_workspace_harness(
+    state: State<'_, AppState>,
+    workspace_id: String,
+    project_ids: Option<Vec<String>>,
+) -> Result<WorkspaceContextInfo, AppError> {
+    state
+        .harness
+        .reset_workspace(&workspace_id, project_ids.as_deref())
+}
+
 /// Compares a new analysis with the existing Harness. Without `confirm` it only reports the
 /// diff and conflicts; with it, the generated files are updated and the user's own are kept.
 #[allow(clippy::needless_pass_by_value)]

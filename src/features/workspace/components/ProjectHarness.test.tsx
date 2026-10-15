@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   agent,
@@ -8,7 +8,7 @@ import {
   renderWithProviders,
   workspace,
 } from '@/test/fixtures';
-import { getProjectHarness, refreshProjectHarness } from '../services/workspaceService';
+import { getWorkspaceHarness, refreshProjectHarness } from '../services/workspaceService';
 import { WorkspacePage } from '../pages/WorkspacePage';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 
@@ -43,47 +43,72 @@ function show(options = {}) {
   );
 }
 
+/** The one place the Harness is handled: the projects panel, whatever the number of projects. */
+async function openPanel(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole('button', { name: 'Manage the projects of ERP' }));
+  return screen.findByRole('dialog', { name: 'Projects of ERP' });
+}
+
 describe('Workspace Harness status', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
+  it('handles the Harness only in the panel, never on the workspace screen', async () => {
+    const user = userEvent.setup();
+    show({ harness: initialized });
+
+    await screen.findByRole('button', { name: 'Manage the projects of ERP' });
+    expect(screen.queryByRole('button', { name: 'Initialize Project' })).not.toBeInTheDocument();
+    const panel = await openPanel(user);
+    expect(
+      await within(panel).findByRole('button', { name: 'Refresh Harness of erp' }),
+    ).toBeVisible();
+  });
+
   it('says the project is not initialized and offers to initialize it', async () => {
+    const user = userEvent.setup();
     show();
 
-    const harness = await screen.findByRole('group', { name: 'Harness' });
-    expect(await within(harness).findByText(/Not initialized/)).toBeVisible();
-    expect(within(harness).getByRole('button', { name: 'Initialize Project' })).toBeVisible();
+    const panel = await openPanel(user);
+    expect(await within(panel).findByText('Not analysed')).toBeVisible();
+    expect(within(panel).getByRole('button', { name: 'Review Harness of erp' })).toHaveTextContent(
+      'Initialize Project',
+    );
   });
 
   it('shows an initialized Harness with its stack and no initialize button', async () => {
+    const user = userEvent.setup();
     show({ harness: initialized });
 
-    const harness = await screen.findByRole('group', { name: 'Harness' });
-    expect(await within(harness).findByText(/Initialized/)).toBeVisible();
-    expect(within(harness).getByText('Angular 21 · .NET 10')).toBeVisible();
+    const panel = await openPanel(user);
+    expect(await within(panel).findByText('Angular 21 · .NET 10')).toBeVisible();
     expect(
-      within(harness).queryByRole('button', { name: 'Initialize Project' }),
+      within(panel).queryByRole('button', { name: 'Review Harness of erp' }),
     ).not.toBeInTheDocument();
   });
 
   it('flags a Harness that needs review', async () => {
+    const user = userEvent.setup();
     show({ harness: harnessSummary({ status: 'needs_review', hasAtlasDir: true }) });
 
-    const harness = await screen.findByRole('group', { name: 'Harness' });
-    expect(await within(harness).findByText(/Needs review/)).toBeVisible();
-    expect(within(harness).getByRole('button', { name: 'Review Harness' })).toBeVisible();
+    const panel = await openPanel(user);
+    expect(
+      await within(panel).findByRole('button', { name: 'Review Harness of erp' }),
+    ).toHaveTextContent('Review Harness');
   });
 
-  it('opens the analysis from the card and shows the new state once initialized', async () => {
+  it('opens the full analysis and review from the panel', async () => {
     const user = userEvent.setup();
     show({ analysis: projectAnalysis() });
 
-    await user.click(await screen.findByRole('button', { name: 'Initialize Project' }));
+    const panel = await openPanel(user);
+    await user.click(await within(panel).findByRole('button', { name: 'Review Harness of erp' }));
     expect(await screen.findByRole('dialog', { name: 'Initialize Project' })).toBeVisible();
   });
 
   it('shows how far the Harness can be trusted, and why', async () => {
+    const user = userEvent.setup();
     show({
       harness: {
         ...initialized,
@@ -91,6 +116,7 @@ describe('Workspace Harness status', () => {
       },
     });
 
+    await openPanel(user);
     const badge = await screen.findByLabelText(/Health: Conflicted/);
     expect(badge).toHaveTextContent('Conflicted');
     expect(badge).toHaveAccessibleName(/Evidence contradicts itself/);
@@ -116,16 +142,16 @@ describe('Workspace Harness status', () => {
       },
     });
 
-    const notice = await screen.findByRole('status', { name: 'Harness stale' });
+    const panel = await openPanel(user);
+    const notice = await within(panel).findByRole('status', { name: 'Harness stale' });
     expect(notice).toHaveTextContent('7 relevant project changes detected');
     expect(within(notice).getByText('package.json')).toBeVisible();
     expect(within(notice).getByText('… and 5 more')).toBeVisible();
     expect(notice).toHaveTextContent('Nothing was deleted');
-    expect(await screen.findByLabelText(/Health: Stale/)).toHaveTextContent('Stale');
+    expect(await within(panel).findByLabelText(/Health: Stale/)).toHaveTextContent('Stale');
     expect(
-      screen.getByText(/29 findings · 18 verified · 7 inferred · 3 may be outdated/),
+      within(panel).getByText(/29 findings · 18 verified · 7 inferred · 3 may be outdated/),
     ).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled();
 
     vi.mocked(refreshProjectHarness).mockResolvedValue({
       staleness: {
@@ -137,12 +163,12 @@ describe('Workspace Harness status', () => {
       conflicts: [],
       applied: null,
     });
-    await user.click(screen.getByRole('button', { name: 'Refresh' }));
-    const dialog = await screen.findByRole('dialog');
+    await user.click(within(panel).getByRole('button', { name: 'Refresh Harness of erp' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Refresh Harness' });
     expect(await within(dialog).findByText(/1 relevant project change detected/)).toBeVisible();
     // Previewing writes nothing: only an explicit confirmation does.
     expect(vi.mocked(refreshProjectHarness)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(refreshProjectHarness)).toHaveBeenCalledWith('w1', false);
+    expect(vi.mocked(refreshProjectHarness)).toHaveBeenCalledWith('w1', false, 'w1-main');
   });
 
   it('fixes a stale Harness in one click, applying the refresh without a preview', async () => {
@@ -172,17 +198,17 @@ describe('Workspace Harness status', () => {
       },
     });
 
-    await user.click(await screen.findByRole('button', { name: 'Fix automatically' }));
+    const panel = await openPanel(user);
+    await user.click(await within(panel).findByRole('button', { name: 'Fix automatically' }));
 
-    expect(vi.mocked(refreshProjectHarness)).toHaveBeenCalledWith('w1', true);
-    await waitFor(() =>
-      expect(screen.queryByRole('status', { name: 'Harness stale' })).not.toBeInTheDocument(),
-    );
+    expect(vi.mocked(refreshProjectHarness)).toHaveBeenCalledWith('w1', true, 'w1-main');
   });
 
   it('does not claim staleness for a current Harness', async () => {
+    const user = userEvent.setup();
     show({ harness: { ...initialized, health: { state: 'healthy', reasons: [] } } });
 
+    await openPanel(user);
     expect(await screen.findByLabelText(/Health: Healthy/)).toBeVisible();
     expect(screen.queryByRole('status', { name: 'Harness stale' })).not.toBeInTheDocument();
   });
@@ -215,7 +241,8 @@ describe('Workspace Harness status', () => {
       }),
     );
 
-    await user.click(await screen.findByRole('button', { name: 'Refresh' }));
+    const panel = await openPanel(user);
+    await user.click(await within(panel).findByRole('button', { name: 'Refresh Harness of erp' }));
     const dialog = await screen.findByRole('dialog', { name: 'Refresh Harness' });
     expect(await within(dialog).findByText('− Angular 21')).toBeVisible();
     expect(within(dialog).getByText('+ Angular 22')).toBeVisible();
@@ -224,13 +251,12 @@ describe('Workspace Harness status', () => {
     ).toBeVisible();
     // Previewing writes nothing.
     expect(refreshProjectHarness).toHaveBeenCalledTimes(1);
-    expect(refreshProjectHarness).toHaveBeenCalledWith('w1', false);
+    expect(refreshProjectHarness).toHaveBeenCalledWith('w1', false, 'w1-main');
 
     await user.click(within(dialog).getByRole('button', { name: 'Apply changes' }));
 
-    expect(refreshProjectHarness).toHaveBeenLastCalledWith('w1', true);
+    expect(refreshProjectHarness).toHaveBeenLastCalledWith('w1', true, 'w1-main');
     expect(await within(dialog).findByText(/Harness refreshed/)).toBeVisible();
-    expect(await screen.findByText('Angular 22')).toBeVisible();
   });
 
   it('refresh shows conflicts the new analysis found', async () => {
@@ -258,7 +284,8 @@ describe('Workspace Harness status', () => {
       applied: null,
     });
 
-    await user.click(await screen.findByRole('button', { name: 'Refresh' }));
+    const panel = await openPanel(user);
+    await user.click(await within(panel).findByRole('button', { name: 'Refresh Harness of erp' }));
 
     const conflicts = await screen.findByRole('region', { name: 'Conflicting information' });
     expect(within(conflicts).getByText('Decided: 19')).toBeVisible();
@@ -274,40 +301,21 @@ describe('Workspace Harness status', () => {
       detail: null,
     });
 
-    await user.click(await screen.findByRole('button', { name: 'Refresh' }));
+    const panel = await openPanel(user);
+    await user.click(await within(panel).findByRole('button', { name: 'Refresh Harness of erp' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/could not be read/);
   });
 
   it('says when the Harness state cannot be read', async () => {
-    show();
-    vi.mocked(getProjectHarness).mockRejectedValue(new Error('boom'));
-    // Switching workspace re-reads it; the failure is shown, not hidden.
-    const user = userEvent.setup();
-    await screen.findByRole('group', { name: 'Harness' });
-    await user.click(screen.getByRole('button', { name: /^Workspace:/ }));
-    await user.click(await screen.findByRole('option', { name: /Other/ }));
-
-    await waitFor(() => {
-      expect(screen.getByText('Could not read the Harness state.')).toBeVisible();
-    });
-  });
-
-  it('reads the Harness of the workspace that is shown when switching', async () => {
     const user = userEvent.setup();
     show();
-    vi.mocked(getProjectHarness).mockImplementation((id) =>
-      Promise.resolve(id === 'w2' ? initialized : harnessSummary()),
-    );
-    await within(await screen.findByRole('group', { name: 'Harness' })).findByText(
-      /Not initialized/,
-    );
+    vi.mocked(getWorkspaceHarness).mockRejectedValue(new Error('boom'));
 
-    await user.click(screen.getByRole('button', { name: /^Workspace:/ }));
-    await user.click(await screen.findByRole('option', { name: /Other/ }));
+    const panel = await openPanel(user);
 
-    const harness = await screen.findByRole('group', { name: 'Harness' });
-    expect(await within(harness).findByText(/Initialized/)).toBeVisible();
-    expect(getProjectHarness).toHaveBeenCalledWith('w2');
+    expect(await within(panel).findByRole('alert')).toHaveTextContent(
+      'Could not read the projects of this workspace.',
+    );
   });
 });

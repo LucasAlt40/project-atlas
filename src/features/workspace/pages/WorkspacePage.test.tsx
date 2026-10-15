@@ -86,18 +86,14 @@ describe('WorkspacePage', () => {
     expect(within(card('Architect')).getByRole('tablist')).toBeInTheDocument();
   });
 
-  it('shows the project context: folder, path and the technologies detected locally', async () => {
+  it('shows the project folder and the technologies detected locally in the projects panel', async () => {
+    const user = userEvent.setup();
     show(['a1']);
 
-    const context = await screen.findByRole('region', { name: 'Project context' });
-    expect(await within(context).findByText('atlas')).toBeInTheDocument();
-    expect(within(context).getByText('/dev/atlas')).toBeInTheDocument();
-    const technologies = within(context).getByRole('list', { name: 'Detected' });
-    expect(
-      within(technologies)
-        .getAllByRole('listitem')
-        .map((li) => li.textContent),
-    ).toEqual(['Angular', 'Git']);
+    await user.click(await screen.findByRole('button', { name: 'Manage the projects of Atlas' }));
+    const panel = await screen.findByRole('dialog', { name: 'Projects of Atlas' });
+    expect(await within(panel).findByText('/dev/atlas')).toBeInTheDocument();
+    expect(within(panel).getByText('Angular')).toBeInTheDocument();
   });
 
   it('adds an existing agent into the first available slot', async () => {

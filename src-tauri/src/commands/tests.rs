@@ -74,6 +74,7 @@ fn window() -> (tauri::App<MockRuntime>, WebviewWindow<MockRuntime>) {
             super::harness::initialize_project,
             super::harness::get_project_harness,
             super::harness::refresh_project_harness,
+            super::harness::reset_project_harness,
             super::harness::preview_task_context,
             super::live_workspace::get_live_workspace,
             super::live_workspace::refresh_live_workspace,
@@ -390,6 +391,13 @@ fn the_harness_commands_report_status_and_validate_the_workspace() {
     )
     .unwrap();
     assert_eq!(applied["applied"]["summary"]["status"], "initialized");
+    let reset = invoke(
+        &window,
+        "reset_project_harness",
+        json!({ "workspaceId": id }),
+    )
+    .unwrap();
+    assert_eq!(reset["status"], "not_initialized");
     let missing = invoke(
         &window,
         "analyze_project",

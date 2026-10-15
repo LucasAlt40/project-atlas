@@ -160,6 +160,50 @@ impl HarnessStore for FsHarnessStore {
         Ok(report)
     }
 
+    fn reset(&self, project_path: &str) -> Result<(), AppError> {
+        let atlas = Self::atlas(project_path);
+        match fs::symlink_metadata(&atlas) {
+            Ok(meta) if meta.is_dir() => {}
+            Ok(_) => return Err(failed(".atlas is not a plain folder".to_owned())),
+            Err(_) => return Ok(()),
+        }
+        let remove_file = |name: &str| -> Result<(), AppError> {
+            let path = atlas.join(name);
+            match fs::symlink_metadata(&path) {
+                Ok(meta) if meta.is_file() => {
+                    fs::remove_file(&path).map_err(|e| failed(e.to_string()))
+                }
+                Ok(_) => Err(failed(format!("{name} is not a regular file"))),
+                Err(_) => Ok(()),
+            }
+        };
+        let remove_dir = |name: &str| -> Result<(), AppError> {
+            let path = atlas.join(name);
+            match fs::symlink_metadata(&path) {
+                Ok(meta) if meta.is_dir() => {
+                    fs::remove_dir_all(&path).map_err(|e| failed(e.to_string()))
+                }
+                Ok(_) => Err(failed(format!("{name} is not a plain folder"))),
+                Err(_) => Ok(()),
+            }
+        };
+        remove_file("project.yaml")?;
+        for dir in ["knowledge", "context", "backups"] {
+            remove_dir(dir)?;
+        }
+        // The empty folders made at initialization go too; one the project filled stays.
+        for dir in ["agents", "workflows", "policies", "memory"] {
+            let folder = atlas.join(dir);
+            if fs::symlink_metadata(&folder).is_ok_and(|m| m.is_dir()) {
+                remove_file(&format!("{dir}/.gitkeep"))?;
+                let _ = fs::remove_dir(&folder);
+            }
+        }
+        // `.atlas/` itself goes only when nothing else lives in it.
+        let _ = fs::remove_dir(&atlas);
+        Ok(())
+    }
+
     fn ensure_gitignored(&self, project_path: &str) -> Result<GitIgnoreStatus, AppError> {
         let project = fs::canonicalize(project_path).map_err(|e| failed(e.to_string()))?;
         // Only a project inside a Git repository has anything to be ignored from.
@@ -244,6 +288,36 @@ mod tests {
         assert_eq!(FsHarnessStore.read_context(&path, "../project"), None);
         // Writing the Harness never touches .gitignore: keeping it out of Git is its own, asked-for step.
         assert!(!dir.join(".gitignore").exists());
+    }
+
+    #[test]
+    fn reset_removes_what_the_harness_made_and_nothing_else() {
+        let dir = project("reset");
+        write(
+            &dir,
+            &[
+                file("project.yaml", "version: 1\n", false),
+                file("knowledge/findings.yaml", "x", false),
+                file("context/stack.md", "# Stack\n", false),
+                file("memory/.gitkeep", "", true),
+                file("agents/.gitkeep", "", true),
+            ],
+        )
+        .unwrap();
+        fs::write(dir.join(".atlas/agents/mine.md"), "mine").unwrap();
+        fs::create_dir_all(dir.join(".atlas/skills")).unwrap();
+        fs::write(dir.join(".atlas/skills/s.md"), "skill").unwrap();
+
+        FsHarnessStore.reset(&dir.to_string_lossy()).unwrap();
+
+        assert!(!dir.join(".atlas/project.yaml").exists());
+        assert!(!dir.join(".atlas/knowledge").exists());
+        assert!(!dir.join(".atlas/context").exists());
+        assert!(!dir.join(".atlas/memory").exists());
+        assert!(dir.join(".atlas/agents/mine.md").is_file());
+        assert!(dir.join(".atlas/skills/s.md").is_file());
+        // Nothing to wipe is not an error.
+        FsHarnessStore.reset(&project("reset-none").to_string_lossy()).unwrap();
     }
 
     #[test]

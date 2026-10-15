@@ -314,6 +314,39 @@ impl HarnessService {
         })
     }
 
+    /// Wipes the Harness of the workspace's projects (or of the ones named) and rebuilds the
+    /// workspace context, which then says every one of them has none. The user's workspace notes
+    /// stay. One project that cannot be wiped does not stop the others; the first error is
+    /// returned after all were tried.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the workspace or a named project does not exist, or a project could not be wiped.
+    pub fn reset_workspace(
+        &self,
+        workspace_id: &str,
+        project_ids: Option<&[String]>,
+    ) -> Result<WorkspaceContextInfo, AppError> {
+        let workspace = self.workspace(workspace_id)?;
+        let targets: Vec<String> = match project_ids {
+            None => workspace.projects.iter().map(|p| p.id.clone()).collect(),
+            Some(ids) => ids.to_vec(),
+        };
+        for id in &targets {
+            if workspace.project(id).is_none() {
+                return Err(AppError::new(ErrorCode::WorkspaceProjectNotFound));
+            }
+        }
+        let mut first_error = None;
+        for id in &targets {
+            if let Err(error) = self.reset_in(workspace_id, Some(id)) {
+                first_error.get_or_insert(error);
+            }
+        }
+        let context = self.build_workspace_context(workspace_id)?;
+        first_error.map_or(Ok(context), Err)
+    }
+
     fn initialize_one(
         &self,
         workspace_id: &str,

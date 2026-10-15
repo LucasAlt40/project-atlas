@@ -177,6 +177,8 @@ pub fn run() {
             commands::harness::save_workspace_notes,
             commands::harness::get_project_harness,
             commands::harness::refresh_project_harness,
+            commands::harness::reset_project_harness,
+            commands::harness::reset_workspace_harness,
             commands::harness::preview_task_context,
             commands::workflow::list_workflows,
             commands::workflow::get_workflow,
@@ -425,6 +427,7 @@ fn build_state(
             spec_events,
         )
         .with_usage(ledger.clone())
+        .with_mcp(mcp.clone())
         .with_budget({
             let config = config_for_spec_budget;
             Arc::new(move || config.snapshot().settings.optimization.specs_max_tokens)

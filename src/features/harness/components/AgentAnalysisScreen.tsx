@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { useNow } from '@/features/agents/hooks/useNow';
 import { formatDuration } from '@/features/usage/model/format';
@@ -7,6 +7,7 @@ import {
   subscribeToHarnessProgress,
 } from '@/features/workspace/services/workspaceService';
 import { useT } from '@/i18n/I18nProvider';
+import type { HarnessProgressDto } from '@/lib/tauri/commands';
 import type { TranslationKey } from '@/i18n';
 import styles from './Review.module.css';
 
@@ -14,6 +15,8 @@ interface Props {
   workspaceId: string;
   agentId: string;
   agentName: string;
+  /** Project folder -> name, when several projects are analysed at once: one tab for each. */
+  projects?: Record<string, string>;
 }
 
 interface Tool {
@@ -24,62 +27,61 @@ interface Tool {
   ms?: number;
 }
 
+/** One agent process reading one project. */
+interface Run {
+  executionId: string;
+  path: string;
+  startedAt: number;
+  phase: string;
+  tools: Tool[];
+  narration: string;
+  /** Counts the tools of this run, for their keys. */
+  counter: number;
+}
+
 const PHASES = new Set(['starting', 'sending', 'waiting']);
 /** What of the agent's narration is kept on screen. */
 const MAX_NARRATION = 900;
 
 /**
- * Shown over everything while an agent analyses the project: who is working, for how long, what
- * it is doing right now and what it says. It cannot be dismissed: the only way out is to wait or
- * to stop the agent, so nobody edits a half-analysed project's Harness by accident.
+ * Shown over everything while an agent analyses the project (or, with `projects`, several of
+ * them at once, one tab each): who is working, for how long, what it is doing right now and what
+ * it says. It cannot be dismissed: the only way out is to wait or to stop the agent, so nobody
+ * edits a half-analysed project's Harness by accident.
  */
-export function AgentAnalysisScreen({ workspaceId, agentId, agentName }: Props) {
+export function AgentAnalysisScreen({ workspaceId, agentId, agentName, projects }: Props) {
   const t = useT();
   const [startedAt] = useState(() => Date.now());
   const now = useNow(1000);
-  const [executionId, setExecutionId] = useState<string | null>(null);
-  const [phase, setPhase] = useState('starting');
-  const [tools, setTools] = useState<Tool[]>([]);
-  const [narration, setNarration] = useState('');
+  const [runs, setRuns] = useState<Run[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [stopping, setStopping] = useState(false);
-  const counter = useRef(0);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     let cancelled = false;
     void subscribeToHarnessProgress((update) => {
       if (update.workspaceId !== workspaceId || update.agentId !== agentId) return;
-      setExecutionId(update.executionId);
-      switch (update.kind) {
-        case 'step':
-          if (PHASES.has(update.text)) setPhase(update.text);
-          break;
-        case 'tool_started':
-          counter.current += 1;
-          setTools((list) =>
-            [...list, { id: counter.current, name: update.text, startedAt: Date.now() }].slice(-12),
-          );
-          setPhase('working');
-          break;
-        case 'tool_completed':
-          setTools((list) => {
-            const index = list.findLastIndex(
-              (tool) => tool.ms === undefined && tool.name === update.text,
-            );
-            return index < 0
-              ? list
-              : list.map((tool, i) =>
-                  i === index ? { ...tool, ms: Date.now() - tool.startedAt } : tool,
-                );
-          });
-          break;
-        case 'output':
-          setPhase('working');
-          setNarration((text) => (text + update.text).slice(-MAX_NARRATION));
-          break;
-        case 'started':
-          break;
-      }
+      setRuns((list) => {
+        const known = list.some((run) => run.executionId === update.executionId);
+        const base: Run[] = known
+          ? list
+          : [
+              ...list,
+              {
+                executionId: update.executionId,
+                path: update.projectPath,
+                startedAt: Date.now(),
+                phase: 'starting',
+                tools: [],
+                narration: '',
+                counter: 0,
+              },
+            ];
+        return base.map((run) =>
+          run.executionId === update.executionId ? advance(run, update) : run,
+        );
+      });
     }).then((stop) => {
       if (cancelled) stop();
       else unlisten = stop;
@@ -91,13 +93,21 @@ export function AgentAnalysisScreen({ workspaceId, agentId, agentName }: Props) 
   }, [workspaceId, agentId]);
 
   function stop() {
-    if (!executionId) return;
+    if (runs.length === 0) return;
     setStopping(true);
     // The analysis returns on its own once the process ends, with the reason.
-    void interruptExecution({ workspaceId, agentId, executionId }).catch(() => {
+    void Promise.all(
+      runs.map((run) => interruptExecution({ workspaceId, agentId, executionId: run.executionId })),
+    ).catch(() => {
       setStopping(false);
     });
   }
+
+  const many = projects !== undefined && Object.keys(projects).length > 1;
+  const run = runs.find((r) => r.executionId === selectedId) ?? runs[0];
+  const phase = run?.phase ?? 'starting';
+  const tools = run?.tools ?? [];
+  const narration = run?.narration ?? '';
 
   const lines = narration === '' ? [] : narration.split('\n');
   const reads = tools.filter((tool) => tool.name.startsWith('Read')).length;
@@ -115,7 +125,7 @@ export function AgentAnalysisScreen({ workspaceId, agentId, agentName }: Props) 
             <p role="status" className={styles.live}>
               <span className={styles.ping} aria-hidden="true" />
               {t(`harness.agentScreen.phase.${phase}` as TranslationKey)} ·{' '}
-              {formatDuration(now - startedAt)}
+              {formatDuration(now - (run?.startedAt ?? startedAt))}
             </p>
             <span className={styles.telemetry}>
               <Icon name="stack" size={13} />
@@ -130,6 +140,25 @@ export function AgentAnalysisScreen({ workspaceId, agentId, agentName }: Props) 
           <p className={styles.screenExplain}>{t('harness.agentScreen.explain')}</p>
           <div className={styles.bar} aria-hidden="true" />
         </div>
+
+        {many && (
+          <div role="tablist" aria-label={t('harness.multi.tabs')} className={styles.tabs}>
+            {runs.map((r) => (
+              <button
+                key={r.executionId}
+                type="button"
+                role="tab"
+                aria-selected={r.executionId === run?.executionId}
+                className={styles.tab}
+                onClick={() => {
+                  setSelectedId(r.executionId);
+                }}
+              >
+                {projects[r.path] ?? r.path}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className={styles.screenBody}>
           <section className={styles.section} aria-label={t('harness.agentScreen.doing')}>
@@ -205,7 +234,7 @@ export function AgentAnalysisScreen({ workspaceId, agentId, agentName }: Props) 
           <button
             type="button"
             className={styles.stopButton}
-            disabled={!executionId || stopping}
+            disabled={runs.length === 0 || stopping}
             onClick={stop}
           >
             <Icon name="stop" size={15} />
@@ -221,4 +250,42 @@ export function AgentAnalysisScreen({ workspaceId, agentId, agentName }: Props) 
       </div>
     </div>
   );
+}
+
+/** What one progress event changes in a run. */
+function advance(run: Run, update: HarnessProgressDto): Run {
+  switch (update.kind) {
+    case 'step':
+      return PHASES.has(update.text) ? { ...run, phase: update.text } : run;
+    case 'tool_started': {
+      const counter = run.counter + 1;
+      return {
+        ...run,
+        counter,
+        phase: 'working',
+        tools: [...run.tools, { id: counter, name: update.text, startedAt: Date.now() }].slice(-12),
+      };
+    }
+    case 'tool_completed': {
+      const index = run.tools.findLastIndex(
+        (tool) => tool.ms === undefined && tool.name === update.text,
+      );
+      return index < 0
+        ? run
+        : {
+            ...run,
+            tools: run.tools.map((tool, i) =>
+              i === index ? { ...tool, ms: Date.now() - tool.startedAt } : tool,
+            ),
+          };
+    }
+    case 'output':
+      return {
+        ...run,
+        phase: 'working',
+        narration: (run.narration + update.text).slice(-MAX_NARRATION),
+      };
+    case 'started':
+      return run;
+  }
 }

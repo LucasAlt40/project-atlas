@@ -231,6 +231,16 @@ export interface CommandMap {
     args: { workspaceId: string; projectId?: string; confirm?: boolean };
     result: RefreshOutcomeDto;
   };
+  /** Wipes a project's Harness so it can be generated again. Its own files are not touched. */
+  reset_project_harness: {
+    args: { workspaceId: string; projectId?: string };
+    result: HarnessSummaryDto;
+  };
+  /** Wipes the Harness of the projects (all, or the ones named); the workspace notes stay. */
+  reset_workspace_harness: {
+    args: { workspaceId: string; projectIds?: string[] };
+    result: WorkspaceContextInfoDto;
+  };
   /**
    * What an agent would be told for a task, chosen from the Harness, with the reason for each
    * choice. Inspection only: nothing is written and nothing runs.
@@ -755,6 +765,8 @@ export interface HarnessProgressDto {
   agentId: string;
   /** The execution doing the work: what the UI names to stop it. */
   executionId: string;
+  /** The project folder being read: which project, when several are analysed at once. */
+  projectPath: string;
   kind: 'started' | 'step' | 'tool_started' | 'tool_completed' | 'output';
   text: string;
 }
@@ -3471,6 +3483,8 @@ export interface SpecDto {
   implementations: SpecImplementationLinkDto[];
   runs: SpecRunDto[];
   budgetSteps: number;
+  /** The integrations (connection ids) chosen for testing and review. */
+  integrations: string[];
   origin: { kind: 'created' } | { kind: 'imported'; path: string; at: number };
   version: number;
   createdAt: number;
@@ -3483,8 +3497,6 @@ export interface SpecBlockerDto {
   count: number | null;
 }
 
-  /** The integrations (connection ids) chosen for testing and review. */
-  integrations: string[];
 export interface SpecTaskDto {
   id: string;
   text: string;
@@ -3537,6 +3549,16 @@ export interface SpecViewDto {
   reviewerAvailable: boolean;
   usage: SpecUsageDto;
   budget: SpecBudgetDto;
+  /** The integrations chosen for testing and review, as they are now. */
+  integrations: SpecIntegrationDto[];
+}
+
+export interface SpecIntegrationDto {
+  id: string;
+  name: string;
+  /** The connection is switched on in the workspace. */
+  enabled: boolean;
+  tools: string[];
 }
 
 /** What one run of an agent used. A field is null when the runtime did not say (that is not zero). */
@@ -3549,16 +3571,6 @@ export interface SpecRunUsageDto {
   cachedInputTokens: number | null;
   cost: number | null;
   currency: string | null;
-  /** The integrations chosen for testing and review, as they are now. */
-  integrations: SpecIntegrationDto[];
-}
-
-export interface SpecIntegrationDto {
-  id: string;
-  name: string;
-  /** The connection is switched on in the workspace. */
-  enabled: boolean;
-  tools: string[];
   source: 'runtime_reported' | 'atlas_calculated' | null;
 }
 
@@ -3610,6 +3622,8 @@ export interface NewSpecRequestDto {
   context?: string;
   authorAgentId: string;
   reviewerAgentId?: string | null;
+  /** Connection ids of the workspace's integrations to test and review the spec with. */
+  integrations?: string[];
 }
 
 /** What a decision or an answer did; `launchError` says why an agent meant to start could not. */
@@ -3622,8 +3636,6 @@ export interface ImportCandidateDto {
   changeId: string;
   artifacts: SpecArtifactIdDto[];
   problems: string[];
-  /** Connection ids of the workspace's integrations to test and review the spec with. */
-  integrations?: string[];
   importedAs: string | null;
 }
 
@@ -3642,6 +3654,7 @@ export interface SpecLinkDto {
   digest: string;
   tasks: { id: string; text: string }[];
   publishedRoot: string | null;
+  integrations?: { name: string; tools: string[] }[];
 }
 
 export type SpecTaskStateDto = 'pending' | 'reported' | 'confirmed';
@@ -3654,7 +3667,6 @@ export interface SpecProgressDto {
   specChanged: boolean;
   tasks: { id: string; text: string; state: SpecTaskStateDto }[];
   reported: number;
-  integrations?: { name: string; tools: string[] }[];
   confirmed: number;
 }
 

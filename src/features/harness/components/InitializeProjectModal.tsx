@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
@@ -256,12 +256,18 @@ interface FindingsProps {
   onReview: (mode: InitModeDto) => void;
   onUseExisting: () => void;
   onSemantic: (request: SemanticRequestDto, agentName: string) => void;
+  /** With several projects analysed together: the one AI form they share. */
+  form?: SemanticForm;
+  /** Shown first (the project tabs). */
+  header?: ReactNode;
+  /** Replaces the footer and its actions. */
+  footer?: ReactNode;
 }
 
 /** Rough size of the user's note for the model, shown next to the field. */
 const estimateTokens = (text: string) => Math.ceil(text.trim().length / 4);
 
-function FindingsStep({
+export function FindingsStep({
   analysis,
   busy,
   error,
@@ -269,6 +275,9 @@ function FindingsStep({
   onReview,
   onUseExisting,
   onSemantic,
+  form,
+  header,
+  footer,
 }: FindingsProps) {
   const t = useT();
   const stack = detectedStack(analysis);
@@ -277,11 +286,13 @@ function FindingsStep({
   const existing = analysis.existing;
   const hasHarness = existing?.status === 'initialized';
   const broken = existing?.status === 'needs_review';
-  const ai = useSemanticForm();
+  const ownForm = useSemanticForm();
+  const ai = form ?? ownForm;
   const aiDone = analysis.analysis.semantic.status === 'completed';
 
   return (
     <>
+      {header}
       <header className={rv.analyzeHead}>
         <div className={rv.titleRow}>
           <h2 className={rv.title}>{t('harness.analyze.title')}</h2>
@@ -294,6 +305,9 @@ function FindingsStep({
             {t('harness.analyze.localCore')}
           </span>
         </div>
+        <p className={styles.muted} title={analysis.path}>
+          <strong>{analysis.projectName}</strong> · {analysis.path}
+        </p>
         <p className={rv.lockNote}>
           <Icon name="lock" size={15} />
           {t('harness.analyze.readOnlyNote')}
@@ -392,74 +406,78 @@ function FindingsStep({
       )}
 
       {error && <ErrorBox problem={error} />}
-      <footer className={cx(rv.footer, rv.analyzeFooter)}>
-        <button type="button" className={rv.textButton} onClick={onCancel}>
-          {t('common.cancel')}
-        </button>
-        <div className={rv.footerActions}>
-          {hasHarness ? (
-            <>
-              <button
-                type="button"
-                className={rv.ghostButton}
-                disabled={busy}
-                onClick={onUseExisting}
-              >
-                {t('harness.existing.useExisting')}
-              </button>
+      {footer ?? (
+        <footer className={cx(rv.footer, rv.analyzeFooter)}>
+          <button type="button" className={rv.textButton} onClick={onCancel}>
+            {t('common.cancel')}
+          </button>
+          <div className={rv.footerActions}>
+            {hasHarness ? (
+              <>
+                <button
+                  type="button"
+                  className={rv.ghostButton}
+                  disabled={busy}
+                  onClick={onUseExisting}
+                >
+                  {t('harness.existing.useExisting')}
+                </button>
+                <button
+                  type="button"
+                  className={rv.ghostButton}
+                  disabled={busy}
+                  onClick={() => {
+                    onReview('update_existing');
+                  }}
+                >
+                  <Icon name="eye" size={15} />
+                  {t('harness.existing.update')}
+                </button>
+              </>
+            ) : (
               <button
                 type="button"
                 className={rv.ghostButton}
                 disabled={busy}
                 onClick={() => {
-                  onReview('update_existing');
+                  onReview(broken ? 'update_existing' : 'create');
                 }}
               >
                 <Icon name="eye" size={15} />
-                {t('harness.existing.update')}
+                {aiDone || !ai.canRun ? t('harness.reviewButton') : t('harness.reviewWithoutAi')}
               </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              className={rv.ghostButton}
-              disabled={busy}
-              onClick={() => {
-                onReview(broken ? 'update_existing' : 'create');
-              }}
-            >
-              <Icon name="eye" size={15} />
-              {aiDone || !ai.canRun ? t('harness.reviewButton') : t('harness.reviewWithoutAi')}
-            </button>
-          )}
-          {ai.canRun && (
-            <button
-              type="button"
-              className={rv.primaryButton}
-              disabled={busy || !ai.chosen}
-              onClick={() => {
-                onSemantic(
-                  {
-                    agentId: ai.chosen,
-                    instructions: ai.instructions.trim(),
-                    restricted: ai.restricted,
-                  },
-                  ai.agents.find((a) => a.id === ai.chosen)?.name ?? ai.chosen,
-                );
-              }}
-            >
-              <Icon name="sparkle" size={15} />
-              {busy ? t('harness.semantic.running') : t('harness.semantic.run')}
-            </button>
-          )}
-        </div>
-      </footer>
+            )}
+            {ai.canRun && (
+              <button
+                type="button"
+                className={rv.primaryButton}
+                disabled={busy || !ai.chosen}
+                onClick={() => {
+                  onSemantic(
+                    {
+                      agentId: ai.chosen,
+                      instructions: ai.instructions.trim(),
+                      restricted: ai.restricted,
+                    },
+                    ai.agents.find((a) => a.id === ai.chosen)?.name ?? ai.chosen,
+                  );
+                }}
+              >
+                <Icon name="sparkle" size={15} />
+                {busy ? t('harness.semantic.running') : t('harness.semantic.run')}
+              </button>
+            )}
+          </div>
+        </footer>
+      )}
     </>
   );
 }
 
+export type SemanticForm = ReturnType<typeof useSemanticForm>;
+
 /** What the user chose for the AI analysis; the footer button runs it. */
-function useSemanticForm() {
+export function useSemanticForm() {
   const { catalog, runtimes } = useCatalog();
   const [agentId, setAgentId] = useState('');
   const [instructions, setInstructions] = useState('');
@@ -647,11 +665,25 @@ interface ReviewProps {
   onChange: (review: ReviewState) => void;
   onBack: () => void;
   onSubmit: () => void;
+  /** Shown first (the project tabs of a review of several projects). */
+  header?: ReactNode;
+  /** The submit button's text, when it does more than initialize one project. */
+  submitLabel?: string;
 }
 
 type TabId = ReviewGroupId | 'business';
 
-function ReviewStep({ analysis, review, busy, error, onChange, onBack, onSubmit }: ReviewProps) {
+export function ReviewStep({
+  analysis,
+  review,
+  busy,
+  error,
+  onChange,
+  onBack,
+  onSubmit,
+  header,
+  submitLabel,
+}: ReviewProps) {
   const t = useT();
   const groups = reviewGroups(analysis);
   const tabs: TabId[] = [...groups.map((g) => g.id), 'business'];
@@ -714,6 +746,7 @@ function ReviewStep({ analysis, review, busy, error, onChange, onBack, onSubmit 
         onSubmit();
       }}
     >
+      {header}
       <header className={rv.header}>
         <div className={rv.headText}>
           <div className={rv.titleRow}>
@@ -721,6 +754,9 @@ function ReviewStep({ analysis, review, busy, error, onChange, onBack, onSubmit 
             <span className={rv.lockChip}>
               <span className={rv.dot} aria-hidden="true" />
               .atlas/
+            </span>
+            <span className={rv.lockChip} title={analysis.path}>
+              {analysis.projectName}
             </span>
           </div>
           <p className={rv.subtitle}>{t('harness.review.subtitle')}</p>
@@ -732,7 +768,7 @@ function ReviewStep({ analysis, review, busy, error, onChange, onBack, onSubmit 
           </button>
           <button type="submit" className={rv.primaryButton} disabled={busy}>
             <Icon name="endNode" size={15} />
-            {busy ? t('harness.initializing') : t('harness.initializeButton')}
+            {busy ? t('harness.initializing') : (submitLabel ?? t('harness.initializeButton'))}
           </button>
         </div>
       </header>

@@ -85,6 +85,8 @@ const COMMANDS: &[&str] = &[
     "save_workspace_notes",
     "get_project_harness",
     "refresh_project_harness",
+    "reset_project_harness",
+    "reset_workspace_harness",
     "preview_task_context",
     "list_workflows",
     "get_workflow",

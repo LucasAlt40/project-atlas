@@ -38,6 +38,8 @@ import {
   analyzeProject,
   initializeProject,
   initializeWorkspaceHarness,
+  resetProjectHarness,
+  resetWorkspaceHarness,
   listWorkspaceProjects,
   refreshProjectHarness,
   removeWorkspaceProject,
@@ -624,13 +626,27 @@ export function mockBackend(backend: Backend = {}): void {
     const found = (backend.workspaces ?? []).find((w) => w.id === workspaceId);
     return Promise.resolve({
       projects: (found?.projects ?? []).map((project) => {
-        const state = backend.projectHarness?.[project.id] ?? 'not_initialized';
+        const given = backend.projectHarness?.[project.id];
+        // Without a state per project, the single `harness` the test scripted is each one's.
+        const scripted = backend.harness;
+        const state: ProjectHarnessStateDto =
+          given ??
+          (scripted?.status === 'initialized'
+            ? scripted.staleness
+              ? 'outdated'
+              : 'ready'
+            : scripted?.status === 'needs_review'
+              ? 'needs_review'
+              : 'not_initialized');
         return {
           projectId: project.id,
           state,
-          summary: harnessSummary(
-            state === 'ready' || state === 'outdated' ? { status: 'initialized' } : {},
-          ),
+          summary:
+            !given && scripted
+              ? scripted
+              : harnessSummary(
+                  state === 'ready' || state === 'outdated' ? { status: 'initialized' } : {},
+                ),
         };
       }),
       context: backend.workspaceContext ?? {
@@ -697,6 +713,8 @@ export function mockBackend(backend: Backend = {}): void {
     updateWorkspaceProject,
     removeWorkspaceProject,
     initializeWorkspaceHarness,
+    resetProjectHarness,
+    resetWorkspaceHarness,
     buildWorkspaceContext,
     saveWorkspaceNotes,
   ]) {

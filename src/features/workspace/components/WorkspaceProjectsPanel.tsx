@@ -3,22 +3,31 @@ import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
 import { InitializeProjectModal } from '@/features/harness/components/InitializeProjectModal';
+import { HarnessStats } from '@/features/harness/components/HarnessStats';
+import { HealthBadge } from '@/features/harness/components/HealthBadge';
 import { RefreshHarnessModal } from '@/features/harness/components/RefreshHarnessModal';
+import { StaleNotice } from '@/features/harness/components/StaleNotice';
+import {
+  WorkspaceInitializeModal,
+  type ProjectRef,
+} from '@/features/harness/components/WorkspaceInitializeModal';
 import { useT } from '@/i18n/I18nProvider';
 import { errorMessage } from '@/i18n/messages';
 import { pickFolder as nativePickFolder } from '@/lib/tauri/dialog';
 import type {
+  HarnessSummaryDto,
   ProjectHarnessInfoDto,
   ProjectHarnessStateDto,
   ProjectInfoDto,
-  WorkspaceInitReportDto,
 } from '@/lib/tauri/commands';
 import { useProjectsOverview } from '../hooks/useProjectsOverview';
 import {
   addWorkspaceProject,
   buildWorkspaceContext,
   getWorkspaceNotes,
-  initializeWorkspaceHarness,
+  refreshProjectHarness,
+  resetProjectHarness,
+  resetWorkspaceHarness,
   removeWorkspaceProject,
   saveWorkspaceNotes,
   updateWorkspaceProject,
@@ -58,13 +67,17 @@ export function WorkspaceProjectsPanel({
   pickFolder = nativePickFolder,
 }: Props) {
   const t = useT();
-  const { state, running, reload } = useProjectsOverview(workspace.id, signatureOf(workspace));
+  const { state, reload } = useProjectsOverview(workspace.id, signatureOf(workspace));
   const [editing, setEditing] = useState<Editing>(null);
   const [reviewing, setReviewing] = useState<Reviewing>(null);
   const [confirmingRemoval, setConfirmingRemoval] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [report, setReport] = useState<WorkspaceInitReportDto | null>(null);
+  /** The projects being analysed and initialized together, when that run is open. */
+  const [together, setTogether] = useState<ProjectRef[] | null>(null);
   const [starting, setStarting] = useState(false);
+  const [fixingId, setFixingId] = useState<string | null>(null);
+  /** A project id, or `'all'`, waiting for the user to confirm wiping its Harness. */
+  const [confirmingReset, setConfirmingReset] = useState<string | null>(null);
 
   async function addFolder() {
     setNotice(null);
@@ -96,16 +109,39 @@ export function WorkspaceProjectsPanel({
       });
   }
 
-  function start(projectIds: string[]) {
+  /** Brings a project's Harness up to date in one click; opens the review when it cannot. */
+  function fix(projectId: string) {
+    setFixingId(projectId);
+    setNotice(null);
+    refreshProjectHarness(workspace.id, true, projectId)
+      .then((outcome) => {
+        if (!outcome.applied) setReviewing({ kind: 'refresh', projectId });
+      })
+      .catch((e: unknown) => {
+        setNotice(errorMessage(t, e));
+      })
+      .finally(() => {
+        setFixingId(null);
+        reload();
+      });
+  }
+
+  function reset(projectId: string) {
     setStarting(true);
     setNotice(null);
-    initializeWorkspaceHarness(workspace.id, projectIds)
-      .then(setReport)
+    (projectId === 'all'
+      ? resetWorkspaceHarness(workspace.id)
+      : resetProjectHarness(workspace.id, projectId)
+    )
+      .then(() => {
+        setNotice(t('projects.resetDone'));
+      })
       .catch((e: unknown) => {
         setNotice(errorMessage(t, e));
       })
       .finally(() => {
         setStarting(false);
+        setConfirmingReset(null);
         reload();
       });
   }
@@ -116,11 +152,10 @@ export function WorkspaceProjectsPanel({
   const pending = ready
     ? ready.projects.filter((p) => harnessOf(p.id)?.state === 'not_initialized')
     : [];
-  const failed = report ? report.projects.filter((r) => r.status === 'failed') : [];
   const nameOf = (id: string) => workspace.projects.find((p) => p.id === id)?.name ?? id;
 
   return (
-    <Modal label={t('projects.title', { name: workspace.name })} onClose={onClose} placement="side">
+    <Modal label={t('projects.title', { name: workspace.name })} onClose={onClose} size="wide">
       <div className={projectStyles.panel}>
         <h2 className={projectStyles.title}>{t('projects.title', { name: workspace.name })}</h2>
         <p className={projectStyles.intro}>{t('projects.intro')}</p>
@@ -146,12 +181,7 @@ export function WorkspaceProjectsPanel({
           <ul className={projectStyles.list} aria-label={t('projects.list')}>
             {ready.projects.map((info) => {
               const harness = harnessOf(info.id);
-              const stateOf: ProjectHarnessStateDto | 'running' | 'failed' = running[info.id]
-                ? 'running'
-                : report?.projects.some((r) => r.projectId === info.id && r.status === 'failed') &&
-                    harness?.state === 'not_initialized'
-                  ? 'failed'
-                  : (harness?.state ?? 'not_initialized');
+              const stateOf: ProjectHarnessStateDto = harness?.state ?? 'not_initialized';
               return (
                 <li key={info.id} className={projectStyles.row}>
                   {editing?.projectId === info.id ? (
@@ -168,9 +198,30 @@ export function WorkspaceProjectsPanel({
                     <ProjectRow
                       info={info}
                       state={stateOf}
+                      summary={harness?.summary}
+                      fixing={fixingId === info.id}
+                      onFix={() => {
+                        fix(info.id);
+                      }}
                       names={nameOf}
                       confirming={confirmingRemoval === info.id}
                       canRemove={ready.projects.length > 1}
+                      canReset={
+                        info.exists &&
+                        (harness?.state === 'ready' ||
+                          harness?.state === 'outdated' ||
+                          harness?.state === 'needs_review')
+                      }
+                      confirmingReset={confirmingReset === info.id}
+                      onAskReset={() => {
+                        setConfirmingReset(info.id);
+                      }}
+                      onCancelReset={() => {
+                        setConfirmingReset(null);
+                      }}
+                      onReset={() => {
+                        reset(info.id);
+                      }}
                       onEdit={() => {
                         setEditing({ projectId: info.id });
                       }}
@@ -182,6 +233,9 @@ export function WorkspaceProjectsPanel({
                               : 'initialize',
                           projectId: info.id,
                         });
+                      }}
+                      onUpdate={() => {
+                        setReviewing({ kind: 'initialize', projectId: info.id });
                       }}
                       onAskRemove={() => {
                         setConfirmingRemoval(info.id);
@@ -200,7 +254,7 @@ export function WorkspaceProjectsPanel({
           </ul>
         )}
 
-        {ready && workspace.projects.length > 1 && (
+        {ready && (
           <section className={projectStyles.section} aria-label={t('harness.title')}>
             <h3 className={projectStyles.sectionTitle}>{t('harness.title')}</h3>
             <p className={projectStyles.muted}>{t('projects.init.note')}</p>
@@ -209,49 +263,54 @@ export function WorkspaceProjectsPanel({
                 <Button
                   disabled={starting}
                   onClick={() => {
-                    start(pending.map((p) => p.id));
+                    setTogether(pending.map(({ id, name, path }) => ({ id, name, path })));
                   }}
                 >
-                  {starting
-                    ? t('projects.init.running')
-                    : t('projects.init.all', { count: pending.length })}
+                  {t('projects.init.all', { count: pending.length })}
                 </Button>
               </div>
             ) : (
               <p className={projectStyles.muted}>{t('projects.init.none')}</p>
             )}
-            {report && (
-              <div role="status">
-                {report.complete ? (
-                  <p className={projectStyles.muted}>{t('projects.init.complete')}</p>
-                ) : (
-                  <>
-                    <p className={projectStyles.problem}>
-                      {t('projects.init.partial', { failed: failed.length })}
-                    </p>
-                    <ul>
-                      {failed.map((r) => (
-                        <li key={r.projectId} className={projectStyles.problem}>
-                          {t('projects.init.failedProject', {
-                            name: nameOf(r.projectId),
-                            reason: r.error ? errorMessage(t, r.error) : '',
-                          })}
-                        </li>
-                      ))}
-                    </ul>
-                    <Button
-                      variant="secondary"
+            {pending.length < ready.projects.length &&
+              (confirmingReset === 'all' ? (
+                <div role="group" aria-label={t('projects.resetAll')}>
+                  <p className={projectStyles.problem}>{t('projects.resetAllConfirm')}</p>
+                  <div className={projectStyles.toolbar}>
+                    <button
+                      type="button"
+                      className={styles.danger}
                       disabled={starting}
                       onClick={() => {
-                        start(failed.map((r) => r.projectId));
+                        reset('all');
                       }}
                     >
-                      {t('projects.init.retry')}
-                    </Button>
-                  </>
-                )}
-              </div>
-            )}
+                      {t('projects.confirmReset')}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.linkButton}
+                      onClick={() => {
+                        setConfirmingReset(null);
+                      }}
+                    >
+                      {t('common.cancel')}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className={projectStyles.toolbar}>
+                  <Button
+                    variant="secondary"
+                    disabled={starting}
+                    onClick={() => {
+                      setConfirmingReset('all');
+                    }}
+                  >
+                    {t('projects.resetAll')}
+                  </Button>
+                </div>
+              ))}
           </section>
         )}
 
@@ -274,6 +333,17 @@ export function WorkspaceProjectsPanel({
           onInitialized={reload}
         />
       )}
+      {together && (
+        <WorkspaceInitializeModal
+          workspaceId={workspace.id}
+          projects={together}
+          onClose={() => {
+            setTogether(null);
+            reload();
+          }}
+          onDone={reload}
+        />
+      )}
       {reviewing?.kind === 'refresh' && (
         <RefreshHarnessModal
           workspaceId={workspace.id}
@@ -291,12 +361,21 @@ export function WorkspaceProjectsPanel({
 
 interface RowProps {
   info: ProjectInfoDto;
-  state: ProjectHarnessStateDto | 'running' | 'failed';
+  state: ProjectHarnessStateDto;
+  summary: HarnessSummaryDto | undefined;
+  fixing: boolean;
+  onFix: () => void;
   names: (id: string) => string;
   confirming: boolean;
   canRemove: boolean;
+  canReset: boolean;
+  confirmingReset: boolean;
+  onAskReset: () => void;
+  onCancelReset: () => void;
+  onReset: () => void;
   onEdit: () => void;
   onReview: () => void;
+  onUpdate: () => void;
   onAskRemove: () => void;
   onCancelRemove: () => void;
   onRemove: () => void;
@@ -305,18 +384,26 @@ interface RowProps {
 function ProjectRow({
   info,
   state,
+  summary,
+  fixing,
+  onFix,
   names,
   confirming,
   canRemove,
+  canReset,
+  confirmingReset,
+  onAskReset,
+  onCancelReset,
+  onReset,
   onEdit,
   onReview,
+  onUpdate,
   onAskRemove,
   onCancelRemove,
   onRemove,
 }: RowProps) {
   const t = useT();
-  const canStart =
-    info.exists && (state === 'not_initialized' || state === 'needs_review' || state === 'failed');
+  const canStart = info.exists && (state === 'not_initialized' || state === 'needs_review');
   const canRefresh = state === 'ready' || state === 'outdated';
   return (
     <>
@@ -328,6 +415,16 @@ function ProjectRow({
           {t(`projects.state.${state}`)}
         </span>
         <span className={projectStyles.rowActions}>
+          {canRefresh && (
+            <button
+              type="button"
+              className={styles.linkButton}
+              onClick={onUpdate}
+              aria-label={t('projects.updateHarness', { name: info.name })}
+            >
+              {t('harness.update')}
+            </button>
+          )}
           {(canStart || canRefresh) && (
             <button
               type="button"
@@ -339,7 +436,21 @@ function ProjectRow({
                   : t('projects.openHarness', { name: info.name })
               }
             >
-              {canRefresh ? t('harness.refresh') : t('harness.initialize')}
+              {canRefresh
+                ? t('harness.refresh')
+                : state === 'needs_review'
+                  ? t('harness.openReview')
+                  : t('harness.initialize')}
+            </button>
+          )}
+          {canReset && !confirmingReset && (
+            <button
+              type="button"
+              className={styles.linkButton}
+              aria-label={t('projects.reset', { name: info.name })}
+              onClick={onAskReset}
+            >
+              {t('common.reset')}
             </button>
           )}
           <button
@@ -376,6 +487,32 @@ function ProjectRow({
       <span className={projectStyles.path} title={info.path}>
         <Icon name="folder" size={12} /> {info.path}
       </span>
+      {summary && state !== 'not_initialized' && state !== 'folder_missing' && (
+        <div className={projectStyles.details}>
+          {summary.health && <HealthBadge health={summary.health} />}
+          {summary.stack.length > 0 && (
+            <span className={projectStyles.muted}>{summary.stack.join(' · ')}</span>
+          )}
+          {summary.stats && <HarnessStats stats={summary.stats} analyzedAt={summary.analyzedAt} />}
+          {summary.staleness && (
+            <StaleNotice
+              staleness={summary.staleness}
+              fix={{ busy: fixing, error: null, onFix, onReview }}
+            />
+          )}
+        </div>
+      )}
+      {confirmingReset && (
+        <div role="group" aria-label={t('projects.reset', { name: info.name })}>
+          <p className={projectStyles.problem}>{t('projects.resetConfirm', { name: info.name })}</p>
+          <button type="button" className={styles.danger} onClick={onReset}>
+            {t('projects.confirmReset')}
+          </button>{' '}
+          <button type="button" className={styles.linkButton} onClick={onCancelReset}>
+            {t('common.cancel')}
+          </button>
+        </div>
+      )}
       {!info.exists ? (
         <p className={projectStyles.problem}>{t('project.folderMissing')}</p>
       ) : (

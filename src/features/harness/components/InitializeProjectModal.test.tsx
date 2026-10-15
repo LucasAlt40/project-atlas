@@ -661,7 +661,14 @@ describe('InitializeProjectModal', () => {
         text: string,
       ) => {
         act(() => {
-          emitHarness({ workspaceId: 'w1', agentId: 'a1', executionId: 'semantic-1', kind, text });
+          emitHarness({
+            workspaceId: 'w1',
+            agentId: 'a1',
+            executionId: 'semantic-1',
+            projectPath: '/dev/erp',
+            kind,
+            text,
+          });
         });
       };
       progress('started', 'Analyst');
@@ -677,6 +684,7 @@ describe('InitializeProjectModal', () => {
           workspaceId: 'w9',
           agentId: 'a1',
           executionId: 'x',
+          projectPath: '/dev/erp',
           kind: 'output',
           text: 'NOPE',
         });

@@ -5,7 +5,7 @@ import { pickFolder } from '@/lib/tauri/dialog';
 import {
   agent,
   chatMessage,
-  emitProjectInit,
+  harnessSummary,
   mockBackend,
   renderWithProviders,
   workspace,
@@ -14,9 +14,13 @@ import {
 import { WorkspacePage } from '../pages/WorkspacePage';
 import {
   addWorkspaceProject,
+  analyzeProject,
   buildWorkspaceContext,
-  initializeWorkspaceHarness,
+  initializeProject,
+  listWorkspaceProjects,
   removeWorkspaceProject,
+  resetProjectHarness,
+  resetWorkspaceHarness,
   saveWorkspaceNotes,
   sendMessage,
   updateWorkspaceProject,
@@ -51,6 +55,18 @@ function show(options = {}) {
   return renderWithProviders(<WorkspacePage />);
 }
 
+/** What the core reports for the projects once it changed them: the panel re-reads it. */
+function listsProjectsOf(changed: ReturnType<typeof shop>) {
+  vi.mocked(listWorkspaceProjects).mockResolvedValue(
+    changed.projects.map((project, index) => ({
+      ...project,
+      exists: true,
+      primary: index === 0,
+      technologies: ['Angular'],
+    })),
+  );
+}
+
 function appError(code: AppErrorDto['code'], params: Record<string, string> = {}) {
   return new CommandError('add_workspace_project', { code, params, detail: null });
 }
@@ -65,21 +81,8 @@ describe('the projects of a workspace', () => {
     vi.clearAllMocks();
   });
 
-  it('shows each project with its role and where its Harness stands, in one line', async () => {
-    show();
-
-    const summary = await screen.findByRole('list', { name: 'Projects of Shop' });
-
-    await waitFor(() => {
-      expect(
-        within(summary)
-          .getAllByRole('listitem')
-          .map((i) => i.textContent),
-      ).toEqual(['frontFrontendAnalysed', 'APIBackendNot analysed', 'OrdersServiceOut of date']);
-    });
-  });
-
-  it('keeps the screen of a one-project workspace as it was: no list, no scope, a way to add more', async () => {
+  it('opens the same panel for a workspace of one project, with no scope picker', async () => {
+    const user = userEvent.setup();
     mockBackend({
       agents: [agent('a1', 'Architect')],
       workspaces: [workspace('w1', 'ERP', '/dev/erp', ['a1'])],
@@ -87,9 +90,10 @@ describe('the projects of a workspace', () => {
     });
     renderWithProviders(<WorkspacePage />);
 
-    expect(await screen.findByRole('group', { name: 'Harness' })).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Manage the projects of ERP' })).toBeVisible();
-    expect(screen.queryByRole('list', { name: 'Projects of ERP' })).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Manage the projects of ERP' }));
+    const panel = await screen.findByRole('dialog', { name: 'Projects of ERP' });
+    expect(await within(panel).findByText('/dev/erp')).toBeVisible();
+    expect(within(panel).getByRole('button', { name: 'Review Harness of erp' })).toBeVisible();
     expect(screen.queryByRole('button', { name: /^Scope:/ })).not.toBeInTheDocument();
   });
 
@@ -125,13 +129,14 @@ describe('the projects of a workspace', () => {
     };
     vi.mocked(pickFolder).mockResolvedValueOnce('/dev/shop/billing');
     vi.mocked(addWorkspaceProject).mockResolvedValueOnce(added);
+    listsProjectsOf(added);
 
     await user.click(within(panel).getByRole('button', { name: 'Add project folder' }));
 
     expect(addWorkspaceProject).toHaveBeenCalledWith('w1', { path: '/dev/shop/billing' });
-    expect(await screen.findByRole('list', { name: 'Projects of Shop' })).toHaveTextContent(
-      'billing',
-    );
+    expect(
+      await within(panel).findByRole('list', { name: 'Registered projects' }),
+    ).toHaveTextContent('billing');
 
     vi.mocked(pickFolder).mockResolvedValueOnce('/dev/shop/api');
     vi.mocked(addWorkspaceProject).mockRejectedValueOnce(
@@ -144,12 +149,51 @@ describe('the projects of a workspace', () => {
     );
   });
 
+  it('resets one project Harness only after asking, then offers to initialize it again', async () => {
+    const user = userEvent.setup();
+    show();
+    const panel = await openPanel(user);
+    vi.mocked(resetProjectHarness).mockResolvedValueOnce({
+      status: 'not_initialized',
+    } as Awaited<ReturnType<typeof resetProjectHarness>>);
+
+    await user.click(await within(panel).findByRole('button', { name: 'Reset Harness of front' }));
+
+    expect(resetProjectHarness).not.toHaveBeenCalled();
+    const ask = within(panel).getByRole('group', { name: 'Reset Harness of front' });
+    expect(ask).toHaveTextContent('Your code and your other .atlas/ files stay.');
+
+    await user.click(within(ask).getByRole('button', { name: 'Reset Harness' }));
+
+    expect(resetProjectHarness).toHaveBeenCalledWith('w1', 'p-front');
+    expect(await within(panel).findByText(/Harness reset/)).toBeVisible();
+  });
+
+  it('resets the Harness of every project at once, after asking', async () => {
+    const user = userEvent.setup();
+    show();
+    const panel = await openPanel(user);
+    vi.mocked(resetWorkspaceHarness).mockResolvedValueOnce({
+      exists: false,
+      generatedAt: null,
+      outdated: false,
+      hasNotes: false,
+    });
+
+    await user.click(await within(panel).findByRole('button', { name: 'Reset all Harnesses' }));
+    expect(resetWorkspaceHarness).not.toHaveBeenCalled();
+    await user.click(within(panel).getByRole('button', { name: 'Reset Harness' }));
+
+    expect(resetWorkspaceHarness).toHaveBeenCalledWith('w1');
+  });
+
   it('removes a project only after asking, and says its files stay', async () => {
     const user = userEvent.setup();
     show();
     const panel = await openPanel(user);
     const remaining = { ...shop(), projects: shop().projects.slice(0, 2) };
     vi.mocked(removeWorkspaceProject).mockResolvedValueOnce(remaining);
+    listsProjectsOf(remaining);
 
     await user.click(await within(panel).findByRole('button', { name: 'Remove Orders' }));
 
@@ -163,7 +207,7 @@ describe('the projects of a workspace', () => {
 
     expect(removeWorkspaceProject).toHaveBeenCalledWith('w1', 'p-orders');
     // The workspace the core returned is what the screen shows from here on.
-    const summary = screen.getByRole('list', { name: 'Projects of Shop' });
+    const summary = await within(panel).findByRole('list', { name: 'Registered projects' });
     await waitFor(() => {
       expect(within(summary).getAllByRole('listitem')).toHaveLength(2);
     });
@@ -212,74 +256,109 @@ describe('the projects of a workspace', () => {
   });
 
   describe('starting the Harness of the projects', () => {
-    it('starts only the projects that have none, shows each one working and reports the result', async () => {
+    const pendingTwo = {
+      projectHarness: {
+        'p-front': 'ready',
+        'p-api': 'not_initialized',
+        'p-orders': 'not_initialized',
+      },
+    } as const;
+
+    it('analyses every project that has none at the same time, in one review with a tab each', async () => {
       const user = userEvent.setup();
-      show();
+      show(pendingTwo);
+      // Neither analysis finishes: both must already be under way.
+      vi.mocked(analyzeProject).mockReturnValue(new Promise(() => undefined));
       const panel = await openPanel(user);
-      let finish: (value: Awaited<ReturnType<typeof initializeWorkspaceHarness>>) => void = () =>
-        undefined;
-      vi.mocked(initializeWorkspaceHarness).mockReturnValueOnce(
-        new Promise((resolve) => {
-          finish = resolve;
-        }),
-      );
-
-      await user.click(
-        await within(panel).findByRole('button', { name: 'Start Harness of 1 project(s)' }),
-      );
-
-      expect(initializeWorkspaceHarness).toHaveBeenCalledWith('w1', ['p-api']);
-      emitProjectInit({ workspaceId: 'w1', projectId: 'p-api', state: 'running' });
-      expect(await within(panel).findByText('Analysing…')).toBeVisible();
-      finish({
-        projects: [{ projectId: 'p-api', status: 'initialized', error: null }],
-        complete: true,
-        context: { exists: true, generatedAt: 1, outdated: false, hasNotes: false },
-      });
-      expect(await within(panel).findByText('Every project has a Harness.')).toBeVisible();
-    });
-
-    it('never calls a partial run complete, names the project that failed and retries only it', async () => {
-      const user = userEvent.setup();
-      show({
-        projectHarness: {
-          'p-front': 'ready',
-          'p-api': 'not_initialized',
-          'p-orders': 'not_initialized',
-        },
-      });
-      const panel = await openPanel(user);
-      vi.mocked(initializeWorkspaceHarness).mockResolvedValueOnce({
-        projects: [
-          { projectId: 'p-api', status: 'initialized', error: null },
-          {
-            projectId: 'p-orders',
-            status: 'failed',
-            error: { code: 'project_analysis_failed', params: {}, detail: null },
-          },
-        ],
-        complete: false,
-        context: { exists: true, generatedAt: 1, outdated: false, hasNotes: false },
-      });
 
       await user.click(
         await within(panel).findByRole('button', { name: 'Start Harness of 2 project(s)' }),
       );
 
-      expect(initializeWorkspaceHarness).toHaveBeenCalledWith('w1', ['p-api', 'p-orders']);
-      const status = await within(panel).findByRole('status');
-      expect(status).toHaveTextContent('1 project(s) failed.');
-      expect(status).toHaveTextContent('Orders:');
-      expect(within(panel).queryByText('Every project has a Harness.')).not.toBeInTheDocument();
+      const dialog = await screen.findByRole('dialog', { name: 'Initialize Projects' });
+      expect(analyzeProject).toHaveBeenCalledTimes(2);
+      expect(analyzeProject).toHaveBeenCalledWith('w1', undefined, 'p-api');
+      expect(analyzeProject).toHaveBeenCalledWith('w1', undefined, 'p-orders');
+      expect(within(dialog).getByText('Analysing 2 project(s) at once…')).toBeVisible();
+      expect(
+        within(dialog)
+          .getAllByRole('tab')
+          .map((tab) => tab.textContent),
+      ).toEqual(['API …', 'Orders …']);
+      // Nothing is written until the review is confirmed.
+      expect(initializeProject).not.toHaveBeenCalled();
+    });
 
-      vi.mocked(initializeWorkspaceHarness).mockResolvedValueOnce({
-        projects: [{ projectId: 'p-orders', status: 'initialized', error: null }],
-        complete: true,
-        context: null,
+    it('reviews them together and initializes them all with one confirmation', async () => {
+      const user = userEvent.setup();
+      show(pendingTwo);
+      vi.mocked(initializeProject).mockResolvedValue({
+        summary: harnessSummary({ status: 'initialized' }),
+        written: [],
+        backedUp: [],
+        leftUntouched: [],
+        gitIgnore: 'skipped',
       });
-      await user.click(within(panel).getByRole('button', { name: 'Try the failed ones again' }));
+      const panel = await openPanel(user);
+      await user.click(
+        await within(panel).findByRole('button', { name: 'Start Harness of 2 project(s)' }),
+      );
+      const dialog = await screen.findByRole('dialog', { name: 'Initialize Projects' });
 
-      expect(initializeWorkspaceHarness).toHaveBeenLastCalledWith('w1', ['p-orders']);
+      await user.click(await within(dialog).findByRole('button', { name: 'Review all (2)' }));
+      expect(initializeProject).not.toHaveBeenCalled();
+      await user.click(
+        within(screen.getByRole('form', { name: 'Review Project Context' })).getByRole('button', {
+          name: 'Initialize 2 project(s)',
+        }),
+      );
+
+      expect(await within(dialog).findByText('2 of 2 projects initialized.')).toBeVisible();
+      expect(initializeProject).toHaveBeenCalledTimes(2);
+      expect(
+        vi
+          .mocked(initializeProject)
+          .mock.calls.map((call) => call[2])
+          .sort(),
+      ).toEqual(['p-api', 'p-orders']);
+    });
+
+    it('keeps the projects that worked when one fails, and tries only the failed one again', async () => {
+      const user = userEvent.setup();
+      show(pendingTwo);
+      const done = {
+        summary: harnessSummary({ status: 'initialized' }),
+        written: [],
+        backedUp: [],
+        leftUntouched: [],
+        gitIgnore: 'skipped' as const,
+      };
+      vi.mocked(initializeProject).mockImplementation((_id, _input, projectId) =>
+        projectId === 'p-orders'
+          ? Promise.reject(appError('harness_invalid'))
+          : Promise.resolve(done),
+      );
+      const panel = await openPanel(user);
+      await user.click(
+        await within(panel).findByRole('button', { name: 'Start Harness of 2 project(s)' }),
+      );
+      const dialog = await screen.findByRole('dialog', { name: 'Initialize Projects' });
+      await user.click(await within(dialog).findByRole('button', { name: 'Review all (2)' }));
+      await user.click(
+        within(screen.getByRole('form', { name: 'Review Project Context' })).getByRole('button', {
+          name: 'Initialize 2 project(s)',
+        }),
+      );
+
+      expect(await within(dialog).findByText('1 of 2 projects initialized.')).toBeVisible();
+      vi.mocked(initializeProject).mockClear();
+      vi.mocked(initializeProject).mockResolvedValue(done);
+      await user.click(within(dialog).getByRole('button', { name: 'Try the failed ones again' }));
+
+      await waitFor(() => {
+        expect(initializeProject).toHaveBeenCalledTimes(1);
+      });
+      expect(vi.mocked(initializeProject).mock.calls[0]?.[2]).toBe('p-orders');
     });
   });
 

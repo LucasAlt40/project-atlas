@@ -99,7 +99,7 @@ describe('App', () => {
     expect(setLanguage).toHaveBeenCalledWith('en-US');
     expect(await screen.findByRole('button', { name: '+ Add Agent' })).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Project context' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Manage the projects of/ })).toBeInTheDocument();
     // Names the user chose are not translated.
     expect(screen.getAllByText('Acme ERP').length).toBeGreaterThan(0);
   });

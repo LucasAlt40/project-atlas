@@ -153,6 +153,28 @@ export function refreshProjectHarness(
   });
 }
 
+/** Wipes a project's Harness so it can be generated again from scratch. */
+export function resetProjectHarness(
+  workspaceId: string,
+  projectId?: string,
+): Promise<HarnessSummaryDto> {
+  return invokeCommand('reset_project_harness', {
+    workspaceId,
+    ...(projectId ? { projectId } : {}),
+  });
+}
+
+/** Wipes the Harness of every project (or the ones named). The workspace notes stay. */
+export function resetWorkspaceHarness(
+  workspaceId: string,
+  projectIds?: string[],
+): Promise<WorkspaceContextInfoDto> {
+  return invokeCommand('reset_workspace_harness', {
+    workspaceId,
+    ...(projectIds ? { projectIds } : {}),
+  });
+}
+
 /** Where each project stands (its Harness) and whether the workspace's own context is current. */
 export function getWorkspaceHarness(workspaceId: string): Promise<WorkspaceHarnessOverviewDto> {
   return invokeCommand('get_workspace_harness', { workspaceId });

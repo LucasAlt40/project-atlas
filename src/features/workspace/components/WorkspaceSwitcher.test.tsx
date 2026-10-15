@@ -98,7 +98,6 @@ describe('WorkspaceSwitcher', () => {
     expect(screen.queryByRole('article', { name: 'Architect' })).not.toBeInTheDocument();
     expect(screen.getByText('Atlas question')).toBeInTheDocument();
     expect(screen.queryByText('ERP question')).not.toBeInTheDocument();
-    expect(await screen.findByText('/dev/atlas')).toBeInTheDocument();
     expect(switcher()).toHaveTextContent('Atlas');
   });
 

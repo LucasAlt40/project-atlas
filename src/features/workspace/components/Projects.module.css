@@ -163,3 +163,11 @@
   border-radius: var(--radius-md);
   background: var(--surface-1);
 }
+
+/* Health, stack, counts and the stale notice of one project's Harness. */
+.details {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}

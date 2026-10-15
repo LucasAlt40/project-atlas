@@ -506,6 +506,8 @@ pub struct ProgressUpdate {
     pub agent_id: String,
     /// The execution (process) doing the work: what the UI names to stop it.
     pub execution_id: String,
+    /// The project folder the agent is reading: with several analysed at once, which one this is.
+    pub project_path: String,
     pub kind: ProgressKind,
     pub text: String,
 }
@@ -560,6 +562,7 @@ impl SemanticModel for RuntimeSemanticModel {
                     workspace_id: self.workspace_id.clone(),
                     agent_id: self.agent_id.clone(),
                     execution_id: id.clone(),
+                    project_path: self.project_path.to_string_lossy().into_owned(),
                     kind,
                     text: text.to_owned(),
                 });

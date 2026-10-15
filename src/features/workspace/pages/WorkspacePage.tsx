@@ -10,7 +10,7 @@ import { AgentCard } from '../components/AgentCard';
 import { AgentDetailsPanel } from '../components/AgentDetailsPanel';
 import { EditAgentPanel } from '../components/EditAgentPanel';
 import { OnboardingPanel } from '../components/OnboardingPanel';
-import { ProjectContextBar } from '../components/ProjectContextBar';
+import { WorkspaceProjectsPanel } from '../components/WorkspaceProjectsPanel';
 import { WorkspaceGrid } from '../components/WorkspaceGrid';
 import { WorkspaceUsageChip } from '../components/WorkspaceUsageChip';
 import { useWorkspace } from '../hooks/WorkspaceProvider';
@@ -54,6 +54,7 @@ export function WorkspacePage() {
   const workspace = useWorkspace();
   const { navigate } = useNavigation();
   const [adding, setAdding] = useState(false);
+  const [managingProjects, setManagingProjects] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -221,6 +222,16 @@ export function WorkspacePage() {
             <WorkspaceUsageChip workspaceId={active.id} usageVersion={workspace.usageVersion} />
             <Button
               variant="secondary"
+              aria-label={t('projects.openLabel', { name: active.name })}
+              onClick={() => {
+                setManagingProjects(true);
+              }}
+            >
+              <Icon name="stack" size={14} />
+              {t('projects.open', { count: active.projects.length })}
+            </Button>
+            <Button
+              variant="secondary"
               onClick={() => {
                 navigate('mcp');
               }}
@@ -230,8 +241,17 @@ export function WorkspacePage() {
             <Button onClick={openAdd}>{t('workspace.addAgent')}</Button>
           </div>
         </header>
-        <ProjectContextBar workspace={active} onWorkspaceChanged={workspace.replaceWorkspace} />
       </div>
+
+      {managingProjects && (
+        <WorkspaceProjectsPanel
+          workspace={active}
+          onWorkspaceChanged={workspace.replaceWorkspace}
+          onClose={() => {
+            setManagingProjects(false);
+          }}
+        />
+      )}
 
       {notice && (
         <p role="alert" className={styles.notice}>
