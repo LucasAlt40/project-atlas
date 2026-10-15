@@ -20,6 +20,19 @@ You cannot run shell commands or use the network, and you must not touch anythin
 working directory. What you write stays in the worktree: it is saved there, handed to the next \
 steps of your workflow and reviewed by the user before it reaches the project.";
 
+/// As [`ATLAS_RULES_EDITING`], for a runtime whose tools *are* commands (Codex, `OpenCode`,
+/// Gemini): it reads and edits files by running them inside its own sandbox, so telling it it has
+/// no shell leaves it with nothing to read the project with. What stays forbidden is what the
+/// sandbox and the policy forbid.
+pub(crate) const ATLAS_RULES_EDITING_COMMANDS: &str =
+    "You are running inside Atlas, in an isolated Git worktree of \
+the project (your working directory). You may read, create and edit files in it with the tools \
+your runtime gives you, which for you include running commands in its sandbox. Use them for the \
+project's files only: do not use the network, do not install or download anything, and do not \
+touch anything outside your working directory. What you write stays in the worktree: it is saved \
+there, handed to the next steps of your workflow and reviewed by the user before it reaches the \
+project.";
+
 /// Applied to every agent, whatever its personality (built-in or custom), so the live response
 /// shows each step as it happens. It only shapes the real-time response: the final answer is
 /// the concluding message, which must stand on its own.
@@ -233,6 +246,8 @@ pub struct PromptBuilder<'a> {
     /// Whether the agent may edit files (see `RuntimeRequest::allow_edits`). The rule the prompt
     /// states is the one the runtime enforces: the prompt never says more than what the tools allow.
     pub can_edit: bool,
+    /// The runtime's tools are commands it runs (see [`ATLAS_RULES_EDITING_COMMANDS`]).
+    pub tools_are_commands: bool,
     pub harness: Option<&'a str>,
     pub skills: Option<&'a str>,
     pub rules: Option<&'a str>,
@@ -291,6 +306,7 @@ impl PromptBuilder<'_> {
             task,
             task_aware,
             can_edit,
+            tools_are_commands,
             harness,
             skills,
             rules,
@@ -298,7 +314,9 @@ impl PromptBuilder<'_> {
             unavailable_integrations,
             other_projects,
         } = *self;
-        let atlas_rules = if can_edit {
+        let atlas_rules = if can_edit && tools_are_commands {
+            ATLAS_RULES_EDITING_COMMANDS
+        } else if can_edit {
             ATLAS_RULES_EDITING
         } else {
             ATLAS_RULES
@@ -371,6 +389,16 @@ mod tests {
     }
 
     fn build_with(instructions: &str, integrations: &[String], unavailable: &[String]) -> Prompt {
+        build_rules(instructions, integrations, unavailable, false, false)
+    }
+
+    fn build_rules(
+        instructions: &str,
+        integrations: &[String],
+        unavailable: &[String],
+        can_edit: bool,
+        tools_are_commands: bool,
+    ) -> Prompt {
         let personality = PersonalityProfile {
             id: "p".to_owned(),
             name: "Architect".to_owned(),
@@ -411,7 +439,8 @@ mod tests {
             agent: &agent,
             task: &task,
             task_aware: false,
-            can_edit: false,
+            can_edit,
+            tools_are_commands,
             harness: None,
             skills: None,
             rules: None,
@@ -442,6 +471,23 @@ mod tests {
         let only_missing = build_with("x", &[], &missing).context;
         assert!(!only_missing.contains("given to you for this task"));
         assert!(only_missing.contains("could not be given"));
+    }
+
+    #[test]
+    fn a_runtime_that_works_through_commands_is_not_told_it_has_no_shell() {
+        let file_tools = build_rules("x", &[], &[], true, false).system;
+        let commands = build_rules("x", &[], &[], true, true).system;
+        let read_only = build_rules("x", &[], &[], false, true).system;
+
+        // A runtime with file tools of its own is told it cannot run commands.
+        assert!(file_tools.contains("You cannot run shell commands"));
+        // One whose tools are commands is told to use them for the project's files, and nothing else.
+        assert!(!commands.contains("You cannot run shell commands"));
+        assert!(commands.contains("running commands in its sandbox"));
+        assert!(commands.contains("do not use the network"));
+        assert!(commands.contains("outside your working directory"));
+        // A step that may not edit is read-only whatever its runtime.
+        assert!(read_only.contains("read-only mode"));
     }
 
     #[test]

@@ -57,6 +57,7 @@
     "allow-set-language",
     "allow-set-specs-max-tokens",
     "allow-raise-spec-budget",
+    "allow-set-spec-integrations",
     "allow-select-workspace",
     "allow-send-message",
     "allow-list-messages",

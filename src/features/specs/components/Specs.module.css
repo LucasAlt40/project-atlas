@@ -1625,3 +1625,25 @@
   justify-content: space-between;
   gap: var(--space-3);
 }
+
+.integrations {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+.integrations legend {
+  padding: 0 var(--space-2);
+  color: var(--text-high);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+.integrations li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}

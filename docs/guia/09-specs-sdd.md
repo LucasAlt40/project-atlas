@@ -88,6 +88,13 @@ Só uma spec pronta do workspace inicia um run. O run guarda a spec, as revisõe
 `tasks.md`, não editam `openspec/` e sinalizam divergências (`spec-divergence`). Na tela do workflow aparece o painel da
 spec: tarefas **relatadas** pelos passos e **confirmadas** (o run terminou com sucesso). Se a spec mudar depois, o painel diz.
 
+## Ferramentas para testar e revisar
+
+Ao criar a spec, o formulário lista as conexões MCP do workspace (Jira, Figma, DevTools…). As que estão ligadas já vêm
+marcadas; as desligadas aparecem sem poder ser escolhidas. Depois dá para mudar em **Agentes e ferramentas**. O que você
+escolhe é citado aos agentes que escrevem os documentos (as verificações das tarefas passam a poder usar a ferramenta) e
+aos que implementam. **Escolher não concede acesso**: a etapa só recebe as ferramentas que o hub MCP conceder a ela.
+
 ## Consumo e limite de tokens
 
 Abaixo das etapas, a barra **Consumo** mostra o que as execuções da spec usaram, como o runtime informou (entrada, saída,

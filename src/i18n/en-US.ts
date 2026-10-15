@@ -2928,7 +2928,18 @@ export const enUS = {
     'Nothing has run yet. When you start, {agent} writes the proposal; you read it and decide before anything else is written.',
   'specs.start.action': 'Start specification',
   'specs.agents.action': 'Agents',
-  'specs.agents.title': 'Who writes and who reviews',
+  'specs.integrations.title': 'Tools to test and review with',
+  'specs.integrations.intro':
+    'Integrations connected to this workspace. The ones you choose are named to the agents that write the spec, so verifications can use them, and to the agents that implement it.',
+  'specs.integrations.none':
+    'No integration is connected to this workspace. Connect one in the MCP hub to use it here.',
+  'specs.integrations.tools': '{count} tools',
+  'specs.integrations.notListed': 'tools not listed yet',
+  'specs.integrations.off': 'switched off',
+  'specs.integrations.grants':
+    'Choosing one grants nothing: a step is given the tools only if the MCP hub grants them to it.',
+  'specs.meta.integrations': 'Tools',
+  'specs.agents.title': 'Agents and tools',
   'specs.agents.intro':
     'Both must be agents of this workspace. Changing them does not touch the documents already written.',
   'specs.agents.gone': 'The agent is no longer in this workspace',

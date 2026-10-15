@@ -73,6 +73,7 @@ export interface CommandMap {
   set_language: { args: { language: string }; result: AppSettingsDto };
   set_specs_max_tokens: { args: { max: number | null }; result: AppSettingsDto };
   raise_spec_budget: { args: { specId: string }; result: SpecViewDto };
+  set_spec_integrations: { args: { specId: string; connectionIds: string[] }; result: SpecViewDto };
   select_workspace: { args: { workspaceId: string | null }; result: AppSettingsDto };
   send_message: { args: { request: SendMessageRequestDto }; result: SentMessageDto };
   list_messages: { args: { workspaceId?: string; agentId?: string }; result: MessageDto[] };
@@ -3482,6 +3483,8 @@ export interface SpecBlockerDto {
   count: number | null;
 }
 
+  /** The integrations (connection ids) chosen for testing and review. */
+  integrations: string[];
 export interface SpecTaskDto {
   id: string;
   text: string;
@@ -3546,6 +3549,16 @@ export interface SpecRunUsageDto {
   cachedInputTokens: number | null;
   cost: number | null;
   currency: string | null;
+  /** The integrations chosen for testing and review, as they are now. */
+  integrations: SpecIntegrationDto[];
+}
+
+export interface SpecIntegrationDto {
+  id: string;
+  name: string;
+  /** The connection is switched on in the workspace. */
+  enabled: boolean;
+  tools: string[];
   source: 'runtime_reported' | 'atlas_calculated' | null;
 }
 
@@ -3609,6 +3622,8 @@ export interface ImportCandidateDto {
   changeId: string;
   artifacts: SpecArtifactIdDto[];
   problems: string[];
+  /** Connection ids of the workspace's integrations to test and review the spec with. */
+  integrations?: string[];
   importedAs: string | null;
 }
 
@@ -3639,6 +3654,7 @@ export interface SpecProgressDto {
   specChanged: boolean;
   tasks: { id: string; text: string; state: SpecTaskStateDto }[];
   reported: number;
+  integrations?: { name: string; tools: string[] }[];
   confirmed: number;
 }
 

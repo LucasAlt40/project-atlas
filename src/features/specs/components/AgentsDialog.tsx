@@ -5,6 +5,7 @@ import type { Agent } from '@/features/agents/types';
 import type { Workspace } from '@/features/workspace/types';
 import { useI18n } from '@/i18n/I18nProvider';
 import { agentsOf } from '../model/agents';
+import { IntegrationsPicker } from './IntegrationsPicker';
 import type { SpecView } from '../types';
 import styles from './Specs.module.css';
 
@@ -13,7 +14,7 @@ interface Props {
   agents: Agent[];
   view: SpecView;
   busy: boolean;
-  onSave: (author: string, reviewer: string) => void;
+  onSave: (author: string, reviewer: string, integrations: string[]) => void;
   onClose: () => void;
 }
 
@@ -23,6 +24,7 @@ export function AgentsDialog({ workspace, agents, view, busy, onSave, onClose }:
   const choices = useMemo(() => agentsOf(workspace, agents), [workspace, agents]);
   const [author, setAuthor] = useState(view.spec.authorAgentId);
   const [reviewer, setReviewer] = useState(view.spec.reviewerAgentId);
+  const [integrations, setIntegrations] = useState(view.spec.integrations);
   const known = (id: string) => choices.some((agent) => agent.id === id);
   return (
     <Modal label={t('specs.agents.title')} onClose={onClose}>
@@ -30,7 +32,7 @@ export function AgentsDialog({ workspace, agents, view, busy, onSave, onClose }:
         className={styles.form}
         onSubmit={(event) => {
           event.preventDefault();
-          onSave(author, reviewer);
+          onSave(author, reviewer, integrations);
         }}
       >
         <h2 className={styles.dialogTitle}>{t('specs.agents.title')}</h2>
@@ -57,6 +59,11 @@ export function AgentsDialog({ workspace, agents, view, busy, onSave, onClose }:
             </label>
           );
         })}
+        <IntegrationsPicker
+          workspaceId={workspace.id}
+          selected={integrations}
+          onChange={setIntegrations}
+        />
         <div className={styles.dialogActions}>
           <Button variant="secondary" onClick={onClose}>
             {t('common.cancel')}

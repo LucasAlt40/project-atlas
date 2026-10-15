@@ -187,6 +187,7 @@ pub fn create(new: NewSpec, graph: &[(ArtifactKind, Vec<ArtifactKind>)], now: u6
         cli_check: None,
         implementations: Vec::new(),
         budget_steps: 0,
+        integrations: Vec::new(),
         runs: Vec::new(),
         origin: new.origin,
         version: 1,

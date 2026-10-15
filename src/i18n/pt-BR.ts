@@ -2969,7 +2969,18 @@ export const ptBR: Record<TranslationKey, string> = {
     'Nada rodou ainda. Ao iniciar, {agent} escreve a proposta; você lê e decide antes de qualquer outra coisa ser escrita.',
   'specs.start.action': 'Iniciar especificação',
   'specs.agents.action': 'Agentes',
-  'specs.agents.title': 'Quem escreve e quem revisa',
+  'specs.integrations.title': 'Ferramentas para testar e revisar',
+  'specs.integrations.intro':
+    'Integrações conectadas a este workspace. As que você escolher são citadas aos agentes que escrevem a spec, para as verificações poderem usá-las, e aos que a implementam.',
+  'specs.integrations.none':
+    'Nenhuma integração conectada a este workspace. Conecte uma no hub MCP para usá-la aqui.',
+  'specs.integrations.tools': '{count} ferramentas',
+  'specs.integrations.notListed': 'ferramentas ainda não listadas',
+  'specs.integrations.off': 'desligada',
+  'specs.integrations.grants':
+    'Escolher não autoriza nada: uma etapa só recebe as ferramentas se o hub MCP as conceder a ela.',
+  'specs.meta.integrations': 'Ferramentas',
+  'specs.agents.title': 'Agentes e ferramentas',
   'specs.agents.intro':
     'Ambos devem ser agentes deste workspace. Trocar não altera os documentos já escritos.',
   'specs.agents.gone': 'O agente não está mais neste workspace',

@@ -45,6 +45,27 @@ pub struct SpecView {
     /// What the agents' runs for this spec used, as the runtimes reported it.
     pub usage: SpecUsage,
     pub budget: SpecBudget,
+    /// The integrations the person chose for testing and review, as they are now.
+    pub integrations: Vec<IntegrationInfo>,
+}
+
+/// What an agent is told of an integration chosen for the spec.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IntegrationNote {
+    pub name: String,
+    pub tools: Vec<String>,
+}
+
+/// An integration chosen for the spec. Choosing grants nothing.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IntegrationInfo {
+    pub id: String,
+    pub name: String,
+    /// The connection is switched on in the workspace.
+    pub enabled: bool,
+    /// What a discovery found the server offers; may be empty.
+    pub tools: Vec<String>,
 }
 
 /// The token budget of the spec (`optimization.specs.maxTokens`) and where it stands.
@@ -221,6 +242,7 @@ pub fn build(
     available: &Availability,
     records: &[UsageRecord],
     budget: Option<u64>,
+    integrations: Vec<IntegrationInfo>,
 ) -> SpecView {
     let current = spec.current_revisions();
     let phases = spec
@@ -264,6 +286,7 @@ pub fn build(
     let usage = usage_of(spec, records);
     SpecView {
         budget: SpecBudget::of(spec, &usage, budget),
+        integrations,
         outline,
         status: rules::status(spec),
         phases,

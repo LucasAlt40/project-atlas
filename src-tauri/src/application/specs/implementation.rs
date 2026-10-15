@@ -11,7 +11,7 @@ use crate::application::errors::{AppError, ErrorCode};
 use crate::application::workflow::service::WorkflowService;
 use crate::domain::scope::ScopeRequest;
 use crate::domain::spec::ImplementationLink;
-use crate::domain::workflow::{SpecLink, SpecTaskRef, WorkflowExecution};
+use crate::domain::workflow::{SpecIntegrationRef, SpecLink, SpecTaskRef, WorkflowExecution};
 
 pub struct SpecImplementation {
     specs: Arc<SpecService>,
@@ -84,6 +84,14 @@ impl SpecImplementation {
                 })
                 .collect(),
             published_root: context.published_root.clone(),
+            integrations: context
+                .integrations
+                .iter()
+                .map(|i| SpecIntegrationRef {
+                    name: i.name.clone(),
+                    tools: i.tools.clone(),
+                })
+                .collect(),
         };
         let execution =
             self.workflows

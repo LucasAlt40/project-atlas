@@ -335,6 +335,34 @@ fn specification_block(exec: &WorkflowExecution) -> String {
              not your worktree.)"
         );
     }
+    if !spec.integrations.is_empty() {
+        text.push_str(
+            "INTEGRATIONS THE PERSON CHOSE FOR TESTING AND REVIEW (naming one grants nothing; the \
+             step is given only what the workflow grants it):\n",
+        );
+        for integration in &spec.integrations {
+            if integration.tools.is_empty() {
+                let _ = writeln!(text, "- {}", clip(&integration.name, 80));
+            } else {
+                let tools: Vec<String> = integration
+                    .tools
+                    .iter()
+                    .map(|tool| clip(tool, 60))
+                    .collect();
+                let _ = writeln!(
+                    text,
+                    "- {}: {}",
+                    clip(&integration.name, 80),
+                    tools.join(", ")
+                );
+            }
+        }
+        text.push_str(
+            "Where a task says it is verified with one of them, use it if you were given it. If \
+             you were not, say which tasks you could not verify that way and leave them out of \
+             `completedTasks`: do not mark a task done on a check you could not make.\n\n",
+        );
+    }
     text.push_str(
         "RULES. Do not edit anything under `openspec/`: the specification is approved and is the \
          person's to change. If what the code needs and what the specification says differ, say so \
@@ -939,6 +967,7 @@ mod tests {
                 .to_owned(),
             tasks: Vec::new(),
             published_root: Some("openspec/changes/dark-mode".to_owned()),
+            integrations: Vec::new(),
         }
     }
 
@@ -964,6 +993,41 @@ mod tests {
         assert!(text.contains("1.1 Add the switch"));
         // It is part of the protocols the Context Engine leaves alone.
         assert!(brief.parts.protocols.contains("SPECIFICATION"));
+    }
+
+    #[test]
+    fn the_integrations_chosen_for_the_spec_are_named_and_grant_nothing() {
+        let mut exec = run();
+        let mut link = spec_link();
+        link.integrations = vec![
+            crate::domain::workflow::SpecIntegrationRef {
+                name: "chrome-devtools".to_owned(),
+                tools: vec!["take_snapshot".to_owned(), "navigate_page".to_owned()],
+            },
+            crate::domain::workflow::SpecIntegrationRef {
+                name: "jira".to_owned(),
+                tools: Vec::new(),
+            },
+        ];
+        exec.spec = Some(link);
+
+        let text = brief_of(&exec).description;
+
+        assert!(text.contains("INTEGRATIONS THE PERSON CHOSE FOR TESTING AND REVIEW"));
+        assert!(text.contains("naming one grants nothing"));
+        assert!(text.contains("- chrome-devtools: take_snapshot, navigate_page"));
+        assert!(text.contains("- jira\n"));
+        assert!(text.contains("leave them out of `completedTasks`"));
+    }
+
+    #[test]
+    fn a_spec_without_integrations_says_nothing_of_them() {
+        let mut exec = run();
+        exec.spec = Some(spec_link());
+
+        assert!(!brief_of(&exec)
+            .description
+            .contains("INTEGRATIONS THE PERSON CHOSE"));
     }
 
     #[test]

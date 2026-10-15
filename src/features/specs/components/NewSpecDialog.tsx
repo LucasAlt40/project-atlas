@@ -8,6 +8,7 @@ import { errorMessage } from '@/i18n/messages';
 import { listWorkspaceProjects } from '@/features/workspace/services/workspaceService';
 import type { ProjectInfoDto } from '@/lib/tauri/commands';
 import { agentsOf, suggestedAuthor } from '../model/agents';
+import { IntegrationsPicker } from './IntegrationsPicker';
 import { contextFromAnswers, profileOf, questionsFor } from '../model/contextQuestions';
 import { createSpec } from '../services/specService';
 import type { SpecView } from '../types';
@@ -38,6 +39,7 @@ export function NewSpecDialog({ workspace, agents, onClose, onCreated }: Props) 
   const [reviewer, setReviewer] = useState('');
   const [projects, setProjects] = useState<ProjectInfoDto[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [integrations, setIntegrations] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
@@ -90,6 +92,7 @@ export function NewSpecDialog({ workspace, agents, onClose, onCreated }: Props) 
         ),
         authorAgentId: author,
         reviewerAgentId: reviewer || author,
+        integrations,
       });
       onCreated(view);
     } catch (failure: unknown) {
@@ -229,6 +232,12 @@ export function NewSpecDialog({ workspace, agents, onClose, onCreated }: Props) 
               </label>
             </div>
           )}
+          <IntegrationsPicker
+            workspaceId={workspace.id}
+            selected={integrations}
+            onChange={setIntegrations}
+            preselect
+          />
           <p className={styles.note}>{t('specs.new.nothingRuns')}</p>
           {error !== null && (
             <p className={styles.error} role="alert">

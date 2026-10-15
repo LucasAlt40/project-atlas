@@ -116,6 +116,7 @@ export function spec(patch: Partial<SpecDto> = {}): SpecDto {
     implementations: [],
     runs: [],
     budgetSteps: 0,
+    integrations: [],
     origin: { kind: 'created' },
     version: 1,
     createdAt: NOW - 200_000,
@@ -179,6 +180,7 @@ export function view(
       runsMeasured: 0,
     },
     budget: { limit: null, spent: null, steps: 0, reached: false, near: false },
+    integrations: [],
     ...patch,
   };
 }

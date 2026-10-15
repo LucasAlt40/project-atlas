@@ -51,6 +51,7 @@ fn window() -> (tauri::App<MockRuntime>, WebviewWindow<MockRuntime>) {
             super::settings::set_language,
             super::settings::set_specs_max_tokens,
             super::specs::raise_spec_budget,
+            super::specs::set_spec_integrations,
             super::settings::select_workspace,
             super::chat::send_message,
             super::chat::list_messages,

@@ -38,6 +38,7 @@ const COMMANDS: &[&str] = &[
     "set_language",
     "set_specs_max_tokens",
     "raise_spec_budget",
+    "set_spec_integrations",
     "select_workspace",
     "send_message",
     "list_messages",

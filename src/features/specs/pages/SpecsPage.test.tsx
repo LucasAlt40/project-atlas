@@ -29,12 +29,14 @@ import {
   subscribeToSpecChanges,
   validateSpec,
 } from '../services/specService';
+import { listMcpConnections } from '@/features/workspace/services/mcpService';
 import { SpecsPage } from './SpecsPage';
 
 vi.mock('@/features/agents/services/catalogService');
 vi.mock('@/features/settings/services/settingsService');
 vi.mock('@/features/usage/services/usageService');
 vi.mock('@/features/workspace/services/workspaceService');
+vi.mock('@/features/workspace/services/mcpService');
 vi.mock('../services/specService');
 
 function first<T>(items: T[]): T {
@@ -86,6 +88,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   // Answers not yet sent are kept in the browser: one test's must not reach the next.
   localStorage.clear();
+  vi.mocked(listMcpConnections).mockResolvedValue({ connections: [], grants: [] });
 });
 
 describe('the Specs overview', () => {
@@ -192,6 +195,7 @@ describe('creating a spec', () => {
       context: '',
       authorAgentId: 'a1',
       reviewerAgentId: 'a1',
+      integrations: [],
     });
     expect(await screen.findByRole('heading', { level: 2, name: 'Dark mode' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start specification' })).toBeEnabled();
@@ -232,6 +236,56 @@ describe('creating a spec', () => {
     expect(sent?.context).toBe(
       'Answers from the person:\n- Which backend endpoints does this call? What are the request and the response, and the errors?\n  POST /subscriptions/cancel',
     );
+  });
+
+  it('offers the workspace’s integrations for testing and review, chosen when they are on, and sends the choice', async () => {
+    backend();
+    vi.mocked(listSpecs).mockResolvedValue([]);
+    const stdio = { kind: 'stdio' as const, executable: 'npx', args: [], env: [] };
+    const connection = (id: string, name: string, enabled: boolean) => ({
+      id,
+      workspaceId: 'ws1',
+      name,
+      transport: stdio,
+      enabled,
+      required: false,
+      secrets: {},
+      createdAt: 1,
+    });
+    vi.mocked(listMcpConnections).mockResolvedValue({
+      connections: [
+        {
+          ...connection('c1', 'chrome-devtools', true),
+          discovery: {
+            discoveredAt: 1,
+            runtimeId: 'claude',
+            status: 'connected',
+            tools: ['a', 'b'],
+          },
+        },
+        connection('c2', 'jira', false),
+      ],
+      grants: [],
+    });
+    const draft = view('draft', { started: false });
+    vi.mocked(createSpec).mockResolvedValue(draft);
+    vi.mocked(getSpec).mockResolvedValue(draft);
+    const user = userEvent.setup();
+    renderWithProviders(<SpecsPage />);
+    await user.click(first(await screen.findAllByRole('button', { name: 'New specification' })));
+    const dialog = await screen.findByRole('dialog', { name: 'New specification' });
+
+    const devtools = await within(dialog).findByRole('checkbox', { name: 'chrome-devtools' });
+    expect(devtools).toBeChecked();
+    expect(within(dialog).getByText('2 tools')).toBeInTheDocument();
+    // One that is switched off cannot be chosen: nothing would be given to anyone.
+    expect(within(dialog).getByRole('checkbox', { name: 'jira' })).toBeDisabled();
+    expect(within(dialog).getByText(/Choosing one grants nothing/)).toBeInTheDocument();
+
+    await user.type(within(dialog).getByLabelText('Title'), 'Cancel plan');
+    await user.type(within(dialog).getByLabelText(/What do you want built/), 'Cancel a plan');
+    await user.click(within(dialog).getByRole('button', { name: 'Create' }));
+    expect(vi.mocked(createSpec).mock.calls[0]?.[0].integrations).toEqual(['c1']);
   });
 
   it('shows the core’s reason when the request is refused', async () => {

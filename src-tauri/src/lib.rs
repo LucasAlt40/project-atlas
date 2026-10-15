@@ -130,6 +130,7 @@ pub fn run() {
             commands::settings::set_language,
             commands::settings::set_specs_max_tokens,
             commands::specs::raise_spec_budget,
+            commands::specs::set_spec_integrations,
             commands::settings::select_workspace,
             commands::chat::send_message,
             commands::chat::list_messages,

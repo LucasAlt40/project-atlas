@@ -6,6 +6,7 @@
 use std::fmt::Write;
 
 use super::framework::{ProjectSpecs, SpecFramework};
+use super::view::IntegrationNote;
 use crate::application::interaction::INTERACTION_FENCE;
 use crate::application::orchestration::brief::quote;
 use crate::domain::spec::rules::answered_questions;
@@ -334,6 +335,39 @@ fn mode_block(
     out
 }
 
+/// The integrations the person connected and chose for testing and review. Choosing one grants a
+/// step nothing: the agent is told what exists, and to write so that a missing tool is no surprise.
+fn integrations_block(notes: &[IntegrationNote], writing: bool) -> String {
+    if notes.is_empty() {
+        return String::new();
+    }
+    let mut out = String::from(
+        "INTEGRATIONS CHOSEN FOR TESTING AND REVIEW\nThe person connected these to the workspace and chose them for this specification:\n",
+    );
+    for note in notes {
+        if note.tools.is_empty() {
+            let _ = writeln!(out, "- {} (its tools are not listed yet)", note.name);
+        } else {
+            let _ = writeln!(out, "- {}: {}", note.name, note.tools.join(", "));
+        }
+    }
+    if writing {
+        out.push_str(
+            "Where one of them can check something, say so in what you write: a task's Verification \
+             can name the integration (open the page, read the ticket, inspect the design). Name \
+             only integrations listed here and never invent a tool. Whether a step is given an \
+             integration is decided when the workflow runs, so write each verification to still say \
+             what to check by hand when the tool is not there.",
+        );
+    } else {
+        out.push_str(
+            "If you were given any of them, use them to check what the documents claim. Do not \
+             report that a tool was missing as a finding about the documents.",
+        );
+    }
+    out
+}
+
 /// The prompt for writing (or revising) one artifact.
 pub fn generation_prompt(
     spec: &Spec,
@@ -341,6 +375,7 @@ pub fn generation_prompt(
     mode: GenerationMode,
     framework: &dyn SpecFramework,
     project: &ProjectSpecs,
+    integrations: &[IntegrationNote],
 ) -> Option<StepPrompt> {
     let artifact = spec.artifact(artifact_id)?;
     let kind = artifact.kind;
@@ -365,6 +400,9 @@ pub fn generation_prompt(
         if !block.is_empty() {
             sections.push(block);
         }
+    }
+    if !matches!(kind, ArtifactKind::Proposal) {
+        sections.push(integrations_block(integrations, true));
     }
     sections.push(format!(
         "WHAT TO WRITE: the {}\n\n{}\n\nTemplate to follow:\n{}",
@@ -403,7 +441,11 @@ pub fn generation_prompt(
 
 /// The prompt for the reviewing agent: every approved document, what to look for and the shape of
 /// the answer.
-pub fn review_prompt(spec: &Spec, framework: &dyn SpecFramework) -> StepPrompt {
+pub fn review_prompt(
+    spec: &Spec,
+    framework: &dyn SpecFramework,
+    integrations: &[IntegrationNote],
+) -> StepPrompt {
     let ids: Vec<&str> = ArtifactKind::ALL.iter().map(|k| k.id()).collect();
     let mut sections = vec![
         "You are the REVIEWER of a specification. You are in read-only mode: you change nothing, you \
@@ -414,6 +456,7 @@ pub fn review_prompt(spec: &Spec, framework: &dyn SpecFramework) -> StepPrompt {
         SOURCES.to_owned(),
         format!("THE APPROVED DOCUMENTS\n\n{}", documents_block(spec, &ids)),
         format!("WHAT TO REVIEW\n\n{}", framework.review_instruction()),
+        integrations_block(integrations, false),
     ];
     let answered: Vec<String> = spec
         .questions
@@ -530,6 +573,7 @@ mod tests {
             GenerationMode::Initial,
             &OpenSpecAdapter,
             &ProjectSpecs::default(),
+            &[],
         )
         .unwrap();
 
@@ -565,6 +609,7 @@ mod tests {
             GenerationMode::Initial,
             &OpenSpecAdapter,
             &ProjectSpecs::default(),
+            &[],
         )
         .unwrap();
 
@@ -604,6 +649,7 @@ mod tests {
             GenerationMode::Revise,
             &OpenSpecAdapter,
             &ProjectSpecs::default(),
+            &[],
         )
         .unwrap();
 
@@ -637,6 +683,7 @@ mod tests {
             GenerationMode::Regenerate,
             &OpenSpecAdapter,
             &ProjectSpecs::default(),
+            &[],
         )
         .unwrap();
 
@@ -671,6 +718,7 @@ mod tests {
             GenerationMode::Initial,
             &OpenSpecAdapter,
             &ProjectSpecs::default(),
+            &[],
         )
         .unwrap();
 
@@ -702,6 +750,7 @@ mod tests {
             GenerationMode::Initial,
             &OpenSpecAdapter,
             &project,
+            &[],
         )
         .unwrap();
 
@@ -728,6 +777,7 @@ mod tests {
             GenerationMode::Initial,
             &OpenSpecAdapter,
             &ProjectSpecs::default(),
+            &[],
         )
         .unwrap();
 
@@ -741,7 +791,7 @@ mod tests {
     fn the_review_prompt_asks_for_findings_only_and_shows_every_document() {
         let spec = tests_support::all_approved();
 
-        let prompt = review_prompt(&spec, &OpenSpecAdapter);
+        let prompt = review_prompt(&spec, &OpenSpecAdapter, &[]);
 
         let text = &prompt.instruction;
         assert!(text.contains("REVIEWER"));

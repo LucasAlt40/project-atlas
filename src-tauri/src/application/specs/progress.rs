@@ -124,6 +124,7 @@ mod tests {
                 })
                 .collect(),
             published_root: None,
+            integrations: Vec::new(),
         });
         exec.state.completed_tasks.insert(
             "step".to_owned(),

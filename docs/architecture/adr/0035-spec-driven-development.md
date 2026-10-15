@@ -111,6 +111,18 @@ O módulo está sempre ligado: não há configuração para ligá-lo. O que mant
 na hora de executar (padrão: Vibe coding, sem spec), e não uma chave global. Uma versão anterior deste trabalho teve
 `specs_enabled`; foi removida. Configs antigas com esse campo continuam lidas (o campo é ignorado).
 
+### 11. Integrações (MCP) para testar e revisar
+
+Ao criar a spec (e depois, em "Agentes e ferramentas") a pessoa escolhe, entre as conexões MCP ligadas do workspace, as que
+servem para testar e revisar aquela spec (`Spec.integrations`, ids de conexão). **Escolher não autoriza nada**: quem concede
+ferramentas a uma etapa continua sendo o hub MCP (grants). O que a escolha faz é informar: os agentes que escrevem
+especificações, design e tarefas recebem o nome e as ferramentas descobertas de cada integração escolhida e ligada, com a
+instrução de nomear uma integração na linha de Verificação de uma tarefa só quando ela puder fazer a checagem, de nunca
+inventar ferramenta e de escrever a verificação de modo que ainda diga o que checar à mão quando a ferramenta não estiver lá.
+O revisor recebe a lista como o que pode usar. Na execução a partir da spec, o brief de cada passo lista as integrações e
+manda deixar fora de `completedTasks` o que não pôde ser verificado por não ter a ferramenta. Uma conexão desligada fica
+escolhida, aparece como desligada e não é citada a nenhum agente. A proposta não recebe a lista: é sobre por quê e o quê.
+
 ## O que não foi feito (e por quê)
 
 - **Spec Kit**: fora do escopo desta entrega.

@@ -13,7 +13,7 @@ use super::framework::{
     ChangeFolder, ChangeIdProblem, Documents, ImportProblem, ProjectSpecs, SpecFramework, TaskItem,
 };
 use super::ports::{FilesError, ProjectFiles, SpecStore};
-use super::view::{self, Availability, ImportCandidate, SpecSummary, SpecView};
+use super::view::{self, Availability, ImportCandidate, IntegrationNote, SpecSummary, SpecView};
 use crate::application::agents::AgentService;
 use crate::application::errors::{AppError, ErrorCode};
 use crate::application::support::{new_id, now_ms, LockExt};
@@ -57,6 +57,9 @@ pub struct NewSpecRequest {
     /// The agent that reviews; the author again when absent.
     #[serde(default)]
     pub reviewer_agent_id: Option<String>,
+    /// The workspace's integrations (connection ids) to test and review the spec with.
+    #[serde(default)]
+    pub integrations: Vec<String>,
 }
 
 /// How a generation ended, as the runner reports it.
@@ -98,6 +101,8 @@ pub struct ImplementationContext {
     pub tasks: Vec<TaskItem>,
     /// Where the files are in the project, when published.
     pub published_root: Option<String>,
+    /// The integrations chosen for testing and review, switched on now.
+    pub integrations: Vec<IntegrationNote>,
 }
 
 /// Longest digest an implementing agent is given.
@@ -116,6 +121,8 @@ pub struct SpecService {
     usage: Option<Arc<crate::application::usage::UsageLedger>>,
     /// The configured token budget of a spec, read when it is needed: it can be changed any time.
     budget: Option<Arc<dyn Fn() -> Option<u64> + Send + Sync>>,
+    /// The workspace's integrations, to look up the ones a spec names.
+    mcp: Option<Arc<crate::application::mcp::McpService>>,
 }
 
 /// Held while a run is being set up for a spec: a second launch for the same spec is refused
@@ -198,7 +205,15 @@ impl SpecService {
             launching: Arc::new(Mutex::new(BTreeSet::new())),
             usage: None,
             budget: None,
+            mcp: None,
         }
+    }
+
+    /// Where the integrations a spec names are looked up.
+    #[must_use]
+    pub fn with_mcp(mut self, mcp: Arc<crate::application::mcp::McpService>) -> Self {
+        self.mcp = Some(mcp);
+        self
     }
 
     /// Where the token budget of a spec is read from.
@@ -274,6 +289,7 @@ impl SpecService {
             &self.availability(spec),
             &records,
             self.budget.as_ref().and_then(|read| read()),
+            self.integrations_of(spec),
         )
     }
 
@@ -299,6 +315,88 @@ impl SpecService {
                 .map(|root| self.files.main_specs(&root))
                 .unwrap_or_default(),
         }
+    }
+
+    /// The integrations the spec names that its workspace still has.
+    pub fn integrations_of(&self, spec: &Spec) -> Vec<view::IntegrationInfo> {
+        let Some(mcp) = &self.mcp else {
+            return Vec::new();
+        };
+        let overview = mcp.overview(&spec.workspace_id);
+        spec.integrations
+            .iter()
+            .filter_map(|id| overview.connections.iter().find(|c| c.id == *id))
+            .map(|c| view::IntegrationInfo {
+                id: c.id.clone(),
+                name: c.name.clone(),
+                enabled: c.enabled,
+                tools: c
+                    .discovery
+                    .as_ref()
+                    .map(|d| d.tools.clone())
+                    .unwrap_or_default(),
+            })
+            .collect()
+    }
+
+    /// What an agent is told of the integrations: only the ones that are switched on.
+    pub fn integration_notes(&self, spec: &Spec) -> Vec<IntegrationNote> {
+        self.integrations_of(spec)
+            .into_iter()
+            .filter(|i| i.enabled)
+            .map(|i| IntegrationNote {
+                name: i.name,
+                tools: i.tools,
+            })
+            .collect()
+    }
+
+    /// The ids that are connections of the workspace, once each.
+    fn known_connections(
+        &self,
+        workspace_id: &str,
+        ids: &[String],
+    ) -> Result<Vec<String>, AppError> {
+        let Some(mcp) = &self.mcp else {
+            return if ids.is_empty() {
+                Ok(Vec::new())
+            } else {
+                Err(invalid("integration_invalid"))
+            };
+        };
+        let overview = mcp.overview(workspace_id);
+        let mut out: Vec<String> = Vec::new();
+        for id in ids {
+            if !overview.connections.iter().any(|c| c.id == *id) {
+                return Err(invalid("integration_invalid"));
+            }
+            if !out.contains(id) {
+                out.push(id.clone());
+            }
+        }
+        Ok(out)
+    }
+
+    /// The person chooses which of the workspace's integrations this spec is tested and reviewed
+    /// with. It grants nothing: whether a step gets the tools is the MCP hub's.
+    ///
+    /// # Errors
+    ///
+    /// When a connection is not the workspace's.
+    pub fn set_integrations(
+        &self,
+        id: &str,
+        connection_ids: &[String],
+    ) -> Result<SpecView, AppError> {
+        let spec = self.require(id)?;
+        let chosen = self.known_connections(&spec.workspace_id, connection_ids)?;
+        self.modify(id, |spec| {
+            spec.integrations = chosen;
+            spec.version += 1;
+            spec.updated_at = now_ms();
+            Ok(())
+        })?;
+        self.view(id)
     }
 
     /// Refuses a new run when what the spec's runs used reached its budget; the person can say to
@@ -526,9 +624,10 @@ impl SpecService {
                 return Err(invalid("agent_invalid"));
             }
         }
+        let integrations = self.known_connections(&workspace.id, &request.integrations)?;
         let change_id = self.free_change_id(&workspace.id, &project.path, &title);
         let now = now_ms();
-        let spec = rules::create(
+        let mut spec = rules::create(
             NewSpec {
                 id: new_id("spec"),
                 title,
@@ -546,6 +645,7 @@ impl SpecService {
             &self.framework.graph(),
             now,
         );
+        spec.integrations = integrations;
         self.store.save(&spec).map_err(AppError::storage)?;
         let id = spec.id.clone();
         let version = spec.version;
@@ -1347,6 +1447,7 @@ impl SpecService {
             revisions: spec.current_revisions(),
             tasks,
             published_root,
+            integrations: self.integration_notes(&spec),
         })
     }
 

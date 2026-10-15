@@ -24,7 +24,7 @@ use super::context::text::preview;
 use super::context::{ContextItem, Priority};
 use crate::application::harness::secrets::redact_secrets;
 use crate::application::orchestration::result_parser::RESULT_FENCE;
-use crate::application::prompt::{ATLAS_RULES, ATLAS_RULES_EDITING};
+use crate::application::prompt::{ATLAS_RULES, ATLAS_RULES_EDITING, ATLAS_RULES_EDITING_COMMANDS};
 use crate::domain::context::ContextAuthority;
 use crate::domain::guardrail::{
     ContextHealth, ContextReviewResult, IssueCode, IssueSeverity, ReviewIssue, SourceSummary,
@@ -149,7 +149,14 @@ fn check_required(input: &ReviewInput<'_>, issues: &mut Vec<ReviewIssue>) {
             .map_or("", |i| i.content.as_str())
     };
     let system = text_of("system");
-    if !(system.contains(ATLAS_RULES) || system.contains(ATLAS_RULES_EDITING)) {
+    if ![
+        ATLAS_RULES,
+        ATLAS_RULES_EDITING,
+        ATLAS_RULES_EDITING_COMMANDS,
+    ]
+    .iter()
+    .any(|rules| system.contains(rules))
+    {
         issues.push(issue(
             IssueCode::MissingRequired,
             IssueSeverity::Blocking,

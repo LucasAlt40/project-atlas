@@ -260,9 +260,15 @@ impl SpecRunner {
         }
         let framework = self.specs.framework().clone();
         let project = self.specs.project_specs(&spec);
-        let prompt =
-            prompts::generation_prompt(&spec, artifact_id, mode, framework.as_ref(), &project)
-                .ok_or_else(|| AppError::new(ErrorCode::SpecArtifactNotFound))?;
+        let prompt = prompts::generation_prompt(
+            &spec,
+            artifact_id,
+            mode,
+            framework.as_ref(),
+            &project,
+            &self.specs.integration_notes(&spec),
+        )
+        .ok_or_else(|| AppError::new(ErrorCode::SpecArtifactNotFound))?;
         let (execution_id, pending) = self.step(&spec, &agent, prompt)?;
         // If the spec changed under us, the turn is dropped before it ever starts.
         self.specs
@@ -296,7 +302,11 @@ impl SpecRunner {
             return Err(AppError::new(ErrorCode::SpecInvalid).with("reason", "agent_invalid"));
         }
         let framework = self.specs.framework().clone();
-        let prompt = prompts::review_prompt(&spec, framework.as_ref());
+        let prompt = prompts::review_prompt(
+            &spec,
+            framework.as_ref(),
+            &self.specs.integration_notes(&spec),
+        );
         let (execution_id, pending) = self.step(&spec, &agent, prompt)?;
         self.specs.begin_review(spec_id, &execution_id, &agent)?;
         Ok(PreparedSpecRun {

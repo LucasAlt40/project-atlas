@@ -105,6 +105,18 @@ pub fn list_specs(
     Ok(state.specs.list(&workspace_id))
 }
 
+/// The person chooses which of the workspace's integrations the spec is tested and reviewed with.
+/// Choosing grants nothing.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command]
+pub fn set_spec_integrations(
+    state: State<'_, AppState>,
+    spec_id: String,
+    connection_ids: Vec<String>,
+) -> Result<SpecView, AppError> {
+    state.specs.set_integrations(&spec_id, &connection_ids)
+}
+
 /// The person says to go on after the spec's token budget was reached: it is granted once more.
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command]

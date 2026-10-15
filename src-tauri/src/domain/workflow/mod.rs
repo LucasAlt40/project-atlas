@@ -15,8 +15,8 @@ pub use condition::{Condition, ConditionError, ConditionOperator, Facts};
 pub use edge::WorkflowEdge;
 pub use execution::{
     AttemptStatus, FailureCode, NodeAttempt, NodeState, NodeStatus, RecoveryKind, RecoveryPlan,
-    RecoveryProblem, RecoveryRecord, SpecLink, SpecTaskRef, WorkflowEvent, WorkflowEventKind,
-    WorkflowExecution, WorkflowExecutionStatus, WorkflowFailure,
+    RecoveryProblem, RecoveryRecord, SpecIntegrationRef, SpecLink, SpecTaskRef, WorkflowEvent,
+    WorkflowEventKind, WorkflowExecution, WorkflowExecutionStatus, WorkflowFailure,
 };
 pub use handoff::{AgentHandoff, HandoffArtifact, HandoffDecision, HandoffKind, HandoffValidation};
 pub use integration::{IntegrationStatus, WorkflowIntegration};

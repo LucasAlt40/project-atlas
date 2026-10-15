@@ -178,3 +178,8 @@ export function subscribeToSpecChanges(
 export function raiseBudget(specId: string): Promise<SpecView> {
   return invokeCommand('raise_spec_budget', { specId });
 }
+
+/** The person chooses which of the workspace's integrations the spec is tested and reviewed with. */
+export function setSpecIntegrations(specId: string, connectionIds: string[]): Promise<SpecView> {
+  return invokeCommand('set_spec_integrations', { specId, connectionIds });
+}

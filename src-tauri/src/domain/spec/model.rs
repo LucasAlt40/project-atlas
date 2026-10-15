@@ -651,6 +651,10 @@ pub struct Spec {
     /// grants the budget again.
     #[serde(default)]
     pub budget_steps: u32,
+    /// The workspace's integrations (MCP connections, by id) the person chose for testing and
+    /// review of this spec. Choosing one grants nothing: grants are the MCP hub's.
+    #[serde(default)]
+    pub integrations: Vec<String>,
     pub origin: SpecOrigin,
     /// Bumped on every change, so a screen that read an older state can be told it did.
     pub version: u64,

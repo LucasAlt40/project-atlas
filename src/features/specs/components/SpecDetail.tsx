@@ -13,6 +13,7 @@ import { statusView } from '../model/status';
 import {
   answerFindings,
   raiseBudget,
+  setSpecIntegrations,
   answerQuestion,
   approveSpec,
   archiveSpec,
@@ -256,6 +257,11 @@ export function SpecDetail({ workspace, agents, specId, onBack, onImplement, onD
             <span>
               {t('specs.meta.reviewer')}: {nameOf(spec.reviewerAgentId)}
             </span>
+            {view.integrations.length > 0 && (
+              <span>
+                {t('specs.meta.integrations')}: {view.integrations.map((i) => i.name).join(', ')}
+              </span>
+            )}
             {spec.origin.kind === 'imported' && <span>{t('specs.meta.imported')}</span>}
           </div>
         </div>
@@ -424,8 +430,11 @@ export function SpecDetail({ workspace, agents, specId, onBack, onImplement, onD
           onClose={() => {
             setDialog(null);
           }}
-          onSave={(author, reviewer) => {
-            void act(() => assignSpecAgents(specId, author, reviewer)).then((saved) => {
+          onSave={(author, reviewer, integrations) => {
+            void act(async () => {
+              await assignSpecAgents(specId, author, reviewer);
+              return setSpecIntegrations(specId, integrations);
+            }).then((saved) => {
               if (saved) setDialog(null);
             });
           }}

@@ -354,6 +354,19 @@ pub struct SpecLink {
     /// Where the files are in the project, when they were published.
     #[serde(default)]
     pub published_root: Option<String>,
+    /// The integrations the person chose for testing and review. Naming one grants nothing.
+    #[serde(default)]
+    pub integrations: Vec<SpecIntegrationRef>,
+}
+
+/// An integration a spec expects its implementation to be checked with.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpecIntegrationRef {
+    pub name: String,
+    /// What a discovery found the server offers; may be empty.
+    #[serde(default)]
+    pub tools: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

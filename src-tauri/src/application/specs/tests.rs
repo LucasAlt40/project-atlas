@@ -146,6 +146,7 @@ struct World {
     work: SpecImplementation,
     ledger: Arc<UsageLedger>,
     budget: Arc<Mutex<Option<u64>>>,
+    mcp: Arc<crate::application::mcp::McpService>,
     workspace_id: String,
     project_id: String,
     agent_id: String,
@@ -163,6 +164,11 @@ fn world() -> World {
         edits_allowed: Mutex::new(Vec::new()),
     });
     let registry = Arc::new(RuntimeRegistry::new(vec![runtime.clone()]));
+    let mcp = Arc::new(crate::application::mcp::McpService::new(
+        config.clone(),
+        Arc::new(crate::application::mcp::MemoryCredentials::default()),
+        registry.clone(),
+    ));
     let agents = Arc::new(AgentService::new(
         config.clone(),
         personalities.clone(),
@@ -243,6 +249,7 @@ fn world() -> World {
             events.clone(),
         )
         .with_usage(ledger.clone())
+        .with_mcp(mcp.clone())
         .with_budget({
             let budget = budget.clone();
             Arc::new(move || *budget.lock_or_recover())
@@ -255,6 +262,7 @@ fn world() -> World {
         work,
         ledger,
         budget,
+        mcp,
         specs,
         runner,
         store,
@@ -283,6 +291,7 @@ fn new_request(w: &World) -> NewSpecRequest {
         context: "Web app only".to_owned(),
         author_agent_id: w.agent_id.clone(),
         reviewer_agent_id: Some(w.other_agent_id.clone()),
+        integrations: Vec::new(),
     }
 }
 
@@ -1041,6 +1050,118 @@ fn a_review_that_finds_something_serious_blocks_until_the_person_decides() {
     let view = w.specs.approve_final(&id).unwrap();
     assert_eq!(view.status, SpecStatus::ReadyForImplementation);
     assert!(view.readiness.ready);
+}
+
+// ---- integrations chosen for testing and review ----------------------------------------------------
+
+fn connect(w: &World, name: &str, enabled: bool) -> String {
+    use crate::domain::mcp::McpTransport;
+    let connection = w
+        .mcp
+        .add(
+            &w.workspace_id,
+            name,
+            McpTransport::Stdio {
+                executable: "npx".to_owned(),
+                args: vec!["-y".to_owned(), format!("{name}-mcp")],
+                env: Vec::new(),
+            },
+            false,
+        )
+        .unwrap();
+    if enabled {
+        w.mcp.set_enabled(&connection.id, true).unwrap();
+    }
+    connection.id
+}
+
+#[test]
+fn the_integrations_the_person_chose_reach_the_documents_that_can_use_them_and_the_review() {
+    let w = world();
+    let devtools = connect(&w, "chrome-devtools", true);
+    let mut request = new_request(&w);
+    request.integrations = vec![devtools.clone(), devtools.clone()];
+    let id = w.specs.create(request).unwrap().spec.id;
+    w.specs.start(&id).unwrap();
+
+    let view = w.specs.view(&id).unwrap();
+    assert_eq!(
+        view.integrations.len(),
+        1,
+        "once, however many times it was named"
+    );
+    assert_eq!(view.integrations[0].name, "chrome-devtools");
+
+    // The proposal is about why and what: it is not told of tools. The documents that say how to
+    // check things are.
+    w.runtime.say(&answer_for("proposal"));
+    generate(&w, &id, "proposal");
+    assert!(!w.runtime.last_prompt().contains("INTEGRATIONS CHOSEN"));
+    approve(&w, &id, "proposal");
+    w.runtime.say(&answer_for("specs"));
+    generate(&w, &id, "specs");
+    let prompt = w.runtime.last_prompt();
+    assert!(prompt.contains("INTEGRATIONS CHOSEN FOR TESTING AND REVIEW"));
+    assert!(prompt.contains("- chrome-devtools (its tools are not listed yet)"));
+    assert!(prompt.contains("never invent a tool"));
+    assert!(prompt.contains("what to check by hand when the tool is not there"));
+}
+
+#[test]
+fn an_integration_that_is_switched_off_is_not_told_to_an_agent() {
+    let w = world();
+    let off = connect(&w, "jira", false);
+    let mut request = new_request(&w);
+    request.integrations = vec![off];
+    let id = w.specs.create(request).unwrap().spec.id;
+    w.specs.start(&id).unwrap();
+    w.runtime.say(&answer_for("proposal"));
+    generate(&w, &id, "proposal");
+    approve(&w, &id, "proposal");
+    w.runtime.say(&answer_for("specs"));
+
+    generate(&w, &id, "specs");
+
+    assert!(!w.runtime.last_prompt().contains("INTEGRATIONS CHOSEN"));
+    // It is still the spec's choice, and the screen can say it is off.
+    let view = w.specs.view(&id).unwrap();
+    assert!(!view.integrations[0].enabled);
+}
+
+#[test]
+fn only_connections_of_the_workspace_can_be_chosen_and_the_choice_can_change() {
+    let w = world();
+    let id = started(&w);
+    assert!(w
+        .specs
+        .set_integrations(&id, &["mcp-that-is-not-there".to_owned()])
+        .is_err());
+
+    let figma = connect(&w, "figma", true);
+    let view = w.specs.set_integrations(&id, &[figma]).unwrap();
+    assert_eq!(view.integrations[0].name, "figma");
+    let view = w.specs.set_integrations(&id, &[]).unwrap();
+    assert!(view.integrations.is_empty());
+
+    let mut request = new_request(&w);
+    request.integrations = vec!["nope".to_owned()];
+    assert!(w.specs.create(request).is_err());
+}
+
+#[test]
+fn what_a_run_started_from_the_spec_is_given_names_the_integrations() {
+    let w = world();
+    let jira = connect(&w, "jira", true);
+    let id = ready(&w);
+    w.specs.set_integrations(&id, &[jira]).unwrap();
+
+    let context = w
+        .specs
+        .implementation_context(&id, &w.workspace_id)
+        .unwrap();
+
+    assert_eq!(context.integrations.len(), 1);
+    assert_eq!(context.integrations[0].name, "jira");
 }
 
 // ---- what a spec costs ----------------------------------------------------------------------------

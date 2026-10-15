@@ -796,6 +796,7 @@ impl ExecutionService {
                 task: &reworked,
                 task_aware,
                 can_edit,
+                tools_are_commands: runtime.info().capabilities.tool_access.process_execution,
                 harness: inputs.harness.as_deref(),
                 skills: inputs.skills_text().as_deref(),
                 rules: inputs.rules_text().as_deref(),
