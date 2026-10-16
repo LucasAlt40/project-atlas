@@ -33,6 +33,13 @@
 .dialog[data-size='wide'] {
   width: min(76rem, 100%);
 }
+.dialog[data-size='inspector'] {
+  width: min(80rem, 100%);
+  height: min(100%, 56rem);
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
 .dialog[data-size='analyze'] {
   width: min(42.5rem, 100%);
 }

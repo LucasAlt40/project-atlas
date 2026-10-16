@@ -3652,4 +3652,8 @@ export const ptBR: Record<TranslationKey, string> = {
   'workspace.onboarding.step3.text':
     'Analise o projeto para registrar a stack, os comandos e as regras que os agentes devem seguir.',
   'details.usageToday': 'Consumo hoje',
+  'inspector.badge': 'Execução {id}',
+  'inspector.parameters': 'Parâmetros e métricas da execução',
+  'inspector.timeline': 'Linha do tempo de atividade',
+  'inspector.events': '{count} eventos',
 };

@@ -39,11 +39,14 @@ export function ExecutionDetails({
   facts,
   context,
   asked,
+  showTask = true,
 }: {
   facts: ExecutionFacts;
   context: ExecutionContext;
   /** The question this execution asked, as its workflow run kept it (with the answer, once given). */
   asked?: PendingInteractionDto;
+  /** The inspector already names the task in its header. */
+  showTask?: boolean;
 }) {
   const { t, language } = useI18n();
   const now = useNow(1000);
@@ -80,7 +83,7 @@ export function ExecutionDetails({
 
   return (
     <div aria-label={t('inspector.title', { id: shortId(facts.executionId) })}>
-      {facts.task && (
+      {showTask && facts.task && (
         <p className={styles.task}>
           <strong>{t('inspector.task')}: </strong>
           {facts.task}

@@ -3609,6 +3609,10 @@ export const enUS = {
   'workspace.onboarding.step3.text':
     'Analyze the project to record the stack, commands and rules the agents should follow.',
   'details.usageToday': 'Usage today',
+  'inspector.badge': 'Execution {id}',
+  'inspector.parameters': 'Execution parameters and metrics',
+  'inspector.timeline': 'Activity timeline',
+  'inspector.events': '{count} events',
 } as const;
 
 export type TranslationKey = keyof typeof enUS;
