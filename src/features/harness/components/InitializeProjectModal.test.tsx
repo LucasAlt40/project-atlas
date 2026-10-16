@@ -138,7 +138,7 @@ describe('InitializeProjectModal', () => {
     );
 
     await user.click(await screen.findByRole('button', { name: /^Review/ }));
-    const form = screen.getByRole('form', { name: 'Review Project Context' });
+    const form = screen.getByRole('form', { name: 'Harness — Review Findings' });
     await user.clear(within(form).getByLabelText('Value of Angular 21'));
     await user.type(within(form).getByLabelText('Value of Angular 21'), '19');
     await user.click(screen.getByRole('tab', { name: /^Testing and commands/ }));
@@ -184,7 +184,7 @@ describe('InitializeProjectModal', () => {
       outcome(initialized, { written: ['project.yaml'], gitIgnore: 'added' }),
     );
     await user.click(await screen.findByRole('button', { name: /^Review/ }));
-    const form = screen.getByRole('form', { name: 'Review Project Context' });
+    const form = screen.getByRole('form', { name: 'Harness — Review Findings' });
 
     const box = within(form).getByRole('checkbox', { name: /Keep \.atlas\/ out of Git/ });
     expect(box).toBeChecked();
@@ -203,7 +203,7 @@ describe('InitializeProjectModal', () => {
       outcome(initialized, { written: ['project.yaml'], gitIgnore: 'skipped' }),
     );
     await user.click(await screen.findByRole('button', { name: /^Review/ }));
-    const form = screen.getByRole('form', { name: 'Review Project Context' });
+    const form = screen.getByRole('form', { name: 'Harness — Review Findings' });
 
     await user.click(within(form).getByRole('checkbox', { name: /Keep \.atlas\/ out of Git/ }));
     await user.click(within(form).getByRole('button', { name: 'Initialize' }));
@@ -221,7 +221,7 @@ describe('InitializeProjectModal', () => {
     );
     await user.click(await screen.findByRole('button', { name: /^Review/ }));
     await user.click(
-      within(screen.getByRole('form', { name: 'Review Project Context' })).getByRole('button', {
+      within(screen.getByRole('form', { name: 'Harness — Review Findings' })).getByRole('button', {
         name: 'Initialize',
       }),
     );
@@ -237,7 +237,7 @@ describe('InitializeProjectModal', () => {
     open({ analysis });
 
     await user.click(await screen.findByRole('button', { name: /^Review/ }));
-    const form = screen.getByRole('form', { name: 'Review Project Context' });
+    const form = screen.getByRole('form', { name: 'Harness — Review Findings' });
     // A fact from the repository.
     await user.click(within(form).getByRole('button', { name: 'Show evidence for Angular 21' }));
     const fact = within(form).getByRole('region', { name: 'Evidence for Angular 21' });
@@ -356,7 +356,7 @@ describe('InitializeProjectModal', () => {
     await user.click(await screen.findByRole('button', { name: /^Review/ }));
     await user.click(screen.getByRole('button', { name: 'Back' }));
 
-    expect(await screen.findByRole('heading', { name: 'Analyze Project' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Harness — Analyze Project' })).toBeVisible();
     expect(analyzeProject).toHaveBeenCalledTimes(1);
   });
 
@@ -466,7 +466,7 @@ describe('InitializeProjectModal', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'The Harness could not be written to .atlas/.',
     );
-    expect(screen.getByRole('form', { name: 'Review Project Context' })).toBeVisible();
+    expect(screen.getByRole('form', { name: 'Harness — Review Findings' })).toBeVisible();
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Initialize' })).toBeEnabled();
     });

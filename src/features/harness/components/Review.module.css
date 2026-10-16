@@ -1250,3 +1250,50 @@
 .option input:checked {
   margin-top: 2px;
 }
+
+/* A step of the Harness flow drawn in the page (the workspace's Projects page). */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  container-type: inline-size;
+}
+.pageSteps {
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.page .footer {
+  bottom: 0;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+
+/* Analyze: the AI analysis beside the manual path, stacked when the page is narrow. */
+.analyzeGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+@container (min-width: 56rem) {
+  .analyzeGrid {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    align-items: start;
+  }
+}
+.manualList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-void);
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}

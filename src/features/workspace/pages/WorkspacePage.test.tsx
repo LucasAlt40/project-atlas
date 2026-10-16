@@ -91,7 +91,7 @@ describe('WorkspacePage', () => {
     show(['a1']);
 
     await user.click(await screen.findByRole('button', { name: 'Manage the projects of Atlas' }));
-    const panel = await screen.findByRole('dialog', { name: 'Projects of Atlas' });
+    const panel = await screen.findByRole('region', { name: 'Projects of Atlas' });
     expect(await within(panel).findByText('/dev/atlas')).toBeInTheDocument();
     expect(within(panel).getByText('Angular')).toBeInTheDocument();
   });

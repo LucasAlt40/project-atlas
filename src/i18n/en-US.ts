@@ -245,7 +245,7 @@ export const enUS = {
   'harness.loadFailed': 'Could not read the Harness state.',
   'harness.modal.title': 'Initialize Project',
   'harness.analyzing': 'Analyzing the project…',
-  'harness.analyze.title': 'Analyze Project',
+  'harness.analyze.title': 'Harness — Analyze Project',
   'harness.analyze.readOnlyNote':
     'Atlas only reads folder names and a few manifest files. Nothing is run and nothing leaves your machine.',
   'harness.detected': 'Detected',
@@ -277,7 +277,7 @@ export const enUS = {
     'The existing .atlas/ is not a valid Harness. Updating replaces it after saving a backup.',
   'harness.existing.dirOnly':
     'A .atlas folder already exists without a manifest. Its files are kept; anything replaced is backed up first.',
-  'harness.review.title': 'Review Project Context',
+  'harness.review.title': 'Harness — Review Findings',
   'harness.review.stack': 'Stack',
   'harness.review.include': 'Include {label}',
   'harness.review.value': 'Value of {label}',
@@ -3613,6 +3613,23 @@ export const enUS = {
   'inspector.parameters': 'Execution parameters and metrics',
   'inspector.timeline': 'Activity timeline',
   'inspector.events': '{count} events',
+  'projects.pageTitle': 'Projects and Harness',
+  'projects.back': 'Back to workspace',
+  'projects.linked': 'Linked projects',
+  'projects.moreActions': 'More actions for {name}',
+  'projects.lastAnalysis': 'Last analysis',
+  'projects.neverAnalyzed': 'Not analyzed yet',
+  'harness.steps.label': 'Harness steps',
+  'harness.steps.analyze': 'Analyze project',
+  'harness.steps.review': 'Review findings',
+  'harness.steps.initialize': 'Initialize Harness',
+  'harness.manual.title': 'Review without AI',
+  'harness.manual.badge': 'Manual',
+  'harness.manual.body':
+    "Skips the agent analysis and goes straight to the review, based only on the local diagnostic of the project's files.",
+  'harness.manual.local': 'Local, immediate detection',
+  'harness.manual.noTokens': 'No model tokens used',
+  'harness.manual.cta': 'Continue without AI',
 } as const;
 
 export type TranslationKey = keyof typeof enUS;

@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
-import { Modal } from '@/components/ui/Modal';
+import { Badge, type BadgeTone } from '@/components/ui/Badge';
+import { OverflowMenu } from '@/components/ui/OverflowMenu';
 import { InitializeProjectModal } from '@/features/harness/components/InitializeProjectModal';
 import { HarnessStats } from '@/features/harness/components/HarnessStats';
 import { HealthBadge } from '@/features/harness/components/HealthBadge';
 import { RefreshHarnessModal } from '@/features/harness/components/RefreshHarnessModal';
-import { StaleNotice } from '@/features/harness/components/StaleNotice';
+import { StaleNotice, formatAnalyzed } from '@/features/harness/components/StaleNotice';
 import {
   WorkspaceInitializeModal,
   type ProjectRef,
 } from '@/features/harness/components/WorkspaceInitializeModal';
-import { useT } from '@/i18n/I18nProvider';
+import { useI18n, useT } from '@/i18n/I18nProvider';
 import { errorMessage } from '@/i18n/messages';
 import { pickFolder as nativePickFolder } from '@/lib/tauri/dialog';
 import type {
@@ -55,8 +56,16 @@ function signatureOf(workspace: Workspace): string {
     .join(';');
 }
 
+const STATE_TONE: Record<ProjectHarnessStateDto, BadgeTone> = {
+  ready: 'success',
+  outdated: 'warning',
+  needs_review: 'warning',
+  not_initialized: 'neutral',
+  folder_missing: 'danger',
+};
+
 /**
- * The projects of a workspace: add or remove folders, see where each project's Harness stands,
+ * The page of a workspace's projects: add or remove folders, see where each project's Harness stands,
  * start the Harness of the ones that have none and keep the context that relates them. Every
  * project keeps its own Harness in its own folder; removing one here never touches its files.
  */
@@ -154,30 +163,73 @@ export function WorkspaceProjectsPanel({
     : [];
   const nameOf = (id: string) => workspace.projects.find((p) => p.id === id)?.name ?? id;
 
-  return (
-    <Modal label={t('projects.title', { name: workspace.name })} onClose={onClose} size="wide">
-      <div className={projectStyles.panel}>
-        <h2 className={projectStyles.title}>{t('projects.title', { name: workspace.name })}</h2>
-        <p className={projectStyles.intro}>{t('projects.intro')}</p>
-        {notice && (
-          <p role="alert" className={styles.notice}>
-            {notice}
-          </p>
-        )}
-        <div className={projectStyles.toolbar}>
-          <Button variant="secondary" onClick={() => void addFolder()}>
-            <Icon name="plus" size={14} />
-            {t('projects.add')}
-          </Button>
-        </div>
+  // The flow of the Harness takes the page itself, with its three steps on top.
+  if (together) {
+    return (
+      <WorkspaceInitializeModal
+        presentation="page"
+        workspaceId={workspace.id}
+        projects={together}
+        onClose={() => {
+          setTogether(null);
+          reload();
+        }}
+        onDone={reload}
+      />
+    );
+  }
+  if (reviewing?.kind === 'initialize') {
+    return (
+      <InitializeProjectModal
+        presentation="page"
+        workspaceId={workspace.id}
+        projectId={reviewing.projectId}
+        onClose={() => {
+          setReviewing(null);
+          reload();
+        }}
+        onInitialized={reload}
+      />
+    );
+  }
 
-        {state.status === 'loading' && <p className={projectStyles.muted}>…</p>}
-        {state.status === 'error' && (
-          <p role="alert" className={styles.notice}>
-            {t('projects.loadFailed')}
-          </p>
-        )}
-        {ready && (
+  return (
+    <section
+      className={projectStyles.page}
+      aria-label={t('projects.title', { name: workspace.name })}
+    >
+      <header className={projectStyles.pageHead}>
+        <div className={projectStyles.pageTitleBlock}>
+          <Button variant="ghost" onClick={onClose}>
+            <Icon name="arrowLeft" size={14} />
+            {t('projects.back')}
+          </Button>
+          <h1 className={projectStyles.title}>{t('projects.pageTitle')}</h1>
+          <p className={projectStyles.intro}>{t('projects.intro')}</p>
+        </div>
+        <Button onClick={() => void addFolder()}>
+          <Icon name="plus" size={14} />
+          {t('projects.add')}
+        </Button>
+      </header>
+      {notice && (
+        <p role="alert" className={styles.notice}>
+          {notice}
+        </p>
+      )}
+
+      {state.status === 'loading' && <p className={projectStyles.muted}>…</p>}
+      {state.status === 'error' && (
+        <p role="alert" className={styles.notice}>
+          {t('projects.loadFailed')}
+        </p>
+      )}
+      {ready && (
+        <>
+          <div className={projectStyles.sectionHead}>
+            <h2 className={projectStyles.sectionTitle}>{t('projects.linked')}</h2>
+            <Badge mono>{ready.projects.length}</Badge>
+          </div>
           <ul className={projectStyles.list} aria-label={t('projects.list')}>
             {ready.projects.map((info) => {
               const harness = harnessOf(info.id);
@@ -252,54 +304,32 @@ export function WorkspaceProjectsPanel({
               );
             })}
           </ul>
-        )}
 
-        {ready && (
-          <section className={projectStyles.section} aria-label={t('harness.title')}>
-            <h3 className={projectStyles.sectionTitle}>{t('harness.title')}</h3>
-            <p className={projectStyles.muted}>{t('projects.init.note')}</p>
-            {pending.length > 0 ? (
-              <div className={projectStyles.toolbar}>
-                <Button
-                  disabled={starting}
-                  onClick={() => {
-                    setTogether(pending.map(({ id, name, path }) => ({ id, name, path })));
-                  }}
-                >
-                  {t('projects.init.all', { count: pending.length })}
-                </Button>
+          <div className={projectStyles.cards}>
+            <section className={projectStyles.card} aria-label={t('harness.title')}>
+              <div className={projectStyles.cardHead}>
+                <span className={projectStyles.cardTile} aria-hidden="true">
+                  <Icon name="shield" size={16} />
+                </span>
+                <h3 className={projectStyles.cardTitle}>{t('harness.title')}</h3>
               </div>
-            ) : (
-              <p className={projectStyles.muted}>{t('projects.init.none')}</p>
-            )}
-            {pending.length < ready.projects.length &&
-              (confirmingReset === 'all' ? (
-                <div role="group" aria-label={t('projects.resetAll')}>
-                  <p className={projectStyles.problem}>{t('projects.resetAllConfirm')}</p>
-                  <div className={projectStyles.toolbar}>
-                    <button
-                      type="button"
-                      className={styles.danger}
-                      disabled={starting}
-                      onClick={() => {
-                        reset('all');
-                      }}
-                    >
-                      {t('projects.confirmReset')}
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.linkButton}
-                      onClick={() => {
-                        setConfirmingReset(null);
-                      }}
-                    >
-                      {t('common.cancel')}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className={projectStyles.toolbar}>
+              <p className={projectStyles.muted}>{t('projects.init.note')}</p>
+              {pending.length === 0 && (
+                <p className={projectStyles.muted}>{t('projects.init.none')}</p>
+              )}
+              <div className={projectStyles.cardActions}>
+                {pending.length > 0 && (
+                  <Button
+                    disabled={starting}
+                    onClick={() => {
+                      setTogether(pending.map(({ id, name, path }) => ({ id, name, path })));
+                    }}
+                  >
+                    <Icon name="play" size={12} />
+                    {t('projects.init.all', { count: pending.length })}
+                  </Button>
+                )}
+                {pending.length < ready.projects.length && confirmingReset !== 'all' && (
                   <Button
                     variant="secondary"
                     disabled={starting}
@@ -309,40 +339,41 @@ export function WorkspaceProjectsPanel({
                   >
                     {t('projects.resetAll')}
                   </Button>
+                )}
+              </div>
+              {pending.length < ready.projects.length && confirmingReset === 'all' && (
+                <div role="group" aria-label={t('projects.resetAll')}>
+                  <p className={projectStyles.problem}>{t('projects.resetAllConfirm')}</p>
+                  <div className={projectStyles.cardActions}>
+                    <Button
+                      variant="danger"
+                      disabled={starting}
+                      onClick={() => {
+                        reset('all');
+                      }}
+                    >
+                      {t('projects.confirmReset')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setConfirmingReset(null);
+                      }}
+                    >
+                      {t('common.cancel')}
+                    </Button>
+                  </div>
                 </div>
-              ))}
-          </section>
-        )}
+              )}
+            </section>
 
-        {ready && (
-          <WorkspaceContextSection
-            workspace={workspace}
-            info={ready.overview.context}
-            onRebuilt={reload}
-          />
-        )}
-      </div>
-      {reviewing?.kind === 'initialize' && (
-        <InitializeProjectModal
-          workspaceId={workspace.id}
-          projectId={reviewing.projectId}
-          onClose={() => {
-            setReviewing(null);
-            reload();
-          }}
-          onInitialized={reload}
-        />
-      )}
-      {together && (
-        <WorkspaceInitializeModal
-          workspaceId={workspace.id}
-          projects={together}
-          onClose={() => {
-            setTogether(null);
-            reload();
-          }}
-          onDone={reload}
-        />
+            <WorkspaceContextSection
+              workspace={workspace}
+              info={ready.overview.context}
+              onRebuilt={reload}
+            />
+          </div>
+        </>
       )}
       {reviewing?.kind === 'refresh' && (
         <RefreshHarnessModal
@@ -355,7 +386,7 @@ export function WorkspaceProjectsPanel({
           onApplied={reload}
         />
       )}
-    </Modal>
+    </section>
   );
 }
 
@@ -402,130 +433,158 @@ function ProjectRow({
   onCancelRemove,
   onRemove,
 }: RowProps) {
-  const t = useT();
+  const { t, language } = useI18n();
   const canStart = info.exists && (state === 'not_initialized' || state === 'needs_review');
   const canRefresh = state === 'ready' || state === 'outdated';
+  const hasHarness = summary && state !== 'not_initialized' && state !== 'folder_missing';
+  const menu = [
+    ...(canReset
+      ? [
+          {
+            label: t('projects.reset', { name: info.name }),
+            icon: 'refresh' as const,
+            danger: true,
+            onSelect: onAskReset,
+          },
+        ]
+      : []),
+    ...(canRemove
+      ? [
+          {
+            label: t('projects.remove', { name: info.name }),
+            icon: 'trash' as const,
+            danger: true,
+            onSelect: onAskRemove,
+          },
+        ]
+      : []),
+  ];
   return (
     <>
-      <div className={projectStyles.rowHead}>
-        <strong className={projectStyles.name}>{info.name}</strong>
-        {info.primary && <span className={projectStyles.tag}>{t('projects.primary')}</span>}
-        {info.role && <span className={projectStyles.tag}>{t(`projects.role.${info.role}`)}</span>}
-        <span className={projectStyles.state} data-state={state}>
-          {t(`projects.state.${state}`)}
-        </span>
-        <span className={projectStyles.rowActions}>
-          {canRefresh && (
-            <button
-              type="button"
-              className={styles.linkButton}
-              onClick={onUpdate}
-              aria-label={t('projects.updateHarness', { name: info.name })}
-            >
-              {t('harness.update')}
-            </button>
+      <div className={projectStyles.rowMain}>
+        <div className={projectStyles.identity}>
+          <div className={projectStyles.rowHead}>
+            <strong className={projectStyles.name}>{info.name}</strong>
+            {info.primary && <Badge tone="accent">{t('projects.primary')}</Badge>}
+            {info.role && <Badge tone="info">{t(`projects.role.${info.role}`)}</Badge>}
+          </div>
+          <div className={projectStyles.rowHead}>
+            <Badge dot tone={STATE_TONE[state]}>
+              {t(`projects.state.${state}`)}
+            </Badge>
+            {hasHarness && summary.health && <HealthBadge health={summary.health} />}
+          </div>
+          <span className={projectStyles.path} title={info.path}>
+            <Icon name="folder" size={12} /> {info.path}
+          </span>
+          {!info.exists ? (
+            <p className={projectStyles.problem}>{t('project.folderMissing')}</p>
+          ) : (
+            <p className={projectStyles.muted}>
+              {hasHarness && summary.stack.length > 0
+                ? summary.stack.join(' · ')
+                : info.technologies.length > 0
+                  ? info.technologies.join(' · ')
+                  : t('projects.noTechnologies')}
+            </p>
           )}
-          {(canStart || canRefresh) && (
-            <button
-              type="button"
-              className={styles.linkButton}
-              onClick={onReview}
-              aria-label={
-                canRefresh
-                  ? t('projects.refreshHarness', { name: info.name })
-                  : t('projects.openHarness', { name: info.name })
-              }
-            >
-              {canRefresh
-                ? t('harness.refresh')
-                : state === 'needs_review'
-                  ? t('harness.openReview')
-                  : t('harness.initialize')}
-            </button>
+        </div>
+        <div className={projectStyles.stats}>
+          {hasHarness && summary.stats && (
+            <HarnessStats stats={summary.stats} analyzedAt={summary.analyzedAt} showDate={false} />
           )}
-          {canReset && !confirmingReset && (
-            <button
-              type="button"
-              className={styles.linkButton}
-              aria-label={t('projects.reset', { name: info.name })}
-              onClick={onAskReset}
-            >
-              {t('common.reset')}
-            </button>
-          )}
-          <button
-            type="button"
-            className={styles.linkButton}
-            aria-label={t('projects.edit', { name: info.name })}
-            onClick={onEdit}
-          >
-            {t('common.edit')}
-          </button>
-          {canRemove &&
-            (confirming ? (
-              <span role="group" aria-label={t('projects.remove', { name: info.name })}>
-                {t('projects.removeConfirm', { name: info.name })}{' '}
-                <button type="button" className={styles.danger} onClick={onRemove}>
-                  {t('projects.confirmRemove')}
-                </button>{' '}
-                <button type="button" className={styles.linkButton} onClick={onCancelRemove}>
-                  {t('common.cancel')}
-                </button>
+        </div>
+        <div className={projectStyles.side}>
+          <p className={projectStyles.sideMeta}>
+            {hasHarness && summary.analyzedAt ? (
+              <span>
+                {t('projects.lastAnalysis')} <b>{formatAnalyzed(summary.analyzedAt, language)}</b>
               </span>
             ) : (
-              <button
-                type="button"
-                className={styles.linkButton}
-                aria-label={t('projects.remove', { name: info.name })}
-                onClick={onAskRemove}
+              <span>{t('projects.neverAnalyzed')}</span>
+            )}
+            {info.dependsOn.length > 0 && (
+              <span>
+                {t('projects.dependsOn', { names: info.dependsOn.map(names).join(', ') })}
+              </span>
+            )}
+          </p>
+          <span className={projectStyles.rowActions}>
+            {canRefresh && (
+              <Button
+                variant="secondary"
+                onClick={onUpdate}
+                aria-label={t('projects.updateHarness', { name: info.name })}
               >
-                {t('common.delete')}
-              </button>
-            ))}
-        </span>
+                <Icon name="refresh" size={14} />
+                {t('harness.update')}
+              </Button>
+            )}
+            {(canStart || canRefresh) && (
+              <Button
+                variant={canRefresh ? 'secondary' : 'primary'}
+                onClick={onReview}
+                aria-label={
+                  canRefresh
+                    ? t('projects.refreshHarness', { name: info.name })
+                    : t('projects.openHarness', { name: info.name })
+                }
+              >
+                {canRefresh ? <Icon name="undo" size={14} /> : <Icon name="play" size={12} />}
+                {canRefresh
+                  ? t('harness.refresh')
+                  : state === 'needs_review'
+                    ? t('harness.openReview')
+                    : t('harness.initialize')}
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              aria-label={t('projects.edit', { name: info.name })}
+              onClick={onEdit}
+            >
+              <Icon name="edit" size={14} />
+              {t('common.edit')}
+            </Button>
+            {menu.length > 0 && (
+              <OverflowMenu label={t('projects.moreActions', { name: info.name })} items={menu} />
+            )}
+          </span>
+        </div>
       </div>
-      <span className={projectStyles.path} title={info.path}>
-        <Icon name="folder" size={12} /> {info.path}
-      </span>
-      {summary && state !== 'not_initialized' && state !== 'folder_missing' && (
-        <div className={projectStyles.details}>
-          {summary.health && <HealthBadge health={summary.health} />}
-          {summary.stack.length > 0 && (
-            <span className={projectStyles.muted}>{summary.stack.join(' · ')}</span>
-          )}
-          {summary.stats && <HarnessStats stats={summary.stats} analyzedAt={summary.analyzedAt} />}
-          {summary.staleness && (
-            <StaleNotice
-              staleness={summary.staleness}
-              fix={{ busy: fixing, error: null, onFix, onReview }}
-            />
-          )}
+      {hasHarness && summary.staleness && (
+        <StaleNotice
+          staleness={summary.staleness}
+          fix={{ busy: fixing, error: null, onFix, onReview }}
+        />
+      )}
+      {confirming && (
+        <div role="group" aria-label={t('projects.remove', { name: info.name })}>
+          <p className={projectStyles.problem}>
+            {t('projects.removeConfirm', { name: info.name })}
+          </p>
+          <div className={projectStyles.cardActions}>
+            <Button variant="danger" onClick={onRemove}>
+              {t('projects.confirmRemove')}
+            </Button>
+            <Button variant="ghost" onClick={onCancelRemove}>
+              {t('common.cancel')}
+            </Button>
+          </div>
         </div>
       )}
       {confirmingReset && (
         <div role="group" aria-label={t('projects.reset', { name: info.name })}>
           <p className={projectStyles.problem}>{t('projects.resetConfirm', { name: info.name })}</p>
-          <button type="button" className={styles.danger} onClick={onReset}>
-            {t('projects.confirmReset')}
-          </button>{' '}
-          <button type="button" className={styles.linkButton} onClick={onCancelReset}>
-            {t('common.cancel')}
-          </button>
+          <div className={projectStyles.cardActions}>
+            <Button variant="danger" onClick={onReset}>
+              {t('projects.confirmReset')}
+            </Button>
+            <Button variant="ghost" onClick={onCancelReset}>
+              {t('common.cancel')}
+            </Button>
+          </div>
         </div>
-      )}
-      {!info.exists ? (
-        <p className={projectStyles.problem}>{t('project.folderMissing')}</p>
-      ) : (
-        <p className={projectStyles.muted}>
-          {info.technologies.length > 0
-            ? info.technologies.join(' · ')
-            : t('projects.noTechnologies')}
-        </p>
-      )}
-      {info.dependsOn.length > 0 && (
-        <p className={projectStyles.muted}>
-          {t('projects.dependsOn', { names: info.dependsOn.map(names).join(', ') })}
-        </p>
       )}
     </>
   );
@@ -537,6 +596,7 @@ interface ContextProps {
   onRebuilt: () => void;
 }
 
+/** The context that relates the projects, and the workspace's own notes: two cards of the page. */
 function WorkspaceContextSection({ workspace, info, onRebuilt }: ContextProps) {
   const t = useT();
   const [notes, setNotes] = useState<string | null>(null);
@@ -587,53 +647,68 @@ function WorkspaceContextSection({ workspace, info, onRebuilt }: ContextProps) {
       });
   }
 
+  const contextState = !info.exists
+    ? t('projects.context.none')
+    : info.outdated
+      ? t('projects.context.outdated')
+      : t('projects.context.current');
+
   return (
-    <section className={projectStyles.section} aria-label={t('projects.context.title')}>
-      <h3 className={projectStyles.sectionTitle}>{t('projects.context.title')}</h3>
-      {single ? (
-        <p className={projectStyles.muted}>{t('projects.context.single')}</p>
-      ) : (
-        <>
-          <p className={projectStyles.muted}>
-            {!info.exists
-              ? t('projects.context.none')
-              : info.outdated
-                ? t('projects.context.outdated')
-                : t('projects.context.current')}
-          </p>
-          <div className={projectStyles.toolbar}>
-            <Button variant="secondary" disabled={busy} onClick={rebuild}>
-              {t('projects.context.rebuild')}
-            </Button>
-          </div>
-        </>
-      )}
-      <label htmlFor={`notes-${workspace.id}`} className={projectStyles.name}>
-        {t('projects.notes.title')}
-      </label>
-      <p className={projectStyles.muted}>{t('projects.notes.hint')}</p>
-      <textarea
-        id={`notes-${workspace.id}`}
-        className={[styles.control, projectStyles.textarea].filter(Boolean).join(' ')}
-        value={notes ?? ''}
-        disabled={notes === null}
-        onChange={(e) => {
-          setNotes(e.target.value);
-        }}
-      />
-      <div className={projectStyles.toolbar}>
-        <Button variant="secondary" disabled={busy || notes === null} onClick={saveNotes}>
-          {t('projects.notes.save')}
-        </Button>
-        {message && (
-          <span
-            role={message.error ? 'alert' : 'status'}
-            className={message.error ? projectStyles.problem : projectStyles.muted}
-          >
-            {message.text}
+    <>
+      <section className={projectStyles.card} aria-label={t('projects.context.title')}>
+        <div className={projectStyles.cardHead}>
+          <span className={projectStyles.cardTile} aria-hidden="true">
+            <Icon name="stack" size={16} />
           </span>
+          <h3 className={projectStyles.cardTitle}>{t('projects.context.title')}</h3>
+        </div>
+        {single ? (
+          <p className={projectStyles.muted}>{t('projects.context.single')}</p>
+        ) : (
+          <>
+            <p className={projectStyles.muted}>{contextState}</p>
+            <div className={projectStyles.cardActions}>
+              <Button variant="secondary" disabled={busy} onClick={rebuild}>
+                <Icon name="refresh" size={14} />
+                {t('projects.context.rebuild')}
+              </Button>
+            </div>
+          </>
         )}
-      </div>
-    </section>
+      </section>
+      <section className={projectStyles.card}>
+        <div className={projectStyles.cardHead}>
+          <span className={projectStyles.cardTile} aria-hidden="true">
+            <Icon name="edit" size={16} />
+          </span>
+          <h3 className={projectStyles.cardTitle}>
+            <label htmlFor={`notes-${workspace.id}`}>{t('projects.notes.title')}</label>
+          </h3>
+        </div>
+        <p className={projectStyles.muted}>{t('projects.notes.hint')}</p>
+        <textarea
+          id={`notes-${workspace.id}`}
+          className={[styles.control, projectStyles.textarea].filter(Boolean).join(' ')}
+          value={notes ?? ''}
+          disabled={notes === null}
+          onChange={(e) => {
+            setNotes(e.target.value);
+          }}
+        />
+        <div className={projectStyles.cardActions}>
+          <Button variant="secondary" disabled={busy || notes === null} onClick={saveNotes}>
+            {t('projects.notes.save')}
+          </Button>
+          {message && (
+            <span
+              role={message.error ? 'alert' : 'status'}
+              className={message.error ? projectStyles.problem : projectStyles.muted}
+            >
+              {message.text}
+            </span>
+          )}
+        </div>
+      </section>
+    </>
   );
 }

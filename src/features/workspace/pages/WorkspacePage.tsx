@@ -213,6 +213,18 @@ export function WorkspacePage() {
     );
   }
 
+  if (managingProjects) {
+    return (
+      <WorkspaceProjectsPanel
+        workspace={active}
+        onWorkspaceChanged={workspace.replaceWorkspace}
+        onClose={() => {
+          setManagingProjects(false);
+        }}
+      />
+    );
+  }
+
   return (
     <section className={styles.page} data-view={view}>
       <div className={styles.banner}>
@@ -245,16 +257,6 @@ export function WorkspacePage() {
           </div>
         </header>
       </div>
-
-      {managingProjects && (
-        <WorkspaceProjectsPanel
-          workspace={active}
-          onWorkspaceChanged={workspace.replaceWorkspace}
-          onClose={() => {
-            setManagingProjects(false);
-          }}
-        />
-      )}
 
       {notice && (
         <p role="alert" className={styles.notice}>

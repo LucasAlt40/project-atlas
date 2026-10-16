@@ -46,7 +46,7 @@ function show(options = {}) {
 /** The one place the Harness is handled: the projects panel, whatever the number of projects. */
 async function openPanel(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole('button', { name: 'Manage the projects of ERP' }));
-  return screen.findByRole('dialog', { name: 'Projects of ERP' });
+  return screen.findByRole('region', { name: 'Projects of ERP' });
 }
 
 describe('Workspace Harness status', () => {
@@ -104,7 +104,7 @@ describe('Workspace Harness status', () => {
 
     const panel = await openPanel(user);
     await user.click(await within(panel).findByRole('button', { name: 'Review Harness of erp' }));
-    expect(await screen.findByRole('dialog', { name: 'Initialize Project' })).toBeVisible();
+    expect(await screen.findByRole('region', { name: 'Initialize Project' })).toBeVisible();
   });
 
   it('shows how far the Harness can be trusted, and why', async () => {

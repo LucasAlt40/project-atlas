@@ -73,7 +73,7 @@ function appError(code: AppErrorDto['code'], params: Record<string, string> = {}
 
 async function openPanel(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole('button', { name: 'Manage the projects of Shop' }));
-  return screen.findByRole('dialog', { name: 'Projects of Shop' });
+  return screen.findByRole('region', { name: 'Projects of Shop' });
 }
 
 describe('the projects of a workspace', () => {
@@ -91,7 +91,7 @@ describe('the projects of a workspace', () => {
     renderWithProviders(<WorkspacePage />);
 
     await user.click(await screen.findByRole('button', { name: 'Manage the projects of ERP' }));
-    const panel = await screen.findByRole('dialog', { name: 'Projects of ERP' });
+    const panel = await screen.findByRole('region', { name: 'Projects of ERP' });
     expect(await within(panel).findByText('/dev/erp')).toBeVisible();
     expect(within(panel).getByRole('button', { name: 'Review Harness of erp' })).toBeVisible();
     expect(screen.queryByRole('button', { name: /^Scope:/ })).not.toBeInTheDocument();
@@ -157,7 +157,8 @@ describe('the projects of a workspace', () => {
       status: 'not_initialized',
     } as Awaited<ReturnType<typeof resetProjectHarness>>);
 
-    await user.click(await within(panel).findByRole('button', { name: 'Reset Harness of front' }));
+    await user.click(await within(panel).findByRole('button', { name: 'More actions for front' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Reset Harness of front' }));
 
     expect(resetProjectHarness).not.toHaveBeenCalled();
     const ask = within(panel).getByRole('group', { name: 'Reset Harness of front' });
@@ -195,7 +196,8 @@ describe('the projects of a workspace', () => {
     vi.mocked(removeWorkspaceProject).mockResolvedValueOnce(remaining);
     listsProjectsOf(remaining);
 
-    await user.click(await within(panel).findByRole('button', { name: 'Remove Orders' }));
+    await user.click(await within(panel).findByRole('button', { name: 'More actions for Orders' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Remove Orders' }));
 
     expect(removeWorkspaceProject).not.toHaveBeenCalled();
     const ask = within(panel).getByRole('group', { name: 'Remove Orders' });
@@ -224,7 +226,7 @@ describe('the projects of a workspace', () => {
     renderWithProviders(<WorkspacePage />);
 
     await user.click(await screen.findByRole('button', { name: 'Manage the projects of ERP' }));
-    const panel = await screen.findByRole('dialog', { name: 'Projects of ERP' });
+    const panel = await screen.findByRole('region', { name: 'Projects of ERP' });
 
     expect(await within(panel).findByText('/dev/erp')).toBeVisible();
     expect(within(panel).queryByRole('button', { name: /^Remove / })).not.toBeInTheDocument();
@@ -275,7 +277,7 @@ describe('the projects of a workspace', () => {
         await within(panel).findByRole('button', { name: 'Start Harness of 2 project(s)' }),
       );
 
-      const dialog = await screen.findByRole('dialog', { name: 'Initialize Projects' });
+      const dialog = await screen.findByRole('region', { name: 'Initialize Projects' });
       expect(analyzeProject).toHaveBeenCalledTimes(2);
       expect(analyzeProject).toHaveBeenCalledWith('w1', undefined, 'p-api');
       expect(analyzeProject).toHaveBeenCalledWith('w1', undefined, 'p-orders');
@@ -303,14 +305,17 @@ describe('the projects of a workspace', () => {
       await user.click(
         await within(panel).findByRole('button', { name: 'Start Harness of 2 project(s)' }),
       );
-      const dialog = await screen.findByRole('dialog', { name: 'Initialize Projects' });
+      const dialog = await screen.findByRole('region', { name: 'Initialize Projects' });
 
       await user.click(await within(dialog).findByRole('button', { name: 'Review all (2)' }));
       expect(initializeProject).not.toHaveBeenCalled();
       await user.click(
-        within(screen.getByRole('form', { name: 'Review Project Context' })).getByRole('button', {
-          name: 'Initialize 2 project(s)',
-        }),
+        within(screen.getByRole('form', { name: 'Harness — Review Findings' })).getByRole(
+          'button',
+          {
+            name: 'Initialize 2 project(s)',
+          },
+        ),
       );
 
       expect(await within(dialog).findByText('2 of 2 projects initialized.')).toBeVisible();
@@ -342,12 +347,15 @@ describe('the projects of a workspace', () => {
       await user.click(
         await within(panel).findByRole('button', { name: 'Start Harness of 2 project(s)' }),
       );
-      const dialog = await screen.findByRole('dialog', { name: 'Initialize Projects' });
+      const dialog = await screen.findByRole('region', { name: 'Initialize Projects' });
       await user.click(await within(dialog).findByRole('button', { name: 'Review all (2)' }));
       await user.click(
-        within(screen.getByRole('form', { name: 'Review Project Context' })).getByRole('button', {
-          name: 'Initialize 2 project(s)',
-        }),
+        within(screen.getByRole('form', { name: 'Harness — Review Findings' })).getByRole(
+          'button',
+          {
+            name: 'Initialize 2 project(s)',
+          },
+        ),
       );
 
       expect(await within(dialog).findByText('1 of 2 projects initialized.')).toBeVisible();
