@@ -5,7 +5,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   // docs/ holds documentation and its reproducible spikes (plain scripts), not application code.
-  { ignores: ['dist', 'coverage', 'src-tauri/target', 'src-tauri/gen', 'docs'] },
+  { ignores: ['dist', 'coverage', 'src-tauri/target', 'src-tauri/gen', 'docs', 'tmp'] },
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,

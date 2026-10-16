@@ -13,7 +13,7 @@ respeitando `COPILOT_HOME`) e sua estratégia de confinamento. Nada em agentes, 
 ## O que foi medido
 
 - **Execução:** `copilot --prompt=<texto> --output-format json --no-ask-user --no-auto-update --disable-builtin-mcps
-  --disallow-temp-dir --model <id>`. A saída é JSONL: `assistant.message`, `tool.execution_start/complete`,
+--disallow-temp-dir --model <id>`. A saída é JSONL: `assistant.message`, `tool.execution_start/complete`,
   `session.usage_checkpoint` (tokens e lista de ferramentas enviadas ao modelo) e `result` (código de saída).
 - **Permissões:** sem ninguém para perguntar, o CLI **nega** o que não foi permitido (comandos, escrita, chamadas MCP).
   O Atlas só passa `--allow-tool=write` quando a execução pode editar e `--allow-tool=<servidor>` para cada servidor

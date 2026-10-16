@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas Core - Seletor de workspace</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-container-low": "#191c20",
+            "secondary-fixed": "#c4e7ff",
+            "primary": "#c0c1ff",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "secondary-container": "#00a6e0",
+            "inverse-on-surface": "#2e3135",
+            "on-primary-fixed": "#07006c",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "inverse-primary": "#494bd6",
+            "primary-container": "#8083ff",
+            "on-secondary": "#00354a",
+            "on-tertiary-container": "#570032",
+            "on-error": "#690005",
+            "tertiary": "#ffb0cd",
+            "secondary-fixed-dim": "#7bd0ff",
+            "error": "#ffb4ab",
+            "on-secondary-fixed": "#001e2c",
+            "tertiary-container": "#f751a1",
+            "surface-container-high": "#272a2e",
+            "outline": "#908fa0",
+            "error-container": "#93000a",
+            "background": "#111418",
+            "on-secondary-fixed-variant": "#004c69",
+            "tertiary-fixed": "#ffd9e4",
+            "on-tertiary-fixed": "#3e0022",
+            "on-background": "#e1e2e8",
+            "inverse-surface": "#e1e2e8",
+            "secondary": "#7bd0ff",
+            "on-primary-container": "#0d0096",
+            "on-primary": "#1000a9",
+            "on-surface": "#e1e2e8",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "surface-container-highest": "#323539",
+            "on-tertiary": "#640039",
+            "on-surface-variant": "#c7c4d7",
+            "surface-tint": "#c0c1ff",
+            "surface-dim": "#111418",
+            "surface-bright": "#36393e",
+            "surface": "#111418",
+            "primary-fixed": "#e1e0ff",
+            "primary-fixed-dim": "#c0c1ff",
+            "surface-variant": "#323539",
+            "on-secondary-container": "#00374d",
+            "surface-container-lowest": "#0b0e12",
+            "outline-variant": "#464554",
+            "surface-container": "#1d2024",
+            "on-error-container": "#ffdad6"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-sm": "0.375rem",
+            "gutter": "0.5rem",
+            "space-xs": "0.25rem",
+            "space-xl": "1.25rem",
+            "space-md": "0.625rem",
+            "space-lg": "0.875rem",
+            "margin": "0.75rem"
+          },
+          "fontFamily": {
+            "headline-sm": ["Geist"],
+            "code-md": ["JetBrains Mono"],
+            "code-sm": ["JetBrains Mono"],
+            "body-sm": ["Geist"],
+            "display": ["Geist"],
+            "code-lg": ["JetBrains Mono"],
+            "label-sm": ["JetBrains Mono"],
+            "label-md": ["Geist"],
+            "headline-lg": ["Geist"],
+            "body-lg": ["Geist"],
+            "body-md": ["Geist"]
+          },
+          "fontSize": {
+            "headline-sm": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.015em", "fontWeight": "500" }],
+            "code-md": ["0.75rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "code-sm": ["0.6875rem", { "lineHeight": "1rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "body-sm": ["0.75rem", { "lineHeight": "1.125rem", "letterSpacing": "0.005em", "fontWeight": "400" }],
+            "display": ["1.75rem", { "lineHeight": "2.25rem", "letterSpacing": "-0.025em", "fontWeight": "600" }],
+            "code-lg": ["0.875rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+            "label-sm": ["0.625rem", { "lineHeight": "0.875rem", "letterSpacing": "0.04em", "fontWeight": "500" }],
+            "label-md": ["0.75rem", { "lineHeight": "1rem", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "headline-lg": ["1.375rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "body-lg": ["0.9375rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "body-md": ["0.8125rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    /* Custom density adjustments and terminal ergonomics */
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface antialiased overflow-hidden font-body-md text-body-md h-screen w-screen flex">
+<!-- ========================================== -->
+<!-- BARRA LATERAL (SideNav) - 216px            -->
+<!-- ========================================== -->
+<aside class="fixed top-0 left-0 bottom-0 w-[216px] flex flex-col justify-between py-space-md z-40 bg-surface-container-lowest border-r border-outline-variant/30 shrink-0">
+<!-- Top Block: Header, Selector & Navigation -->
+<div class="flex flex-col gap-space-xs">
+<!-- Brand & Engine Title -->
+<div class="px-space-md pb-space-xs pt-1 flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<div class="w-5 h-5 rounded bg-primary-container/20 border border-primary/30 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[13px]">hub</span>
+</div>
+<div>
+<div class="text-body-lg font-headline-lg font-semibold tracking-tight text-on-surface leading-none">Atlas Core</div>
+<div class="text-code-sm font-code-sm text-outline mt-0.5 leading-none">v2.4.0 • Cluster Online</div>
+</div>
+</div>
+</div>
+<!-- Trigger Seletor de Workspace (Ativo / Com Popover Aberto) -->
+<div class="px-space-md pt-2">
+<div class="relative group cursor-pointer w-full bg-surface-container-high border border-primary/50 rounded-lg p-space-xs px-2 flex items-center justify-between text-left transition-colors duration-150" id="workspace-trigger">
+<div class="flex items-center gap-2 min-w-0">
+<div class="w-6 h-6 rounded bg-surface-container flex items-center justify-center border border-outline-variant/40 shrink-0">
+<span class="material-symbols-outlined text-primary text-[14px]">domain</span>
+</div>
+<div class="truncate">
+<div class="text-label-md font-label-md text-on-surface font-medium truncate leading-tight">Transport ERP</div>
+<div class="text-code-sm font-code-sm text-outline truncate leading-none mt-0.5">/dev/transport-erp</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-primary shrink-0 text-[16px]">unfold_more</span>
+</div>
+</div>
+<!-- CTA "+ Novo Fluxo" -->
+<div class="px-space-md pt-1 pb-1">
+<button class="w-full h-[28px] bg-primary text-on-primary font-label-md text-label-md rounded-lg flex items-center justify-center gap-1.5 transition-colors duration-150 active:scale-[0.99] font-medium shadow-none">
+<span class="material-symbols-outlined text-[14px]">add</span>
+<span>Novo Fluxo</span>
+</button>
+</div>
+<!-- Divisor sutil -->
+<div class="h-px bg-outline-variant/20 mx-space-md my-1"></div>
+<!-- Lista de Abas de Navegação -->
+<nav class="flex flex-col gap-0.5">
+<!-- 1. Workspace (Ativo) -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm bg-surface-container-high text-primary border-l-2 border-primary rounded-none font-medium text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined">space_dashboard</span>
+<span>Workspace</span>
+</a>
+<!-- 2. Workflow -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span>Workflow</span>
+</a>
+<!-- 3. Agentes -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- 4. Personalidades -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- 5. Specs -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined">description</span>
+<span>Specs</span>
+</a>
+<!-- 6. MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined">hub</span>
+<span>MCP Hub</span>
+</a>
+</nav>
+</div>
+<!-- Base da Barra Lateral: Memória RAM & Configurações -->
+<div class="flex flex-col gap-2 pt-2 border-t border-outline-variant/20 px-space-md">
+<!-- Indicador de memória RAM do cluster -->
+<div class="bg-surface-container-low border border-outline-variant/30 rounded p-2">
+<div class="flex items-center justify-between text-code-sm font-code-sm mb-1 text-outline">
+<span class="flex items-center gap-1">
+<span class="inline-block w-1.5 h-1.5 rounded-full bg-secondary"></span>
+            RAM Cluster
+          </span>
+<span class="text-on-surface">5.8 / 16 GB</span>
+</div>
+<div class="w-full bg-surface-container-highest h-1 rounded-full overflow-hidden">
+<div class="bg-secondary h-full rounded-full w-[36%]"></div>
+</div>
+</div>
+<!-- Configurações -->
+<a class="flex items-center gap-space-sm py-1.5 text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 rounded px-1.5 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Configurações</span>
+</a>
+</div>
+</aside>
+<!-- ========================================== -->
+<!-- BARRA SUPERIOR (TopNavBar) - h-12 (48px)   -->
+<!-- ========================================== -->
+<header class="fixed top-0 right-0 left-[216px] h-12 flex items-center justify-between px-space-lg z-30 border-b border-outline-variant/30 bg-surface-container-lowest">
+<!-- Esquerda: Breadcrumb -->
+<div class="flex items-center gap-2">
+<div class="flex items-center gap-1.5 text-label-md font-label-md text-outline">
+<span class="hover:text-on-surface transition-colors cursor-pointer">Atlas</span>
+<span class="text-outline-variant">/</span>
+<span class="hover:text-on-surface transition-colors cursor-pointer text-on-surface font-medium">Transport ERP</span>
+<span class="text-outline-variant">/</span>
+<span class="text-primary font-medium">Seletor de workspace</span>
+</div>
+</div>
+<!-- Direita: Ações, Status e Perfil -->
+<div class="flex items-center gap-3">
+<!-- Botão "Celular" -->
+<button class="h-7 px-2.5 bg-surface-container-low border border-outline-variant/40 hover:border-outline-variant rounded flex items-center gap-1.5 text-on-surface text-label-md font-label-md transition-colors">
+<span class="material-symbols-outlined text-[14px] text-outline">smartphone</span>
+<span>Celular</span>
+</button>
+<!-- Alternância "PT | EN" -->
+<div class="h-7 bg-surface-container-low border border-outline-variant/30 rounded flex items-center p-0.5 text-code-sm font-code-sm">
+<span class="px-1.5 py-0.5 rounded bg-surface-container-high text-primary font-medium">PT</span>
+<span class="px-1.5 py-0.5 text-outline hover:text-on-surface cursor-pointer">EN</span>
+</div>
+<!-- Status "Sync Local" -->
+<div class="flex items-center gap-1.5 px-2 py-1 rounded bg-surface-container-low border border-outline-variant/30 text-code-sm font-code-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>
+<span class="text-on-surface font-medium">Sync Local</span>
+</div>
+<!-- Divisor Vertical -->
+<div class="w-px h-4 bg-outline-variant/30"></div>
+<!-- Avatar do Operador -->
+<div class="flex items-center gap-2 pl-1 cursor-pointer">
+<div class="w-6 h-6 rounded bg-primary-container text-on-primary-container flex items-center justify-center font-code-sm font-medium text-[11px] border border-primary/40">
+          OP
+        </div>
+<span class="text-code-sm font-code-sm text-outline hover:text-on-surface transition-colors">operator@atlas</span>
+</div>
+</div>
+</header>
+<!-- ========================================== -->
+<!-- ÁREA PRINCIPAL DO WORKSPACE (EM SEGUNDO PLANO) -->
+<!-- Visível, porém esmaecida (opacity 45% + blur) -->
+<!-- ========================================== -->
+<main class="ml-[216px] mt-12 w-[calc(100vw-216px)] h-[calc(100vh-48px)] p-4 overflow-hidden relative">
+<!-- Workspace Stage Grid (Background Context) com opacidade 45% -->
+<div class="w-full h-full opacity-45 pointer-events-none filter blur-[0.6px] transition-all duration-300">
+<!-- Cabeçalho do Workspace em tela de fundo -->
+<div class="flex items-center justify-between pb-3 border-b border-outline-variant/20 mb-4">
+<div>
+<div class="flex items-center gap-2">
+<h1 class="text-headline-sm font-headline-sm text-on-surface font-semibold">Transport ERP Engine</h1>
+<span class="px-2 py-0.5 bg-surface-container-high border border-outline-variant/40 rounded text-code-sm font-code-sm text-secondary">
+              cluster-alpha-09
+            </span>
+</div>
+<p class="text-code-sm font-code-sm text-outline mt-0.5">Repositório: /dev/transport-erp • Branch: feat/logistic-agents</p>
+</div>
+<div class="flex items-center gap-2">
+<div class="px-2.5 py-1 bg-surface-container-low border border-outline-variant/30 rounded text-code-sm font-code-sm text-outline">
+            4 Agentes Ativos
+          </div>
+<div class="px-2.5 py-1 bg-surface-container-low border border-outline-variant/30 rounded text-code-sm font-code-sm text-outline">
+            Latência: 24ms
+          </div>
+</div>
+</div>
+<!-- Grade 2x2 do Workspace -->
+<div class="grid grid-cols-2 grid-rows-2 gap-3 h-[calc(100%-60px)]">
+<!-- Bloco 1: Pipeline de Logística (Agente Despacho) -->
+<div class="bg-surface-container-lowest border border-outline-variant/30 rounded-lg p-3 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-2">
+<span class="text-label-md font-label-md font-medium text-on-surface flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+                Agente de Despacho (CarrierRouter)
+              </span>
+<span class="text-code-sm font-code-sm text-outline">v1.2.4</span>
+</div>
+<div class="bg-surface-container-low p-2 rounded border border-outline-variant/20 font-code-sm text-code-sm text-outline-variant mb-2">
+              &gt; routing_service.py --eval matrix-weights<br/>
+              &gt; Optimizing freight cost vectors: 1,482 routes checked.
+            </div>
+</div>
+<div class="flex items-center justify-between text-code-sm font-code-sm text-outline pt-2 border-t border-outline-variant/20">
+<span>Status: Executando</span>
+<span class="text-on-surface">99.4% uptime</span>
+</div>
+</div>
+<!-- Bloco 2: Monitor de Eventos Telemetria -->
+<div class="bg-surface-container-lowest border border-outline-variant/30 rounded-lg p-3 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-2">
+<span class="text-label-md font-label-md font-medium text-on-surface flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+                Kafka Stream: Telemetria de Frota
+              </span>
+<span class="text-code-sm font-code-sm text-outline">tópico: /fleet/gps</span>
+</div>
+<div class="bg-surface-container-low p-2 rounded border border-outline-variant/20 font-code-sm text-code-sm text-outline">
+              [14:22:01.402] ACK: 340 veículos transmitindo telemetria CAN-bus.<br/>
+              [14:22:02.118] Sensor anomalia: TRK-882 freio regenerativo.
+            </div>
+</div>
+<div class="flex items-center justify-between text-code-sm font-code-sm text-outline pt-2 border-t border-outline-variant/20">
+<span>Taxa: 1.2k msg/s</span>
+<span class="text-primary font-medium">Fluxo Estável</span>
+</div>
+</div>
+<!-- Bloco 3: Validador de NFe & Faturamento -->
+<div class="bg-surface-container-lowest border border-outline-variant/30 rounded-lg p-3 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-2">
+<span class="text-label-md font-label-md font-medium text-on-surface flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-outline"></span>
+                Agente Fiscal SEFAZ (InvoicingEngine)
+              </span>
+<span class="text-code-sm font-code-sm text-outline">Aguardando lote</span>
+</div>
+<div class="bg-surface-container-low p-2 rounded border border-outline-variant/20 font-code-sm text-code-sm text-outline-variant">
+              &gt; SEFAZ RS / SP status: Online (200 OK)<br/>
+              &gt; Chaves pendentes de assinatura: 0
+            </div>
+</div>
+<div class="flex items-center justify-between text-code-sm font-code-sm text-outline pt-2 border-t border-outline-variant/20">
+<span>Último sync: há 3 min</span>
+<span class="text-on-surface">Certificado A1 Válido</span>
+</div>
+</div>
+<!-- Bloco 4: Inspetor de Contexto MCP -->
+<div class="bg-surface-container-lowest border border-outline-variant/30 rounded-lg p-3 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-2">
+<span class="text-label-md font-label-md font-medium text-on-surface flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+                Conexões MCP Ativas
+              </span>
+<span class="text-code-sm font-code-sm text-outline">3 servidores</span>
+</div>
+<div class="space-y-1">
+<div class="flex items-center justify-between text-code-sm font-code-sm bg-surface-container-low p-1.5 rounded border border-outline-variant/20">
+<span class="text-on-surface">postgres-erp-prod</span>
+<span class="text-primary">Conectado</span>
+</div>
+<div class="flex items-center justify-between text-code-sm font-code-sm bg-surface-container-low p-1.5 rounded border border-outline-variant/20">
+<span class="text-on-surface">redis-cache-cluster</span>
+<span class="text-primary">Conectado</span>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between text-code-sm font-code-sm text-outline pt-2 border-t border-outline-variant/20">
+<span>Pool de Conexões</span>
+<span class="text-on-surface">12 / 50 ativas</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- ========================================== -->
+<!-- OVERLAY / POPOVER DO SELETOR DE WORKSPACE  -->
+<!-- ========================================== -->
+<!-- Scrim invisível/clicável para fechar -->
+<div class="fixed inset-0 z-40 bg-black/40 backdrop-blur-[1px]"></div>
+<!-- Container Popover ancorado no seletor da sidebar -->
+<!-- Posição: top: 76px (logo abaixo do trigger), left: 12px, width: 290px -->
+<div class="fixed top-[74px] left-[12px] w-[290px] z-50 bg-[#15191e] border border-[#242c37] rounded-xl shadow-[0_16px_40px_-8px_rgba(0,0,0,0.85),0_0_0_1px_rgba(255,255,255,0.03)] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+<!-- Cabeçalho do Popover & Busca Rápida -->
+<div class="p-2.5 pb-2 bg-[#101317] border-b border-[#242c37]">
+<div class="flex items-center justify-between mb-1.5 px-1">
+<span class="text-code-sm font-code-sm font-medium tracking-wider text-outline text-[10px]">WORKSPACES</span>
+<span class="text-code-sm font-code-sm text-outline-variant text-[10px]">2 de 5 livres</span>
+</div>
+<!-- Campo de Busca Rápida Compacta -->
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-2 text-outline text-[14px]">search</span>
+<input class="w-full h-7 pl-6 pr-2 bg-[#0b0e12] border border-[#242c37] focus:border-primary/60 focus:ring-0 rounded-lg text-body-sm font-body-sm text-on-surface placeholder:text-outline-variant text-[12px] leading-tight transition-colors" placeholder="Buscar workspace..." type="text" value=""/>
+</div>
+</div>
+<!-- Lista de Workspaces -->
+<div class="py-1 px-1.5 space-y-0.5 max-h-[280px] overflow-y-auto">
+<!-- ITEM ATIVO: Transport ERP -->
+<div class="w-full flex items-center justify-between p-2 rounded-lg bg-[#1c2128] border border-primary/30 cursor-pointer group">
+<div class="flex items-center gap-2.5 min-w-0">
+<div class="w-7 h-7 rounded-lg bg-primary-container/20 border border-primary/40 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary text-[15px]">domain</span>
+</div>
+<div class="truncate">
+<div class="flex items-center gap-1.5">
+<span class="text-label-md font-label-md text-on-surface font-semibold text-[12px] leading-tight truncate">Transport ERP</span>
+<span class="px-1.5 py-0.2 bg-primary/20 text-primary border border-primary/30 rounded text-[9px] font-code-sm font-medium leading-normal">
+                Ativo
+              </span>
+</div>
+<div class="text-code-sm font-code-sm text-outline text-[11px] truncate leading-none mt-1">
+              /dev/transport-erp
+            </div>
+</div>
+</div>
+<!-- Checkmark de seleção índigo -->
+<div class="w-5 h-5 flex items-center justify-center shrink-0 text-primary pl-1">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</div>
+</div>
+<!-- OUTRO ITEM: Billing API -->
+<div class="w-full flex items-center justify-between p-2 rounded-lg hover:bg-[#1c2128]/70 hover:border-[#242c37] border border-transparent cursor-pointer group transition-colors duration-150">
+<div class="flex items-center gap-2.5 min-w-0">
+<div class="w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center border border-outline-variant/30 shrink-0 group-hover:border-outline-variant/60">
+<span class="material-symbols-outlined text-outline group-hover:text-on-surface text-[15px]">payments</span>
+</div>
+<div class="truncate">
+<div class="text-label-md font-label-md text-outline group-hover:text-on-surface font-medium text-[12px] leading-tight truncate">
+              Billing API
+            </div>
+<div class="text-code-sm font-code-sm text-outline-variant group-hover:text-outline text-[11px] truncate leading-none mt-1">
+              /dev/billing-api
+            </div>
+</div>
+</div>
+<!-- Atalho ou estado inativo -->
+<span class="text-code-sm font-code-sm text-outline-variant text-[10px] pr-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          Trocar
+        </span>
+</div>
+<!-- OUTRO ITEM (Consistência de lista): Identity Core -->
+<div class="w-full flex items-center justify-between p-2 rounded-lg hover:bg-[#1c2128]/70 hover:border-[#242c37] border border-transparent cursor-pointer group transition-colors duration-150">
+<div class="flex items-center gap-2.5 min-w-0">
+<div class="w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center border border-outline-variant/30 shrink-0 group-hover:border-outline-variant/60">
+<span class="material-symbols-outlined text-outline group-hover:text-on-surface text-[15px]">fingerprint</span>
+</div>
+<div class="truncate">
+<div class="text-label-md font-label-md text-outline group-hover:text-on-surface font-medium text-[12px] leading-tight truncate">
+              Identity Core
+            </div>
+<div class="text-code-sm font-code-sm text-outline-variant group-hover:text-outline text-[11px] truncate leading-none mt-1">
+              /dev/identity-core
+            </div>
+</div>
+</div>
+<span class="text-code-sm font-code-sm text-outline-variant text-[10px] pr-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          Trocar
+        </span>
+</div>
+</div>
+<!-- Separador Horizontal de 1px -->
+<div class="h-px bg-[#242c37] w-full my-0.5"></div>
+<!-- Ações no Rodapé do Menu -->
+<div class="p-1.5 bg-[#101317] flex flex-col gap-0.5">
+<!-- + Novo workspace -->
+<button class="w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-outline hover:text-on-surface hover:bg-[#1c2128] transition-colors duration-150 text-label-md font-label-md text-left">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[15px]">add_box</span>
+<span class="text-[12px]">Novo workspace</span>
+</div>
+<span class="px-1.5 py-0.2 bg-[#0b0e12] border border-[#242c37] text-outline text-[10px] font-code-sm rounded">
+          ⌘N
+        </span>
+</button>
+<!-- Gerenciar workspaces -->
+<button class="w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-outline hover:text-on-surface hover:bg-[#1c2128] transition-colors duration-150 text-label-md font-label-md text-left">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline text-[15px]">settings_suggest</span>
+<span class="text-[12px]">Gerenciar workspaces</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant text-[13px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</body></html>

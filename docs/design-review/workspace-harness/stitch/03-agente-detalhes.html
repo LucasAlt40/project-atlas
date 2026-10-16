@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas Core — Agente: Detalhes e permissões</title>
+<!-- Fontes do Sistema -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS com Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "background": "#111418",
+            "primary": "#c0c1ff",
+            "on-tertiary-container": "#570032",
+            "outline": "#908fa0",
+            "tertiary-container": "#f751a1",
+            "inverse-on-surface": "#2e3135",
+            "surface-container-high": "#272a2e",
+            "on-surface-variant": "#c7c4d7",
+            "on-error-container": "#ffdad6",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "surface-container": "#1d2024",
+            "error-container": "#93000a",
+            "surface-variant": "#323539",
+            "tertiary": "#ffb0cd",
+            "tertiary-fixed": "#ffd9e4",
+            "inverse-primary": "#494bd6",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "on-tertiary-fixed": "#3e0022",
+            "on-primary-fixed": "#07006c",
+            "on-background": "#e1e2e8",
+            "on-error": "#690005",
+            "primary-fixed": "#e1e0ff",
+            "surface-tint": "#c0c1ff",
+            "on-secondary-container": "#00374d",
+            "on-primary-container": "#0d0096",
+            "secondary-fixed": "#c4e7ff",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "secondary-fixed-dim": "#7bd0ff",
+            "secondary-container": "#00a6e0",
+            "on-tertiary": "#640039",
+            "primary-container": "#8083ff",
+            "secondary": "#7bd0ff",
+            "surface-bright": "#36393e",
+            "on-secondary": "#00354a",
+            "primary-fixed-dim": "#c0c1ff",
+            "surface": "#111418",
+            "on-surface": "#e1e2e8",
+            "inverse-surface": "#e1e2e8",
+            "error": "#ffb4ab",
+            "outline-variant": "#464554",
+            "on-primary": "#1000a9",
+            "on-secondary-fixed": "#001e2c",
+            "surface-container-lowest": "#0b0e12",
+            "surface-container-highest": "#323539",
+            "surface-container-low": "#191c20",
+            "surface-dim": "#111418",
+            "on-secondary-fixed-variant": "#004c69"
+          },
+          borderRadius: {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          spacing: {
+            "space-sm": "0.375rem",
+            "space-lg": "0.875rem",
+            "margin": "0.75rem",
+            "space-md": "0.625rem",
+            "space-xs": "0.25rem",
+            "space-xl": "1.25rem",
+            "gutter": "0.5rem"
+          },
+          fontFamily: {
+            "body-lg": ["Geist"],
+            "headline-lg": ["Geist"],
+            "code-md": ["JetBrains Mono"],
+            "label-sm": ["JetBrains Mono"],
+            "body-md": ["Geist"],
+            "code-lg": ["JetBrains Mono"],
+            "label-md": ["Geist"],
+            "code-sm": ["JetBrains Mono"],
+            "body-sm": ["Geist"],
+            "display": ["Geist"],
+            "headline-sm": ["Geist"]
+          },
+          fontSize: {
+            "body-lg": ["0.9375rem", { lineHeight: "1.375rem", letterSpacing: "-0.005em", fontWeight: "400" }],
+            "headline-lg": ["1.375rem", { lineHeight: "1.75rem", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "code-md": ["0.75rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "label-sm": ["0.625rem", { lineHeight: "0.875rem", letterSpacing: "0.04em", fontWeight: "500" }],
+            "body-md": ["0.8125rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "code-lg": ["0.875rem", { lineHeight: "1.375rem", letterSpacing: "-0.01em", fontWeight: "400" }],
+            "label-md": ["0.75rem", { lineHeight: "1rem", letterSpacing: "0.01em", fontWeight: "500" }],
+            "code-sm": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0em", fontWeight: "400" }],
+            "body-sm": ["0.75rem", { lineHeight: "1.125rem", letterSpacing: "0.005em", fontWeight: "400" }],
+            "display": ["1.75rem", { lineHeight: "2.25rem", letterSpacing: "-0.025em", fontWeight: "600" }],
+            "headline-sm": ["1.125rem", { lineHeight: "1.5rem", letterSpacing: "-0.015em", fontWeight: "500" }]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #0b0e12;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #272a2e;
+      border-radius: 2px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #464554;
+    }
+  </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface antialiased overflow-hidden select-none font-body-md text-body-md h-screen w-screen flex">
+<!-- ========================================================================= -->
+<!-- BARRA LATERAL FIXA DO ATLAS (216px) - Conforme Shared Components JSON   -->
+<!-- ========================================================================= -->
+<aside class="fixed top-0 left-0 bottom-0 w-[216px] flex flex-col justify-between py-space-md z-40 bg-surface-container-lowest border-r border-outline-variant/30 shrink-0">
+<!-- Topo da Sidebar -->
+<div class="flex flex-col gap-space-md">
+<!-- Header / Logo -->
+<div class="px-space-md flex items-center gap-space-sm border-b border-outline-variant/20 pb-space-sm">
+<div class="w-6 h-6 rounded-lg bg-surface-container-high border border-outline-variant flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary" style="font-size: 15px;">hub</span>
+</div>
+<div class="flex flex-col overflow-hidden">
+<div class="text-body-md font-headline-sm font-bold tracking-tight text-on-surface flex items-center gap-1.5 leading-none">
+            Atlas Core
+          </div>
+<span class="text-code-sm font-code-sm text-outline tracking-tight leading-tight mt-0.5">v2.4.0 • Cluster Online</span>
+</div>
+</div>
+<!-- Seletor de Workspace Ativo -->
+<div class="px-space-md">
+<div class="bg-surface-container-low border border-outline-variant/40 rounded-lg p-1.5 flex items-center justify-between hover:border-outline-variant transition-colors cursor-pointer">
+<div class="flex items-center gap-1.5 truncate">
+<span class="w-2 h-2 rounded-full bg-secondary shrink-0"></span>
+<span class="font-label-md text-label-md text-on-surface font-medium truncate">Transport ERP</span>
+</div>
+<span class="material-symbols-outlined text-outline text-xs" style="font-size: 14px;">unfold_more</span>
+</div>
+</div>
+<!-- Botão Novo Fluxo CTA -->
+<div class="px-space-md">
+<button class="w-full flex items-center justify-center gap-1.5 bg-surface-container-high hover:bg-surface-variant text-primary border border-outline-variant/40 py-1 px-space-sm rounded-lg font-label-md text-label-md transition-colors duration-150">
+<span class="material-symbols-outlined" style="font-size: 14px;">add</span>
+<span>Novo Fluxo</span>
+</button>
+</div>
+<!-- Links de Navegação -->
+<nav class="flex flex-col gap-0.5 mt-1">
+<!-- Workspace (Ativo conforme mapeamento) -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm bg-surface-container-high dark:bg-surface-container-high text-primary dark:text-primary border-l-2 border-primary rounded-none font-medium" href="#">
+<span class="material-symbols-outlined" style="font-size: 16px;">space_dashboard</span>
+<span class="font-label-md text-label-md">Workspace</span>
+</a>
+<!-- Workflow -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline dark:text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" style="font-size: 16px;">account_tree</span>
+<span class="font-label-md text-label-md">Workflow</span>
+</a>
+<!-- Agentes -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline dark:text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" style="font-size: 16px;">smart_toy</span>
+<span class="font-label-md text-label-md">Agentes</span>
+</a>
+<!-- Personalidades -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline dark:text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" style="font-size: 16px;">psychology</span>
+<span class="font-label-md text-label-md">Personalidades</span>
+</a>
+<!-- Specs -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline dark:text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" style="font-size: 16px;">description</span>
+<span class="font-label-md text-label-md">Specs</span>
+</a>
+<!-- MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline dark:text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" style="font-size: 16px;">hub</span>
+<span class="font-label-md text-label-md">MCP Hub</span>
+</a>
+</nav>
+</div>
+<!-- Rodapé da Sidebar -->
+<div class="px-space-md pt-2 border-t border-outline-variant/20 flex flex-col gap-1">
+<a class="flex items-center gap-space-sm px-2 py-1.5 text-outline hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined" style="font-size: 16px;">settings</span>
+<span class="font-label-md text-label-md">Configurações</span>
+</a>
+<div class="mt-2 p-1.5 bg-surface-container-low/60 rounded-lg flex items-center justify-between text-outline">
+<div class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary-container animate-pulse"></span>
+<span class="font-code-sm text-code-sm">RPC :8090</span>
+</div>
+<span class="font-code-sm text-code-sm text-outline-variant">3ms</span>
+</div>
+</div>
+</aside>
+<!-- ========================================================================= -->
+<!-- BARRA SUPERIOR FIXA DO ATLAS (48px)                                      -->
+<!-- ========================================================================= -->
+<header class="fixed top-0 right-0 left-[216px] h-12 flex items-center justify-between px-space-lg z-30 border-b border-outline-variant/30 bg-surface-container-lowest">
+<!-- Breadcrumb -->
+<div class="flex items-center gap-1.5 text-outline font-label-md text-label-md">
+<span class="text-on-surface/80 hover:text-on-surface cursor-pointer">Atlas</span>
+<span class="text-outline-variant">/</span>
+<span class="text-on-surface/80 hover:text-on-surface cursor-pointer">Workspace</span>
+<span class="text-outline-variant">/</span>
+<span class="text-on-surface/80 hover:text-on-surface cursor-pointer font-medium">Transport ERP</span>
+<span class="text-outline-variant">/</span>
+<span class="text-primary font-medium flex items-center gap-1 bg-surface-container px-2 py-0.5 rounded-lg border border-outline-variant/30">
+<span class="material-symbols-outlined text-primary" style="font-size: 13px;">smart_toy</span>
+        Agente — Detalhes e permissões
+      </span>
+</div>
+<!-- Ações e Controles à Direita -->
+<div class="flex items-center gap-space-md">
+<!-- Botão "Celular" (Dispositivo remoto/pairing) -->
+<button class="flex items-center gap-1.5 px-2.5 py-1 bg-surface-container hover:bg-surface-container-high border border-outline-variant/40 rounded-lg text-outline hover:text-on-surface transition-colors font-label-md text-label-md">
+<span class="material-symbols-outlined" style="font-size: 14px;">smartphone</span>
+<span>Celular</span>
+</button>
+<!-- Alternância PT/EN -->
+<div class="flex items-center bg-surface-container-low border border-outline-variant/30 rounded-lg p-0.5 font-code-sm text-code-sm">
+<span class="px-1.5 py-0.5 bg-surface-container-high text-primary font-semibold rounded">PT</span>
+<span class="px-1.5 py-0.5 text-outline hover:text-on-surface cursor-pointer">EN</span>
+</div>
+<div class="h-4 w-[1px] bg-outline-variant/40"></div>
+<!-- Ícones de Status e Sistema -->
+<button class="text-outline hover:text-on-surface p-1 rounded hover:bg-surface-container transition-colors" title="Console Terminal">
+<span class="material-symbols-outlined" style="font-size: 17px;">terminal</span>
+</button>
+<button class="text-outline hover:text-on-surface p-1 rounded hover:bg-surface-container relative transition-colors" title="Notificações">
+<span class="material-symbols-outlined" style="font-size: 17px;">notifications</span>
+<span class="absolute top-1 right-1 w-1.5 h-1.5 bg-tertiary-container rounded-full"></span>
+</button>
+<button class="text-outline hover:text-on-surface p-1 rounded hover:bg-surface-container transition-colors" title="Ajustes rápidos">
+<span class="material-symbols-outlined" style="font-size: 17px;">tune</span>
+</button>
+<!-- Avatar do Operador -->
+<div class="flex items-center gap-2 pl-1 border-l border-outline-variant/30">
+<div class="w-6 h-6 rounded-lg bg-surface-variant border border-outline-variant/60 flex items-center justify-center text-primary font-code-sm font-semibold text-xs">
+          OP
+        </div>
+</div>
+</div>
+</header>
+<!-- ========================================================================= -->
+<!-- CANVAS CENTRAL (Transport ERP) - SOB O SCRIM BLURRADO                     -->
+<!-- ========================================================================= -->
+<main class="ml-[216px] mt-12 w-[calc(100vw-216px)] h-[calc(100vh-48px)] bg-surface relative overflow-hidden flex flex-col">
+<!-- Conteúdo do Workspace visível sob a névoa estrutural -->
+<div class="w-full h-full p-4 grid grid-cols-12 gap-3 opacity-35 filter blur-[2px] pointer-events-none select-none">
+<!-- Painel Esquerdo do Workspace: Árvore de Código e Contexto -->
+<div class="col-span-3 bg-surface-container-low border border-outline-variant/30 rounded-lg p-3 flex flex-col gap-2">
+<div class="flex items-center justify-between pb-2 border-b border-outline-variant/20">
+<span class="font-label-md text-label-md text-on-surface font-semibold">ARQUIVOS DO SERVIÇO</span>
+<span class="font-code-sm text-code-sm text-outline">v1.14</span>
+</div>
+<div class="font-code-sm text-code-sm text-outline flex flex-col gap-1.5 mt-1">
+<div class="flex items-center gap-1.5 text-primary"><span class="material-symbols-outlined" style="font-size: 14px;">folder_open</span> billing-service</div>
+<div class="pl-4 flex items-center gap-1.5"><span class="material-symbols-outlined" style="font-size: 13px;">description</span> payment_router.go</div>
+<div class="pl-4 flex items-center gap-1.5"><span class="material-symbols-outlined" style="font-size: 13px;">description</span> idempotency_store.go</div>
+<div class="pl-4 flex items-center gap-1.5 text-secondary"><span class="material-symbols-outlined" style="font-size: 13px;">description</span> ledger_reconcile.go</div>
+<div class="pl-4 flex items-center gap-1.5"><span class="material-symbols-outlined" style="font-size: 13px;">folder</span> tests/e2e</div>
+<div class="pl-4 flex items-center gap-1.5"><span class="material-symbols-outlined" style="font-size: 13px;">settings</span> harness.yaml</div>
+</div>
+</div>
+<!-- Painel Central do Workspace: Editor e Diff -->
+<div class="col-span-6 bg-surface-container-lowest border border-outline-variant/30 rounded-lg p-3 font-code-sm text-code-sm text-outline flex flex-col justify-between">
+<div class="flex items-center justify-between pb-2 border-b border-outline-variant/20 font-label-md">
+<span class="text-on-surface">idempotency_store.go — Inspeção de Concorrência</span>
+<span class="text-outline">Git: main*</span>
+</div>
+<div class="space-y-1 text-on-surface-variant font-code-sm">
+<p><span class="text-outline-variant">014</span> func (s *Store) LockKey(ctx context.Context, key string) error {</p>
+<p class="bg-surface-container-high/60 text-secondary"><span class="text-outline-variant">015</span> +   span := tracer.Start(ctx, "billing.acquire_lock")</p>
+<p><span class="text-outline-variant">016</span>     defer span.End()</p>
+<p><span class="text-outline-variant">017</span>     return s.redis.SetNX(ctx, key, os.Getenv("POD_ID"), 30*time.Second)</p>
+<p><span class="text-outline-variant">018</span> }</p>
+</div>
+<div class="p-2 bg-surface-container rounded border border-outline-variant/20 flex items-center justify-between">
+<span>Terminal integrado: atlas-worker active</span>
+<span class="text-primary">EXIT 0</span>
+</div>
+</div>
+<!-- Painel Direito de Fundo: Telemetria e MCP -->
+<div class="col-span-3 bg-surface-container-low border border-outline-variant/30 rounded-lg p-3 flex flex-col gap-2">
+<div class="text-label-md text-on-surface font-semibold">SERVIDORES MCP ATIVOS</div>
+<div class="font-code-sm text-code-sm text-outline space-y-1">
+<div class="flex items-center justify-between"><span>postgresql-mcp</span><span class="text-secondary">conectado</span></div>
+<div class="flex items-center justify-between"><span>docker-engine</span><span class="text-secondary">conectado</span></div>
+<div class="flex items-center justify-between"><span>filesystem-sandbox</span><span class="text-primary">ativo</span></div>
+</div>
+</div>
+</div>
+<!-- BACKDROP SCRIM ESCURO EXCLUSIVO DO DRAWER (rgba(0,0,0,0.4) + blur 12px) -->
+<div class="absolute inset-0 bg-black/40 backdrop-blur-[12px] z-40 transition-all pointer-events-auto"></div>
+<!-- ========================================================================= -->
+<!-- PAINEL LATERAL DIREITO (DRAWER / SHEET DE 420px)                         -->
+<!-- ========================================================================= -->
+<section class="absolute top-0 right-0 w-[420px] h-full bg-[#101317] border-l border-[#242c37] z-50 flex flex-col shadow-2xl overflow-hidden">
+<!-- 1. CABEÇALHO DO PAINEL -->
+<header class="p-4 border-b border-[#242c37] bg-[#15191e]/80 shrink-0">
+<div class="flex items-start justify-between gap-3">
+<div class="flex flex-col">
+<!-- Selo de Estado + Título -->
+<div class="flex items-center gap-2 mb-1">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#10b981]/10 border border-[#10b981]/30 text-[#10b981] font-label-sm text-label-sm tracking-wider">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse"></span>
+                PRONTO
+              </span>
+<span class="text-code-sm font-code-sm text-[#94a3b8]">• agt_arch_092a</span>
+</div>
+<h1 class="text-headline-sm font-headline-sm font-semibold text-white tracking-tight">
+              Arquiteto Backend
+            </h1>
+<!-- Linha com Metadados em JetBrains Mono -->
+<p class="font-code-sm text-code-sm text-[#94a3b8] mt-1 flex items-center gap-1.5">
+<span>Arquiteto</span>
+<span class="text-[#242c37]">•</span>
+<span>Claude CLI</span>
+<span class="text-[#242c37]">•</span>
+<span>Anthropic</span>
+<span class="text-[#242c37]">•</span>
+<span class="text-primary font-medium">sonnet</span>
+</p>
+</div>
+<!-- Ações Superiores (Fechar e Menu) -->
+<div class="flex items-center gap-1">
+<button class="text-[#94a3b8] hover:text-white p-1 rounded-lg hover:bg-[#1c2128] transition-colors" title="Mais opções">
+<span class="material-symbols-outlined" style="font-size: 16px;">more_vert</span>
+</button>
+<button class="text-[#94a3b8] hover:text-white p-1 rounded-lg hover:bg-[#1c2128] transition-colors" onclick="console.log('Fechar gaveta')" title="Fechar painel">
+<span class="material-symbols-outlined" style="font-size: 18px;">close</span>
+</button>
+</div>
+</div>
+<!-- RESUMO FIXO COMPACTO NO TOPO DO PAINEL -->
+<div class="mt-3 grid grid-cols-2 gap-2 p-2 bg-[#0b0d10] border border-[#242c37] rounded-lg">
+<div class="flex flex-col justify-center px-1">
+<span class="font-label-sm text-label-sm text-[#94a3b8]">CONSUMO HOJE</span>
+<span class="font-code-md text-code-md text-white font-semibold">US$ 0,82</span>
+</div>
+<div class="flex flex-col justify-center items-end px-1 border-l border-[#242c37]">
+<span class="font-label-sm text-label-sm text-[#94a3b8]">PERFIL ATUAL</span>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 mt-0.5 rounded bg-[#6366f1]/15 text-primary border border-[#6366f1]/30 font-label-md text-label-md font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-[#6366f1]"></span>
+              Desenvolvedor
+            </span>
+</div>
+</div>
+</header>
+<!-- 2. CORPO ROLÁVEL COM SEÇÕES RECOLHÍVEIS -->
+<div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
+<!-- SEÇÃO 1: PERMISSÕES -->
+<div class="border border-[#242c37] rounded-lg bg-[#15191e] overflow-hidden">
+<div class="px-3 py-2 bg-[#1c2128]/70 border-b border-[#242c37] flex items-center justify-between cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#94a3b8]" style="font-size: 15px;">keyboard_arrow_down</span>
+<span class="font-label-md text-label-md font-medium text-white">Permissões de execução</span>
+</div>
+<span class="font-code-sm text-code-sm text-primary">Nível 2</span>
+</div>
+<div class="p-3 space-y-3">
+<!-- Seletor de Perfil -->
+<div class="flex flex-col gap-1.5 pb-3 border-b border-[#242c37]/60">
+<label class="font-label-sm text-label-sm text-[#94a3b8]">Perfil de acesso</label>
+<div class="relative">
+<select class="w-full bg-[#0b0d10] border border-[#242c37] text-white font-body-md text-body-md rounded-lg py-1.5 px-2.5 appearance-none focus:outline-none focus:border-[#6366f1] transition-colors cursor-pointer">
+<option value="readonly">Somente leitura</option>
+<option selected="" value="developer">Desenvolvedor (Leitura, escrita e comandos locais)</option>
+<option value="admin">Administrador (Acesso irrestrito ao host)</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-2.5 text-[#94a3b8] pointer-events-none" style="font-size: 14px;">unfold_more</span>
+</div>
+</div>
+<!-- 4 Linhas Compactas de Permissão -->
+<div class="space-y-2">
+<!-- a) Sistema de arquivos -->
+<div class="flex items-start gap-2.5 p-2 bg-[#101317] border border-[#242c37]/50 rounded-lg">
+<span class="material-symbols-outlined text-[#94a3b8] mt-0.5" style="font-size: 15px;">folder</span>
+<div class="flex flex-col flex-1">
+<span class="font-label-md text-label-md text-white font-medium">Sistema de arquivos</span>
+<span class="font-code-sm text-code-sm text-[#94a3b8] mt-0.5">Somente a pasta do projeto · leitura + escrita</span>
+</div>
+<span class="font-code-sm text-code-sm text-[#10b981] bg-[#10b981]/10 px-1.5 py-0.5 rounded">limitado</span>
+</div>
+<!-- b) Processos -->
+<div class="flex items-start gap-2.5 p-2 bg-[#101317] border border-[#242c37]/50 rounded-lg">
+<span class="material-symbols-outlined text-[#94a3b8] mt-0.5" style="font-size: 15px;">terminal</span>
+<div class="flex flex-col flex-1">
+<span class="font-label-md text-label-md text-white font-medium">Processos</span>
+<span class="font-code-sm text-code-sm text-[#94a3b8] mt-0.5">Comandos de desenvolvimento</span>
+</div>
+<span class="font-code-sm text-code-sm text-primary bg-[#6366f1]/10 px-1.5 py-0.5 rounded">sandbox</span>
+</div>
+<!-- c) Git com aviso âmbar -->
+<div class="flex flex-col gap-1.5 p-2 bg-[#101317] border border-[#242c37]/50 rounded-lg">
+<div class="flex items-start gap-2.5">
+<span class="material-symbols-outlined text-[#94a3b8] mt-0.5" style="font-size: 15px;">source</span>
+<div class="flex flex-col flex-1">
+<span class="font-label-md text-label-md text-white font-medium">Controle de versão (Git)</span>
+<span class="font-code-sm text-code-sm text-[#94a3b8] mt-0.5">Leitura + escrita</span>
+</div>
+</div>
+<!-- Banner de Aviso Âmbar -->
+<div class="mt-1 flex items-center gap-1.5 p-1.5 bg-[#f59e0b]/10 border border-[#f59e0b]/30 rounded text-[#f59e0b] font-body-sm text-body-sm">
+<span class="material-symbols-outlined shrink-0" style="font-size: 14px;">warning</span>
+<span>Ações destrutivas exigem aprovação prévia</span>
+</div>
+</div>
+<!-- d) Rede -->
+<div class="flex items-start gap-2.5 p-2 bg-[#101317] border border-[#242c37]/50 rounded-lg">
+<span class="material-symbols-outlined text-[#94a3b8] mt-0.5" style="font-size: 15px;">public_off</span>
+<div class="flex flex-col flex-1">
+<span class="font-label-md text-label-md text-white font-medium">Rede externa</span>
+<span class="font-code-sm text-code-sm text-[#94a3b8] mt-0.5">Restrita (apenas endpoints homologados)</span>
+</div>
+<span class="font-code-sm text-code-sm text-[#94a3b8] bg-[#0b0d10] px-1.5 py-0.5 rounded border border-[#242c37]">bloqueada</span>
+</div>
+</div>
+</div>
+</div>
+<!-- SEÇÃO 2: CONTEXTO DO PROJETO -->
+<div class="border border-[#242c37] rounded-lg bg-[#15191e] overflow-hidden">
+<div class="px-3 py-2 bg-[#1c2128]/70 border-b border-[#242c37] flex items-center justify-between cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#94a3b8]" style="font-size: 15px;">keyboard_arrow_down</span>
+<span class="font-label-md text-label-md font-medium text-white">Contexto do projeto</span>
+</div>
+<div class="flex items-center gap-1 text-[#10b981] font-code-sm text-code-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+              Sincronizado
+            </div>
+</div>
+<div class="p-3 space-y-2.5 font-body-sm">
+<div class="flex items-center justify-between p-2 bg-[#101317] border border-[#242c37]/50 rounded-lg">
+<span class="text-[#94a3b8]">Harness de validação</span>
+<span class="font-code-sm text-code-sm text-white flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-[#10b981]"></span>
+                Harness: Carregado
+              </span>
+</div>
+<div class="space-y-1.5 px-1">
+<div class="flex justify-between items-center text-[#94a3b8]">
+<span>Escopo principal:</span>
+<span class="font-code-sm text-code-sm text-white">billing-service (backend)</span>
+</div>
+<div class="flex justify-between items-center text-[#94a3b8]">
+<span>Arquivos mapeados:</span>
+<span class="font-code-sm text-code-sm text-white">14 arquivos de contrato</span>
+</div>
+<div class="flex justify-between items-center text-[#94a3b8]">
+<span>Diretrizes:</span>
+<span class="font-label-md text-label-md text-primary bg-[#6366f1]/10 px-1.5 py-0.5 rounded border border-[#6366f1]/20">regras de arquitetura ativas</span>
+</div>
+</div>
+</div>
+</div>
+<!-- SEÇÃO 3: ÚLTIMA EXECUÇÃO -->
+<div class="border border-[#242c37] rounded-lg bg-[#15191e] overflow-hidden">
+<div class="px-3 py-2 bg-[#1c2128]/70 border-b border-[#242c37] flex items-center justify-between cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#94a3b8]" style="font-size: 15px;">keyboard_arrow_down</span>
+<span class="font-label-md text-label-md font-medium text-white">Última execução</span>
+</div>
+<span class="font-code-sm text-code-sm text-[#10b981]">OK (14s)</span>
+</div>
+<div class="p-3 space-y-2 bg-[#101317]">
+<div class="flex items-center justify-between font-code-sm text-code-sm text-[#94a3b8]">
+<span>Hoje às 14:28:04</span>
+<span>Duração: 14s</span>
+</div>
+<div class="p-2 bg-[#0b0d10] border border-[#242c37] rounded-lg">
+<div class="font-label-sm text-label-sm text-[#94a3b8] mb-0.5">COMANDO / PROMPT RESUMIDO</div>
+<p class="font-body-sm text-white font-medium">Análise de Idempotência do Módulo Billing</p>
+</div>
+<div class="flex items-center justify-between pt-1">
+<span class="font-label-sm text-label-sm text-[#94a3b8]">RESULTADO DA OPERAÇÃO</span>
+<span class="font-code-sm text-code-sm text-[#10b981] flex items-center gap-1">
+<span class="material-symbols-outlined" style="font-size: 14px;">check_circle</span>
+                Sucesso (2 achados registrados)
+              </span>
+</div>
+</div>
+</div>
+<!-- SEÇÃO 4: CONSUMO DE TOKENS -->
+<div class="border border-[#242c37] rounded-lg bg-[#15191e] overflow-hidden">
+<div class="px-3 py-2 bg-[#1c2128]/70 border-b border-[#242c37] flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#94a3b8]" style="font-size: 15px;">keyboard_arrow_down</span>
+<span class="font-label-md text-label-md font-medium text-white">Consumo de telemetria</span>
+</div>
+<span class="font-code-sm text-code-sm text-[#94a3b8]">Agregado</span>
+</div>
+<div class="p-3">
+<table class="w-full text-left font-body-sm">
+<thead>
+<tr class="border-b border-[#242c37] text-[#94a3b8] font-label-sm text-label-sm">
+<th class="pb-1.5 font-medium">Período</th>
+<th class="pb-1.5 font-medium text-right">Tokens</th>
+<th class="pb-1.5 font-medium text-right">Custo</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-[#242c37]/50 font-code-sm text-code-sm">
+<tr>
+<td class="py-1.5 text-white">Esta conversa</td>
+<td class="py-1.5 text-right text-[#94a3b8]">12.4k</td>
+<td class="py-1.5 text-right text-white font-medium">US$ 0,18</td>
+</tr>
+<tr>
+<td class="py-1.5 text-white">Hoje</td>
+<td class="py-1.5 text-right text-[#94a3b8]">48.2k</td>
+<td class="py-1.5 text-right text-white font-medium">US$ 0,82</td>
+</tr>
+<tr>
+<td class="py-1.5 text-white">Semana</td>
+<td class="py-1.5 text-right text-[#94a3b8]">182.9k</td>
+<td class="py-1.5 text-right text-white font-medium">US$ 3,12</td>
+</tr>
+</tbody>
+</table>
+<div class="mt-2.5 pt-2 border-t border-[#242c37]/60 flex items-start gap-1.5 text-[#94a3b8] font-body-sm leading-tight text-xs">
+<span class="material-symbols-outlined shrink-0 text-[#94a3b8]" style="font-size: 13px;">info</span>
+<span>Modelos pelo Atlas: custo e tokens informados pelas execuções.</span>
+</div>
+</div>
+</div>
+<!-- SEÇÃO 5: DADOS DO AGENTE -->
+<div class="border border-[#242c37] rounded-lg bg-[#15191e] overflow-hidden">
+<div class="px-3 py-2 bg-[#1c2128]/70 border-b border-[#242c37] flex items-center justify-between cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#94a3b8]" style="font-size: 15px;">keyboard_arrow_down</span>
+<span class="font-label-md text-label-md font-medium text-white">Dados do agente</span>
+</div>
+<span class="font-code-sm text-code-sm text-[#94a3b8]">Kernel v2</span>
+</div>
+<div class="p-3 space-y-2 font-code-sm text-code-sm">
+<!-- ID com Botão Copiar -->
+<div class="flex items-center justify-between p-1.5 bg-[#0b0d10] border border-[#242c37] rounded">
+<span class="text-[#94a3b8]">ID do Agente:</span>
+<div class="flex items-center gap-1.5 text-white font-medium">
+<span>agt_arch_092a</span>
+<button class="text-[#94a3b8] hover:text-white transition-colors" title="Copiar identificador">
+<span class="material-symbols-outlined" style="font-size: 14px;">content_copy</span>
+</button>
+</div>
+</div>
+<!-- Runtime Path -->
+<div class="flex flex-col gap-0.5">
+<span class="font-label-sm text-label-sm text-[#94a3b8]">RUNTIME PATH</span>
+<div class="p-1.5 bg-[#0b0d10] border border-[#242c37] rounded text-white truncate">
+                /usr/local/bin/claude
+              </div>
+</div>
+<!-- Isolamento / Worktree -->
+<div class="flex flex-col gap-0.5">
+<span class="font-label-sm text-label-sm text-[#94a3b8]">ISOLAMENTO DE AMBIENTE</span>
+<div class="p-1.5 bg-[#0b0d10] border border-[#242c37] rounded text-primary truncate">
+                Git worktree ativo em .atlas/worktrees/arch-01
+              </div>
+</div>
+<!-- Data de Criação -->
+<div class="flex items-center justify-between pt-1 text-[#94a3b8] font-body-sm text-xs">
+<span>Registrado no cluster:</span>
+<span class="font-code-sm text-code-sm text-white">28 de set. de 2026</span>
+</div>
+</div>
+</div>
+</div>
+<!-- 3. RODAPÉ FIXO DO PAINEL COM AÇÕES PRINCIPAIS -->
+<footer class="p-3.5 bg-[#15191e] border-t border-[#242c37] shrink-0 flex items-center justify-between gap-2.5">
+<button class="flex-1 py-1.5 px-3 bg-[#101317] hover:bg-[#1c2128] border border-[#242c37] hover:border-[#2d3748] rounded text-white font-label-md text-label-md transition-colors flex items-center justify-center gap-1.5">
+<span class="material-symbols-outlined" style="font-size: 15px;">tune</span>
+<span>Configurar regras</span>
+</button>
+<button class="flex-1 py-1.5 px-3 bg-[#6366f1] hover:bg-[#4f46e5] text-white rounded font-label-md text-label-md font-medium shadow-sm transition-colors flex items-center justify-center gap-1.5">
+<span class="material-symbols-outlined" style="font-size: 15px;">save</span>
+<span>Salvar alterações</span>
+</button>
+</footer>
+</section>
+</main>
+</body></html>
