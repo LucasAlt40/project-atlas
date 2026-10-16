@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
-use super::cli::{self, CliNeeds};
+use super::cli::{self, ConfinementRegistry, RuntimeConfinement};
 use super::profile::{self, GitLayout, ProfileInput};
 use super::{Prepared, SandboxProvider, SandboxRefusal, SandboxRequest};
 use crate::application::process::ProcessSpec;
@@ -19,6 +19,8 @@ const SANDBOX_EXEC: &str = "/usr/bin/sandbox-exec";
 const KEEP: Duration = Duration::from_secs(24 * 60 * 60);
 
 pub struct MacosSandbox {
+    /// What each runtime's CLI needs (**Strategy**, found by program name).
+    confinements: ConfinementRegistry,
     settings: Arc<dyn Fn() -> SandboxSettings + Send + Sync>,
     /// Where profiles and the executions' temporary folders live (Atlas's own data folder).
     work_dir: PathBuf,
@@ -30,8 +32,10 @@ impl MacosSandbox {
     pub fn new(
         settings: Arc<dyn Fn() -> SandboxSettings + Send + Sync>,
         work_dir: PathBuf,
+        confinements: ConfinementRegistry,
     ) -> Self {
         Self {
+            confinements,
             settings,
             work_dir,
             tool: PathBuf::from(SANDBOX_EXEC),
@@ -87,7 +91,7 @@ impl MacosSandbox {
         &self,
         mut spec: ProcessSpec,
         request: &SandboxRequest<'_>,
-        needs: CliNeeds,
+        strategy: &dyn RuntimeConfinement,
         program: &Path,
         settings: SandboxSettings,
     ) -> Result<Prepared, SandboxRefusal> {
@@ -105,6 +109,7 @@ impl MacosSandbox {
         let worktree = cwd
             .canonicalize()
             .map_err(|e| failed(format!("working directory: {e}")))?;
+        let needs = strategy.needs();
         let uid = uid_of(&home);
 
         let execution = request.scope.execution_id.as_str();
@@ -136,7 +141,7 @@ impl MacosSandbox {
         let (git, deny_write) = git_layout(&worktree);
         // A CLI with a sandbox of its own cannot apply it inside ours: it hands the confinement
         // over to the profile, which then also carries what that sandbox enforced.
-        let adapted = cli::adapt_to_confinement(&spec.program, &mut spec.args);
+        let adapted = strategy.adapt(&mut spec.args);
         let input = ProfileInput {
             worktree,
             // A run in its own worktree is reviewed before anything reaches the project; one in
@@ -217,10 +222,10 @@ impl SandboxProvider for MacosSandbox {
                 "platform"
             });
         }
-        let Some(needs) = cli::needs(&spec.program) else {
+        let Some(strategy) = self.confinements.find(&spec.program) else {
             return cannot("unknown_runtime");
         };
-        match self.confine(spec.clone(), request, needs, program, settings) {
+        match self.confine(spec.clone(), request, strategy, program, settings) {
             Ok(prepared) => Ok(prepared),
             Err(SandboxRefusal::Unavailable(why)) => cannot(&why),
             // A profile that could not be made is never skipped quietly, in either mode.
@@ -376,7 +381,12 @@ mod tests {
     }
 
     fn provider(w: &World, settings: SandboxSettings) -> MacosSandbox {
-        MacosSandbox::new(Arc::new(move || settings), w.base.join("data")).with_home(w.home.clone())
+        MacosSandbox::new(
+            Arc::new(move || settings),
+            w.base.join("data"),
+            crate::application::runtimes::confinement::default_confinements(),
+        )
+        .with_home(w.home.clone())
     }
 
     fn spec(program: &str, cwd: &Path, args: &[&str]) -> ProcessSpec {

@@ -85,6 +85,15 @@ Três modos (`SandboxMode`): `off` (padrão), `auto` e `required`.
 - O modo `off` não diz nada (nada mudou). O padrão é `off` porque o confinamento muda o comportamento e a primeira
   tarefa real com ferramentas ainda não foi observada.
 
+### 5b. O que se sabe de cada CLI é uma Strategy, não um `match`
+
+`RuntimeConfinement` (porta, em `sandbox/cli.rs`) tem uma implementação por runtime em `runtimes/confinement.rs` (**Strategy**),
+listadas numa fábrica (`default_confinements`, **Factory**) e achadas pelo nome do programa num `ConfinementRegistry`
+(**Registry**). Cada uma diz o que a CLI escreve (`needs`) e, se for preciso, como seus argumentos mudam dentro do
+confinamento (`adapt`; só o Codex muda). O provedor do macOS não conhece nenhum runtime pelo nome. Um runtime novo é uma
+`impl` e uma linha na fábrica, e um teste falha enquanto um programa de `RUNTIME_PROGRAMS` não tiver estratégia. O mesmo molde
+já era usado para o MCP (`mcp_adapter.rs`).
+
 ### 6. Onde fica na arquitetura
 
 `GuardedProcessRunner` chama o provedor com a política, o escopo da execução e o caminho do programa (`locate`). O

@@ -292,6 +292,7 @@ fn build_state(
             Arc::new(move || config.read(|c| c.settings.sandbox))
         },
         data_dir.join("sandbox"),
+        application::runtimes::confinement::default_confinements(),
     ));
     let runner: Arc<dyn ProcessRunner> = Arc::new(
         GuardedProcessRunner::new(

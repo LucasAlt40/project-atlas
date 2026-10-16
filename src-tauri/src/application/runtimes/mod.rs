@@ -4,6 +4,7 @@ mod claude_mcp;
 mod cli;
 mod codex;
 mod codex_mcp;
+pub mod confinement;
 mod delivery;
 #[cfg(test)]
 pub(crate) mod detect_only;

@@ -2389,6 +2389,8 @@ mod memory_tests;
 #[cfg(test)]
 mod real_runtime_tests;
 #[cfg(test)]
+mod real_support;
+#[cfg(test)]
 mod rules_tests;
 #[cfg(test)]
 mod sandbox_real_tests;

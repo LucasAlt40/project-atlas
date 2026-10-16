@@ -10,30 +10,11 @@
 
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::sync::Arc;
 
+use super::real_support::{git, RealWorld, Setup};
 use super::*;
-use crate::application::agents::CreateAgentRequest;
-use crate::application::config::memory::MemoryStore;
-use crate::application::config::ConfigRepository;
-use crate::application::optimization::FixedFlags;
-use crate::application::process::ProcessRunner;
-use crate::application::projects::fake::FakeInspector;
-use crate::application::security::testutil::TempDir;
-use crate::application::security::{
-    ApprovalBroker, AuditLog, GuardedProcessRunner, MacosSandbox, SecurityService,
-};
-use crate::application::sessions::SessionRegistry;
-use crate::application::workspace::WorkspaceInput;
-use crate::domain::security::{SandboxMode, SandboxSettings};
-
-#[derive(Default)]
-struct Quiet;
-
-impl ExecutionObserver for Quiet {
-    fn on_event(&self, _event: &ExecutionEvent) {}
-}
+use crate::domain::memory::MemorySettings;
+use crate::domain::security::SandboxMode;
 
 /// The task of run A. Atlas gives some runtimes only file tools (Claude, Antigravity), and others a
 /// shell as well (`OpenCode`, Codex): a shell-capable runtime is also asked to use it, so the shell
@@ -87,141 +68,29 @@ the word DONE.",
     task
 }
 
-fn git(dir: &Path, args: &[&str]) -> String {
-    let out = Command::new("git")
-        .args(["-c", "user.email=a@b", "-c", "user.name=a"])
-        .args(args)
-        .current_dir(dir)
-        .output()
-        .unwrap();
-    String::from_utf8_lossy(&out.stdout).trim().to_owned()
-}
-
 struct Outcome {
     record: ExecutionRecord,
     project: PathBuf,
-    _dir: TempDir,
+    _world: RealWorld,
 }
 
 fn home() -> PathBuf {
     PathBuf::from(std::env::var("HOME").expect("HOME"))
 }
 
-#[allow(clippy::too_many_lines)] // one world, built once
 fn run_confined(runtime_id: &str, model: &str, prompt: &dyn Fn(&Path) -> String) -> Outcome {
-    let dir = TempDir::new(&format!("sbx-real-{runtime_id}"));
-    let project = dir.path().join("project");
-    std::fs::create_dir_all(&project).unwrap();
-    git(&project, &["init", "-q", "-b", "main"]);
-    std::fs::write(project.join("README.md"), "test project\n").unwrap();
-    git(&project, &["add", "."]);
-    git(&project, &["commit", "-q", "-m", "init"]);
-
-    let path = project.to_string_lossy().into_owned();
-    let config = Arc::new(ConfigRepository::load(Box::<MemoryStore>::default()));
-    let security = Arc::new(SecurityService::new(config.clone()));
-    let sessions = Arc::new(SessionRegistry::default());
-    let audit = Arc::new(AuditLog::default());
-    let sandbox = Arc::new(MacosSandbox::new(
-        Arc::new(|| SandboxSettings {
-            mode: SandboxMode::Required,
-            dev_caches: true,
-        }),
-        dir.path().join("sandbox"),
-    ));
-    assert!(
-        sandbox.available(),
-        "this test needs macOS with sandbox-exec"
-    );
-    let runner: Arc<dyn ProcessRunner> = Arc::new(GuardedProcessRunner::new(
-        Arc::new(crate::infrastructure::SystemProcessRunner::new().with_sessions(sessions.clone())),
-        security.clone(),
-        Arc::new(ApprovalBroker::new()),
-        audit.clone(),
-        sandbox,
-        crate::application::runtimes::RUNTIME_PROGRAMS
-            .map(str::to_owned)
-            .to_vec(),
-    ));
-    let registry = Arc::new(RuntimeRegistry::with_default_runtimes(&runner));
-    let personalities = Arc::new(PersonalityService::new(config.clone()));
-    let agents = Arc::new(AgentService::new(
-        config.clone(),
-        personalities.clone(),
-        registry.clone(),
-    ));
-    let workspaces = Arc::new(WorkspaceService::new(
-        config.clone(),
-        agents.clone(),
-        Arc::new(FakeInspector::with(&[(path.as_str(), &[])])),
-    ));
-    let workspace_id = workspaces
-        .create(&WorkspaceInput {
-            name: "Sandbox".to_owned(),
-            project_path: path,
-            description: None,
-        })
-        .unwrap()
-        .id;
-    let agent = agents
-        .create(CreateAgentRequest {
-            permission_profile_id: Some("developer".to_owned()),
-            name: "dev".to_owned(),
-            personality_id: "architect".to_owned(),
-            runtime_id: runtime_id.to_owned(),
-            model_id: model.to_owned(),
-            instructions: String::new(),
-            worktree_isolation: Some(true),
-            result_contract: None,
-        })
-        .unwrap()
-        .id;
-    config
-        .modify(|c| {
-            for workspace in &mut c.workspaces {
-                workspace.security = crate::domain::security::SecurityPolicy::developer();
-            }
-            Ok(())
-        })
-        .unwrap();
-    let layout = crate::application::worktree::WorktreeLayout::new(dir.path().join("worktrees"));
-    let worktrees = Arc::new(crate::application::worktree::WorktreeService::new(
-        Arc::new(crate::infrastructure::GitWorktreeManager::new(
-            "git".into(),
-            layout.clone(),
-        )),
-        layout,
-        config.clone(),
-        security.clone(),
-    ));
-    let service = ExecutionService::new(agents, personalities, registry, workspaces, audit)
-        .with_optimization(Arc::new(FixedFlags {
-            metrics: true,
-            guardrails: true,
-            ..FixedFlags::default()
-        }))
-        .with_policies(security)
-        .with_worktrees(worktrees)
-        .with_sessions(sessions);
-
-    let record = service
-        .run_step(
-            service.next_execution_id(),
-            RunAgentRequest {
-                task_id: "t".to_owned(),
-                workspace_id,
-                agent_id: agent,
-                description: prompt(&project),
-                scope: None,
-            },
-            StepOptions::default(),
-            &Quiet,
-        )
-        .unwrap();
+    let world = RealWorld::build(&Setup {
+        runtime_id,
+        model,
+        files: &[("README.md", "test project\n")],
+        sandbox: SandboxMode::Required,
+        memory: MemorySettings::default(),
+    });
+    let record = world.run(&prompt(&world.project));
     Outcome {
         record,
-        project,
-        _dir: dir,
+        project: world.project.clone(),
+        _world: world,
     }
 }
 

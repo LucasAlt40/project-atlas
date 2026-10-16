@@ -282,6 +282,7 @@ impl AppState {
             sandbox: Arc::new(crate::application::security::MacosSandbox::new(
                 Arc::new(crate::domain::security::SandboxSettings::default),
                 std::env::temp_dir().join("atlas-test-sandbox"),
+                crate::application::runtimes::confinement::default_confinements(),
             )),
             memory: Arc::new(crate::application::memory::MemoryService::new(
                 Arc::new(crate::application::memory::ports::MemoryMemoryStore::default()),
