@@ -30,12 +30,17 @@ interface Props {
 
 const COLLAPSED_KEY = 'atlas.sidebar.collapsed';
 
+/** Below this width the window has no room for the sidebar, unless the user chose otherwise. */
+const NARROW_WINDOW = 900;
+
 function readCollapsed(): boolean {
   try {
-    return localStorage.getItem(COLLAPSED_KEY) === '1';
+    const stored = localStorage.getItem(COLLAPSED_KEY);
+    if (stored !== null) return stored === '1';
   } catch {
-    return false;
+    // Without storage the window width decides.
   }
+  return window.innerWidth < NARROW_WINDOW;
 }
 
 export function AppShell({

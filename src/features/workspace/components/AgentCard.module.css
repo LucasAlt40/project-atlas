@@ -49,6 +49,7 @@
 }
 .headerTop {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
   min-width: 0;
@@ -364,7 +365,7 @@
 
 .identity {
   display: flex;
-  flex: 1;
+  flex: 1 1 10rem;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2) var(--space-3);

@@ -143,13 +143,15 @@
 /* The run bar and tabs of the agent card. */
 .tabs {
   display: flex;
-  flex-wrap: wrap;
   gap: 0 var(--space-5);
+  overflow-x: auto;
   padding: 0 var(--space-4);
   border-bottom: 1px solid var(--border-subtle);
 }
 .tab {
+  flex: none;
   height: 2.25rem;
+  white-space: nowrap;
   margin-bottom: -1px;
   padding: 0 var(--space-1);
   border: 0;

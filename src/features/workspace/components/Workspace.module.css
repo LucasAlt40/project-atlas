@@ -1,4 +1,5 @@
 .page {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -90,8 +91,18 @@
 .grid {
   display: grid;
   flex: 1;
+  grid-template-columns: repeat(var(--columns, 2), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--rows, 2), minmax(26rem, 1fr));
   min-height: 0;
   gap: var(--space-4);
+}
+/* A narrow page cannot hold two agents side by side: they stack, each at its own height. */
+@container (max-width: 52rem) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-auto-rows: minmax(26rem, auto);
+  }
 }
 .cell {
   min-width: 0;

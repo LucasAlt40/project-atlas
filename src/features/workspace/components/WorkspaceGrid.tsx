@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { useT } from '@/i18n/I18nProvider';
@@ -22,10 +22,12 @@ export function WorkspaceGrid({ workspace, renderAgent, onAdd }: Props) {
   return (
     <div
       className={styles.grid}
-      style={{
-        gridTemplateColumns: `repeat(${String(workspace.layout.columns)}, minmax(0, 1fr))`,
-        gridTemplateRows: `repeat(${String(workspace.layout.rows)}, minmax(26rem, 1fr))`,
-      }}
+      style={
+        {
+          '--columns': workspace.layout.columns,
+          '--rows': workspace.layout.rows,
+        } as CSSProperties
+      }
     >
       {gridCells(workspace).map((cell) => (
         <div

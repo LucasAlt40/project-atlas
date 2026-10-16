@@ -116,7 +116,7 @@
 /* Metrics ----------------------------------------------------------------- */
 .metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
   gap: var(--space-2);
 }
 .metric {
@@ -150,6 +150,9 @@
   min-width: 0;
 }
 .metricLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--font-mono);
   font-size: 0.625rem;
   letter-spacing: 0.06em;
@@ -252,6 +255,12 @@
   align-items: start;
 }
 @media (width < 60rem) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* In the page the columns follow the page, which the sidebar makes narrower than the window. */
+@container (max-width: 56rem) {
   .grid {
     grid-template-columns: minmax(0, 1fr);
   }
