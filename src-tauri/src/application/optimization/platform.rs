@@ -185,6 +185,21 @@ mod tests {
     }
 
     #[test]
+    fn a_manifest_stored_before_memories_existed_still_loads_with_none() {
+        let mut stored = serde_json::to_value(manifest(40, 40, true)).unwrap();
+        let object = stored.as_object_mut().unwrap();
+        // What an execution saved by an earlier Atlas looks like: no notes of earlier work.
+        assert!(object.remove("memories").is_some());
+        assert!(object.remove("memoriesNotRelevant").is_some());
+
+        let loaded: ContextManifest = serde_json::from_value(stored).unwrap();
+
+        assert_eq!(loaded.memories, []);
+        assert_eq!(loaded.memories_not_relevant, 0);
+        assert_eq!(loaded.execution_id, "exec-1");
+    }
+
+    #[test]
     fn the_manifest_carries_the_ids_the_plan_and_the_hash_of_the_payload() {
         let manifest = manifest(40, 40, true);
 

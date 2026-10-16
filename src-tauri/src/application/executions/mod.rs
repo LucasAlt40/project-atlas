@@ -2385,6 +2385,8 @@ mod context_tests;
 #[cfg(test)]
 mod mcp_tests;
 #[cfg(test)]
+mod memory_experiment_tests;
+#[cfg(test)]
 mod memory_tests;
 #[cfg(test)]
 mod real_runtime_tests;

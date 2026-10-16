@@ -567,4 +567,40 @@ mod tests {
         );
         assert_eq!(failing.agents(), []);
     }
+
+    #[test]
+    fn settings_saved_before_memory_and_the_sandbox_existed_load_with_both_off() {
+        let old = r#"{"language":"pt-BR","selectedWorkspaceId":"w1",
+            "optimization":{"metricsEnabled":true,"contextEnabled":false,"skillsEnabled":false,
+            "guardrailsEnabled":true,"specsMaxTokens":1000}}"#;
+
+        let settings: AppSettings = serde_json::from_str(old).unwrap();
+
+        assert_eq!(
+            settings.optimization.memory,
+            crate::domain::memory::MemorySettings::default()
+        );
+        assert!(!settings.optimization.memory.any_on());
+        assert_eq!(
+            settings.sandbox.mode,
+            crate::domain::security::SandboxMode::Off
+        );
+        // What was there is untouched.
+        assert_eq!(settings.selected_workspace_id.as_deref(), Some("w1"));
+        assert_eq!(settings.optimization.specs_max_tokens, Some(1000));
+    }
+
+    #[test]
+    fn a_whole_old_config_file_with_no_memory_or_sandbox_still_loads() {
+        let config: UserConfig = serde_json::from_str(
+            r#"{"personalities":[],"agents":[],"settings":{"language":"en-US"}}"#,
+        )
+        .unwrap();
+
+        assert_eq!(config.settings.language, "en-US");
+        assert_eq!(
+            config.settings.sandbox,
+            crate::domain::security::SandboxSettings::default()
+        );
+    }
 }
