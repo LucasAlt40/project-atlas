@@ -145,6 +145,15 @@ pub trait ModelRuntime: Send + Sync {
         false
     }
 
+    /// Whether the commands this runtime's tools may run really run in an execution Atlas
+    /// launches, which decides what the prompt tells the agent it can do. By default what
+    /// `tool_access` says the tools could do; a runtime whose headless mode refuses commands
+    /// overrides it. Telling an agent it may run commands it will be refused makes it try, and a
+    /// refused command ends such a run as a failure (measured on Antigravity, `memory-m4-results.md`).
+    fn runs_commands(&self) -> bool {
+        self.info().capabilities.tool_access.process_execution
+    }
+
     /// The payload this runtime hands to its process for `request`. `execute` must take its
     /// prompt from here and nowhere else: the Context Manifest hashes this very value, so what was
     /// hashed is what was delivered. The default follows the runtime's declared

@@ -22,6 +22,14 @@ const PROGRAM: &str = "agy";
 /// Idle limit: silence from the CLI (long thinking or a slow tool) for this long ends the run.
 const RUN_TIMEOUT: Duration = Duration::from_secs(900);
 const LIST_TIMEOUT: Duration = Duration::from_secs(60);
+/// How many times a run that ended on a refused command is continued before it counts as failed.
+const MAX_RESUMES: usize = 2;
+/// What the agent is told when it is continued. The headless mode refuses every command but a few
+/// simple read-only ones, and ends the turn on the first refusal; the conversation goes on from
+/// where it stopped (its files and context are kept) once the agent knows it cannot use a shell.
+const AFTER_REFUSED_COMMAND: &str = "That command was refused: this run cannot run shell commands \
+(only a few simple read-only ones). Do not try another command, and do not try to check your work \
+with one. Finish the task with your file tools only, then write your final answer.";
 
 /// Runtime for the Antigravity CLI (`agy`), using the user's existing Google sign-in.
 ///
@@ -71,6 +79,13 @@ pub fn parse_mcp_list(output: &str) -> Vec<CliServer> {
 }
 
 impl ModelRuntime for AntigravityRuntime {
+    /// The headless mode refuses every command (`--mode accept-edits` approves file edits only),
+    /// unless the user allowed some in their own `settings.json`, which Atlas cannot see and does
+    /// not touch. The agent is told it cannot run any: a run in which it tries one ends there.
+    fn runs_commands(&self) -> bool {
+        false
+    }
+
     fn configured_mcp_servers(&self) -> Option<Vec<CliServer>> {
         self.runner.locate(PROGRAM)?;
         let spec = ProcessSpec {
@@ -219,12 +234,54 @@ impl ModelRuntime for AntigravityRuntime {
             context: ProcessContext::Runtime(request.scope.clone()),
             terminal: delivery.terminal,
         };
-        let output = cli::execute(self.runner.as_ref(), &spec, progress, &|line| {
+        let on_line = |line: &str| {
             if let Some(event) = stream_event(line) {
                 progress(event);
             }
-        })?;
-        parse_run_output(&output, &request.model_id)
+        };
+        let mut output = cli::execute(self.runner.as_ref(), &spec, progress, &on_line)?;
+        // The turn ended on a refused command with the work unfinished: continue the same
+        // conversation (the CLI's `--conversation`), telling the agent what it cannot do. The
+        // usage in the last `result` already counts the whole conversation.
+        let mut resumed = 0;
+        while resumed < MAX_RESUMES {
+            let Some(conversation) = refused_command_conversation(&output) else {
+                break;
+            };
+            let mut args = [
+                "--output-format",
+                "stream-json",
+                "--model",
+                &request.model_id,
+            ]
+            .map(str::to_owned)
+            .to_vec();
+            if request.allow_edits && !request.text_only {
+                args.extend(["--mode".to_owned(), "accept-edits".to_owned()]);
+            }
+            args.extend(["--conversation".to_owned(), conversation]);
+            let delivery = cli::deliver_prompt_option(
+                self.runner.as_ref(),
+                PROGRAM,
+                "--prompt",
+                args,
+                AFTER_REFUSED_COMMAND,
+            )?;
+            let follow_up = ProcessSpec {
+                args: delivery.args,
+                stdin: delivery.stdin,
+                terminal: delivery.terminal,
+                ..spec.clone()
+            };
+            output = cli::execute(self.runner.as_ref(), &follow_up, progress, &on_line)?;
+            resumed += 1;
+        }
+        let mut parsed = parse_run_output(&output, &request.model_id);
+        if let (Ok(done), true) = (&mut parsed, resumed > 0) {
+            done.metadata
+                .insert("resumedAfterRefusedCommand".to_owned(), resumed.to_string());
+        }
+        parsed
     }
 }
 
@@ -337,7 +394,36 @@ fn describe_failed_tool(step: &Value) -> String {
 /// a permission a headless run cannot ask for) and the agent wrote nothing after it. The CLI then
 /// still reports success, but the work was cut short, so what it said before is not an answer.
 /// A question put to the person is not a failure.
+/// The conversation to continue when the run ended on a command the headless mode refused: the
+/// last step was a failed `run_command` for lack of permission, nothing was said after it, and
+/// the CLI named its conversation. `None` for anything else, which stays what it was.
+fn refused_command_conversation(output: &ProcessOutput) -> Option<String> {
+    let events: Vec<Value> = output
+        .stdout
+        .lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line.trim()).ok())
+        .collect();
+    let step = stopped_step(&events)?;
+    let refused = step["tool_name"] == "run_command"
+        && step["tool_info"]["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("permission"));
+    if !refused {
+        return None;
+    }
+    events
+        .iter()
+        .find(|value| value["event"] == "init")
+        .and_then(|init| init["conversation_id"].as_str())
+        .map(str::to_owned)
+}
+
 fn stopped_on_failed_tool(events: &[Value]) -> Option<String> {
+    stopped_step(events).map(describe_failed_tool)
+}
+
+/// The tool step the run ended on, when it failed and the agent said nothing after it.
+fn stopped_step(events: &[Value]) -> Option<&Value> {
     let steps = || {
         events
             .iter()
@@ -358,7 +444,7 @@ fn stopped_on_failed_tool(events: &[Value]) -> Option<String> {
                 stopped_on_tool = None;
             }
             Some("tool") if step["state"] == "ERROR" => {
-                stopped_on_tool = Some(describe_failed_tool(step));
+                stopped_on_tool = Some(step);
             }
             Some("tool") => stopped_on_tool = None,
             _ => {}
@@ -505,6 +591,16 @@ mod tests {
                 _ => run_output.clone(),
             }
         }))
+    }
+
+    #[test]
+    fn it_does_not_tell_an_agent_it_can_run_commands_because_headless_mode_refuses_them() {
+        let runtime = AntigravityRuntime::new(runner(ok("")));
+
+        // The CLI could run commands if the user allowed them, and the capability says so (that is
+        // what Atlas cannot stop); but the prompt must not promise what a headless run refuses.
+        assert!(runtime.info().capabilities.tool_access.process_execution);
+        assert!(!runtime.runs_commands());
     }
 
     fn request(model: &str) -> RuntimeRequest {
@@ -712,6 +808,108 @@ mod tests {
         };
         assert!(details.contains("run_command") && details.contains("find src -type f"));
         assert!(details.contains("permissions.allow"));
+    }
+
+    const DENIED_COMMAND_STREAM: [&str; 3] = [
+        r#"{"event":"init","conversation_id":"conv-1","init":{"model":"m"}}"#,
+        r#"{"event":"step_update","step_update":{"step_type":"tool","state":"ERROR","tool_name":"run_command","tool_info":{"parameters":{"CommandLine":"python3 -c 'print(1)'"},"error":{"type":"TOOL_ERROR","message":"permission check failed for unsandboxed \"python3\": user denied permission to run command"}}}}"#,
+        r#"{"event":"result","result":{"status":"SUCCESS","response":"","usage":{"input_tokens":100,"output_tokens":10,"cache_read_tokens":900},"denied_actions":[{"action":"command"}]}}"#,
+    ];
+
+    /// A runner that answers a first run with `first` and any run that continues a conversation
+    /// with `resumed`; `--version` and `models` as usual.
+    fn scripted(first: String, resumed: Vec<String>) -> Arc<FakeProcessRunner> {
+        let next = std::sync::atomic::AtomicUsize::new(0);
+        Arc::new(FakeProcessRunner::new(&["agy"], move |spec| {
+            match spec.args[0].as_str() {
+                "--version" => ok("1.2.16\n"),
+                "models" => ok(MODELS),
+                _ if spec.args.iter().any(|a| a == "--conversation") => {
+                    let at = next.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    output(0, &resumed[at.min(resumed.len() - 1)])
+                }
+                _ => output(0, &first),
+            }
+        }))
+    }
+
+    fn resumed_calls(runner: &FakeProcessRunner) -> Vec<Vec<String>> {
+        runner
+            .calls
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|spec| spec.args.iter().any(|a| a == "--conversation"))
+            .map(|spec| spec.args.clone())
+            .collect()
+    }
+
+    #[test]
+    fn a_run_that_ends_on_a_refused_command_is_continued_in_the_same_conversation() {
+        let runner = scripted(
+            DENIED_COMMAND_STREAM.join("\n"),
+            vec![[
+                r#"{"event":"init","conversation_id":"conv-1","init":{"model":"m"}}"#,
+                r#"{"event":"step_update","step_update":{"step_type":"agent_response","state":"DONE","text_delta":"Changed it."}}"#,
+                r#"{"event":"result","result":{"status":"SUCCESS","response":"Changed it.","usage":{"input_tokens":150,"output_tokens":30,"cache_read_tokens":1800}}}"#,
+            ]
+            .join("\n")],
+        );
+
+        let done = AntigravityRuntime::new(runner.clone())
+            .execute(&request("m"), &|_| {})
+            .unwrap();
+
+        assert_eq!(done.text, "Changed it.");
+        assert_eq!(done.metadata["resumedAfterRefusedCommand"], "1");
+        // The usage of the last result counts the whole conversation: it is not added to the first.
+        let usage = done.usage.unwrap();
+        assert_eq!(
+            (usage.input_tokens, usage.output_tokens),
+            (Some(1950), Some(30))
+        );
+        let calls = resumed_calls(&runner);
+        assert_eq!(calls.len(), 1);
+        let at = calls[0].iter().position(|a| a == "--conversation").unwrap();
+        assert_eq!(calls[0][at + 1], "conv-1");
+        // It is told what it cannot do, and not to try another command.
+        assert!(calls[0]
+            .iter()
+            .any(|a| a.starts_with("--prompt=") && a.contains("cannot run shell commands")));
+    }
+
+    #[test]
+    fn it_gives_up_after_two_continuations_and_still_says_why() {
+        let runner = scripted(
+            DENIED_COMMAND_STREAM.join("\n"),
+            vec![DENIED_COMMAND_STREAM.join("\n")],
+        );
+
+        let error = AntigravityRuntime::new(runner.clone())
+            .execute(&request("m"), &|_| {})
+            .unwrap_err();
+
+        assert_eq!(resumed_calls(&runner).len(), 2);
+        assert!(
+            matches!(&error, RuntimeError::ExecutionFailed(d) if d.contains("run_command")),
+            "{error:?}"
+        );
+    }
+
+    #[test]
+    fn a_run_that_did_not_end_on_a_refused_command_is_never_continued() {
+        let other_tool = [
+            r#"{"event":"init","conversation_id":"conv-2","init":{"model":"m"}}"#,
+            r#"{"event":"step_update","step_update":{"step_type":"tool","state":"ERROR","tool_name":"view_file","tool_info":{"error":{"message":"permission check failed: no such file"}}}}"#,
+            r#"{"event":"result","result":{"status":"SUCCESS","response":""}}"#,
+        ]
+        .join("\n");
+        let runner = scripted(other_tool, vec![SUCCESS.to_owned()]);
+
+        let result = AntigravityRuntime::new(runner.clone()).execute(&request("m"), &|_| {});
+
+        assert!(result.is_err());
+        assert_eq!(resumed_calls(&runner).len(), 0);
     }
 
     #[test]
