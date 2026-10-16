@@ -35,6 +35,12 @@ impl RuntimeConfigFiles for FsRuntimeConfigFiles {
                 .join("opencode")
                 .join("opencode.json"),
             ConfigDialect::Codex => home()?.join(".codex").join("config.toml"),
+            // `COPILOT_HOME` moves the CLI's folder, as it does for the CLI itself.
+            ConfigDialect::Copilot => std::env::var_os("COPILOT_HOME")
+                .map(PathBuf::from)
+                .filter(|p| p.is_absolute())
+                .or_else(|| home().map(|h| h.join(".copilot")))?
+                .join("mcp-config.json"),
             ConfigDialect::Antigravity => return None,
         };
         path.to_str().map(str::to_owned)

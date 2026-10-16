@@ -637,3 +637,9 @@ fn real_claude_can_be_interrupted() {
 fn real_opencode_can_be_interrupted() {
     real_cli_can_be_interrupted("opencode", "opencode/big-pickle");
 }
+
+#[test]
+#[ignore = "needs the Copilot CLI installed and signed in; makes a real model call"]
+fn real_copilot_can_be_interrupted() {
+    real_cli_can_be_interrupted("copilot", "auto");
+}

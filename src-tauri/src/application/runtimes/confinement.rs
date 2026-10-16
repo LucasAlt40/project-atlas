@@ -124,6 +124,25 @@ impl RuntimeConfinement for AntigravityConfinement {
     }
 }
 
+/// The GitHub Copilot CLI writes its state in `~/.copilot` and a cache in `~/Library/Caches/copilot`
+/// (measured on 2026-10-15 with a run that fails on a model that does not exist, at no cost, and
+/// confirmed under the profile: without these two it fails at once and says nothing).
+struct CopilotConfinement;
+
+impl RuntimeConfinement for CopilotConfinement {
+    fn program(&self) -> &'static str {
+        "copilot"
+    }
+
+    fn needs(&self) -> CliNeeds {
+        CliNeeds {
+            dirs: &[".copilot", "Library/Caches/copilot"],
+            file_prefixes: &[],
+            tmp_dirs: &[],
+        }
+    }
+}
+
 /// The strategies of every runtime Atlas knows (**Factory**).
 pub fn default_confinements() -> ConfinementRegistry {
     ConfinementRegistry::new(vec![
@@ -132,6 +151,7 @@ pub fn default_confinements() -> ConfinementRegistry {
         Arc::new(CodexConfinement),
         Arc::new(GeminiConfinement),
         Arc::new(AntigravityConfinement),
+        Arc::new(CopilotConfinement),
     ])
 }
 

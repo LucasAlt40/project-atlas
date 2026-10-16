@@ -262,7 +262,7 @@ export function connectionNameFor(registryName: string): string {
   );
 }
 
-const FILE_DIALECTS: McpConfigDialectDto[] = ['claude', 'gemini', 'open_code', 'codex'];
+const FILE_DIALECTS: McpConfigDialectDto[] = ['claude', 'gemini', 'open_code', 'codex', 'copilot'];
 
 function RegistryTab({
   workspaceId,

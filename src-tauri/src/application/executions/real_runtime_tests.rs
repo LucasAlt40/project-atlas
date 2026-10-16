@@ -254,6 +254,13 @@ fn real_model_opencode_calls_a_granted_tool_and_not_the_one_left_out() {
     assert_called_and_filtered("opencode", &record, &nonce);
 }
 
+#[test]
+#[ignore = "calls a real model (a few tokens): Copilot"]
+fn real_model_copilot_calls_a_granted_tool_and_not_the_one_left_out() {
+    let (record, nonce) = run_real("copilot", "auto", true);
+    assert_called_and_filtered("copilot", &record, &nonce);
+}
+
 fn assert_whole_server(label: &str, record: &ExecutionRecord, nonce: &str) {
     let answer = report(label, record);
     assert_eq!(
@@ -293,6 +300,13 @@ fn real_model_codex_whole_server_grant_gives_every_tool() {
 fn real_model_opencode_whole_server_grant_gives_every_tool() {
     let (record, nonce) = run_real("opencode", "opencode/big-pickle", false);
     assert_whole_server("opencode-whole", &record, &nonce);
+}
+
+#[test]
+#[ignore = "calls a real model (a few tokens): Copilot, whole server"]
+fn real_model_copilot_whole_server_grant_gives_every_tool() {
+    let (record, nonce) = run_real("copilot", "auto", false);
+    assert_whole_server("copilot-whole", &record, &nonce);
 }
 
 /// The Chrome `DevTools` entry of the catalogue, as the panel adds it (pinned, headless, isolated),
@@ -350,6 +364,12 @@ fn real_model_codex_uses_the_devtools_entry_of_the_catalogue() {
 #[ignore = "calls a real model and runs npx (downloads chrome-devtools-mcp): OpenCode"]
 fn real_model_opencode_uses_the_devtools_entry_of_the_catalogue() {
     devtools_on("opencode", "opencode/big-pickle");
+}
+
+#[test]
+#[ignore = "calls a real model and runs npx (downloads chrome-devtools-mcp): Copilot"]
+fn real_model_copilot_uses_the_devtools_entry_of_the_catalogue() {
+    devtools_on("copilot", "auto");
 }
 
 /// Antigravity takes MCP servers only from the user's own configuration (Atlas gives it none), and

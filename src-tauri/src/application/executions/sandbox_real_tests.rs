@@ -270,3 +270,21 @@ fn sandbox_real_agy_does_its_work() {
 fn sandbox_real_agy_cannot_escape() {
     escape_is_refused("antigravity", "gemini-3.8-flash-low", false);
 }
+
+#[test]
+#[ignore = "calls a real model (tokens): Copilot, work inside the sandbox"]
+fn sandbox_real_copilot_does_its_work() {
+    work_is_done("copilot", &copilot_model(), false);
+}
+
+#[test]
+#[ignore = "calls a real model (tokens): Copilot, escape attempt"]
+fn sandbox_real_copilot_cannot_escape() {
+    escape_is_refused("copilot", &copilot_model(), false);
+}
+
+/// Copilot fronts many models and some decline the escape attempt, which proves nothing about the
+/// sandbox: `ATLAS_REAL_COPILOT_MODEL` picks another one (default `auto`).
+fn copilot_model() -> String {
+    std::env::var("ATLAS_REAL_COPILOT_MODEL").unwrap_or_else(|_| "auto".to_owned())
+}

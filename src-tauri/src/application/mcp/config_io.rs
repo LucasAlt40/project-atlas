@@ -41,6 +41,8 @@ pub enum ConfigDialect {
     OpenCode,
     /// Codex: `~/.codex/config.toml`.
     Codex,
+    /// GitHub Copilot CLI: `~/.copilot/mcp-config.json`.
+    Copilot,
     /// Antigravity (`agy`): no file Atlas may edit; servers are added with `agy mcp add`.
     Antigravity,
 }
@@ -307,9 +309,10 @@ pub fn detect(text: &str) -> Option<ConfigDialect> {
 /// The text is not that dialect's format, or has no servers table.
 pub fn parse(dialect: ConfigDialect, text: &str) -> Result<Parsed, ConfigError> {
     match dialect {
-        ConfigDialect::Mcp | ConfigDialect::Claude | ConfigDialect::Gemini => {
-            parse_mcp_servers(dialect, text)
-        }
+        ConfigDialect::Mcp
+        | ConfigDialect::Claude
+        | ConfigDialect::Gemini
+        | ConfigDialect::Copilot => parse_mcp_servers(dialect, text),
         ConfigDialect::OpenCode => parse_opencode(text),
         ConfigDialect::Codex => parse_codex(text),
         ConfigDialect::Antigravity => Err(ConfigError::Unsupported),
@@ -384,6 +387,19 @@ fn parse_mcp_servers(dialect: ConfigDialect, text: &str) -> Result<Parsed, Confi
         }
         if entry.get("disabled").and_then(Value::as_bool) == Some(true) {
             warnings.push(warn::DISABLED);
+        }
+        if dialect == ConfigDialect::Copilot {
+            // `tools` is the CLI's allow-list (`["*"]` is all of it), and it keeps an off switch.
+            let all = entry.get("tools").is_none_or(|tools| {
+                strings(Some(tools))
+                    .is_some_and(|list| !list.is_empty() && list.iter().all(|t| t == "*"))
+            });
+            if !all {
+                warnings.push(warn::TOOL_FILTER);
+            }
+            if entry.get("enabled").and_then(Value::as_bool) == Some(false) {
+                warnings.push(warn::DISABLED);
+            }
         }
         finish(
             Raw {
@@ -597,10 +613,17 @@ fn json_entry(dialect: ConfigDialect, connection: &McpConnection) -> Option<Valu
         if dialect == ConfigDialect::Claude {
             entry.insert("type".to_owned(), json!("stdio"));
         }
+        if dialect == ConfigDialect::Copilot {
+            entry.insert("type".to_owned(), json!("local"));
+        }
         entry.insert("command".to_owned(), json!(executable));
         entry.insert("args".to_owned(), json!(args));
         if !env.is_empty() {
             entry.insert("env".to_owned(), Value::Object(env));
+        }
+        if dialect == ConfigDialect::Copilot {
+            // Every tool of the server: what a grant allows is Atlas's to decide, per agent.
+            entry.insert("tools".to_owned(), json!(["*"]));
         }
     }
     Some(Value::Object(entry))
@@ -898,6 +921,64 @@ mod tests {
     }
 
     #[test]
+    fn copilot_files_name_the_server_local_and_hold_every_tool() {
+        let copilot = render(ConfigDialect::Copilot, &[&sample()]);
+
+        let value: Value = serde_json::from_str(&copilot).unwrap();
+        let entry = &value["mcpServers"]["github"];
+        assert_eq!(entry["type"], "local");
+        assert_eq!(entry["command"], "npx");
+        assert_eq!(entry["tools"], json!(["*"]));
+        assert_eq!(entry["env"]["GITHUB_TOKEN"], "${GITHUB_TOKEN}");
+        assert_eq!(entry["env"]["REGION"], "eu");
+    }
+
+    #[test]
+    fn a_copilot_server_held_to_some_tools_or_switched_off_says_so_and_a_remote_one_is_skipped() {
+        let text = r#"{"mcpServers":{
+            "all":{"type":"local","command":"node","args":["a.js"],"tools":["*"]},
+            "some":{"type":"local","command":"node","args":["b.js"],"tools":["read"]},
+            "off":{"type":"local","command":"node","args":["c.js"],"enabled":false},
+            "none":{"type":"local","command":"node","args":["d.js"],"tools":[]},
+            "web":{"type":"http","url":"https://x/mcp","tools":["*"]}}}"#;
+
+        let parsed = parse(ConfigDialect::Copilot, text).unwrap();
+
+        let warnings = |name: &str| {
+            parsed
+                .servers
+                .iter()
+                .find(|s| s.name == name)
+                .map(|s| s.warnings.clone())
+                .unwrap()
+        };
+        assert_eq!(warnings("all"), Vec::<&str>::new());
+        assert_eq!(warnings("some"), [warn::TOOL_FILTER]);
+        assert_eq!(warnings("off"), [warn::DISABLED]);
+        // An empty list gives the model no tool of the server: that is a filter too.
+        assert_eq!(warnings("none"), [warn::TOOL_FILTER]);
+        assert_eq!(parsed.skipped.len(), 1);
+        assert_eq!(parsed.skipped[0].reason, skip::HTTP);
+    }
+
+    #[test]
+    fn adding_to_a_copilot_file_leaves_what_it_has_byte_for_byte() {
+        let existing =
+            r#"{"mcpServers":{"github":{"type":"http","url":"https://x/mcp","tools":["*"]}}}"#;
+
+        let merged = merge(ConfigDialect::Copilot, Some(existing), &[&sample()]).unwrap();
+
+        assert_eq!(merged.kept, ["github"]);
+        assert_eq!(merged.added, Vec::<String>::new());
+        let other = with_env("jira", vec![]);
+        let merged = merge(ConfigDialect::Copilot, Some(existing), &[&other]).unwrap();
+        assert_eq!(merged.added, ["jira"]);
+        let value: Value = serde_json::from_str(&merged.text).unwrap();
+        assert_eq!(value["mcpServers"]["github"]["url"], "https://x/mcp");
+        assert_eq!(value["mcpServers"]["jira"]["type"], "local");
+    }
+
+    #[test]
     fn what_is_exported_reads_back_as_the_same_server_in_each_dialect() {
         let connection = sample();
         for dialect in [
@@ -906,6 +987,7 @@ mod tests {
             ConfigDialect::Gemini,
             ConfigDialect::OpenCode,
             ConfigDialect::Codex,
+            ConfigDialect::Copilot,
         ] {
             let text = render(dialect, &[&connection]);
             let parsed =

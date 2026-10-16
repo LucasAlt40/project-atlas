@@ -83,10 +83,14 @@ fn stack(stand_in: Option<&str>, model: &str) -> Stack {
     stack_with(stand_in, model, false)
 }
 
+fn stack_with(stand_in: Option<&str>, model: &str, git: bool) -> Stack {
+    stack_on("claude", stand_in, model, git)
+}
+
 /// With `git`, the project is a real Git repository and the agents work in the run's shared
 /// worktree, with the developer permission profile (they may write files there).
 #[allow(clippy::too_many_lines)]
-fn stack_with(stand_in: Option<&str>, model: &str, git: bool) -> Stack {
+fn stack_on(runtime_id: &str, stand_in: Option<&str>, model: &str, git: bool) -> Stack {
     let dir = TempDir::new("workflow-real");
     let bin = dir.path().join("bin");
     let project = dir.path().join("project");
@@ -167,7 +171,7 @@ fn stack_with(stand_in: Option<&str>, model: &str, git: bool) -> Stack {
                 permission_profile_id: None,
                 name: key.to_owned(),
                 personality_id: personality.to_owned(),
-                runtime_id: "claude".to_owned(),
+                runtime_id: runtime_id.to_owned(),
                 model_id: model.to_owned(),
                 instructions: String::new(),
                 // Without Git there is no worktree to isolate in.
@@ -438,10 +442,8 @@ echo '{"type":"result","subtype":"success","is_error":false,"result":"never"}'
 /// Opt-in: it needs the CLI installed and signed in, and spends a little quota. Without a
 /// session it verifies the honest failure instead (the step fails, nothing is called a success).
 /// Run with `cargo test real_workflow -- --ignored --nocapture`.
-#[test]
-#[ignore = "needs the Claude CLI installed and signed in; makes real model calls"]
-fn real_workflow_through_the_claude_cli() {
-    let s = stack(None, "haiku");
+fn real_workflow_through_the_claude_cli_on(runtime_id: &str, model: &str) {
+    let s = stack_on(runtime_id, None, model, false);
     // Two steps, the second routing on what the first reports: the result block the model
     // writes is the only thing that decides the route.
     let workflow = s.workflow(
@@ -492,14 +494,27 @@ fn real_workflow_through_the_claude_cli() {
     }
 }
 
+#[test]
+#[ignore = "needs the Claude CLI installed and signed in; makes real model calls"]
+fn real_workflow_through_the_claude_cli() {
+    real_workflow_through_the_claude_cli_on("claude", "haiku");
+}
+
+#[test]
+#[ignore = "needs the Copilot CLI installed and signed in; makes real model calls (premium requests)"]
+fn real_workflow_through_the_copilot_cli() {
+    real_workflow_through_the_claude_cli_on("copilot", "auto");
+}
+
 /// The real Claude CLI through a real Git repository: the first agent writes a file in the run's
 /// worktree, the second one reads it, Git measures the change, and the project's own checkout is
 /// left alone. Opt-in like the other real tests (CLI installed and signed in; spends a little quota).
 /// Run with `cargo test real_workflow_shares -- --ignored --nocapture`.
-#[test]
-#[ignore = "needs the Claude CLI installed and signed in; makes real model calls"]
-fn real_workflow_shares_code_between_agents_through_the_claude_cli() {
-    let s = stack_with(None, "haiku", true);
+fn real_workflow_shares_code_between_agents_through_the_claude_cli_on(
+    runtime_id: &str,
+    model: &str,
+) {
+    let s = stack_on(runtime_id, None, model, true);
     let workflow = s.workflow(
         vec![
             agent("developer", "developer"),
@@ -562,6 +577,18 @@ fn real_workflow_shares_code_between_agents_through_the_claude_cli() {
             .count();
         assert_eq!(primaries, 1);
     }
+}
+
+#[test]
+#[ignore = "needs the Claude CLI installed and signed in; makes real model calls"]
+fn real_workflow_shares_code_between_agents_through_the_claude_cli() {
+    real_workflow_shares_code_between_agents_through_the_claude_cli_on("claude", "haiku");
+}
+
+#[test]
+#[ignore = "needs the Copilot CLI installed and signed in; makes real model calls (premium requests)"]
+fn real_workflow_shares_code_between_agents_through_the_copilot_cli() {
+    real_workflow_shares_code_between_agents_through_the_claude_cli_on("copilot", "auto");
 }
 
 // ---- an agent that asks a person -------------------------------------------------------------------
@@ -680,12 +707,13 @@ fn a_runtime_that_stops_to_ask_pauses_the_run_and_goes_on_from_the_answer() {
 /// The real Claude CLI asked to stop and ask: Atlas detects the question, pauses, takes the
 /// answer, and the model carries on with it. Opt-in like the other real tests.
 /// Run with `cargo test real_workflow_pauses -- --ignored --nocapture`.
-#[test]
-#[ignore = "needs the Claude CLI installed and signed in; makes real model calls"]
-fn real_workflow_pauses_when_the_claude_cli_asks_and_goes_on_after_the_answer() {
+fn real_workflow_pauses_when_the_claude_cli_asks_and_goes_on_after_the_answer_on(
+    runtime_id: &str,
+    model: &str,
+) {
     use crate::domain::interaction::InteractionAnswer;
 
-    let s = stack(None, "haiku");
+    let s = stack_on(runtime_id, None, model, false);
     let workflow = s.workflow(
         vec![
             agent("developer", "developer"),
@@ -752,6 +780,22 @@ fn real_workflow_pauses_when_the_claude_cli_asks_and_goes_on_after_the_answer() 
     }
     assert!(done.status.is_final());
     assert_eq!(done.nodes["developer"].attempts.len(), 2);
+}
+
+#[test]
+#[ignore = "needs the Claude CLI installed and signed in; makes real model calls"]
+fn real_workflow_pauses_when_the_claude_cli_asks_and_goes_on_after_the_answer() {
+    real_workflow_pauses_when_the_claude_cli_asks_and_goes_on_after_the_answer_on(
+        "claude", "haiku",
+    );
+}
+
+#[test]
+#[ignore = "needs the Copilot CLI installed and signed in; makes real model calls (premium requests)"]
+fn real_workflow_pauses_when_the_copilot_cli_asks_and_goes_on_after_the_answer() {
+    real_workflow_pauses_when_the_claude_cli_asks_and_goes_on_after_the_answer_on(
+        "copilot", "auto",
+    );
 }
 
 // ---- a failed run goes on in the worktree it had -------------------------------------------------

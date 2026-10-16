@@ -5,6 +5,8 @@ mod cli;
 mod codex;
 mod codex_mcp;
 pub mod confinement;
+mod copilot;
+mod copilot_mcp;
 mod delivery;
 #[cfg(test)]
 pub(crate) mod detect_only;
@@ -36,6 +38,7 @@ use crate::domain::usage::{QuotaInfo, UsageMetrics};
 pub use antigravity::AntigravityRuntime;
 pub use claude::ClaudeRuntime;
 pub use codex::CodexRuntime;
+pub use copilot::CopilotRuntime;
 pub use delivery::{sha256_hex, Delivery};
 pub use gemini::GeminiRuntime;
 pub use opencode::OpenCodeRuntime;
@@ -307,7 +310,7 @@ impl std::error::Error for RuntimeError {}
 /// The programs of the runtimes in [`RuntimeRegistry::with_default_runtimes`]: the only ones the
 /// process port starts on Atlas's own behalf. Adding a runtime means adding its program here (the
 /// Antigravity CLI installs as `agy`).
-pub const RUNTIME_PROGRAMS: [&str; 5] = ["opencode", "claude", "codex", "gemini", "agy"];
+pub const RUNTIME_PROGRAMS: [&str; 6] = ["opencode", "claude", "codex", "gemini", "agy", "copilot"];
 
 /// All known runtimes, in display order.
 pub struct RuntimeRegistry {
@@ -327,6 +330,7 @@ impl RuntimeRegistry {
             Arc::new(CodexRuntime::new(runner.clone())),
             Arc::new(GeminiRuntime::new(runner.clone())),
             Arc::new(AntigravityRuntime::new(runner.clone())),
+            Arc::new(CopilotRuntime::new(runner.clone())),
         ])
     }
 
@@ -745,7 +749,14 @@ mod tests {
     fn registers_the_runtimes_that_can_execute() {
         let registry = registry();
 
-        for id in ["opencode", "claude", "codex", "gemini", "antigravity"] {
+        for id in [
+            "opencode",
+            "claude",
+            "codex",
+            "gemini",
+            "antigravity",
+            "copilot",
+        ] {
             let info = registry.find(id).unwrap().info();
             assert!(info.capabilities.non_interactive_execution, "{id}");
         }
@@ -768,6 +779,7 @@ mod tests {
                 ("codex", Availability::NotInstalled),
                 ("gemini", Availability::NotInstalled),
                 ("antigravity", Availability::NotInstalled),
+                ("copilot", Availability::NotInstalled),
             ]
         );
         assert_eq!(statuses[1].authentication.state, AuthState::Authenticated);

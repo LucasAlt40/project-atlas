@@ -18,7 +18,14 @@ import {
 } from '../../services/mcpService';
 import styles from './McpHub.module.css';
 
-const DIALECTS: McpConfigDialectDto[] = ['claude', 'gemini', 'open_code', 'codex', 'mcp'];
+const DIALECTS: McpConfigDialectDto[] = [
+  'claude',
+  'gemini',
+  'open_code',
+  'codex',
+  'copilot',
+  'mcp',
+];
 const EXPORT_DIALECTS: McpConfigDialectDto[] = [...DIALECTS, 'antigravity'];
 const EXTENSION: Record<McpConfigDialectDto, string> = {
   mcp: 'json',
@@ -26,6 +33,7 @@ const EXTENSION: Record<McpConfigDialectDto, string> = {
   gemini: 'json',
   open_code: 'json',
   codex: 'toml',
+  copilot: 'json',
   antigravity: 'sh',
 };
 

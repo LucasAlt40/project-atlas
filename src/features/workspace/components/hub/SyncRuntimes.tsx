@@ -9,7 +9,7 @@ import { applyMcpSync, planMcpSync } from '../../services/mcpService';
 import { skipReason } from './ConfigIo';
 import styles from './McpHub.module.css';
 
-const ORDER: McpConfigDialectDto[] = ['claude', 'gemini', 'open_code', 'codex'];
+const ORDER: McpConfigDialectDto[] = ['claude', 'gemini', 'open_code', 'codex', 'copilot'];
 
 /** How many files would change and how many servers would be added in all. */
 export function pendingOf(plan: McpSyncPlanDto): {

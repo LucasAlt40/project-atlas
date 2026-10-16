@@ -1654,7 +1654,7 @@ export interface McpPresetDto {
 
 /** Mirrors `application::mcp::config_io::ConfigDialect`. */
 export type McpConfigDialectDto =
-  'mcp' | 'claude' | 'gemini' | 'open_code' | 'codex' | 'antigravity';
+  'mcp' | 'claude' | 'gemini' | 'open_code' | 'codex' | 'copilot' | 'antigravity';
 
 /** Mirrors `application::mcp::ImportReport`. */
 export interface McpImportReportDto {

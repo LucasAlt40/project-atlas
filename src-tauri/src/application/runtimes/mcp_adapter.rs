@@ -15,6 +15,7 @@ use std::time::Duration;
 
 use super::claude_mcp::ClaudeMcpAdapter;
 use super::codex_mcp::CodexMcpAdapter;
+use super::copilot_mcp::CopilotMcpAdapter;
 use super::gemini_mcp::GeminiMcpAdapter;
 use super::opencode_mcp::OpenCodeMcpAdapter;
 use super::{RuntimeError, RuntimeRequest};
@@ -216,6 +217,7 @@ pub enum McpDialect {
     Gemini,
     OpenCode,
     Codex,
+    Copilot,
 }
 
 /// Chooses the adapter for a dialect (the factory).
@@ -228,6 +230,7 @@ impl McpAdapterFactory {
             McpDialect::Gemini => Arc::new(GeminiMcpAdapter),
             McpDialect::OpenCode => Arc::new(OpenCodeMcpAdapter),
             McpDialect::Codex => Arc::new(CodexMcpAdapter),
+            McpDialect::Copilot => Arc::new(CopilotMcpAdapter),
         }
     }
 
@@ -278,11 +281,17 @@ mod tests {
         assert_eq!(of(McpDialect::Gemini).program(), "gemini");
         assert_eq!(of(McpDialect::OpenCode).program(), "opencode");
         assert_eq!(of(McpDialect::Codex).program(), "codex");
+        assert_eq!(of(McpDialect::Copilot).program(), "copilot");
         let claude = of(McpDialect::Claude).features();
         assert_eq!(claude.tool_filter, McpToolFilter::DenyList);
         assert_eq!(claude.probe, McpProbeKind::Tools);
         assert!(claude.strict);
-        for dialect in [McpDialect::Gemini, McpDialect::OpenCode, McpDialect::Codex] {
+        for dialect in [
+            McpDialect::Gemini,
+            McpDialect::OpenCode,
+            McpDialect::Codex,
+            McpDialect::Copilot,
+        ] {
             let features = of(dialect).features();
             assert_eq!(
                 features.tool_filter,
@@ -292,6 +301,7 @@ mod tests {
             assert!(!features.strict, "{dialect:?}");
         }
         assert_eq!(of(McpDialect::Codex).features().probe, McpProbeKind::None);
+        assert_eq!(of(McpDialect::Copilot).features().probe, McpProbeKind::None);
     }
 
     #[test]

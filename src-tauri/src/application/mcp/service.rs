@@ -25,11 +25,12 @@ pub struct McpOverview {
 }
 
 /// The CLIs whose files Atlas reads and writes (Antigravity has none it may edit).
-const SYNC_DIALECTS: [ConfigDialect; 4] = [
+const SYNC_DIALECTS: [ConfigDialect; 5] = [
     ConfigDialect::Claude,
     ConfigDialect::Gemini,
     ConfigDialect::OpenCode,
     ConfigDialect::Codex,
+    ConfigDialect::Copilot,
 ];
 
 #[derive(Default)]
