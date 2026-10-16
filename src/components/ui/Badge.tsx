@@ -20,7 +20,7 @@ export function Badge({ tone = 'neutral', mono = false, dot = false, title, chil
     <span
       className={styles.badge}
       data-tone={tone}
-      data-mono={mono || undefined}
+      data-mono={mono ? true : undefined}
       {...(title ? { title } : {})}
     >
       {dot && <span className={styles.dot} aria-hidden="true" />}

@@ -62,7 +62,7 @@ export function OverflowMenu({ label, items }: Props) {
               type="button"
               role="menuitem"
               className={styles.item}
-              data-danger={item.danger || undefined}
+              data-danger={item.danger ? true : undefined}
               onClick={() => {
                 setOpen(false);
                 item.onSelect();
