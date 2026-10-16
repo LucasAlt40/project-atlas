@@ -100,7 +100,6 @@ export const ptBR: Record<TranslationKey, string> = {
   'workspace.editPanel.confirm':
     'Excluir {name}? As conversas e posições nos workspaces também são removidas; o uso já realizado é mantido.',
   'workspace.onboarding.title': 'Bem-vindo ao Atlas',
-  'workspace.onboarding.text': 'Crie seu primeiro workspace para começar a trabalhar com agentes.',
   'workspace.onboarding.cta': 'Criar workspace',
   'workspace.switcher.label': 'Workspace',
   'workspace.switcher.new': 'Novo workspace',
@@ -3639,4 +3638,17 @@ export const ptBR: Record<TranslationKey, string> = {
   'agent.tab.executionsCount': 'Execuções ({count})',
   'workspace.openDetails': 'Detalhes e permissões',
   'workspace.slot.cta': 'Colocar um agente aqui',
+  'workspace.switcher.heading': 'Workspaces',
+  'workspace.switcher.active': 'Ativo',
+  'workspace.onboarding.text':
+    'Um workspace reúne um projeto, seus agentes e o contexto que eles compartilham.',
+  'workspace.onboarding.step1.title': 'Escolha a pasta do projeto',
+  'workspace.onboarding.step1.text':
+    'Vincule a pasta de um projeto Git local. O Atlas lê a estrutura para dar contexto aos agentes.',
+  'workspace.onboarding.step2.title': 'Adicione agentes',
+  'workspace.onboarding.step2.text':
+    'Escolha a personalidade, o runtime e as permissões de cada agente do workspace.',
+  'workspace.onboarding.step3.title': 'Inicialize o Harness',
+  'workspace.onboarding.step3.text':
+    'Analise o projeto para registrar a stack, os comandos e as regras que os agentes devem seguir.',
 };

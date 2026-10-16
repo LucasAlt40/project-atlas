@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Badge } from '@/components/ui/Badge';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
 import { useT } from '@/i18n/I18nProvider';
@@ -67,42 +68,64 @@ export function WorkspaceSwitcher({ pickFolder }: Props) {
 
       {open && (
         <div className={styles.menu} role="listbox" aria-label={t('workspace.switcher.label')}>
-          {workspaces.map((workspace) => (
-            <button
-              key={workspace.id}
-              type="button"
-              role="option"
-              aria-selected={workspace.id === active?.id}
-              className={styles.menuItem}
-              onClick={() => {
-                setOpen(false);
-                void select(workspace.id);
-              }}
-            >
-              <strong className={styles.menuName}>{workspace.name}</strong>
-              <span className={styles.menuPath}>{workspace.projectPath}</span>
-            </button>
-          ))}
+          <p className={styles.menuHeading} aria-hidden="true">
+            <span>{t('workspace.switcher.heading')}</span>
+            <span>{workspaces.length}</span>
+          </p>
+          {workspaces.map((workspace) => {
+            const isActive = workspace.id === active?.id;
+            return (
+              <button
+                key={workspace.id}
+                type="button"
+                role="option"
+                aria-selected={isActive}
+                className={styles.menuItem}
+                onClick={() => {
+                  setOpen(false);
+                  void select(workspace.id);
+                }}
+              >
+                <span className={styles.menuTile} aria-hidden="true">
+                  <Icon name="stack" size={16} />
+                </span>
+                <span className={styles.menuText}>
+                  <span className={styles.menuLine}>
+                    <strong className={styles.menuName}>{workspace.name}</strong>
+                    {isActive && <Badge tone="accent">{t('workspace.switcher.active')}</Badge>}
+                  </span>
+                  <span className={styles.menuPath}>{workspace.projectPath}</span>
+                </span>
+                {isActive && (
+                  <span className={styles.menuCheck} aria-hidden="true">
+                    <Icon name="check" size={16} />
+                  </span>
+                )}
+              </button>
+            );
+          })}
           {workspaces.length > 0 && <hr className={styles.menuRule} />}
           <button
             type="button"
-            className={styles.menuItem}
+            className={styles.menuAction}
             onClick={() => {
               setOpen(false);
               setDialog({ type: 'new' });
             }}
           >
-            + {t('workspace.switcher.new')}
+            <Icon name="plus" size={14} />
+            {t('workspace.switcher.new')}
           </button>
           <button
             type="button"
-            className={styles.menuItem}
+            className={styles.menuAction}
             onClick={() => {
               setOpen(false);
               setDialog({ type: 'manage' });
             }}
           >
             {t('workspace.switcher.manage')}
+            <Icon name="arrowRight" size={14} />
           </button>
         </div>
       )}

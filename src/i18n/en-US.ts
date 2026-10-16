@@ -102,7 +102,6 @@ export const enUS = {
   'workspace.editPanel.confirm':
     'Delete {name}? Its conversations and workspace slots go too; usage already spent is kept.',
   'workspace.onboarding.title': 'Welcome to Atlas',
-  'workspace.onboarding.text': 'Create your first workspace to start working with agents.',
   'workspace.onboarding.cta': 'Create Workspace',
   'workspace.switcher.label': 'Workspace',
   'workspace.switcher.new': 'New Workspace',
@@ -3596,6 +3595,19 @@ export const enUS = {
   'agent.tab.executionsCount': 'Executions ({count})',
   'workspace.openDetails': 'Details and permissions',
   'workspace.slot.cta': 'Place an agent here',
+  'workspace.switcher.heading': 'Workspaces',
+  'workspace.switcher.active': 'Active',
+  'workspace.onboarding.text':
+    'A workspace brings together a project, its agents and the context they share.',
+  'workspace.onboarding.step1.title': 'Choose the project folder',
+  'workspace.onboarding.step1.text':
+    'Link the folder of a local Git project. Atlas reads its structure to give the agents context.',
+  'workspace.onboarding.step2.title': 'Add agents',
+  'workspace.onboarding.step2.text':
+    'Pick the personality, runtime and permissions of each agent in the workspace.',
+  'workspace.onboarding.step3.title': 'Initialize the Harness',
+  'workspace.onboarding.step3.text':
+    'Analyze the project to record the stack, commands and rules the agents should follow.',
 } as const;
 
 export type TranslationKey = keyof typeof enUS;

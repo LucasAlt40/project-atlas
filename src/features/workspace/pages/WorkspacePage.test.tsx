@@ -450,8 +450,11 @@ describe('WorkspacePage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Welcome to Atlas' })).toBeInTheDocument();
     expect(
-      screen.getByText('Create your first workspace to start working with agents.'),
+      screen.getByText(
+        'A workspace brings together a project, its agents and the context they share.',
+      ),
     ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Choose the project folder' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Create Workspace' })).toBeInTheDocument();
   });
 
