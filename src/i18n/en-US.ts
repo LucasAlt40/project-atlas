@@ -504,7 +504,6 @@ export const enUS = {
   'agent.status.unavailable': 'Unavailable',
   'agent.personality': '{name} personality',
   'agent.noMessages': 'No messages yet. Ask this agent something.',
-  'agent.composer.placeholder': 'Message…',
   'agent.composer.label': 'Message {name}',
   'agent.composer.hint': 'Reply to {name} or request a change',
   'agent.expandDetails': 'Expand details',
@@ -3587,6 +3586,16 @@ export const enUS = {
   'specs.cli.archiveKeeps':
     'The spec, its history and the runs built from it stay in Atlas. The files change in your project.',
   'specs.cli.archiveConfirm': 'Archive',
+  'agent.meta.personality': 'Personality',
+  'agent.meta.runtime': 'Runtime',
+  'agent.meta.provider': 'Provider',
+  'agent.meta.model': 'Model',
+  'agent.moreActions': 'More actions for {name}',
+  'agent.collapseShort': 'Collapse',
+  'agent.expandShort': 'Expand',
+  'agent.tab.executionsCount': 'Executions ({count})',
+  'workspace.openDetails': 'Details and permissions',
+  'workspace.slot.cta': 'Place an agent here',
 } as const;
 
 export type TranslationKey = keyof typeof enUS;

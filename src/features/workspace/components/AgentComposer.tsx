@@ -44,24 +44,20 @@ export function AgentComposer({ workspaceId, agentId, agentName, disabled, onSen
     <>
       <TaskContextPreview workspaceId={workspaceId} agentId={agentId} task={draft} />
       <form className={styles.composerPanel} onSubmit={submit}>
-        {scope && scope.projects.length > 1 && (
-          <ScopePicker
-            projects={scope.projects}
-            choice={scope.choice}
-            onChange={scope.onChange}
-            disabled={disabled}
-          />
-        )}
-        <span className={styles.composerHint}>
-          <Icon name="send" size={14} />
-          {t('agent.composer.hint', { name: agentName })}
-        </span>
         <div className={styles.composer}>
+          {scope && scope.projects.length > 1 && (
+            <ScopePicker
+              projects={scope.projects}
+              choice={scope.choice}
+              onChange={scope.onChange}
+              disabled={disabled}
+            />
+          )}
           <textarea
             aria-label={t('agent.composer.label', { name: agentName })}
             className={styles.input}
-            rows={2}
-            placeholder={t('agent.composer.placeholder')}
+            rows={1}
+            placeholder={t('agent.composer.hint', { name: agentName })}
             value={draft}
             onChange={(e) => {
               setDraft(e.target.value);

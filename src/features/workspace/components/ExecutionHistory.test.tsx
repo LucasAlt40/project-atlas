@@ -272,7 +272,7 @@ describe('the Git section of the inspector', () => {
     show({ agents: [{ ...architect, worktreeIsolation: false }, developer] });
 
     const off = await screen.findByRole('article', { name: 'Architect' });
-    expect(within(off).getByText('Git isolation: OFF')).toBeInTheDocument();
+    expect(off).toHaveTextContent('Git isolation: OFF');
   });
 });
 

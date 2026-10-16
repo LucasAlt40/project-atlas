@@ -29,7 +29,7 @@ export function WorkspaceUsageChip({ workspaceId, usageVersion }: Props) {
           setOpen(true);
         }}
       >
-        <span className={styles.muted}>{t('usage.thisWorkspace')}</span>
+        <span className={styles.srOnly}>{t('usage.thisWorkspace')}</span>
         <span>
           {t('usage.today')}: <TotalsView totals={today} showTokens={false} />
         </span>

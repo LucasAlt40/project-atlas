@@ -57,12 +57,12 @@ describe('WorkspacePage', () => {
     show(['a1', 'a2']);
 
     const architectCard = await screen.findByRole('article', { name: 'Architect' });
-    expect(
-      within(architectCard).getByText(/Architect · Claude CLI · Anthropic/),
-    ).toBeInTheDocument();
+    expect(architectCard).toHaveTextContent(
+      /Personality: Architect\s*Runtime: Claude CLI\s*Provider: Anthropic/,
+    );
     expect(within(architectCard).getByText('sonnet')).toBeInTheDocument();
     expect(statusOf('Architect')).toHaveTextContent('Ready');
-    expect(within(card('Developer')).getByText(/OpenCode CLI · OpenCode/)).toBeInTheDocument();
+    expect(card('Developer')).toHaveTextContent(/Runtime: OpenCode CLI\s*Provider: OpenCode/);
     expect(screen.getAllByText('Available')).toHaveLength(2);
     expect(screen.getByRole('heading', { name: 'Atlas' })).toBeInTheDocument();
   });
@@ -128,9 +128,8 @@ describe('WorkspacePage', () => {
       workspace(W1, 'Atlas', '/dev/atlas', ['a2']),
     );
 
-    await user.click(
-      await screen.findByRole('button', { name: 'Remove Architect from workspace' }),
-    );
+    await user.click(await screen.findByRole('button', { name: 'More actions for Architect' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Remove Architect from workspace' }));
 
     expect(removeAgentFromWorkspace).toHaveBeenCalledWith(W1, 'a1');
     await waitFor(() => {

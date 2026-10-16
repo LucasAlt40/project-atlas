@@ -504,7 +504,6 @@ export const ptBR: Record<TranslationKey, string> = {
   'agent.status.unavailable': 'Indisponível',
   'agent.personality': 'Personalidade {name}',
   'agent.noMessages': 'Nenhuma mensagem ainda. Pergunte algo a este agente.',
-  'agent.composer.placeholder': 'Mensagem…',
   'agent.composer.label': 'Mensagem para {name}',
   'agent.composer.hint': 'Responder ao {name} ou solicitar alteração',
   'agent.expandDetails': 'Expandir detalhes',
@@ -3630,4 +3629,14 @@ export const ptBR: Record<TranslationKey, string> = {
   'specs.cli.archiveKeeps':
     'A spec, o histórico e as execuções feitas a partir dela continuam no Atlas. Os arquivos mudam no seu projeto.',
   'specs.cli.archiveConfirm': 'Arquivar',
+  'agent.meta.personality': 'Personalidade',
+  'agent.meta.runtime': 'Runtime',
+  'agent.meta.provider': 'Provedor',
+  'agent.meta.model': 'Modelo',
+  'agent.moreActions': 'Mais ações de {name}',
+  'agent.collapseShort': 'Recolher',
+  'agent.expandShort': 'Expandir',
+  'agent.tab.executionsCount': 'Execuções ({count})',
+  'workspace.openDetails': 'Detalhes e permissões',
+  'workspace.slot.cta': 'Colocar um agente aqui',
 };
