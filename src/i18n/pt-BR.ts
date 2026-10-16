@@ -3651,4 +3651,5 @@ export const ptBR: Record<TranslationKey, string> = {
   'workspace.onboarding.step3.title': 'Inicialize o Harness',
   'workspace.onboarding.step3.text':
     'Analise o projeto para registrar a stack, os comandos e as regras que os agentes devem seguir.',
+  'details.usageToday': 'Consumo hoje',
 };

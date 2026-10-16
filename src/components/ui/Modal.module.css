@@ -42,6 +42,9 @@
   border-width: 0 0 0 1px;
   background: var(--surface-1);
 }
+.backdrop[data-placement='side'] .dialog[data-size='drawer'] {
+  width: min(32rem, 100%);
+}
 .close {
   position: absolute;
   top: var(--space-3);

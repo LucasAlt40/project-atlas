@@ -85,7 +85,7 @@ export function AgentPermissions({
 
   return (
     <>
-      <div className={styles.row}>
+      <div className={styles.field}>
         <label htmlFor={`profile-${agentId}`}>{t('permissions.profile')}</label>
         <select
           id={`profile-${agentId}`}

@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { Badge } from '@/components/ui/Badge';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { Modal } from '@/components/ui/Modal';
 import { useNow } from '@/features/agents/hooks/useNow';
 import { useProjectHarness } from '@/features/harness/hooks/useProjectHarness';
@@ -60,45 +62,67 @@ export function AgentDetailsPanel({
       label={t('workspace.agentDetails', { name: agent.name })}
       onClose={onClose}
       placement="side"
+      size="drawer"
     >
       <header className={styles.header}>
-        <h2 className={styles.name}>{agent.name}</h2>
-        <p className={styles.muted}>
-          {personality?.name ?? agent.personalityId} · {runtimeName}
-          {runtime ? ` · ${runtime.runtime.provider.name}` : ''}
+        <p className={styles.idLine}>
+          <StatusBadge status={status} />
+          <span className={styles.agentId}>{agent.id}</span>
         </p>
-        <p className={styles.muted}>{agent.modelId}</p>
-        <StatusBadge status={status} />
+        <h2 className={styles.name}>{agent.name}</h2>
+        <p className={styles.meta}>
+          {personality?.name ?? agent.personalityId} · {runtimeName}
+          {runtime ? ` · ${runtime.runtime.provider.name}` : ''} ·{' '}
+          <span className={styles.metaModel}>{agent.modelId}</span>
+        </p>
         {running && (
           <p className={styles.running}>
             {t('details.runningFor', { duration: formatDuration(now - run.startedAt) })}
           </p>
         )}
+        {usage.status === 'ready' && (
+          <dl className={styles.summary}>
+            <div>
+              <dt>{t('details.usageToday')}</dt>
+              <dd>
+                <TotalsView totals={usage.summary.today} showTokens={false} />
+              </dd>
+            </div>
+          </dl>
+        )}
       </header>
 
-      <section aria-label={t('permissions.title')}>
-        <h3 className={styles.heading}>{t('permissions.title')}</h3>
+      <CollapsibleSection title={t('permissions.title')}>
         <AgentPermissions workspaceId={workspaceId} agentId={agent.id} runtimeName={runtimeName} />
-      </section>
+      </CollapsibleSection>
 
-      <section aria-label={t('harness.agent.title')}>
-        <h3 className={styles.heading}>{t('harness.agent.title')}</h3>
+      <CollapsibleSection
+        title={t('harness.agent.title')}
+        {...(harness.state.status === 'ready'
+          ? {
+              aside: (
+                <Badge
+                  dot
+                  tone={harness.state.summary.status === 'initialized' ? 'success' : 'warning'}
+                >
+                  {t(`harness.agent.${harness.state.summary.status}`)}
+                </Badge>
+              ),
+            }
+          : {})}
+      >
         {harness.state.status === 'ready' && (
-          <>
-            <p>{t(`harness.agent.${harness.state.summary.status}`)}</p>
-            <p className={styles.muted}>{t('harness.agent.note')}</p>
-          </>
+          <p className={styles.muted}>{t('harness.agent.note')}</p>
         )}
         {harness.state.status === 'loading' && <p className={styles.muted}>…</p>}
         {harness.state.status === 'error' && (
           <p className={styles.muted}>{t('harness.loadFailed')}</p>
         )}
-      </section>
+      </CollapsibleSection>
 
-      <section aria-label={running ? t('details.currentExecution') : t('details.lastExecution')}>
-        <h3 className={styles.heading}>
-          {running ? t('details.currentExecution') : t('details.lastExecution')}
-        </h3>
+      <CollapsibleSection
+        title={running ? t('details.currentExecution') : t('details.lastExecution')}
+      >
         {running && (
           <>
             <ol className={styles.activity} aria-label={t('details.activity')}>
@@ -126,11 +150,10 @@ export function AgentDetailsPanel({
             {errorMessage(t, usage.error)}
           </p>
         )}
-      </section>
+      </CollapsibleSection>
 
       {usage.status === 'ready' && (
-        <section aria-label={t('details.usage')}>
-          <h3 className={styles.heading}>{t('details.usage')}</h3>
+        <CollapsibleSection title={t('details.usage')}>
           <dl className={styles.usageRows}>
             {(
               [
@@ -151,11 +174,10 @@ export function AgentDetailsPanel({
           <p className={styles.note}>
             <strong>{t('details.atlasTracked')}.</strong> {t('details.atlasTrackedNote')}
           </p>
-        </section>
+        </CollapsibleSection>
       )}
 
-      <section aria-label={t('details.quota')}>
-        <h3 className={styles.heading}>{t('details.quota')}</h3>
+      <CollapsibleSection title={t('details.quota')}>
         {!capabilities?.quotaMetrics ? (
           <p className={styles.muted}>{t('details.quotaNotForRuntime')}</p>
         ) : usage.status === 'ready' && usage.summary.quota ? (
@@ -168,7 +190,7 @@ export function AgentDetailsPanel({
         ) : (
           <p className={styles.muted}>{t('details.quotaNotReportedYet')}</p>
         )}
-      </section>
+      </CollapsibleSection>
 
       <dl className={styles.facts}>
         <Row label={t('details.runtime')}>{runtimeName}</Row>

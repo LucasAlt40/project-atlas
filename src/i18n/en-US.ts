@@ -3608,6 +3608,7 @@ export const enUS = {
   'workspace.onboarding.step3.title': 'Initialize the Harness',
   'workspace.onboarding.step3.text':
     'Analyze the project to record the stack, commands and rules the agents should follow.',
+  'details.usageToday': 'Usage today',
 } as const;
 
 export type TranslationKey = keyof typeof enUS;
