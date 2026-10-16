@@ -10,7 +10,7 @@ use crate::application::agents::CreateAgentRequest;
 use crate::application::config::memory::MemoryStore as ConfigMemoryStore;
 use crate::application::config::ConfigRepository;
 use crate::application::memory::ports::{FakeProbe, MemoryMemoryStore};
-use crate::application::memory::{MemoryService, MemoryStore, NewMemory};
+use crate::application::memory::{MemoryService, MemoryStore, NewMemory, Validator};
 use crate::application::optimization::FixedFlags;
 use crate::application::projects::fake::FakeInspector;
 use crate::application::runtimes::fake::FakeRuntime;
@@ -409,7 +409,14 @@ fn the_proposal_rule_is_in_the_prompt_only_when_a_scope_that_takes_proposals_is_
         .prompt
         .contains("atlas-memory"));
     let record = run(&on_world, TASK);
-    assert!(record.execution.prompt.contains("`atlas-memory`"));
+    assert!(record.execution.prompt.contains("```atlas-memory"));
+    // It closes the prompt, after the task: far from the task a model that was told to reply with
+    // one word ignored it (M4).
+    let prompt = &record.execution.prompt;
+    assert!(prompt.find("```atlas-memory").unwrap() > prompt.find(TASK).unwrap());
+    assert!(prompt
+        .trim_end()
+        .ends_with("Leave the block out only when you found nothing worth keeping."));
     assert!(record
         .execution
         .manifest
@@ -449,30 +456,68 @@ fn a_proposed_note_waits_for_a_person_and_the_block_leaves_the_answer() {
 }
 
 #[test]
-fn in_auto_mode_a_note_enters_by_itself_and_the_next_run_knows_it() {
+fn in_auto_mode_a_note_is_held_until_an_independent_validator_passes_and_then_it_is_unconfirmed() {
     let answer = answer_with_note(None);
     let world = world(flags(settings_with(MemoryMode::Auto)), true, Ok(&answer));
 
     let first = run(&world, TASK);
 
-    assert_eq!(first.execution.metadata["memoryAccepted"], "1");
-    let kept = world.memory.list();
-    assert!(kept[0].provenance.automatic && kept[0].status == MemoryStatus::Active);
-    let second = run(&world, TASK);
-    assert!(second.execution.prompt.contains("round half even"));
-    assert!(second.execution.manifest.unwrap().memories[0].automatic);
+    assert_eq!(first.execution.metadata["memoryHeld"], "1");
+    let held = world.memory.list();
+    assert!(held[0].is_held_for_validator() && held[0].status == MemoryStatus::Candidate);
+    // Held is not recalled: the next run knows nothing yet, whatever the first one believed.
+    assert!(!run(&world, TASK)
+        .execution
+        .prompt
+        .contains("round half even"));
+
+    // The same agent passing its own work is no validator.
+    let author = held[0].provenance.agent_id.clone().unwrap();
+    let executions = [held[0].provenance.execution_id.clone().unwrap()];
+    assert_eq!(
+        world.memory.confirm_held(
+            &executions,
+            &Validator {
+                execution: "exec-validator",
+                agent: &author
+            },
+            5
+        ),
+        Vec::<String>::new()
+    );
+    // Another agent's pass lets it in, and the prompt says it is unconfirmed.
+    assert_eq!(
+        world
+            .memory
+            .confirm_held(
+                &executions,
+                &Validator {
+                    execution: "exec-validator",
+                    agent: "validator-agent"
+                },
+                crate::application::support::now_ms()
+            )
+            .len(),
+        1
+    );
+    let third = run(&world, TASK);
+    assert!(third.execution.prompt.contains("(unconfirmed)"));
+    assert!(third.execution.prompt.contains("round half even"));
+    assert!(third.execution.manifest.unwrap().memories[0].automatic);
 }
 
 #[test]
-fn a_step_that_reported_a_failure_never_adds_a_note_by_itself() {
+fn a_step_that_reported_a_failure_never_holds_a_note_for_a_validator() {
     let answer = answer_with_note(Some(r#"{"status":"fail"}"#));
     let world = world(flags(settings_with(MemoryMode::Auto)), true, Ok(&answer));
 
     let record = run(&world, TASK);
 
-    assert_eq!(record.execution.metadata["memoryAccepted"], "0");
+    assert_eq!(record.execution.metadata["memoryHeld"], "0");
     assert_eq!(record.execution.metadata["memoryProposed"], "1");
-    assert_eq!(world.memory.list()[0].status, MemoryStatus::Candidate);
+    let kept = world.memory.list();
+    // A proposal for a person, not a note held for a validator.
+    assert!(kept[0].status == MemoryStatus::Candidate && !kept[0].is_held_for_validator());
 }
 
 #[test]

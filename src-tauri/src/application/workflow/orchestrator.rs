@@ -21,6 +21,7 @@ use super::service::WorkflowService;
 use super::worktree_lock::WorktreeLock;
 use crate::application::errors::{AppError, ErrorCode};
 use crate::application::interaction::detect_unfinished_question;
+use crate::application::memory::{MemoryService, Validator};
 use crate::application::optimization::OptimizationFlags;
 use crate::application::orchestration::brief;
 use crate::application::orchestration::handoff::{
@@ -35,7 +36,7 @@ use crate::domain::interaction::{
     InteractionStatus, PendingInteraction, PLAN_APPROVE,
 };
 use crate::domain::orchestration::ArtifactType;
-use crate::domain::result_contract::ResultContract;
+use crate::domain::result_contract::{ContractKind, ResultContract};
 use crate::domain::workflow::{
     FailureCode, IntegrationStatus, RecoveryKind, RecoveryPlan, RecoveryProblem, WorkflowEvent,
     WorkflowEventKind, WorkflowExecution, WorkflowExecutionStatus, WorkflowFailure,
@@ -87,6 +88,8 @@ pub struct Orchestrator {
     poll: Duration,
     /// Whether guardrails (`optimization.guardrails.enabled`) apply to what a step hands on.
     guardrails: Option<Arc<dyn OptimizationFlags>>,
+    /// Where notes held for an independent validator are let in, or dropped (ADR 0037).
+    memory: Option<Arc<MemoryService>>,
 }
 
 impl Orchestrator {
@@ -97,7 +100,16 @@ impl Orchestrator {
             live: Mutex::new(HashMap::new()),
             poll: Duration::from_millis(150),
             guardrails: None,
+            memory: None,
         }
+    }
+
+    /// Lets a validation or review step that passes (or fails) a run settle the notes the run's
+    /// other agents proposed in automatic mode.
+    #[must_use]
+    pub fn with_memory(mut self, memory: Arc<MemoryService>) -> Self {
+        self.memory = Some(memory);
+        self
     }
 
     /// Applies the guardrails to what steps hand on (secrets are taken out of a result) while
@@ -816,6 +828,16 @@ impl Orchestrator {
                             files.dedup();
                             files
                         });
+                        if problem.is_none() {
+                            self.settle_notes(
+                                exec,
+                                &node_id,
+                                &execution_id,
+                                agent_id.as_deref(),
+                                contract.kind,
+                                result.outcome.as_deref(),
+                            );
+                        }
                         if let Some(problem) = problem {
                             // The agent's contract asks for an outcome and it gave none that
                             // is declared. Nothing is assumed (not a pass, not a success): the
@@ -888,6 +910,50 @@ impl Orchestrator {
                 }
                 events
             }
+        }
+    }
+
+    /// A step whose contract is a validation or a review ended with an outcome. A `pass` lets in
+    /// the notes that the run's *other* agents proposed in automatic mode and that were held for
+    /// exactly this; a `fail` drops them. Any other step, or a validator that is no one else,
+    /// changes nothing: a step vouching for its own notes is the thing the hold exists to prevent.
+    fn settle_notes(
+        &self,
+        exec: &WorkflowExecution,
+        node_id: &str,
+        execution_id: &str,
+        agent_id: Option<&str>,
+        kind: ContractKind,
+        outcome: Option<&str>,
+    ) {
+        let (Some(memory), Some(agent)) = (self.memory.as_ref(), agent_id) else {
+            return;
+        };
+        if !matches!(kind, ContractKind::Validation | ContractKind::Review) {
+            return;
+        }
+        // The steps this one judged: every other node of the run that has run an attempt.
+        let judged: Vec<String> = exec
+            .nodes
+            .iter()
+            .filter(|(id, _)| id.as_str() != node_id)
+            .flat_map(|(_, state)| state.attempts.iter().map(|a| a.execution_id.clone()))
+            .collect();
+        match outcome {
+            Some("pass") => {
+                memory.confirm_held(
+                    &judged,
+                    &Validator {
+                        execution: execution_id,
+                        agent,
+                    },
+                    now_ms(),
+                );
+            }
+            Some("fail") => {
+                memory.discard_held(&judged);
+            }
+            _ => {}
         }
     }
 

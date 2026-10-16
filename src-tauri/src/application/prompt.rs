@@ -72,6 +72,9 @@ pub struct Prompt {
     /// that frames them: hints that grant nothing. `None` when none were recovered (the prompt is
     /// then byte-identical to one built before memories existed).
     pub memories: Option<String>,
+    /// How an agent proposes a note for the next run (`memory::proposal::RULE`), when the person let
+    /// agents propose. It closes the prompt, after the task. `None`: the prompt has no such part.
+    pub memory_rule: Option<String>,
     /// The rules that apply to this execution (`application::rules`), with the notice that frames
     /// them: authoritative guidance that grants no permission. `None` when none apply (the prompt
     /// is then byte-identical to one built before rules existed).
@@ -104,8 +107,12 @@ impl Prompt {
         let memories = self.memories.as_ref().map_or_else(String::new, |text| {
             format!("NOTES FROM EARLIER WORK\n\n{text}\n\n")
         });
+        let memory_rule = self
+            .memory_rule
+            .as_ref()
+            .map_or_else(String::new, |text| format!("\n{text}\n"));
         format!(
-            "{harness}{skills}{memories}PROJECT CONTEXT\n\n{}\n\nUSER INSTRUCTION\n\n{}\n",
+            "{harness}{skills}{memories}PROJECT CONTEXT\n\n{}\n\nUSER INSTRUCTION\n\n{}\n{memory_rule}",
             self.context, self.instruction
         )
     }
@@ -349,12 +356,12 @@ impl PromptBuilder<'_> {
             ATLAS_RULES
         };
         let personality_text = personality.system_instructions.trim();
-        let mut system =
+        let system =
             format!("{personality_text}\n\n{atlas_rules}\n\n{LIVE_NARRATION}\n\n{PLAN_RULE}");
-        // Only when the person turned proposals on: otherwise the prompt is the one there was.
+        // Only when the person turned proposals on: otherwise the prompt is the one there was. It
+        // goes after the task, not in the system part: a model that was told in the task to reply
+        // with one word ignored a rule that sat far from it (measured, `spikes/memory-m4-results.md`).
         let memory_rule = if memory_proposals {
-            system.push_str("\n\n");
-            system.push_str(MEMORY_RULE);
             TextSize::of(MEMORY_RULE)
         } else {
             TextSize::default()
@@ -407,6 +414,7 @@ impl PromptBuilder<'_> {
             task_aware,
             skills: skills.map(str::to_owned),
             memories: memories.map(str::to_owned),
+            memory_rule: memory_proposals.then(|| MEMORY_RULE.to_owned()),
             rules: rules.map(str::to_owned),
             context,
             instruction,

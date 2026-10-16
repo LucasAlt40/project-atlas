@@ -126,6 +126,7 @@ mod tests {
             task_aware: false,
             skills: None,
             memories: None,
+            memory_rule: None,
             rules: None,
             context: "CTX".to_owned(),
             instruction: instruction.to_owned(),

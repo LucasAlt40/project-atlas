@@ -53,15 +53,16 @@ inclui memórias só quando a pessoa marca, e uma memória do escopo Workspace �
 Três modos, **por escopo e por workspace**, configurados pela pessoa (padrão: `off`, porque muda prompts, como
 `contextEnabled` e `skillsEnabled`):
 
-| Modo      | O que acontece                                                                                                                 |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `off`     | Nada é recuperado, nada é proposto, o prompt é idêntico byte a byte ao de antes.                                               |
-| `propose` | O agente propõe lições ao fim de um passo; cada uma vira um _candidato_ que a pessoa aprova, edita ou descarta.                |
-| `auto`    | Candidatos que passam em todas as verificações da decisão 5 entram sozinhos como `Agent`, com validade; o resto vira proposta. |
+| Modo      | O que acontece                                                                                                                                                        |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `off`     | Nada é recuperado, nada é proposto, o prompt é idêntico byte a byte ao de antes.                                                                                      |
+| `propose` | O agente propõe lições ao fim de um passo; cada uma vira um _candidato_ que a pessoa aprova, edita ou descarta.                                                       |
+| `auto`    | Candidatos que passam em todas as verificações da decisão 5 ficam **retidos**; só entram quando um validador independente aprova (decisão 5b); o resto vira proposta. |
 
 **Como o agente propõe, sem custo de um segundo modelo**: um bloco cercado `atlas-memory` na resposta final (mesmo molde
-do `atlas-interaction`, ADR 0016), lido pelo adaptador do runtime, no máximo 3 por passo. A instrução que o pede (duas
-linhas) só entra no prompt quando o modo do escopo não é `off`. Não há chamada extra de modelo para "extrair" memórias.
+do `atlas-interaction`, ADR 0016), lido pelo adaptador do runtime, no máximo 3 por passo. A instrução que o pede só entra no prompt quando o modo do escopo não é `off`. A primeira versão (duas linhas, "você
+pode") não fez nenhum agente propor; a atual diz quando uma nota é devida, mostra o formato e avisa que o bloco sai da
+resposta (veja `spikes/memory-m4-results.md`), a ~200 tokens por prompt. Não há chamada extra de modelo para "extrair" memórias.
 **Coleta determinística falha→sucesso: não construída.** Sem um modelo, o Atlas só vê _que_ uma tentativa falhou e
 qual foi a mensagem de erro, não _o que mudou_ na tentativa seguinte: um candidato gerado dali seria "o passo X falhou com
 Y e depois passou", que não ensina nada e enche a fila da pessoa. A lição, quando existe, é do agente, que a propõe no
@@ -124,6 +125,30 @@ autorização (custa tokens do usuário).
 - Memória do workflow entre execuções (SharedExecutionState continua sendo o único dono; reavaliar depois da M4).
 - Gravar em `.atlas/memory/` ou em arquivos de memória das CLIs (`CLAUDE.md`, `memory/` do Claude): o Atlas nunca edita
   `~/.claude` nem arquivos de usuário das ferramentas.
+
+### 5b. Um passo que terminou não é um passo que acertou (o portão do validador)
+
+A medição do M4 (`spikes/memory-m4-results.md`) mostrou o defeito do desenho original, em que uma nota que passava nas
+checagens da decisão 5 entrava sozinha: dois modelos diferentes caíram na isca da tarefa, **terminaram o passo** e gravaram
+a lição errada ("o limite está em `app.toml`", "mude os três arquivos"), e a execução seguinte a recebeu e repetiu o erro.
+Nenhuma checagem da decisão 5 mede se a lição é _verdadeira_. Por isso, em modo `auto`:
+
+1. Uma nota que passa em todas as checagens fica **retida**: `Candidate` com `provenance.automatic`. A pessoa a vê (e pode
+   aprovar ou descartar), nenhum modelo a lê, e ela não é recuperada.
+2. Ela só **entra** (`Active`) quando um **validador independente** passa a execução: um passo de _outro_ agente, cujo
+   contrato de resultado é de validação ou de revisão (`ContractKind::Validation`/`Review`), com desfecho `pass`, na mesma
+   execução de workflow. O passo que propôs a nota nunca a valida (checa-se o agente, não só a execução). Quem faz a
+   ligação é o orquestrador (`MemoryService::confirm_held`).
+3. Um desfecho `fail` desse validador **descarta** as notas retidas dos passos que ele julgou (`discard_held`); notas que uma
+   pessoa propôs ou aprovou nunca são tocadas.
+4. Uma nota que entrou assim continua **não confirmada** (`is_unconfirmed`): ninguém a decidiu. Ela é recuperada e usada, mas
+   aparece no prompt como `[pitfall (unconfirmed)]`, na lista como "Não confirmada (automática)" com a marca de que outro
+   agente a validou, e expira (60 dias sem uso). Só uma pessoa (aprovar, editar, "tornar minha") a confirma.
+5. A cota das automáticas é conferida de novo na entrada, para uma sequência de aprovações não a estourar.
+6. **Fora de um workflow** (conversas, passos de spec) não há validador independente: a nota fica retida até a pessoa
+   decidir. Nesse caso `auto` se comporta como `propose`.
+
+O `auto` continua sendo escolha explícita da pessoa, e `propose` continua sendo o modo recomendado.
 
 ## Fases
 

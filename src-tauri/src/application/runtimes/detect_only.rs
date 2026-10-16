@@ -131,6 +131,7 @@ mod tests {
                         task_aware: false,
                         skills: None,
                         memories: None,
+                        memory_rule: None,
                         rules: None,
                         system: String::new(),
                         context: String::new(),

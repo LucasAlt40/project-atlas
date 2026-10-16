@@ -574,6 +574,7 @@ impl SemanticModel for RuntimeSemanticModel {
             prompt: Prompt {
                 skills: None,
                 memories: None,
+                memory_rule: None,
                 rules: None,
                 system: if self.text_only {
                     RESTRICTED_RULES

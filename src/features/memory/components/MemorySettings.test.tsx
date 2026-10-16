@@ -142,10 +142,14 @@ describe('MemorySettings', () => {
     vi.mocked(deleteAutomaticMemories).mockResolvedValue(1);
     renderWithProviders(<MemorySettings />);
 
-    expect(await screen.findByText('Automatic', { selector: 'span' })).toBeInTheDocument();
+    expect(
+      await screen.findByText('Unconfirmed (automatic)', { selector: 'span' }),
+    ).toBeInTheDocument();
     await person.click(screen.getByRole('button', { name: 'Make it mine' }));
     expect(promoteMemory).toHaveBeenCalledWith('m1');
-    expect(screen.queryByText('Automatic', { selector: 'span' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Unconfirmed (automatic)', { selector: 'span' }),
+    ).not.toBeInTheDocument();
   });
 
   it('can set a stale note aside or use it again', async () => {
@@ -193,5 +197,32 @@ describe('MemorySettings', () => {
     await person.click(screen.getByRole('button', { name: 'Add note' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('looks like a secret');
+  });
+
+  it('shows a note held for a validator as waiting, and one a validator let in as unconfirmed but validated', async () => {
+    vi.mocked(listMemories).mockResolvedValue([
+      note({
+        id: 'held',
+        title: 'Held lesson',
+        status: 'candidate',
+        provenance: { origin: 'agent', automatic: true, agentId: 'a1' },
+      }),
+      note({
+        id: 'in',
+        title: 'Let in lesson',
+        provenance: { origin: 'agent', automatic: true, validatedBy: 'exec-9' },
+      }),
+    ]);
+    renderWithProviders(<MemorySettings />);
+
+    const waiting = await screen.findByRole('region', { name: 'Waiting for your decision' });
+    expect(within(waiting).getByText('Held lesson')).toBeInTheDocument();
+    expect(within(waiting).getByText('Waiting for an independent validator')).toBeInTheDocument();
+    expect(within(waiting).queryByText('Proposed by an agent')).not.toBeInTheDocument();
+
+    const kept = screen.getByRole('region', { name: 'Kept notes' });
+    const row = within(kept).getByText('Let in lesson').closest('li');
+    expect(row).toHaveTextContent('Unconfirmed (automatic)');
+    expect(row).toHaveTextContent('Passed by another agent’s validation');
   });
 });

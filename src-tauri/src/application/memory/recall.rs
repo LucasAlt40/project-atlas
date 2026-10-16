@@ -123,8 +123,14 @@ pub fn render_line(memory: &Memory) -> String {
         MemoryKind::Preference => "preference",
         MemoryKind::Decision => "decision",
     };
+    // A note no person decided says so, so a model weighs it as what it is.
+    let unconfirmed = if memory.is_unconfirmed() {
+        " (unconfirmed)"
+    } else {
+        ""
+    };
     format!(
-        "- [{kind}] {}: {}",
+        "- [{kind}{unconfirmed}] {}: {}",
         memory.title.trim(),
         memory.content.trim()
     )

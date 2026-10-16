@@ -1254,8 +1254,8 @@ impl ExecutionService {
             count(|d| matches!(d, Decision::Proposed)),
         );
         execution.metadata.insert(
-            "memoryAccepted".to_owned(),
-            count(|d| matches!(d, Decision::Accepted)),
+            "memoryHeld".to_owned(),
+            count(|d| matches!(d, Decision::Held)),
         );
         execution.metadata.insert(
             "memoryDiscarded".to_owned(),

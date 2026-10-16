@@ -517,7 +517,7 @@ it('lists the notes of earlier work with what became of each, and counts the unr
 
   const notes = screen.getByRole('region', { name: 'Notes of earlier work' });
   expect(within(notes).getByText('Invoice rounding').closest('li')).toHaveTextContent(
-    'sent · Automatic',
+    'sent · Unconfirmed (automatic)',
   );
   expect(within(notes).getByText('Old script').closest('li')).toHaveTextContent(
     'out of date, set aside · scripts/old.sh is not in the project any more',

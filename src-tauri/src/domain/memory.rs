@@ -147,9 +147,17 @@ pub struct MemoryProvenance {
     /// The execution and step that produced it, when an agent did. A name, never a secret.
     #[serde(default)]
     pub execution_id: Option<String>,
-    /// `true` when it entered without a person deciding (automatic mode).
+    /// `true` when no person decided it (automatic mode): the note is **unconfirmed**. It stays so
+    /// until a person approves, edits or promotes it, whatever else vouched for it.
     #[serde(default)]
     pub automatic: bool,
+    /// The agent whose step proposed it. A validator must be someone else.
+    #[serde(default)]
+    pub agent_id: Option<String>,
+    /// The execution of the independent validator whose `pass` let the note in by itself (see
+    /// `MemoryService::confirm_held`). `None` for a note a person decided, and for one still held.
+    #[serde(default)]
+    pub validated_by: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -281,6 +289,18 @@ impl Memory {
             .map(str::to_lowercase)
     }
 
+    /// Waiting for an independent validator: proposed in automatic mode, not yet let in, not yet
+    /// decided by a person.
+    pub fn is_held_for_validator(&self) -> bool {
+        self.status == MemoryStatus::Candidate && self.provenance.automatic
+    }
+
+    /// No person has decided it. It may still be recalled (a validator vouched for it), but it is
+    /// shown as unconfirmed and read with less trust.
+    pub fn is_unconfirmed(&self) -> bool {
+        self.provenance.automatic
+    }
+
     /// Whether this memory applies to an execution of `workspace` by `agent`.
     pub fn applies_to(&self, workspace: &str, agent: &str) -> bool {
         match self.scope {
@@ -386,6 +406,8 @@ pub(crate) mod tests {
                 origin: MemoryOrigin::User,
                 execution_id: None,
                 automatic: false,
+                agent_id: None,
+                validated_by: None,
             },
             status: MemoryStatus::Active,
             validity: MemoryValidity::default(),

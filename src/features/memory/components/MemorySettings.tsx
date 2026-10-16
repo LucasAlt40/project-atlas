@@ -300,9 +300,19 @@ function NoteCard({
           {ownerName ? ` · ${ownerName}` : ''}
         </span>
         {note.provenance.automatic && <span className={styles.badge}>{t('memory.automatic')}</span>}
-        {note.provenance.origin === 'agent' && note.status === 'candidate' && (
-          <span className={styles.badge}>{t('memory.proposedByAgent')}</span>
+        {note.provenance.automatic && note.status === 'candidate' && (
+          <span className={styles.badge} data-tone="warning">
+            {t('memory.heldForValidator')}
+          </span>
         )}
+        {note.provenance.validatedBy && (
+          <span className={styles.badge}>{t('memory.validated')}</span>
+        )}
+        {note.provenance.origin === 'agent' &&
+          note.status === 'candidate' &&
+          !note.provenance.automatic && (
+            <span className={styles.badge}>{t('memory.proposedByAgent')}</span>
+          )}
         {(note.status === 'stale' || note.status === 'archived') && (
           <span className={styles.badge} data-tone="warning">
             {t(`memory.status.${note.status}` as TranslationKey)}

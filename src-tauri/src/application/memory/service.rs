@@ -20,6 +20,14 @@ const MAX_PENDING: usize = 20;
 /// An automatic note unused for this long is archived.
 const AUTO_EXPIRES_AFTER_DAYS: u32 = 60;
 
+/// Who vouches for the notes of a run: another agent's step that passed it.
+pub struct Validator<'a> {
+    /// The validator's execution.
+    pub execution: &'a str,
+    /// The validator's agent: never the one that proposed the note.
+    pub agent: &'a str,
+}
+
 /// What a step's proposals are judged against.
 pub struct SubmitContext<'a> {
     pub workspace: &'a str,
@@ -51,8 +59,10 @@ pub enum Discarded {
 pub enum Decision {
     /// Waits for a person: approve, edit or discard.
     Proposed,
-    /// Entered by itself; every check of ADR 0037 held.
-    Accepted,
+    /// Every check of ADR 0037 held, and the note waits for an independent validator: it is kept
+    /// (so a person can see it, approve it or discard it) but is not recalled, and no model reads
+    /// it, until a validator other than its author passes the run ([`MemoryService::confirm_held`]).
+    Held,
     Discarded(Discarded),
 }
 
@@ -164,6 +174,8 @@ impl MemoryService {
                 origin: new.origin,
                 execution_id: None,
                 automatic: false,
+                agent_id: None,
+                validated_by: None,
             },
             status,
             validity: new.validity,
@@ -335,6 +347,8 @@ impl MemoryService {
                 origin: MemoryOrigin::Agent,
                 execution_id: Some(ctx.execution_id.to_owned()),
                 automatic: false,
+                agent_id: Some(ctx.agent.to_owned()),
+                validated_by: None,
             },
             status: MemoryStatus::Candidate,
             validity: MemoryValidity {
@@ -384,27 +398,115 @@ impl MemoryService {
             .filter(same_owner)
             .filter(|m| m.provenance.automatic && m.status == MemoryStatus::Active)
             .count();
-        let may_enter_alone = mode == MemoryMode::Auto
+        let may_be_held = mode == MemoryMode::Auto
             && ctx.step_succeeded
             && memory.kind != MemoryKind::Preference
             && !contradicts
             && automatic_kept < quota
             && !claims_authority(&memory.title)
             && !claims_authority(&memory.content);
-        if may_enter_alone {
-            memory.status = MemoryStatus::Active;
+        if may_be_held {
+            // Not `Active`: whether the lesson is true is not known yet. A step that finished is not
+            // a step that was right (M4: an agent fell for a decoy and wrote the wrong file down as
+            // a fact), so it waits for someone else to say the work passed.
             memory.provenance.automatic = true;
-            memory.validity.expires_after_days = Some(AUTO_EXPIRES_AFTER_DAYS);
         }
         if let Err(error) = self.store.save(&memory) {
             return Decision::Discarded(Discarded::Storage(error));
         }
         items.push(memory);
-        if may_enter_alone {
-            Decision::Accepted
+        if may_be_held {
+            Decision::Held
         } else {
             Decision::Proposed
         }
+    }
+
+    /// An independent validator passed the run: the notes its steps proposed in `Auto` mode and
+    /// that were held for exactly this become active, **still unconfirmed** (no person decided
+    /// them), expiring if unused, and tagged with the validator's execution. Only the author's own
+    /// pass never counts: a note proposed by `validator.agent` stays held. Returns the ids let in.
+    ///
+    /// The quota of automatic notes is checked now, so a flood of passes cannot exceed it: what
+    /// does not fit stays held for a person.
+    pub fn confirm_held(
+        &self,
+        executions: &[String],
+        validator: &Validator<'_>,
+        now: u64,
+    ) -> Vec<String> {
+        let mut items = self.items.lock_or_recover();
+        let mut confirmed = Vec::new();
+        let quota_of = |scope: MemoryScope| {
+            if scope == MemoryScope::Agent {
+                AUTO_QUOTA_AGENT
+            } else {
+                AUTO_QUOTA
+            }
+        };
+        let wanted: Vec<usize> = (0..items.len())
+            .filter(|&i| {
+                let note = &items[i];
+                note.is_held_for_validator()
+                    && note
+                        .provenance
+                        .execution_id
+                        .as_ref()
+                        .is_some_and(|id| executions.contains(id))
+                    && note.provenance.agent_id.as_deref() != Some(validator.agent)
+            })
+            .collect();
+        for index in wanted {
+            let (scope, owner) = (items[index].scope, items[index].owner.clone());
+            let kept = items
+                .iter()
+                .filter(|m| {
+                    m.scope == scope
+                        && m.owner == owner
+                        && m.provenance.automatic
+                        && m.status == MemoryStatus::Active
+                })
+                .count();
+            if kept >= quota_of(scope) {
+                continue;
+            }
+            let mut changed = items[index].clone();
+            changed.status = MemoryStatus::Active;
+            changed.provenance.validated_by = Some(validator.execution.to_owned());
+            changed.validity.expires_after_days = Some(AUTO_EXPIRES_AFTER_DAYS);
+            changed.updated_at = now;
+            if self.store.save(&changed).is_ok() {
+                confirmed.push(changed.id.clone());
+                items[index] = changed;
+            }
+        }
+        confirmed
+    }
+
+    /// A validator did **not** pass the run: what its steps proposed in `Auto` mode and is still
+    /// held is dropped (the work it came from was judged wrong, so is the lesson, most likely).
+    /// What a person proposed or approved is never touched. Returns how many were dropped.
+    pub fn discard_held(&self, executions: &[String]) -> usize {
+        let mut items = self.items.lock_or_recover();
+        let ids: Vec<String> = items
+            .iter()
+            .filter(|m| {
+                m.is_held_for_validator()
+                    && m.provenance
+                        .execution_id
+                        .as_ref()
+                        .is_some_and(|id| executions.contains(id))
+            })
+            .map(|m| m.id.clone())
+            .collect();
+        let mut dropped = 0;
+        for id in ids {
+            if self.store.remove(&id).is_ok() {
+                items.retain(|m| m.id != id);
+                dropped += 1;
+            }
+        }
+        dropped
     }
 
     /// Removes every automatic note that no person has taken as theirs (editing or approving one
@@ -714,7 +816,7 @@ mod tests {
     }
 
     #[test]
-    fn in_auto_mode_a_note_that_passes_every_check_enters_active_automatic_and_expiring() {
+    fn in_auto_mode_a_note_that_passes_every_check_is_held_for_a_validator_and_not_let_in() {
         let (service, _) = service();
 
         let decision = decide(
@@ -727,11 +829,114 @@ mod tests {
             &ctx(MemoryMode::Auto, true),
         );
 
-        assert_eq!(decision, Decision::Accepted);
+        assert_eq!(decision, Decision::Held);
         let kept = &service.list()[0];
-        assert_eq!(kept.status, MemoryStatus::Active);
-        assert!(kept.provenance.automatic);
-        assert_eq!(kept.validity.expires_after_days, Some(60));
+        // Kept, so a person sees it; not active, so no model reads it; unconfirmed from the start.
+        assert_eq!(kept.status, MemoryStatus::Candidate);
+        assert!(kept.is_held_for_validator() && kept.is_unconfirmed());
+        assert_eq!(kept.provenance.agent_id.as_deref(), Some("a1"));
+        assert_eq!(kept.provenance.validated_by, None);
+        assert_eq!(kept.validity.expires_after_days, None);
+    }
+
+    fn held_by(service: &MemoryService, agent: &str, execution: &str, title: &str) -> String {
+        let mut c = ctx(MemoryMode::Auto, true);
+        c.agent = Box::leak(agent.to_owned().into_boxed_str());
+        c.execution_id = Box::leak(execution.to_owned().into_boxed_str());
+        let note = proposal(MemoryKind::HowTo, title, &format!("lesson of {title}"));
+        assert_eq!(service.submit(&[note], &c)[0].decision, Decision::Held);
+        service.list().last().unwrap().id.clone()
+    }
+
+    #[test]
+    fn an_independent_validators_pass_lets_the_held_note_in_still_unconfirmed_and_expiring() {
+        let (service, store) = service();
+        let id = held_by(&service, "implementer", "exec-1", "Rounding");
+
+        let confirmed = service.confirm_held(
+            &["exec-1".to_owned()],
+            &Validator {
+                execution: "exec-9",
+                agent: "validator",
+            },
+            50,
+        );
+
+        assert_eq!(confirmed, std::slice::from_ref(&id));
+        let note = store.stored(&id).unwrap();
+        assert_eq!(note.status, MemoryStatus::Active);
+        assert!(note.is_unconfirmed(), "no person decided it");
+        assert_eq!(note.provenance.validated_by.as_deref(), Some("exec-9"));
+        assert_eq!(note.validity.expires_after_days, Some(60));
+        assert_eq!(note.updated_at, 50);
+    }
+
+    #[test]
+    fn the_author_never_vouches_for_its_own_note_and_only_the_runs_own_executions_count() {
+        let (service, _) = service();
+        let own = held_by(&service, "implementer", "exec-1", "Own");
+        let other_run = held_by(&service, "implementer", "exec-77", "Elsewhere");
+
+        // The validator is the author itself.
+        assert_eq!(
+            service.confirm_held(
+                &["exec-1".to_owned(), "exec-77".to_owned()],
+                &Validator {
+                    execution: "exec-9",
+                    agent: "implementer"
+                },
+                1
+            ),
+            Vec::<String>::new()
+        );
+        // Another agent, but it judged a run that does not contain exec-77.
+        let confirmed = service.confirm_held(
+            &["exec-1".to_owned()],
+            &Validator {
+                execution: "exec-9",
+                agent: "validator",
+            },
+            2,
+        );
+
+        assert_eq!(confirmed, [own]);
+        assert!(service.get(&other_run).unwrap().is_held_for_validator());
+    }
+
+    #[test]
+    fn a_failed_validation_drops_what_was_held_but_never_what_a_person_decided() {
+        let (service, _) = service();
+        let held = held_by(&service, "implementer", "exec-1", "Held");
+        let mut proposed_c = ctx(MemoryMode::Propose, true);
+        proposed_c.execution_id = "exec-1";
+        service.submit(
+            &[proposal(
+                MemoryKind::HowTo,
+                "Proposed",
+                "lesson for a person",
+            )],
+            &proposed_c,
+        );
+        let mine = service.create(new("written by the person"), 1).unwrap();
+
+        let dropped = service.discard_held(&["exec-1".to_owned()]);
+
+        assert_eq!(dropped, 1);
+        assert!(service.get(&held).is_none());
+        let titles: Vec<_> = service.list().iter().map(|m| m.title.clone()).collect();
+        assert_eq!(titles, ["Proposed", "Check"]);
+        assert!(service.get(&mine.id).is_some());
+    }
+
+    #[test]
+    fn a_held_note_a_person_approves_becomes_theirs_and_is_no_longer_unconfirmed() {
+        let (service, _) = service();
+        let id = held_by(&service, "implementer", "exec-1", "Rounding");
+
+        let approved = service.approve(&id, 3).unwrap();
+
+        assert_eq!(approved.status, MemoryStatus::Active);
+        assert!(!approved.is_unconfirmed() && !approved.is_held_for_validator());
     }
 
     #[test]
@@ -789,7 +994,7 @@ mod tests {
         let mut second = proposal(MemoryKind::HowTo, "Package manager", "Use npm for installs");
         second.topic = Some(" Tooling ".to_owned());
 
-        assert_eq!(decide(&service, first, &auto), Decision::Accepted);
+        assert_eq!(decide(&service, first, &auto), Decision::Held);
         assert_eq!(decide(&service, second, &auto), Decision::Proposed);
 
         let contents: Vec<_> = service.list().iter().map(|m| m.content.clone()).collect();
@@ -822,33 +1027,85 @@ mod tests {
     }
 
     #[test]
-    fn past_the_quota_an_automatic_note_waits_for_a_person_and_pending_proposals_are_capped() {
+    fn the_quota_is_checked_when_a_validator_lets_notes_in_and_pending_proposals_are_capped() {
         let (service, _) = service();
-        let auto = ctx(MemoryMode::Auto, true);
-        for n in 0..AUTO_QUOTA {
-            let note = proposal(
-                MemoryKind::HowTo,
-                &format!("T{n}"),
-                &format!("lesson number {n}"),
-            );
-            assert_eq!(decide(&service, note, &auto), Decision::Accepted);
+        let validator = Validator {
+            execution: "exec-9",
+            agent: "validator",
+        };
+        let mut let_in = 0;
+        // Two rounds of what the pending cap allows at a time.
+        for round in 0..2 {
+            let mut c = ctx(MemoryMode::Auto, true);
+            c.execution_id = if round == 0 { "exec-a" } else { "exec-b" };
+            for n in 0..MAX_PENDING {
+                let note = proposal(
+                    MemoryKind::HowTo,
+                    &format!("R{round}T{n}"),
+                    &format!("lesson number {round} {n}"),
+                );
+                assert_eq!(service.submit(&[note], &c)[0].decision, Decision::Held);
+            }
+            let judged = [c.execution_id.to_owned()];
+            let_in += service.confirm_held(&judged, &validator, 1).len();
         }
+        assert_eq!(let_in, AUTO_QUOTA);
 
+        // With the quota full, one more is not worth holding: it goes to a person.
+        let mut c = ctx(MemoryMode::Auto, true);
+        c.execution_id = "exec-c";
         let over = proposal(MemoryKind::HowTo, "Over", "one lesson too many");
-        assert_eq!(decide(&service, over, &auto), Decision::Proposed);
+        assert_eq!(decide(&service, over, &c), Decision::Proposed);
+
+        // Proposals waiting for a person are capped: the flood is dropped.
         for n in 0..MAX_PENDING - 1 {
             let note = proposal(
                 MemoryKind::Preference,
                 &format!("P{n}"),
                 &format!("preference {n}"),
             );
-            assert_eq!(decide(&service, note, &auto), Decision::Proposed);
+            assert_eq!(decide(&service, note, &c), Decision::Proposed);
         }
         let flood = proposal(MemoryKind::Preference, "Flood", "one proposal too many");
         assert_eq!(
-            decide(&service, flood, &auto),
+            decide(&service, flood, &c),
             Decision::Discarded(Discarded::TooManyPending)
         );
+    }
+
+    #[test]
+    fn a_validators_pass_cannot_push_the_automatic_notes_past_the_quota() {
+        use crate::domain::memory::tests::memory as note;
+        let store = Arc::new(MemoryMemoryStore::default());
+        for n in 0..AUTO_QUOTA {
+            let mut full = note(
+                &format!("full-{n}"),
+                MemoryScope::Workspace,
+                Some("w1"),
+                "x",
+            );
+            full.provenance.automatic = true;
+            store.save(&full).unwrap();
+        }
+        let mut held = note("held", MemoryScope::Workspace, Some("w1"), "one more");
+        held.status = MemoryStatus::Candidate;
+        held.provenance.automatic = true;
+        held.provenance.execution_id = Some("exec-c".to_owned());
+        held.provenance.agent_id = Some("implementer".to_owned());
+        store.save(&held).unwrap();
+        let service = MemoryService::new(store, Arc::new(FakeProbe::default()));
+
+        let confirmed = service.confirm_held(
+            &["exec-c".to_owned()],
+            &Validator {
+                execution: "exec-9",
+                agent: "validator",
+            },
+            1,
+        );
+
+        assert_eq!(confirmed, Vec::<String>::new());
+        assert!(service.get("held").unwrap().is_held_for_validator());
     }
 
     #[test]
@@ -873,19 +1130,17 @@ mod tests {
     #[test]
     fn a_person_can_promote_an_automatic_note_or_clear_all_the_automatic_ones() {
         let (service, _) = service();
-        let auto = ctx(MemoryMode::Auto, true);
-        decide(
-            &service,
-            proposal(MemoryKind::HowTo, "One", "first lesson"),
-            &auto,
-        );
-        decide(
-            &service,
-            proposal(MemoryKind::HowTo, "Two", "second lesson"),
-            &auto,
-        );
+        let first = held_by(&service, "implementer", "exec-1", "One");
+        held_by(&service, "implementer", "exec-1", "Two");
         let mine = service.create(new("written by the person"), 1).unwrap();
-        let first = service.list()[0].id.clone();
+        service.confirm_held(
+            &["exec-1".to_owned()],
+            &Validator {
+                execution: "exec-9",
+                agent: "validator",
+            },
+            2,
+        );
 
         let promoted = service.promote(&first, 5).unwrap();
         assert!(!promoted.provenance.automatic && promoted.validity.expires_after_days.is_none());

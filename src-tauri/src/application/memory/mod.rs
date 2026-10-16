@@ -9,4 +9,4 @@ pub mod service;
 pub use block::MemoryBlock;
 pub use ports::{MemoryStore, ProjectProbe};
 pub use recall::{Recall, RecallRequest};
-pub use service::{Decision, MemoryService, NewMemory, SubmitContext};
+pub use service::{Decision, MemoryService, NewMemory, SubmitContext, Validator};

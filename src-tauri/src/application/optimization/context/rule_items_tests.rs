@@ -29,6 +29,7 @@ fn prompt() -> Prompt {
         task_aware: false,
         skills: None,
         memories: None,
+        memory_rule: None,
         rules: Some("rules text".to_owned()),
         context: "CTX".to_owned(),
         instruction: "Task:\nDo it".to_owned(),

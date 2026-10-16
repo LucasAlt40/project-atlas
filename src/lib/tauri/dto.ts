@@ -1294,8 +1294,12 @@ export interface MemoryDto {
   provenance: {
     origin: 'user' | 'agent' | 'imported';
     executionId?: string | null;
-    /** It entered without a person deciding. */
+    /** No person decided it: the note is unconfirmed. */
     automatic: boolean;
+    /** The agent whose step proposed it. */
+    agentId?: string | null;
+    /** The execution of the independent validator whose pass let it in. */
+    validatedBy?: string | null;
   };
   status: MemoryStatusDto;
   validity: MemoryValidityDto;

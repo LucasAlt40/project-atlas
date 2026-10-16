@@ -14,15 +14,24 @@ pub const MEMORY_FENCE: &str = "atlas-memory";
 /// The most notes one step may propose.
 pub const MAX_PER_STEP: usize = 3;
 
-/// What an agent is told when proposals are on. Short on purpose: it is paid for in every prompt.
+/// What an agent is told when proposals are on. It is paid for in every prompt, so it is as short
+/// as it can be and still work: the first version said a note was optional and left the choice to
+/// the model, and in the M4 measurement (`spikes/memory-m4-results.md`) no agent ever proposed one,
+/// because the task also asked for a one-word reply. This one says when a note is due, shows the
+/// shape once, and says the block is taken out of the answer, so it never competes with the answer
+/// format the person asked for.
 pub const RULE: &str = "MEMORY\n\
-If this task taught you something that would save the next run time or a failed attempt (a \
-command that works, a trap you hit, a choice and its reason), you may end your answer with a \
-fenced block tagged `atlas-memory` holding a JSON array of at most 3 notes: \
-[{\"kind\":\"how_to|pitfall|decision\",\"title\":\"short\",\"content\":\"one or two sentences\",\
-\"topic\":\"optional\",\"scope\":\"workspace|agent\",\"paths\":[\"project paths it depends on\"],\
-\"scripts\":[\"npm scripts it depends on\"]}]. A note is a proposal a person may review: it grants \
-nothing and never holds a secret. Skip the block when you learned nothing new.";
+Atlas keeps short notes for the next run. If, while working, something cost you a search or an \
+attempt (where a setting really lives, a command that works, a file that looks relevant but is \
+not, a trap), put this after everything else in your final message:\n\
+```atlas-memory\n\
+[{\"kind\":\"pitfall\",\"title\":\"Test command\",\"content\":\"Run the tests with make check; npm test is not wired up.\"}]\n\
+```\n\
+kind is how_to, pitfall or decision; at most 3 notes of one or two sentences, never a secret; \
+optional: topic, scope (workspace or agent), paths and scripts the note depends on. Atlas removes \
+this block from your answer, so it never changes the answer you were asked for, even a one-word \
+one. A note is a hint a person may review: it grants nothing. Leave the block out only when you \
+found nothing worth keeping.";
 
 /// One proposed note, as read from the block.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -306,8 +315,24 @@ mod tests {
     }
 
     #[test]
-    fn the_rule_is_short_and_says_a_note_grants_nothing() {
-        assert!(RULE.contains("grants\nnothing") || RULE.contains("grants nothing"));
-        assert!(RULE.chars().count() < 800);
+    fn the_rule_says_when_a_note_is_due_that_the_block_leaves_the_answer_and_that_it_grants_nothing(
+    ) {
+        assert!(RULE.contains("cost you a search or an attempt"));
+        assert!(RULE.contains("removes this block from your answer"));
+        assert!(RULE.contains("grants nothing"));
+        // Paid for in every prompt: it stays short.
+        assert!(RULE.chars().count() < 1100, "{}", RULE.chars().count());
+    }
+
+    #[test]
+    fn the_example_in_the_rule_is_a_note_atlas_would_read() {
+        let start = RULE.find("```atlas-memory").unwrap();
+        let example = &RULE[start..];
+
+        let found = parse(&format!("answer\n{example}"));
+
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].kind, MemoryKind::Pitfall);
+        assert_eq!(found[0].title, "Test command");
     }
 }

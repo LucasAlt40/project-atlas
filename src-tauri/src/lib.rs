@@ -501,7 +501,8 @@ fn build_state(
                     .with_shared_worktrees(worktrees.clone(), workspaces.clone(), executions),
             ),
         )
-        .with_guardrails(config_for_guardrails),
+        .with_guardrails(config_for_guardrails)
+        .with_memory(memory.clone()),
     );
     // What becomes of a run's code (review, apply, keep, discard, open in an editor): Git and the
     // worktree service decide; the editor is launched by Atlas from a fixed list.

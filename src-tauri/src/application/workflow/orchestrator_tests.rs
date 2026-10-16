@@ -739,6 +739,7 @@ fn the_context_engine_finds_what_a_real_brief_says_twice_and_keeps_every_fact() 
         task_aware: false,
         skills: None,
         memories: None,
+        memory_rule: None,
         rules: None,
         context: "Project: atlas".to_owned(),
         instruction: format!("Task:\n{}", step.instruction.trim()),
@@ -3107,4 +3108,132 @@ fn turning_automatic_approval_on_approves_the_plan_that_waits_and_only_a_plan() 
     let done = env.run_of(&run.id);
     assert_eq!(done.status, WorkflowExecutionStatus::Completed);
     assert!(done.interactions[0].auto);
+}
+
+// ---- notes held for an independent validator (ADR 0037) ----------------------------------------
+
+mod held_notes {
+    use super::*;
+    use crate::application::memory::ports::{FakeProbe, MemoryMemoryStore};
+    use crate::application::memory::MemoryService;
+    use crate::domain::memory::tests::memory;
+    use crate::domain::memory::{MemoryScope, MemoryStatus};
+
+    /// A note the developer's step (`exec-1`, the first the scripted runner starts) proposed in
+    /// automatic mode and that is waiting for a validator.
+    fn memory_holding_a_note_of(env: &Env, agent: &str) -> (Arc<MemoryService>, String) {
+        let store = Arc::new(MemoryMemoryStore::default());
+        let mut held = memory("held", MemoryScope::Workspace, Some("ws"), "a lesson");
+        held.status = MemoryStatus::Candidate;
+        held.provenance.automatic = true;
+        held.provenance.execution_id = Some("exec-1".to_owned());
+        held.provenance.agent_id = Some(env.agents[agent].clone());
+        crate::application::memory::MemoryStore::save(store.as_ref(), &held).unwrap();
+        (
+            Arc::new(MemoryService::new(store, Arc::new(FakeProbe::default()))),
+            held.id,
+        )
+    }
+
+    fn run_with_memory(
+        env: &Env,
+        runner: &Arc<Scripted>,
+        workflow_id: &str,
+        memory: Arc<MemoryService>,
+    ) {
+        let exec = env
+            .service
+            .start_unvalidated(workflow_id, "Implement password recovery")
+            .unwrap();
+        env.orchestrator(runner)
+            .with_memory(memory)
+            .run(&exec.id, Arc::new(Collector::default()))
+            .unwrap();
+    }
+
+    fn dev_then_validator(env: &Env) -> crate::domain::workflow::Workflow {
+        env.workflow(
+            vec![
+                agent("developer", "developer"),
+                agent("validator", "validator"),
+                agent("fixer", "fixer"),
+                end("done", EndOutcome::Done),
+            ],
+            vec![
+                edge("developer", "validator"),
+                when("validator", "done", "pass"),
+                when("validator", "fixer", "fail"),
+                edge("fixer", "done"),
+            ],
+        )
+    }
+
+    #[test]
+    fn a_validators_pass_lets_in_the_note_another_agent_held() {
+        let env = env();
+        env.declare_validation_outcomes();
+        let (memory, id) = memory_holding_a_note_of(&env, "developer");
+        let runner = Scripted::new();
+        runner.script("developer", vec![ok("success", "")]);
+        runner.script("validator", vec![outcome("pass", "")]);
+
+        run_with_memory(&env, &runner, &dev_then_validator(&env).id, memory.clone());
+
+        let note = memory.get(&id).unwrap();
+        assert_eq!(note.status, MemoryStatus::Active);
+        assert_eq!(note.provenance.validated_by.as_deref(), Some("exec-2"));
+        assert!(note.is_unconfirmed(), "no person decided it");
+    }
+
+    #[test]
+    fn a_validators_fail_drops_the_held_note() {
+        let env = env();
+        env.declare_validation_outcomes();
+        let (memory, id) = memory_holding_a_note_of(&env, "developer");
+        let runner = Scripted::new();
+        runner.script("developer", vec![ok("success", "")]);
+        runner.script("validator", vec![outcome("fail", "")]);
+        runner.script("fixer", vec![ok("success", "")]);
+
+        run_with_memory(&env, &runner, &dev_then_validator(&env).id, memory.clone());
+
+        assert!(memory.get(&id).is_none());
+    }
+
+    #[test]
+    fn a_step_that_is_not_a_validation_never_decides_about_notes() {
+        let env = env();
+        let (memory, id) = memory_holding_a_note_of(&env, "developer");
+        let runner = Scripted::new();
+        runner.script("developer", vec![ok("success", "")]);
+        runner.script("backend", vec![outcome("pass", "")]);
+        let workflow = env.workflow(
+            vec![
+                agent("developer", "developer"),
+                agent("backend", "backend"),
+                end("done", EndOutcome::Done),
+            ],
+            vec![edge("developer", "backend"), edge("backend", "done")],
+        );
+
+        run_with_memory(&env, &runner, &workflow.id, memory.clone());
+
+        // A general-purpose agent saying "pass" is not an independent validation.
+        assert!(memory.get(&id).unwrap().is_held_for_validator());
+    }
+
+    #[test]
+    fn the_validator_cannot_be_the_agent_that_proposed_the_note() {
+        let env = env();
+        env.declare_validation_outcomes();
+        // The note was proposed by the validator's own agent.
+        let (memory, id) = memory_holding_a_note_of(&env, "validator");
+        let runner = Scripted::new();
+        runner.script("developer", vec![ok("success", "")]);
+        runner.script("validator", vec![outcome("pass", "")]);
+
+        run_with_memory(&env, &runner, &dev_then_validator(&env).id, memory.clone());
+
+        assert!(memory.get(&id).unwrap().is_held_for_validator());
+    }
 }
