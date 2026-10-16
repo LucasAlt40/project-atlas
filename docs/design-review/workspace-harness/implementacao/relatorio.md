@@ -115,7 +115,7 @@ Menu com cabeçalho, ícone, selo "Ativo", visto, "Novo workspace" e "Gerenciar 
 | --------------------------------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------ |
 | Novos: `Badge`, `OverflowMenu`, `CollapsibleSection`, `Steps` (em `src/components/ui/`) | só o módulo                                       | testes do módulo                                             |
 | `Modal`: tamanhos `drawer` e `inspector` (os existentes não mudaram)                    | todos os modais                                   | suíte inteira verde                                          |
-| `Icon`: cinco ícones novos (`more`, `externalLink`, `chevronUp`, `arrowRight`, `play`)   | todos                                             | só acrescenta                                                |
+| `Icon`: cinco ícones novos (`more`, `externalLink`, `chevronUp`, `arrowRight`, `play`)  | todos                                             | só acrescenta                                                |
 | `AppShell`: recolhe sozinho abaixo de 900 px quando não há escolha salva                | todas as telas                                    | testes do `App`; **não conferi as outras telas visualmente** |
 | `Terminal.module.css`: abas sublinhadas e com rolagem horizontal                        | cartão de agente e inspetor                       | testes                                                       |
 | `ExecutionInspector` (painel largo com linha do tempo)                                  | também a página **Workflow** (`WorkflowPage`)     | testes passam; **não conferi visualmente na tela Workflow**  |
