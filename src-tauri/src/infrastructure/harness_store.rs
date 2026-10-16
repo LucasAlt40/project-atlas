@@ -317,7 +317,9 @@ mod tests {
         assert!(dir.join(".atlas/agents/mine.md").is_file());
         assert!(dir.join(".atlas/skills/s.md").is_file());
         // Nothing to wipe is not an error.
-        FsHarnessStore.reset(&project("reset-none").to_string_lossy()).unwrap();
+        FsHarnessStore
+            .reset(&project("reset-none").to_string_lossy())
+            .unwrap();
     }
 
     #[test]

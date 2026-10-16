@@ -65,9 +65,7 @@ pub fn reset_project_harness(
     workspace_id: String,
     project_id: Option<String>,
 ) -> Result<HarnessSummary, AppError> {
-    state
-        .harness
-        .reset_in(&workspace_id, project_id.as_deref())
+    state.harness.reset_in(&workspace_id, project_id.as_deref())
 }
 
 /// Wipes the Harness of the workspace's projects (or of the ones named) and rebuilds the
