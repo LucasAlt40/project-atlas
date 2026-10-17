@@ -201,6 +201,7 @@ documentos importados; os que faltam podem ser escritos a partir dos demais.". R
 | S6 | 2026-10-16 | "Spec — Revisão final e publicação" `fb6be8f6a81149e3873c33d6d98f31f0` (2560×2048) | `edit_screens` a partir de `5126e494…`; timeout, não reenviado, confirmado por `list_screens`. A original segue intacta. |
 | S4 | 2026-10-16 | "Spec — Agente escrevendo" `4981422ada754146b0cb711a0df3e897` (2560×2048) | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`. |
 | S5 | 2026-10-16 | "Spec — Perguntas e achados" `6eadf408b4f543b6b75a02cab206660e` (2560×2048) | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`. A captura corta no meio do achado; o HTML tem o resto. |
+| S7 | 2026-10-16 | "Specs — Nova especificação" `3e2672ca7f07412bbe13d373685356fb` (2560×2048) | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`. |
 
 ## Avaliação
 
@@ -292,3 +293,27 @@ O Stitch mostra, o app não tem (não implementar):
 
 Ponto positivo a manter: a pergunta é o elemento mais forte da tela e vem antes dos achados, com o resumo
 "1 em aberto · 1 pergunta algo a você" em mono à direita do título.
+
+### S7 — Specs — Nova especificação
+
+Conteúdo fiel: modal em duas colunas sem rolagem em 1440×900; coluna esquerda com Título, Projeto, "O que
+você quer construir?" (com a ajuda embaixo) e "Mais alguma coisa que o agente deve saber"; coluna direita
+com o cartão "Ajude o agente a não adivinhar", as duas perguntas com selo "Sempre perguntado" e "Sua resposta
+(opcional)", e "Agente que escreve" / "Agente que revisa" lado a lado; rodapé com a nota, "Cancelar" e "Criar".
+
+Moldura com regressão (IGNORAR, vale a moldura do P0): o Stitch voltou a desenhar "Core" ao lado do logo, o
+logo como quadrado "A", o botão "+ Novo Fluxo" na barra lateral e tirou "Configurações" da lista (deixou no
+rodapé). Esses itens não existem no app; o P0 já os proíbe, mas o Stitch os trouxe de volta nesta tela.
+
+O Stitch mostra, o app não tem (não implementar):
+
+- Rótulo "Obrigatório" ao lado de "Título" e cadeado + ponto verde no campo "Projeto" (o app tem um seletor
+  simples com o projeto).
+- Placeholder da descrição ("Descreva a funcionalidade, fluxos, regras e detalhes de negócio necessários…")
+  inventado; usar o placeholder real do app.
+- A ajuda "Regras de negócio que você conhece entram aqui…" ficou embaixo do campo (ok) e o "Texto livre:
+  links, exemplos…" virou placeholder de uma linha (o campo real é uma área de texto).
+- Ícones no título do modal, no cartão de ajuda e nos seletores de agente; ícone de informação na nota do
+  rodapé.
+
+O selo do motivo "Sua descrição fala de telas" não foi desenhado (aparece só conforme a descrição).
