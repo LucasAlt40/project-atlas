@@ -211,8 +211,8 @@ fn personalities_can_be_created_edited_deleted_and_restored() {
     assert_eq!(edited["name"], "My QA");
     invoke(&window, "delete_personality", json!({ "id": "developer" })).unwrap();
     let restored = invoke(&window, "restore_default_personalities", json!({})).unwrap();
-    assert_eq!(restored.as_array().unwrap().len(), 6);
-    assert_eq!(restored[2]["name"], "QA");
+    assert_eq!(restored.as_array().unwrap().len(), 7);
+    assert_eq!(restored[3]["name"], "QA");
 }
 
 #[test]

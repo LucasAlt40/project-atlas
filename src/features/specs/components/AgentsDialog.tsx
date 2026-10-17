@@ -4,7 +4,7 @@ import { Modal } from '@/components/ui/Modal';
 import type { Agent } from '@/features/agents/types';
 import type { Workspace } from '@/features/workspace/types';
 import { useI18n } from '@/i18n/I18nProvider';
-import { agentsOf } from '../model/agents';
+import { agentsOf, authorName } from '../model/agents';
 import { IntegrationsPicker } from './IntegrationsPicker';
 import type { SpecView } from '../types';
 import styles from './Specs.module.css';
@@ -52,7 +52,7 @@ export function AgentsDialog({ workspace, agents, view, busy, onSave, onClose }:
                 {!known(value) && <option value="">{t('specs.agents.gone')}</option>}
                 {choices.map((agent) => (
                   <option key={agent.id} value={agent.id}>
-                    {agent.name}
+                    {role === 'author' ? authorName(t, agent) : agent.name}
                   </option>
                 ))}
               </select>

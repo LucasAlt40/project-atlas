@@ -709,6 +709,10 @@ export const ptBR: Record<TranslationKey, string> = {
     'Implementa funcionalidades|Modifica código existente|Segue as convenções do projeto|Prefere implementações simples e de fácil manutenção|Escreve testes|Evita mudanças desnecessárias',
   'personalities.builtin.qa.behavior':
     'Valida o comportamento|Identifica bugs|Analisa casos de borda|Verifica testes|Pensa em regressões|Questiona suposições',
+  'personalities.builtin.spec-architect.description':
+    'Pergunta: o que exatamente precisa ser verdade quando isto estiver pronto? Transforma um pedido em uma especificação precisa e verificável antes de qualquer construção. A autora recomendada para specs.',
+  'personalities.builtin.spec-architect.behavior':
+    'Analisa o pedido antes de escrever|Lê o código para fundamentar cada requisito|Separa fatos, suposições e perguntas em aberto|Escreve requisitos testáveis com cenários|Cobre casos de borda, erros e requisitos não funcionais|Deixa explícitos o escopo, as decisões e os trade-offs',
 
   // Settings screen
   'settings.title': 'Configurações',
@@ -3162,6 +3166,9 @@ export const ptBR: Record<TranslationKey, string> = {
   'specs.new.context': 'Contexto adicional (opcional)',
   'specs.new.project': 'Projeto',
   'specs.new.author': 'Agente que escreve',
+  'specs.new.recommended': '{name} (recomendado)',
+  'specs.new.authorHint':
+    'Recomendado: um agente com a personalidade Arquiteto de Especificações. Qualquer agente pode escrever.',
   'specs.new.reviewer': 'Agente que revisa',
   'specs.new.sameAgent': 'O mesmo que escreve',
   'specs.new.noAgents': 'Este workspace não tem agentes. Adicione um no Workspace antes.',

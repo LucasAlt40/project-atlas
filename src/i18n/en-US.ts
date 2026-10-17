@@ -707,6 +707,10 @@ export const enUS = {
     'Implements features|Modifies existing code|Follows project conventions|Prefers simple, maintainable implementations|Writes tests|Avoids unnecessary changes',
   'personalities.builtin.qa.behavior':
     'Validates behavior|Identifies bugs|Analyzes edge cases|Checks tests|Thinks about regressions|Challenges assumptions',
+  'personalities.builtin.spec-architect.description':
+    'Asks: what exactly must be true when this is done? Turns a request into a precise, verifiable specification before anything is built. The recommended author for specs.',
+  'personalities.builtin.spec-architect.behavior':
+    'Analyzes the request before writing|Reads the code to ground every requirement|Separates facts, assumptions and open questions|Writes testable requirements with scenarios|Covers edge cases, errors and non-functional needs|Makes scope, decisions and trade-offs explicit',
 
   // Settings screen
   'settings.title': 'Settings',
@@ -3120,6 +3124,9 @@ export const enUS = {
   'specs.new.context': 'Extra context (optional)',
   'specs.new.project': 'Project',
   'specs.new.author': 'Agent that writes',
+  'specs.new.recommended': '{name} (recommended)',
+  'specs.new.authorHint':
+    'Recommended: an agent with the Spec Architect personality. Any agent can write.',
   'specs.new.reviewer': 'Agent that reviews',
   'specs.new.sameAgent': 'Same as the writer',
   'specs.new.noAgents': 'This workspace has no agents. Add one in Workspace first.',

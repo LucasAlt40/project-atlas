@@ -5,7 +5,7 @@ import type { Agent } from '@/features/agents/types';
 import type { Workspace } from '@/features/workspace/types';
 import { useI18n } from '@/i18n/I18nProvider';
 import { errorMessage } from '@/i18n/messages';
-import { agentsOf, suggestedAuthor } from '../model/agents';
+import { agentsOf, authorName, isRecommendedAuthor, suggestedAuthor } from '../model/agents';
 import { stageName } from '../model/messages';
 import { importSpec, listImportable } from '../services/specService';
 import type { ImportCandidate, SpecView } from '../types';
@@ -109,11 +109,14 @@ export function ImportDialog({ workspace, agents, onClose, onImported }: Props) 
             >
               {inWorkspace.map((agent) => (
                 <option key={agent.id} value={agent.id}>
-                  {agent.name}
+                  {authorName(t, agent)}
                 </option>
               ))}
             </select>
           </label>
+          {inWorkspace.length > 0 && !inWorkspace.some(isRecommendedAuthor) && (
+            <small className={styles.hint}>{t('specs.new.authorHint')}</small>
+          )}
         </div>
         {found === null && <p className={styles.muted}>{t('specs.import.reading')}</p>}
         {found?.length === 0 && (
