@@ -140,6 +140,7 @@ partes. "Sobre": três pares rótulo/valor em mono: Atlas "Project Atlas", Vers�
 | C1 | 2026-10-16 | "Configurações — Geral" `67ed2d6872a94adc9838d074b6fab48e` (2560×2048) | `generate_screen_from_text` com os acréscimos do módulo; timeout, não reenviado, confirmado por `list_screens`. |
 | C2 | 2026-10-16 | "Configurações — Memória" `531ba78a90f042819c5788c9f9a07fac` (2560×2048) | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`. |
 | C3 | 2026-10-16 | "Configurações — Importar e exportar" `f51323b94a09433fb8f5a56733ff2fee` (2560×2048) | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`. |
+| C4 | 2026-10-16 | "Configurações — Revisar importação" `34439c29d5234a84aa9bea57546f8c17` (2560×2048) | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`. |
 
 ## Avaliação
 
@@ -193,3 +194,25 @@ O Stitch mostra, o app não tem (não implementar):
 Desvio de moldura: a barra superior ocupou a largura toda, por cima da barra lateral, e o logo "Atlas"
 ficou abaixo dela. A moldura real é: barra lateral com o logo no topo e a barra superior só à direita.
 Ignorar; vale o app.
+
+### C4 — Configurações — Revisar importação
+
+Fiel e bem resolvida: moldura correta desta vez (barra lateral inteira, barra superior só à direita),
+cabeçalho com arquivo e versão, aviso fixo, três itens recolhíveis com selo de tipo e de situação (item
+aberto mostra os cinco fatos em colunas, "Precisa de", as três opções de rádio e a caixa de confirmação),
+bloco "Necessários, mas fora do arquivo" e rodapé com "Escolher outro arquivo", "Cancelar" e "Importar".
+
+O Stitch mostra, o app não tem (não implementar):
+
+- "3 definições encontradas" ao lado de "O que o arquivo contém" e "Mesmo hash SHA-256" / "Sem conflitos" nas
+  linhas dos itens QA e Workflow.
+- Título "Como deseja resolver o conflito:" antes dos rádios e o complemento "(renomear para "Arquiteto
+  Backend_1")" em "Importar como novo"; "Não importar este item" no lugar de "Não importar".
+- Texto do aviso de substituir ("Esta ação substituirá os prompts e configurações atuais…") em vez do aviso
+  real do app.
+- Seletor "Mapear para agente existente" onde o prompt pedia "Agente “QA” é… Escolher…".
+- Faixa final "2 itens selecionados para importação (1 sobrescrita, 1 novo, 1 idêntico mantido) · Pronto
+  para aplicar": o prompt pedia o estado final "2 itens importados", que só aparece depois de importar.
+
+Observação: "Substituir o que eu já tenho" veio selecionado com a caixa de confirmação já marcada; no app
+nenhuma opção vem escolhida por padrão e a caixa começa desmarcada.
