@@ -154,4 +154,27 @@ uma rede) existem só como texto.
 
 | Prompt         | Enviado | Tela gerada no Stitch | Observação |
 | -------------- | ------- | --------------------- | ---------- |
-| (nenhum ainda) |         |                       |            |
+| M1 | 2026-10-16 | "Celular — Painel de execuções" `353aa8a106af44408c2dc337f053d82f` (canvas 2560×2048, coluna de celular centralizada) | `generate_screen_from_text` com `deviceType: MOBILE` e bloco comum; respondeu sem timeout. |
+
+## Avaliação
+
+Observação geral: com `deviceType: MOBILE` o Stitch devolveu a tela marcada como DESKTOP, num canvas de
+2560×2048, com a página do celular como uma coluna estreita (~390px) centralizada sobre fundo preto. Serve
+como referência; as medidas valem pela coluna, não pelo canvas.
+
+### M1 — Celular — Painel de execuções
+
+Fiel: topo com "Atlas" e "iPhone do Lucas", faixa âmbar "Esperando sua resposta" com "Dispensar", quatro
+grupos com contagem e ponto de cor (o de ação em destaque), cartões de três linhas com selo à direita e a
+linha do que importa em cor, e o fim da lista com o aviso e o link. Sem barra de status nem teclado.
+
+O Stitch mostra, o app não tem (não implementar):
+
+- Títulos de grupo em caixa alta ("PRECISA DE VOCÊ (1)"): usar o título normal do app.
+- Descrições de tarefa inventadas nos três cartões sem texto no prompt ("Auditoria de conciliação bancária…",
+  "Exportação em lote de faturas…", "Suporte completo ao tema escuro…"); usar a tarefa real.
+- Cartões com borda colorida por estado (âmbar, vermelha) além do selo: pode ficar só no de "Precisa de
+  você", que é o que pede ação.
+
+Desvio de ordem: no fim da lista o aviso "O Atlas roda no seu computador…" veio antes do link "Desconectar
+este celular"; o prompt pedia o link primeiro. Manter a ordem do app.
