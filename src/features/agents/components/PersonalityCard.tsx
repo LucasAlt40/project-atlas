@@ -16,7 +16,14 @@ interface Props {
   onDelete: (personalityId: string) => Promise<void>;
 }
 
-const BUILTIN_IDS = ['architect', 'developer', 'qa'] as const;
+const BUILTIN_IDS = [
+  'architect',
+  'spec-architect',
+  'developer',
+  'qa',
+  'architecture-validator',
+  'bug-fixer',
+] as const;
 
 /**
  * An untouched built-in has its description and behavior list translated. Editing a built-in

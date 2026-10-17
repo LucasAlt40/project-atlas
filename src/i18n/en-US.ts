@@ -161,6 +161,8 @@ export const enUS = {
   'harness.multi.initializeAll': 'Initialize {count} project(s)',
   'harness.multi.done': '{done} of {total} projects initialized.',
   'harness.multi.retry': 'Try the failed ones again',
+  'harness.multi.aiFailed':
+    'The AI did not analyse: {names}. They keep only the local analysis until you try again.',
   'projects.reset': 'Reset Harness of {name}',
   'projects.resetConfirm':
     'Delete the Harness of {name} (.atlas/ context, knowledge and backups) so it can be generated again? Your code and your other .atlas/ files stay.',
@@ -399,6 +401,18 @@ export const enUS = {
   'harness.agentScreen.doing': 'What it is doing',
   'harness.agentScreen.noTools': 'No file reads reported yet.',
   'harness.agentScreen.says': 'What it says',
+  'harness.agentScreen.found': '{count} findings so far',
+  'harness.agentScreen.writing': 'Writing the rest of the result…',
+  'harness.agentScreen.cat.module': 'Module',
+  'harness.agentScreen.cat.architecture': 'Architecture',
+  'harness.agentScreen.cat.convention': 'Convention',
+  'harness.agentScreen.cat.integration': 'Integration',
+  'harness.agentScreen.cat.entry_point': 'Entry point',
+  'harness.agentScreen.cat.testing': 'Testing',
+  'harness.agentScreen.cat.build': 'Build',
+  'harness.agentScreen.cat.dependency': 'Dependency',
+  'harness.agentScreen.cat.stack': 'Stack',
+  'harness.agentScreen.cat.tooling': 'Tooling',
   'harness.agentScreen.stop': 'Stop analysis',
   'harness.agentScreen.stopping': 'Stopping…',
   'harness.error.details': 'Technical details',
@@ -691,6 +705,10 @@ export const enUS = {
     'Implements features|Modifies existing code|Follows project conventions|Prefers simple, maintainable implementations|Writes tests|Avoids unnecessary changes',
   'personalities.builtin.qa.behavior':
     'Validates behavior|Identifies bugs|Analyzes edge cases|Checks tests|Thinks about regressions|Challenges assumptions',
+  'personalities.builtin.spec-architect.description':
+    'Asks: what exactly must be true when this is done? Turns a request into a precise, verifiable specification before anything is built. The recommended author for specs.',
+  'personalities.builtin.spec-architect.behavior':
+    'Analyzes the request before writing|Reads the code to ground every requirement|Separates facts, assumptions and open questions|Writes testable requirements with scenarios|Covers edge cases, errors and non-functional needs|Makes scope, decisions and trade-offs explicit',
 
   // Settings screen
   'settings.title': 'Settings',
@@ -3104,6 +3122,9 @@ export const enUS = {
   'specs.new.context': 'Extra context (optional)',
   'specs.new.project': 'Project',
   'specs.new.author': 'Agent that writes',
+  'specs.new.recommended': '{name} (recommended)',
+  'specs.new.authorHint':
+    'Recommended: an agent with the Spec Architect personality. Any agent can write.',
   'specs.new.reviewer': 'Agent that reviews',
   'specs.new.sameAgent': 'Same as the writer',
   'specs.new.noAgents': 'This workspace has no agents. Add one in Workspace first.',

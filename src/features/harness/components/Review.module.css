@@ -1160,20 +1160,39 @@
   line-height: 1.6;
   user-select: text;
 }
-.streamLine {
+.sayProse {
+  margin: 0;
+  color: var(--text-standard);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.sayList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sayItem {
   display: flex;
   align-items: baseline;
   gap: var(--space-3);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.5;
 }
-.streamNo {
+.sayTag {
   flex: none;
-  width: 1.5rem;
-  color: var(--border-focus);
-  text-align: right;
-  user-select: none;
+  min-width: 5.5rem;
+  color: var(--accent-soft);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
 }
-.streamText {
-  white-space: pre-wrap;
+.sayText {
   overflow-wrap: anywhere;
 }
 .screenFooter {

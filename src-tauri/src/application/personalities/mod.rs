@@ -263,7 +263,7 @@ mod tests {
     }
 
     #[test]
-    fn ships_architect_developer_and_qa_with_visible_instructions() {
+    fn ships_the_builtins_with_visible_instructions() {
         let all = service().list();
 
         let ids: Vec<_> = all.iter().map(|p| p.id.as_str()).collect();
@@ -271,6 +271,7 @@ mod tests {
             ids,
             [
                 "architect",
+                "spec-architect",
                 "developer",
                 "qa",
                 "architecture-validator",
@@ -311,7 +312,7 @@ mod tests {
             .create(&request("N", " "))
             .unwrap_err()
             .is(ErrorCode::InstructionsRequired));
-        assert_eq!(service.list().len(), 5);
+        assert_eq!(service.list().len(), 6);
     }
 
     fn input(name: &str) -> CreatePersonalityRequest {
@@ -350,7 +351,7 @@ mod tests {
         assert_eq!(updated.system_instructions, "New instructions");
         assert_eq!(updated.source, PersonalitySource::Custom);
         assert_eq!(service.find(&created.id), Some(updated));
-        assert_eq!(service.list().len(), 6);
+        assert_eq!(service.list().len(), 7);
     }
 
     #[test]
@@ -369,6 +370,7 @@ mod tests {
             names,
             [
                 "Architect",
+                "Spec Architect",
                 "My Developer",
                 "QA",
                 "Architecture & Code Validator",
@@ -377,7 +379,7 @@ mod tests {
         );
         // Editing again replaces the copy instead of stacking another one.
         service.update("developer", &input("Again")).unwrap();
-        assert_eq!(service.list().len(), 5);
+        assert_eq!(service.list().len(), 6);
         assert_eq!(service.find("developer").unwrap().name, "Again");
     }
 
@@ -408,7 +410,7 @@ mod tests {
         service.delete(&created.id).unwrap();
 
         assert!(service.find(&created.id).is_none());
-        assert_eq!(service.list().len(), 5);
+        assert_eq!(service.list().len(), 6);
         assert!(service
             .delete(&created.id)
             .unwrap_err()
@@ -423,7 +425,15 @@ mod tests {
         service.delete("qa").unwrap();
         service.delete("architect").unwrap();
         let ids: Vec<_> = service.list().into_iter().map(|p| p.id).collect();
-        assert_eq!(ids, ["developer", "architecture-validator", "bug-fixer"]);
+        assert_eq!(
+            ids,
+            [
+                "spec-architect",
+                "developer",
+                "architecture-validator",
+                "bug-fixer"
+            ]
+        );
 
         let restored = service.restore_defaults().unwrap();
 
@@ -432,6 +442,7 @@ mod tests {
             names,
             [
                 "Architect",
+                "Spec Architect",
                 "Developer",
                 "QA",
                 "Architecture & Code Validator",
@@ -450,7 +461,7 @@ mod tests {
         service.restore_defaults().unwrap();
 
         assert!(service.find(&mine.id).is_some());
-        assert_eq!(service.list().len(), 6);
+        assert_eq!(service.list().len(), 7);
     }
 
     #[test]

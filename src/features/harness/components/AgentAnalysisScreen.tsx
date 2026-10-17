@@ -9,6 +9,7 @@ import {
 import { useT } from '@/i18n/I18nProvider';
 import type { HarnessProgressDto } from '@/lib/tauri/commands';
 import type { TranslationKey } from '@/i18n';
+import { readNarration } from '../model/narration';
 import styles from './Review.module.css';
 
 interface Props {
@@ -41,7 +42,7 @@ interface Run {
 
 const PHASES = new Set(['starting', 'sending', 'waiting']);
 /** What of the agent's narration is kept on screen. */
-const MAX_NARRATION = 900;
+const MAX_NARRATION = 60_000;
 
 /**
  * Shown over everything while an agent analyses the project (or, with `projects`, several of
@@ -109,7 +110,7 @@ export function AgentAnalysisScreen({ workspaceId, agentId, agentName, projects 
   const tools = run?.tools ?? [];
   const narration = run?.narration ?? '';
 
-  const lines = narration === '' ? [] : narration.split('\n');
+  const said = readNarration(narration);
   const reads = tools.filter((tool) => tool.name.startsWith('Read')).length;
 
   return (
@@ -210,20 +211,34 @@ export function AgentAnalysisScreen({ workspaceId, agentId, agentName, projects 
               <div className={styles.stream}>
                 <div className={styles.streamTabs}>
                   <span className={styles.streamTitle}>
-                    <Icon name="code" size={14} />
+                    <Icon name="sparkle" size={14} />
                     {t('harness.agentScreen.says')}
                   </span>
-                  <span>UTF-8</span>
+                  <span>{t('harness.agentScreen.found', { count: said.findings.length })}</span>
                 </div>
                 <div className={styles.streamBody}>
-                  {lines.map((line, index) => (
-                    <div key={index} className={styles.streamLine}>
-                      <span className={styles.streamNo} aria-hidden="true">
-                        {String(index + 1).padStart(2, '0')}
-                      </span>
-                      <span className={styles.streamText}>{line}</span>
-                    </div>
+                  {said.prose.map((line, index) => (
+                    <p key={`p${String(index)}`} className={styles.sayProse}>
+                      {line}
+                    </p>
                   ))}
+                  {said.findings.length > 0 && (
+                    <ul className={styles.sayList}>
+                      {said.findings.map((finding, index) => (
+                        <li key={`f${String(index)}`} className={styles.sayItem}>
+                          <span className={styles.sayTag}>{categoryName(t, finding.category)}</span>
+                          <span className={styles.sayText}>
+                            <strong>{finding.key}</strong> {finding.value}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {said.building && (
+                    <p className={styles.sayProse} role="status">
+                      {t('harness.agentScreen.writing')}
+                    </p>
+                  )}
                 </div>
               </div>
             </section>
@@ -250,6 +265,26 @@ export function AgentAnalysisScreen({ workspaceId, agentId, agentName, projects 
       </div>
     </div>
   );
+}
+
+const CATEGORIES = [
+  'module',
+  'architecture',
+  'convention',
+  'integration',
+  'entry_point',
+  'testing',
+  'build',
+  'dependency',
+  'stack',
+  'tooling',
+] as const;
+
+/** A finding's category as a word, whatever the agent called it. */
+function categoryName(t: ReturnType<typeof useT>, category: string): string {
+  return (CATEGORIES as readonly string[]).includes(category)
+    ? t(`harness.agentScreen.cat.${category}` as TranslationKey)
+    : category.replace(/_/g, ' ');
 }
 
 /** What one progress event changes in a run. */

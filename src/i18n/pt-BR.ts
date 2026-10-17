@@ -159,6 +159,8 @@ export const ptBR: Record<TranslationKey, string> = {
   'harness.multi.initializeAll': 'Inicializar {count} projeto(s)',
   'harness.multi.done': '{done} de {total} projetos inicializados.',
   'harness.multi.retry': 'Tentar de novo os que falharam',
+  'harness.multi.aiFailed':
+    'A IA não analisou: {names}. Esses projetos ficam só com a análise local até você tentar de novo.',
   'projects.reset': 'Resetar o Harness de {name}',
   'projects.resetConfirm':
     'Apagar o Harness de {name} (contexto, conhecimento e backups em .atlas/) para gerá-lo de novo? Seu código e os outros arquivos de .atlas/ continuam.',
@@ -398,6 +400,18 @@ export const ptBR: Record<TranslationKey, string> = {
   'harness.agentScreen.doing': 'O que está fazendo',
   'harness.agentScreen.noTools': 'Nenhuma leitura de arquivo reportada ainda.',
   'harness.agentScreen.says': 'O que ele diz',
+  'harness.agentScreen.found': '{count} descobertas até agora',
+  'harness.agentScreen.writing': 'Escrevendo o restante do resultado…',
+  'harness.agentScreen.cat.module': 'Módulo',
+  'harness.agentScreen.cat.architecture': 'Arquitetura',
+  'harness.agentScreen.cat.convention': 'Convenção',
+  'harness.agentScreen.cat.integration': 'Integração',
+  'harness.agentScreen.cat.entry_point': 'Ponto de entrada',
+  'harness.agentScreen.cat.testing': 'Testes',
+  'harness.agentScreen.cat.build': 'Build',
+  'harness.agentScreen.cat.dependency': 'Dependência',
+  'harness.agentScreen.cat.stack': 'Stack',
+  'harness.agentScreen.cat.tooling': 'Ferramenta',
   'harness.agentScreen.stop': 'Parar análise',
   'harness.agentScreen.stopping': 'Parando…',
   'harness.error.details': 'Detalhes técnicos',
@@ -693,6 +707,10 @@ export const ptBR: Record<TranslationKey, string> = {
     'Implementa funcionalidades|Modifica código existente|Segue as convenções do projeto|Prefere implementações simples e de fácil manutenção|Escreve testes|Evita mudanças desnecessárias',
   'personalities.builtin.qa.behavior':
     'Valida o comportamento|Identifica bugs|Analisa casos de borda|Verifica testes|Pensa em regressões|Questiona suposições',
+  'personalities.builtin.spec-architect.description':
+    'Pergunta: o que exatamente precisa ser verdade quando isto estiver pronto? Transforma um pedido em uma especificação precisa e verificável antes de qualquer construção. A autora recomendada para specs.',
+  'personalities.builtin.spec-architect.behavior':
+    'Analisa o pedido antes de escrever|Lê o código para fundamentar cada requisito|Separa fatos, suposições e perguntas em aberto|Escreve requisitos testáveis com cenários|Cobre casos de borda, erros e requisitos não funcionais|Deixa explícitos o escopo, as decisões e os trade-offs',
 
   // Settings screen
   'settings.title': 'Configurações',
@@ -3146,6 +3164,9 @@ export const ptBR: Record<TranslationKey, string> = {
   'specs.new.context': 'Contexto adicional (opcional)',
   'specs.new.project': 'Projeto',
   'specs.new.author': 'Agente que escreve',
+  'specs.new.recommended': '{name} (recomendado)',
+  'specs.new.authorHint':
+    'Recomendado: um agente com a personalidade Arquiteto de Especificações. Qualquer agente pode escrever.',
   'specs.new.reviewer': 'Agente que revisa',
   'specs.new.sameAgent': 'O mesmo que escreve',
   'specs.new.noAgents': 'Este workspace não tem agentes. Adicione um no Workspace antes.',

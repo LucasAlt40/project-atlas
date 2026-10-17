@@ -7,7 +7,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { errorMessage } from '@/i18n/messages';
 import { listWorkspaceProjects } from '@/features/workspace/services/workspaceService';
 import type { ProjectInfoDto } from '@/lib/tauri/commands';
-import { agentsOf, suggestedAuthor } from '../model/agents';
+import { agentsOf, authorName, isRecommendedAuthor, suggestedAuthor } from '../model/agents';
 import { IntegrationsPicker } from './IntegrationsPicker';
 import { contextFromAnswers, profileOf, questionsFor } from '../model/contextQuestions';
 import { createSpec } from '../services/specService';
@@ -198,39 +198,44 @@ export function NewSpecDialog({ workspace, agents, onClose, onCreated }: Props) 
               {t('specs.new.noAgents')}
             </p>
           ) : (
-            <div className={styles.fieldRow}>
-              <label className={styles.field}>
-                <span>{t('specs.new.author')}</span>
-                <select
-                  value={author}
-                  onChange={(event) => {
-                    setAuthor(event.target.value);
-                  }}
-                >
-                  {inWorkspace.map((agent) => (
-                    <option key={agent.id} value={agent.id}>
-                      {agent.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className={styles.field}>
-                <span>{t('specs.new.reviewer')}</span>
-                <select
-                  value={reviewer}
-                  onChange={(event) => {
-                    setReviewer(event.target.value);
-                  }}
-                >
-                  <option value="">{t('specs.new.sameAgent')}</option>
-                  {inWorkspace.map((agent) => (
-                    <option key={agent.id} value={agent.id}>
-                      {agent.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
+            <>
+              <div className={styles.fieldRow}>
+                <label className={styles.field}>
+                  <span>{t('specs.new.author')}</span>
+                  <select
+                    value={author}
+                    onChange={(event) => {
+                      setAuthor(event.target.value);
+                    }}
+                  >
+                    {inWorkspace.map((agent) => (
+                      <option key={agent.id} value={agent.id}>
+                        {authorName(t, agent)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className={styles.field}>
+                  <span>{t('specs.new.reviewer')}</span>
+                  <select
+                    value={reviewer}
+                    onChange={(event) => {
+                      setReviewer(event.target.value);
+                    }}
+                  >
+                    <option value="">{t('specs.new.sameAgent')}</option>
+                    {inWorkspace.map((agent) => (
+                      <option key={agent.id} value={agent.id}>
+                        {agent.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              {!inWorkspace.some(isRecommendedAuthor) && (
+                <small className={styles.hint}>{t('specs.new.authorHint')}</small>
+              )}
+            </>
           )}
           <IntegrationsPicker
             workspaceId={workspace.id}
