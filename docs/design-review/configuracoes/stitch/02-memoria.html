@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas — Configurações — Memória</title>
+<!-- Fontes -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS com Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-error": "#690005",
+            "primary-fixed": "#e1e0ff",
+            "on-primary-fixed": "#07006c",
+            "on-secondary-container": "#00374d",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "tertiary-fixed": "#ffd9e4",
+            "surface-container-highest": "#323539",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-tertiary": "#640039",
+            "on-background": "#e1e2e8",
+            "on-secondary-fixed": "#001e2c",
+            "background": "#111418",
+            "surface-container-high": "#272a2e",
+            "on-primary-container": "#0d0096",
+            "on-secondary": "#00354a",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "on-primary": "#1000a9",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "inverse-primary": "#494bd6",
+            "error": "#ffb4ab",
+            "surface-variant": "#323539",
+            "inverse-on-surface": "#2e3135",
+            "surface-tint": "#c0c1ff",
+            "error-container": "#93000a",
+            "surface-bright": "#36393e",
+            "secondary-container": "#00a6e0",
+            "primary-container": "#8083ff",
+            "tertiary-container": "#f751a1",
+            "secondary-fixed": "#c4e7ff",
+            "inverse-surface": "#e1e2e8",
+            "surface-container-low": "#191c20",
+            "on-tertiary-fixed": "#3e0022",
+            "secondary-fixed-dim": "#7bd0ff",
+            "on-secondary-fixed-variant": "#004c69",
+            "surface-container-lowest": "#0b0e12",
+            "tertiary": "#ffb0cd",
+            "surface-dim": "#111418",
+            "on-error-container": "#ffdad6",
+            "outline": "#908fa0",
+            "secondary": "#7bd0ff",
+            "on-surface-variant": "#c7c4d7",
+            "surface": "#111418",
+            "primary": "#c0c1ff",
+            "outline-variant": "#464554",
+            "surface-container": "#1d2024",
+            "on-tertiary-container": "#570032",
+            "on-surface": "#e1e2e8",
+            // Cores específicas da especificação técnica
+            "brand-canvas": "#0b0d10",
+            "brand-panel": "#101317",
+            "brand-subpanel": "#15191e",
+            "brand-overlay": "#1c2128",
+            "brand-border": "#242c37",
+            "brand-border-muted": "#1e252f",
+            "brand-indigo": "#6366f1",
+            "brand-indigo-hover": "#4f46e5",
+            "state-success": "#10b981",
+            "state-warning": "#f59e0b",
+            "state-error": "#ef4444",
+            "state-running": "#60a5fa",
+            "state-info": "#38bdf8"
+          },
+          borderRadius: {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          spacing: {
+            "space-xs": "0.25rem",
+            "space-md": "0.625rem",
+            "gutter": "0.5rem",
+            "space-sm": "0.375rem",
+            "space-xl": "1.25rem",
+            "space-lg": "0.875rem",
+            "margin": "0.75rem"
+          },
+          fontFamily: {
+            "code-sm": ["JetBrains Mono", "monospace"],
+            "code-md": ["JetBrains Mono", "monospace"],
+            "code-lg": ["JetBrains Mono", "monospace"],
+            "label-sm": ["JetBrains Mono", "monospace"],
+            "headline-lg": ["Geist", "sans-serif"],
+            "headline-sm": ["Geist", "sans-serif"],
+            "body-lg": ["Geist", "sans-serif"],
+            "body-md": ["Geist", "sans-serif"],
+            "body-sm": ["Geist", "sans-serif"],
+            "label-md": ["Geist", "sans-serif"],
+            "display": ["Geist", "sans-serif"]
+          },
+          fontSize: {
+            "code-sm": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0em", fontWeight: "400" }],
+            "code-md": ["0.75rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "code-lg": ["0.875rem", { lineHeight: "1.375rem", letterSpacing: "-0.01em", fontWeight: "400" }],
+            "label-sm": ["0.625rem", { lineHeight: "0.875rem", letterSpacing: "0.04em", fontWeight: "500" }],
+            "body-sm": ["0.75rem", { lineHeight: "1.125rem", letterSpacing: "0.005em", fontWeight: "400" }],
+            "body-md": ["0.8125rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "body-lg": ["0.9375rem", { lineHeight: "1.375rem", letterSpacing: "-0.005em", fontWeight: "400" }],
+            "label-md": ["0.75rem", { lineHeight: "1rem", letterSpacing: "0.01em", fontWeight: "500" }],
+            "headline-sm": ["1.125rem", { lineHeight: "1.5rem", letterSpacing: "-0.015em", fontWeight: "500" }],
+            "headline-lg": ["1.375rem", { lineHeight: "1.75rem", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "display": ["1.75rem", { lineHeight: "2.25rem", letterSpacing: "-0.025em", fontWeight: "600" }]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+    }
+    ::selection {
+      background-color: #6366f1;
+      color: #ffffff;
+    }
+  </style>
+</head>
+<body class="bg-brand-canvas text-on-surface antialiased overflow-hidden font-body-md select-none h-screen w-screen flex">
+<!-- MOLDURA FIXA: BARRA LATERAL (216px) -->
+<aside class="w-[216px] h-screen shrink-0 bg-brand-canvas border-r border-brand-border flex flex-col justify-between z-40">
+<div class="flex flex-col">
+<!-- Logo Atlas (sem subtítulo, versão ou Core) -->
+<div class="h-12 flex items-center px-4 border-b border-brand-border">
+<span class="font-headline-lg text-body-lg font-semibold tracking-tight text-on-surface">Atlas</span>
+</div>
+<!-- Seletor de Workspace -->
+<div class="p-3 border-b border-brand-border bg-brand-panel/40">
+<div class="flex items-center justify-between">
+<div class="flex flex-col min-w-0">
+<span class="text-body-md font-label-md font-medium text-on-surface truncate">Transport ERP</span>
+<span class="text-code-sm font-code-sm text-outline truncate">/dev/transport-erp</span>
+</div>
+<span class="material-symbols-outlined text-outline" data-icon="unfold_more">unfold_more</span>
+</div>
+</div>
+<!-- Navegação Principal -->
+<nav class="py-2 flex flex-col">
+<!-- Workspace -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-brand-subpanel transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="space_dashboard">space_dashboard</span>
+<span class="text-label-md font-label-md">Workspace</span>
+</a>
+<!-- Workflow -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-brand-subpanel transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+<span class="text-label-md font-label-md">Workflow</span>
+</a>
+<!-- Agentes -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-brand-subpanel transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="smart_toy">smart_toy</span>
+<span class="text-label-md font-label-md">Agentes</span>
+</a>
+<!-- Personalidades -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-brand-subpanel transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+<span class="text-label-md font-label-md">Personalidades</span>
+</a>
+<!-- Specs -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-brand-subpanel transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span class="text-label-md font-label-md">Specs</span>
+</a>
+<!-- MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-brand-subpanel transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="hub">hub</span>
+<span class="text-label-md font-label-md">MCP Hub</span>
+</a>
+<!-- Configurações (Ativo) -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm bg-brand-subpanel text-primary border-l-2 border-brand-indigo font-medium" href="#">
+<span class="material-symbols-outlined text-brand-indigo" data-icon="settings">settings</span>
+<span class="text-label-md font-label-md text-on-surface">Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Rodapé da barra lateral -->
+<div class="px-4 py-3 border-t border-brand-border">
+<span class="text-code-sm font-code-sm text-outline">Project Atlas v0.1.5</span>
+</div>
+</aside>
+<!-- ÁREA DIREITA: TOPO + CONTEÚDO PRINCIPAL -->
+<div class="flex-1 flex flex-col min-w-0 h-screen bg-brand-canvas">
+<!-- MOLDURA FIXA: BARRA SUPERIOR (48px) -->
+<header class="h-12 w-full shrink-0 bg-brand-canvas border-b border-brand-border flex items-center justify-between px-4 z-30">
+<div class="flex items-center gap-3">
+<!-- Botão de recolher barra lateral -->
+<button aria-label="Recolher barra lateral" class="text-outline hover:text-on-surface p-1 rounded hover:bg-brand-subpanel transition-colors" type="button">
+<span class="material-symbols-outlined" data-icon="dock_to_left">dock_to_left</span>
+</button>
+<!-- Breadcrumb -->
+<div class="flex items-center text-label-md font-label-md text-outline">
+<span class="hover:text-on-surface transition-colors cursor-pointer">Transport ERP</span>
+<span class="mx-2 text-outline/50">/</span>
+<span class="text-on-surface font-medium">Configurações — Memória</span>
+</div>
+</div>
+<!-- Ações à direita -->
+<div class="flex items-center gap-3">
+<button class="h-[26px] px-2.5 rounded bg-brand-subpanel border border-brand-border hover:border-outline/40 text-on-surface text-label-md font-label-md flex items-center gap-1.5 transition-colors" type="button">
+<span class="material-symbols-outlined text-outline" data-icon="smartphone">smartphone</span>
+<span>Celular</span>
+</button>
+<!-- Alternância de idioma PT | EN -->
+<div class="flex items-center text-code-sm font-code-sm bg-brand-subpanel border border-brand-border rounded px-1.5 py-0.5 text-outline">
+<span class="text-on-surface font-medium">PT</span>
+<span class="mx-1 text-brand-border">|</span>
+<span class="hover:text-on-surface cursor-pointer">EN</span>
+</div>
+</div>
+</header>
+<!-- CORPO: ÍNDICE INTERNO (200px) + ÁREA DE CONTEÚDO (máx 880px) -->
+<div class="flex-1 flex min-h-0">
+<!-- ÍNDICE LATERAL INTERNO (200px) -->
+<nav class="w-[200px] h-full shrink-0 bg-brand-panel border-r border-brand-border py-2 flex flex-col">
+<!-- 1. Geral -->
+<a class="flex items-center px-3.5 py-1.5 text-body-md font-label-md text-outline hover:text-on-surface hover:bg-brand-subpanel transition-colors" href="#">
+          Geral
+        </a>
+<!-- 2. Memória (Ativo) -->
+<a class="flex items-center justify-between px-3.5 py-1.5 bg-brand-subpanel text-on-surface border-l-2 border-brand-indigo font-medium text-body-md font-label-md" href="#">
+<span>Memória</span>
+</a>
+<!-- 3. Importar e exportar -->
+<a class="flex items-center px-3.5 py-1.5 text-body-md font-label-md text-outline hover:text-on-surface hover:bg-brand-subpanel transition-colors" href="#">
+          Importar e exportar
+        </a>
+<!-- 4. Sobre e atualizações -->
+<a class="flex items-center px-3.5 py-1.5 text-body-md font-label-md text-outline hover:text-on-surface hover:bg-brand-subpanel transition-colors" href="#">
+          Sobre e atualizações
+        </a>
+</nav>
+<!-- ÁREA DE CONTEÚDO (LARGURA MÁXIMA 880px) -->
+<main class="flex-1 overflow-y-auto px-8 py-6">
+<div class="max-w-[880px] flex flex-col gap-6">
+<!-- CABEÇALHO DA SEÇÃO -->
+<div class="flex flex-col gap-1.5">
+<h1 class="text-headline-sm font-headline-sm font-semibold text-on-surface tracking-tight">Memória</h1>
+<p class="text-body-md font-body-md text-outline leading-relaxed">
+              Lições curtas que os agentes e você deixam para a próxima execução (um comando que funciona, uma armadilha, uma escolha). Uma nota é uma dica que o agente pode usar: não é instrução e não concede nada. Tudo fica desligado até você ligar um escopo.
+            </p>
+</div>
+<!-- ABAS HORIZONTAIS -->
+<div class="flex flex-col border-b border-brand-border">
+<div class="flex items-center gap-6 -mb-px">
+<!-- Aba 1 -->
+<button class="pb-2.5 text-body-md font-label-md text-outline hover:text-on-surface transition-colors cursor-pointer whitespace-nowrap" type="button">
+                Onde as notas são usadas
+              </button>
+<!-- Aba 2 (Ativa) -->
+<button class="pb-2.5 text-body-md font-label-md text-on-surface font-medium border-b-2 border-brand-indigo flex items-center gap-1.5 cursor-pointer whitespace-nowrap" type="button">
+<span>Esperando sua decisão (2)</span>
+</button>
+<!-- Aba 3 -->
+<button class="pb-2.5 text-body-md font-label-md text-outline hover:text-on-surface transition-colors cursor-pointer whitespace-nowrap" type="button">
+                Notas guardadas (2)
+              </button>
+<!-- Aba 4 -->
+<button class="pb-2.5 text-body-md font-label-md text-outline hover:text-on-surface transition-colors cursor-pointer whitespace-nowrap" type="button">
+                Adicionar uma nota
+              </button>
+</div>
+</div>
+<!-- CONTEÚDO DA ABA ABERTA: "Esperando sua decisão (2)" -->
+<div class="flex flex-col gap-4">
+<!-- LINHA COM A NOTA PROPOSTA -->
+<div class="bg-brand-panel border border-brand-border rounded p-4 flex flex-col gap-3 transition-colors hover:border-brand-border/80">
+<!-- Topo da nota: Título + Selo + Estatística -->
+<div class="flex items-start justify-between gap-4">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2.5">
+<span class="text-body-lg font-headline-sm font-semibold text-on-surface tracking-tight">
+                      Rodar os testes com --runInBand
+                    </span>
+<!-- Selo Único: Não confirmada -->
+<div class="group relative flex items-center">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-brand-subpanel border border-brand-border text-code-sm font-code-sm text-state-warning cursor-help">
+<span class="w-1.5 h-1.5 rounded-full bg-state-warning"></span>
+                        Não confirmada
+                      </span>
+<!-- Tooltip informativo ao passar o mouse -->
+<div class="absolute bottom-full left-0 mb-1.5 hidden group-hover:flex items-center w-64 p-2 bg-brand-overlay border border-brand-border rounded text-code-sm font-code-sm text-outline z-50 pointer-events-none">
+                        automática, esperando um validador independente
+                      </div>
+</div>
+</div>
+<!-- Metadados -->
+<div class="flex items-center gap-1.5 text-code-sm font-code-sm text-outline">
+<span>Armadilha</span>
+<span>·</span>
+<span>Workspace</span>
+<span>·</span>
+<span class="text-on-surface/80">Transport ERP</span>
+</div>
+</div>
+<!-- Estatística discreta -->
+<span class="text-code-sm font-code-sm text-outline shrink-0">
+                  Usada 0×
+                </span>
+</div>
+<!-- Texto explicativo / Conteúdo da nota -->
+<div class="bg-brand-subpanel/50 border border-brand-border-muted rounded p-3 text-body-md font-body-md text-on-surface-variant leading-relaxed">
+                A execução paralela padrão do Jest sobrecarrega os locks de transação do banco Postgres em testes de concorrência de frotas. Adicione sempre a flag <code class="text-code-sm font-code-sm px-1 py-0.5 rounded bg-brand-canvas border border-brand-border text-primary">--runInBand</code> para garantir execução sequencial determinística na suíte de integração.
+              </div>
+<!-- Ações na Linha -->
+<div class="flex items-center justify-end gap-2 pt-1 border-t border-brand-border/60">
+<button class="h-[26px] px-3 rounded bg-brand-subpanel border border-brand-border hover:border-outline/40 text-on-surface text-label-md font-label-md transition-colors" type="button">
+                  Editar
+                </button>
+<button class="h-[26px] px-3 rounded bg-brand-subpanel border border-brand-border hover:border-state-error/40 text-outline hover:text-state-error text-label-md font-label-md transition-colors" type="button">
+                  Descartar
+                </button>
+<button class="h-[26px] px-3.5 rounded bg-brand-indigo hover:bg-brand-indigo-hover text-white text-label-md font-label-md font-medium transition-colors" type="button">
+                  Aprovar
+                </button>
+</div>
+</div>
+</div>
+<!-- DESCRIÇÃO EM UMA LINHA CADA DAS OUTRAS 3 ABAS -->
+<div class="flex flex-col gap-2 pt-4 border-t border-brand-border">
+<div class="text-body-sm font-body-sm text-outline flex items-center gap-2">
+<span class="w-1 h-1 rounded-full bg-outline/40"></span>
+<span><strong class="font-medium text-on-surface/70">Onde as notas são usadas:</strong> configurações de escopos (Minhas, Workspace, Agente) e teto de 800 tokens por prompt.</span>
+</div>
+<div class="text-body-sm font-body-sm text-outline flex items-center gap-2">
+<span class="w-1 h-1 rounded-full bg-outline/40"></span>
+<span><strong class="font-medium text-on-surface/70">Notas guardadas (2):</strong> 2 notas ativas no workspace e preferências gerais.</span>
+</div>
+<div class="text-body-sm font-body-sm text-outline flex items-center gap-2">
+<span class="w-1 h-1 rounded-full bg-outline/40"></span>
+<span><strong class="font-medium text-on-surface/70">Adicionar uma nota:</strong> criação rápida de notas por tipo (Como fazer, Armadilha, Preferência, Decisão) até 480 caracteres.</span>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+</body></html>
