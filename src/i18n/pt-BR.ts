@@ -3710,4 +3710,5 @@ export const ptBR: Record<TranslationKey, string> = {
   'portability.settings.importCard': 'Importar',
   'portability.settings.exportCard': 'Exportar',
   'specs.moreActions': 'Mais ações de {title}',
+  'mobile.run.task': 'Tarefa',
 };

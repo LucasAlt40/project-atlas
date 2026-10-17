@@ -85,6 +85,7 @@ export function InteractionCard({
   const [problem, setProblem] = useState<TranslationKey | null>(null);
   const [expanded, setExpanded] = useState(interaction.kind === 'plan');
   const [asking, setAsking] = useState<string | null>(null);
+  const [noteOpen, setNoteOpen] = useState(false);
 
   if (interaction.status !== 'pending') return <Settled interaction={interaction} />;
 
@@ -95,6 +96,8 @@ export function InteractionCard({
   const isText = interaction.kind === 'clarification';
   // `revise` is the one answer that cannot be sent without words.
   const needsWords = (id: string) => interaction.kind === 'plan' && id === 'revise';
+  // The optional note of a plan waits behind one line; a typed answer or a needed revision does not.
+  const noteIsToggle = !isText && !asking;
 
   const send = async (choice: string | undefined) => {
     setBusy(choice ?? 'text');
@@ -163,7 +166,7 @@ export function InteractionCard({
           )}
         </p>
       ) : (
-        <div className={styles.answer}>
+        <div className={styles.actionBar}>
           {remote.desktopOnly === 'grants_authority' && (
             <p className={styles.callout} data-tone="attention" role="note">
               {t('mobile.question.refuseOnly')}
@@ -171,26 +174,40 @@ export function InteractionCard({
           )}
           {(isText || interaction.kind === 'plan' || asking) && (
             <>
-              <label htmlFor={`text-${interaction.id}`} className={styles.label}>
-                {isText
-                  ? t('mobile.question.yourAnswer')
-                  : asking
-                    ? t('mobile.question.whatToChange')
-                    : t('mobile.question.noteOptional')}
-              </label>
-              <textarea
-                id={`text-${interaction.id}`}
-                className={styles.textarea}
-                rows={isText ? 4 : 3}
-                maxLength={2000}
-                value={text}
-                onChange={(event) => {
-                  setText(event.target.value);
-                }}
-              />
+              {noteIsToggle && !noteOpen ? (
+                <button
+                  type="button"
+                  className={styles.noteToggle}
+                  onClick={() => {
+                    setNoteOpen(true);
+                  }}
+                >
+                  <span aria-hidden="true">+</span> {t('mobile.question.noteOptional')}
+                </button>
+              ) : (
+                <>
+                  <label htmlFor={`text-${interaction.id}`} className={styles.label}>
+                    {isText
+                      ? t('mobile.question.yourAnswer')
+                      : asking
+                        ? t('mobile.question.whatToChange')
+                        : t('mobile.question.noteOptional')}
+                  </label>
+                  <textarea
+                    id={`text-${interaction.id}`}
+                    className={styles.textarea}
+                    rows={isText ? 4 : 3}
+                    maxLength={2000}
+                    value={text}
+                    onChange={(event) => {
+                      setText(event.target.value);
+                    }}
+                  />
+                </>
+              )}
             </>
           )}
-          <div className={styles.choices}>
+          <div className={styles.choices} data-count={allowed.length + (isText ? 1 : 0)}>
             {isText && (
               <button
                 type="button"
@@ -225,13 +242,12 @@ export function InteractionCard({
           {asking && !text.trim() && (
             <p className={styles.fine}>{t('mobile.question.revisionNeedsWords')}</p>
           )}
+          {problem && (
+            <p className={styles.error} role="alert">
+              {t(problem)}
+            </p>
+          )}
         </div>
-      )}
-
-      {problem && (
-        <p className={styles.error} role="alert">
-          {t(problem)}
-        </p>
       )}
     </section>
   );

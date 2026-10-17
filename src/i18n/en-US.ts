@@ -3667,6 +3667,7 @@ export const enUS = {
   'portability.settings.importCard': 'Import',
   'portability.settings.exportCard': 'Export',
   'specs.moreActions': 'More actions for {title}',
+  'mobile.run.task': 'Task',
 } as const;
 
 export type TranslationKey = keyof typeof enUS;

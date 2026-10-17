@@ -6,6 +6,7 @@ import { APPLIED_KEY, InteractionCard } from './InteractionCard';
 import { useNow } from './Dashboard';
 import { clock, duration } from './format';
 import { failureKey } from './labels';
+import { Fold } from './Fold';
 import { RunChip } from './StatusChip';
 import { Timeline } from './Timeline';
 import { useRunDetail, type Remote } from './useRemote';
@@ -42,8 +43,7 @@ function Controls({ run, onDone }: { run: RunDetail; onDone: (run: RunDetail) =>
 
   if (!run.controls.pause && !run.controls.resume && !run.controls.cancel) return null;
   return (
-    <section className={styles.panel} aria-label={t('mobile.control.title')}>
-      <h2 className={styles.panelTitle}>{t('mobile.control.title')}</h2>
+    <Fold title={t('mobile.control.title')}>
       <div className={styles.choices}>
         {run.controls.pause && (
           <button
@@ -118,7 +118,29 @@ function Controls({ run, onDone }: { run: RunDetail; onDone: (run: RunDetail) =>
           {t(problem)}
         </p>
       )}
-    </section>
+    </Fold>
+  );
+}
+
+/** The task of the run on one line; a tap shows all of it. */
+function TaskBox({ task }: { task: string }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  return (
+    <button
+      type="button"
+      className={styles.taskBox}
+      aria-expanded={open}
+      onClick={() => {
+        setOpen((value) => !value);
+      }}
+    >
+      <span className={styles.taskLabel}>{t('mobile.run.task')}</span>
+      <span className={styles.taskText} data-open={open}>
+        {task}
+      </span>
+      <span className={styles.foldChevron} aria-hidden="true" />
+    </button>
   );
 }
 
@@ -156,17 +178,11 @@ export function RunScreen({ remote, id }: { remote: Remote; id: string }) {
         <h1 className={styles.runTitle}>{run.workflowName}</h1>
         <RunChip status={run.status} />
       </header>
-      <p className={styles.muted}>
+      <p className={styles.runMeta}>
         {run.workspaceName} ·{' '}
         {t('mobile.run.started', { time: clock(run.startedAt, language, now) })} · {elapsed}
       </p>
-      <p className={styles.task}>{run.task}</p>
-
-      {run.stepsTotal > 0 && (
-        <p className={styles.fine}>
-          {t('mobile.card.steps', { done: run.stepsDone, total: run.stepsTotal })}
-        </p>
-      )}
+      <TaskBox task={run.task} />
 
       {run.status === 'interrupted' && (
         <p className={styles.callout} data-tone="attention" role="status">
@@ -207,10 +223,15 @@ export function RunScreen({ remote, id }: { remote: Remote; id: string }) {
 
       <Controls run={run} onDone={adopt} />
 
-      <section className={styles.panel}>
-        <h2 className={styles.panelTitle}>{t('mobile.run.timeline')}</h2>
+      <Fold
+        title={t('mobile.run.timeline')}
+        open={pending.length === 0}
+        {...(run.stepsTotal > 0
+          ? { line: t('mobile.card.steps', { done: run.stepsDone, total: run.stepsTotal }) }
+          : {})}
+      >
         <Timeline steps={run.steps} edges={run.edges} now={now} />
-      </section>
+      </Fold>
 
       {settled.length > 0 && (
         <section className={styles.panel}>
@@ -232,10 +253,7 @@ export function RunScreen({ remote, id }: { remote: Remote; id: string }) {
       {(Boolean(run.result.summary) ||
         run.result.artifacts.length > 0 ||
         run.result.decisions.length > 0) && (
-        <section className={styles.panel}>
-          <h2 className={styles.panelTitle}>
-            {run.status === 'completed' ? t('mobile.run.result') : t('mobile.run.sofar')}
-          </h2>
+        <Fold title={run.status === 'completed' ? t('mobile.run.result') : t('mobile.run.sofar')}>
           {run.result.summary && <p className={styles.pre}>{run.result.summary}</p>}
           {run.result.artifacts.length > 0 && (
             <ul className={styles.bullets}>
@@ -256,21 +274,20 @@ export function RunScreen({ remote, id }: { remote: Remote; id: string }) {
               ))}
             </ul>
           )}
-        </section>
+        </Fold>
       )}
 
       {run.code.filesChanged > 0 && (
-        <section className={styles.panel}>
-          <h2 className={styles.panelTitle}>{t('mobile.run.code')}</h2>
-          <p>
-            {t('mobile.run.codeSummary', {
-              files: run.code.filesChanged,
-              added: run.code.additions,
-              removed: run.code.deletions,
-            })}
-          </p>
+        <Fold
+          title={t('mobile.run.code')}
+          line={t('mobile.run.codeSummary', {
+            files: run.code.filesChanged,
+            added: run.code.additions,
+            removed: run.code.deletions,
+          })}
+        >
           <p className={styles.fine}>{t('mobile.run.codeOnComputer')}</p>
-        </section>
+        </Fold>
       )}
 
       {run.events.length > 0 && (
