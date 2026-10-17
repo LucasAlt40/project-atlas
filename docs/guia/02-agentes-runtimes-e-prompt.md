@@ -13,16 +13,21 @@ Um `Agent` guarda: `personalityId`, `runtimeId`, `modelId`, `instructions` (inst
 
 ### Personalidades embutidas
 
-As cinco que acompanham o Atlas (`application/personalities/builtin.rs`). O usuário pode editar (guarda-se uma cópia em
+As seis que acompanham o Atlas (`application/personalities/builtin.rs`). O usuário pode editar (guarda-se uma cópia em
 `builtinOverrides`), esconder (`hiddenBuiltins`), restaurar, e criar personalidades próprias.
 
 | Id                       | Pergunta que responde                                | Perfil de permissão sugerido |
 | ------------------------ | ---------------------------------------------------- | ---------------------------- |
 | `architect`              | O que deve ser construído e como?                    | `developer`                  |
+| `spec-architect`         | O que exatamente precisa ser verdade? (specs SDD)    | `developer`                  |
 | `developer`              | Como implemento? (código + testes)                   | `developer`                  |
 | `qa`                     | Funciona de verdade? (comportamento, bordas, testes) | `developer`                  |
 | `architecture-validator` | Foi construído **corretamente**? **Somente leitura** | `read_only`                  |
 | `bug-fixer`              | Por que falhou e como corrijo? (causa raiz, mínimo)  | `developer`                  |
+
+`spec-architect` é a autora **recomendada** (não obrigatória) das specs: o formulário de nova spec e o de importação
+pré-selecionam um agente com essa personalidade (senão um `architect`, senão o primeiro) e o marcam como "recomendado";
+qualquer agente do workspace continua escolhível (`src/features/specs/model/agents.ts`).
 
 Uma personalidade pode carregar um `suggestedContract`; ele só é aplicado pelo editor quando o agente é criado, nunca
 sozinho. Agentes antigos são `general` (sem outcome obrigatório). Agentes novos nascem com o perfil de permissão mais

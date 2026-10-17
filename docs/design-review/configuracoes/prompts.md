@@ -141,6 +141,7 @@ partes. "Sobre": três pares rótulo/valor em mono: Atlas "Project Atlas", Vers�
 | C2 | 2026-10-16 | "Configurações — Memória" `531ba78a90f042819c5788c9f9a07fac` (2560×2048) | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`. |
 | C3 | 2026-10-16 | "Configurações — Importar e exportar" `f51323b94a09433fb8f5a56733ff2fee` (2560×2048) | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`. |
 | C4 | 2026-10-16 | "Configurações — Revisar importação" `34439c29d5234a84aa9bea57546f8c17` (2560×2048) | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`. |
+| C5 | 2026-10-16 | "Configurações — Sobre e atualizações" `7c2b416caa5d408c974bc972850cc9c3` (2560×2048) | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`. |
 
 ## Avaliação
 
@@ -216,3 +217,18 @@ O Stitch mostra, o app não tem (não implementar):
 
 Observação: "Substituir o que eu já tenho" veio selecionado com a caixa de confirmação já marcada; no app
 nenhuma opção vem escolhida por padrão e a caixa começa desmarcada.
+
+### C5 — Configurações — Sobre e atualizações
+
+Fiel e sem invenções: cartão único com "Sobre" (três pares em mono, valor 0.1.5) e "Atualizações" (botão
+"Buscar atualizações" + ponto verde e o texto do estado normal). Moldura correta, índice sem título, rodapé
+v0.1.5. Pequeno desvio: o breadcrumb saiu sem separador de peso ("Transport ERP / Configurações — Sobre e
+atualizações" em um único tom); seguir o breadcrumb real do app. Os outros estados de atualização não foram
+desenhados (só descritos): implementar pelo prompt com o mesmo ponto de estado (âmbar para "disponível").
+
+## Resumo do módulo
+
+As cinco telas estão geradas. Pontos comuns para a implementação: (1) o índice lateral interno é novo e fica
+com 200px, sem título; (2) o Stitch deixou descrições e rótulos extras nos cartões, abas e linhas (listados
+por tela acima) que o app não tem; (3) só uma aba da Memória foi desenhada; (4) em C4 as opções de decisão e
+a caixa de confirmação devem começar desmarcadas.

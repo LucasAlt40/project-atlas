@@ -8,16 +8,16 @@ precisa existir). Princípios, fases, fonte do visual, relatório e regras de di
 
 ## 1. Telas e código
 
-Ids a preencher depois do envio dos prompts (registro em `prompts.md`). As cinco telas são seções da
+Ids das telas geradas no Stitch (registro e avaliação em `prompts.md`). As cinco telas são seções da
 **mesma página** (`SettingsPage`); o app continua tendo uma tela só, com um índice interno.
 
 | #   | Tela (nome no Stitch)                | Id da tela nova | Código do app (hipótese a confirmar)                                                                    |
 | --- | ------------------------------------ | --------------- | ------------------------------------------------------------------------------------------------------- |
-| C1  | Configurações — Geral                | _a preencher_   | `settings/pages/SettingsPage.tsx`, `settings/components/SandboxSettings.tsx`, `SettingsPage.module.css` |
-| C2  | Configurações — Memória              | _a preencher_   | `memory/components/MemorySettings.tsx`, `Memory.module.css`, `memory/hooks/useMemories`                 |
-| C3  | Configurações — Importar e exportar  | _a preencher_   | `portability/components/PortabilitySettings.tsx`, `PortabilityActions.tsx`, `ExportDialog.tsx`          |
-| C4  | Configurações — Revisar importação   | _a preencher_   | `portability/components/ImportDialog.tsx`, `ImportItemCard.tsx`, `ImportResult.tsx`, `ModelPanel.tsx`   |
-| C5  | Configurações — Sobre e atualizações | _a preencher_   | `home/components/AppInfoPanel.tsx`, `settings/components/UpdateChecker.tsx`                             |
+| C1  | Configurações — Geral                | `67ed2d6872a94adc9838d074b6fab48e`   | `settings/pages/SettingsPage.tsx`, `settings/components/SandboxSettings.tsx`, `SettingsPage.module.css` |
+| C2  | Configurações — Memória              | `531ba78a90f042819c5788c9f9a07fac`   | `memory/components/MemorySettings.tsx`, `Memory.module.css`, `memory/hooks/useMemories`                 |
+| C3  | Configurações — Importar e exportar  | `f51323b94a09433fb8f5a56733ff2fee`   | `portability/components/PortabilitySettings.tsx`, `PortabilityActions.tsx`, `ExportDialog.tsx`          |
+| C4  | Configurações — Revisar importação   | `34439c29d5234a84aa9bea57546f8c17`   | `portability/components/ImportDialog.tsx`, `ImportItemCard.tsx`, `ImportResult.tsx`, `ModelPanel.tsx`   |
+| C5  | Configurações — Sobre e atualizações | `7c2b416caa5d408c974bc972850cc9c3`   | `home/components/AppInfoPanel.tsx`, `settings/components/UpdateChecker.tsx`                             |
 
 Compartilhados com outros módulos: `PortabilityActions` / `ImportButton` / o diálogo de exportar são
 usados também em **Agentes** e **Personalidades** (botão `Importar`, `Exportar` no cartão) e no
