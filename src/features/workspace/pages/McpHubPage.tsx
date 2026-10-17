@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
+import { OverflowMenu } from '@/components/ui/OverflowMenu';
 import { useCatalog } from '@/features/agents/hooks/useCatalog';
 import type { Agent, RuntimeStatus } from '@/features/agents/types';
 import type { TranslationKey } from '@/i18n';
@@ -63,10 +64,10 @@ export function McpHubPage() {
   if (!active) {
     return <p className={styles.muted}>{t('hub.noWorkspace')}</p>;
   }
-  return <Hub key={active.id} workspaceId={active.id} workspaceName={active.name} />;
+  return <Hub key={active.id} workspaceId={active.id} />;
 }
 
-function Hub({ workspaceId, workspaceName }: { workspaceId: string; workspaceName: string }) {
+function Hub({ workspaceId }: { workspaceId: string }) {
   const { t } = useI18n();
   const { catalog: agentCatalog, runtimes: runtimeState } = useCatalog();
   const { state, reload } = useMcpConnections(workspaceId);
@@ -196,12 +197,10 @@ function Hub({ workspaceId, workspaceName }: { workspaceId: string; workspaceNam
 
   return (
     <section className={styles.page} aria-label={t('hub.title')}>
-      <div className={styles.topbar}>
-        <div className={styles.crumbs}>
-          <span>{workspaceName}</span>
-          <span>/</span>
-          <span>mcp</span>
-          <span className={styles.chip}>JSON-RPC 2.0</span>
+      <header className={styles.pageHead}>
+        <div className={styles.heading}>
+          <h1>{t('hub.title')}</h1>
+          <p>{t('hub.subtitle')}</p>
         </div>
         <div className={styles.row}>
           <Button
@@ -214,22 +213,26 @@ function Hub({ workspaceId, workspaceName }: { workspaceId: string; workspaceNam
               ? t('hub.ping.running', { done: pinging.done, total: pinging.total })
               : t('hub.ping')}
           </Button>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setDialog('sync');
-            }}
-          >
-            <Icon name="refresh" size={14} /> {t('hub.sync.open')}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setDialog('config');
-            }}
-          >
-            <Icon name="braces" size={14} /> atlas-mcp.json
-          </Button>
+          <OverflowMenu
+            label={t('hub.config.menu')}
+            text={t('hub.config.menu')}
+            items={[
+              {
+                label: t('hub.sync.open'),
+                icon: 'refresh',
+                onSelect: () => {
+                  setDialog('sync');
+                },
+              },
+              {
+                label: 'atlas-mcp.json',
+                icon: 'braces',
+                onSelect: () => {
+                  setDialog('config');
+                },
+              },
+            ]}
+          />
           <Button
             onClick={() => {
               setDialog('add');
@@ -238,11 +241,6 @@ function Hub({ workspaceId, workspaceName }: { workspaceId: string; workspaceNam
             <Icon name="plus" size={14} /> {t('hub.add.open')}
           </Button>
         </div>
-      </div>
-
-      <header className={styles.heading}>
-        <h1>{t('hub.title')}</h1>
-        <p>{t('hub.subtitle')}</p>
       </header>
 
       {error && (
@@ -259,64 +257,79 @@ function Hub({ workspaceId, workspaceName }: { workspaceId: string; workspaceNam
 
       {value && (
         <>
-          <dl className={styles.metrics}>
-            {metricCards.map((card) => (
-              <div key={card.label} className={styles.metric} data-tone={card.tone}>
-                <dt>{card.label}</dt>
-                <dd>
-                  <span className={styles.metricValue}>{card.value}</span>
-                  <span className={styles.metricHint}>{card.hint}</span>
-                </dd>
-              </div>
-            ))}
-          </dl>
+          {connections.length > 0 && (
+            <>
+              <ul className={styles.metrics} aria-label={t('hub.metric.label')}>
+                {metricCards.map((card) => (
+                  <li
+                    key={card.label}
+                    className={styles.metric}
+                    data-tone={card.tone}
+                    title={card.hint}
+                  >
+                    <span className={styles.metricValue}>{card.value}</span>{' '}
+                    <span className={styles.metricLabel}>{card.label}</span>
+                    {card.tone === 'ok' && card.hint !== '—' && (
+                      <span className={styles.metricHint}> ({card.hint})</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
 
-          <div className={styles.controls}>
-            <div className={styles.segment} role="group" aria-label={t('hub.filter.label')}>
-              {tabs.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  aria-pressed={tab === item.id}
-                  disabled={item.disabled}
-                  title={item.disabled ? t('hub.filter.remoteSoon') : undefined}
-                  onClick={() => {
-                    setTab(item.id);
-                  }}
-                >
-                  {item.label} ({counts[item.id]})
-                </button>
-              ))}
-            </div>
-            <div className={styles.row}>
-              <label className={styles.search}>
-                <Icon name="search" size={14} />
-                <input
-                  ref={search}
-                  value={query}
-                  aria-label={t('hub.search')}
-                  placeholder={t('hub.search')}
-                  onChange={(e) => {
-                    setQuery(e.target.value);
-                  }}
-                />
-                <kbd>⌘K</kbd>
-              </label>
-              <label className={styles.check}>
-                <input
-                  type="checkbox"
-                  checked={onlyConnected}
-                  onChange={(e) => {
-                    setOnlyConnected(e.target.checked);
-                  }}
-                />
-                {t('hub.onlyConnected')}
-              </label>
-            </div>
-          </div>
+              <div className={styles.controls}>
+                <div className={styles.segment} role="group" aria-label={t('hub.filter.label')}>
+                  {tabs.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      aria-pressed={tab === item.id}
+                      disabled={item.disabled}
+                      title={item.disabled ? t('hub.filter.remoteSoon') : undefined}
+                      onClick={() => {
+                        setTab(item.id);
+                      }}
+                    >
+                      {item.label} ({counts[item.id]})
+                    </button>
+                  ))}
+                </div>
+                <div className={styles.row}>
+                  <label className={styles.search}>
+                    <Icon name="search" size={14} />
+                    <input
+                      ref={search}
+                      value={query}
+                      aria-label={t('hub.search')}
+                      placeholder={t('hub.search')}
+                      onChange={(e) => {
+                        setQuery(e.target.value);
+                      }}
+                    />
+                    <kbd>⌘K</kbd>
+                  </label>
+                  <label className={styles.check}>
+                    <span className={styles.switch}>
+                      <input
+                        type="checkbox"
+                        checked={onlyConnected}
+                        onChange={(e) => {
+                          setOnlyConnected(e.target.checked);
+                        }}
+                      />
+                      <span aria-hidden="true" />
+                    </span>
+                    {t('hub.onlyConnected')}
+                  </label>
+                </div>
+              </div>
+            </>
+          )}
 
           {connections.length === 0 ? (
             <div className={styles.empty}>
+              <span className={styles.emptyIcon} aria-hidden="true">
+                <Icon name="hub" size={22} />
+              </span>
               <p>{t('hub.empty')}</p>
               <div className={styles.row}>
                 <Button
@@ -412,7 +425,7 @@ function Hub({ workspaceId, workspaceName }: { workspaceId: string; workspaceNam
           {dialog === 'add' && (
             <Modal
               label={t('hub.add.title')}
-              size="analyze"
+              size="wide"
               onClose={() => {
                 setDialog(null);
               }}
@@ -449,7 +462,7 @@ function Hub({ workspaceId, workspaceName }: { workspaceId: string; workspaceNam
           {dialog === 'sync' && (
             <Modal
               label={t('hub.sync.title')}
-              size="analyze"
+              size="wide"
               onClose={() => {
                 setDialog(null);
               }}

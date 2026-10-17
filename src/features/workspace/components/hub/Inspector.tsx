@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Icon } from '@/components/ui/Icon';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
+import { OverflowMenu } from '@/components/ui/OverflowMenu';
 import type { Agent, RuntimeStatus } from '@/features/agents/types';
 import type { TranslationKey } from '@/i18n';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -240,13 +242,15 @@ export function Inspector({
           </section>
         )}
 
-        <section className={styles.guardrails} aria-label={t('hub.guardrails.title')}>
-          <div className={styles.rowBetween}>
-            <span className={styles.eyebrow}>
-              <Icon name="shield" size={14} /> {t('hub.guardrails.title')}
-            </span>
-            <span className={styles.chip}>{t('hub.guardrails.badge')}</span>
-          </div>
+        <CollapsibleSection
+          title={t('hub.guardrails.title')}
+          defaultOpen={false}
+          aside={
+            <Badge mono caps={false}>
+              {t('hub.guardrails.badge')}
+            </Badge>
+          }
+        >
           <ul className={styles.plainList}>
             {(['untrusted', 'unauthorized', 'secrets'] as const).map((rule) => (
               <li key={rule} className={styles.muted}>
@@ -254,7 +258,7 @@ export function Inspector({
               </li>
             ))}
           </ul>
-        </section>
+        </CollapsibleSection>
       </div>
 
       <footer className={styles.inspectorFoot}>
@@ -269,30 +273,31 @@ export function Inspector({
             >
               {t('integrations.removeConfirm')}
             </Button>
-            <button
-              type="button"
-              className={styles.link}
+            <Button
+              variant="ghost"
               onClick={() => {
                 setRemoving(false);
               }}
             >
               {t('common.cancel')}
-            </button>
+            </Button>
           </div>
         ) : (
-          <button
-            type="button"
-            className={styles.danger}
-            onClick={() => {
-              setRemoving(true);
-            }}
-          >
-            <Icon name="trash" size={14} /> {t('hub.remove')}
-          </button>
+          <OverflowMenu
+            label={t('hub.inspector.more', { name: connection.name })}
+            items={[
+              { label: t('hub.export'), icon: 'upload', onSelect: onExport },
+              {
+                label: t('hub.remove'),
+                icon: 'trash',
+                danger: true,
+                onSelect: () => {
+                  setRemoving(true);
+                },
+              },
+            ]}
+          />
         )}
-        <Button variant="secondary" onClick={onExport}>
-          <Icon name="upload" size={14} /> {t('hub.export')}
-        </Button>
       </footer>
     </aside>
   );
