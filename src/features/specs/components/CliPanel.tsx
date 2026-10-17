@@ -8,6 +8,7 @@ import { errorDetail } from '@/i18n/messages';
 import type { CliStatusDto } from '@/lib/tauri/commands';
 import { getCliStatus } from '../services/specService';
 import type { SpecView } from '../types';
+import { PanelSection } from './PanelSection';
 import styles from './Specs.module.css';
 
 const REASONS: Record<string, TranslationKey> = {
@@ -59,17 +60,18 @@ export function CliPanel({ view, busy, onCheck, onArchive, error }: Props) {
   const detail = errorDetail(error);
 
   return (
-    <section className={styles.panel} aria-label={t('specs.cli.title')}>
-      <header className={styles.panelHead}>
-        <h3>{t('specs.cli.title')}</h3>
-        <span className={styles.panelTag} data-tone={usable ? 'success' : 'neutral'}>
-          {status === null
-            ? '…'
-            : usable
-              ? t('specs.cli.version', { version: status.version ?? '' })
-              : t('specs.cli.unavailable')}
-        </span>
-      </header>
+    <PanelSection
+      title={t('specs.cli.title')}
+      tone={usable ? 'success' : 'neutral'}
+      defaultOpen={false}
+      tag={
+        status === null
+          ? '…'
+          : usable
+            ? t('specs.cli.version', { version: status.version ?? '' })
+            : t('specs.cli.unavailable')
+      }
+    >
       <p className={styles.muted}>{t('specs.cli.intro')}</p>
       {status !== null && !usable && (
         <p className={styles.muted}>
@@ -154,6 +156,6 @@ export function CliPanel({ view, busy, onCheck, onArchive, error }: Props) {
           </div>
         </Modal>
       )}
-    </section>
+    </PanelSection>
   );
 }
