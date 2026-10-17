@@ -157,6 +157,7 @@ uma rede) existem só como texto.
 | M1 | 2026-10-16 | "Celular — Painel de execuções" `353aa8a106af44408c2dc337f053d82f` (canvas 2560×2048, coluna de celular centralizada) | `generate_screen_from_text` com `deviceType: MOBILE` e bloco comum; respondeu sem timeout. |
 | M2 | 2026-10-16 | "Celular — Execução esperando resposta" `068a7930a0ec4643ad87d2ea16a2f904` (canvas 2560×2048, coluna de celular) | `generate_screen_from_text` com `deviceType: MOBILE`; respondeu sem timeout. |
 | M3 | 2026-10-16 | "Celular — Execução: etapas e resultado" `35e8c067f9364cdfa829f555d3c89832` (canvas de celular, 780×1768 na captura) | `generate_screen_from_text` com `deviceType: MOBILE`; timeout, não reenviado, confirmado por `list_screens`. |
+| M4 | 2026-10-16 | "Celular — Conectar este celular" `6c341e698dc048c28b6782f9af6cd74c` (canvas 2560×2048, coluna de celular) | `generate_screen_from_text` com `deviceType: MOBILE`; respondeu sem timeout. |
 
 ## Avaliação
 
@@ -212,3 +213,13 @@ selo e agente · duração por linha, "O que ela relatou" recolhível) e as quat
 Sem invenções relevantes. Observações: o ícone "‹" do "Voltar" virou chevron grande e o "Atlas" fica ao lado
 (igual a M2); o marcador de cada etapa é um círculo com ícone (✓, ?, ○), o que combina com o pedido. Os
 textos condicionais e a confirmação de cancelar não foram desenhados (só descritos).
+
+### M4 — Celular — Conectar este celular
+
+Exatamente o pedido e sem nenhuma invenção: topo só com "Atlas", título, dois passos com número grande à
+esquerda, campo "Código de pareamento" em mono com o placeholder, "Conectar" em largura total no pé e a nota
+embaixo. Sem QR code desenhado, sem teclado e sem barra de status (o reforço funcionou).
+
+Observação de layout: entre o campo e o botão há um vazio grande, porque o botão ficou ancorado no pé da
+tela (alcance do polegar). É intencional e deve ser mantido no app. O erro e o estado "Conectando…" não
+foram desenhados (só descritos): implementar a faixa vermelha acima do campo e trocar o rótulo do botão.
