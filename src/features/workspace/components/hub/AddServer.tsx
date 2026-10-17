@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import type { TranslationKey } from '@/i18n';
@@ -86,47 +87,53 @@ function PresetRow({
   const { t } = useI18n();
   const planned = preset.availability !== 'ready';
   return (
-    <li className={styles.sub} aria-label={preset.connectionName}>
+    <li className={styles.preset} aria-label={preset.connectionName} data-planned={planned}>
       <div className={styles.rowBetween}>
-        <strong>{t(`integrations.preset.${preset.id}.name` as TranslationKey)}</strong>
-        <span className={styles.muted}>{t('integrations.riskHigh')}</span>
+        <span className={styles.presetTitle}>
+          <strong>{t(`integrations.preset.${preset.id}.name` as TranslationKey)}</strong>
+          <Badge mono caps={false} tone="danger">
+            {t('integrations.riskHigh')}
+          </Badge>
+        </span>
+        <a href={preset.sourceUrl} target="_blank" rel="noreferrer" className={styles.link}>
+          {t('integrations.source')} <Icon name="externalLink" size={12} />
+        </a>
       </div>
       <p className={styles.muted}>
         {t(`integrations.preset.${preset.id}.about` as TranslationKey)}
       </p>
       {planned && <p className={styles.callout}>{t('integrations.needsHttp')}</p>}
       {preset.command && (
-        <p className={styles.muted}>
-          {t('integrations.wouldRun')} <code className={styles.mono}>{preset.command}</code>
+        <p className={styles.wouldRun}>
+          <span>{t('integrations.wouldRun')}</span> <code>{preset.command}</code>
         </p>
       )}
       {preset.pinnedVersion && (
-        <p className={styles.muted}>
+        <p className={styles.mutedItalic}>
           {t('integrations.pinned', { version: preset.pinnedVersion })}
         </p>
-      )}
-      {preset.requirements.length > 0 && (
-        <ul className={styles.plainList}>
-          {preset.requirements.map((r) => (
-            <li key={r.requirement} className={styles.muted}>
-              {r.found ? '✓' : '·'} {t(`integrations.req.${r.requirement}` as TranslationKey)} —{' '}
-              {r.found ? t('integrations.reqFound') : t('integrations.reqNotFound')}
-            </li>
-          ))}
-        </ul>
       )}
       {preset.requirements.some((r) => r.requirement === 'saved_sign_in' && !r.found) && (
         <p className={styles.callout}>
           {t('integrations.signInHint', { command: preset.command ?? '' })}
         </p>
       )}
-      <div className={styles.row}>
-        <Button variant="secondary" disabled={planned || added} onClick={onAdd}>
+      <div className={styles.presetFoot}>
+        {preset.requirements.length > 0 && (
+          <ul className={styles.requirements}>
+            {preset.requirements.map((r) => (
+              <li key={r.requirement}>
+                <Badge tone={r.found ? 'success' : 'neutral'}>
+                  {r.found ? '✓' : '·'} {t(`integrations.req.${r.requirement}` as TranslationKey)} —{' '}
+                  {r.found ? t('integrations.reqFound') : t('integrations.reqNotFound')}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+        <Button disabled={planned || added} onClick={onAdd}>
           {added ? t('integrations.added') : t('integrations.add')}
         </Button>
-        <a href={preset.sourceUrl} target="_blank" rel="noreferrer" className={styles.link}>
-          {t('integrations.source')}
-        </a>
       </div>
     </li>
   );
