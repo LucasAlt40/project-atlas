@@ -198,6 +198,7 @@ documentos importados; os que faltam podem ser escritos a partir dos demais.". R
 | -------------- | ------- | --------------------- | ---------- |
 | S1 | 2026-10-16 | "Specs — Lista de especificações" `a7eb1bf978364f498e6908e8e85b6ed4` (2560×2048) | `edit_screens` a partir de `a60e9fda…`, com bloco comum; timeout, não reenviado, confirmado por `list_screens`. A original segue intacta. |
 | S3 | 2026-10-16 | "Spec — Documento em revisão" `d439e1fbb75c4b7f9d684b0b3c46a543` (2560×2048) | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`. |
+| S6 | 2026-10-16 | "Spec — Revisão final e publicação" `fb6be8f6a81149e3873c33d6d98f31f0` (2560×2048) | `edit_screens` a partir de `5126e494…`; timeout, não reenviado, confirmado por `list_screens`. A original segue intacta. |
 
 ## Avaliação
 
@@ -236,3 +237,16 @@ O Stitch mostra, o app não tem (não implementar):
 
 Desvio: o stepper ocupa um cartão grande com cada etapa em sua própria caixa; no app pode ser mais enxuto
 (uma linha de passos) desde que mantenha nome, estado e destaque da etapa atual.
+
+### S6 — Spec — Revisão final e publicação
+
+Muito fiel e consistente com S3: mesmo cabeçalho, metadados e stepper (quatro etapas "Aprovado" e a última
+destacada). Bloco "O que falta para esta spec ficar pronta" com selo "Pronta", "Rodar validações
+novamente" e o primário "Aprovar a especificação" no próprio bloco; sete verificações em linhas com ✓,
+nome, resultado e "Abrir"; quatro seções recolhíveis fechadas, com selos "Não executada" e "Não publicada".
+Sem texto cortado. As ações irreversíveis ficaram dentro das seções fechadas, fora do primário da página.
+
+Pequenos desvios (não implementar): chevron duplicado (à esquerda e à direita) nas seções "Implementar a
+partir desta spec" e "Arquivar com o OpenSpec CLI"; ponto azul solto no canto da etapa "Revisão final";
+selo "Pronta" repetido (no stepper como texto e no bloco como selo; manter só o do bloco). Os conteúdos
+das quatro seções (campos, botões, textos) não foram desenhados: implementar pelo prompt.
