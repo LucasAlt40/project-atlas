@@ -159,6 +159,7 @@ uma rede) existem só como texto.
 | M3 | 2026-10-16 | "Celular — Execução: etapas e resultado" `35e8c067f9364cdfa829f555d3c89832` (canvas de celular, 780×1768 na captura) | `generate_screen_from_text` com `deviceType: MOBILE`; timeout, não reenviado, confirmado por `list_screens`. |
 | M4 | 2026-10-16 | "Celular — Conectar este celular" `6c341e698dc048c28b6782f9af6cd74c` (canvas 2560×2048, coluna de celular) | `generate_screen_from_text` com `deviceType: MOBILE`; respondeu sem timeout. |
 | M5a | 2026-10-16 | "Celular — Sem conexão" `62b2772d85634fd7ba9794c4983b88a2` (canvas 2560×2048, coluna de celular) | `generate_screen_from_text` com `deviceType: MOBILE`; respondeu sem timeout. |
+| M5b | 2026-10-16 | "Celular — Sem execuções" `2c352cadb9e94203b96e2173b81f1a35` (canvas 2560×2048, coluna de celular) | `generate_screen_from_text` com `deviceType: MOBILE`; respondeu sem timeout. |
 
 ## Avaliação
 
@@ -231,3 +232,10 @@ Exatamente o pedido: topo só com "Atlas", faixa vermelha com ponto de estado e 
 "Tentar de novo" em largura total logo abaixo. Nada inventado. Observação: aqui a barra de topo ocupou a
 largura inteira do canvas, mas o conteúdo ficou na coluna de celular; vale a coluna. O botão ficou logo
 abaixo da faixa (no meio da tela) e não no pé: aceitável, já que a tela só tem essa ação.
+
+### M5b — Celular — Sem execuções
+
+Fiel e sem invenções: topo completo ("Atlas" à esquerda, "iPhone do Lucas" em mono à direita), cartão central
+com o texto e, no pé, o link "Desconectar este celular" seguido do aviso (a ordem pedida, ao contrário de
+M1). Sem faixa de alerta, grupos nem botões. O link saiu como texto simples sem aparência de toque; no app
+manter alvo de pelo menos 44px.
