@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas — MCP Hub — Servidores</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts: Geist & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS with Forms & Container Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-error-container": "#ffdad6",
+            "on-primary-container": "#0d0096",
+            "on-surface": "#e1e2e8",
+            "error": "#ffb4ab",
+            "surface": "#111418",
+            "background": "#111418",
+            "surface-container-high": "#272a2e",
+            "surface-container": "#1d2024",
+            "secondary-fixed-dim": "#7bd0ff",
+            "surface-tint": "#c0c1ff",
+            "on-secondary-fixed-variant": "#004c69",
+            "on-secondary": "#00354a",
+            "on-tertiary": "#640039",
+            "tertiary-container": "#f751a1",
+            "primary": "#c0c1ff",
+            "on-primary": "#1000a9",
+            "on-tertiary-fixed": "#3e0022",
+            "on-error": "#690005",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "error-container": "#93000a",
+            "secondary-container": "#00a6e0",
+            "on-surface-variant": "#c7c4d7",
+            "surface-bright": "#36393e",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "inverse-on-surface": "#2e3135",
+            "primary-fixed": "#e1e0ff",
+            "inverse-primary": "#494bd6",
+            "primary-container": "#8083ff",
+            "outline-variant": "#464554",
+            "secondary": "#7bd0ff",
+            "on-primary-fixed": "#07006c",
+            "on-background": "#e1e2e8",
+            "surface-variant": "#323539",
+            "tertiary": "#ffb0cd",
+            "surface-container-low": "#191c20",
+            "on-tertiary-container": "#570032",
+            "on-secondary-container": "#00374d",
+            "on-secondary-fixed": "#001e2c",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "secondary-fixed": "#c4e7ff",
+            "surface-container-highest": "#323539",
+            "tertiary-fixed": "#ffd9e4",
+            "surface-dim": "#111418",
+            "outline": "#908fa0",
+            "surface-container-lowest": "#0b0e12",
+            "inverse-surface": "#e1e2e8"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "gutter": "0.5rem",
+            "space-sm": "0.375rem",
+            "space-xs": "0.25rem",
+            "space-xl": "1.25rem",
+            "space-lg": "0.875rem",
+            "space-md": "0.625rem",
+            "margin": "0.75rem"
+          },
+          "fontFamily": {
+            "code-md": ["JetBrains Mono"],
+            "body-lg": ["Geist"],
+            "body-md": ["Geist"],
+            "body-sm": ["Geist"],
+            "display": ["Geist"],
+            "code-sm": ["JetBrains Mono"],
+            "headline-sm": ["Geist"],
+            "label-md": ["Geist"],
+            "label-sm": ["JetBrains Mono"],
+            "code-lg": ["JetBrains Mono"],
+            "headline-lg": ["Geist"]
+          },
+          "fontSize": {
+            "code-md": ["0.75rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "body-lg": ["0.9375rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "body-md": ["0.8125rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "body-sm": ["0.75rem", { "lineHeight": "1.125rem", "letterSpacing": "0.005em", "fontWeight": "400" }],
+            "display": ["1.75rem", { "lineHeight": "2.25rem", "letterSpacing": "-0.025em", "fontWeight": "600" }],
+            "code-sm": ["0.6875rem", { "lineHeight": "1rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-sm": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.015em", "fontWeight": "500" }],
+            "label-md": ["0.75rem", { "lineHeight": "1rem", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "label-sm": ["0.625rem", { "lineHeight": "0.875rem", "letterSpacing": "0.04em", "fontWeight": "500" }],
+            "code-lg": ["0.875rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+            "headline-lg": ["1.375rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.02em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    /* Technical scrollbars & crisp rendering */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0e12;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #272a2e;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #464554;
+    }
+    .material-symbols-outlined {
+      font-size: 1.125rem;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+    .material-symbols-outlined.fill-current {
+      font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+  </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface antialiased font-body-md text-body-md overflow-hidden h-screen w-screen flex select-none">
+<!-- ======================================================== -->
+<!-- 1. MOLDURA FIXA ESTRITA: BARRA LATERAL ESQUERDA (216px)    -->
+<!-- ======================================================== -->
+<aside class="fixed top-0 left-0 bottom-0 w-[216px] flex flex-col justify-between py-space-md z-40 bg-surface-container-lowest border-r border-outline-variant/30 shrink-0">
+<!-- Top Area: Brand & Workspace Selector -->
+<div class="flex flex-col gap-space-md">
+<!-- Clean Brand Logo -->
+<div class="px-space-md pt-space-xs pb-space-xs flex items-center gap-space-sm">
+<span class="w-2 h-2 rounded-full bg-primary inline-block"></span>
+<span class="text-body-lg font-headline-lg font-semibold tracking-tight text-on-surface">Atlas</span>
+</div>
+<!-- Workspace Selector -->
+<div class="mx-space-md px-space-sm py-space-xs rounded bg-surface-container-low border border-outline-variant/30 flex flex-col gap-0.5">
+<div class="flex items-center justify-between text-on-surface">
+<span class="font-label-md text-label-md font-medium truncate">Transport ERP</span>
+<span class="material-symbols-outlined text-[0.875rem] text-outline" data-icon="unfold_more">unfold_more</span>
+</div>
+<span class="font-code-sm text-code-sm text-outline truncate">/dev/transport-erp</span>
+</div>
+<!-- Primary Navigation Links -->
+<nav class="flex flex-col mt-space-xs">
+<!-- Workspace -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-outline" data-icon="space_dashboard">space_dashboard</span>
+<span>Workspace</span>
+</a>
+<!-- Workflow -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-outline" data-icon="account_tree">account_tree</span>
+<span>Workflow</span>
+</a>
+<!-- Agentes -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-outline" data-icon="smart_toy">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- Personalidades -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-outline" data-icon="psychology">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- Specs -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-outline" data-icon="description">description</span>
+<span>Specs</span>
+</a>
+<!-- MCP Hub (ACTIVE ITEM) -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm bg-surface-container-high text-primary border-l-2 border-primary rounded-none font-medium font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-primary" data-icon="hub">hub</span>
+<span>MCP Hub</span>
+</a>
+</nav>
+</div>
+<!-- Bottom Area: Settings & Version Subtext -->
+<div class="flex flex-col gap-space-xs pt-space-xs border-t border-outline-variant/30">
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-outline" data-icon="settings">settings</span>
+<span>Configurações</span>
+</a>
+<div class="px-space-md pt-space-xs">
+<span class="font-code-sm text-code-sm text-outline/70">Project Atlas v0.1.0</span>
+</div>
+</div>
+</aside>
+<!-- ======================================================== -->
+<!-- 2. MOLDURA FIXA ESTRITA: BARRA SUPERIOR (48px)             -->
+<!-- ======================================================== -->
+<header class="fixed top-0 right-0 left-[216px] h-12 flex items-center justify-between px-space-lg z-30 border-b border-outline-variant/30 bg-surface-container-lowest">
+<!-- Left: Collapse toggle + Exact Breadcrumb -->
+<div class="flex items-center gap-space-md">
+<button class="text-outline hover:text-on-surface hover:bg-surface-container-high p-1 rounded transition-colors duration-150 flex items-center justify-center" title="Alternar menu lateral">
+<span class="material-symbols-outlined" data-icon="menu_open">menu_open</span>
+</button>
+<div class="flex items-center gap-1.5 font-label-md text-label-md">
+<span class="text-outline">Transport ERP</span>
+<span class="text-outline-variant">/</span>
+<span class="text-on-surface font-medium">MCP Hub — Servidores</span>
+</div>
+</div>
+<!-- Right: Celular action & PT | EN toggle only -->
+<div class="flex items-center gap-space-md">
+<!-- Celular button -->
+<button class="flex items-center gap-1.5 px-space-sm py-1 rounded bg-surface-container-low border border-outline-variant/30 hover:border-outline-variant text-outline hover:text-on-surface font-label-md text-label-md transition-colors duration-150">
+<span class="material-symbols-outlined text-outline text-[1rem]" data-icon="smartphone">smartphone</span>
+<span>Celular</span>
+</button>
+<!-- Language Switcher: PT active -->
+<div class="flex items-center bg-surface-container-low border border-outline-variant/30 rounded p-0.5 text-label-sm font-label-sm">
+<span class="px-1.5 py-0.5 rounded bg-surface-container-high text-primary font-medium">PT</span>
+<span class="text-outline-variant px-0.5">|</span>
+<span class="px-1.5 py-0.5 text-outline hover:text-on-surface cursor-pointer">EN</span>
+</div>
+</div>
+</header>
+<!-- ======================================================== -->
+<!-- 3. ÁREA DE CONTEÚDO PRINCIPAL (Main Viewport)             -->
+<!-- ======================================================== -->
+<main class="ml-[216px] mt-12 flex-1 h-[calc(100vh-48px)] flex flex-col overflow-hidden bg-surface-container-lowest">
+<!-- Top Header Area: Título, Subtítulo e Ações -->
+<div class="px-space-xl pt-space-lg pb-space-md border-b border-outline-variant/30 bg-surface-container-lowest shrink-0">
+<div class="flex items-start justify-between gap-space-lg">
+<!-- Title and Description -->
+<div class="flex flex-col gap-1 max-w-3xl">
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight font-medium">
+            MCP Hub e protocolos de contexto
+          </h1>
+<p class="font-body-sm text-body-sm text-outline leading-snug">
+            Gerencie os servidores MCP locais que dão ferramentas aos seus agentes. Nada aqui é ligado, iniciado ou concedido até você fazer isso, e o que uma ferramenta devolve nunca é tratado como instrução.
+          </p>
+</div>
+<!-- Right Header Action Cluster -->
+<div class="flex items-center gap-space-sm shrink-0">
+<!-- Verificar conexões -->
+<button class="h-[30px] px-2.5 rounded bg-surface-container-low border border-outline-variant/40 hover:border-outline-variant text-on-surface font-label-md text-label-md flex items-center gap-1.5 transition-colors duration-150">
+<span class="material-symbols-outlined text-[1rem] text-outline" data-icon="refresh">refresh</span>
+<span>Verificar conexões</span>
+</button>
+<!-- ⋯ Configuração drop -->
+<button class="h-[30px] px-2.5 rounded bg-surface-container-low border border-outline-variant/40 hover:border-outline-variant text-on-surface font-label-md text-label-md flex items-center gap-1.5 transition-colors duration-150">
+<span class="material-symbols-outlined text-[1rem] text-outline" data-icon="more_horiz">more_horiz</span>
+<span>Configuração</span>
+</button>
+<!-- + Adicionar servidor MCP -->
+<button class="h-[30px] px-3 rounded bg-[#6366f1] hover:bg-[#4f46e5] text-white font-label-md text-label-md flex items-center gap-1.5 font-medium transition-colors duration-150">
+<span class="material-symbols-outlined text-[1rem]" data-icon="add">add</span>
+<span>Adicionar servidor MCP</span>
+</button>
+</div>
+</div>
+<!-- Resumo Técnico Compacto (Linha única discreta) -->
+<div class="mt-space-md pt-space-sm border-t border-outline-variant/20 flex items-center gap-2 font-code-sm text-code-sm text-outline">
+<span class="text-on-surface font-medium">3</span> Servidores
+        <span class="text-outline-variant">·</span>
+<span class="text-on-surface font-medium">1</span> <span class="text-[#10b981]">Conectado</span> (50% dos ligados)
+        <span class="text-outline-variant">·</span>
+<span class="text-on-surface font-medium">1</span> <span class="text-[#ef4444]">Falha / login</span>
+<span class="text-outline-variant">·</span>
+<span class="text-on-surface font-medium">1</span> Desligado
+        <span class="text-outline-variant">·</span>
+<span class="text-on-surface font-medium">8</span> Ferramentas listadas
+        <span class="text-outline-variant">·</span>
+<span class="text-on-surface font-medium">3</span> Concessões
+      </div>
+</div>
+<!-- Barra de Filtros (Linha Única Integrada) -->
+<div class="px-space-xl py-2 border-b border-outline-variant/30 bg-surface-container-low/60 flex items-center justify-between gap-space-md shrink-0">
+<div class="flex items-center gap-space-md flex-1">
+<!-- Segmented Control -->
+<div class="flex items-center bg-surface-container-lowest border border-outline-variant/30 rounded p-0.5">
+<button class="px-2.5 py-1 rounded bg-surface-container-high border border-outline-variant/40 text-on-surface font-label-md text-label-md font-medium">
+            Todos (3)
+          </button>
+<button class="px-2.5 py-1 text-outline hover:text-on-surface font-label-md text-label-md transition-colors duration-150">
+            Locais (stdio) (3)
+          </button>
+<button class="px-2.5 py-1 text-outline/40 font-label-md text-label-md cursor-not-allowed">
+            Remotos (HTTP/SSE) (0)
+          </button>
+</div>
+<!-- Search Input -->
+<div class="relative w-80">
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-outline text-[1rem]" data-icon="search">search</span>
+<input class="w-full h-[28px] pl-7 pr-3 bg-surface-container-lowest border border-outline-variant/30 rounded text-on-surface placeholder:text-outline font-body-sm text-body-sm focus:outline-none focus:border-primary transition-colors" placeholder="Buscar servidor, ferramenta, comando… (⌘K)" type="text"/>
+</div>
+</div>
+<!-- Toggle Switch: Apenas conectados -->
+<label class="flex items-center gap-2 cursor-pointer">
+<span class="font-label-md text-label-md text-outline">Apenas conectados</span>
+<div class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox" value=""/>
+<div class="w-7 h-4 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-on-surface after:border-surface after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#6366f1]"></div>
+</div>
+</label>
+</div>
+<!-- Layout de Duas Colunas (Content Viewport) -->
+<div class="flex-1 flex overflow-hidden">
+<!-- ======================================================== -->
+<!-- COLUNA ESQUERDA: LISTA DE SERVIDORES (Flex-1)            -->
+<!-- ======================================================== -->
+<section class="flex-1 overflow-y-auto p-space-lg flex flex-col gap-space-sm border-r border-outline-variant/30">
+<!-- SERVIDOR 1: github (Conectado, Selecionado) -->
+<article class="p-space-md rounded bg-surface-container border border-primary/50 shadow-sm relative flex flex-col gap-2">
+<!-- Active Marker Edge -->
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-l"></div>
+<!-- Top Row: Switch, Name, Badges & Actions -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<!-- Switch On -->
+<div class="w-6 h-3.5 bg-[#6366f1] rounded-full relative cursor-pointer flex items-center px-0.5">
+<div class="w-2.5 h-2.5 rounded-full bg-white ml-auto"></div>
+</div>
+<span class="font-headline-sm text-body-lg font-semibold text-on-surface">github</span>
+<span class="font-code-sm text-code-sm px-1.5 py-0.5 rounded bg-surface-container-highest text-outline border border-outline-variant/30">stdio</span>
+<!-- Status Badge: Conectado -->
+<div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#10b981]/10 border border-[#10b981]/30 text-[#10b981] font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+<span>Conectado</span>
+</div>
+</div>
+<!-- Actions -->
+<div class="flex items-center gap-1.5">
+<button class="h-6 px-2 rounded bg-surface-container-high border border-outline-variant/40 hover:border-outline-variant text-on-surface font-label-md text-label-md transition-colors">
+                Inspecionar
+              </button>
+<button class="h-6 px-2 rounded bg-transparent hover:bg-surface-container-high text-outline hover:text-on-surface font-label-md text-label-md transition-colors">
+                Testar
+              </button>
+</div>
+</div>
+<!-- Command Line -->
+<div class="font-code-sm text-code-sm text-outline truncate bg-surface-container-lowest/80 px-2 py-1 rounded border border-outline-variant/20">
+            npx -y @modelcontextprotocol/server-github@1.4.0
+          </div>
+<!-- Metadata Line -->
+<div class="flex items-center gap-2 font-body-sm text-body-sm text-outline">
+<span class="text-on-surface">5 ferramentas</span>
+<span class="text-outline-variant">·</span>
+<span>2 agentes</span>
+<span class="text-outline-variant">·</span>
+<span>examinado em 16/10/2026, 22:03 via claude</span>
+</div>
+</article>
+<!-- SERVIDOR 2: playwright (Falhou) -->
+<article class="p-space-md rounded bg-surface-container-low border border-outline-variant/30 flex flex-col gap-2">
+<!-- Top Row -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<!-- Switch On -->
+<div class="w-6 h-3.5 bg-[#6366f1] rounded-full relative cursor-pointer flex items-center px-0.5">
+<div class="w-2.5 h-2.5 rounded-full bg-white ml-auto"></div>
+</div>
+<span class="font-headline-sm text-body-lg font-semibold text-on-surface">playwright</span>
+<span class="font-code-sm text-code-sm px-1.5 py-0.5 rounded bg-surface-container-highest text-outline border border-outline-variant/30">stdio</span>
+<span class="font-code-sm text-code-sm px-1.5 py-0.5 rounded bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/30">obrigatória</span>
+<!-- Status Badge: Falhou -->
+<div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#ef4444]/10 border border-[#ef4444]/30 text-[#ef4444] font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-[#ef4444]"></span>
+<span>Falhou</span>
+</div>
+</div>
+<!-- Actions -->
+<div class="flex items-center gap-1.5">
+<button class="h-6 px-2 rounded bg-surface-container-high border border-outline-variant/40 hover:border-outline-variant text-on-surface font-label-md text-label-md transition-colors">
+                Inspecionar
+              </button>
+<button class="h-6 px-2 rounded bg-transparent hover:bg-surface-container-high text-outline hover:text-on-surface font-label-md text-label-md transition-colors">
+                Testar
+              </button>
+</div>
+</div>
+<!-- Command Line -->
+<div class="font-code-sm text-code-sm text-outline truncate bg-surface-container-lowest/80 px-2 py-1 rounded border border-outline-variant/20">
+            npx -y @modelcontextprotocol/server-playwright@0.1.2
+          </div>
+<!-- Metadata Line -->
+<div class="flex items-center gap-2 font-body-sm text-body-sm text-outline">
+<span>0 ferramentas</span>
+<span class="text-outline-variant">·</span>
+<span>1 agente</span>
+<span class="text-outline-variant">·</span>
+<span>examinado em 16/10/2026, 21:58 via claude</span>
+</div>
+<!-- Alert / Collapsible Box (Open) -->
+<div class="p-2.5 rounded bg-[#ef4444]/5 border border-[#ef4444]/20 flex flex-col gap-1.5 mt-1">
+<div class="flex items-center justify-between text-[#ef4444] font-label-md text-label-md cursor-pointer">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[1rem]" data-icon="warning">warning</span>
+<span class="font-medium">2 avisos</span>
+</div>
+<span class="material-symbols-outlined text-[1rem]" data-icon="expand_less">expand_less</span>
+</div>
+<div class="font-code-sm text-code-sm text-[#ffb4ab] flex flex-col gap-0.5 pl-5">
+<span>• O último exame não conseguiu iniciar este servidor.</span>
+<span>• Segredo faltando: DATABASE_URL</span>
+</div>
+</div>
+</article>
+<!-- SERVIDOR 3: postgres (Desligado) -->
+<article class="p-space-md rounded bg-surface-container-low/40 border border-outline-variant/20 flex flex-col gap-2 opacity-80 hover:opacity-100 transition-opacity">
+<!-- Top Row -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<!-- Switch Off -->
+<div class="w-6 h-3.5 bg-surface-container-highest rounded-full relative cursor-pointer flex items-center px-0.5">
+<div class="w-2.5 h-2.5 rounded-full bg-outline"></div>
+</div>
+<span class="font-headline-sm text-body-lg font-semibold text-outline">postgres</span>
+<span class="font-code-sm text-code-sm px-1.5 py-0.5 rounded bg-surface-container-highest text-outline border border-outline-variant/30">stdio</span>
+<!-- Status Badge: Desligado -->
+<div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface-container-highest border border-outline-variant/30 text-outline font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+<span>Desligado</span>
+</div>
+</div>
+<!-- Actions -->
+<div class="flex items-center gap-1.5">
+<button class="h-6 px-2 rounded bg-surface-container-high border border-outline-variant/40 hover:border-outline-variant text-on-surface font-label-md text-label-md transition-colors">
+                Inspecionar
+              </button>
+<button class="h-6 px-2 rounded bg-transparent hover:bg-surface-container-high text-outline hover:text-on-surface font-label-md text-label-md transition-colors">
+                Testar
+              </button>
+</div>
+</div>
+<!-- Command Line -->
+<div class="font-code-sm text-code-sm text-outline/80 truncate bg-surface-container-lowest/80 px-2 py-1 rounded border border-outline-variant/20">
+            docker run -i --rm -e POSTGRES_URL mcp/postgres
+          </div>
+<!-- Metadata Line -->
+<div class="flex items-center gap-2 font-body-sm text-body-sm text-outline/80">
+<span>sem ferramentas examinadas</span>
+<span class="text-outline-variant">·</span>
+<span>Concedido a ninguém</span>
+</div>
+</article>
+</section>
+<!-- ======================================================== -->
+<!-- COLUNA DIREITA: INSPETOR MCP (490px)                     -->
+<!-- ======================================================== -->
+<aside class="w-[490px] shrink-0 bg-surface-container flex flex-col overflow-hidden">
+<!-- Inspector Header -->
+<div class="p-space-md border-b border-outline-variant/30 flex items-center justify-between bg-surface-container-low shrink-0">
+<div class="flex items-center gap-space-sm">
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface">github</span>
+<div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#10b981]/10 border border-[#10b981]/30 text-[#10b981] font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+<span>Conectado</span>
+</div>
+</div>
+<button class="text-outline hover:text-on-surface p-1 rounded hover:bg-surface-container-high transition-colors" title="Fechar painel">
+<span class="material-symbols-outlined text-[1.125rem]" data-icon="close">close</span>
+</button>
+</div>
+<!-- Inspector Tab Navigation -->
+<nav class="flex items-center border-b border-outline-variant/30 bg-surface-container-lowest px-space-md shrink-0">
+<button class="px-space-md py-2 border-b-2 border-primary text-primary font-label-md text-label-md font-medium">
+            Ferramentas (5)
+          </button>
+<button class="px-space-md py-2 text-outline hover:text-on-surface font-label-md text-label-md transition-colors">
+            Variáveis e env
+          </button>
+<button class="px-space-md py-2 text-outline hover:text-on-surface font-label-md text-label-md transition-colors">
+            Manifesto JSON
+          </button>
+<button class="px-space-md py-2 text-outline hover:text-on-surface font-label-md text-label-md transition-colors">
+            Atividade
+          </button>
+</nav>
+<!-- Inspector Content Body (Scrollable) -->
+<div class="flex-1 overflow-y-auto p-space-lg flex flex-col gap-space-lg">
+<!-- Seção 1: O que oferece -->
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md font-semibold text-on-surface tracking-wide uppercase text-outline/90">
+                O que oferece
+              </span>
+<span class="font-code-sm text-code-sm text-outline">5 expostas</span>
+</div>
+<!-- Chips de ferramentas -->
+<div class="flex flex-wrap gap-1.5">
+<span class="font-code-sm text-code-sm px-2 py-1 rounded bg-surface-container-lowest border border-outline-variant/40 text-on-surface hover:border-primary/50 cursor-pointer transition-colors">
+                create_issue
+              </span>
+<span class="font-code-sm text-code-sm px-2 py-1 rounded bg-surface-container-lowest border border-outline-variant/40 text-on-surface hover:border-primary/50 cursor-pointer transition-colors">
+                list_pull_requests
+              </span>
+<span class="font-code-sm text-code-sm px-2 py-1 rounded bg-surface-container-lowest border border-outline-variant/40 text-on-surface hover:border-primary/50 cursor-pointer transition-colors">
+                get_file_contents
+              </span>
+<span class="font-code-sm text-code-sm px-2 py-1 rounded bg-surface-container-lowest border border-outline-variant/40 text-on-surface hover:border-primary/50 cursor-pointer transition-colors">
+                search_code
+              </span>
+<span class="font-code-sm text-code-sm px-2 py-1 rounded bg-surface-container-lowest border border-outline-variant/40 text-on-surface hover:border-primary/50 cursor-pointer transition-colors">
+                create_branch
+              </span>
+</div>
+<!-- Nota Técnica -->
+<p class="font-body-sm text-body-sm text-outline/80 leading-relaxed bg-surface-container-lowest/60 p-2.5 rounded border border-outline-variant/20 mt-1">
+              O Atlas lista as ferramentas de um servidor pelo nome e não as chama manualmente: uma ferramenta só roda quando um agente que a recebeu a usa em uma etapa.
+            </p>
+</div>
+<!-- Seção 2: Quem pode usar -->
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md font-semibold text-on-surface tracking-wide uppercase text-outline/90">
+                Quem pode usar
+              </span>
+<span class="font-code-sm text-code-sm text-outline">2 concessões</span>
+</div>
+<!-- Permissões List -->
+<div class="flex flex-col gap-1.5">
+<!-- Item 1 -->
+<div class="p-2.5 rounded bg-surface-container-lowest border border-outline-variant/30 flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface font-medium">Arquiteto Backend</span>
+<span class="font-body-sm text-body-sm text-outline">todas as ferramentas</span>
+</div>
+<button class="font-label-md text-label-md text-[#ef4444] hover:underline px-1 py-0.5">
+                  Revogar
+                </button>
+</div>
+<!-- Item 2 -->
+<div class="p-2.5 rounded bg-surface-container-lowest border border-outline-variant/30 flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface font-medium">Implementador API</span>
+<span class="font-code-sm text-code-sm text-outline">somente create_issue, search_code</span>
+</div>
+<button class="font-label-md text-label-md text-[#ef4444] hover:underline px-1 py-0.5">
+                  Revogar
+                </button>
+</div>
+</div>
+<!-- Compact Form: Conceder -->
+<div class="flex items-center gap-2 mt-1">
+<select class="flex-1 h-[28px] px-2 bg-surface-container-lowest border border-outline-variant/40 rounded text-on-surface font-body-sm text-body-sm focus:outline-none focus:border-primary">
+<option disabled="" selected="" value="">Escolher agente...</option>
+<option value="test-engineer">Engenheiro de Testes</option>
+<option value="reviewer">Auditor de Segurança</option>
+<option value="data-sync">Agente de Integração</option>
+</select>
+<button class="h-[28px] px-3 rounded bg-surface-container-high border border-outline-variant/40 hover:border-outline-variant text-on-surface font-label-md text-label-md font-medium transition-colors">
+                Conceder
+              </button>
+</div>
+</div>
+<!-- Seção 3: Guardrails do Atlas (Recolhível) -->
+<div class="rounded bg-surface-container-lowest border border-outline-variant/30 flex flex-col overflow-hidden">
+<div class="p-2.5 flex items-center justify-between cursor-pointer hover:bg-surface-container-low transition-colors">
+<div class="flex items-center gap-2">
+<span class="font-label-md text-label-md font-medium text-on-surface">Guardrails do Atlas</span>
+<span class="font-code-sm text-code-sm px-1.5 py-0.2 rounded bg-surface-container-high text-outline border border-outline-variant/30">
+                  políticas do kernel
+                </span>
+</div>
+<span class="material-symbols-outlined text-[1rem] text-outline" data-icon="expand_less">expand_less</span>
+</div>
+<!-- Três Regras de Proteção -->
+<div class="p-2.5 pt-0 border-t border-outline-variant/20 flex flex-col gap-1.5 font-body-sm text-body-sm text-outline">
+<div class="flex items-center gap-2 mt-2">
+<span class="material-symbols-outlined text-[0.875rem] text-[#10b981]" data-icon="shield">shield</span>
+<span>Bloqueio de comandos destrutivos sem aprovação</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[0.875rem] text-[#10b981]" data-icon="lock">lock</span>
+<span>Isolamento de credenciais locais</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[0.875rem] text-[#10b981]" data-icon="policy">policy</span>
+<span>Auditoria de chamadas JSON-RPC</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Inspector Footer -->
+<div class="p-space-md border-t border-outline-variant/30 bg-surface-container-low flex items-center justify-between shrink-0">
+<!-- Dropdown / More -->
+<button class="h-[28px] px-2 rounded bg-surface-container hover:bg-surface-container-high border border-outline-variant/30 text-outline hover:text-on-surface font-label-md text-label-md flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[1rem]" data-icon="more_horiz">more_horiz</span>
+<span>Exportar…</span>
+</button>
+<!-- Danger Remove Action -->
+<button class="h-[28px] px-3 rounded bg-transparent hover:bg-[#ef4444]/10 border border-[#ef4444]/30 text-[#ef4444] font-label-md text-label-md transition-colors">
+            Remover
+          </button>
+</div>
+</aside>
+</div>
+</main>
+</body></html>
