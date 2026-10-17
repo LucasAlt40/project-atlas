@@ -138,6 +138,7 @@ partes. "Sobre": três pares rótulo/valor em mono: Atlas "Project Atlas", Vers�
 | Prompt         | Enviado | Tela gerada no Stitch | Observação |
 | -------------- | ------- | --------------------- | ---------- |
 | C1 | 2026-10-16 | "Configurações — Geral" `67ed2d6872a94adc9838d074b6fab48e` (2560×2048) | `generate_screen_from_text` com os acréscimos do módulo; timeout, não reenviado, confirmado por `list_screens`. |
+| C2 | 2026-10-16 | "Configurações — Memória" `531ba78a90f042819c5788c9f9a07fac` (2560×2048) | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`. |
 
 ## Avaliação
 
@@ -156,3 +157,20 @@ O Stitch mostra, o app não tem (não implementar):
   moldura real do app.
 
 Sem desvios de conteúdo: textos de ajuda, valor 200000 e opções conferem.
+
+### C2 — Configurações — Memória
+
+Fiel: quatro abas com o contador no rótulo, aba "Esperando sua decisão (2)" aberta, uma nota só (como
+pedido), selo único "Não confirmada" em âmbar, "Usada 0×" no canto, metadados em mono e ações com
+"Aprovar" como primário. Índice sem título (o reforço funcionou) e rodapé v0.1.5.
+
+O Stitch mostra, o app não tem (não implementar):
+
+- As três linhas de resumo no fim da página ("Onde as notas são usadas: …", "Notas guardadas (2): …",
+  "Adicionar uma nota: …"): a instrução de descrever as outras abas vazou para a tela. Não existe no app.
+- O texto da nota (sobre Jest e Postgres) é inventado; usar o texto real da nota.
+- Ordem dos botões "Editar · Descartar · Aprovar" (primário à direita); o prompt dizia "Aprovar, Descartar,
+  Editar". Seguir a ordem do prompt de implementação do módulo (primário primeiro, como no app hoje).
+
+Falta ver (só descrito): as outras três abas; "Apagar as 2 nota(s) automática(s)", o menu "⋯" e o
+formulário de adicionar. Implementar pelo prompt, usando o mesmo sistema de abas e selos.
