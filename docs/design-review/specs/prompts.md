@@ -203,6 +203,7 @@ documentos importados; os que faltam podem ser escritos a partir dos demais.". R
 | S5 | 2026-10-16 | "Spec — Perguntas e achados" `6eadf408b4f543b6b75a02cab206660e` (2560×2048) | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`. A captura corta no meio do achado; o HTML tem o resto. |
 | S7 | 2026-10-16 | "Specs — Nova especificação" `3e2672ca7f07412bbe13d373685356fb` (2560×2048) | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`. |
 | S8 | 2026-10-16 | "Specs — Importar do projeto" `00d70d7a6e5e4f649ceff03b2273646d` (2560×2048) | `generate_screen_from_text` com bloco comum e moldura reforçada; timeout, não reenviado, confirmado por `list_screens`. |
+| S2 | 2026-10-16 | "Specs — Sem especificações" `0de3cab5da26442f9bf7cf0ca0d08ba0` (2560×2048) | `generate_screen_from_text` com bloco comum e moldura reforçada; timeout, não reenviado, confirmado por `list_screens`. |
 
 ## Avaliação
 
@@ -338,3 +339,21 @@ O Stitch mostra, o app não tem (não implementar):
 
 Não desenhados (só descritos): o problema "Já é uma spec aqui" e o estado "Nenhuma mudança OpenSpec
 encontrada neste projeto.".
+
+### S2 — Specs — Sem especificações
+
+Fiel e simples: cabeçalho idêntico ao da lista (sem abas nem busca), cartão central com o título, o texto
+real do app e os dois botões. Moldura correta, sem "Core", sem botão extra e sem ponto de estado no rodapé.
+
+Observações: o ícone de documento no cartão é decorativo (pode ficar ou sair). As duas ações aparecem duas
+vezes (cabeçalho e cartão) porque o prompt pediu ambos; o P0 diz "cada ação UMA vez": no app, manter só as
+do cartão e deixar o cabeçalho com "Importar specs" e "Nova especificação" somente quando houver specs.
+"Configurações" saiu separada da lista por um espaço, o que é um detalhe de moldura (ignorar).
+
+## Resumo do módulo
+
+As oito telas estão geradas. Pontos comuns para a implementação: (1) cabeçalho e stepper do detalhe
+(S3–S6) são os mesmos, implementar uma vez; (2) o Stitch deixou rótulos e textos extras em quase todas as
+telas, listados por tela acima; (3) em S5 a imagem corta no meio, o HTML da tela tem o resto; (4) a moldura
+do Stitch regrediu em S7 ("Core", "Novo Fluxo"): ignorar, vale a do app; (5) conteúdos só descritos (outras
+abas e estados) devem ser implementados pelo prompt, com o mesmo sistema de selos.
