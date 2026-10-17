@@ -18,15 +18,15 @@ a sua pasta ao lado (`docs/design-review/<módulo>/`).
 
 ## Ordem dos módulos
 
-| #   | Módulo                           | Pasta                     | Estado                                    |
-| --- | -------------------------------- | ------------------------- | ----------------------------------------- |
-| 1   | Workspace + Harness              | `workspace-harness/`      | feito (branch `design/workspace-harness`) |
+| #   | Módulo                           | Pasta                     | Estado                                       |
+| --- | -------------------------------- | ------------------------- | -------------------------------------------- |
+| 1   | Workspace + Harness              | `workspace-harness/`      | feito (branch `design/workspace-harness`)    |
 | 2   | Agentes e Personalidades         | `agentes-personalidades/` | 5 telas geradas no Stitch; falta implementar |
-| 3   | MCP Hub                          | `mcp-hub/`                | 5 telas geradas; falta implementar        |
-| 4   | Configurações                    | `configuracoes/`          | 5 telas geradas; falta implementar        |
-| 5   | Specs                            | `specs/`                  | 8 telas geradas; falta implementar        |
-| 6   | App móvel (celular)              | `celular/`                | 6 telas geradas; falta implementar        |
-| 7   | Workflow (por último, é o maior) | `workflow/`               | plano pronto, prompts por enviar          |
+| 3   | MCP Hub                          | `mcp-hub/`                | 5 telas geradas; falta implementar           |
+| 4   | Configurações                    | `configuracoes/`          | 5 telas geradas; falta implementar           |
+| 5   | Specs                            | `specs/`                  | 8 telas geradas; falta implementar           |
+| 6   | App móvel (celular)              | `celular/`                | 6 telas geradas; falta implementar           |
+| 7   | Workflow (por último, é o maior) | `workflow/`               | plano pronto, prompts por enviar             |
 
 ## Layout de cada pasta de módulo
 

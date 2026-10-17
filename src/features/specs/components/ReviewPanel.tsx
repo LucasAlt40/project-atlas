@@ -5,6 +5,7 @@ import { failureText } from '../model/messages';
 import type { FindingStatus, SpecFinding, SpecQuestion, SpecView } from '../types';
 import { Findings, FindingsBrowser } from './Findings';
 import { QuestionCard } from './QuestionCard';
+import { PanelSection } from './PanelSection';
 import styles from './Specs.module.css';
 
 interface Props {
@@ -59,24 +60,22 @@ export function ReviewPanel({
         : null;
 
   return (
-    <section
-      className={[styles.panel, styles.panelWide].join(' ')}
-      aria-label={t('specs.review.title')}
+    <PanelSection
+      title={t('specs.review.title')}
+      tone={view.reviewCurrent ? 'success' : 'neutral'}
+      defaultOpen={run?.state === 'running' || view.spec.findings.some((f) => f.status === 'open')}
+      tag={
+        run?.state === 'running'
+          ? t('specs.review.running')
+          : view.reviewCurrent
+            ? run?.state === 'waived'
+              ? t('specs.review.waived')
+              : t('specs.review.done')
+            : run?.state === 'completed'
+              ? t('specs.review.outdated')
+              : t('specs.review.notRun')
+      }
     >
-      <header className={styles.panelHead}>
-        <h3>{t('specs.review.title')}</h3>
-        <span className={styles.panelTag} data-tone={view.reviewCurrent ? 'success' : 'neutral'}>
-          {run?.state === 'running'
-            ? t('specs.review.running')
-            : view.reviewCurrent
-              ? run?.state === 'waived'
-                ? t('specs.review.waived')
-                : t('specs.review.done')
-              : run?.state === 'completed'
-                ? t('specs.review.outdated')
-                : t('specs.review.notRun')}
-        </span>
-      </header>
       <p className={styles.muted}>{t('specs.review.intro', { agent: reviewerName })}</p>
       {run?.state === 'completed' && view.reviewCurrent && run.summary && (
         <p className={styles.summary}>{run.summary}</p>
@@ -176,6 +175,6 @@ export function ReviewPanel({
           <Findings findings={settled} busy={busy} onResolve={onResolve} onShow={onShowFinding} />
         </details>
       )}
-    </section>
+    </PanelSection>
   );
 }

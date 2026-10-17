@@ -4,3 +4,5 @@ coverage
 src-tauri/target
 src-tauri/gen
 package-lock.json
+docs/design-review/*/stitch
+tmp

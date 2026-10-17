@@ -1,6 +1,10 @@
 import { useState } from 'react';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { Icon } from '@/components/ui/Icon';
+import { Modal } from '@/components/ui/Modal';
+import { ImportButton } from '@/features/portability';
 import { useT } from '@/i18n/I18nProvider';
 import type { CreatePersonalityInput, Personality } from '../types';
 import { PersonalityCard } from './PersonalityCard';
@@ -16,6 +20,8 @@ interface Props {
   onEdit: (id: string, input: CreatePersonalityInput) => Promise<Personality>;
   onDelete: (id: string) => Promise<void>;
   onRestoreDefaults: () => Promise<void>;
+  /** An import changed the catalogue. */
+  onImported: () => void;
 }
 
 export function PersonalityBrowser({
@@ -25,10 +31,13 @@ export function PersonalityBrowser({
   onEdit,
   onDelete,
   onRestoreDefaults,
+  onImported,
 }: Props) {
   const t = useT();
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  /** One card is open at a time; the others stay compact. */
+  const [openId, setOpenId] = useState<string | null>(null);
   const editing = personalities.find((p) => p.id === editingId);
 
   const [filter, setFilter] = useState<Filter>('all');
@@ -47,43 +56,55 @@ export function PersonalityBrowser({
       .includes(needle);
   });
   const panelOpen = creating || editing !== undefined;
+  const closePanel = () => {
+    setCreating(false);
+    setEditingId(null);
+  };
 
   return (
     <div className={styles.browser}>
-      <div className={styles.toolbar}>
-        <p>{t('personalities.intro')}</p>
+      <header className={styles.pageHead}>
+        <div className={styles.headText}>
+          <h1 className={styles.title}>{t('personalities.title')}</h1>
+          <div className={styles.chips}>
+            <Badge mono caps={false}>
+              {t('personalities.available', { n: personalities.length })}
+            </Badge>
+            <Badge mono caps={false}>
+              {t('personalities.customCount', { n: count('custom') })}
+            </Badge>
+            <Badge mono caps={false}>
+              {t('personalities.builtinCount', { n: count('builtin') })}
+            </Badge>
+          </div>
+          <p className={styles.intro}>{t('personalities.intro')}</p>
+        </div>
         <div className={styles.actions}>
-          <button
-            type="button"
-            className={styles.secondaryButton}
+          <ImportButton onImported={onImported} />
+          <Button
+            variant="ghost"
             onClick={() => {
               void onRestoreDefaults();
             }}
           >
             <Icon name="refresh" size={14} />
             {t('personalities.restore')}
-          </button>
-          {!creating && (
-            <Button
-              onClick={() => {
-                setEditingId(null);
-                setCreating(true);
-              }}
-            >
-              <Icon name="plus" size={16} />
-              {t('personalities.new')}
-            </Button>
-          )}
+          </Button>
+          <Button
+            onClick={() => {
+              setEditingId(null);
+              setCreating(true);
+            }}
+          >
+            <Icon name="plus" size={16} />
+            {t('personalities.new')}
+          </Button>
         </div>
-      </div>
+      </header>
 
-      <aside className={styles.protocol} aria-label={t('personalities.protocol.title')}>
-        <Icon name="shield" size={18} />
-        <div>
-          <strong>{t('personalities.protocol.title')}</strong>
-          <p>{t('personalities.note')}</p>
-        </div>
-      </aside>
+      <CollapsibleSection title={t('personalities.protocol.title')} defaultOpen={false}>
+        <p className={styles.protocolText}>{t('personalities.note')}</p>
+      </CollapsibleSection>
 
       <div className={styles.filterBar}>
         <div className={styles.tabsBar} role="group" aria-label={t('personalities.title')}>
@@ -115,61 +136,58 @@ export function PersonalityBrowser({
         </label>
       </div>
 
-      <div className={styles.layout} data-panel={panelOpen}>
-        <div className={styles.list}>
-          {visible.length === 0 && <p className={styles.note}>{t('personalities.noMatch')}</p>}
-          {visible.map((personality) => (
-            <PersonalityCard
-              key={personality.id}
-              personality={personality}
-              onUse={onUse}
-              onEdit={(id) => {
-                setCreating(false);
-                setEditingId(id);
-              }}
-              onDelete={onDelete}
-            />
-          ))}
-        </div>
-        {panelOpen && (
-          <aside className={styles.sidePanel}>
-            <h2 className={styles.panelHeading}>
-              {editing ? t('personalities.panel.edit') : t('personalities.form.new')}
-              <span className={styles.badge}>
-                {t(
-                  editing?.source === 'builtin'
-                    ? 'personalities.source.builtin'
-                    : 'personalities.source.custom',
-                )}
-              </span>
-            </h2>
-            {creating && (
-              <PersonalityForm
-                onSubmit={onCreate}
-                onSaved={() => {
-                  setCreating(false);
-                }}
-                onCancel={() => {
-                  setCreating(false);
-                }}
-              />
-            )}
-            {editing && (
-              <PersonalityForm
-                key={editing.id}
-                initial={editing}
-                onSubmit={(input) => onEdit(editing.id, input)}
-                onSaved={() => {
-                  setEditingId(null);
-                }}
-                onCancel={() => {
-                  setEditingId(null);
-                }}
-              />
-            )}
-          </aside>
-        )}
+      <div className={styles.list}>
+        {visible.length === 0 && <p className={styles.note}>{t('personalities.noMatch')}</p>}
+        {visible.map((personality) => (
+          <PersonalityCard
+            key={personality.id}
+            personality={personality}
+            expanded={openId === personality.id}
+            onToggle={() => {
+              setOpenId((current) => (current === personality.id ? null : personality.id));
+            }}
+            onUse={onUse}
+            onEdit={(id) => {
+              setCreating(false);
+              setEditingId(id);
+            }}
+            onDelete={onDelete}
+          />
+        ))}
       </div>
+
+      {panelOpen && (
+        <Modal
+          label={editing ? t('personalities.panel.edit') : t('personalities.form.new')}
+          onClose={closePanel}
+          placement="side"
+          size="drawer"
+        >
+          <h2 className={styles.panelHeading}>
+            {editing ? t('personalities.panel.edit') : t('personalities.form.new')}
+            <Badge mono caps={false} dot tone={editing?.source === 'builtin' ? 'info' : 'policy'}>
+              {t(
+                editing?.source === 'builtin'
+                  ? 'personalities.source.builtin'
+                  : 'personalities.source.custom',
+              )}
+            </Badge>
+          </h2>
+          {creating && (
+            <PersonalityForm panel onSubmit={onCreate} onSaved={closePanel} onCancel={closePanel} />
+          )}
+          {editing && (
+            <PersonalityForm
+              panel
+              key={editing.id}
+              initial={editing}
+              onSubmit={(input) => onEdit(editing.id, input)}
+              onSaved={closePanel}
+              onCancel={closePanel}
+            />
+          )}
+        </Modal>
+      )}
     </div>
   );
 }

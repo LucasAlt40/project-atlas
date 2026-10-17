@@ -106,10 +106,9 @@ describe('McpHubPage', () => {
 
     const list = await screen.findByRole('list', { name: 'MCP servers' });
     expect(within(list).getAllByRole('listitem')).toHaveLength(2);
-    const connected = screen.getByText('Connected', { selector: 'dt' }).closest('div');
-    expect(connected).toHaveTextContent('1');
-    const tools = screen.getByText('Tools listed', { selector: 'dt' }).closest('div');
-    expect(tools).toHaveTextContent('2');
+    const summary = screen.getByRole('list', { name: 'Hub summary' });
+    expect(within(summary).getByText('Connected').closest('li')).toHaveTextContent('1');
+    expect(within(summary).getByText('Tools listed').closest('li')).toHaveTextContent('2');
 
     await userEvent.type(screen.getByLabelText(/Search server/), 'files');
     expect(within(list).getAllByRole('listitem')).toHaveLength(1);
@@ -145,6 +144,8 @@ describe('McpHubPage', () => {
     );
 
     const card = await screen.findByRole('listitem', { name: 'chrome-devtools' });
+    // The warnings of a card are folded, with their count and tone showing.
+    await userEvent.click(within(card).getByRole('button', { name: /warning/ }));
     expect(within(card).getByText(/QA TESTER runs on Antigravity CLI/)).toBeInTheDocument();
     await userEvent.click(within(card).getByRole('button', { name: 'Copy the command to add it' }));
 
@@ -412,7 +413,8 @@ describe('McpHubPage', () => {
       skipped: [],
     });
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Sync CLIs' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Configuration' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Sync CLIs' }));
 
     expect(await screen.findByLabelText('jira: Claude Code: will be added')).toBeInTheDocument();
     expect(screen.getByLabelText('jira: Gemini CLI: has it')).toBeInTheDocument();
@@ -447,7 +449,8 @@ describe('McpHubPage', () => {
       skipped: [{ name: 'figma', reason: 'http_not_supported' }],
     });
 
-    await userEvent.click(await screen.findByRole('button', { name: /atlas-mcp.json/ }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Configuration' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /atlas-mcp.json/ }));
     await userEvent.type(screen.getByLabelText('Configuration'), 'x');
     await userEvent.click(screen.getByRole('button', { name: /^Import/ }));
 

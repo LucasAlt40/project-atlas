@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { errorMessage } from '@/i18n/messages';
@@ -91,7 +92,9 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
           <div className={styles.headerText}>
             <div className={styles.titleRow}>
               <h1 className={styles.title}>{t('agents.title')}</h1>
-              <span className={styles.countChip}>{t('agents.count', { n: agents.length })}</span>
+              <Badge mono caps={false}>
+                {t('agents.count', { n: agents.length })}
+              </Badge>
             </div>
             <p className={styles.subtitle}>{t('agents.subtitle')}</p>
           </div>
@@ -128,14 +131,13 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
 
       {!creating && !editing && agents.length > 0 && (
         <>
-          <dl className={styles.stats}>
+          <ul className={styles.summary} aria-label={t('agents.summary')}>
             {stats.map(({ label, value }) => (
-              <div key={label} className={styles.stat}>
-                <dt className={styles.statLabel}>{label}</dt>
-                <dd className={styles.statValue}>{value}</dd>
-              </div>
+              <li key={label}>
+                <b>{value}</b> {label}
+              </li>
             ))}
-          </dl>
+          </ul>
           <div className={styles.tabsBar} role="group" aria-label={t('agents.filter.label')}>
             {(['all', 'ready', 'unavailable'] as const).map((name) => (
               <button
@@ -163,7 +165,17 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
 
       {(creating || editing) && (
         <header className={styles.headerText}>
-          <span className={styles.crumb}>{t('agents.title')}</span>
+          <Button
+            variant="ghost"
+            className={styles.back}
+            onClick={() => {
+              setCreating(false);
+              setEditingId(null);
+            }}
+          >
+            <Icon name="arrowLeft" size={14} />
+            {t('agents.title')}
+          </Button>
           <h1 className={styles.title}>
             {editing ? t('agents.form.edit', { name: editing.name }) : t('agents.create')}
           </h1>
@@ -216,6 +228,10 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
             setEditingId(id);
           }}
           onDelete={removeAgent}
+          onCreate={() => {
+            setEditingId(null);
+            setCreating(true);
+          }}
         />
       )}
     </section>

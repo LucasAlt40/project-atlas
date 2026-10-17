@@ -188,6 +188,9 @@ export function AgentCard({
                 onKeyDown={onTabKeyDown}
               >
                 {t(`agent.tab.${name}` as TranslationKey)}
+                {name === 'executions' && history.length > 0 && (
+                  <span aria-hidden="true"> ({history.length})</span>
+                )}
               </button>
             ))}
           </div>

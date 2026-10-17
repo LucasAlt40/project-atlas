@@ -3,7 +3,7 @@
 Cole o bloco abaixo num chat novo, aberto na raiz do repositório (`PROJECT-ATLAS`), com o MCP do
 Stitch conectado.
 
-````text
+```text
 Você vai implementar, numa branch separada, a repaginação visual do módulo Workspace + Harness do
 Atlas (app desktop Tauri + React + TypeScript). O resultado será avaliado pelo usuário antes de
 repetirmos o processo nos outros módulos, então a fidelidade importa.
@@ -72,4 +72,4 @@ ENTREGA
   para ver o resultado (comandos exatos) e resuma os pontos que precisam da decisão dele.
 
 Se algo no plano conflitar com o que você encontrar no código, pare e pergunte antes de decidir.
-````
+```

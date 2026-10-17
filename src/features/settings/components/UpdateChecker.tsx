@@ -42,6 +42,22 @@ export function UpdateChecker() {
   };
 
   const busy = state.status === 'checking' || state.status === 'installing';
+  const statusText =
+    state.status === 'up-to-date'
+      ? t('settings.updateUpToDate')
+      : state.status === 'available'
+        ? t('settings.updateAvailable', { version: state.version })
+        : state.status === 'installed'
+          ? t('settings.updateInstalled')
+          : state.status === 'error'
+            ? state.message
+            : null;
+  const tone =
+    state.status === 'up-to-date' || state.status === 'installed'
+      ? 'ok'
+      : state.status === 'error'
+        ? 'bad'
+        : 'warn';
 
   return (
     <div className={styles.root}>
@@ -58,10 +74,12 @@ export function UpdateChecker() {
         ) : null}
       </div>
       <p className={styles.status} role={state.status === 'error' ? 'alert' : 'status'}>
-        {state.status === 'up-to-date' && t('settings.updateUpToDate')}
-        {state.status === 'available' && t('settings.updateAvailable', { version: state.version })}
-        {state.status === 'installed' && t('settings.updateInstalled')}
-        {state.status === 'error' && state.message}
+        {statusText && (
+          <>
+            <span className={styles.dot} data-tone={tone} aria-hidden="true" />
+            {statusText}
+          </>
+        )}
       </p>
     </div>
   );

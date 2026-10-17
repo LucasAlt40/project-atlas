@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas — Configurações — Sobre e atualizações</title>
+<!-- Google Fonts: Geist & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 via CDN -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-container": "#1d2024",
+            "primary-fixed": "#e1e0ff",
+            "outline": "#908fa0",
+            "surface-bright": "#36393e",
+            "on-error-container": "#ffdad6",
+            "surface": "#111418",
+            "primary": "#c0c1ff",
+            "on-primary-fixed": "#07006c",
+            "on-surface-variant": "#c7c4d7",
+            "on-background": "#e1e2e8",
+            "surface-container-lowest": "#0b0e12",
+            "on-surface": "#e1e2e8",
+            "on-tertiary": "#640039",
+            "tertiary-container": "#f751a1",
+            "tertiary": "#ffb0cd",
+            "surface-container-high": "#272a2e",
+            "on-tertiary-fixed": "#3e0022",
+            "error-container": "#93000a",
+            "on-secondary-fixed-variant": "#004c69",
+            "on-secondary-container": "#00374d",
+            "surface-variant": "#323539",
+            "tertiary-fixed": "#ffd9e4",
+            "secondary-container": "#00a6e0",
+            "inverse-primary": "#494bd6",
+            "primary-container": "#8083ff",
+            "on-tertiary-container": "#570032",
+            "on-error": "#690005",
+            "inverse-on-surface": "#2e3135",
+            "surface-dim": "#111418",
+            "secondary-fixed-dim": "#7bd0ff",
+            "secondary-fixed": "#c4e7ff",
+            "inverse-surface": "#e1e2e8",
+            "error": "#ffb4ab",
+            "on-secondary": "#00354a",
+            "secondary": "#7bd0ff",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "outline-variant": "#464554",
+            "primary-fixed-dim": "#c0c1ff",
+            "surface-tint": "#c0c1ff",
+            "surface-container-highest": "#323539",
+            "on-primary-container": "#0d0096",
+            "surface-container-low": "#191c20",
+            "on-secondary-fixed": "#001e2c",
+            "background": "#111418",
+            "on-primary": "#1000a9"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-xl": "1.25rem",
+            "space-sm": "0.375rem",
+            "space-xs": "0.25rem",
+            "space-md": "0.625rem",
+            "gutter": "0.5rem",
+            "space-lg": "0.875rem",
+            "margin": "0.75rem"
+          },
+          "fontFamily": {
+            "code-md": ["JetBrains Mono"],
+            "body-sm": ["Geist"],
+            "code-sm": ["JetBrains Mono"],
+            "body-md": ["Geist"],
+            "headline-lg": ["Geist"],
+            "display": ["Geist"],
+            "code-lg": ["JetBrains Mono"],
+            "label-md": ["Geist"],
+            "headline-sm": ["Geist"],
+            "body-lg": ["Geist"],
+            "label-sm": ["JetBrains Mono"]
+          },
+          "fontSize": {
+            "code-md": ["0.75rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "body-sm": ["0.75rem", { "lineHeight": "1.125rem", "letterSpacing": "0.005em", "fontWeight": "400" }],
+            "code-sm": ["0.6875rem", { "lineHeight": "1rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "body-md": ["0.8125rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-lg": ["1.375rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "display": ["1.75rem", { "lineHeight": "2.25rem", "letterSpacing": "-0.025em", "fontWeight": "600" }],
+            "code-lg": ["0.875rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+            "label-md": ["0.75rem", { "lineHeight": "1rem", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "headline-sm": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.015em", "fontWeight": "500" }],
+            "body-lg": ["0.9375rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "label-sm": ["0.625rem", { "lineHeight": "0.875rem", "letterSpacing": "0.04em", "fontWeight": "500" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-family: 'Material Symbols Outlined';
+      font-weight: normal;
+      font-style: normal;
+      font-size: 1.125rem;
+      line-height: 1;
+      letter-spacing: normal;
+      text-transform: none;
+      display: inline-block;
+      white-space: nowrap;
+      word-wrap: normal;
+      direction: ltr;
+      -webkit-font-feature-settings: 'liga';
+      -webkit-font-smoothing: antialiased;
+    }
+    body {
+      background-color: #0b0e12;
+      color: #e1e2e8;
+      overflow: hidden;
+      user-select: none;
+    }
+  </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface antialiased h-screen w-screen flex overflow-hidden">
+<!-- MOLDURA FIXA: BARRA LATERAL (216px) -->
+<aside class="fixed top-0 left-0 bottom-0 w-[216px] h-screen shrink-0 z-40 bg-surface-container-lowest border-r border-outline-variant/30 flex flex-col justify-between py-space-md select-none">
+<!-- Topo da Barra Lateral: Logo + Seletor de Workspace + Navegação -->
+<div class="flex flex-col w-full">
+<!-- Logo "Atlas" -->
+<div class="px-space-md pt-space-xs pb-space-sm flex items-center gap-2">
+<div class="w-5 h-5 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[1.15rem]">hub</span>
+</div>
+<span class="text-body-lg font-headline-lg font-semibold tracking-tight text-on-surface">Atlas</span>
+</div>
+<!-- Seletor de Workspace -->
+<div class="px-space-xs my-space-xs">
+<button class="w-full text-left px-space-sm py-1.5 rounded bg-surface-container-low hover:bg-surface-container border border-outline-variant/20 transition-colors flex items-center justify-between group">
+<div class="flex flex-col min-w-0 pr-1">
+<span class="text-label-md font-label-md text-on-surface truncate">Transport ERP</span>
+<span class="text-code-sm font-code-sm text-outline truncate">/dev/transport-erp</span>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-on-surface text-[1rem] shrink-0">unfold_more</span>
+</button>
+</div>
+<!-- Divisor sutil -->
+<div class="h-[1px] bg-outline-variant/20 my-space-xs mx-space-sm"></div>
+<!-- Navegação Vertical -->
+<nav class="flex flex-col w-full gap-0.5">
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined">space_dashboard</span>
+<span>Workspace</span>
+</a>
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span>Workflow</span>
+</a>
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span>Agentes</span>
+</a>
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined">psychology</span>
+<span>Personalidades</span>
+</a>
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined">description</span>
+<span>Specs</span>
+</a>
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined">hub</span>
+<span>MCP Hub</span>
+</a>
+<!-- Configurações: Selecionado com destaque índigo e indicador visual -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm bg-surface-container-high text-primary border-l-2 border-primary rounded-none font-medium text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span>Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Rodapé da Barra Lateral: Versão Exata -->
+<div class="px-space-md pt-space-xs">
+<span class="text-code-sm font-code-sm text-outline/70 tracking-tight block">Project Atlas v0.1.5</span>
+</div>
+</aside>
+<!-- ÁREA DIREITA: BARRA SUPERIOR (48px) + CONTEÚDO PRINCIPAL -->
+<div class="flex-1 ml-[216px] flex flex-col h-screen overflow-hidden">
+<!-- MOLDURA FIXA: BARRA SUPERIOR (48px) -->
+<header class="h-12 w-full shrink-0 bg-surface-container-lowest border-b border-outline-variant/30 px-space-lg flex items-center justify-between z-30 select-none">
+<!-- Esquerda: Toggle de Recolher + Breadcrumb Claro -->
+<div class="flex items-center gap-space-sm min-w-0">
+<button class="p-1 text-outline hover:text-on-surface hover:bg-surface-container-high rounded transition-colors duration-150 flex items-center justify-center">
+<span class="material-symbols-outlined text-[1.125rem]">dock_to_left</span>
+</button>
+<span class="text-label-md font-label-md text-on-surface truncate">
+          Transport ERP / Configurações — Sobre e atualizações
+        </span>
+</div>
+<!-- Direita: Botão Celular + Alternância PT | EN -->
+<div class="flex items-center gap-space-md shrink-0">
+<!-- Botão Celular com ícone de smartphone -->
+<button class="flex items-center gap-1.5 px-2.5 py-1 text-outline hover:text-on-surface bg-surface-container-low hover:bg-surface-container-high border border-outline-variant/20 rounded transition-colors duration-150 text-label-md font-label-md">
+<span class="material-symbols-outlined text-[1rem]">smartphone</span>
+<span>Celular</span>
+</button>
+<!-- Alternância PT | EN -->
+<div class="flex items-center bg-surface-container-low border border-outline-variant/20 rounded p-0.5 text-label-md font-label-md">
+<span class="px-1.5 py-0.5 rounded bg-surface-container-high text-primary font-medium cursor-default">PT</span>
+<span class="text-outline-variant px-0.5">|</span>
+<button class="px-1.5 py-0.5 text-outline hover:text-on-surface transition-colors duration-150">EN</button>
+</div>
+</div>
+</header>
+<!-- ÁREA DE TRABALHO: LAYOUT EM DUAS COLUNAS -->
+<main class="flex-1 flex overflow-hidden bg-surface">
+<!-- Coluna 1: Índice Lateral Interno (200px) -->
+<aside class="w-[200px] shrink-0 h-full border-r border-outline-variant/30 p-space-md flex flex-col gap-1 select-none">
+<a class="px-space-sm py-1.5 rounded text-outline hover:text-on-surface hover:bg-surface-container-low text-label-md font-label-md transition-colors duration-150" href="#">
+          Geral
+        </a>
+<a class="px-space-sm py-1.5 rounded text-outline hover:text-on-surface hover:bg-surface-container-low text-label-md font-label-md transition-colors duration-150" href="#">
+          Memória
+        </a>
+<a class="px-space-sm py-1.5 rounded text-outline hover:text-on-surface hover:bg-surface-container-low text-label-md font-label-md transition-colors duration-150" href="#">
+          Importar e exportar
+        </a>
+<!-- Item Ativo: Sobre e atualizações -->
+<a class="px-space-sm py-1.5 rounded bg-surface-container-high text-on-surface font-medium text-label-md font-label-md transition-colors duration-150" href="#">
+          Sobre e atualizações
+        </a>
+</aside>
+<!-- Coluna 2: Conteúdo Principal (Max-w 880px) -->
+<section class="flex-1 overflow-y-auto p-space-xl">
+<div class="max-w-[880px] w-full flex flex-col gap-space-lg">
+<!-- Título da Seção -->
+<div>
+<h1 class="text-headline-sm font-headline-sm text-on-surface font-semibold tracking-tight">
+              Sobre e atualizações
+            </h1>
+</div>
+<!-- Cartão Técnico Elevado com 1px de borda sutil (#15191e / #101317 com borda #1c2128) -->
+<div class="bg-surface-container-low border border-outline-variant/20 rounded p-space-lg flex flex-col shadow-none">
+<!-- Parte 1 - "Sobre" -->
+<div class="flex flex-col gap-space-md">
+<h2 class="text-body-md font-headline-sm font-semibold text-on-surface tracking-tight">
+                Sobre
+              </h2>
+<div class="grid grid-cols-[140px_1fr] gap-y-2.5 items-center font-code-md text-code-md">
+<span class="text-outline">Atlas:</span>
+<span class="text-on-surface">Project Atlas</span>
+<span class="text-outline">Versão:</span>
+<span class="text-on-surface">0.1.5</span>
+<span class="text-outline">Plataforma:</span>
+<span class="text-on-surface">macos</span>
+</div>
+</div>
+<!-- Divisor sutil de 1px -->
+<div class="h-[1px] bg-outline-variant/20 my-space-lg"></div>
+<!-- Parte 2 - "Atualizações" -->
+<div class="flex flex-col gap-space-md">
+<h2 class="text-body-md font-headline-sm font-semibold text-on-surface tracking-tight">
+                Atualizações
+              </h2>
+<div class="flex items-center gap-space-lg">
+<!-- Botão "Buscar atualizações" -->
+<button class="h-[30px] px-3 bg-surface-container border border-outline-variant/30 hover:border-outline hover:bg-surface-container-high text-on-surface rounded text-label-md font-label-md transition-colors duration-150 active:scale-[0.99] flex items-center justify-center">
+                  Buscar atualizações
+                </button>
+<!-- Estado informativo com indicador sutil verde -->
+<div class="flex items-center gap-2">
+<div class="w-1.5 h-1.5 rounded-full bg-emerald-500/80"></div>
+<span class="text-body-sm font-body-sm text-outline">
+                    Você está usando a versão mais recente do Atlas.
+                  </span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+</div>
+</body></html>

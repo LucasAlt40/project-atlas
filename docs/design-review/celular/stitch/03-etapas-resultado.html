@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=390, height=844, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Atlas — Celular — Execução: etapas e resultado</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "background": "#0b0d10",
+            "surface-container-lowest": "#0b0e12",
+            "surface-container-low": "#101317",
+            "surface-container": "#15191e",
+            "surface-container-high": "#1c2128",
+            "surface-container-highest": "#242c37",
+            "outline": "#908fa0",
+            "outline-variant": "#262c36",
+            "on-surface": "#e1e2e8",
+            "on-surface-variant": "#94a3b8",
+            "primary": "#6366f1",
+            "primary-container": "#8083ff",
+            "error": "#ef4444",
+            "error-container": "rgba(239, 68, 68, 0.12)",
+          },
+          fontFamily: {
+            "headline-sm": ["Geist", "sans-serif"],
+            "headline-lg": ["Geist", "sans-serif"],
+            "body-sm": ["Geist", "sans-serif"],
+            "body-md": ["Geist", "sans-serif"],
+            "body-lg": ["Geist", "sans-serif"],
+            "label-sm": ["JetBrains Mono", "monospace"],
+            "label-md": ["Geist", "sans-serif"],
+            "code-sm": ["JetBrains Mono", "monospace"],
+            "code-md": ["JetBrains Mono", "monospace"],
+          },
+          fontSize: {
+            "headline-sm": ["1.125rem", { lineHeight: "1.5rem", letterSpacing: "-0.015em", fontWeight: "500" }],
+            "headline-lg": ["1.375rem", { lineHeight: "1.75rem", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "body-sm": ["0.75rem", { lineHeight: "1.125rem", letterSpacing: "0.005em", fontWeight: "400" }],
+            "body-md": ["0.8125rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "body-lg": ["0.9375rem", { lineHeight: "1.375rem", letterSpacing: "-0.005em", fontWeight: "400" }],
+            "label-sm": ["0.625rem", { lineHeight: "0.875rem", letterSpacing: "0.04em", fontWeight: "500" }],
+            "label-md": ["0.75rem", { lineHeight: "1rem", letterSpacing: "0.01em", fontWeight: "500" }],
+            "code-sm": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0em", fontWeight: "400" }],
+            "code-md": ["0.75rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+          },
+          borderRadius: {
+            "DEFAULT": "4px",
+            "lg": "6px",
+            "xl": "8px",
+            "full": "12px",
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      line-height: 1;
+    }
+    /* Estilização suave para toque mobile sem highlights de browser */
+    * {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    /* Scrollbar personalizada discreta */
+    ::-webkit-scrollbar {
+      width: 3px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0d10;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #242c37;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface flex justify-center items-start min-h-screen p-0 m-0 antialiased selection:bg-primary/20">
+<!-- Mobile Canvas Frame: 390x844 px Exato -->
+<main class="w-[390px] h-[844px] max-w-[390px] max-h-[844px] bg-background flex flex-col relative overflow-hidden border border-outline-variant/30 shadow-none">
+<!-- BARRA SUPERIOR (48px, fixa) -->
+<header class="h-12 w-full bg-surface-container-low border-b border-outline-variant flex items-center justify-between px-3 shrink-0 z-30 select-none">
+<!-- Botão Voltar + Atlas -->
+<button aria-label="Voltar" class="flex items-center gap-1.5 h-11 min-h-[44px] px-1 text-on-surface hover:text-primary transition-colors active:opacity-70 focus:outline-none" type="button">
+<span class="material-symbols-outlined text-[18px] text-outline font-medium">arrow_back_ios</span>
+<span class="font-body-md text-body-md text-outline">Voltar</span>
+<span class="font-headline-sm text-body-md font-semibold tracking-tight text-on-surface ml-1">Atlas</span>
+</button>
+<!-- Dispositivo remoto / Identificador -->
+<div class="flex items-center h-11 min-h-[44px] px-1">
+<span class="font-code-sm text-code-sm text-outline tracking-tight">iPhone do Lucas</span>
+</div>
+</header>
+<!-- ÁREA DE ROLAGEM PRINCIPAL -->
+<div class="flex-1 overflow-y-auto px-4 py-4 space-y-3.5">
+<!-- CABEÇALHO DA EXECUÇÃO -->
+<section class="space-y-1.5 pt-0.5">
+<div class="flex items-center justify-between gap-2">
+<h1 class="font-headline-lg text-headline-sm font-semibold text-on-surface tracking-tight truncate">
+            Recuperação de senha
+          </h1>
+<!-- Selo de estado: Esperando você -->
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-[4px] bg-[#f59e0b]/15 border border-[#f59e0b]/30 shrink-0">
+<span class="w-1.5 h-1.5 rounded-full bg-[#f59e0b] animate-pulse"></span>
+<span class="font-label-md text-label-md text-[#f59e0b] font-medium leading-none">Esperando você</span>
+</div>
+</div>
+<!-- Metadados técnicos -->
+<p class="font-code-sm text-code-sm text-outline flex items-center gap-1">
+<span>Transport ERP</span>
+<span class="text-outline-variant">·</span>
+<span>iniciada 22:10</span>
+<span class="text-outline-variant">·</span>
+<span>14m 06s</span>
+</p>
+</section>
+<!-- AVISO REDUZIDO DA PERGUNTA -->
+<section>
+<button class="w-full min-h-[44px] bg-[#f59e0b]/10 border border-[#f59e0b]/30 rounded-lg px-3 py-2.5 flex items-center justify-between text-left transition-colors active:bg-[#f59e0b]/15 focus:outline-none" type="button">
+<div class="flex items-center gap-2 min-w-0 pr-2">
+<span class="w-2 h-2 rounded-full bg-[#f59e0b] shrink-0"></span>
+<span class="font-body-md text-body-md text-[#f59e0b] font-medium truncate">Developer espera você</span>
+</div>
+<span class="material-symbols-outlined text-[18px] text-[#f59e0b] shrink-0">chevron_right</span>
+</button>
+</section>
+<!-- SEÇÕES RECOLHÍVEIS -->
+<div class="space-y-2 pb-6">
+<!-- 1. "Etapas" (SEÇÃO ABERTA) -->
+<section class="bg-surface-container-low border border-outline-variant rounded-xl overflow-hidden">
+<!-- Cabeçalho da Seção -->
+<button class="w-full min-h-[44px] px-3.5 py-3 flex items-center justify-between bg-surface-container-low hover:bg-surface-container active:bg-surface-container-high transition-colors focus:outline-none" type="button">
+<span class="font-headline-sm text-body-lg font-semibold text-on-surface">Etapas</span>
+<span class="material-symbols-outlined text-[20px] text-outline">expand_less</span>
+</button>
+<!-- Conteúdo Interno da Seção Aberta -->
+<div class="px-3.5 pb-4 pt-1 border-t border-outline-variant/40">
+<!-- Linha do Tempo Vertical -->
+<div class="relative pl-7 space-y-5 before:content-[''] before:absolute before:left-[11px] before:top-2 before:bottom-3 before:w-[1px] before:bg-outline-variant">
+<!-- Etapa 1: Architect (Concluída) -->
+<div class="relative group">
+<!-- Marcador de nó -->
+<div class="absolute -left-7 top-0.5 w-[23px] h-[23px] rounded-full bg-surface-container-low border border-[#10b981]/40 flex items-center justify-center z-10">
+<span class="font-label-sm text-[#10b981] font-bold text-[12px] leading-none">✓</span>
+</div>
+<div class="space-y-1">
+<div class="flex items-center justify-between gap-2">
+<span class="font-body-md text-body-md font-medium text-on-surface">Architect</span>
+<span class="font-label-sm text-label-sm text-[#10b981] bg-[#10b981]/10 px-1.5 py-0.5 rounded-[4px] border border-[#10b981]/20">Concluída</span>
+</div>
+<p class="font-code-sm text-code-sm text-outline">Arch agent · 30s</p>
+<!-- Item recolhível discreto -->
+<button class="min-h-[44px] pt-1 flex items-center gap-1 text-outline hover:text-on-surface transition-colors focus:outline-none active:opacity-70" type="button">
+<span class="font-body-sm text-body-sm text-outline">O que ela relatou</span>
+<span class="material-symbols-outlined text-[16px]">expand_more</span>
+</button>
+</div>
+</div>
+<!-- Etapa 2: Developer (Esperando você) -->
+<div class="relative group">
+<!-- Marcador de nó -->
+<div class="absolute -left-7 top-0.5 w-[23px] h-[23px] rounded-full bg-surface-container-low border border-[#f59e0b] flex items-center justify-center z-10">
+<span class="font-label-sm text-[#f59e0b] font-bold text-[13px] leading-none">?</span>
+</div>
+<div class="space-y-1">
+<div class="flex items-center justify-between gap-2">
+<span class="font-body-md text-body-md font-medium text-on-surface">Developer</span>
+<span class="font-label-sm text-label-sm text-[#f59e0b] bg-[#f59e0b]/15 px-1.5 py-0.5 rounded-[4px] border border-[#f59e0b]/30">Esperando você</span>
+</div>
+<div class="flex items-center gap-2 font-code-sm text-code-sm">
+<span class="text-outline">Dev agent · 21:17</span>
+<span class="text-outline-variant">·</span>
+<span class="text-on-surface-variant font-body-sm text-body-sm">Depois: QA</span>
+</div>
+</div>
+</div>
+<!-- Etapa 3: QA (Não iniciada) -->
+<div class="relative group">
+<!-- Marcador de nó -->
+<div class="absolute -left-7 top-0.5 w-[23px] h-[23px] rounded-full bg-surface-container-low border border-outline-variant flex items-center justify-center z-10">
+<span class="w-2 h-2 rounded-full border border-outline/60"></span>
+</div>
+<div class="space-y-0.5">
+<div class="flex items-center justify-between gap-2">
+<span class="font-body-md text-body-md font-medium text-outline">QA</span>
+<span class="font-label-sm text-label-sm text-outline bg-surface-container-high px-1.5 py-0.5 rounded-[4px] border border-outline-variant">Não iniciada</span>
+</div>
+<p class="font-code-sm text-code-sm text-outline/70">QA agent</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 2. "Resultado" (SEÇÃO FECHADA) -->
+<section class="bg-surface-container-low border border-outline-variant rounded-xl overflow-hidden">
+<button class="w-full min-h-[44px] px-3.5 py-3 flex items-center justify-between bg-surface-container-low hover:bg-surface-container active:bg-surface-container-high transition-colors focus:outline-none" type="button">
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-body-lg font-semibold text-on-surface">Resultado</span>
+<span class="font-label-sm text-label-sm text-outline bg-surface-container-high px-1.5 py-0.5 rounded-[4px] border border-outline-variant">Até agora</span>
+</div>
+<span class="material-symbols-outlined text-[20px] text-outline">expand_more</span>
+</button>
+</section>
+<!-- 3. "Código" (SEÇÃO FECHADA) -->
+<section class="bg-surface-container-low border border-outline-variant rounded-xl overflow-hidden">
+<button class="w-full min-h-[44px] px-3.5 py-3 flex items-center justify-between bg-surface-container-low hover:bg-surface-container active:bg-surface-container-high transition-colors focus:outline-none" type="button">
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-body-lg font-semibold text-on-surface">Código</span>
+<span class="font-code-sm text-code-sm text-outline bg-surface-container px-1.5 py-0.5 rounded-[4px] border border-outline-variant">0 arquivos alterados (+0 −0)</span>
+</div>
+<span class="material-symbols-outlined text-[20px] text-outline">expand_more</span>
+</button>
+</section>
+<!-- 4. "Registro de atividade" (SEÇÃO FECHADA) -->
+<section class="bg-surface-container-low border border-outline-variant rounded-xl overflow-hidden">
+<button class="w-full min-h-[44px] px-3.5 py-3 flex items-center justify-between bg-surface-container-low hover:bg-surface-container active:bg-surface-container-high transition-colors focus:outline-none" type="button">
+<span class="font-headline-sm text-body-lg font-semibold text-on-surface">Registro de atividade</span>
+<span class="material-symbols-outlined text-[20px] text-outline">expand_more</span>
+</button>
+</section>
+<!-- 5. "Controlar a execução" (SEÇÃO FECHADA) -->
+<section class="bg-surface-container-low border border-outline-variant rounded-xl overflow-hidden">
+<button class="w-full min-h-[44px] px-3.5 py-3 flex items-center justify-between bg-surface-container-low hover:bg-surface-container active:bg-surface-container-high transition-colors focus:outline-none" type="button">
+<span class="font-headline-sm text-body-lg font-semibold text-on-surface">Controlar a execução</span>
+<span class="material-symbols-outlined text-[20px] text-outline">expand_more</span>
+</button>
+</section>
+</div>
+</div>
+</main>
+</body></html>

@@ -142,18 +142,15 @@
   padding: 0 var(--space-2);
 }
 .sectionTitle {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
   margin: 0;
   font-size: var(--font-size-lg);
 }
-.sectionTitle::before {
-  content: '';
-  width: 4px;
-  height: 1.125rem;
-  border-radius: 2px;
-  background: var(--accent-soft);
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
 }
 .pair {
   display: grid;
@@ -170,8 +167,7 @@
   padding: var(--space-4);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-  background: rgb(21 25 30 / 0.85);
-  backdrop-filter: blur(12px);
+  background: var(--surface-void);
 }
 .control,
 .textarea {
@@ -185,4 +181,27 @@
 }
 .field {
   gap: var(--space-2);
+}
+
+/* The personality form inside the side panel: the instructions take the height that is left. */
+.panelForm {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 0;
+}
+.grow {
+  flex: 1;
+  min-height: 10rem;
+}
+.grow .textarea {
+  flex: 1;
+}
+.panelActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
 }

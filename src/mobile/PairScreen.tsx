@@ -106,6 +106,11 @@ export function PairScreen({ remote, linkCode }: { remote: Remote; linkCode: str
         <li>{t('mobile.pair.step2')}</li>
       </ol>
       <form onSubmit={submit} className={styles.form}>
+        {error && (
+          <p id="pair-error" className={styles.error} role="alert">
+            {t(error, { seconds: wait ?? 0 })}
+          </p>
+        )}
         <label htmlFor="pair-code" className={styles.label}>
           {t('mobile.pair.codeLabel')}
         </label>
@@ -125,15 +130,12 @@ export function PairScreen({ remote, linkCode }: { remote: Remote; linkCode: str
           aria-describedby={error ? 'pair-error' : undefined}
           aria-invalid={error ? true : undefined}
         />
-        <button type="submit" className={styles.primary} disabled={busy}>
-          {busy ? t('mobile.pair.connecting') : t('mobile.pair.connect')}
-        </button>
+        <div className={styles.pairAction}>
+          <button type="submit" className={styles.primary} disabled={busy}>
+            {busy ? t('mobile.pair.connecting') : t('mobile.pair.connect')}
+          </button>
+        </div>
       </form>
-      {error && (
-        <p id="pair-error" className={styles.error} role="alert">
-          {t(error, { seconds: wait ?? 0 })}
-        </p>
-      )}
       <p className={styles.fine}>{t('mobile.pair.fine')}</p>
     </main>
   );

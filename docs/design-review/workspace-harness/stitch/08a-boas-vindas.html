@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas Core — Boas-vindas</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-primary": "#1000a9",
+            "surface": "#111418",
+            "on-primary-fixed": "#07006c",
+            "tertiary": "#ffb0cd",
+            "on-surface": "#e1e2e8",
+            "on-secondary-fixed-variant": "#004c69",
+            "tertiary-fixed": "#ffd9e4",
+            "primary-container": "#8083ff",
+            "surface-container-high": "#272a2e",
+            "surface-variant": "#323539",
+            "primary-fixed": "#e1e0ff",
+            "on-tertiary": "#640039",
+            "on-error": "#690005",
+            "surface-container": "#1d2024",
+            "secondary-container": "#00a6e0",
+            "on-tertiary-fixed": "#3e0022",
+            "secondary": "#7bd0ff",
+            "error": "#ffb4ab",
+            "on-secondary-container": "#00374d",
+            "secondary-fixed-dim": "#7bd0ff",
+            "on-tertiary-container": "#570032",
+            "primary": "#c0c1ff",
+            "surface-container-lowest": "#0b0e12",
+            "outline": "#908fa0",
+            "inverse-primary": "#494bd6",
+            "surface-tint": "#c0c1ff",
+            "on-secondary": "#00354a",
+            "background": "#111418",
+            "surface-container-low": "#191c20",
+            "on-error-container": "#ffdad6",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "tertiary-container": "#f751a1",
+            "secondary-fixed": "#c4e7ff",
+            "on-surface-variant": "#c7c4d7",
+            "inverse-surface": "#e1e2e8",
+            "surface-bright": "#36393e",
+            "surface-container-highest": "#323539",
+            "on-primary-container": "#0d0096",
+            "on-background": "#e1e2e8",
+            "on-secondary-fixed": "#001e2c",
+            "surface-dim": "#111418",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "inverse-on-surface": "#2e3135",
+            "error-container": "#93000a",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "outline-variant": "#464554"
+          },
+          borderRadius: {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          spacing: {
+            "margin": "0.75rem",
+            "space-md": "0.625rem",
+            "space-sm": "0.375rem",
+            "space-xs": "0.25rem",
+            "gutter": "0.5rem",
+            "space-xl": "1.25rem",
+            "space-lg": "0.875rem"
+          },
+          fontFamily: {
+            "display": ["Geist", "sans-serif"],
+            "label-md": ["Geist", "sans-serif"],
+            "code-md": ["JetBrains Mono", "monospace"],
+            "label-sm": ["JetBrains Mono", "monospace"],
+            "headline-sm": ["Geist", "sans-serif"],
+            "code-sm": ["JetBrains Mono", "monospace"],
+            "code-lg": ["JetBrains Mono", "monospace"],
+            "body-sm": ["Geist", "sans-serif"],
+            "body-md": ["Geist", "sans-serif"],
+            "headline-lg": ["Geist", "sans-serif"],
+            "body-lg": ["Geist", "sans-serif"]
+          },
+          fontSize: {
+            "display": ["1.75rem", { lineHeight: "2.25rem", letterSpacing: "-0.025em", fontWeight: "600" }],
+            "label-md": ["0.75rem", { lineHeight: "1rem", letterSpacing: "0.01em", fontWeight: "500" }],
+            "code-md": ["0.75rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "label-sm": ["0.625rem", { lineHeight: "0.875rem", letterSpacing: "0.04em", fontWeight: "500" }],
+            "headline-sm": ["1.125rem", { lineHeight: "1.5rem", letterSpacing: "-0.015em", fontWeight: "500" }],
+            "code-sm": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0em", fontWeight: "400" }],
+            "code-lg": ["0.875rem", { lineHeight: "1.375rem", letterSpacing: "-0.01em", fontWeight: "400" }],
+            "body-sm": ["0.75rem", { lineHeight: "1.125rem", letterSpacing: "0.005em", fontWeight: "400" }],
+            "body-md": ["0.8125rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "headline-lg": ["1.375rem", { lineHeight: "1.75rem", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "body-lg": ["0.9375rem", { lineHeight: "1.375rem", letterSpacing: "-0.005em", fontWeight: "400" }]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    ::selection {
+      background: #6366f1;
+      color: #ffffff;
+    }
+    /* Subtle custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0e12;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #272a2e;
+    }
+  </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface antialiased overflow-hidden select-none h-screen w-screen flex">
+<!-- ========================================== -->
+<!-- BARRA LATERAL FIXA (Shared: SideNavBar)    -->
+<!-- ========================================== -->
+<aside class="fixed top-0 left-0 bottom-0 w-[216px] flex flex-col justify-between py-space-md z-40 bg-surface-container-lowest border-r border-outline-variant/30 h-screen shrink-0">
+<!-- Topo da Barra Lateral -->
+<div class="flex flex-col gap-space-md">
+<!-- Header do Logo -->
+<div class="px-space-md flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-6 h-6 rounded bg-surface-container-high border border-outline-variant/40 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[15px]">deployed_code</span>
+</div>
+<div>
+<div class="text-body-md font-headline-lg font-semibold tracking-tight text-on-surface leading-tight">Atlas Core</div>
+<div class="text-label-sm font-label-sm text-outline flex items-center gap-1.5 leading-none mt-0.5">
+<span>v2.4.0</span>
+<span class="inline-block w-1 h-1 rounded-full bg-emerald-500"></span>
+<span class="text-emerald-400">Cluster Online</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Seletor de Workspace (Estado Vazio) -->
+<div class="px-space-md">
+<div class="w-full bg-surface-container-low border border-dashed border-outline-variant/40 rounded px-2.5 py-1.5 flex items-center justify-between text-outline">
+<div class="flex items-center gap-2 overflow-hidden">
+<span class="material-symbols-outlined text-outline/60 text-[14px]">folder_off</span>
+<span class="text-label-sm font-code-sm truncate text-outline/80">Sem workspace</span>
+</div>
+<span class="material-symbols-outlined text-[13px] text-outline/40">unfold_more</span>
+</div>
+</div>
+<!-- Botão Primário "+ Novo Fluxo" (Desabilitado/Sutil Primeiro Acesso) -->
+<div class="px-space-md">
+<button class="w-full py-1.5 px-space-sm bg-surface-container border border-outline-variant/30 text-outline/50 rounded flex items-center justify-center gap-1.5 text-label-md font-label-md cursor-not-allowed" disabled="">
+<span class="material-symbols-outlined text-[14px]">add</span>
+<span>Novo Fluxo</span>
+</button>
+</div>
+<!-- Divisor -->
+<div class="h-px bg-outline-variant/20 mx-space-md"></div>
+<!-- Navegação Principal -->
+<nav class="flex flex-col gap-0.5">
+<!-- Item 1: Workspace (Ativo) -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm bg-surface-container-high text-primary border-l-2 border-primary rounded-none font-medium text-label-md font-label-md transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[17px]">space_dashboard</span>
+<span>Workspace</span>
+</a>
+<!-- Item 2: Workflow -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-[17px]">account_tree</span>
+<span>Workflow</span>
+</a>
+<!-- Item 3: Agentes -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-[17px]">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- Item 4: Personalidades -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-[17px]">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- Item 5: Specs -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-[17px]">description</span>
+<span>Specs</span>
+</a>
+<!-- Item 6: MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-[17px]">hub</span>
+<span>MCP Hub</span>
+</a>
+</nav>
+</div>
+<!-- Rodapé da Barra Lateral -->
+<div class="flex flex-col gap-space-sm px-space-md">
+<!-- Telemetria do Cluster / Memória -->
+<div class="p-2 rounded bg-surface-container-low border border-outline-variant/30 flex flex-col gap-1.5">
+<div class="flex items-center justify-between text-label-sm font-code-sm text-outline">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px] text-secondary">memory</span>
+<span>MEM CLUSTER</span>
+</span>
+<span class="text-on-surface font-medium">0.14 / 32 GB</span>
+</div>
+<div class="w-full bg-surface-container-highest h-1 rounded-full overflow-hidden">
+<div class="bg-secondary-container h-full w-[2%]"></div>
+</div>
+<div class="flex items-center justify-between text-label-sm font-code-sm text-outline/70">
+<span>INSTÂNCIA</span>
+<span class="text-outline">idle.0</span>
+</div>
+</div>
+<!-- Link de Configurações -->
+<a class="flex items-center gap-space-sm px-2 py-1.5 text-outline hover:text-on-surface hover:bg-surface-container-low rounded transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-[16px]">settings</span>
+<span>Configurações</span>
+</a>
+</div>
+</aside>
+<!-- ========================================== -->
+<!-- BARRA SUPERIOR FIXA (Shared: TopNavBar)     -->
+<!-- ========================================== -->
+<header class="fixed top-0 right-0 left-[216px] h-12 flex items-center justify-between px-space-lg z-30 border-b border-outline-variant/30 bg-surface-container-lowest">
+<!-- Breadcrumb da Área de Trabalho -->
+<div class="flex items-center gap-2">
+<div class="flex items-center gap-1.5 text-label-md font-label-md">
+<span class="text-outline hover:text-on-surface cursor-pointer transition-colors">Atlas</span>
+<span class="text-outline-variant">/</span>
+<span class="text-on-surface font-medium">Boas-vindas — Criar primeiro workspace</span>
+</div>
+</div>
+<!-- Ações e Status da Barra Superior -->
+<div class="flex items-center gap-space-md">
+<!-- Botão Celular -->
+<button class="flex items-center gap-1.5 px-2 py-1 text-label-md font-label-md text-outline hover:text-on-surface hover:bg-surface-container-high rounded transition-colors" title="Dispositivo móvel vinculado">
+<span class="material-symbols-outlined text-[15px]">smartphone</span>
+<span>Celular</span>
+</button>
+<div class="h-4 w-px bg-outline-variant/30"></div>
+<!-- Alternância de Idioma (PT | EN) -->
+<div class="flex items-center bg-surface-container-low border border-outline-variant/30 rounded p-0.5 text-label-sm font-code-sm">
+<span class="px-1.5 py-0.5 rounded bg-surface-container-high text-primary font-medium">PT</span>
+<span class="px-1.5 py-0.5 text-outline hover:text-on-surface cursor-pointer">EN</span>
+</div>
+<div class="h-4 w-px bg-outline-variant/30"></div>
+<!-- Status de Conectividade -->
+<div class="flex items-center gap-1.5 text-label-sm font-code-sm text-outline">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+<span>Sync Local</span>
+</div>
+<div class="h-4 w-px bg-outline-variant/30"></div>
+<!-- Perfil do Operador -->
+<div class="flex items-center gap-2 pl-1">
+<div class="w-6 h-6 rounded-full bg-surface-container-high border border-outline-variant/40 flex items-center justify-center text-outline text-label-sm font-code-sm">
+          OP
+        </div>
+<span class="text-label-sm font-code-sm text-outline">operator@atlas</span>
+</div>
+</div>
+</header>
+<!-- ========================================== -->
+<!-- ÁREA CENTRAL DE CONTEÚDO (ESTADO VAZIO)     -->
+<!-- ========================================== -->
+<main class="ml-[216px] mt-12 w-[calc(100vw-216px)] h-[calc(100vh-48px)] flex flex-col justify-between overflow-y-auto bg-surface relative">
+<!-- Grade Sutil de Fundo Técnico -->
+<div class="absolute inset-0 bg-[radial-gradient(#1c2128_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none"></div>
+<!-- Conteúdo Central Centralizado -->
+<div class="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-8">
+<!-- Cartão Técnico Central do Onboarding -->
+<div class="w-full max-w-[780px] bg-[#101317] border border-[#242c37] rounded-lg p-8 shadow-2xl relative">
+<!-- Badge Superior de Inicialização de Sistema -->
+<div class="flex items-center justify-between border-b border-[#1c2128] pb-5 mb-6">
+<div class="flex items-center gap-3">
+<!-- Monograma Atlas com Brilho Índigo -->
+<div class="w-10 h-10 rounded-md bg-[#15191e] border border-[#242c37] flex items-center justify-center relative shadow-[0_0_20px_rgba(99,102,241,0.25)]">
+<span class="material-symbols-outlined text-[#6366f1] text-[22px]">developer_board</span>
+<div class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#6366f1] border-2 border-[#101317]"></div>
+</div>
+<div>
+<h1 class="text-headline-sm font-headline-sm text-[#f8fafc] font-semibold tracking-tight">
+                Bem-vindo ao Atlas
+              </h1>
+<p class="text-body-sm font-body-sm text-outline mt-0.5">
+                Um workspace reúne um projeto, seus agentes e o contexto que eles compartilham.
+              </p>
+</div>
+</div>
+<div class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#0b0e12] border border-[#1c2128] text-label-sm font-code-sm text-outline">
+<span class="w-1.5 h-1.5 rounded-full bg-[#6366f1] animate-pulse"></span>
+<span>PRONTO PARA ORQUESTRAR</span>
+</div>
+</div>
+<!-- Três Passos Técnicos Horizontais -->
+<div class="grid grid-cols-3 gap-3 mb-8">
+<!-- Passo 1 -->
+<div class="bg-[#15191e] border border-[#242c37] rounded p-4 flex flex-col justify-between hover:border-[#6366f1]/40 transition-colors group">
+<div>
+<div class="flex items-center justify-between mb-3">
+<span class="text-label-sm font-code-sm text-[#6366f1] px-1.5 py-0.5 rounded bg-[#6366f1]/10 border border-[#6366f1]/20">01</span>
+<span class="material-symbols-outlined text-outline group-hover:text-on-surface text-[18px]">folder_special</span>
+</div>
+<h2 class="text-label-md font-label-md text-on-surface font-semibold mb-1">
+                Escolha a pasta do projeto
+              </h2>
+<p class="text-body-sm font-body-sm text-outline/90 leading-relaxed">
+                Vincule um repositório Git local. O Atlas mapeia a árvore de código, dependências e arquitetura.
+              </p>
+</div>
+<div class="mt-4 pt-3 border-t border-[#242c37]/60 flex items-center gap-1.5 text-label-sm font-code-sm text-outline/60">
+<span class="material-symbols-outlined text-[13px]">commit</span>
+<span>git, monorepos, microservices</span>
+</div>
+</div>
+<!-- Passo 2 -->
+<div class="bg-[#15191e] border border-[#242c37] rounded p-4 flex flex-col justify-between hover:border-[#6366f1]/40 transition-colors group">
+<div>
+<div class="flex items-center justify-between mb-3">
+<span class="text-label-sm font-code-sm text-[#6366f1] px-1.5 py-0.5 rounded bg-[#6366f1]/10 border border-[#6366f1]/20">02</span>
+<span class="material-symbols-outlined text-outline group-hover:text-on-surface text-[18px]">group_work</span>
+</div>
+<h2 class="text-label-md font-label-md text-on-surface font-semibold mb-1">
+                Adicione agentes
+              </h2>
+<p class="text-body-sm font-body-sm text-outline/90 leading-relaxed">
+                Configure personalidades, limites de memória, papéis de arquitetura e permissões de execução CLI.
+              </p>
+</div>
+<div class="mt-4 pt-3 border-t border-[#242c37]/60 flex items-center gap-1.5 text-label-sm font-code-sm text-outline/60">
+<span class="material-symbols-outlined text-[13px]">shield</span>
+<span>sandboxing e políticas rbac</span>
+</div>
+</div>
+<!-- Passo 3 -->
+<div class="bg-[#15191e] border border-[#242c37] rounded p-4 flex flex-col justify-between hover:border-[#6366f1]/40 transition-colors group">
+<div>
+<div class="flex items-center justify-between mb-3">
+<span class="text-label-sm font-code-sm text-[#6366f1] px-1.5 py-0.5 rounded bg-[#6366f1]/10 border border-[#6366f1]/20">03</span>
+<span class="material-symbols-outlined text-outline group-hover:text-on-surface text-[18px]">network_node</span>
+</div>
+<h2 class="text-label-md font-label-md text-on-surface font-semibold mb-1">
+                Inicialize o Harness
+              </h2>
+<p class="text-body-sm font-body-sm text-outline/90 leading-relaxed">
+                Varredura estática de rotas, contratos de API e mapeamento cognitivo contínuo para colaboração autônoma.
+              </p>
+</div>
+<div class="mt-4 pt-3 border-t border-[#242c37]/60 flex items-center gap-1.5 text-label-sm font-code-sm text-outline/60">
+<span class="material-symbols-outlined text-[13px]">bolt</span>
+<span>indexação semântica AST</span>
+</div>
+</div>
+</div>
+<!-- Ação Principal e Linha de Comando -->
+<div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-[#1c2128]">
+<!-- Botão Primário Generoso -->
+<button class="w-full sm:w-auto px-5 py-2.5 bg-[#6366f1] hover:bg-[#4f46e5] text-white rounded text-label-md font-label-md font-medium flex items-center justify-center gap-2 transition-all duration-150 shadow-[0_2px_10px_rgba(99,102,241,0.35)] active:scale-[0.98]">
+<span class="material-symbols-outlined text-[18px]">create_new_folder</span>
+<span>Criar workspace</span>
+<span class="material-symbols-outlined text-[16px] ml-1">arrow_forward</span>
+</button>
+<!-- Atalho de Terminal para Desenvolvedores -->
+<div class="flex items-center gap-2 text-label-sm font-code-sm text-outline bg-[#0b0e12] px-3 py-2 rounded border border-[#242c37]">
+<span>ou abra pelo terminal com</span>
+<code class="text-primary font-medium bg-[#15191e] px-1.5 py-0.5 rounded border border-[#242c37]/80">atlas init</code>
+<button class="text-outline hover:text-on-surface ml-1 p-0.5" title="Copiar comando">
+<span class="material-symbols-outlined text-[13px]">content_copy</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Rodapé Inferior Discreto da Área de Conteúdo -->
+<footer class="relative z-10 px-8 py-3 border-t border-[#1c2128] bg-[#0b0e12] flex items-center justify-between text-label-sm font-code-sm text-outline/70">
+<div class="flex items-center gap-6">
+<a class="hover:text-on-surface transition-colors flex items-center gap-1.5" href="#">
+<span class="material-symbols-outlined text-[14px]">menu_book</span>
+<span>Guia de introdução</span>
+</a>
+<a class="hover:text-on-surface transition-colors flex items-center gap-1.5" href="#">
+<span class="material-symbols-outlined text-[14px]">terminal</span>
+<span>Repositórios suportados</span>
+</a>
+<span class="text-outline/30">•</span>
+<span class="text-outline/50">TypeScript, Rust, Python, Go, Java, C++</span>
+</div>
+<div class="flex items-center gap-4">
+<span>RUNTIME ENGINE: v0.19.4-STABLE</span>
+<span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500/80"></span>
+</div>
+</footer>
+</main>
+</body></html>

@@ -165,7 +165,7 @@
 /* Agent cards */
 .agentGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(26rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 26rem), 1fr));
   gap: var(--space-5);
   margin: 0;
   padding: 0;
@@ -226,58 +226,48 @@
   font-size: 0.6875rem;
 }
 .agentRuntime {
-  color: var(--text-muted);
+  color: var(--text-dim);
   font-family: var(--font-mono);
   font-size: 0.75rem;
 }
-.agentFacts {
+.agentRuntime b {
+  color: var(--text-high);
+  font-weight: 500;
+}
+.emptyState {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5) 0;
+  color: var(--text-muted);
+  text-align: center;
+}
+.emptyState p {
   margin: 0;
-  padding: var(--space-3);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: var(--surface-void);
 }
-/* The runtime's availability, as the telemetry status chip of the design system. */
-.statusPill {
-  flex: none;
-  align-self: flex-start;
-  padding: 1px var(--space-2);
-  border: 1px solid rgb(100 116 139 / 0.4);
-  border-radius: var(--radius-sm);
-  color: var(--idle);
-  font-family: var(--font-mono);
-  font-size: 0.625rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-.statusPill[data-ready='true'] {
-  border-color: rgb(16 185 129 / 0.4);
-  background: rgb(16 185 129 / 0.1);
-  color: var(--success);
-}
-.statusPill[data-ready='false'] {
-  border-color: rgb(245 158 11 / 0.4);
-  background: rgb(245 158 11 / 0.1);
-  color: var(--warning);
+.agentFacts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
 }
 .agentFacts div {
   display: flex;
-  justify-content: space-between;
-  gap: var(--space-4);
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
 }
 .agentFacts dt {
   color: var(--text-dim);
 }
 .agentFacts dd {
   margin: 0;
-  color: var(--text-standard);
+  color: var(--text-high);
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  text-align: right;
   overflow-wrap: anywhere;
 }
 .agentCardFoot {

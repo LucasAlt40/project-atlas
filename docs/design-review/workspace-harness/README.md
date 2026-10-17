@@ -10,7 +10,7 @@ precisão. As imagens em `atual/` são o app real, capturado em 1440×900 com da
 - Tema escuro único, denso, de ferramenta de engenharia. Superfícies separadas por tom e borda
   de 1px, nunca por sombra (a única sombra é a de overlay).
 - Tokens atuais (`src/styles/global.css`): superfícies `#0b0d10 → #242c37`, texto `#f1f5f9 /
-  #e2e8f0 / #94a3b8 / #64748b`, acento `#6366f1`, semânticos `info #38bdf8`, `running #60a5fa`,
+#e2e8f0 / #94a3b8 / #64748b`, acento `#6366f1`, semânticos `info #38bdf8`, `running #60a5fa`,
   `success #10b981`, `warning #f59e0b`, `danger #ef4444`, `policy #ec4899`. Fontes Geist
   (interface) e JetBrains Mono (dados, rótulos técnicos). Raios 4 / 6 / 8px.
 - Idioma da interface: português (pt-BR) com alternância PT/EN no topo. Textos nas telas devem
@@ -21,10 +21,10 @@ precisão. As imagens em `atual/` são o app real, capturado em 1440×900 com da
 
 ## 2. Moldura global (presente em todas as telas)
 
-| Parte | Conteúdo |
-|---|---|
+| Parte                               | Conteúdo                                                                                                                                                                                                                    |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Barra lateral (13,5rem, recolhível) | Logo Atlas; **seletor de workspace** (nome + caminho; menu com "Novo workspace" e "Gerenciar workspaces"); navegação: Workspace, Workflow, Agentes, Personalidades, Specs, MCP Hub, Configurações; rodapé com nome e versão |
-| Barra superior | Botão de recolher; breadcrumb "Workspace / tela"; à direita: indicador de ação pendente, execuções ativas, botão **Celular** (acesso móvel), alternância **PT / EN** |
+| Barra superior                      | Botão de recolher; breadcrumb "Workspace / tela"; à direita: indicador de ação pendente, execuções ativas, botão **Celular** (acesso móvel), alternância **PT / EN**                                                        |
 
 ## 3. Mapa do módulo
 
@@ -52,6 +52,7 @@ Legenda de captura: **[img]** capturada do app; **[código]** descrita a partir 
 captura (estado difícil de reproduzir sem backend real).
 
 ### 4.1 Workspace — Lista expansível **[img 01]**
+
 - **Cabeçalho**: título do workspace; chip de uso (`Hoje US$ 1,24` · `Semana US$ 3,72`, fonte
   mono); botões `Projetos (2)` (abre modal), `Integrações` (navega para o MCP Hub) e o primário
   `+ Adicionar agente`.
@@ -68,10 +69,12 @@ captura (estado difícil de reproduzir sem backend real).
   aguardando aprovação (**[código]** `ApprovalRequests`), falha, recebendo resposta.
 
 ### 4.2 Workspace — Grade **[img 02]**
+
 - Grade de 2 colunas com até 4 agentes; cada célula repete o cartão (mesmas abas e compositor).
 - Célula vazia mostra "Disponível". Cartões com o cabeçalho quebrando em duas linhas.
 
 ### 4.3 Agente — Detalhes (gaveta lateral) **[img 03]**
+
 Seções em coluna única, na ordem: cabeçalho (nome, personalidade · runtime · provedor, modelo,
 selo de estado) → **Permissões** (seletor de perfil: Somente leitura / Desenvolvedor; quatro
 cartões: Sistema de arquivos, Processos, Git, Rede, com aviso âmbar para ações destrutivas) →
@@ -82,39 +85,44 @@ informados pelo runtime) → **Cota** → dados do agente (runtime, modelo, esta
 `McpPanel`, `RulesPanel`.
 
 ### 4.4 Agente — Execuções e Inspetor **[img 04, 05]**
+
 - Aba Execuções: grupos por dia ("Hoje"), item com ícone de estado, tarefa, `runtime · modelo ·
-  Concluída · hora`, duração à direita.
+Concluída · hora`, duração à direita.
 - **Inspetor** (modal, 5 abas): Detalhes (tarefa, status, workspace, agente, personalidade,
   runtime, modelo, início, fim, duração, processo, entrada/saída/total de tokens, custo),
   Contexto, Atividade (linha do tempo de eventos), Chat, Terminal. **[código]** `ExecutionDetails`,
   `ExecutionInspector`, `AgentActivity`; terminal ao vivo com xterm.
 
 ### 4.5 Adicionar / editar agente **[img 06]**
+
 Painel inline que empurra o conteúdo: título, botão `Criar novo agente` e `Cancelar`. Quando há
 agentes não colocados, **[código]** lista-os para escolha. Editar usa `EditAgentPanel` (mesmo
 formulário da tela Agentes).
 
 ### 4.6 Seletor de workspace e onboarding **[img 11, 12]**
+
 - Menu: lista de workspaces (nome + caminho), `+ Novo workspace`, `Gerenciar workspaces`.
 - Sem workspace: título "Bem-vindo ao Atlas", uma frase, botão `Criar workspace`. Totalmente
   centrado, sem ilustração nem passos.
 - **[código]** `WorkspaceForm` (criar/editar: nome, pasta do projeto), `ManageWorkspaces`.
 
 ### 4.7 Projetos do workspace (modal) **[img 07, 08]**
+
 - Título "Projetos de <workspace>", texto explicativo, `+ Adicionar pasta de projeto`.
 - **Linha de projeto**: nome, selos (`Principal`, papel `Backend/Frontend`, estado do Harness:
   `Analisado` / `Não analisado` / desatualizado / precisa revisão), caminho, saúde do Harness
   (`Saudável`) + pilha tecnológica + contagens (`42 achados · 31 verificados · 9 inferidos · 2
-  seus · 0 desconhecidos`) + data da última análise, dependências ("Usa: transport-erp").
+seus · 0 desconhecidos`) + data da última análise, dependências ("Usa: transport-erp").
   Ações em texto azul: `Atualizar · Recarregar · Resetar · Editar · Excluir` (projeto sem
   Harness: `Inicializar projeto · Editar · Excluir`).
 - Bloco **Harness**: explicação + botão primário `Iniciar o Harness de N projeto(s)` ou, quando
   todos têm, `Resetar todos os Harnesses`.
 - Bloco **Contexto do workspace**: estado ("Atualizado" / "Ainda não foi montado") + `Refazer
-  contexto`.
+contexto`.
 - Bloco **Notas do workspace**: textarea + `Salvar notas`.
 
 ### 4.8 Harness — Analisar projeto **[img 09]**
+
 Modal sobre o modal. Cabeçalho "Analisar projeto" com selos `ATLAS ENGINE` e `Local Core`,
 projeto e caminho, aviso de privacidade (cadeado: só nomes de pastas e manifestos, nada é
 executado). **Análise com IA (recomendado)**: texto explicativo, campo "O que o agente deve saber?
@@ -123,10 +131,12 @@ detectado**: três colunas (Stack/runtime, Git e testes, Topologia) com itens ma
 Rodapé: `Cancelar`, `Revisar sem IA`, `Analisar com IA` (primário).
 
 ### 4.9 Harness — Execução ao vivo da análise **[código]**
+
 `AgentAnalysisScreen`: progresso da análise com IA (etapas, saída do agente, interromper). Não
 capturada: exige um agente em execução.
 
 ### 4.10 Harness — Revisar contexto do projeto **[img 10]**
+
 Terceiro nível de modal. Cabeçalho com selos `.atlas/` e nome do projeto, `Voltar` e `Inicializar`
 (primário). Quatro métricas (Total, Verificados, Inferidos, Pendentes). Abas por área (Stack,
 Testes e comandos, Arquitetura e módulos, Contexto de negócio) com contador. Lista de achados
@@ -137,6 +147,7 @@ evidência** (vazio até escolher um achado). Rodapé: estado do Harness, altern
 `StaleNotice`, `HealthBadge`, `HarnessStats`.
 
 ### 4.11 Harness — Atualizar / Recarregar / Contexto de tarefa **[código]**
+
 `RefreshHarnessModal` (compara o projeto com a última análise e aplica), `TaskContextModal` e
 `TaskContextPreview` (por que cada item entrou ou ficou de fora do contexto de uma tarefa, com
 pontuação e orçamento de caracteres). `WorkspaceInitializeModal` (inicializar vários projetos).
@@ -174,18 +185,18 @@ Observações feitas sobre as capturas; nenhuma é regressão, são pontos que o
 
 ## 6. Correspondência com o que já existe no Stitch
 
-| Tela do app | Tela no Stitch (id) |
-|---|---|
-| Workspace — Grade | Atlas - Main Workspace Grid 2x2 (`6eecbeea16364b5f9a06abda229b2a5b`) |
-| Workspace — Lista expansível | Atlas - Workspace Expansível (Agentes Detalhados) (`ee4c12062027462ab20b218c9160b37f`) |
-| Detalhes do agente / permissões | Atlas - Permissions & Project Context (`01d7d6b3223a47e59f87d197a8ee675b`) |
-| Inspetor e terminal | Atlas - Live Terminal & Execution Inspector (`4c0c75ea9216431f9aa3af3d6631f137`) |
-| Resultado de execução | Atlas - Resultados de Execução & Artefatos Gerados (`b0ff9a0657d14b59b7953901c33ea7d2`) |
-| Projetos + Harness | Atlas - Project Harness & Context Analysis (`499b4695b5c44c19b8ef17a452d22d70`) |
-| Analisar projeto | Atlas - Configuração de Análise de Projeto (`cf432e92b86d4709af191e653726e35e`) |
-| Análise ao vivo | Atlas - Execução ao Vivo da Análise de Projeto (`220fef1a2a4a4462ab6e47d76f9225d2`) |
-| Revisar contexto | Atlas - Confirmação e Auditoria de Regras Detectadas (`54508e9fe5c047bd8f1a85f4a353e4f0`) |
-| Seletor/onboarding, Adicionar agente, Projetos como lista | sem tela equivalente |
+| Tela do app                                               | Tela no Stitch (id)                                                                       |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Workspace — Grade                                         | Atlas - Main Workspace Grid 2x2 (`6eecbeea16364b5f9a06abda229b2a5b`)                      |
+| Workspace — Lista expansível                              | Atlas - Workspace Expansível (Agentes Detalhados) (`ee4c12062027462ab20b218c9160b37f`)    |
+| Detalhes do agente / permissões                           | Atlas - Permissions & Project Context (`01d7d6b3223a47e59f87d197a8ee675b`)                |
+| Inspetor e terminal                                       | Atlas - Live Terminal & Execution Inspector (`4c0c75ea9216431f9aa3af3d6631f137`)          |
+| Resultado de execução                                     | Atlas - Resultados de Execução & Artefatos Gerados (`b0ff9a0657d14b59b7953901c33ea7d2`)   |
+| Projetos + Harness                                        | Atlas - Project Harness & Context Analysis (`499b4695b5c44c19b8ef17a452d22d70`)           |
+| Analisar projeto                                          | Atlas - Configuração de Análise de Projeto (`cf432e92b86d4709af191e653726e35e`)           |
+| Análise ao vivo                                           | Atlas - Execução ao Vivo da Análise de Projeto (`220fef1a2a4a4462ab6e47d76f9225d2`)       |
+| Revisar contexto                                          | Atlas - Confirmação e Auditoria de Regras Detectadas (`54508e9fe5c047bd8f1a85f4a353e4f0`) |
+| Seletor/onboarding, Adicionar agente, Projetos como lista | sem tela equivalente                                                                      |
 
 O Stitch não deixa baixar as capturas dessas telas sem autenticação própria, então a comparação
 visual com o app não foi feita; a tabela acima é só por título.

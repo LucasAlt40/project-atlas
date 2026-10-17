@@ -66,9 +66,12 @@ describe('WorkspaceSwitcher', () => {
 
     const menu = screen.getByRole('listbox', { name: 'Workspace' });
     const options = within(menu).getAllByRole('option');
-    expect(options.map((o) => o.textContent)).toEqual(['Acme ERP/dev/acme', 'Atlas/dev/atlas']);
+    expect(options.map((o) => o.textContent)).toEqual([
+      'Acme ERPActive/dev/acme',
+      'Atlas/dev/atlas',
+    ]);
     expect(options[0]).toHaveAttribute('aria-selected', 'true');
-    expect(within(menu).getByRole('button', { name: '+ New Workspace' })).toBeInTheDocument();
+    expect(within(menu).getByRole('button', { name: 'New Workspace' })).toBeInTheDocument();
     expect(within(menu).getByRole('button', { name: 'Manage Workspaces' })).toBeInTheDocument();
   });
 
@@ -108,7 +111,7 @@ describe('WorkspaceSwitcher', () => {
     vi.mocked(createWorkspace).mockResolvedValue(created);
 
     await user.click(await screen.findByRole('button', { name: /^Workspace:/ }));
-    await user.click(screen.getByRole('button', { name: '+ New Workspace' }));
+    await user.click(screen.getByRole('button', { name: 'New Workspace' }));
     const dialog = screen.getByRole('dialog', { name: 'Create Workspace' });
     expect(within(dialog).getByText('No folder selected')).toBeVisible();
     await user.click(within(dialog).getByRole('button', { name: 'Select folder' }));
@@ -139,7 +142,7 @@ describe('WorkspaceSwitcher', () => {
     });
 
     await user.click(await screen.findByRole('button', { name: /^Workspace:/ }));
-    await user.click(screen.getByRole('button', { name: '+ New Workspace' }));
+    await user.click(screen.getByRole('button', { name: 'New Workspace' }));
     const dialog = screen.getByRole('dialog', { name: 'Create Workspace' });
     await user.click(within(dialog).getByRole('button', { name: 'Select folder' }));
     await user.click(within(dialog).getByRole('button', { name: 'Create' }));
@@ -155,7 +158,7 @@ describe('WorkspaceSwitcher', () => {
     mount({}, vi.fn().mockResolvedValue(null));
 
     await user.click(await screen.findByRole('button', { name: /^Workspace:/ }));
-    await user.click(screen.getByRole('button', { name: '+ New Workspace' }));
+    await user.click(screen.getByRole('button', { name: 'New Workspace' }));
     const dialog = screen.getByRole('dialog', { name: 'Create Workspace' });
     await user.click(within(dialog).getByRole('button', { name: 'Select folder' }));
 
@@ -177,7 +180,7 @@ describe('WorkspaceSwitcher', () => {
     vi.mocked(addWorkspaceProject).mockResolvedValue(created);
 
     await user.click(await screen.findByRole('button', { name: /^Workspace:/ }));
-    await user.click(screen.getByRole('button', { name: '+ New Workspace' }));
+    await user.click(screen.getByRole('button', { name: 'New Workspace' }));
     const dialog = screen.getByRole('dialog', { name: 'Create Workspace' });
     await user.click(within(dialog).getByRole('button', { name: 'Select folder' }));
     await user.click(within(dialog).getByRole('button', { name: 'Add another folder' }));

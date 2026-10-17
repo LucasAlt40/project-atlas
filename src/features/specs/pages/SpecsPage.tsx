@@ -12,7 +12,6 @@ import { NewSpecDialog } from '../components/NewSpecDialog';
 import { Overview } from '../components/Overview';
 import { SpecDetail } from '../components/SpecDetail';
 import { useSpecs } from '../hooks/useSpecs';
-import { countsByGroup } from '../model/status';
 import styles from '../components/Specs.module.css';
 
 /**
@@ -44,52 +43,38 @@ function Home({ workspace }: { workspace: Workspace }) {
   );
 
   const specs = state.status === 'ready' ? state.specs : [];
-  const counts = countsByGroup(specs);
 
   return (
     <div className={styles.page}>
       {openId ? (
-        <div className={styles.crumbs}>
-          <Icon name="specs" size={13} />
-          <span>{t('specs.crumb')}</span>
-          <span aria-hidden="true">/</span>
-          <span>OpenSpec</span>
-          <h1 className={styles.srOnly}>{t('nav.specs')}</h1>
-        </div>
+        <h1 className={styles.srOnly}>{t('nav.specs')}</h1>
       ) : (
         <header className={styles.pageHead}>
           <div className={styles.heading}>
-            <div className={styles.crumbs}>
-              <Icon name="specs" size={13} />
-              <span>{t('specs.crumb')}</span>
-              <span aria-hidden="true">/</span>
-              <span>OpenSpec</span>
-            </div>
             <h1>{t('nav.specs')}</h1>
             <p>{t('specs.subtitle')}</p>
           </div>
-          <div className={styles.headRight}>
-            <ul className={styles.counters} aria-label={t('specs.counters')}>
-              <li data-tone="running">{t('specs.counter.progress', { count: counts.progress })}</li>
-              <li data-tone="info">{t('specs.counter.attention', { count: counts.attention })}</li>
-              <li data-tone="success">{t('specs.counter.ready', { count: counts.ready })}</li>
-            </ul>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setDialog('import');
-              }}
-            >
-              {t('specs.import')}
-            </Button>
-            <Button
-              onClick={() => {
-                setDialog('new');
-              }}
-            >
-              {t('specs.new')}
-            </Button>
-          </div>
+          {state.status === 'ready' && specs.length > 0 && (
+            <div className={styles.headRight}>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setDialog('import');
+                }}
+              >
+                <Icon name="download" size={14} />
+                {t('specs.import')}
+              </Button>
+              <Button
+                onClick={() => {
+                  setDialog('new');
+                }}
+              >
+                <Icon name="plus" size={14} />
+                {t('specs.new')}
+              </Button>
+            </div>
+          )}
         </header>
       )}
 

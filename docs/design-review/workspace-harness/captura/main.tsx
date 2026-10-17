@@ -123,8 +123,20 @@ const security = {
   git: { read: 'allowed', write: 'allowed', destructive: 'approval_required' },
 };
 const projects = [
-  { id: 'w1-main', name: 'transport-erp', path: '/dev/transport-erp', role: 'backend', dependsOn: [] },
-  { id: 'w1-web', name: 'transport-web', path: '/dev/transport-web', role: 'frontend', dependsOn: ['w1-main'] },
+  {
+    id: 'w1-main',
+    name: 'transport-erp',
+    path: '/dev/transport-erp',
+    role: 'backend',
+    dependsOn: [],
+  },
+  {
+    id: 'w1-web',
+    name: 'transport-web',
+    path: '/dev/transport-web',
+    role: 'frontend',
+    dependsOn: ['w1-main'],
+  },
 ];
 const workspaces = emptyWorkspace
   ? []
@@ -153,8 +165,17 @@ const stats = { findings: 42, verified: 31, inferred: 9, user: 2, stale: 0, unkn
 function harnessSummary(): unknown {
   if (harnessMode === 'none')
     return {
-      status: 'not_initialized', projectName: null, stack: [], version: null, initializedAt: null,
-      hasAtlasDir: false, analyzedAt: null, staleness: null, stats: null, problem: null, health: null,
+      status: 'not_initialized',
+      projectName: null,
+      stack: [],
+      version: null,
+      initializedAt: null,
+      hasAtlasDir: false,
+      analyzedAt: null,
+      staleness: null,
+      stats: null,
+      problem: null,
+      health: null,
     };
   const base = {
     status: harnessMode === 'review' ? 'needs_review' : 'initialized',
@@ -179,23 +200,58 @@ function harnessSummary(): unknown {
     stats,
     problem: null,
     health: {
-      state: harnessMode === 'stale' ? 'stale' : harnessMode === 'review' ? 'needs_review' : 'healthy',
+      state:
+        harnessMode === 'stale' ? 'stale' : harnessMode === 'review' ? 'needs_review' : 'healthy',
       reasons: [],
     },
   };
   return base;
 }
-const projectState = harnessMode === 'stale' ? 'outdated' : harnessMode === 'review' ? 'needs_review' : harnessMode === 'none' ? 'not_initialized' : 'ready';
+const projectState =
+  harnessMode === 'stale'
+    ? 'outdated'
+    : harnessMode === 'review'
+      ? 'needs_review'
+      : harnessMode === 'none'
+        ? 'not_initialized'
+        : 'ready';
 
 const totals = (t: number, runs: number) => ({
-  inputTokens: t, outputTokens: Math.round(t / 4), totalTokens: t + Math.round(t / 4),
-  cost: runs ? runs * 0.31 : null, currency: runs ? 'USD' : null,
-  runs, runsWithTokens: runs, runsWithCost: runs, source: 'runtime_reported',
+  inputTokens: t,
+  outputTokens: Math.round(t / 4),
+  totalTokens: t + Math.round(t / 4),
+  cost: runs ? runs * 0.31 : null,
+  currency: runs ? 'USD' : null,
+  runs,
+  runsWithTokens: runs,
+  runsWithCost: runs,
+  source: 'runtime_reported',
 });
-const usage = { latestExecution: null, conversation: totals(52000, 4), today: totals(52000, 4), week: totals(180000, 12), month: totals(640000, 41), quota: null };
+const usage = {
+  latestExecution: null,
+  conversation: totals(52000, 4),
+  today: totals(52000, 4),
+  week: totals(180000, 12),
+  month: totals(640000, 41),
+  quota: null,
+};
 
-const ev = (executionId: string, agentId: string, kind: string, message: string, at: number, metadata: Record<string, string> = {}) => ({
-  executionId, workspaceId: 'w1', taskId: executionId, agentId, kind, message, timestamp: at, metadata,
+const ev = (
+  executionId: string,
+  agentId: string,
+  kind: string,
+  message: string,
+  at: number,
+  metadata: Record<string, string> = {},
+) => ({
+  executionId,
+  workspaceId: 'w1',
+  taskId: executionId,
+  agentId,
+  kind,
+  message,
+  timestamp: at,
+  metadata,
 });
 const timeline = (id: string, agentId: string, start: number, end: string) => [
   ev(id, agentId, 'started', 'Execution started', start),
@@ -205,24 +261,97 @@ const timeline = (id: string, agentId: string, start: number, end: string) => [
   ev(id, agentId, 'tool_started', 'Tool started', start + 20000, { tool: 'Read' }),
   ev(id, agentId, 'tool_completed', 'Tool completed', start + 22000, { tool: 'Read' }),
   ...(end === 'completed' ? [ev(id, agentId, 'completed', 'Completed', start + 9 * MIN)] : []),
-  ...(end === 'failed' ? [ev(id, agentId, 'failed', 'Failed', start + 3 * MIN, { failureKind: 'runtime_error' })] : []),
+  ...(end === 'failed'
+    ? [ev(id, agentId, 'failed', 'Failed', start + 3 * MIN, { failureKind: 'runtime_error' })]
+    : []),
 ];
 const executions = withRuns
   ? [
-      { id: 'e1', workspaceId: 'w1', agentId: 'a1', status: 'completed', task: 'Revisar a camada de faturamento', startedAt: now - 40 * MIN, completedAt: now - 31 * MIN, runtimeId: 'claude', modelId: 'sonnet', failure: null, metadata: {}, usage: { inputTokens: 12000, outputTokens: 3100, totalTokens: 15100, cost: 0.31, currency: 'USD', source: 'runtime_reported' }, events: timeline('e1','a1',now - 40 * MIN,'completed') },
-      { id: 'e2', workspaceId: 'w1', agentId: 'a2', status: 'failed', task: 'Rodar testes de regressão', startedAt: now - 25 * MIN, completedAt: now - 22 * MIN, runtimeId: 'claude', modelId: 'sonnet', failure: { kind: 'runtime_error', message: 'O runtime encerrou com erro.', details: null }, metadata: {}, usage: null, events: timeline('e2','a2',now - 25 * MIN,'failed') },
-      { id: 'e3', workspaceId: 'w1', agentId: 'a3', status: 'waiting_for_input', task: 'Criar endpoint de recuperação de senha', startedAt: now - 8 * MIN, completedAt: null, runtimeId: 'codex', modelId: 'gpt-5', failure: null, metadata: {}, usage: null, events: timeline('e3','a3',now - 8 * MIN,'') },
+      {
+        id: 'e1',
+        workspaceId: 'w1',
+        agentId: 'a1',
+        status: 'completed',
+        task: 'Revisar a camada de faturamento',
+        startedAt: now - 40 * MIN,
+        completedAt: now - 31 * MIN,
+        runtimeId: 'claude',
+        modelId: 'sonnet',
+        failure: null,
+        metadata: {},
+        usage: {
+          inputTokens: 12000,
+          outputTokens: 3100,
+          totalTokens: 15100,
+          cost: 0.31,
+          currency: 'USD',
+          source: 'runtime_reported',
+        },
+        events: timeline('e1', 'a1', now - 40 * MIN, 'completed'),
+      },
+      {
+        id: 'e2',
+        workspaceId: 'w1',
+        agentId: 'a2',
+        status: 'failed',
+        task: 'Rodar testes de regressão',
+        startedAt: now - 25 * MIN,
+        completedAt: now - 22 * MIN,
+        runtimeId: 'claude',
+        modelId: 'sonnet',
+        failure: { kind: 'runtime_error', message: 'O runtime encerrou com erro.', details: null },
+        metadata: {},
+        usage: null,
+        events: timeline('e2', 'a2', now - 25 * MIN, 'failed'),
+      },
+      {
+        id: 'e3',
+        workspaceId: 'w1',
+        agentId: 'a3',
+        status: 'waiting_for_input',
+        task: 'Criar endpoint de recuperação de senha',
+        startedAt: now - 8 * MIN,
+        completedAt: null,
+        runtimeId: 'codex',
+        modelId: 'gpt-5',
+        failure: null,
+        metadata: {},
+        usage: null,
+        events: timeline('e3', 'a3', now - 8 * MIN, ''),
+      },
     ]
   : [];
 const messages = withRuns
   ? [
-      { id: 'm1', workspaceId: 'w1', agentId: 'a1', executionId: 'e1', role: 'user', content: 'Revise a camada de faturamento e aponte acoplamentos indevidos.', timestamp: now - 40 * MIN, failed: false, failureKind: null },
-      { id: 'm2', workspaceId: 'w1', agentId: 'a1', executionId: 'e1', role: 'assistant', content: '## Revisão\n\nA camada de **faturamento** depende diretamente de `BillingRepository`.\n\n- Extrair a porta `InvoiceStore`\n- Mover regras de imposto para o domínio\n\n```ts\ninterface InvoiceStore { save(i: Invoice): Promise<void> }\n```', timestamp: now - 31 * MIN, failed: false, failureKind: null },
+      {
+        id: 'm1',
+        workspaceId: 'w1',
+        agentId: 'a1',
+        executionId: 'e1',
+        role: 'user',
+        content: 'Revise a camada de faturamento e aponte acoplamentos indevidos.',
+        timestamp: now - 40 * MIN,
+        failed: false,
+        failureKind: null,
+      },
+      {
+        id: 'm2',
+        workspaceId: 'w1',
+        agentId: 'a1',
+        executionId: 'e1',
+        role: 'assistant',
+        content:
+          '## Revisão\n\nA camada de **faturamento** depende diretamente de `BillingRepository`.\n\n- Extrair a porta `InvoiceStore`\n- Mover regras de imposto para o domínio\n\n```ts\ninterface InvoiceStore { save(i: Invoice): Promise<void> }\n```',
+        timestamp: now - 31 * MIN,
+        failed: false,
+        failureKind: null,
+      },
     ]
   : [];
 
 const analysis = {
-  projectName: 'transport-erp', path: '/dev/transport-erp',
+  projectName: 'transport-erp',
+  path: '/dev/transport-erp',
   findings: [
     ['repository', 'git', 'Git', 'true', 'high', 'fact'],
     ['language', 'typescript', 'TypeScript', 'true', 'high', 'fact'],
@@ -231,22 +360,64 @@ const analysis = {
     ['infrastructure', 'docker', 'Docker', 'true', 'high', 'fact'],
     ['architecture', 'layered', 'Arquitetura em camadas', 'possible', 'medium', 'inference'],
   ].map(([category, key, label, value, confidence, origin]) => ({
-    id: `${category}:${key}`, category, key, label, value, confidence, origin,
-    verification: origin === 'fact' ? { status: 'verified', method: 'repository_file' } : { status: 'unverified' },
-    evidence: [{ source: 'package.json', field: key }], byModel: false,
+    id: `${category}:${key}`,
+    category,
+    key,
+    label,
+    value,
+    confidence,
+    origin,
+    verification:
+      origin === 'fact'
+        ? { status: 'verified', method: 'repository_file' }
+        : { status: 'unverified' },
+    evidence: [{ source: 'package.json', field: key }],
+    byModel: false,
   })),
-  conflicts: [], gaps: [], partial: false, scannedEntries: 42,
-  analysis: { partial: false, scannedEntries: 42, sampledFiles: [], semantic: { status: 'not_run', error: null, errorDetail: null, sentFiles: [], rejected: 0, explored: false }, analyzedAt: 1 },
-  existing: harnessSummary(), diff: null, previousCorrections: {}, previousExcluded: [], previousConfirmed: [],
+  conflicts: [],
+  gaps: [],
+  partial: false,
+  scannedEntries: 42,
+  analysis: {
+    partial: false,
+    scannedEntries: 42,
+    sampledFiles: [],
+    semantic: {
+      status: 'not_run',
+      error: null,
+      errorDetail: null,
+      sentFiles: [],
+      rejected: 0,
+      explored: false,
+    },
+    analyzedAt: 1,
+  },
+  existing: harnessSummary(),
+  diff: null,
+  previousCorrections: {},
+  previousExcluded: [],
+  previousConfirmed: [],
   user: { purpose: '', users: '', concepts: '', businessRules: '', constraints: '', decisions: '' },
-  suggestedUser: { purpose: '', users: '', concepts: '', businessRules: '', constraints: '', decisions: '' },
+  suggestedUser: {
+    purpose: '',
+    users: '',
+    concepts: '',
+    businessRules: '',
+    constraints: '',
+    decisions: '',
+  },
   unmanagedUserFiles: [],
 };
 
 const perms = (workspaceId: string, agentId: string) => ({
-  workspaceId, agentId, profile: 'developer', availableProfiles: ['read_only', 'developer'],
-  policy: security, effective: security,
-  runtimeAccess: { filesystemWrite: true, processExecution: true, network: true }, unenforced: [],
+  workspaceId,
+  agentId,
+  profile: 'developer',
+  availableProfiles: ['read_only', 'developer'],
+  policy: security,
+  effective: security,
+  runtimeAccess: { filesystemWrite: true, processExecution: true, network: true },
+  unenforced: [],
 });
 
 const handlers: Record<string, (a: any) => unknown> = {
@@ -258,20 +429,37 @@ const handlers: Record<string, (a: any) => unknown> = {
   list_messages: () => messages,
   list_executions: () => executions,
   list_execution_worktrees: () => [],
-  get_project_context: () => ({ name: 'transport-erp', path: '/dev/transport-erp', technologies: ['Angular', 'Git', 'Docker'] }),
+  get_project_context: () => ({
+    name: 'transport-erp',
+    path: '/dev/transport-erp',
+    technologies: ['Angular', 'Git', 'Docker'],
+  }),
   get_project_harness: () => harnessSummary(),
   list_workspace_projects: () =>
     projects.map((p, i) => ({ ...p, exists: true, primary: i === 0, technologies: ['Angular'] })),
   get_workspace_harness: () => ({
-    projects: projects.map((p) => ({ projectId: p.id, state: projectState, summary: harnessSummary() })),
-    context: { exists: harnessMode !== 'none', generatedAt: now - 86_400_000, outdated: false, hasNotes: false },
+    projects: projects.map((p) => ({
+      projectId: p.id,
+      state: projectState,
+      summary: harnessSummary(),
+    })),
+    context: {
+      exists: harnessMode !== 'none',
+      generatedAt: now - 86_400_000,
+      outdated: false,
+      hasNotes: false,
+    },
   }),
   get_workspace_notes: () => '',
   analyze_project: () => analysis,
   preview_task_context: () => ({ status: 'missing', context: null }),
   get_agent_permissions: (a) => perms(a.workspaceId, a.agentId),
   get_agent_usage: () => usage,
-  get_workspace_usage: () => ({ today: totals(52000, 4), week: totals(180000, 12), month: totals(640000, 41) }),
+  get_workspace_usage: () => ({
+    today: totals(52000, 4),
+    week: totals(180000, 12),
+    month: totals(640000, 41),
+  }),
   get_workspace_security: () => security,
   get_execution_terminal: () => null,
   list_pending_approvals: () => [],

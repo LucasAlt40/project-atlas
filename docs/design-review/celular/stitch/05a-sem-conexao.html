@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Celular — Sem conexão</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            surface: {
+              lowest: '#0b0d10',
+              low: '#101317',
+              base: '#15191e',
+              high: '#1c2128',
+              highest: '#242c37',
+            },
+            primary: {
+              DEFAULT: '#6366f1',
+              hover: '#4f46e5',
+            },
+            status: {
+              success: '#10b981',
+              warning: '#f59e0b',
+              error: '#ef4444',
+              running: '#60a5fa',
+            }
+          },
+          fontFamily: {
+            sans: ['Geist', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      background-color: #0b0d10;
+      color: #f3f4f6;
+      font-family: 'Geist', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-surface-lowest text-gray-100 flex flex-col justify-between selection:bg-primary selection:text-white">
+
+  <!-- Estrutura Fixa: Barra de topo de 48px -->
+  <!-- Conforme especificação: nesta tela, sem conexão, o topo mostra só "Atlas" (sem o nome do celular e sem voltar) -->
+  <header class="h-12 w-full px-5 flex items-center border-b border-surface-high/60 bg-surface-low shrink-0 z-20">
+    <span class="text-[17px] font-semibold tracking-tight text-white">Atlas</span>
+  </header>
+
+  <!-- Área Central / Conteúdo Principal -->
+  <main class="flex-1 w-full max-w-[390px] mx-auto px-5 flex flex-col justify-center items-stretch py-8">
+    
+    <!-- Faixa vermelha com a mensagem de desconexão -->
+    <div class="w-full bg-[#ef4444]/10 border border-[#ef4444]/30 rounded-lg p-5 text-left mb-6">
+      <div class="flex items-start gap-3">
+        <span class="inline-block w-2.5 h-2.5 rounded-full bg-[#ef4444] shrink-0 mt-1.5 animate-pulse"></span>
+        <p class="text-[15px] leading-relaxed text-gray-200 font-normal">
+          Não consigo falar com o computador. Ele pode estar desligado, em suspensão ou fora da rede. As execuções não são afetadas; esta página continua tentando.
+        </p>
+      </div>
+    </div>
+
+    <!-- Botão primário "Tentar de novo" em largura total -->
+    <button 
+      type="button" 
+      class="w-full min-h-[48px] h-12 bg-primary hover:bg-primary-hover active:scale-[0.99] text-white font-medium text-[16px] rounded-[12px] flex items-center justify-center transition-colors shadow-none select-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+    >
+      Tentar de novo
+    </button>
+
+  </main>
+
+  <!-- Espaçador inferior para respeito à área segura de toque -->
+  <footer class="h-8 shrink-0 w-full"></footer>
+
+</body>
+</html>

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas — Agentes</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "tertiary-fixed-dim": "#ffb0cd",
+            "on-secondary": "#00354a",
+            "on-tertiary": "#640039",
+            "on-primary": "#1000a9",
+            "surface-container-lowest": "#0b0e12",
+            "inverse-primary": "#494bd6",
+            "tertiary": "#ffb0cd",
+            "secondary-container": "#00a6e0",
+            "on-error": "#690005",
+            "on-secondary-fixed": "#001e2c",
+            "primary-fixed": "#e1e0ff",
+            "on-secondary-container": "#00374d",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "surface-tint": "#c0c1ff",
+            "inverse-surface": "#e1e2e8",
+            "on-error-container": "#ffdad6",
+            "tertiary-fixed": "#ffd9e4",
+            "on-primary-container": "#0d0096",
+            "surface-container-highest": "#323539",
+            "on-tertiary-fixed": "#3e0022",
+            "background": "#111418",
+            "primary-fixed-dim": "#c0c1ff",
+            "primary": "#c0c1ff",
+            "surface-dim": "#111418",
+            "on-tertiary-container": "#570032",
+            "secondary-fixed-dim": "#7bd0ff",
+            "on-background": "#e1e2e8",
+            "secondary": "#7bd0ff",
+            "surface-bright": "#36393e",
+            "surface-container-low": "#191c20",
+            "on-surface-variant": "#c7c4d7",
+            "tertiary-container": "#f751a1",
+            "on-surface": "#e1e2e8",
+            "surface-container": "#1d2024",
+            "error-container": "#93000a",
+            "error": "#ffb4ab",
+            "primary-container": "#8083ff",
+            "outline": "#908fa0",
+            "on-secondary-fixed-variant": "#004c69",
+            "inverse-on-surface": "#2e3135",
+            "surface-container-high": "#272a2e",
+            "surface-variant": "#323539",
+            "secondary-fixed": "#c4e7ff",
+            "on-primary-fixed": "#07006c",
+            "surface": "#111418",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "outline-variant": "#464554"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-xs": "0.25rem",
+            "space-sm": "0.375rem",
+            "space-lg": "0.875rem",
+            "margin": "0.75rem",
+            "space-xl": "1.25rem",
+            "space-md": "0.625rem",
+            "gutter": "0.5rem"
+          },
+          "fontFamily": {
+            "headline-lg": ["Geist"],
+            "label-sm": ["JetBrains Mono"],
+            "headline-sm": ["Geist"],
+            "code-md": ["JetBrains Mono"],
+            "body-lg": ["Geist"],
+            "code-sm": ["JetBrains Mono"],
+            "body-sm": ["Geist"],
+            "display": ["Geist"],
+            "code-lg": ["JetBrains Mono"],
+            "body-md": ["Geist"],
+            "label-md": ["Geist"]
+          },
+          "fontSize": {
+            "headline-lg": ["1.375rem", { lineHeight: "1.75rem", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "label-sm": ["0.625rem", { lineHeight: "0.875rem", letterSpacing: "0.04em", fontWeight: "500" }],
+            "headline-sm": ["1.125rem", { lineHeight: "1.5rem", letterSpacing: "-0.015em", fontWeight: "500" }],
+            "code-md": ["0.75rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "body-lg": ["0.9375rem", { lineHeight: "1.375rem", letterSpacing: "-0.005em", fontWeight: "400" }],
+            "code-sm": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0em", fontWeight: "400" }],
+            "body-sm": ["0.75rem", { lineHeight: "1.125rem", letterSpacing: "0.005em", fontWeight: "400" }],
+            "display": ["1.75rem", { lineHeight: "2.25rem", letterSpacing: "-0.025em", fontWeight: "600" }],
+            "code-lg": ["0.875rem", { lineHeight: "1.375rem", letterSpacing: "-0.01em", fontWeight: "400" }],
+            "body-md": ["0.8125rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "label-md": ["0.75rem", { lineHeight: "1rem", letterSpacing: "0.01em", fontWeight: "500" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    body {
+      background-color: #0b0e12;
+      color: #e1e2e8;
+      overflow: hidden;
+      user-select: none;
+    }
+  </style>
+</head>
+<body class="h-screen w-screen flex antialiased bg-surface-container-lowest text-on-surface">
+<!-- SIDEBAR (Strictly 216px, Exact Fixed Shell) -->
+<aside class="fixed top-0 left-0 bottom-0 w-[216px] flex flex-col justify-between z-40 bg-surface-container-lowest border-r border-outline-variant/30 select-none">
+<!-- Top Segment: Brand & Workspace Switcher -->
+<div class="flex flex-col">
+<!-- Clean Brand Header: Only "Atlas" -->
+<div class="h-12 flex items-center px-space-md border-b border-outline-variant/30">
+<div class="flex items-center gap-space-xs">
+<div class="w-4 h-4 rounded-none bg-primary flex items-center justify-center">
+<span class="w-1.5 h-1.5 bg-surface-container-lowest"></span>
+</div>
+<span class="font-headline-sm text-body-lg font-semibold tracking-tight text-on-surface">Atlas</span>
+</div>
+</div>
+<!-- Workspace Selector Dropdown -->
+<div class="p-space-xs border-b border-outline-variant/30">
+<button class="w-full flex items-center justify-between p-space-xs rounded-none hover:bg-surface-container-high transition-colors text-left group">
+<div class="flex flex-col min-w-0">
+<span class="font-label-md text-label-md text-on-surface font-medium truncate">Transport ERP</span>
+<span class="font-code-sm text-code-sm text-outline truncate">/dev/transport-erp</span>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-on-surface text-[14px]">unfold_more</span>
+</button>
+</div>
+<!-- Primary Navigation -->
+<nav class="flex flex-col py-space-xs">
+<!-- Workspace -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">space_dashboard</span>
+<span>Workspace</span>
+</a>
+<!-- Workflow -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span>Workflow</span>
+</a>
+<!-- Agentes (ACTIVE HIGHLIGHTED) -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm bg-surface-container-high text-primary border-l-2 border-primary rounded-none font-medium font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- Personalidades -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- Specs -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">description</span>
+<span>Specs</span>
+</a>
+<!-- MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">hub</span>
+<span>MCP Hub</span>
+</a>
+</nav>
+</div>
+<!-- Bottom Navigation & Footer -->
+<div class="flex flex-col border-t border-outline-variant/30">
+<!-- Configurações -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Configurações</span>
+</a>
+<!-- Footer Version -->
+<div class="px-space-md py-space-sm">
+<span class="font-code-sm text-code-sm text-outline">Project Atlas v0.1.0</span>
+</div>
+</div>
+</aside>
+<!-- MAIN VIEWPORT CONTAINER -->
+<div class="flex-1 flex flex-col pl-[216px] h-screen overflow-hidden bg-surface-container-lowest">
+<!-- TOPBAR (Strictly 48px, Exact Fixed Shell) -->
+<header class="h-12 w-full flex items-center justify-between px-space-lg border-b border-outline-variant/30 bg-surface-container-lowest shrink-0 z-30">
+<!-- Left: Collapse Sidebar & Breadcrumbs -->
+<div class="flex items-center gap-space-sm min-w-0">
+<button class="w-7 h-7 flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container-high transition-colors" title="Recolher barra lateral">
+<span class="material-symbols-outlined">dock_to_left</span>
+</button>
+<div class="flex items-center gap-1.5 font-label-md text-label-md truncate">
+<span class="text-outline">Transport ERP</span>
+<span class="text-outline-variant/60 font-code-sm">/</span>
+<span class="text-on-surface font-medium">Agentes — Sem agentes</span>
+</div>
+</div>
+<!-- Right: ONLY "Celular" button and "PT | EN" language switch -->
+<div class="flex items-center gap-space-md shrink-0">
+<button class="flex items-center gap-1.5 px-2.5 py-1 text-outline hover:text-on-surface hover:bg-surface-container-high transition-colors border border-outline-variant/40 font-label-md text-label-md">
+<span class="material-symbols-outlined text-[15px]">phone_iphone</span>
+<span>Celular</span>
+</button>
+<div class="flex items-center font-code-sm text-code-sm text-outline border border-outline-variant/30 px-1.5 py-0.5">
+<span class="text-on-surface font-medium">PT</span>
+<span class="mx-1 text-outline-variant/50">|</span>
+<span class="hover:text-on-surface cursor-pointer transition-colors">EN</span>
+</div>
+</div>
+</header>
+<!-- WORKSPACE CANVAS -->
+<main class="flex-1 flex flex-col overflow-hidden bg-background">
+<!-- SCREEN HEADER (Identical to Agentes list, NO summary metrics line, NO tabs) -->
+<div class="px-space-xl pt-space-lg pb-space-lg border-b border-outline-variant/30 flex items-center justify-between shrink-0 bg-surface-container-lowest">
+<!-- Title & Subtitle -->
+<div class="flex flex-col gap-0.5">
+<h1 class="font-headline-sm text-headline-sm text-on-surface font-semibold tracking-tight">Agentes</h1>
+<p class="font-body-md text-body-md text-outline">Gerencie agentes autônomos, conexões de runtime e permissões.</p>
+</div>
+<!-- Controls: Search input, Secondary button "Importar", Primary button "+ Criar agente" -->
+<div class="flex items-center gap-space-sm">
+<div class="relative w-64">
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-outline text-[14px]">search</span>
+<input class="w-full bg-surface-container-low border border-outline-variant/40 pl-8 pr-space-sm py-1 font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary-container transition-colors rounded-none" placeholder="Buscar agente ou modelo…" type="text"/>
+</div>
+<button class="h-[28px] px-3 bg-surface-container border border-outline-variant/40 hover:border-outline hover:text-on-surface text-on-surface-variant font-label-md text-label-md transition-colors flex items-center gap-1.5 rounded-none">
+<span class="material-symbols-outlined text-[14px]">file_download</span>
+<span>Importar</span>
+</button>
+<button class="h-[28px] px-3 bg-[#6366f1] hover:bg-[#4f46e5] text-on-surface font-label-md text-label-md font-medium transition-colors flex items-center gap-1 rounded-none shadow-none active:scale-[0.99]">
+<span class="material-symbols-outlined text-[14px]">add</span>
+<span>Criar agente</span>
+</button>
+</div>
+</div>
+<!-- CENTER CONTENT: Clean, elegant, minimal empty state centered vertically and horizontally -->
+<div class="flex-1 flex flex-col items-center justify-center p-space-xl">
+<div class="flex flex-col items-center gap-space-md text-center max-w-sm">
+<p class="font-body-md text-body-md text-outline">
+            Nenhum agente ainda. Crie um para começar.
+          </p>
+<button class="h-[30px] px-4 bg-[#6366f1] hover:bg-[#4f46e5] text-on-surface font-label-md text-label-md font-medium transition-colors rounded-none shadow-none active:scale-[0.99]">
+            Criar agente
+          </button>
+</div>
+</div>
+</main>
+</div>
+</body></html>

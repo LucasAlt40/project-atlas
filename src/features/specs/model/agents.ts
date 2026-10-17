@@ -1,12 +1,9 @@
 import type { Agent } from '@/features/agents/types';
 import type { Translate } from '@/i18n';
-import type { Workspace } from '@/features/workspace/types';
 
-/** The agents placed in the workspace, in the order the workspace lists them. */
-export function agentsOf(workspace: Workspace, agents: Agent[]): Agent[] {
-  return workspace.layout.agentPlacements
-    .map((placement) => agents.find((agent) => agent.id === placement.agentId))
-    .filter((agent): agent is Agent => agent !== undefined);
+/** Every agent of the app, not only the ones placed in this workspace: any of them can write a spec. */
+export function authorChoices(agents: Agent[]): Agent[] {
+  return agents;
 }
 
 /** The built-in personality made for writing specs: its agents are the recommended authors. */

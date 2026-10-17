@@ -40,8 +40,10 @@ function RunCard({ run, now }: { run: RunSummary; now: number }) {
           <span className={styles.cardTitle}>{run.workflowName}</span>
           <RunChip status={run.status} />
         </span>
-        <span className={styles.cardMeta}>{run.workspaceName}</span>
-        <span className={styles.cardTask}>{run.task}</span>
+        <span className={styles.cardLine}>
+          <span>{run.workspaceName}</span>
+          <span>{run.task}</span>
+        </span>
         {run.attention === 'needs_answer' && (
           <span className={styles.callout} data-tone="attention">
             {run.pending === 1
@@ -61,22 +63,19 @@ function RunCard({ run, now }: { run: RunSummary; now: number }) {
             })}
           </span>
         )}
-        {run.current.length > 0 && (
-          <span className={styles.cardCurrent}>
+        <span className={styles.cardFoot}>
+          <span className={styles.cardProgress}>
             {run.current.map((step) => (
               <span key={step.nodeId}>
                 {step.label}
                 {step.agent ? ` · ${step.agent}` : ''}
               </span>
             ))}
+            {run.stepsTotal > 0 && (
+              <span>{t('mobile.card.steps', { done: run.stepsDone, total: run.stepsTotal })}</span>
+            )}
           </span>
-        )}
-        <span className={styles.cardFoot}>
-          <span>
-            {run.stepsTotal > 0 &&
-              t('mobile.card.steps', { done: run.stepsDone, total: run.stepsTotal })}
-          </span>
-          <span>
+          <span className={styles.cardTime}>
             {isFinal(run)
               ? `${clock(run.completedAt ?? run.updatedAt, language, now)} · ${elapsed}`
               : elapsed}

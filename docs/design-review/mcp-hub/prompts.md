@@ -118,13 +118,13 @@ adicionar 2 a 1 arquivo(s), trazer 1 para o Atlas". Estado alternativo: o texto 
 
 ## Registro de envios
 
-| Prompt         | Enviado | Tela gerada no Stitch | Observação |
-| -------------- | ------- | --------------------- | ---------- |
-| H1 | 2026-10-16 | "MCP Hub — Servidores" `fa3cca4a27654726aacc04dca4b578b4` (2560×2048) | `edit_screens` criou tela nova; a original `2aa1bde3…` segue intacta. Avaliação abaixo. |
-| H3 | 2026-10-16 | "MCP Hub — Adicionar servidor" `53d6a8c1b2b64645a9cd1c5ef1f6f302` (2560×2048) | `generate_screen_from_text` com o design system, sem timeout. |
-| H4 | 2026-10-16 | "MCP Hub — Importar e exportar configuração" `45ec47aac884449faa1028ad973a7bf5` (2560×2048) | `generate_screen_from_text`; deu timeout, não reenviado, confirmado por `list_screens`. |
-| H5 | 2026-10-16 | "MCP Hub — Sincronizar CLIs" `79542e2d8e214051a07687861df13a0c` (2560×2048) | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`. |
-| H2 | 2026-10-16 | "MCP Hub — Sem servidores" `0b3b8385e6eb4bfd9ec0074764e14b2f` (2560×2048) | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`. |
+| Prompt | Enviado    | Tela gerada no Stitch                                                                       | Observação                                                                              |
+| ------ | ---------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| H1     | 2026-10-16 | "MCP Hub — Servidores" `fa3cca4a27654726aacc04dca4b578b4` (2560×2048)                       | `edit_screens` criou tela nova; a original `2aa1bde3…` segue intacta. Avaliação abaixo. |
+| H3     | 2026-10-16 | "MCP Hub — Adicionar servidor" `53d6a8c1b2b64645a9cd1c5ef1f6f302` (2560×2048)               | `generate_screen_from_text` com o design system, sem timeout.                           |
+| H4     | 2026-10-16 | "MCP Hub — Importar e exportar configuração" `45ec47aac884449faa1028ad973a7bf5` (2560×2048) | `generate_screen_from_text`; deu timeout, não reenviado, confirmado por `list_screens`. |
+| H5     | 2026-10-16 | "MCP Hub — Sincronizar CLIs" `79542e2d8e214051a07687861df13a0c` (2560×2048)                 | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`.     |
+| H2     | 2026-10-16 | "MCP Hub — Sem servidores" `0b3b8385e6eb4bfd9ec0074764e14b2f` (2560×2048)                   | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`.     |
 
 ## Avaliação
 

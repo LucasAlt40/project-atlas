@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas — Personalidades — Nova e editar personalidade</title>
+<!-- Google Fonts: Geist & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary-fixed": "#e1e0ff",
+            "surface-variant": "#323539",
+            "on-background": "#e1e2e8",
+            "on-primary-fixed": "#07006c",
+            "surface-container-lowest": "#0b0e12",
+            "surface-container-highest": "#323539",
+            "outline": "#908fa0",
+            "surface-container-low": "#191c20",
+            "secondary-fixed": "#c4e7ff",
+            "secondary": "#7bd0ff",
+            "on-secondary": "#00354a",
+            "on-surface-variant": "#c7c4d7",
+            "error-container": "#93000a",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "secondary-container": "#00a6e0",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "primary": "#c0c1ff",
+            "error": "#ffb4ab",
+            "on-tertiary": "#640039",
+            "primary-container": "#8083ff",
+            "tertiary-fixed": "#ffd9e4",
+            "tertiary-container": "#f751a1",
+            "surface-tint": "#c0c1ff",
+            "surface": "#111418",
+            "primary-fixed-dim": "#c0c1ff",
+            "inverse-on-surface": "#2e3135",
+            "surface-bright": "#36393e",
+            "secondary-fixed-dim": "#7bd0ff",
+            "on-tertiary-container": "#570032",
+            "on-secondary-fixed-variant": "#004c69",
+            "on-secondary-container": "#00374d",
+            "on-primary": "#1000a9",
+            "on-error-container": "#ffdad6",
+            "inverse-primary": "#494bd6",
+            "outline-variant": "#464554",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "on-primary-container": "#0d0096",
+            "inverse-surface": "#e1e2e8",
+            "surface-dim": "#111418",
+            "background": "#111418",
+            "on-tertiary-fixed": "#3e0022",
+            "on-secondary-fixed": "#001e2c",
+            "on-error": "#690005",
+            "surface-container-high": "#272a2e",
+            "tertiary": "#ffb0cd",
+            "surface-container": "#1d2024",
+            "on-surface": "#e1e2e8"
+          },
+          borderRadius: {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          spacing: {
+            "space-sm": "0.375rem",
+            "margin": "0.75rem",
+            "space-xl": "1.25rem",
+            "gutter": "0.5rem",
+            "space-xs": "0.25rem",
+            "space-lg": "0.875rem",
+            "space-md": "0.625rem"
+          },
+          fontFamily: {
+            "headline-lg": ["Geist", "sans-serif"],
+            "code-md": ["JetBrains Mono", "monospace"],
+            "code-lg": ["JetBrains Mono", "monospace"],
+            "label-md": ["Geist", "sans-serif"],
+            "label-sm": ["JetBrains Mono", "monospace"],
+            "body-sm": ["Geist", "sans-serif"],
+            "body-md": ["Geist", "sans-serif"],
+            "body-lg": ["Geist", "sans-serif"],
+            "headline-sm": ["Geist", "sans-serif"],
+            "display": ["Geist", "sans-serif"],
+            "code-sm": ["JetBrains Mono", "monospace"]
+          },
+          fontSize: {
+            "headline-lg": ["1.375rem", { lineHeight: "1.75rem", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "code-md": ["0.75rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "code-lg": ["0.875rem", { lineHeight: "1.375rem", letterSpacing: "-0.01em", fontWeight: "400" }],
+            "label-md": ["0.75rem", { lineHeight: "1rem", letterSpacing: "0.01em", fontWeight: "500" }],
+            "label-sm": ["0.625rem", { lineHeight: "0.875rem", letterSpacing: "0.04em", fontWeight: "500" }],
+            "body-sm": ["0.75rem", { lineHeight: "1.125rem", letterSpacing: "0.005em", fontWeight: "400" }],
+            "body-md": ["0.8125rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "body-lg": ["0.9375rem", { lineHeight: "1.375rem", letterSpacing: "-0.005em", fontWeight: "400" }],
+            "headline-sm": ["1.125rem", { lineHeight: "1.5rem", letterSpacing: "-0.015em", fontWeight: "500" }],
+            "display": ["1.75rem", { lineHeight: "2.25rem", letterSpacing: "-0.025em", fontWeight: "600" }],
+            "code-sm": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0em", fontWeight: "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-family: 'Material Symbols Outlined';
+      font-weight: normal;
+      font-style: normal;
+      font-size: 16px;
+      line-height: 1;
+      letter-spacing: normal;
+      text-transform: none;
+      display: inline-block;
+      white-space: nowrap;
+      word-wrap: normal;
+      direction: ltr;
+      -webkit-font-feature-settings: 'liga';
+      -webkit-font-smoothing: antialiased;
+    }
+    textarea::-webkit-scrollbar {
+      width: 4px;
+    }
+    textarea::-webkit-scrollbar-track {
+      background: #0b0e12;
+    }
+    textarea::-webkit-scrollbar-thumb {
+      background: #272a2e;
+      border-radius: 2px;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface antialiased overflow-hidden select-none h-screen w-screen flex">
+<!-- ========================================================================= -->
+<!-- STRICT FIXED FRAMEWORK: LEFT SIDEBAR (216px)                             -->
+<!-- ========================================================================= -->
+<aside class="fixed top-0 left-0 bottom-0 w-[216px] h-screen shrink-0 flex flex-col justify-between py-space-md z-40 bg-surface-container-lowest border-r border-outline-variant/30">
+<div class="flex flex-col gap-space-md">
+<!-- Clean Atlas Logo Header -->
+<div class="px-space-md pt-space-xs pb-space-xs flex items-center gap-space-sm">
+<div class="w-6 h-6 rounded bg-primary-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-primary-container" style="font-size: 16px;">terminal</span>
+</div>
+<span class="font-headline-lg text-body-lg font-semibold tracking-tight text-on-surface">Atlas</span>
+</div>
+<!-- Workspace Selector -->
+<div class="mx-space-md px-space-sm py-space-xs bg-surface-container-low border border-outline-variant/30 rounded flex flex-col">
+<span class="font-label-md text-label-md text-on-surface font-medium truncate">Transport ERP</span>
+<span class="font-code-sm text-code-sm text-outline truncate">/dev/transport-erp</span>
+</div>
+<!-- Primary Navigation Cluster -->
+<nav class="flex flex-col">
+<!-- Workspace -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-outline">space_dashboard</span>
+<span class="font-label-md text-label-md">Workspace</span>
+</a>
+<!-- Workflow -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-outline">account_tree</span>
+<span class="font-label-md text-label-md">Workflow</span>
+</a>
+<!-- Agentes -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-outline">smart_toy</span>
+<span class="font-label-md text-label-md">Agentes</span>
+</a>
+<!-- Personalidades (ACTIVE HIGHLIGHTED) -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm bg-surface-container-high text-primary border-l-2 border-primary rounded-none font-medium" href="#">
+<span class="material-symbols-outlined text-primary">psychology</span>
+<span class="font-label-md text-label-md">Personalidades</span>
+</a>
+<!-- Specs -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-outline">description</span>
+<span class="font-label-md text-label-md">Specs</span>
+</a>
+<!-- MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-outline">hub</span>
+<span class="font-label-md text-label-md">MCP Hub</span>
+</a>
+</nav>
+</div>
+<!-- Sidebar Bottom Section -->
+<div class="flex flex-col gap-space-xs">
+<!-- Configurações -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-outline">settings</span>
+<span class="font-label-md text-label-md">Configurações</span>
+</a>
+<!-- Bottom Static Footer -->
+<div class="px-space-md pt-space-xs border-t border-outline-variant/30">
+<span class="font-code-sm text-code-sm text-outline">Project Atlas v0.1.0</span>
+</div>
+</div>
+</aside>
+<!-- ========================================================================= -->
+<!-- STRICT FIXED FRAMEWORK: TOP BAR (48px)                                   -->
+<!-- ========================================================================= -->
+<header class="fixed top-0 right-0 left-[216px] h-12 flex items-center justify-between px-space-lg z-30 border-b border-outline-variant/30 bg-surface-container-lowest">
+<!-- Left: Collapse Sidebar & Breadcrumb -->
+<div class="flex items-center gap-space-md">
+<button class="text-outline hover:text-on-surface flex items-center justify-center p-1 rounded hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined">menu_open</span>
+</button>
+<span class="font-label-md text-label-md text-on-surface font-medium">Transport ERP / Personalidades — Nova e editar personalidade</span>
+</div>
+<!-- Right: ONLY "Celular" button and language toggle "PT | EN" -->
+<div class="flex items-center gap-space-md">
+<button class="px-space-sm py-1 bg-surface-container border border-outline-variant/30 rounded text-outline hover:text-on-surface hover:border-outline-variant text-label-md font-label-md flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined" style="font-size: 14px;">smartphone</span>
+<span>Celular</span>
+</button>
+<div class="text-outline text-label-md font-label-md tracking-tight flex items-center">
+<span class="text-on-surface font-semibold">PT</span>
+<span class="mx-1 opacity-40">|</span>
+<span class="hover:text-on-surface cursor-pointer">EN</span>
+</div>
+</div>
+</header>
+<!-- ========================================================================= -->
+<!-- MAIN STAGE / BACKGROUND VIEWPORT (UNDER OVERLAY)                          -->
+<!-- ========================================================================= -->
+<div class="ml-[216px] mt-12 flex-1 h-[calc(100vh-48px)] relative overflow-hidden bg-background">
+<!-- Dimmed Background Content: "Personalidades — Biblioteca" -->
+<div class="w-full h-full p-space-xl overflow-y-auto opacity-40 pointer-events-none filter blur-[0.3px]">
+<!-- Library Header -->
+<div class="flex flex-col gap-space-sm mb-space-lg">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-md">
+<h1 class="font-headline-lg text-headline-lg text-on-surface">Personalidades</h1>
+<div class="flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-outline font-label-sm text-label-sm border border-outline-variant/30">3 disponíveis</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-outline font-label-sm text-label-sm border border-outline-variant/30">1 customizada</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-outline font-label-sm text-label-sm border border-outline-variant/30">2 nativas</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<button class="px-space-md py-1 bg-surface-container border border-outline-variant/30 text-on-surface font-label-md text-label-md rounded">Importar</button>
+<button class="px-space-md py-1 bg-surface-container border border-outline-variant/30 text-on-surface font-label-md text-label-md rounded">Restaurar personalidades padrão</button>
+<button class="px-space-md py-1 bg-primary text-on-primary font-label-md text-label-md rounded flex items-center gap-1">+ Nova personalidade</button>
+</div>
+</div>
+<p class="font-body-md text-body-md text-outline">
+          As personalidades definem como um agente se comporta. Inspecione uma, edite-a ou use-a para criar um agente.
+        </p>
+<!-- Collapsible Note -->
+<div class="mt-space-xs p-space-sm bg-surface-container-lowest border border-outline-variant/30 rounded flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-outline" style="font-size: 15px;">info</span>
+<span class="font-label-md text-label-md text-outline">Injeção global do protocolo Atlas</span>
+</div>
+<span class="material-symbols-outlined text-outline" style="font-size: 15px;">expand_more</span>
+</div>
+</div>
+<!-- Tabs & Search Filter -->
+<div class="flex items-center justify-between border-b border-outline-variant/30 pb-space-sm mb-space-lg">
+<div class="flex items-center gap-space-md">
+<span class="font-label-md text-label-md text-on-surface font-medium border-b-2 border-primary pb-2 -mb-2.5">Todas (3)</span>
+<span class="font-label-md text-label-md text-outline hover:text-on-surface pb-2">Padrão do sistema (2)</span>
+<span class="font-label-md text-label-md text-outline hover:text-on-surface pb-2">Customizadas (1)</span>
+</div>
+<div class="w-72 px-space-sm py-1 bg-surface-container border border-outline-variant/30 rounded flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-outline" style="font-size: 14px;">search</span>
+<span class="font-body-sm text-body-sm text-outline">Buscar personalidade, tag ou instrução…</span>
+</div>
+</div>
+<!-- 3 Cards in Background Grid -->
+<div class="grid grid-cols-3 gap-space-lg">
+<!-- Card 1: Arquiteto -->
+<div class="bg-surface-container-low border border-outline-variant/30 rounded p-space-md flex flex-col justify-between h-44">
+<div>
+<div class="flex items-center justify-between mb-space-xs">
+<span class="font-headline-sm text-body-lg text-on-surface font-medium">Arquiteto</span>
+<span class="px-1.5 py-0.5 rounded bg-surface-container text-outline font-label-sm text-label-sm border border-outline-variant/30">Nativa</span>
+</div>
+<p class="font-body-sm text-body-sm text-outline line-clamp-2">Especialista em governança técnica de microserviços, design patterns e diagramação C4.</p>
+</div>
+<div class="flex items-center gap-1">
+<span class="px-1.5 py-0.5 rounded bg-surface-container text-outline font-code-sm text-code-sm">sistema</span>
+<span class="px-1.5 py-0.5 rounded bg-surface-container text-outline font-code-sm text-code-sm">arquitetura</span>
+</div>
+</div>
+<!-- Card 2: QA -->
+<div class="bg-surface-container-low border border-outline-variant/30 rounded p-space-md flex flex-col justify-between h-44">
+<div>
+<div class="flex items-center justify-between mb-space-xs">
+<span class="font-headline-sm text-body-lg text-on-surface font-medium">QA</span>
+<span class="px-1.5 py-0.5 rounded bg-surface-container text-outline font-label-sm text-label-sm border border-outline-variant/30">Nativa</span>
+</div>
+<p class="font-body-sm text-body-sm text-outline line-clamp-2">Testes automatizados unitários, end-to-end com Playwright e validações de mutação.</p>
+</div>
+<div class="flex items-center gap-1">
+<span class="px-1.5 py-0.5 rounded bg-surface-container text-outline font-code-sm text-code-sm">testes</span>
+<span class="px-1.5 py-0.5 rounded bg-surface-container text-outline font-code-sm text-code-sm">qa</span>
+</div>
+</div>
+<!-- Card 3: Arquiteto .NET Sênior -->
+<div class="bg-surface-container-low border border-outline-variant/30 rounded p-space-md flex flex-col justify-between h-44 border-primary/40">
+<div>
+<div class="flex items-center justify-between mb-space-xs">
+<span class="font-headline-sm text-body-lg text-on-surface font-medium">Arquiteto .NET Sênior</span>
+<span class="px-1.5 py-0.5 rounded bg-tertiary-container/20 text-tertiary font-label-sm text-label-sm border border-tertiary-container/30">Personalizada</span>
+</div>
+<p class="font-body-sm text-body-sm text-outline line-clamp-2">Foca em Clean Architecture e DDD.</p>
+</div>
+<div class="flex items-center gap-1">
+<span class="px-1.5 py-0.5 rounded bg-surface-container text-outline font-code-sm text-code-sm">arquitetura</span>
+<span class="px-1.5 py-0.5 rounded bg-surface-container text-outline font-code-sm text-code-sm">ddd</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Scrim Backdrop Overlay -->
+<div class="absolute inset-0 bg-black/40 backdrop-blur-[1px]"></div>
+<!-- ========================================================================= -->
+<!-- OVERLAY SLIDE-OVER DRAWER (RIGHT PANEL 440px)                             -->
+<!-- ========================================================================= -->
+<section class="absolute top-0 right-0 bottom-0 w-[440px] bg-surface-container-low border-l border-outline-variant/30 shadow-2xl flex flex-col justify-between z-50">
+<!-- Panel Header -->
+<div class="h-12 shrink-0 px-space-lg flex items-center justify-between border-b border-outline-variant/30 bg-surface-container-low">
+<div class="flex items-center gap-space-sm">
+<h2 class="font-headline-sm text-body-lg font-semibold text-on-surface">Nova personalidade</h2>
+<span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-tertiary-container/20 text-tertiary border border-tertiary-container/40">
+            Personalizada
+          </span>
+</div>
+<button class="text-outline hover:text-on-surface flex items-center justify-center p-1 rounded hover:bg-surface-container-high transition-colors" title="Fechar">
+<span class="material-symbols-outlined" style="font-size: 18px;">close</span>
+</button>
+</div>
+<!-- Form Body (Clean Vertical Layout) -->
+<div class="flex-1 overflow-y-auto px-space-lg py-space-md flex flex-col gap-space-lg">
+<!-- Field 1: Nome -->
+<div class="flex flex-col gap-space-xs">
+<label class="font-label-md text-label-md text-on-surface font-medium">Nome</label>
+<input class="h-8 px-space-sm bg-surface-container-lowest border border-outline-variant/30 rounded font-body-md text-body-md text-on-surface placeholder:text-outline/60 focus:outline-none focus:border-primary transition-colors" placeholder="Arquiteto .NET Sênior" type="text"/>
+</div>
+<!-- Field 2: Descrição -->
+<div class="flex flex-col gap-space-xs">
+<label class="font-label-md text-label-md text-on-surface font-medium">Descrição</label>
+<input class="h-8 px-space-sm bg-surface-container-lowest border border-outline-variant/30 rounded font-body-md text-body-md text-on-surface placeholder:text-outline/60 focus:outline-none focus:border-primary transition-colors" placeholder="Foca em Clean Architecture e DDD." type="text"/>
+</div>
+<!-- Field 3: Instruções -->
+<div class="flex flex-col gap-space-xs flex-1">
+<label class="font-label-md text-label-md text-on-surface font-medium">Instruções</label>
+<textarea class="w-full flex-1 p-space-sm bg-surface-container-lowest border border-outline-variant/30 rounded font-code-md text-code-md text-on-surface placeholder:text-outline/50 focus:outline-none focus:border-primary resize-none leading-relaxed transition-colors" placeholder="Você é um arquiteto especialista em C# e .NET 8+. Privilegie separação de responsabilidades, Domain-Driven Design (DDD) com Aggregates bem definidos, Repository Pattern assíncrono e eventos de domínio via MediatR..." rows="14"></textarea>
+</div>
+<!-- Field 4: Tags -->
+<div class="flex flex-col gap-space-xs">
+<label class="font-label-md text-label-md text-on-surface font-medium">Tags</label>
+<input class="h-8 px-space-sm bg-surface-container-lowest border border-outline-variant/30 rounded font-body-md text-body-md text-on-surface placeholder:text-outline/60 focus:outline-none focus:border-primary transition-colors" placeholder="arquitetura, ddd (separadas por vírgula)" type="text"/>
+</div>
+</div>
+<!-- Panel Footer: Sticky Bottom Actions -->
+<div class="h-14 shrink-0 px-space-lg border-t border-outline-variant/30 bg-surface-container-low flex items-center justify-end gap-space-sm">
+<button class="h-[30px] px-space-md rounded bg-surface-container border border-outline-variant/30 text-on-surface hover:bg-surface-container-high hover:border-outline-variant font-label-md text-label-md transition-colors">
+          Cancelar
+        </button>
+<button class="h-[30px] px-space-md rounded bg-[#6366f1] hover:bg-[#4f46e5] text-[#f1f5f9] font-label-md text-label-md font-medium transition-colors">
+          Salvar personalidade
+        </button>
+</div>
+</section>
+</div>
+</body></html>

@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
-import { Modal } from '@/components/ui/Modal';
 import {
   analyzeProject,
   buildWorkspaceContext,
@@ -18,6 +17,7 @@ import type {
 import { buildInput, initialReview, type ReviewState } from '../model/review';
 import { AgentAnalysisScreen } from './AgentAnalysisScreen';
 import { ErrorBox, type Problem } from './ErrorBox';
+import { HarnessFrame, type HarnessPresentation } from './HarnessFrame';
 import { HealthBadge } from './HealthBadge';
 import { FindingsStep, ReviewStep, useSemanticForm } from './InitializeProjectModal';
 import styles from './Harness.module.css';
@@ -36,6 +36,8 @@ interface Props {
   onClose: () => void;
   /** Called once Harnesses were written, so the screen behind can read them again. */
   onDone: () => void;
+  /** Over the screen (default), or in the page, with the steps of the flow on top. */
+  presentation?: HarnessPresentation;
 }
 
 interface Item {
@@ -62,7 +64,13 @@ function problemOf(t: ReturnType<typeof useT>, error: unknown): Problem {
  * one agent and one note, covers them all. Nothing is written until the user confirms, a model
  * only ever proposes, and one project failing never holds the others back.
  */
-export function WorkspaceInitializeModal({ workspaceId, projects, onClose, onDone }: Props) {
+export function WorkspaceInitializeModal({
+  workspaceId,
+  projects,
+  onClose,
+  onDone,
+  presentation = 'modal',
+}: Props) {
   const t = useT();
   const ai = useSemanticForm();
   const [items, setItems] = useState<Record<string, Item>>(() =>
@@ -237,10 +245,13 @@ export function WorkspaceInitializeModal({ workspaceId, projects, onClose, onDon
           projects={names}
         />
       )}
-      <Modal
+      <HarnessFrame
         label={t('harness.multi.title')}
         onClose={onClose}
+        presentation={presentation}
         size={stage === 'review' ? 'wide' : stage === 'findings' ? 'analyze' : 'normal'}
+        step={stage === 'review' ? 2 : stage === 'done' ? 3 : 1}
+        finished={stage === 'done'}
       >
         <div className={styles.modal}>
           {stage === 'findings' && (
@@ -406,7 +417,7 @@ export function WorkspaceInitializeModal({ workspaceId, projects, onClose, onDon
             </>
           )}
         </div>
-      </Modal>
+      </HarnessFrame>
     </>
   );
 }

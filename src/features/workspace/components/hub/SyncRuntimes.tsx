@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import type { TranslationKey } from '@/i18n';
@@ -94,23 +95,24 @@ export function SyncRuntimes({
           {error}
         </p>
       )}
-      <ul className={styles.plainList}>
+      <ul className={styles.cliStates} aria-label={t('hub.sync.cliState')}>
         {plan.runtimes.map((runtime) => (
-          <li key={runtime.dialect} className={styles.rowBetween}>
-            <span>
-              <strong>{name(runtime.dialect)}</strong>{' '}
-              <code className={styles.mono}>{runtime.path ?? '—'}</code>
-            </span>
-            <span
-              className={styles.chip}
-              data-tone={runtime.error ? 'bad' : runtime.available ? 'ok' : 'warn'}
+          <li key={runtime.dialect} className={styles.cliState}>
+            <strong>{name(runtime.dialect)}</strong>
+            <Badge
+              dot
+              mono
+              caps={false}
+              tone={runtime.error ? 'warning' : runtime.available ? 'success' : 'neutral'}
+              {...(runtime.path ? { title: runtime.path } : {})}
             >
               {runtime.error
                 ? t('hub.sync.unreadable')
                 : runtime.available
                   ? t('hub.sync.available')
                   : t('hub.sync.notFound')}
-            </span>
+            </Badge>
+            <code className={styles.cliPath}>{runtime.path ?? '—'}</code>
           </li>
         ))}
       </ul>
@@ -118,40 +120,45 @@ export function SyncRuntimes({
       {plan.servers.length === 0 ? (
         <p className={styles.muted}>{t('hub.sync.nothing')}</p>
       ) : (
-        <table className={styles.matrix}>
-          <thead>
-            <tr>
-              <th scope="col">{t('hub.sync.server')}</th>
-              <th scope="col">Atlas</th>
-              {ORDER.map((d) => (
-                <th key={d} scope="col">
-                  {name(d)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {plan.servers.map((server) => (
-              <tr key={server.name}>
-                <th scope="row">
-                  <code className={styles.mono}>{server.name}</code>
-                </th>
-                <Cell state={server.inAtlas ? 'has' : 'imports'} label={`${server.name}: Atlas`} />
-                {ORDER.map((d) => {
-                  const runtime = plan.runtimes.find((r) => r.dialect === d);
-                  const state = server.foundIn.includes(d)
-                    ? 'has'
-                    : server.missingFrom.includes(d)
-                      ? 'adds'
-                      : runtime?.available
-                        ? 'blocked'
-                        : 'none';
-                  return <Cell key={d} state={state} label={`${server.name}: ${name(d)}`} />;
-                })}
+        <div className={styles.matrixWrap}>
+          <table className={styles.matrix}>
+            <thead>
+              <tr>
+                <th scope="col">{t('hub.sync.server')}</th>
+                <th scope="col">Atlas</th>
+                {ORDER.map((d) => (
+                  <th key={d} scope="col">
+                    {name(d)}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {plan.servers.map((server) => (
+                <tr key={server.name}>
+                  <th scope="row">
+                    <code className={styles.mono}>{server.name}</code>
+                  </th>
+                  <Cell
+                    state={server.inAtlas ? 'has' : 'imports'}
+                    label={`${server.name}: Atlas`}
+                  />
+                  {ORDER.map((d) => {
+                    const runtime = plan.runtimes.find((r) => r.dialect === d);
+                    const state = server.foundIn.includes(d)
+                      ? 'has'
+                      : server.missingFrom.includes(d)
+                        ? 'adds'
+                        : runtime?.available
+                          ? 'blocked'
+                          : 'none';
+                    return <Cell key={d} state={state} label={`${server.name}: ${name(d)}`} />;
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {plan.skipped.length > 0 && (
@@ -173,7 +180,7 @@ export function SyncRuntimes({
         <Icon name="warning" size={14} /> {t('hub.sync.trust')}
       </p>
 
-      <div className={styles.row}>
+      <div className={styles.dialogFoot}>
         <Button disabled={busy || (pending.additions === 0 && pending.imports === 0)} onClick={run}>
           <Icon name="refresh" size={14} />{' '}
           {pending.additions === 0 && pending.imports === 0
@@ -222,6 +229,14 @@ export function SyncRuntimes({
   );
 }
 
+const CELL_TONE: Record<'has' | 'adds' | 'imports' | 'blocked' | 'none', BadgeTone> = {
+  has: 'success',
+  adds: 'accent',
+  imports: 'info',
+  blocked: 'neutral',
+  none: 'neutral',
+};
+
 function Cell({
   state,
   label,
@@ -231,10 +246,11 @@ function Cell({
 }) {
   const { t } = useI18n();
   const text = t(`hub.sync.cell.${state}` as TranslationKey);
-  const symbol = { has: '✓', adds: '+', imports: '+', blocked: '–', none: '·' }[state];
   return (
     <td data-state={state} aria-label={`${label}: ${text}`} title={text}>
-      <span aria-hidden="true">{symbol}</span>
+      <Badge dot mono caps={false} tone={CELL_TONE[state]}>
+        {text}
+      </Badge>
     </td>
   );
 }

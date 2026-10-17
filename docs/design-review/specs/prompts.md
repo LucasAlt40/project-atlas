@@ -194,16 +194,16 @@ documentos importados; os que faltam podem ser escritos a partir dos demais.". R
 
 ## Registro de envios
 
-| Prompt         | Enviado | Tela gerada no Stitch | Observação |
-| -------------- | ------- | --------------------- | ---------- |
-| S1 | 2026-10-16 | "Specs — Lista de especificações" `a7eb1bf978364f498e6908e8e85b6ed4` (2560×2048) | `edit_screens` a partir de `a60e9fda…`, com bloco comum; timeout, não reenviado, confirmado por `list_screens`. A original segue intacta. |
-| S3 | 2026-10-16 | "Spec — Documento em revisão" `d439e1fbb75c4b7f9d684b0b3c46a543` (2560×2048) | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`. |
-| S6 | 2026-10-16 | "Spec — Revisão final e publicação" `fb6be8f6a81149e3873c33d6d98f31f0` (2560×2048) | `edit_screens` a partir de `5126e494…`; timeout, não reenviado, confirmado por `list_screens`. A original segue intacta. |
-| S4 | 2026-10-16 | "Spec — Agente escrevendo" `4981422ada754146b0cb711a0df3e897` (2560×2048) | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`. |
-| S5 | 2026-10-16 | "Spec — Perguntas e achados" `6eadf408b4f543b6b75a02cab206660e` (2560×2048) | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`. A captura corta no meio do achado; o HTML tem o resto. |
-| S7 | 2026-10-16 | "Specs — Nova especificação" `3e2672ca7f07412bbe13d373685356fb` (2560×2048) | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`. |
-| S8 | 2026-10-16 | "Specs — Importar do projeto" `00d70d7a6e5e4f649ceff03b2273646d` (2560×2048) | `generate_screen_from_text` com bloco comum e moldura reforçada; timeout, não reenviado, confirmado por `list_screens`. |
-| S2 | 2026-10-16 | "Specs — Sem especificações" `0de3cab5da26442f9bf7cf0ca0d08ba0` (2560×2048) | `generate_screen_from_text` com bloco comum e moldura reforçada; timeout, não reenviado, confirmado por `list_screens`. |
+| Prompt | Enviado    | Tela gerada no Stitch                                                              | Observação                                                                                                                                                 |
+| ------ | ---------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S1     | 2026-10-16 | "Specs — Lista de especificações" `a7eb1bf978364f498e6908e8e85b6ed4` (2560×2048)   | `edit_screens` a partir de `a60e9fda…`, com bloco comum; timeout, não reenviado, confirmado por `list_screens`. A original segue intacta.                  |
+| S3     | 2026-10-16 | "Spec — Documento em revisão" `d439e1fbb75c4b7f9d684b0b3c46a543` (2560×2048)       | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`.                                                        |
+| S6     | 2026-10-16 | "Spec — Revisão final e publicação" `fb6be8f6a81149e3873c33d6d98f31f0` (2560×2048) | `edit_screens` a partir de `5126e494…`; timeout, não reenviado, confirmado por `list_screens`. A original segue intacta.                                   |
+| S4     | 2026-10-16 | "Spec — Agente escrevendo" `4981422ada754146b0cb711a0df3e897` (2560×2048)          | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`.                                                        |
+| S5     | 2026-10-16 | "Spec — Perguntas e achados" `6eadf408b4f543b6b75a02cab206660e` (2560×2048)        | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`. A captura corta no meio do achado; o HTML tem o resto. |
+| S7     | 2026-10-16 | "Specs — Nova especificação" `3e2672ca7f07412bbe13d373685356fb` (2560×2048)        | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`.                                                        |
+| S8     | 2026-10-16 | "Specs — Importar do projeto" `00d70d7a6e5e4f649ceff03b2273646d` (2560×2048)       | `generate_screen_from_text` com bloco comum e moldura reforçada; timeout, não reenviado, confirmado por `list_screens`.                                    |
+| S2     | 2026-10-16 | "Specs — Sem especificações" `0de3cab5da26442f9bf7cf0ca0d08ba0` (2560×2048)        | `generate_screen_from_text` com bloco comum e moldura reforçada; timeout, não reenviado, confirmado por `list_screens`.                                    |
 
 ## Avaliação
 
@@ -221,7 +221,7 @@ O Stitch mostra, o app não tem (não implementar):
   Final"; usar os nomes reais das etapas (Proposta, Requisitos, Design, Tarefas, Revisão final).
 - Ids novos além do pedido ("export-invoices-csv", "password-recovery", "metrics-dashboard"); só o dado real.
 
-Problemas de layout para o app não repetir: o pé do cartão ("Agora: …  há …") e o alerta âmbar ficam
+Problemas de layout para o app não repetir: o pé do cartão ("Agora: … há …") e o alerta âmbar ficam
 cortados (o texto precisa quebrar ou ir para duas linhas); o id "billing-refactor" e o selo "Pronta para
 implementação" quebram em duas linhas; o botão primário saiu com "+ +" (ícone e texto repetidos).
 

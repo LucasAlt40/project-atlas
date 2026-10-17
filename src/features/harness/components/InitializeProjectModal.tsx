@@ -1,7 +1,6 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
-import { Modal } from '@/components/ui/Modal';
 import { useCatalog } from '@/features/agents/hooks/useCatalog';
 import { useT } from '@/i18n/I18nProvider';
 import { errorDetail, errorMessage } from '@/i18n/messages';
@@ -39,6 +38,7 @@ import {
   inspectorName,
 } from './FindingRow';
 import { ErrorBox, type Problem } from './ErrorBox';
+import { HarnessFrame, type HarnessPresentation } from './HarnessFrame';
 import { HealthBadge } from './HealthBadge';
 import styles from './Harness.module.css';
 import rv from './Review.module.css';
@@ -50,6 +50,8 @@ interface Props {
   onClose: () => void;
   /** Called with the Harness state once it was created, updated or confirmed. */
   onInitialized: (summary: HarnessSummaryDto) => void;
+  /** Over the screen (default), or in the page, with the steps of the flow on top. */
+  presentation?: HarnessPresentation;
 }
 
 const cx = (...parts: (string | undefined)[]) => parts.filter(Boolean).join(' ');
@@ -70,7 +72,13 @@ function problemOf(t: ReturnType<typeof useT>, error: unknown): Problem {
  * until the user confirms the review, a model only ever proposes, and an existing Harness is never
  * replaced without their choice (and a backup).
  */
-export function InitializeProjectModal({ workspaceId, projectId, onClose, onInitialized }: Props) {
+export function InitializeProjectModal({
+  workspaceId,
+  projectId,
+  onClose,
+  onInitialized,
+  presentation = 'modal',
+}: Props) {
   const t = useT();
   const [stage, setStage] = useState<Stage>({ name: 'analyzing' });
   const [busy, setBusy] = useState(false);
@@ -140,10 +148,13 @@ export function InitializeProjectModal({ workspaceId, projectId, onClose, onInit
           agentName={running.agentName}
         />
       )}
-      <Modal
+      <HarnessFrame
         label={t('harness.modal.title')}
         onClose={onClose}
+        presentation={presentation}
         size={stage.name === 'review' ? 'wide' : stage.name === 'findings' ? 'analyze' : 'normal'}
+        step={stage.name === 'review' ? 2 : stage.name === 'done' ? 3 : 1}
+        finished={stage.name === 'done'}
       >
         <div className={styles.modal}>
           {stage.name === 'analyzing' && <p className={styles.muted}>{t('harness.analyzing')}</p>}
@@ -198,7 +209,7 @@ export function InitializeProjectModal({ workspaceId, projectId, onClose, onInit
           )}
           {stage.name === 'done' && <DoneStep outcome={stage.outcome} onClose={onClose} />}
         </div>
-      </Modal>
+      </HarnessFrame>
     </>
   );
 }
@@ -319,7 +330,38 @@ export function FindingsStep({
         </p>
       )}
 
-      <SemanticSection analysis={analysis} busy={busy} form={ai} />
+      <div className={rv.analyzeGrid}>
+        <SemanticSection analysis={analysis} busy={busy} form={ai} />
+        <section className={rv.aiCard} aria-label={t('harness.manual.title')}>
+          <div className={rv.aiHead}>
+            <h3 className={rv.aiTitle}>
+              <Icon name="eye" size={16} />
+              {t('harness.manual.title')}
+            </h3>
+            <span className={rv.pill}>{t('harness.manual.badge')}</span>
+          </div>
+          <p className={rv.body}>{t('harness.manual.body')}</p>
+          <ul className={rv.manualList}>
+            <li>
+              <span className={rv.tick}>✓</span> {t('harness.manual.local')}
+            </li>
+            <li>
+              <span className={rv.tick}>✓</span> {t('harness.manual.noTokens')}
+            </li>
+          </ul>
+          <button
+            type="button"
+            className={rv.ghostButton}
+            disabled={busy}
+            onClick={() => {
+              onReview(hasHarness || broken ? 'update_existing' : 'create');
+            }}
+          >
+            {t('harness.manual.cta')}
+            <Icon name="arrowRight" size={14} />
+          </button>
+        </section>
+      </div>
 
       <section className={rv.aiCard}>
         <div className={rv.aiHead}>

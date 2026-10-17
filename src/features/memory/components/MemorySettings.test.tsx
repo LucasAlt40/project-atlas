@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { mockBackend, renderWithProviders } from '@/test/fixtures';
 import type { MemoryDto } from '@/lib/tauri/commands';
@@ -46,6 +46,11 @@ beforeEach(() => {
   mockBackend({ language: 'en-US' });
   vi.mocked(listMemories).mockResolvedValue([]);
 });
+
+/** The sections of the memory are tabs; the test opens the one it needs. */
+async function openTab(person: ReturnType<typeof userEvent.setup>, name: RegExp) {
+  await person.click(await screen.findByRole('tab', { name }));
+}
 
 describe('MemorySettings', () => {
   it('starts with every scope off and keeps the user scope free of automatic mode', async () => {
@@ -111,9 +116,10 @@ describe('MemorySettings', () => {
     await person.click(within(waiting).getByRole('button', { name: 'Approve' }));
     expect(approveMemory).toHaveBeenCalledWith('c1');
     // Approved: it left the waiting list and is a kept note now.
-    expect(
-      screen.queryByRole('region', { name: 'Waiting for your decision' }),
-    ).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(within(waiting).queryByText('Run the check')).not.toBeInTheDocument();
+    });
+    await openTab(person, /^Kept notes/);
     expect(screen.getByText('Run the check')).toBeInTheDocument();
   });
 
@@ -128,9 +134,9 @@ describe('MemorySettings', () => {
     await person.click(await screen.findByRole('button', { name: 'Discard' }));
 
     expect(deleteMemory).toHaveBeenCalledWith('c1');
-    expect(
-      screen.queryByRole('region', { name: 'Waiting for your decision' }),
-    ).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Discard' })).not.toBeInTheDocument();
+    });
   });
 
   it('marks an automatic note, lets the person make it theirs and clear all of them', async () => {
@@ -142,6 +148,7 @@ describe('MemorySettings', () => {
     vi.mocked(deleteAutomaticMemories).mockResolvedValue(1);
     renderWithProviders(<MemorySettings />);
 
+    await openTab(person, /^Kept notes/);
     expect(
       await screen.findByText('Unconfirmed (automatic)', { selector: 'span' }),
     ).toBeInTheDocument();
@@ -158,6 +165,7 @@ describe('MemorySettings', () => {
     vi.mocked(setMemoryStatus).mockResolvedValue(note());
     renderWithProviders(<MemorySettings />);
 
+    await openTab(person, /^Kept notes/);
     expect(await screen.findByText('Out of date')).toBeInTheDocument();
     await person.click(screen.getByRole('button', { name: 'Use again' }));
 
@@ -169,6 +177,7 @@ describe('MemorySettings', () => {
     vi.mocked(createMemory).mockResolvedValue(note({ scope: 'user', owner: null }));
     renderWithProviders(<MemorySettings />);
 
+    await openTab(person, /^Add a note/);
     await person.type(await screen.findByLabelText('Title'), 'Package manager');
     await person.type(screen.getByLabelText('Lesson'), 'Use pnpm here');
     await person.click(screen.getByRole('button', { name: 'Add note' }));
@@ -192,6 +201,7 @@ describe('MemorySettings', () => {
     });
     renderWithProviders(<MemorySettings />);
 
+    await openTab(person, /^Add a note/);
     await person.type(await screen.findByLabelText('Title'), 'Login');
     await person.type(screen.getByLabelText('Lesson'), 'a key');
     await person.click(screen.getByRole('button', { name: 'Add note' }));
@@ -220,6 +230,7 @@ describe('MemorySettings', () => {
     expect(within(waiting).getByText('Waiting for an independent validator')).toBeInTheDocument();
     expect(within(waiting).queryByText('Proposed by an agent')).not.toBeInTheDocument();
 
+    await openTab(userEvent.setup(), /^Kept notes/);
     const kept = screen.getByRole('region', { name: 'Kept notes' });
     const row = within(kept).getByText('Let in lesson').closest('li');
     expect(row).toHaveTextContent('Unconfirmed (automatic)');

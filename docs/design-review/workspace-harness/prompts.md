@@ -37,17 +37,17 @@ Quando a tela já existe no Stitch, usar `edit_screens` com o id; senão `genera
 
 ### Nomes das telas (cada prompt começa com "Nome da tela: <nome>")
 
-| Prompt | Nome da tela |
-|---|---|
-| P1 | Workspace — Lista de agentes |
-| P2 | Workspace — Grade de agentes |
-| P3 | Agente — Detalhes e permissões |
-| P4 | Execução — Inspetor |
-| P5 | Projetos e Harness |
-| P6 | Harness — Analisar projeto |
-| P7 | Harness — Revisar achados |
-| P8a | Boas-vindas — Criar primeiro workspace |
-| P8b | Seletor de workspace |
+| Prompt | Nome da tela                           |
+| ------ | -------------------------------------- |
+| P1     | Workspace — Lista de agentes           |
+| P2     | Workspace — Grade de agentes           |
+| P3     | Agente — Detalhes e permissões         |
+| P4     | Execução — Inspetor                    |
+| P5     | Projetos e Harness                     |
+| P6     | Harness — Analisar projeto             |
+| P7     | Harness — Revisar achados              |
+| P8a    | Boas-vindas — Criar primeiro workspace |
+| P8b    | Seletor de workspace                   |
 
 ## P1 — Workspace: lista expansível (`edit_screens` em `ee4c1206…`)
 
@@ -153,16 +153,16 @@ Quando a tela já existe no Stitch, usar `edit_screens` com o id; senão `genera
 
 ## Registro de envios
 
-| Prompt | Enviado | Tela gerada no Stitch | Observação |
-|---|---|---|---|
-| P1 | 2026-10-16 | "Workspace — Lista de agentes" (`d1b03b16eb254cfe87d5bdd13109c61b`, 2560×2768) | `edit_screens` criou uma tela nova; a original `ee4c1206…` continua intacta. A chamada deu timeout, mas a geração terminou. |
-| P2 | 2026-10-16 | "Workspace — Grade de agentes" (`aad74b5709b446468c817c8efefdf737`, 2560×2048) | `edit_screens` criou tela nova; a original `6eecbeea…` continua intacta. Timeout na chamada, geração concluída. |
-| P3 | 2026-10-16 | "Agente — Detalhes e permissões" (`967bb5d474564863823bfd2f31ddd137`, 2560×2048) | `edit_screens` criou tela nova; a original `01d7d6b3…` continua intacta. Timeout na chamada, geração concluída. |
-| P4 | 2026-10-16 | "Execução — Inspetor" (`5903404c41b6412c8cd0c79cab3ab2d6`, 2560×2048) | `edit_screens` criou tela nova; a original `4c0c75ea…` continua intacta. Timeout na chamada, geração concluída. |
-| P5 | 2026-10-16 | "Projetos e Harness" (`299f698ba6a542aba7ac511ed4b29c64`, 2560×2048) | `edit_screens` criou tela nova; a original `499b4695…` continua intacta. Timeout na chamada, geração concluída. |
-| P6 | 2026-10-16 | "Harness — Analisar projeto" (`68ed60d88752430d878d6d4648f5734c`, 2560×2186) | `edit_screens` criou tela nova; a original `cf432e92…` continua intacta. Timeout na chamada, geração concluída. |
-| P7 | 2026-10-16 | "Harness — Revisar achados" (`af24471b2e3f4ff4983290e1e5cba9f9`, 2560×2048) | `edit_screens` criou tela nova; a original `54508e9f…` continua intacta. Timeout na chamada, geração concluída. |
-| P8a | 2026-10-16 | "Boas-vindas — Criar primeiro workspace" (`c65576984a6a4b6e849b57e0b758a70c`, 2560×2048) | `generate_screen_from_text` com o design system `assets/7aa0774b…`; tela nova, sem original. Timeout na chamada, geração concluída. |
-| P8b | 2026-10-16 | "Seletor de workspace" (`a1838a92b4de4eab99a02355f07136ce`, 2560×2048) | `generate_screen_from_text` com o design system `assets/7aa0774b…`; tela nova, sem original. Timeout na chamada, geração concluída. |
+| Prompt | Enviado    | Tela gerada no Stitch                                                                    | Observação                                                                                                                          |
+| ------ | ---------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| P1     | 2026-10-16 | "Workspace — Lista de agentes" (`d1b03b16eb254cfe87d5bdd13109c61b`, 2560×2768)           | `edit_screens` criou uma tela nova; a original `ee4c1206…` continua intacta. A chamada deu timeout, mas a geração terminou.         |
+| P2     | 2026-10-16 | "Workspace — Grade de agentes" (`aad74b5709b446468c817c8efefdf737`, 2560×2048)           | `edit_screens` criou tela nova; a original `6eecbeea…` continua intacta. Timeout na chamada, geração concluída.                     |
+| P3     | 2026-10-16 | "Agente — Detalhes e permissões" (`967bb5d474564863823bfd2f31ddd137`, 2560×2048)         | `edit_screens` criou tela nova; a original `01d7d6b3…` continua intacta. Timeout na chamada, geração concluída.                     |
+| P4     | 2026-10-16 | "Execução — Inspetor" (`5903404c41b6412c8cd0c79cab3ab2d6`, 2560×2048)                    | `edit_screens` criou tela nova; a original `4c0c75ea…` continua intacta. Timeout na chamada, geração concluída.                     |
+| P5     | 2026-10-16 | "Projetos e Harness" (`299f698ba6a542aba7ac511ed4b29c64`, 2560×2048)                     | `edit_screens` criou tela nova; a original `499b4695…` continua intacta. Timeout na chamada, geração concluída.                     |
+| P6     | 2026-10-16 | "Harness — Analisar projeto" (`68ed60d88752430d878d6d4648f5734c`, 2560×2186)             | `edit_screens` criou tela nova; a original `cf432e92…` continua intacta. Timeout na chamada, geração concluída.                     |
+| P7     | 2026-10-16 | "Harness — Revisar achados" (`af24471b2e3f4ff4983290e1e5cba9f9`, 2560×2048)              | `edit_screens` criou tela nova; a original `54508e9f…` continua intacta. Timeout na chamada, geração concluída.                     |
+| P8a    | 2026-10-16 | "Boas-vindas — Criar primeiro workspace" (`c65576984a6a4b6e849b57e0b758a70c`, 2560×2048) | `generate_screen_from_text` com o design system `assets/7aa0774b…`; tela nova, sem original. Timeout na chamada, geração concluída. |
+| P8b    | 2026-10-16 | "Seletor de workspace" (`a1838a92b4de4eab99a02355f07136ce`, 2560×2048)                   | `generate_screen_from_text` com o design system `assets/7aa0774b…`; tela nova, sem original. Timeout na chamada, geração concluída. |
 
 Módulo Workspace + Harness: 9 telas geradas no Stitch (P1 a P8b). As telas originais (`ee4c1206…`, `6eecbeea…`, `01d7d6b3…`, `4c0c75ea…`, `499b4695…`, `cf432e92…`, `54508e9f…`) continuam no projeto ao lado das novas.

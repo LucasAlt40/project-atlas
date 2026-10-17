@@ -91,6 +91,12 @@ beforeEach(() => {
   vi.mocked(listMcpConnections).mockResolvedValue({ connections: [], grants: [] });
 });
 
+/** The panels of the final review fold down to their title and state; open the one a test needs. */
+async function openPanel(title: string) {
+  const toggle = await screen.findByRole('button', { name: title });
+  if (toggle.getAttribute('aria-expanded') === 'false') await userEvent.click(toggle);
+}
+
 describe('the Specs overview', () => {
   it('starts with the two ways to begin, and runs nothing', async () => {
     backend();
@@ -132,8 +138,9 @@ describe('the Specs overview', () => {
     expect(within(dark).getByText('1/4 approved')).toBeInTheDocument();
     expect(within(dark).getByText('Now: Requirements')).toBeInTheDocument();
     expect(within(dark).getByText('1 question(s) for you')).toBeInTheDocument();
-    expect(screen.getByText('1 waiting for you')).toBeInTheDocument();
-    expect(screen.getByText('1 ready to build')).toBeInTheDocument();
+    // The counters are the counts of the group tabs.
+    expect(screen.getByRole('button', { name: /^Waiting for you\s*1$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Ready\s*1$/ })).toBeInTheDocument();
     // An archived spec is out of the way until asked for.
     expect(screen.queryByRole('button', { name: 'Old idea' })).not.toBeInTheDocument();
 
@@ -849,6 +856,7 @@ describe('the final review', () => {
     expect(screen.getByText('The review has not run')).toBeInTheDocument();
     expect(screen.getByText('Your final approval is missing')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Approve the specification' })).toBeDisabled();
+    await openPanel('Build from this spec');
     expect(screen.getByRole('button', { name: 'Start a workflow from this spec' })).toBeDisabled();
   });
 
@@ -856,6 +864,7 @@ describe('the final review', () => {
     const user = await open(finalView());
     vi.mocked(runReview).mockResolvedValue({ view: finalView(), launchError: null });
 
+    await openPanel('Review by the reviewing agent');
     await user.click(screen.getByRole('button', { name: 'Run the review' }));
 
     expect(runReview).toHaveBeenCalledWith('spec-1');
@@ -1111,6 +1120,7 @@ describe('the final review', () => {
     const user = await open(finalView());
     vi.mocked(approveSpec).mockResolvedValue(finalView());
 
+    await openPanel('Review by the reviewing agent');
     await user.click(screen.getByRole('button', { name: 'Go without the review…' }));
     const skip = screen.getByRole('button', { name: 'Skip the review' });
     expect(skip).toBeDisabled();
@@ -1181,6 +1191,7 @@ describe('publishing and building', () => {
     const user = await open(ready());
     vi.mocked(publishSpec).mockResolvedValue(ready());
 
+    await openPanel('Publish to the project');
     expect(screen.getByText(/Existing files are never overwritten/)).toBeInTheDocument();
     await user.clear(screen.getByLabelText(/Change folder name/));
     await user.type(screen.getByLabelText(/Change folder name/), 'dark-mode-v2');
@@ -1199,6 +1210,7 @@ describe('publishing and building', () => {
       }),
     );
 
+    await openPanel('Publish to the project');
     await user.click(screen.getByRole('button', { name: 'Publish' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -1240,6 +1252,7 @@ describe('publishing and building', () => {
   it('hands a ready spec to a workflow', async () => {
     const user = await open(ready());
 
+    await openPanel('Build from this spec');
     await user.click(screen.getByRole('button', { name: 'Start a workflow from this spec' }));
 
     expect(navigate).toHaveBeenCalledWith('workflow', {
@@ -1257,7 +1270,9 @@ describe('publishing and building', () => {
       ),
     );
 
+    await openPanel('Build from this spec');
     expect(screen.getByRole('button', { name: 'Start a workflow from this spec' })).toBeDisabled();
+    await openPanel('Publish to the project');
     expect(screen.getByRole('button', { name: 'Publish' })).toBeDisabled();
   });
 });
@@ -1297,9 +1312,12 @@ describe('the optional OpenSpec command', () => {
     await open(published());
 
     expect(await screen.findByText(/The openspec command is not installed/)).toBeInTheDocument();
+    await openPanel('OpenSpec command (optional)');
     expect(screen.getByRole('button', { name: 'Check with OpenSpec' })).toBeDisabled();
+    await openPanel('OpenSpec command (optional)');
     expect(screen.getByRole('button', { name: 'Archive with OpenSpec…' })).toBeDisabled();
     // Everything Atlas itself does is still on offer.
+    await openPanel('Publish to the project');
     expect(screen.getByRole('button', { name: 'Publish' })).toBeInTheDocument();
   });
 
@@ -1323,6 +1341,7 @@ describe('the optional OpenSpec command', () => {
     const user = await open(published());
     vi.mocked(checkWithCli).mockResolvedValue(checked);
 
+    await openPanel('OpenSpec command (optional)');
     await user.click(await screen.findByRole('button', { name: 'Check with OpenSpec' }));
 
     expect(checkWithCli).toHaveBeenCalledWith('spec-1');
@@ -1343,6 +1362,7 @@ describe('the optional OpenSpec command', () => {
     const user = await open(published());
     vi.mocked(archiveWithCli).mockResolvedValue(published());
 
+    await openPanel('OpenSpec command (optional)');
     await user.click(await screen.findByRole('button', { name: 'Archive with OpenSpec…' }));
     const dialog = await screen.findByRole('dialog', {
       name: 'Archive with the OpenSpec command?',
@@ -1371,6 +1391,7 @@ describe('the optional OpenSpec command', () => {
       }),
     );
 
+    await openPanel('OpenSpec command (optional)');
     await user.click(await screen.findByRole('button', { name: 'Archive with OpenSpec…' }));
     await user.click(
       within(await screen.findByRole('dialog')).getByRole('button', { name: 'Archive' }),

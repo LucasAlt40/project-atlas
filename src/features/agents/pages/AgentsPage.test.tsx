@@ -38,6 +38,13 @@ function show(props: Parameters<typeof AgentsPage>[0] = {}, agents = [architect]
   return renderWithProviders(<AgentsPage {...props} />);
 }
 
+/** The header's "Create agent" is the first; an empty catalogue shows a second one in its body. */
+async function clickCreateAgent(user: ReturnType<typeof userEvent.setup>) {
+  const first = (await screen.findAllByRole('button', { name: 'Create agent' })).at(0);
+  if (!first) throw new Error('No "Create agent" button.');
+  await user.click(first);
+}
+
 describe('AgentsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -69,7 +76,7 @@ describe('AgentsPage', () => {
     show({ onAgentCreated: vi.fn() }, []);
     vi.mocked(createAgent).mockResolvedValue(architect);
 
-    await user.click(await screen.findByRole('button', { name: 'Create agent' }));
+    await clickCreateAgent(user);
     const form = screen.getByRole('form', { name: 'Create agent' });
     const isolation = within(form).getByRole('checkbox', {
       name: 'Always work in an isolated Git worktree',
@@ -101,7 +108,7 @@ describe('AgentsPage', () => {
     show({ onAgentCreated }, []);
     vi.mocked(createAgent).mockResolvedValue(architect);
 
-    await user.click(await screen.findByRole('button', { name: 'Create agent' }));
+    await clickCreateAgent(user);
     const form = screen.getByRole('form', { name: 'Create agent' });
     await user.type(within(form).getByLabelText('Name'), 'Architecture Expert');
     await user.selectOptions(within(form).getByLabelText('Personality'), 'architect');
@@ -208,7 +215,8 @@ describe('AgentsPage', () => {
       .mockResolvedValueOnce()
       .mockRejectedValueOnce({ code: 'agent_busy', params: {}, detail: null });
 
-    await user.click(await screen.findByRole('button', { name: 'Delete Second' }));
+    await user.click(await screen.findByRole('button', { name: 'More actions for Second' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Delete' }));
     expect(deleteAgent).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Confirm delete' }));
     expect(deleteAgent).toHaveBeenCalledWith('agent-2');
@@ -216,7 +224,8 @@ describe('AgentsPage', () => {
       expect(screen.queryByText('Second')).not.toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole('button', { name: 'Delete Architecture Expert' }));
+    await user.click(screen.getByRole('button', { name: 'More actions for Architecture Expert' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Delete' }));
     await user.click(screen.getByRole('button', { name: 'Confirm delete' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('still working');
     expect(screen.getByText('Architecture Expert')).toBeInTheDocument();
@@ -414,7 +423,10 @@ describe('AgentsPage', () => {
       ],
     });
 
-    await user.click(await screen.findByRole('button', { name: 'Export Architecture Expert' }));
+    await user.click(
+      await screen.findByRole('button', { name: 'More actions for Architecture Expert' }),
+    );
+    await user.click(screen.getByRole('menuitem', { name: 'Export' }));
     expect(exportConfigs).toHaveBeenCalledWith([{ kind: 'agent', id: 'agent-1' }], true);
     await screen.findByRole('dialog', { name: 'Export “Architecture Expert”' });
     await user.keyboard('{Escape}');

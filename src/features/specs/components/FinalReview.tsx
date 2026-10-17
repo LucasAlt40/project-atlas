@@ -1,3 +1,4 @@
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -8,6 +9,7 @@ import type { FindingStatus, SpecFinding, SpecQuestion, SpecView, Stage } from '
 import { CliPanel } from './CliPanel';
 import { PublishPanel } from './PublishPanel';
 import { ReviewPanel } from './ReviewPanel';
+import { PanelSection } from './PanelSection';
 import styles from './Specs.module.css';
 
 interface Props {
@@ -50,14 +52,21 @@ export function FinalReview(props: Props) {
   return (
     <div className={styles.final}>
       <section className={styles.panel} aria-label={t('specs.final.readiness')}>
-        <header className={styles.panelHead}>
+        <header className={styles.readinessHead}>
           <h3>{t('specs.final.readiness')}</h3>
-          <span
-            className={styles.panelTag}
-            data-tone={view.readiness.ready ? 'success' : 'warning'}
-          >
+          <Badge dot mono caps={false} tone={view.readiness.ready ? 'success' : 'warning'}>
             {view.readiness.ready ? t('specs.final.ready') : t('specs.final.notReady')}
-          </span>
+          </Badge>
+          <Button variant="ghost" disabled={busy} onClick={props.onRevalidate}>
+            {t('specs.inspector.rerun')}
+          </Button>
+          <Button
+            className={styles.readinessApprove}
+            disabled={!approvable || busy || view.finalApprovalCurrent}
+            onClick={props.onApprove}
+          >
+            {t('specs.final.approve')}
+          </Button>
         </header>
         <ul className={styles.checks}>
           {checks.map((check) => (
@@ -99,29 +108,13 @@ export function FinalReview(props: Props) {
               ` · ${t('specs.final.warningsKnown', { count: approval.acknowledgedWarnings.length })}`}
           </p>
         )}
-        <div className={styles.readinessFoot}>
-          <div className={styles.row}>
-            <Button
-              disabled={!approvable || busy || view.finalApprovalCurrent}
-              onClick={props.onApprove}
-            >
-              {t('specs.final.approve')}
-            </Button>
-            <Button variant="ghost" disabled={busy} onClick={props.onRevalidate}>
-              {t('specs.inspector.rerun')}
-            </Button>
-          </div>
-          {!approvable && !view.finalApprovalCurrent && (
-            <p className={styles.muted}>{t('specs.final.approveNeeds')}</p>
-          )}
-        </div>
+        {!approvable && !view.finalApprovalCurrent && (
+          <p className={styles.muted}>{t('specs.final.approveNeeds')}</p>
+        )}
       </section>
 
       {consistencyIssues.length > 0 && (
-        <section className={styles.panel} aria-label={t('specs.final.consistency')}>
-          <header className={styles.panelHead}>
-            <h3>{t('specs.final.consistency')}</h3>
-          </header>
+        <PanelSection title={t('specs.final.consistency')} tone="warning">
           <ul className={styles.plain}>
             {consistencyIssues.map((issue, index) => (
               <li
@@ -136,7 +129,7 @@ export function FinalReview(props: Props) {
               </li>
             ))}
           </ul>
-        </section>
+        </PanelSection>
       )}
 
       <ReviewPanel
@@ -167,10 +160,7 @@ export function FinalReview(props: Props) {
         onArchive={props.onCliArchive}
       />
 
-      <section className={styles.panel} aria-label={t('specs.implement.title')}>
-        <header className={styles.panelHead}>
-          <h3>{t('specs.implement.title')}</h3>
-        </header>
+      <PanelSection title={t('specs.implement.title')} defaultOpen={false}>
         <p className={styles.muted}>{t('specs.implement.intro')}</p>
         <div className={styles.row}>
           <Button
@@ -191,7 +181,7 @@ export function FinalReview(props: Props) {
             ))}
           </ul>
         )}
-      </section>
+      </PanelSection>
     </div>
   );
 }

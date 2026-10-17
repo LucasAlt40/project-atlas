@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { OverflowMenu, type OverflowItem } from '@/components/ui/OverflowMenu';
 import { useCatalog } from '@/features/agents/hooks/useCatalog';
 import { useSettings } from '@/features/settings/hooks/SettingsProvider';
 import { useOptionalWorkspace } from '@/features/workspace/hooks/WorkspaceProvider';
@@ -48,39 +50,42 @@ export function MemorySettings() {
   const pending = memories.filter((m) => m.status === 'candidate');
   const kept = memories.filter((m) => m.status !== 'candidate');
   const automatic = memories.filter((m) => m.provenance.automatic).length;
+  // What waits for the person comes first when there is anything; else the settings.
+  // The section that opens is decided once, when the notes arrive; after that only the person moves.
+  const [chosen, setChosen] = useState<Tab | null>(null);
+  const [firstTab, setFirstTab] = useState<Tab | null>(null);
+  if (firstTab === null && state.status === 'ready') {
+    setFirstTab(pending.length > 0 ? 'pending' : 'usage');
+  }
+  const tab: Tab = chosen ?? firstTab ?? 'usage';
+  const tabs: { id: Tab; label: string }[] = [
+    { id: 'usage', label: t('memory.modes.title') },
+    { id: 'pending', label: `${t('memory.pending.title')} (${String(pending.length)})` },
+    { id: 'kept', label: `${t('memory.notes.title')} (${String(kept.length)})` },
+    { id: 'add', label: t('memory.form.add') },
+  ];
 
   return (
     <div className={styles.memory}>
+      <p className={styles.lead}>{t('memory.title')}</p>
       <p className={styles.help}>{t('memory.help')}</p>
 
-      <fieldset className={styles.modes}>
-        <legend className={styles.label}>{t('memory.modes.title')}</legend>
-        {SCOPES.map((scope) => (
-          <div key={scope} className={styles.mode}>
-            <label htmlFor={`memory-mode-${scope}`}>
-              {t(`memory.scope.${scope}` as TranslationKey)}
-            </label>
-            <select
-              id={`memory-mode-${scope}`}
-              className={styles.control}
-              value={memory[scope]}
-              onChange={(event) => {
-                const chosen = modesOf(scope).find((m) => m === event.target.value);
-                if (chosen)
-                  void attempt(() => changeMemorySettings({ ...memory, [scope]: chosen }));
-              }}
-            >
-              {modesOf(scope).map((mode) => (
-                <option key={mode} value={mode}>
-                  {t(`memory.mode.${mode}` as TranslationKey)}
-                </option>
-              ))}
-            </select>
-          </div>
+      <div className={styles.tabs} role="tablist" aria-label={t('memory.tabs')}>
+        {tabs.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            className={styles.tab}
+            aria-selected={tab === item.id}
+            onClick={() => {
+              setChosen(item.id);
+            }}
+          >
+            {item.label}
+          </button>
         ))}
-        <p className={styles.help}>{t('memory.modes.help')}</p>
-        <MaxTokens memory={memory} onSave={(next) => attempt(() => changeMemorySettings(next))} />
-      </fieldset>
+      </div>
 
       {failure && (
         <p role="alert" className={styles.error}>
@@ -93,9 +98,39 @@ export function MemorySettings() {
         </p>
       )}
 
-      {pending.length > 0 && (
+      {tab === 'usage' && (
+        <fieldset className={styles.modes}>
+          <legend className={styles.label}>{t('memory.modes.title')}</legend>
+          {SCOPES.map((scope) => (
+            <div key={scope} className={styles.mode}>
+              <label htmlFor={`memory-mode-${scope}`}>
+                {t(`memory.scope.${scope}` as TranslationKey)}
+              </label>
+              <select
+                id={`memory-mode-${scope}`}
+                className={styles.control}
+                value={memory[scope]}
+                onChange={(event) => {
+                  const picked = modesOf(scope).find((m) => m === event.target.value);
+                  if (picked)
+                    void attempt(() => changeMemorySettings({ ...memory, [scope]: picked }));
+                }}
+              >
+                {modesOf(scope).map((mode) => (
+                  <option key={mode} value={mode}>
+                    {t(`memory.mode.${mode}` as TranslationKey)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ))}
+          <MaxTokens memory={memory} onSave={(next) => attempt(() => changeMemorySettings(next))} />
+          <p className={styles.help}>{t('memory.modes.help')}</p>
+        </fieldset>
+      )}
+
+      {tab === 'pending' && (
         <section aria-label={t('memory.pending.title')}>
-          <h3 className={styles.heading}>{t('memory.pending.title')}</h3>
           <p className={styles.help}>{t('memory.pending.help')}</p>
           <ul className={styles.list}>
             {pending.map((note) => (
@@ -127,64 +162,75 @@ export function MemorySettings() {
         </section>
       )}
 
-      <section aria-label={t('memory.notes.title')}>
-        <h3 className={styles.heading}>{t('memory.notes.title')}</h3>
-        {kept.length === 0 && <p className={styles.help}>{t('memory.notes.empty')}</p>}
-        <ul className={styles.list}>
-          {kept.map((note) => (
-            <NoteCard
-              key={note.id}
-              note={note}
-              onEdit={(title, content) =>
-                attempt(() => actions.edit(note.id, title, content, note.topic ?? null))
-              }
-              actions={
-                <>
-                  {note.provenance.automatic && (
-                    <Button
-                      variant="secondary"
-                      onClick={() => void attempt(() => actions.promote(note.id))}
-                    >
-                      {t('memory.promote')}
-                    </Button>
-                  )}
-                  {note.status === 'archived' || note.status === 'stale' ? (
-                    <Button
-                      variant="secondary"
-                      onClick={() => void attempt(() => actions.setStatus(note.id, 'active'))}
-                    >
-                      {t('memory.restore')}
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      onClick={() => void attempt(() => actions.setStatus(note.id, 'archived'))}
-                    >
-                      {t('memory.archive')}
-                    </Button>
-                  )}
-                  <Button
-                    variant="danger"
-                    onClick={() => void attempt(() => actions.remove(note.id))}
-                  >
-                    {t('memory.delete')}
-                  </Button>
-                </>
-              }
-            />
-          ))}
-        </ul>
-        {automatic > 0 && (
-          <Button variant="ghost" onClick={() => void attempt(actions.clearAutomatic)}>
-            {t('memory.deleteAutomatic', { count: automatic })}
-          </Button>
-        )}
-      </section>
+      {tab === 'kept' && (
+        <section aria-label={t('memory.notes.title')}>
+          {kept.length === 0 && <p className={styles.help}>{t('memory.notes.empty')}</p>}
+          <ul className={styles.list}>
+            {kept.map((note) => (
+              <NoteCard
+                key={note.id}
+                note={note}
+                onEdit={(title, content) =>
+                  attempt(() => actions.edit(note.id, title, content, note.topic ?? null))
+                }
+                actions={
+                  <>
+                    {note.provenance.automatic && (
+                      <Button
+                        variant="secondary"
+                        onClick={() => void attempt(() => actions.promote(note.id))}
+                      >
+                        {t('memory.promote')}
+                      </Button>
+                    )}
+                    {(note.status === 'archived' || note.status === 'stale') && (
+                      <Button
+                        variant="secondary"
+                        onClick={() => void attempt(() => actions.setStatus(note.id, 'active'))}
+                      >
+                        {t('memory.restore')}
+                      </Button>
+                    )}
+                  </>
+                }
+                menu={[
+                  ...(note.status === 'archived' || note.status === 'stale'
+                    ? []
+                    : [
+                        {
+                          label: t('memory.archive'),
+                          icon: 'folder' as const,
+                          onSelect: () => {
+                            void attempt(() => actions.setStatus(note.id, 'archived'));
+                          },
+                        },
+                      ]),
+                  {
+                    label: t('memory.delete'),
+                    icon: 'trash' as const,
+                    danger: true,
+                    onSelect: () => {
+                      void attempt(() => actions.remove(note.id));
+                    },
+                  },
+                ]}
+              />
+            ))}
+          </ul>
+          {automatic > 0 && (
+            <Button variant="danger" onClick={() => void attempt(actions.clearAutomatic)}>
+              {t('memory.deleteAutomatic', { count: automatic })}
+            </Button>
+          )}
+        </section>
+      )}
 
-      <AddNote onAdd={(input) => attempt(() => actions.create(input))} />
+      {tab === 'add' && <AddNote onAdd={(input) => attempt(() => actions.create(input))} />}
     </div>
   );
 }
+
+type Tab = 'usage' | 'pending' | 'kept' | 'add';
 
 function MaxTokens({
   memory,
@@ -224,10 +270,13 @@ function MaxTokens({
 function NoteCard({
   note,
   actions,
+  menu = [],
   onEdit,
 }: {
   note: MemoryDto;
-  actions: React.ReactNode;
+  actions: ReactNode;
+  /** The rarer actions: archive and delete. */
+  menu?: OverflowItem[];
   onEdit: (title: string, content: string) => Promise<void>;
 }) {
   const { t } = useI18n();
@@ -291,37 +340,78 @@ function NoteCard({
     );
   }
 
+  const badges: {
+    key: string;
+    tone: 'warning' | 'neutral' | 'success';
+    short: string;
+    full: string;
+  }[] = [];
+  if (note.provenance.automatic)
+    badges.push({
+      key: 'auto',
+      tone: 'warning',
+      short: t('memory.unconfirmed'),
+      full: t('memory.automatic'),
+    });
+  if (note.provenance.automatic && note.status === 'candidate')
+    badges.push({
+      key: 'held',
+      tone: 'warning',
+      short: t('memory.heldShort'),
+      full: t('memory.heldForValidator'),
+    });
+  if (note.provenance.validatedBy)
+    badges.push({
+      key: 'validated',
+      tone: 'success',
+      short: t('memory.validated'),
+      full: t('memory.validated'),
+    });
+  if (
+    note.provenance.origin === 'agent' &&
+    note.status === 'candidate' &&
+    !note.provenance.automatic
+  )
+    badges.push({
+      key: 'proposed',
+      tone: 'neutral',
+      short: t('memory.proposedByAgent'),
+      full: t('memory.proposedByAgent'),
+    });
+  if (note.status === 'stale' || note.status === 'archived')
+    badges.push({
+      key: 'status',
+      tone: 'warning',
+      short: t(`memory.status.${note.status}` as TranslationKey),
+      full: t(`memory.status.${note.status}` as TranslationKey),
+    });
+
   return (
     <li className={styles.note} data-status={note.status}>
       <div className={styles.noteHead}>
-        <strong>{note.title}</strong>
-        <span className={styles.meta}>
-          {t(`memory.kind.${note.kind}` as TranslationKey)} · {scope}
-          {ownerName ? ` · ${ownerName}` : ''}
-        </span>
-        {note.provenance.automatic && <span className={styles.badge}>{t('memory.automatic')}</span>}
-        {note.provenance.automatic && note.status === 'candidate' && (
-          <span className={styles.badge} data-tone="warning">
-            {t('memory.heldForValidator')}
-          </span>
-        )}
-        {note.provenance.validatedBy && (
-          <span className={styles.badge}>{t('memory.validated')}</span>
-        )}
-        {note.provenance.origin === 'agent' &&
-          note.status === 'candidate' &&
-          !note.provenance.automatic && (
-            <span className={styles.badge}>{t('memory.proposedByAgent')}</span>
-          )}
-        {(note.status === 'stale' || note.status === 'archived') && (
-          <span className={styles.badge} data-tone="warning">
-            {t(`memory.status.${note.status}` as TranslationKey)}
-          </span>
-        )}
+        <div className={styles.noteTitle}>
+          <strong>{note.title}</strong>
+          {badges.map((badge) => (
+            <Badge key={badge.key} dot mono caps={false} tone={badge.tone} title={badge.full}>
+              {badge.short === badge.full ? (
+                badge.full
+              ) : (
+                <>
+                  <span aria-hidden="true">{badge.short}</span>
+                  <span className={styles.srOnly}>{badge.full}</span>
+                </>
+              )}
+            </Badge>
+          ))}
+        </div>
+        <span className={styles.uses}>{t('memory.uses', { count: note.uses })}</span>
       </div>
+      <span className={styles.meta}>
+        {t(`memory.kind.${note.kind}` as TranslationKey)} · {scope}
+        {ownerName ? ` · ${ownerName}` : ''}
+      </span>
       <p className={styles.content}>{note.content}</p>
-      <div className={styles.row}>
-        <span className={styles.meta}>{t('memory.uses', { count: note.uses })}</span>
+      <div className={styles.noteFoot}>
         {actions}
         <Button
           variant="ghost"
@@ -331,6 +421,9 @@ function NoteCard({
         >
           {t('memory.edit')}
         </Button>
+        {menu.length > 0 && (
+          <OverflowMenu label={t('memory.moreActions', { name: note.title })} items={menu} />
+        )}
       </div>
     </li>
   );

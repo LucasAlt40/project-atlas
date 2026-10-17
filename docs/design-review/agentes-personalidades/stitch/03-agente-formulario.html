@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas — Agentes — Criar e editar agente</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface": "#111418",
+            "inverse-surface": "#e1e2e8",
+            "on-primary": "#1000a9",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "on-primary-fixed": "#07006c",
+            "error": "#ffb4ab",
+            "on-secondary-fixed": "#001e2c",
+            "on-tertiary-container": "#570032",
+            "primary": "#c0c1ff",
+            "primary-fixed": "#e1e0ff",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-tertiary-fixed": "#3e0022",
+            "secondary-container": "#00a6e0",
+            "surface-container": "#1d2024",
+            "secondary-fixed": "#c4e7ff",
+            "surface-variant": "#323539",
+            "on-background": "#e1e2e8",
+            "surface-container-high": "#272a2e",
+            "on-secondary-container": "#00374d",
+            "surface-bright": "#36393e",
+            "tertiary": "#ffb0cd",
+            "on-secondary": "#00354a",
+            "on-error": "#690005",
+            "surface-tint": "#c0c1ff",
+            "secondary": "#7bd0ff",
+            "on-secondary-fixed-variant": "#004c69",
+            "primary-container": "#8083ff",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "tertiary-fixed": "#ffd9e4",
+            "on-tertiary": "#640039",
+            "on-surface": "#e1e2e8",
+            "tertiary-container": "#f751a1",
+            "outline-variant": "#464554",
+            "inverse-primary": "#494bd6",
+            "surface-container-low": "#191c20",
+            "error-container": "#93000a",
+            "surface-container-lowest": "#0b0e12",
+            "surface-container-highest": "#323539",
+            "outline": "#908fa0",
+            "secondary-fixed-dim": "#7bd0ff",
+            "on-surface-variant": "#c7c4d7",
+            "inverse-on-surface": "#2e3135",
+            "on-primary-container": "#0d0096",
+            "on-error-container": "#ffdad6",
+            "surface-dim": "#111418",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "background": "#111418"
+          },
+          borderRadius: {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          spacing: {
+            "space-xs": "0.25rem",
+            "space-md": "0.625rem",
+            "space-xl": "1.25rem",
+            "gutter": "0.5rem",
+            "margin": "0.75rem",
+            "space-lg": "0.875rem",
+            "space-sm": "0.375rem"
+          },
+          fontFamily: {
+            "code-lg": ["JetBrains Mono"],
+            "code-sm": ["JetBrains Mono"],
+            "body-lg": ["Geist"],
+            "body-md": ["Geist"],
+            "headline-lg": ["Geist"],
+            "label-sm": ["JetBrains Mono"],
+            "headline-sm": ["Geist"],
+            "code-md": ["JetBrains Mono"],
+            "body-sm": ["Geist"],
+            "label-md": ["Geist"],
+            "display": ["Geist"]
+          },
+          fontSize: {
+            "code-lg": ["0.875rem", { lineHeight: "1.375rem", letterSpacing: "-0.01em", fontWeight: "400" }],
+            "code-sm": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0em", fontWeight: "400" }],
+            "body-lg": ["0.9375rem", { lineHeight: "1.375rem", letterSpacing: "-0.005em", fontWeight: "400" }],
+            "body-md": ["0.8125rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "headline-lg": ["1.375rem", { lineHeight: "1.75rem", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "label-sm": ["0.625rem", { lineHeight: "0.875rem", letterSpacing: "0.04em", fontWeight: "500" }],
+            "headline-sm": ["1.125rem", { lineHeight: "1.5rem", letterSpacing: "-0.015em", fontWeight: "500" }],
+            "code-md": ["0.75rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "body-sm": ["0.75rem", { lineHeight: "1.125rem", letterSpacing: "0.005em", fontWeight: "400" }],
+            "label-md": ["0.75rem", { lineHeight: "1rem", letterSpacing: "0.01em", fontWeight: "500" }],
+            "display": ["1.75rem", { lineHeight: "2.25rem", letterSpacing: "-0.025em", fontWeight: "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 350, 'GRAD' 0, 'opsz' 18;
+      font-size: 17px;
+      line-height: 1;
+    }
+    input::placeholder, textarea::placeholder {
+      color: #908fa0;
+      opacity: 0.6;
+    }
+    /* Custom clean scrollbar */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0e12;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #272a2e;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #464554;
+    }
+  </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface font-body-md antialiased overflow-hidden select-none h-screen w-screen flex">
+<!-- ==================== LEFT SIDEBAR (216px fixed) ==================== -->
+<aside class="fixed top-0 left-0 bottom-0 w-[216px] flex flex-col justify-between py-space-md z-40 bg-surface-container-lowest border-r border-outline-variant/30 shrink-0">
+<!-- Top Area: Brand & Workspace Switcher -->
+<div class="flex flex-col">
+<!-- Minimalist Logo -->
+<div class="px-space-md pb-space-sm pt-space-xs">
+<span class="font-headline-sm text-body-lg font-semibold tracking-tight text-on-surface">Atlas</span>
+</div>
+<!-- Workspace Selector Card -->
+<div class="px-space-xs mt-space-xs mb-space-sm">
+<div class="flex items-center justify-between px-space-sm py-space-xs rounded bg-surface-container-low border border-outline-variant/20 hover:border-outline-variant/40 cursor-pointer transition-colors duration-150">
+<div class="flex flex-col min-w-0 pr-space-xs">
+<span class="font-body-md text-label-md font-medium text-on-surface truncate">Transport ERP</span>
+<span class="font-code-sm text-code-sm text-outline truncate">/dev/transport-erp</span>
+</div>
+<span class="material-symbols-outlined text-outline shrink-0">unfold_more</span>
+</div>
+</div>
+<!-- Navigation Tabs Cluster -->
+<nav class="flex flex-col gap-0.5 mt-space-xs">
+<!-- Workspace -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">space_dashboard</span>
+<span>Workspace</span>
+</a>
+<!-- Workflow -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span>Workflow</span>
+</a>
+<!-- Agentes (ACTIVELY HIGHLIGHTED) -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm bg-surface-container-high text-primary border-l-2 border-primary rounded-none font-label-md text-label-md font-medium" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- Personalidades -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- Specs -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">description</span>
+<span>Specs</span>
+</a>
+<!-- MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">hub</span>
+<span>MCP Hub</span>
+</a>
+</nav>
+</div>
+<!-- Bottom Area: Settings & Version -->
+<div class="flex flex-col gap-space-xs pt-space-sm border-t border-outline-variant/20">
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Configurações</span>
+</a>
+<div class="flex items-center justify-between px-space-md pt-space-xs text-outline font-code-sm text-code-sm">
+<span>Project Atlas</span>
+<span>v0.1.0</span>
+</div>
+</div>
+</aside>
+<!-- ==================== MAIN WRAPPER (TopBar + Content Canvas) ==================== -->
+<div class="flex-1 ml-[216px] flex flex-col h-screen overflow-hidden bg-surface-container-lowest">
+<!-- Top Navigation Bar (48px fixed) -->
+<header class="fixed top-0 right-0 left-[216px] h-12 flex items-center justify-between px-space-lg z-30 border-b border-outline-variant/30 bg-surface-container-lowest">
+<!-- Left: Collapse toggle + Breadcrumb -->
+<div class="flex items-center gap-space-md">
+<button class="flex items-center justify-center p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container-high transition-colors duration-150" title="Recolher painel lateral" type="button">
+<span class="material-symbols-outlined">dock_to_right</span>
+</button>
+<div class="flex items-center gap-space-xs text-label-md font-label-md">
+<span class="text-outline">Transport ERP</span>
+<span class="text-outline-variant">/</span>
+<span class="text-on-surface font-medium">Agentes — Criar e editar agente</span>
+</div>
+</div>
+<!-- Right: Celular Button + Language Switcher -->
+<div class="flex items-center gap-space-md">
+<button class="flex items-center gap-1.5 px-space-sm py-1 rounded bg-surface-container-low border border-outline-variant/30 hover:border-outline-variant/60 text-on-surface text-label-md font-label-md transition-colors duration-150" type="button">
+<span class="material-symbols-outlined">smartphone</span>
+<span>Celular</span>
+</button>
+<div class="h-3 w-px bg-outline-variant/40"></div>
+<!-- Language Switcher -->
+<div class="flex items-center bg-surface-container-low rounded border border-outline-variant/30 p-0.5 font-code-sm text-code-sm">
+<button class="px-1.5 py-0.5 rounded-sm bg-surface-container-high text-primary font-medium" type="button">PT</button>
+<span class="text-outline-variant px-0.5">|</span>
+<button class="px-1.5 py-0.5 rounded-sm text-outline hover:text-on-surface transition-colors duration-150" type="button">EN</button>
+</div>
+</div>
+</header>
+<!-- Scrollable Workspace Canvas (offset by TopBar 48px and Bottom Footer ~52px) -->
+<main class="flex-1 mt-12 mb-[52px] overflow-y-auto px-8 py-6">
+<div class="max-w-[1240px] mx-auto">
+<!-- Header Context -->
+<div class="mb-6">
+<a class="inline-flex items-center gap-1 text-outline hover:text-on-surface text-label-md font-label-md transition-colors duration-150 mb-1.5" href="#">
+<span class="material-symbols-outlined" style="font-size: 15px;">arrow_back</span>
+<span>Agentes</span>
+</a>
+<div class="flex items-baseline gap-3">
+<h1 class="font-headline-lg text-headline-lg font-semibold tracking-tight text-on-surface">Criar agente</h1>
+<span class="text-outline text-body-sm font-body-sm">Configure a identidade, runtime e políticas de isolamento.</span>
+</div>
+</div>
+<!-- Two-Column Asymmetrical Grid Layout -->
+<div class="grid grid-cols-12 gap-6 items-start">
+<!-- ==================== MAIN COLUMN (~68%) ==================== -->
+<div class="col-span-8 flex flex-col gap-6">
+<!-- Section 1: Identidade & papel -->
+<div class="bg-surface-container-low border border-outline-variant/30 rounded-lg p-5">
+<h2 class="font-headline-sm text-body-lg font-semibold text-on-surface tracking-tight mb-4 flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                Identidade &amp; papel
+              </h2>
+<div class="grid grid-cols-1 gap-4">
+<!-- Field: Nome -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface-variant font-medium mb-1.5">
+                    Nome
+                  </label>
+<input class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded px-3 py-1.5 text-body-md font-body-md text-on-surface placeholder:text-outline/50 focus:outline-none focus:border-primary transition-colors duration-150" placeholder="Especialista em Arquitetura" type="text"/>
+</div>
+<!-- Selector: Personalidade -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface-variant font-medium mb-1.5">
+                    Personalidade
+                  </label>
+<div class="relative">
+<select class="w-full appearance-none bg-surface-container-lowest border border-outline-variant/40 rounded px-3 py-1.5 pr-8 text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary transition-colors duration-150 cursor-pointer">
+<option selected="">Arquiteto</option>
+<option>Tech Lead</option>
+<option>Dev Backend</option>
+<option>Engenheiro de QA</option>
+<option>SRE / DevOps</option>
+</select>
+<span class="material-symbols-outlined text-outline absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">expand_more</span>
+</div>
+<p class="font-body-sm text-body-sm text-outline mt-1.5">
+                    Perfil focado em arquitetura.
+                  </p>
+</div>
+</div>
+</div>
+<!-- Section 2: Provedor & runtime de IA -->
+<div class="bg-surface-container-low border border-outline-variant/30 rounded-lg p-5">
+<div class="flex items-center justify-between mb-4">
+<h2 class="font-headline-sm text-body-lg font-semibold text-on-surface tracking-tight flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                  Provedor &amp; runtime de IA
+                </h2>
+<!-- Ghost Action -->
+<button class="inline-flex items-center gap-1.5 text-outline hover:text-on-surface text-label-md font-label-md transition-colors duration-150 py-1 px-2 rounded hover:bg-surface-container-high" type="button">
+<span class="material-symbols-outlined" style="font-size: 15px;">refresh</span>
+<span>Detectar runtimes novamente</span>
+</button>
+</div>
+<div class="grid grid-cols-2 gap-4 mb-4">
+<!-- Provedor de IA -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface-variant font-medium mb-1.5">
+                    Provedor de IA
+                  </label>
+<div class="relative">
+<select class="w-full appearance-none bg-surface-container-lowest border border-outline-variant/40 rounded px-3 py-1.5 pr-8 text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary transition-colors duration-150 cursor-pointer">
+<option selected="">Anthropic</option>
+<option>OpenAI</option>
+<option>Ollama Local</option>
+<option>Mistral AI</option>
+</select>
+<span class="material-symbols-outlined text-outline absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">expand_more</span>
+</div>
+</div>
+<!-- Conexão -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface-variant font-medium mb-1.5">
+                    Conexão
+                  </label>
+<div class="relative">
+<select class="w-full appearance-none bg-surface-container-lowest border border-outline-variant/40 rounded pl-3 pr-28 py-1.5 text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary transition-colors duration-150 cursor-pointer">
+<option selected="">Claude CLI</option>
+<option>Anthropic Direct API Key</option>
+<option>AWS Bedrock</option>
+</select>
+<!-- Status pill embedded on right side of input -->
+<div class="absolute right-7 top-1/2 -translate-y-1/2 pointer-events-none flex items-center gap-1 bg-surface-container-high/90 px-1.5 py-0.5 rounded border border-outline-variant/20 font-code-sm text-code-sm text-[#10b981]">
+<span>✓ Pronto · 2.1.285</span>
+</div>
+<span class="material-symbols-outlined text-outline absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+<!-- ID do modelo -->
+<div class="mb-4">
+<label class="block font-label-md text-label-md text-on-surface-variant font-medium mb-1.5">
+                  ID do modelo
+                </label>
+<input class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded px-3 py-1.5 font-code-md text-code-md text-primary focus:outline-none focus:border-primary transition-colors duration-150" placeholder="ex: sonnet, opus, claude-3-7-sonnet-20250219" type="text" value="sonnet"/>
+<p class="font-body-sm text-body-sm text-outline mt-1.5">
+                  Use um alias como sonnet ou opus, ou o nome completo do modelo.
+                </p>
+</div>
+<!-- Discrete Warning Note -->
+<div class="flex items-start gap-2.5 px-3 py-2 rounded bg-surface-container-lowest border border-outline-variant/30 text-outline">
+<span class="material-symbols-outlined text-outline shrink-0 mt-0.5" style="font-size: 16px;">info</span>
+<span class="font-body-sm text-body-sm leading-relaxed text-on-surface-variant">
+                  Este runtime não suporta edição de arquivos.
+                </span>
+</div>
+</div>
+<!-- Section 3: Instruções adicionais -->
+<div class="bg-surface-container-low border border-outline-variant/30 rounded-lg p-5">
+<h2 class="font-headline-sm text-body-lg font-semibold text-on-surface tracking-tight mb-2 flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                Instruções adicionais
+              </h2>
+<p class="font-body-sm text-body-sm text-outline mb-3">
+                Diretrizes operacionais extras, regras de validação arquitetural ou restrições de código a serem injetadas no prompt do agente.
+              </p>
+<div class="relative">
+<textarea class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded px-3.5 py-2.5 font-code-sm text-code-sm text-on-surface placeholder:text-outline/40 focus:outline-none focus:border-primary transition-colors duration-150 resize-y leading-relaxed" placeholder="// Forneça diretrizes específicas de governança, padrões de domínio e contratos técnicos...
+Exemplo: Sempre priorizar bounded contexts claros, validar diagramas C4 e rejeitar acoplamento circular em pacotes de infraestrutura." rows="7"></textarea>
+<div class="absolute bottom-2.5 right-3 font-code-sm text-code-sm text-outline/60 pointer-events-none">
+                  Markdown / Plaintext
+                </div>
+</div>
+</div>
+</div>
+<!-- ==================== SIDE COLUMN (~32%) ==================== -->
+<div class="col-span-4 flex flex-col gap-6">
+<!-- Section 4: Resultado do agente -->
+<div class="bg-surface-container-low border border-outline-variant/30 rounded-lg p-5">
+<h2 class="font-headline-sm text-body-lg font-semibold text-on-surface tracking-tight mb-3 flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                Resultado do agente
+              </h2>
+<div class="mb-3">
+<label class="block font-label-md text-label-md text-on-surface-variant font-medium mb-1.5">
+                  Contrato de resultado
+                </label>
+<div class="relative">
+<select class="w-full appearance-none bg-surface-container-lowest border border-outline-variant/40 rounded px-3 py-1.5 pr-8 text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary transition-colors duration-150 cursor-pointer">
+<option selected="">Revisão</option>
+<option>Execução direta</option>
+<option>Geração de artefatos</option>
+</select>
+<span class="material-symbols-outlined text-outline absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">expand_more</span>
+</div>
+</div>
+<p class="font-body-sm text-body-sm text-outline mb-3.5">
+                O agente conclui com approved ou changes_requested.
+              </p>
+<!-- Checkbox Options -->
+<div class="flex flex-col gap-2 pt-1 border-t border-outline-variant/20">
+<label class="flex items-center gap-2.5 p-2 rounded bg-surface-container-lowest border border-outline-variant/20 cursor-pointer hover:border-outline-variant/40 transition-colors duration-150">
+<input checked="" class="rounded-sm bg-surface-container-high border-outline-variant/60 text-[#6366f1] focus:ring-0 focus:ring-offset-0 h-3.5 w-3.5 cursor-pointer" type="checkbox"/>
+<div class="flex flex-col">
+<span class="font-code-sm text-code-sm text-on-surface font-medium">approved</span>
+<span class="font-body-sm text-body-sm text-outline">Aprovado</span>
+</div>
+</label>
+<label class="flex items-center gap-2.5 p-2 rounded bg-surface-container-lowest border border-outline-variant/20 cursor-pointer hover:border-outline-variant/40 transition-colors duration-150">
+<input checked="" class="rounded-sm bg-surface-container-high border-outline-variant/60 text-[#6366f1] focus:ring-0 focus:ring-offset-0 h-3.5 w-3.5 cursor-pointer" type="checkbox"/>
+<div class="flex flex-col">
+<span class="font-code-sm text-code-sm text-on-surface font-medium">changes_requested</span>
+<span class="font-body-sm text-body-sm text-outline">Mudanças solicitadas</span>
+</div>
+</label>
+</div>
+</div>
+<!-- Section 5: Permissões e isolamento -->
+<div class="bg-surface-container-low border border-outline-variant/30 rounded-lg p-5">
+<h2 class="font-headline-sm text-body-lg font-semibold text-on-surface tracking-tight mb-3 flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                Permissões e isolamento
+              </h2>
+<div class="mb-2">
+<label class="block font-label-md text-label-md text-on-surface-variant font-medium mb-1.5">
+                  Permissões
+                </label>
+<div class="relative">
+<select class="w-full appearance-none bg-surface-container-lowest border border-outline-variant/40 rounded px-3 py-1.5 pr-8 text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary transition-colors duration-150 cursor-pointer">
+<option selected="">Desenvolvedor</option>
+<option>Leitura estrita</option>
+<option>Administrador total</option>
+</select>
+<span class="material-symbols-outlined text-outline absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">expand_more</span>
+</div>
+</div>
+<!-- Helper tip text -->
+<p class="font-body-sm text-body-sm text-outline leading-relaxed mb-3">
+                Pode editar arquivos e executar comandos de desenvolvimento, no worktree isolado. A política do workspace continua limitando.
+              </p>
+<!-- Suggestion line note -->
+<div class="flex items-center gap-1.5 text-code-sm font-code-sm text-primary mb-4 bg-primary/5 px-2.5 py-1.5 rounded border border-primary/20">
+<span class="material-symbols-outlined text-primary shrink-0" style="font-size: 14px;">lightbulb</span>
+<span>Sugerido pela personalidade Arquiteto. Você pode alterar.</span>
+</div>
+<!-- Git Worktree Isolation Checkbox Card -->
+<div class="p-3 rounded bg-surface-container-lowest border border-outline-variant/30">
+<label class="flex items-start gap-2.5 cursor-pointer">
+<input checked="" class="rounded-sm bg-surface-container-high border-outline-variant/60 text-[#6366f1] focus:ring-0 focus:ring-offset-0 h-3.5 w-3.5 mt-0.5 cursor-pointer" type="checkbox"/>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md font-medium text-on-surface">
+                      Sempre trabalhar em um Git worktree isolado
+                    </span>
+<span class="font-body-sm text-body-sm text-outline mt-1 leading-normal">
+                      Cria uma árvore de trabalho temporária separada do branch principal para evitar conflitos de staging locais durante as operações.
+                    </span>
+</div>
+</label>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- ==================== FIXED FOOTER BAR (52px docked) ==================== -->
+<footer class="fixed bottom-0 right-0 left-[216px] h-[52px] bg-surface-container-low border-t border-outline-variant/30 px-8 flex items-center justify-end gap-3 z-30">
+<button class="px-4 py-1.5 rounded bg-surface-container border border-outline-variant/40 hover:border-outline-variant hover:bg-surface-container-high text-on-surface font-label-md text-label-md transition-colors duration-150" type="button">
+        Cancelar
+      </button>
+<button class="px-5 py-1.5 rounded bg-[#6366f1] hover:bg-[#4f46e5] text-white font-label-md text-label-md font-semibold transition-colors duration-150 flex items-center gap-1.5 active:scale-[0.99]" type="button">
+<span>Criar agente</span>
+</button>
+</footer>
+</div>
+</body></html>

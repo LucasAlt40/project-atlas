@@ -125,9 +125,46 @@
   font-size: 1.0625rem;
 }
 .steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
   margin: 0;
-  padding-left: 1.25rem;
-  color: var(--text-muted);
+  padding: 0;
+  counter-reset: step;
+  list-style: none;
+  color: var(--text-standard);
+}
+.steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+  counter-increment: step;
+}
+.steps li::before {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--accent-soft);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  content: counter(step);
+}
+/* The button waits at the foot of the screen, where the thumb is. */
+.pairAction {
+  position: sticky;
+  bottom: 0;
+  margin: 0.5rem -1.25rem 0;
+  padding: 0.75rem 1.25rem calc(0.75rem + env(safe-area-inset-bottom));
+  background: var(--surface-void);
+}
+.pairAction > button {
+  width: 100%;
 }
 .form {
   display: flex;
@@ -209,13 +246,22 @@
   text-decoration: underline;
 }
 .choices {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.625rem;
 }
 .choices > button {
   width: 100%;
 }
+.choices > button:first-child,
+.choices[data-count='1'] > button,
+.choices[data-count='2'] > button {
+  grid-column: 1 / -1;
+}
+.choices[data-count='2'] > button {
+  grid-column: auto;
+}
+
 .expand {
   min-height: 2.75rem;
   width: 100%;
@@ -230,7 +276,13 @@
 /* Messages */
 .error {
   margin: 0;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
   color: var(--color-danger);
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
 }
 .success {
   margin: 0;
@@ -240,9 +292,13 @@
   color: var(--text-muted);
 }
 .empty {
+  margin: 1rem 0;
   padding: 2rem 1rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
   color: var(--text-muted);
   text-align: center;
+  overflow-wrap: anywhere;
 }
 .callout {
   display: block;
@@ -258,6 +314,19 @@
 }
 .callout[data-tone='bad'] {
   border-left-color: var(--danger);
+}
+.card .callout {
+  padding: 0;
+  border-left: 0;
+  background: transparent;
+  font-size: 1rem;
+  font-weight: 500;
+}
+.card .callout[data-tone='attention'] {
+  color: var(--color-warning);
+}
+.card .callout[data-tone='bad'] {
+  color: var(--color-danger);
 }
 .pre {
   margin: 0;
@@ -304,6 +373,19 @@
 .section {
   margin-bottom: 1.5rem;
 }
+.sectionTitle::before {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--running);
+  content: '';
+}
+.section[data-tone='attention'] .sectionTitle::before {
+  background: var(--warning);
+}
+.section[data-tone='bad'] .sectionTitle::before {
+  background: var(--danger);
+}
 .sectionTitle {
   display: flex;
   align-items: center;
@@ -349,14 +431,14 @@
 .card[data-attention='needs_answer'] {
   border-color: var(--warning);
   background: var(--surface-2);
-  box-shadow: inset 4px 0 0 var(--warning);
+  border-left-width: 4px;
 }
 .card[data-attention='needs_computer'] {
   border-color: var(--warning);
 }
 .card[data-attention='failed'] {
   border-color: var(--danger);
-  box-shadow: inset 4px 0 0 var(--danger);
+  border-left-width: 4px;
 }
 .cardTop {
   display: flex;
@@ -369,28 +451,39 @@
   font-size: 1.0625rem;
   font-weight: 600;
 }
-.cardMeta {
-  color: var(--text-muted);
-  font-size: 0.875rem;
-}
-.cardTask {
-  display: -webkit-box;
+.cardLine {
+  display: block;
   overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-}
-.cardCurrent {
-  display: flex;
-  flex-direction: column;
   color: var(--text-muted);
   font-size: 0.875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cardLine > span + span::before {
+  content: ' · ';
 }
 .cardFoot {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
   gap: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+.cardProgress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.5rem;
+  min-width: 0;
+}
+.cardProgress > span + span::before {
+  content: '· ';
   color: var(--text-dim);
+}
+.cardTime {
+  flex: none;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
   font-size: 0.8125rem;
 }
 .footer {
@@ -422,12 +515,96 @@
   font-size: 1.25rem;
   line-height: 1.3;
 }
-.task {
+.runMeta {
   margin: 0;
-  padding: 0.625rem 0.75rem;
-  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+.taskBox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
+  color: var(--text-standard);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.taskLabel {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+.taskText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.taskText[data-open='true'] {
   white-space: pre-wrap;
+}
+.taskBox[aria-expanded='true'] .foldChevron {
+  transform: rotate(180deg);
+}
+/* A block of the run that folds down to its title and one line. */
+.fold {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+}
+.foldHead {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3rem;
+  padding: 0.625rem 0.875rem;
+  list-style: none;
+  cursor: pointer;
+}
+.foldHead::-webkit-details-marker {
+  display: none;
+}
+.foldText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.foldTitle {
+  color: var(--text-high);
+  font-weight: 600;
+}
+.foldLine {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+.foldChevron {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.25rem;
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
+  transform: rotate(45deg);
+  transition: transform 0.15s;
+}
+.fold[open] > .foldHead .foldChevron {
+  transform: rotate(-135deg);
+}
+.foldBody {
+  padding: 0.25rem 0.875rem 0.875rem;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 0.875rem;
 }
 .panel {
   padding: 0.875rem 1rem;
@@ -466,9 +643,37 @@ summary.panelTitle {
   flex-direction: column;
   gap: 0.75rem;
   padding: 1rem;
-  border: 2px solid var(--warning);
+  border: 1px solid var(--border-strong);
+  border-left: 4px solid var(--warning);
   border-radius: var(--radius-lg);
-  background: var(--surface-2);
+  background: var(--surface-1);
+}
+/* The answers stay in reach of the thumb: this bar sticks to the bottom of the screen while the
+   question is being read, above the keyboard, clear of the home indicator. */
+.actionBar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  margin: 0 -1rem -1rem;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border-subtle);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  background: var(--surface-base);
+}
+.noteToggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 .kind {
   margin: 0;

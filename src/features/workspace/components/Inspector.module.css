@@ -1,14 +1,20 @@
 .facts {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+  gap: var(--space-2);
   margin: 0;
   font-size: var(--font-size-sm);
 }
 .fact {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
   gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-base);
 }
 .fact dt {
   color: var(--text-muted);
@@ -224,4 +230,98 @@
   margin: 0 0 var(--space-2);
   color: var(--warning);
   letter-spacing: 0.04em;
+}
+
+/* The inspector: a wide panel, the facts on the left and the timeline of events beside them. */
+.inspectorHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  padding-right: calc(var(--space-5) + 1.5rem);
+}
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+}
+.titleText {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+.titleText h2 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+}
+.subtitle {
+  margin: 0;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.titleChips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.chip {
+  padding: 2px var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-base);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  white-space: nowrap;
+}
+.inspectorBody {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+}
+.inspectorBody[data-aside='true'] {
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+}
+.inspectorMain {
+  min-width: 0;
+  padding: var(--space-4) var(--space-5);
+  overflow-y: auto;
+}
+.sectionTitle {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-base);
+}
+.inspectorAside {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--space-4);
+  overflow-y: auto;
+  border-left: 1px solid var(--border-subtle);
+  background: var(--surface-base);
+}
+.asideHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.asideHead h3 {
+  margin: 0;
+  font-size: var(--font-size-base);
+}
+@media (max-width: 62rem) {
+  .inspectorBody[data-aside='true'] {
+    grid-template-columns: minmax(0, 1fr);
+    overflow-y: auto;
+  }
+  .inspectorAside {
+    border-top: 1px solid var(--border-subtle);
+    border-left: 0;
+    overflow: visible;
+  }
 }

@@ -57,12 +57,12 @@ describe('WorkspacePage', () => {
     show(['a1', 'a2']);
 
     const architectCard = await screen.findByRole('article', { name: 'Architect' });
-    expect(
-      within(architectCard).getByText(/Architect · Claude CLI · Anthropic/),
-    ).toBeInTheDocument();
+    expect(architectCard).toHaveTextContent(
+      /Personality: Architect\s*Runtime: Claude CLI\s*Provider: Anthropic/,
+    );
     expect(within(architectCard).getByText('sonnet')).toBeInTheDocument();
     expect(statusOf('Architect')).toHaveTextContent('Ready');
-    expect(within(card('Developer')).getByText(/OpenCode CLI · OpenCode/)).toBeInTheDocument();
+    expect(card('Developer')).toHaveTextContent(/Runtime: OpenCode CLI\s*Provider: OpenCode/);
     expect(screen.getAllByText('Available')).toHaveLength(2);
     expect(screen.getByRole('heading', { name: 'Atlas' })).toBeInTheDocument();
   });
@@ -91,7 +91,7 @@ describe('WorkspacePage', () => {
     show(['a1']);
 
     await user.click(await screen.findByRole('button', { name: 'Manage the projects of Atlas' }));
-    const panel = await screen.findByRole('dialog', { name: 'Projects of Atlas' });
+    const panel = await screen.findByRole('region', { name: 'Projects of Atlas' });
     expect(await within(panel).findByText('/dev/atlas')).toBeInTheDocument();
     expect(within(panel).getByText('Angular')).toBeInTheDocument();
   });
@@ -128,9 +128,8 @@ describe('WorkspacePage', () => {
       workspace(W1, 'Atlas', '/dev/atlas', ['a2']),
     );
 
-    await user.click(
-      await screen.findByRole('button', { name: 'Remove Architect from workspace' }),
-    );
+    await user.click(await screen.findByRole('button', { name: 'More actions for Architect' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Remove Architect from workspace' }));
 
     expect(removeAgentFromWorkspace).toHaveBeenCalledWith(W1, 'a1');
     await waitFor(() => {
@@ -451,8 +450,11 @@ describe('WorkspacePage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Welcome to Atlas' })).toBeInTheDocument();
     expect(
-      screen.getByText('Create your first workspace to start working with agents.'),
+      screen.getByText(
+        'A workspace brings together a project, its agents and the context they share.',
+      ),
     ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Choose the project folder' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Create Workspace' })).toBeInTheDocument();
   });
 

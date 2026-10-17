@@ -1,23 +1,22 @@
 /* MCP Hub. Panels are delimited by 1px strokes (no shadows); micro controls 4px, containers 6px. */
 .page {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
 }
-.topbar {
+.pageHead {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-3) var(--space-5);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
 }
-.crumbs {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--text-dim);
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
+.heading {
+  flex: 1 1 24rem;
+  min-width: 0;
 }
 .heading h1 {
   margin: 0;
@@ -237,40 +236,26 @@
   gap: var(--space-2);
 }
 
-/* Telemetry cards */
+/* The six numbers of the hub as one quiet line, each with its hint as a tooltip. */
 .metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-  gap: var(--space-3);
-  margin: 0;
-}
-.metric {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--surface-1);
-}
-.metric dt {
+  flex-wrap: wrap;
+  gap: var(--space-1) 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
   color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 0.625rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: var(--font-size-sm);
 }
-.metric dd {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-2);
-  margin: 0;
+.metric + .metric::before {
+  content: '·';
+  margin: 0 var(--space-3);
+  color: var(--text-dim);
 }
 .metricValue {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xl);
   color: var(--text-high);
+  font-family: var(--font-mono);
+  font-weight: 500;
 }
 .metric[data-tone='ok'] .metricValue {
   color: var(--success);
@@ -280,9 +265,6 @@
 }
 .metricHint {
   color: var(--text-dim);
-  font-family: var(--font-mono);
-  font-size: 0.625rem;
-  text-align: right;
 }
 
 /* Filters */
@@ -359,7 +341,8 @@
   gap: var(--space-4);
   align-items: start;
 }
-@media (max-width: 1100px) {
+/* Narrow page: list and inspector stack (the inspector follows the selected server). */
+@container (max-width: 62rem) {
   .split {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -375,11 +358,19 @@
 .empty {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
+  align-items: center;
+  width: min(100%, 36rem);
+  margin: var(--space-5) auto;
   padding: var(--space-5);
-  border: 1px dashed var(--border-strong);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
+  background: var(--surface-1);
   color: var(--text-muted);
+  text-align: center;
+}
+.empty > .row {
+  justify-content: center;
 }
 .empty p {
   margin: 0;
@@ -402,17 +393,21 @@
 .card[data-status='off'] {
   opacity: 0.8;
 }
+.card[data-status='off'] .cardNameText {
+  color: var(--text-muted);
+}
 .cardHead {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
 }
 .cardTitle {
   display: flex;
-  flex: 1;
-  align-items: flex-start;
-  gap: var(--space-3);
+  flex: 1 1 12rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
   min-width: 0;
   padding: 0;
   border: 0;
@@ -422,30 +417,84 @@
   text-align: left;
   cursor: pointer;
 }
-.cardIcon {
-  display: inline-flex;
-  padding: var(--space-2);
+.cardNameText {
+  color: var(--text-high);
+  font-size: var(--font-size-lg);
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+}
+.command {
+  display: block;
+  overflow: hidden;
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  background: var(--surface-3);
-  color: var(--accent-soft);
+  background: var(--surface-void);
+  color: var(--text-standard);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.cardName {
+.card[data-status='off'] .command {
+  color: var(--text-dim);
+}
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) 0;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+.summary span + span::before {
+  content: '·';
+  margin: 0 var(--space-3);
+  color: var(--text-dim);
+}
+.warnings {
+  --tone: var(--warning);
+  border: 1px solid color-mix(in srgb, var(--tone) 40%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--tone) 8%, transparent);
+}
+.warnings[data-tone='danger'] {
+  --tone: var(--danger);
+}
+.warningsToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  background: transparent;
+  color: var(--tone);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+.warningsToggle svg:last-child {
+  margin-left: auto;
+}
+.warningList {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  min-width: 0;
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-3) var(--space-5);
+  color: var(--tone);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
 }
-.nameLine {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-.cardState {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
+.emptyIcon {
+  display: inline-flex;
+  align-self: center;
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-muted);
 }
 .rowButton {
   display: flex;
@@ -616,12 +665,14 @@
 }
 .tabsBar {
   display: flex;
-  flex-wrap: wrap;
   gap: var(--space-1);
+  overflow-x: auto;
   padding: 0 var(--space-3);
   border-bottom: 1px solid var(--border-subtle);
 }
 .tab {
+  flex: none;
+  white-space: nowrap;
   padding: var(--space-3);
   border: 0;
   border-bottom: 2px solid transparent;
@@ -632,8 +683,8 @@
   cursor: pointer;
 }
 .tab[aria-selected='true'] {
-  border-bottom-color: var(--accent);
-  color: var(--text-high);
+  border-bottom-color: var(--accent-soft);
+  color: var(--accent-soft);
 }
 .toolList {
   display: flex;
@@ -687,6 +738,7 @@
 }
 .matrix th:first-child {
   text-align: left;
+  white-space: nowrap;
 }
 .matrix thead th {
   color: var(--text-muted);
@@ -694,18 +746,6 @@
   font-size: 0.625rem;
   font-weight: 500;
   text-transform: uppercase;
-}
-.matrix td[data-state='has'] {
-  color: var(--success);
-}
-.matrix td[data-state='adds'],
-.matrix td[data-state='imports'] {
-  color: var(--info);
-  font-weight: 600;
-}
-.matrix td[data-state='blocked'],
-.matrix td[data-state='none'] {
-  color: var(--text-dim);
 }
 
 /* Controls: dark native widgets, accent on ticks. */
@@ -775,4 +815,109 @@
 }
 .fold[open] summary {
   margin-bottom: var(--space-3);
+}
+
+/* Add a server: one bordered card per known server. */
+.preset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+.preset[data-planned='true'] {
+  opacity: 0.85;
+}
+.presetTitle {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-lg);
+}
+.wouldRun {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-void);
+  font-size: 0.75rem;
+}
+.wouldRun span {
+  color: var(--accent-soft);
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+.wouldRun code {
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+.mutedItalic {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  font-style: italic;
+}
+.presetFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+.requirements {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Sync: the state of each CLI's file, then the servers against the CLIs. */
+.cliStates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cliState {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-void);
+}
+.cliPath {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dialogFoot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+.matrixWrap {
+  overflow-x: auto;
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { SpecView } from '../types';
+import { PanelSection } from './PanelSection';
 import styles from './Specs.module.css';
 
 interface Props {
@@ -29,26 +30,22 @@ export function PublishPanel({ view, busy, onPublish, onArchive }: Props) {
     view.readiness.blockers.every((b) => b.code.startsWith('publication_'));
 
   return (
-    <section className={styles.panel} aria-label={t('specs.publish.title')}>
-      <header className={styles.panelHead}>
-        <h3>{t('specs.publish.title')}</h3>
-        <span
-          className={styles.panelTag}
-          data-tone={
-            publication.state === 'published' && view.publicationCurrent
-              ? 'success'
-              : publication.state === 'failed'
-                ? 'danger'
-                : 'neutral'
-          }
-        >
-          {t(
-            publication.state === 'published' && !view.publicationCurrent
-              ? 'specs.publish.state.outdated'
-              : `specs.publish.state.${publication.state}`,
-          )}
-        </span>
-      </header>
+    <PanelSection
+      title={t('specs.publish.title')}
+      tone={
+        publication.state === 'published' && view.publicationCurrent
+          ? 'success'
+          : publication.state === 'failed'
+            ? 'danger'
+            : 'neutral'
+      }
+      defaultOpen={publication.state === 'failed'}
+      tag={t(
+        publication.state === 'published' && !view.publicationCurrent
+          ? 'specs.publish.state.outdated'
+          : `specs.publish.state.${publication.state}`,
+      )}
+    >
       <p className={styles.muted}>{t('specs.publish.intro')}</p>
       {publication.state === 'published' && (
         <p className={styles.mono}>
@@ -101,6 +98,6 @@ export function PublishPanel({ view, busy, onPublish, onArchive }: Props) {
           {view.projectAvailable ? t('specs.publish.needsReady') : t('specs.why.project_missing')}
         </p>
       )}
-    </section>
+    </PanelSection>
   );
 }

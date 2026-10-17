@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
+import { formatCost, formatDuration } from '@/features/usage/model/format';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { TranslationKey } from '@/i18n';
 import type { PendingInteractionDto, WorkflowLinkDto } from '@/lib/tauri/commands';
@@ -39,44 +41,80 @@ export function ExecutionInspector({
   onOpenWorkflow,
   asked,
 }: Props) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [tab, setTab] = useState<Tab>('details');
   const mine = messages.filter((message) => message.executionId === execution.id);
+  const facts = factsFromStored(execution);
+  const run = runFromStored(execution);
+  const duration = facts.endedAt === null ? null : facts.endedAt - facts.startedAt;
+  const cost =
+    facts.usage?.cost === null || facts.usage?.cost === undefined
+      ? null
+      : formatCost(facts.usage.cost, facts.usage.currency, language);
+  const statusTone =
+    facts.status === 'completed' ? 'success' : facts.status === 'failed' ? 'danger' : 'warning';
 
   return (
-    <Modal label={t('inspector.title', { id: shortId(execution.id) })} onClose={onClose}>
-      {execution.workflow && (
-        <nav className={styles.breadcrumb} aria-label={t('inspector.breadcrumb')}>
-          <ol>
-            <li>
-              {onOpenWorkflow ? (
-                <button
-                  type="button"
-                  className={styles.crumbLink}
-                  onClick={() => {
-                    if (execution.workflow) onOpenWorkflow(execution.workflow);
-                  }}
-                >
-                  {t('inspector.breadcrumb.workflow')}
-                </button>
-              ) : (
-                t('inspector.breadcrumb.workflow')
-              )}
-            </li>
-            <li>{execution.workflow.workflowName}</li>
-            <li>
-              {execution.workflow.nodeLabel}
-              {execution.workflow.attempt > 1 &&
-                ` (${t('inspector.breadcrumb.attempt', { attempt: execution.workflow.attempt })})`}
-            </li>
-            <li aria-current="page">
-              {t('inspector.breadcrumb.execution', { id: shortId(execution.id) })}
-            </li>
-          </ol>
-        </nav>
-      )}
-      <h2>{t('inspector.title', { id: shortId(execution.id) })}</h2>
-      <div className={styles.tabs} role="tablist" aria-label={t('inspector.tabs')}>
+    <Modal
+      label={t('inspector.title', { id: shortId(execution.id) })}
+      onClose={onClose}
+      size="inspector"
+    >
+      <header className={styles.inspectorHead}>
+        {execution.workflow && (
+          <nav className={styles.breadcrumb} aria-label={t('inspector.breadcrumb')}>
+            <ol>
+              <li>
+                {onOpenWorkflow ? (
+                  <button
+                    type="button"
+                    className={styles.crumbLink}
+                    onClick={() => {
+                      if (execution.workflow) onOpenWorkflow(execution.workflow);
+                    }}
+                  >
+                    {t('inspector.breadcrumb.workflow')}
+                  </button>
+                ) : (
+                  t('inspector.breadcrumb.workflow')
+                )}
+              </li>
+              <li>{execution.workflow.workflowName}</li>
+              <li>
+                {execution.workflow.nodeLabel}
+                {execution.workflow.attempt > 1 &&
+                  ` (${t('inspector.breadcrumb.attempt', { attempt: execution.workflow.attempt })})`}
+              </li>
+              <li aria-current="page">
+                {t('inspector.breadcrumb.execution', { id: shortId(execution.id) })}
+              </li>
+            </ol>
+          </nav>
+        )}
+        <div className={styles.titleRow}>
+          <Badge mono>{t('inspector.badge', { id: shortId(execution.id) })}</Badge>
+          <div className={styles.titleText}>
+            <h2>{t('inspector.title', { id: shortId(execution.id) })}</h2>
+            {facts.task && <p className={styles.subtitle}>{facts.task}</p>}
+          </div>
+          <span className={styles.titleChips}>
+            <Badge dot tone={statusTone}>
+              {t(`agent.status.${facts.status}`)}
+            </Badge>
+            {duration !== null && (
+              <span className={styles.chip}>
+                {t('inspector.duration')}: {formatDuration(duration)}
+              </span>
+            )}
+            {cost && (
+              <span className={styles.chip}>
+                {t('details.cost')}: {cost}
+              </span>
+            )}
+          </span>
+        </div>
+      </header>
+      <div className={terminalStyles.tabs} role="tablist" aria-label={t('inspector.tabs')}>
         {TABS.map((name) => (
           <button
             key={name}
@@ -89,31 +127,51 @@ export function ExecutionInspector({
             }}
           >
             {t(`inspector.tab.${name}` as TranslationKey)}
+            {name === 'activity' && run.activity.length > 0 && (
+              <span aria-hidden="true"> {run.activity.length}</span>
+            )}
           </button>
         ))}
       </div>
-      <div role="tabpanel">
-        {tab === 'details' && (
-          <ExecutionDetails
-            facts={factsFromStored(execution)}
-            context={context}
-            {...(asked ? { asked } : {})}
-          />
+      <div className={styles.inspectorBody} data-aside={tab !== 'activity'}>
+        <div role="tabpanel" className={styles.inspectorMain}>
+          {tab === 'details' && (
+            <>
+              <h3 className={styles.sectionTitle}>{t('inspector.parameters')}</h3>
+              <ExecutionDetails
+                facts={facts}
+                context={context}
+                showTask={false}
+                {...(asked ? { asked } : {})}
+              />
+            </>
+          )}
+          {tab === 'context' &&
+            (execution.manifest ? (
+              <ContextPlatformPanel execution={execution} />
+            ) : (
+              <p className={styles.note}>{t('inspector.context.none')}</p>
+            ))}
+          {tab === 'activity' && <AgentActivity run={run} />}
+          {tab === 'chat' &&
+            (mine.length > 0 ? (
+              <AgentMessageList messages={mine} />
+            ) : (
+              <p className={styles.note}>{t('inspector.noMessages')}</p>
+            ))}
+          {tab === 'terminal' && <p className={styles.note}>{t('inspector.terminalNotSaved')}</p>}
+        </div>
+        {tab !== 'activity' && (
+          <aside className={styles.inspectorAside} aria-label={t('inspector.timeline')}>
+            <div className={styles.asideHead}>
+              <h3>{t('inspector.timeline')}</h3>
+              <span className={styles.chip}>
+                {t('inspector.events', { count: run.activity.length })}
+              </span>
+            </div>
+            <AgentActivity run={run} />
+          </aside>
         )}
-        {tab === 'context' &&
-          (execution.manifest ? (
-            <ContextPlatformPanel execution={execution} />
-          ) : (
-            <p className={styles.note}>{t('inspector.context.none')}</p>
-          ))}
-        {tab === 'activity' && <AgentActivity run={runFromStored(execution)} />}
-        {tab === 'chat' &&
-          (mine.length > 0 ? (
-            <AgentMessageList messages={mine} />
-          ) : (
-            <p className={styles.note}>{t('inspector.noMessages')}</p>
-          ))}
-        {tab === 'terminal' && <p className={styles.note}>{t('inspector.terminalNotSaved')}</p>}
       </div>
     </Modal>
   );

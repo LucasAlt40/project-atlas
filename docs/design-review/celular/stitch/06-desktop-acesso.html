@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas Orchestrator — Acesso pelo celular</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Fonts: Geist and JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "outline": "#908fa0",
+            "on-secondary": "#00354a",
+            "tertiary-container": "#f751a1",
+            "on-error-container": "#ffdad6",
+            "tertiary": "#ffb0cd",
+            "secondary-fixed": "#c4e7ff",
+            "surface-container": "#1d2024",
+            "on-secondary-container": "#00374d",
+            "on-tertiary-fixed": "#3e0022",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "secondary": "#7bd0ff",
+            "on-tertiary": "#640039",
+            "surface": "#111418",
+            "on-primary": "#1000a9",
+            "on-tertiary-container": "#570032",
+            "surface-container-highest": "#323539",
+            "error-container": "#93000a",
+            "tertiary-fixed": "#ffd9e4",
+            "surface-bright": "#36393e",
+            "surface-container-high": "#272a2e",
+            "primary": "#c0c1ff",
+            "primary-fixed": "#e1e0ff",
+            "on-error": "#690005",
+            "on-surface": "#e1e2e8",
+            "background": "#111418",
+            "secondary-fixed-dim": "#7bd0ff",
+            "secondary-container": "#00a6e0",
+            "on-background": "#e1e2e8",
+            "surface-dim": "#111418",
+            "on-surface-variant": "#c7c4d7",
+            "outline-variant": "#464554",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "on-secondary-fixed": "#001e2c",
+            "surface-container-lowest": "#0b0e12",
+            "surface-tint": "#c0c1ff",
+            "on-primary-container": "#0d0096",
+            "primary-container": "#8083ff",
+            "inverse-surface": "#e1e2e8",
+            "error": "#ffb4ab",
+            "inverse-on-surface": "#2e3135",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-secondary-fixed-variant": "#004c69",
+            "inverse-primary": "#494bd6",
+            "on-primary-fixed": "#07006c",
+            "surface-variant": "#323539",
+            "surface-container-low": "#191c20"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-lg": "0.875rem",
+            "space-xl": "1.25rem",
+            "gutter": "0.5rem",
+            "margin": "0.75rem",
+            "space-sm": "0.375rem",
+            "space-md": "0.625rem",
+            "space-xs": "0.25rem"
+          },
+          "fontFamily": {
+            "body-sm": ["Geist"],
+            "headline-lg": ["Geist"],
+            "body-lg": ["Geist"],
+            "label-md": ["Geist"],
+            "code-sm": ["JetBrains Mono"],
+            "code-md": ["JetBrains Mono"],
+            "label-sm": ["JetBrains Mono"],
+            "body-md": ["Geist"],
+            "headline-sm": ["Geist"],
+            "code-lg": ["JetBrains Mono"],
+            "display": ["Geist"]
+          },
+          "fontSize": {
+            "body-sm": ["0.75rem", { "lineHeight": "1.125rem", "letterSpacing": "0.005em", "fontWeight": "400" }],
+            "headline-lg": ["1.375rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "body-lg": ["0.9375rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "label-md": ["0.75rem", { "lineHeight": "1rem", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "code-sm": ["0.6875rem", { "lineHeight": "1rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "code-md": ["0.75rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "label-sm": ["0.625rem", { "lineHeight": "0.875rem", "letterSpacing": "0.04em", "fontWeight": "500" }],
+            "body-md": ["0.8125rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-sm": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.015em", "fontWeight": "500" }],
+            "code-lg": ["0.875rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+            "display": ["1.75rem", { "lineHeight": "2.25rem", "letterSpacing": "-0.025em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-family: 'Material Symbols Outlined';
+      font-weight: normal;
+      font-style: normal;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+      white-space: nowrap;
+      word-wrap: normal;
+      direction: ltr;
+      -webkit-font-feature-settings: 'liga';
+      -webkit-font-smoothing: antialiased;
+    }
+    /* Subtle custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0e12;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #272a2e;
+      border-radius: 2px;
+    }
+  </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface antialiased overflow-hidden select-none w-screen h-screen">
+<!-- ========================================================================= -->
+<!-- 1. LEFT PERSISTENT SIDEBAR (216px)                                        -->
+<!-- ========================================================================= -->
+<aside class="fixed top-0 left-0 bottom-0 w-[216px] flex flex-col justify-between py-space-md z-20 bg-surface-container-lowest border-r border-outline-variant/30 select-none">
+<!-- Top Block: Brand & Workspace Selector & Navigation -->
+<div class="flex flex-col gap-space-md">
+<!-- Brand Anchor: Icon + Text "Atlas" only -->
+<div class="px-space-md flex items-center gap-2 h-7">
+<span class="material-symbols-outlined text-primary text-[18px]">polyline</span>
+<span class="font-headline-sm text-body-lg font-bold tracking-tight text-on-surface">Atlas</span>
+</div>
+<!-- Workspace Selector -->
+<div class="px-space-md">
+<div class="flex flex-col px-space-sm py-1.5 rounded-lg bg-surface-container-low border border-outline-variant/30 hover:border-outline-variant/60 transition-colors cursor-pointer group">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface font-semibold truncate">Transport ERP</span>
+<span class="material-symbols-outlined text-outline group-hover:text-on-surface text-[14px]">unfold_more</span>
+</div>
+<span class="font-code-sm text-code-sm text-outline truncate mt-0.5">/dev/transport-erp</span>
+</div>
+</div>
+<!-- Primary Navigation -->
+<nav class="flex flex-col gap-0.5 mt-1">
+<!-- Workspace (ACTIVE) -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm bg-surface-container-high text-primary border-l-2 border-primary rounded-none font-medium" href="#">
+<span class="material-symbols-outlined text-[16px]">space_dashboard</span>
+<span class="font-label-md text-label-md">Workspace</span>
+</a>
+<!-- Workflow -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[16px]">account_tree</span>
+<span class="font-label-md text-label-md">Workflow</span>
+</a>
+<!-- Agentes -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[16px]">smart_toy</span>
+<span class="font-label-md text-label-md">Agentes</span>
+</a>
+<!-- Personalidades -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[16px]">psychology</span>
+<span class="font-label-md text-label-md">Personalidades</span>
+</a>
+<!-- Specs -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[16px]">description</span>
+<span class="font-label-md text-label-md">Specs</span>
+</a>
+<!-- MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[16px]">hub</span>
+<span class="font-label-md text-label-md">MCP Hub</span>
+</a>
+<!-- Configurações -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 mt-1 border-t border-outline-variant/20 pt-2" href="#">
+<span class="material-symbols-outlined text-[16px]">settings</span>
+<span class="font-label-md text-label-md">Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Footer: Clean label with no state dot -->
+<div class="px-space-md pt-2 border-t border-outline-variant/20">
+<span class="font-code-sm text-code-sm text-outline tracking-tight">Project Atlas v0.1.5</span>
+</div>
+</aside>
+<!-- ========================================================================= -->
+<!-- 2. TOP NAVIGATION BAR (48px)                                              -->
+<!-- ========================================================================= -->
+<header class="fixed top-0 right-0 left-[216px] h-12 flex items-center justify-between px-space-lg z-20 border-b border-outline-variant/30 bg-surface-container-lowest select-none">
+<!-- Left: Collapse toggle + Breadcrumb -->
+<div class="flex items-center gap-3">
+<button class="flex items-center justify-center p-1 text-outline hover:text-on-surface hover:bg-surface-container-high rounded transition-colors" title="Alternar barra lateral">
+<span class="material-symbols-outlined text-[18px]">dock_to_right</span>
+</button>
+<div class="h-3.5 w-[1px] bg-outline-variant/40"></div>
+<nav class="flex items-center gap-1.5 font-label-md text-label-md text-outline">
+<span>Transport ERP</span>
+<span class="text-outline-variant text-[10px]">/</span>
+<span class="text-on-surface font-medium">Workspace</span>
+</nav>
+</div>
+<!-- Right: "Celular" (Active) + Language Switcher "PT | EN" -->
+<div class="flex items-center gap-3">
+<!-- Active 'Celular' Button opening this dialog -->
+<button class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-primary text-on-primary font-label-md text-label-md font-medium shadow-sm transition-transform active:scale-[0.98]">
+<span class="material-symbols-outlined text-[15px]">phone_iphone</span>
+<span>Celular</span>
+</button>
+<div class="h-3.5 w-[1px] bg-outline-variant/40"></div>
+<!-- Language selector -->
+<div class="flex items-center gap-1 px-1.5 py-0.5 rounded border border-outline-variant/30 bg-surface-container-low font-code-sm text-code-sm">
+<span class="text-on-surface font-semibold">PT</span>
+<span class="text-outline-variant">|</span>
+<span class="text-outline hover:text-on-surface cursor-pointer">EN</span>
+</div>
+</div>
+</header>
+<!-- ========================================================================= -->
+<!-- 3. BACKGROUND CANVAS (Workspace 2x2 grid, dimmed/blurred)                -->
+<!-- ========================================================================= -->
+<main class="fixed inset-0 left-[216px] top-12 p-space-lg bg-surface-container-lowest overflow-hidden filter blur-[3px] opacity-40 pointer-events-none">
+<!-- Subheader toolbar mock in background -->
+<div class="flex items-center justify-between pb-3 mb-3 border-b border-outline-variant/20">
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-headline-sm font-semibold">Workspace Grid</span>
+<span class="font-code-sm text-code-sm px-2 py-0.5 rounded bg-surface-container text-outline">4 Agentes Ativos</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="h-7 w-20 bg-surface-container rounded"></div>
+</div>
+</div>
+<!-- 2x2 Agent Cards Grid -->
+<div class="grid grid-cols-2 grid-rows-2 gap-3 h-[calc(100vh-130px)]">
+<!-- Agent 1 -->
+<div class="p-4 bg-surface-container-low border border-outline-variant/30 rounded flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary">database</span>
+<span class="font-label-md font-semibold">Schema Validator</span>
+</div>
+<span class="font-code-sm text-code-sm text-secondary">idle</span>
+</div>
+<div class="bg-surface-container-lowest p-2 rounded font-code-sm text-outline border border-outline-variant/20 h-28">
+          [14:22:04] PostgreSQL pool synched (0.8ms)<br/>
+          [14:22:05] Schema diff verified: no breaking changes
+        </div>
+<div class="flex justify-between items-center text-outline font-label-sm">
+<span>Mem: 42MB</span>
+<span>Worker: #01</span>
+</div>
+</div>
+<!-- Agent 2 -->
+<div class="p-4 bg-surface-container-low border border-outline-variant/30 rounded flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">alt_route</span>
+<span class="font-label-md font-semibold">Route Optimizer</span>
+</div>
+<span class="font-code-sm text-code-sm text-primary">executing</span>
+</div>
+<div class="bg-surface-container-lowest p-2 rounded font-code-sm text-outline border border-outline-variant/20 h-28">
+          [14:23:01] Processing transport nodes (cluster SaoPaulo-North)<br/>
+          [14:23:02] Heuristic search step 3/10
+        </div>
+<div class="flex justify-between items-center text-outline font-label-sm">
+<span>Mem: 118MB</span>
+<span>Worker: #04</span>
+</div>
+</div>
+<!-- Agent 3 -->
+<div class="p-4 bg-surface-container-low border border-outline-variant/30 rounded flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-tertiary">receipt_long</span>
+<span class="font-label-md font-semibold">Invoice OCR Engine</span>
+</div>
+<span class="font-code-sm text-code-sm text-outline">waiting_approval</span>
+</div>
+<div class="bg-surface-container-lowest p-2 rounded font-code-sm text-outline border border-outline-variant/20 h-28">
+          [14:23:30] Awaiting operator confirmation for invoice #9812<br/>
+          [14:23:30] Confidence: 89.4%
+        </div>
+<div class="flex justify-between items-center text-outline font-label-sm">
+<span>Mem: 84MB</span>
+<span>Worker: #02</span>
+</div>
+</div>
+<!-- Agent 4 -->
+<div class="p-4 bg-surface-container-low border border-outline-variant/30 rounded flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline">sync</span>
+<span class="font-label-md font-semibold">Telemetry Dispatcher</span>
+</div>
+<span class="font-code-sm text-code-sm text-outline">standby</span>
+</div>
+<div class="bg-surface-container-lowest p-2 rounded font-code-sm text-outline border border-outline-variant/20 h-28">
+          [14:23:44] Local port open at 192.168.1.20:47831<br/>
+          [14:23:44] Handshake protocol active
+        </div>
+<div class="flex justify-between items-center text-outline font-label-sm">
+<span>Mem: 19MB</span>
+<span>Worker: #00</span>
+</div>
+</div>
+</div>
+</main>
+<!-- ========================================================================= -->
+<!-- 4. MODAL OVERLAY BACKDROP & MODAL DIALOG CONTAINER                        -->
+<!-- ========================================================================= -->
+<div class="fixed inset-0 left-[216px] top-12 z-30 flex items-center justify-center p-4 bg-[#0b0d10]/75 backdrop-blur-sm">
+<!-- MODAL BOX: 860px width, dense, zero unnecessary padding -->
+<div class="w-[860px] bg-surface-container-low border border-outline-variant/40 rounded-lg shadow-2xl flex flex-col overflow-hidden text-on-surface">
+<!-- MODAL HEADER -->
+<div class="px-5 pt-4 pb-3 border-b border-outline-variant/30 bg-surface-container-lowest/80">
+<div class="flex items-start justify-between gap-4">
+<div class="flex flex-col gap-1">
+<!-- Title & Status Pill -->
+<div class="flex items-center gap-3">
+<h2 class="font-headline-sm text-headline-sm font-semibold tracking-tight text-on-surface">
+                Acesso pelo celular
+              </h2>
+<!-- Status block: Ligado + Ghost "Desligar" -->
+<div class="flex items-center gap-1.5 pl-2 border-l border-outline-variant/30">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#10b981]/10 border border-[#10b981]/30 font-label-sm text-label-sm text-[#10b981]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse"></span>
+                  Ligado
+                </span>
+<button class="px-2 py-0.5 rounded font-label-md text-label-md text-outline hover:text-on-surface hover:bg-surface-container-high transition-colors">
+                  Desligar
+                </button>
+</div>
+</div>
+<!-- Subtitle -->
+<p class="font-body-sm text-body-sm text-outline max-w-[680px]">
+              Acompanhe suas execuções de workflow e responda o que espera por você pelo navegador do celular, na mesma rede. Nada passa pela internet nem por uma nuvem.
+            </p>
+</div>
+<!-- Close button -->
+<button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container-high transition-colors -mr-1" title="Fechar modal">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- Amber Banner: 1 pergunta espera uma resposta -->
+<div class="mt-3 flex items-center justify-between px-3 py-1.5 rounded bg-[#f59e0b]/10 border border-[#f59e0b]/30">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-[#f59e0b]"></span>
+<span class="font-label-md text-label-md text-[#f59e0b] font-medium">1 pergunta espera uma resposta.</span>
+</div>
+<span class="font-code-sm text-code-sm text-outline">Agente: Invoice OCR Engine</span>
+</div>
+</div>
+<!-- MODAL BODY: Two Columns Content Layout -->
+<div class="grid grid-cols-2 divide-x divide-outline-variant/30 p-5 bg-surface-container-low">
+<!-- =================================================================== -->
+<!-- LEFT COLUMN: Conectar um celular                                   -->
+<!-- =================================================================== -->
+<div class="pr-5 flex flex-col justify-between">
+<div>
+<!-- Section Title -->
+<div class="flex items-center justify-between mb-3">
+<h3 class="font-label-md text-label-md font-semibold text-on-surface flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[15px] text-primary">qr_code_scanner</span>
+                Conectar um celular
+              </h3>
+<span class="font-code-sm text-code-sm text-outline">Local Token Auth</span>
+</div>
+<!-- Crisp Rendered SVG QR Code Container -->
+<div class="flex items-center gap-4 p-3 rounded-lg bg-surface-container-lowest border border-outline-variant/30">
+<!-- Geometric QR Code SVG with Finder Patterns -->
+<div class="p-2 bg-white rounded flex items-center justify-center shrink-0 shadow-sm">
+<svg class="block" fill="none" height="116" viewbox="0 0 116 116" width="116" xmlns="http://www.w3.org/2000/svg">
+<!-- Finder Pattern Top-Left -->
+<rect fill="#0b0e12" height="28" width="28" x="6" y="6"></rect>
+<rect fill="white" height="20" width="20" x="10" y="10"></rect>
+<rect fill="#0b0e12" height="12" width="12" x="14" y="14"></rect>
+<!-- Finder Pattern Top-Right -->
+<rect fill="#0b0e12" height="28" width="28" x="82" y="6"></rect>
+<rect fill="white" height="20" width="20" x="86" y="10"></rect>
+<rect fill="#0b0e12" height="12" width="12" x="90" y="14"></rect>
+<!-- Finder Pattern Bottom-Left -->
+<rect fill="#0b0e12" height="28" width="28" x="6" y="82"></rect>
+<rect fill="white" height="20" width="20" x="10" y="86"></rect>
+<rect fill="#0b0e12" height="12" width="12" x="14" y="90"></rect>
+<!-- Matrix Data Dots & Alignment Patterns -->
+<rect fill="#0b0e12" height="6" width="6" x="40" y="8"></rect>
+<rect fill="#0b0e12" height="6" width="6" x="52" y="8"></rect>
+<rect fill="#0b0e12" height="6" width="10" x="64" y="8"></rect>
+<rect fill="#0b0e12" height="8" width="8" x="40" y="20"></rect>
+<rect fill="#0b0e12" height="6" width="6" x="56" y="20"></rect>
+<rect fill="#0b0e12" height="6" width="6" x="68" y="22"></rect>
+<!-- Center Sync Grid -->
+<rect fill="#0b0e12" height="6" width="6" x="10" y="42"></rect>
+<rect fill="#0b0e12" height="10" width="6" x="22" y="42"></rect>
+<rect fill="#0b0e12" height="8" width="8" x="36" y="38"></rect>
+<rect fill="#0b0e12" height="6" width="14" x="50" y="40"></rect>
+<rect fill="#0b0e12" height="6" width="6" x="70" y="42"></rect>
+<rect fill="#0b0e12" height="8" width="10" x="82" y="38"></rect>
+<rect fill="#0b0e12" height="6" width="8" x="100" y="44"></rect>
+<!-- Center Alignment Matrix -->
+<rect fill="#0b0e12" height="12" width="12" x="52" y="52"></rect>
+<rect fill="white" height="6" width="6" x="55" y="55"></rect>
+<rect fill="#0b0e12" height="2" width="2" x="57" y="57"></rect>
+<rect fill="#0b0e12" height="8" width="8" x="8" y="58"></rect>
+<rect fill="#0b0e12" height="6" width="6" x="24" y="60"></rect>
+<rect fill="#0b0e12" height="6" width="8" x="36" y="54"></rect>
+<rect fill="#0b0e12" height="12" width="6" x="72" y="56"></rect>
+<rect fill="#0b0e12" height="6" width="8" x="86" y="58"></rect>
+<rect fill="#0b0e12" height="8" width="8" x="100" y="58"></rect>
+<!-- Lower Quad Data -->
+<rect fill="#0b0e12" height="8" width="8" x="40" y="74"></rect>
+<rect fill="#0b0e12" height="6" width="6" x="54" y="72"></rect>
+<rect fill="#0b0e12" height="6" width="8" x="66" y="76"></rect>
+<rect fill="#0b0e12" height="8" width="10" x="80" y="72"></rect>
+<rect fill="#0b0e12" height="8" width="8" x="96" y="74"></rect>
+<rect fill="#0b0e12" height="14" width="6" x="40" y="90"></rect>
+<rect fill="#0b0e12" height="8" width="8" x="52" y="96"></rect>
+<rect fill="#0b0e12" height="6" width="12" x="68" y="90"></rect>
+<rect fill="#0b0e12" height="12" width="6" x="88" y="92"></rect>
+<rect fill="#0b0e12" height="8" width="8" x="100" y="96"></rect>
+</svg>
+</div>
+<!-- Context alongside QR -->
+<div class="flex flex-col justify-between h-full py-0.5">
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-snug">
+                  Escaneie com a câmera do celular. O código vale uma vez e expira em 5 minutos.
+                </p>
+<!-- Expiration notice & Refresh CTA -->
+<div class="flex items-center gap-2 pt-2 border-t border-outline-variant/20 mt-2">
+<div class="flex items-center gap-1 font-code-sm text-code-sm text-outline">
+<span class="material-symbols-outlined text-[13px] text-outline">schedule</span>
+<span>Expira em <strong class="text-on-surface font-semibold">4:00</strong></span>
+</div>
+<span class="text-outline-variant text-[10px]">·</span>
+<button class="font-label-md text-label-md text-primary hover:underline hover:text-primary-fixed flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[12px]">refresh</span>
+                    Novo código
+                  </button>
+</div>
+</div>
+</div>
+<!-- Pairing Code Block -->
+<div class="mt-3 p-2.5 rounded bg-surface-container-lowest border border-outline-variant/30 flex flex-col gap-1">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">Código de pareamento alternativo</span>
+<div class="flex items-center justify-between">
+<span class="font-code-lg text-code-lg font-bold tracking-wider text-on-surface select-all">
+                  K7QD-M2PX-9WTR-4HNB
+                </span>
+<span class="font-code-sm text-code-sm px-1.5 py-0.5 rounded bg-surface-container-high text-outline">256-bit</span>
+</div>
+</div>
+</div>
+<!-- Bottom: Network Address Block -->
+<div class="mt-4 pt-3 border-t border-outline-variant/20 flex flex-col gap-1.5">
+<span class="font-label-sm text-label-sm text-outline">Ou acesse o endereço da rede local no navegador:</span>
+<div class="flex items-center justify-between p-1.5 pl-2.5 rounded bg-surface-container-lowest border border-outline-variant/30">
+<span class="font-code-sm text-code-sm text-secondary font-medium tracking-tight">
+                http://192.168.1.20:47831
+              </span>
+<button class="px-2 py-0.5 rounded font-label-md text-label-md bg-surface-container-high hover:bg-surface-container-highest text-on-surface transition-colors flex items-center gap-1" title="Copiar URL">
+<span class="material-symbols-outlined text-[12px]">content_copy</span>
+                Copiar
+              </button>
+</div>
+</div>
+</div>
+<!-- =================================================================== -->
+<!-- RIGHT COLUMN: Celulares pareados & O que saber                     -->
+<!-- =================================================================== -->
+<div class="pl-5 flex flex-col justify-between">
+<div>
+<!-- Section Header -->
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-2">
+<h3 class="font-label-md text-label-md font-semibold text-on-surface flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[15px] text-primary">devices</span>
+                  Celulares pareados
+                </h3>
+<span class="px-1.5 py-0.2 rounded-full bg-surface-container-high text-on-surface font-code-sm text-code-sm">1</span>
+</div>
+<!-- Desconectar todos action -->
+<button class="font-label-md text-label-md text-outline hover:text-[#ef4444] transition-colors">
+                Desconectar todos
+              </button>
+</div>
+<!-- Device Row / Card -->
+<div class="p-3 rounded-lg bg-surface-container-lowest border border-outline-variant/30 flex flex-col gap-2.5">
+<div class="flex items-start justify-between gap-2">
+<div class="flex items-start gap-2.5">
+<div class="w-7 h-7 rounded bg-surface-container-high flex items-center justify-center shrink-0 border border-outline-variant/20 text-on-surface">
+<span class="material-symbols-outlined text-[16px]">smartphone</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-2">
+<span class="font-label-md text-label-md font-semibold text-on-surface">iPhone do Lucas</span>
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]" title="Sessão ativa"></span>
+</div>
+<span class="font-code-sm text-code-sm text-outline mt-0.5">
+                      de 192.168.1.31 · visto por último 22:23
+                    </span>
+</div>
+</div>
+<!-- Secondary outline disconnect button -->
+<button class="px-2 py-1 rounded border border-[#ef4444]/40 text-[#ef4444] hover:bg-[#ef4444]/10 font-label-md text-label-md transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]">link_off</span>
+                  Desconectar
+                </button>
+</div>
+<!-- Permission scope pill badge -->
+<div class="flex items-center gap-2 pt-2 border-t border-outline-variant/15 font-code-sm text-code-sm text-outline">
+<span class="material-symbols-outlined text-[13px] text-secondary">verified_user</span>
+<span>Permissão: Responder perguntas e monitoramento de workflow</span>
+</div>
+</div>
+</div>
+<!-- Collapsible Section: "O que saber" (Closed state with visible 1st sentence) -->
+<div class="mt-4 pt-3 border-t border-outline-variant/20">
+<details class="group cursor-pointer">
+<summary class="flex items-center justify-between list-none text-on-surface font-label-md text-label-md font-semibold group-hover:text-primary transition-colors select-none">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[15px] text-outline group-hover:text-primary">info</span>
+                  O que saber
+                </span>
+<span class="material-symbols-outlined text-[16px] text-outline group-open:rotate-180 transition-transform duration-150">
+                  expand_more
+                </span>
+</summary>
+<!-- Header Visible Sentence as prompt requirement -->
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-2 leading-relaxed">
+                Só funciona enquanto este computador estiver ligado, acordado e com o Atlas aberto.
+              </p>
+<!-- Inner Expandable Content -->
+<div class="mt-2 p-2.5 rounded bg-surface-container-lowest border border-outline-variant/20 flex flex-col gap-2 font-body-sm text-body-sm text-outline">
+<div class="flex items-start gap-1.5">
+<span class="material-symbols-outlined text-[14px] text-secondary mt-0.5">wifi_lock</span>
+<span><strong>Operação estritamente local (LAN):</strong> Nenhuma solicitação transita por servidores externos ou instâncias de nuvem. Toda a troca de dados acontece na sub-rede privada local.</span>
+</div>
+<div class="flex items-start gap-1.5">
+<span class="material-symbols-outlined text-[14px] text-primary mt-0.5">key</span>
+<span><strong>Validação criptográfica por token:</strong> Cada conexão gera um handshake criptografado de uso exclusivo por dispositivo verificado.</span>
+</div>
+</div>
+</details>
+</div>
+</div>
+</div>
+<!-- MODAL FOOTER ACTION BAR -->
+<div class="px-5 py-2.5 bg-surface-container-lowest/90 border-t border-outline-variant/30 flex items-center justify-between font-label-md text-label-md">
+<div class="flex items-center gap-2 text-outline">
+<span class="w-1.5 h-1.5 rounded-full bg-outline-variant"></span>
+<span class="font-code-sm text-code-sm">Sub-rede: 192.168.1.0/24</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="px-3 py-1 rounded bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-medium transition-colors">
+            Concluído
+          </button>
+</div>
+</div>
+</div>
+</div>
+</body></html>

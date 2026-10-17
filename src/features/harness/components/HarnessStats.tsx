@@ -7,9 +7,12 @@ import styles from './Harness.module.css';
 export function HarnessStats({
   stats,
   analyzedAt,
+  showDate = true,
 }: {
   stats: KnowledgeStatsDto;
   analyzedAt: number | null;
+  /** Off where the date of the analysis is already shown beside the counts. */
+  showDate?: boolean;
 }) {
   const { t, language } = useI18n();
   const parts = [
@@ -20,12 +23,30 @@ export function HarnessStats({
     stats.stale > 0 ? t('harness.stats.stale', { count: stats.stale }) : null,
     t('harness.stats.unknown', { count: stats.unknown }),
   ].filter((part): part is string => part !== null);
+  const total = Math.max(stats.findings, 1);
+  const segments = [
+    ['verified', stats.verified],
+    ['inferred', stats.inferred],
+    ['user', stats.user],
+    ['unknown', stats.unknown],
+  ] as const;
   return (
-    <span className={styles.muted}>
-      {parts.join(' · ')}
-      {analyzedAt
-        ? ` — ${t('harness.stats.lastAnalyzed', { date: formatAnalyzed(analyzedAt, language) })}`
-        : ''}
+    <span className={styles.statsBlock}>
+      {stats.findings > 0 && (
+        <span className={styles.statsBar} aria-hidden="true">
+          {segments.map(([kind, count]) =>
+            count > 0 ? (
+              <span key={kind} data-kind={kind} style={{ flexGrow: count / total }} />
+            ) : null,
+          )}
+        </span>
+      )}
+      <span className={styles.muted}>
+        {parts.join(' · ')}
+        {showDate && analyzedAt
+          ? ` — ${t('harness.stats.lastAnalyzed', { date: formatAnalyzed(analyzedAt, language) })}`
+          : ''}
+      </span>
     </span>
   );
 }

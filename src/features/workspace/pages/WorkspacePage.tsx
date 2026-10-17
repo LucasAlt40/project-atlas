@@ -213,13 +213,36 @@ export function WorkspacePage() {
     );
   }
 
+  if (managingProjects) {
+    return (
+      <WorkspaceProjectsPanel
+        workspace={active}
+        onWorkspaceChanged={workspace.replaceWorkspace}
+        onClose={() => {
+          setManagingProjects(false);
+        }}
+      />
+    );
+  }
+
   return (
     <section className={styles.page} data-view={view}>
       <div className={styles.banner}>
         <header className={styles.header}>
-          <h1 className={styles.title}>{active.name}</h1>
-          <div className={styles.headerRight}>
+          <div className={styles.headerLeft}>
+            <h1 className={styles.title}>{active.name}</h1>
             <WorkspaceUsageChip workspaceId={active.id} usageVersion={workspace.usageVersion} />
+          </div>
+          <div className={styles.headerRight}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                navigate('mcp');
+              }}
+            >
+              {t('integrations.open')}
+              <Icon name="externalLink" size={12} />
+            </Button>
             <Button
               variant="secondary"
               aria-label={t('projects.openLabel', { name: active.name })}
@@ -230,28 +253,10 @@ export function WorkspacePage() {
               <Icon name="stack" size={14} />
               {t('projects.open', { count: active.projects.length })}
             </Button>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                navigate('mcp');
-              }}
-            >
-              {t('integrations.open')}
-            </Button>
             <Button onClick={openAdd}>{t('workspace.addAgent')}</Button>
           </div>
         </header>
       </div>
-
-      {managingProjects && (
-        <WorkspaceProjectsPanel
-          workspace={active}
-          onWorkspaceChanged={workspace.replaceWorkspace}
-          onClose={() => {
-            setManagingProjects(false);
-          }}
-        />
-      )}
 
       {notice && (
         <p role="alert" className={styles.notice}>
@@ -331,7 +336,11 @@ export function WorkspacePage() {
           ))}
         </ul>
       ) : (
-        <WorkspaceGrid workspace={active} renderAgent={(agentId) => renderAgent(agentId, 'grid')} />
+        <WorkspaceGrid
+          workspace={active}
+          renderAgent={(agentId) => renderAgent(agentId, 'grid')}
+          onAdd={openAdd}
+        />
       )}
 
       {details && (

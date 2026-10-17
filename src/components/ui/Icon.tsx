@@ -60,6 +60,11 @@ const PATHS = {
   specs: 'M7 3h8l4 4v14H7zM15 3v4h4M10 12l1.5 1.5L14.5 10.5M10 17h5',
   clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',
   arrowLeft: 'M19 12H5M11 6l-6 6 6 6',
+  more: 'M5 12h.01M12 12h.01M19 12h.01',
+  externalLink: 'M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
+  chevronUp: 'm6 15 6-6 6 6',
+  arrowRight: 'M5 12h14M13 6l6 6-6 6',
+  play: 'M7 4l13 8-13 8z',
 } as const;
 
 export type IconName = keyof typeof PATHS;

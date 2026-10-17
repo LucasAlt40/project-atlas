@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas Core - Projetos e Harness</title>
+<!-- Google Fonts & Material Symbols -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-secondary-fixed": "#001e2c",
+            "on-primary-container": "#0d0096",
+            "tertiary-fixed": "#ffd9e4",
+            "tertiary": "#ffb0cd",
+            "secondary-fixed": "#c4e7ff",
+            "tertiary-container": "#f751a1",
+            "secondary": "#7bd0ff",
+            "on-error": "#690005",
+            "surface-dim": "#111418",
+            "surface-bright": "#36393e",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "surface-container-low": "#191c20",
+            "secondary-fixed-dim": "#7bd0ff",
+            "on-tertiary-fixed": "#3e0022",
+            "on-tertiary": "#640039",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "secondary-container": "#00a6e0",
+            "surface-tint": "#c0c1ff",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-secondary-container": "#00374d",
+            "primary-fixed": "#e1e0ff",
+            "on-tertiary-container": "#570032",
+            "inverse-on-surface": "#2e3135",
+            "outline": "#908fa0",
+            "surface-container": "#1d2024",
+            "primary": "#c0c1ff",
+            "surface-container-high": "#272a2e",
+            "on-background": "#e1e2e8",
+            "surface": "#111418",
+            "on-secondary-fixed-variant": "#004c69",
+            "on-surface-variant": "#c7c4d7",
+            "background": "#111418",
+            "inverse-surface": "#e1e2e8",
+            "error": "#ffb4ab",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "on-surface": "#e1e2e8",
+            "on-error-container": "#ffdad6",
+            "primary-container": "#8083ff",
+            "surface-variant": "#323539",
+            "surface-container-lowest": "#0b0e12",
+            "outline-variant": "#464554",
+            "surface-container-highest": "#323539",
+            "inverse-primary": "#494bd6",
+            "error-container": "#93000a",
+            "on-secondary": "#00354a",
+            "on-primary": "#1000a9",
+            "on-primary-fixed": "#07006c"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-xl": "1.25rem",
+            "space-sm": "0.375rem",
+            "space-md": "0.625rem",
+            "space-lg": "0.875rem",
+            "space-xs": "0.25rem",
+            "gutter": "0.5rem",
+            "margin": "0.75rem"
+          },
+          "fontFamily": {
+            "code-sm": ["JetBrains Mono"],
+            "code-md": ["JetBrains Mono"],
+            "headline-sm": ["Geist"],
+            "label-md": ["Geist"],
+            "label-sm": ["JetBrains Mono"],
+            "code-lg": ["JetBrains Mono"],
+            "body-lg": ["Geist"],
+            "display": ["Geist"],
+            "headline-lg": ["Geist"],
+            "body-sm": ["Geist"],
+            "body-md": ["Geist"]
+          },
+          "fontSize": {
+            "code-sm": ["0.6875rem", { "lineHeight": "1rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "code-md": ["0.75rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-sm": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.015em", "fontWeight": "500" }],
+            "label-md": ["0.75rem", { "lineHeight": "1rem", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "label-sm": ["0.625rem", { "lineHeight": "0.875rem", "letterSpacing": "0.04em", "fontWeight": "500" }],
+            "code-lg": ["0.875rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+            "body-lg": ["0.9375rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "display": ["1.75rem", { "lineHeight": "2.25rem", "letterSpacing": "-0.025em", "fontWeight": "600" }],
+            "headline-lg": ["1.375rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "body-sm": ["0.75rem", { "lineHeight": "1.125rem", "letterSpacing": "0.005em", "fontWeight": "400" }],
+            "body-md": ["0.8125rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    /* Custom terminal scrollbars */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0e12;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #272a2e;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #464554;
+    }
+    .material-symbols-outlined {
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .action-dropdown {
+      display: none;
+    }
+    .dropdown-trigger:focus-within .action-dropdown {
+      display: block;
+    }
+  </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface font-body-md antialiased overflow-hidden select-none">
+<!-- ==================== FIXED LEFT SIDEBAR (216px) ==================== -->
+<aside class="fixed top-0 left-0 bottom-0 w-[216px] flex flex-col justify-between py-space-md z-40 bg-surface-container-lowest border-r border-outline-variant/30">
+<!-- Top Segment: Brand & Navigation -->
+<div class="flex flex-col gap-space-md">
+<!-- Brand Anchor -->
+<div class="px-space-md pb-space-sm border-b border-outline-variant/30">
+<div class="flex items-center gap-space-sm mb-1">
+<div class="w-5 h-5 rounded-sm bg-primary-container/20 border border-primary/40 flex items-center justify-center text-primary font-code-sm text-code-sm font-semibold">
+            λ
+          </div>
+<span class="text-body-lg font-headline-lg font-semibold tracking-tight text-on-surface">Atlas Core</span>
+</div>
+<div class="flex items-center gap-1.5 pl-6">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+<span class="font-code-sm text-code-sm text-outline">v2.4.0 • Cluster Online</span>
+</div>
+</div>
+<!-- Workspace Selector Dropdown -->
+<div class="px-space-md">
+<label class="block font-label-sm text-label-sm uppercase tracking-wider text-outline mb-1">Workspace</label>
+<button class="w-full flex items-center justify-between px-space-sm py-1.5 bg-surface-container-low border border-outline-variant/40 rounded-sm text-left hover:border-outline-variant transition-colors group">
+<div class="flex items-center gap-2 min-w-0">
+<span class="w-2 h-2 rounded bg-indigo-500 shrink-0"></span>
+<span class="font-label-md text-label-md text-on-surface truncate">Transport ERP</span>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-on-surface" data-icon="unfold_more">unfold_more</span>
+</button>
+</div>
+<!-- Main Navigation Cluster -->
+<nav class="flex flex-col mt-space-xs">
+<!-- 1: Workspace (Active) -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm bg-surface-container-high dark:bg-surface-container-high text-primary dark:text-primary border-l-2 border-primary rounded-none font-medium" href="#workspace">
+<span class="material-symbols-outlined" data-icon="space_dashboard">space_dashboard</span>
+<span class="font-label-md text-label-md">Workspace</span>
+</a>
+<!-- 2: Workflow -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline dark:text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#workflow">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+<span class="font-label-md text-label-md">Workflow</span>
+</a>
+<!-- 3: Agentes -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline dark:text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#agentes">
+<span class="material-symbols-outlined" data-icon="smart_toy">smart_toy</span>
+<span class="font-label-md text-label-md">Agentes</span>
+</a>
+<!-- 4: Personalidades -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline dark:text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#personalidades">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+<span class="font-label-md text-label-md">Personalidades</span>
+</a>
+<!-- 5: Specs -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline dark:text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#specs">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span class="font-label-md text-label-md">Specs</span>
+</a>
+<!-- 6: MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline dark:text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#mcphub">
+<span class="material-symbols-outlined" data-icon="hub">hub</span>
+<span class="font-label-md text-label-md">MCP Hub</span>
+</a>
+</nav>
+<!-- Novo Fluxo CTA Button -->
+<div class="px-space-md mt-space-xs">
+<button class="w-full flex items-center justify-center gap-2 py-1.5 px-space-sm bg-surface-container border border-outline-variant/40 hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface rounded-sm transition-colors font-label-md text-label-md">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+<span>Novo Fluxo</span>
+</button>
+</div>
+</div>
+<!-- Bottom Footer Segment: Configurações -->
+<div class="px-space-md pt-space-sm border-t border-outline-variant/30 flex flex-col gap-2">
+<a class="flex items-center gap-space-sm px-2 py-1.5 rounded-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#configuracoes">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-md text-label-md">Configurações</span>
+</a>
+<div class="flex items-center justify-between text-outline px-2 text-label-sm font-code-sm">
+<span>Region: sa-east-1</span>
+<span class="w-2 h-2 rounded-full bg-emerald-500/80"></span>
+</div>
+</div>
+</aside>
+<!-- ==================== FIXED TOP BAR (48px) ==================== -->
+<header class="fixed top-0 right-0 left-[216px] h-12 flex items-center justify-between px-space-lg z-30 border-b border-outline-variant/30 bg-surface-container-lowest">
+<!-- Left: Dense Breadcrumb Hierarchy -->
+<nav aria-label="Breadcrumb" class="flex items-center gap-2 text-label-md font-label-md">
+<span class="text-outline hover:text-on-surface transition-colors cursor-pointer">Atlas</span>
+<span class="text-outline-variant">/</span>
+<span class="text-outline hover:text-on-surface transition-colors cursor-pointer">Transport ERP</span>
+<span class="text-outline-variant">/</span>
+<span class="text-on-surface font-medium flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-sm" data-icon="folder_managed">folder_managed</span>
+        Projetos e Harness
+      </span>
+</nav>
+<!-- Right: Operational Controls & Profile Cluster -->
+<div class="flex items-center gap-space-md">
+<!-- Terminal Quick Run Shortcut -->
+<button class="h-7 px-2.5 flex items-center gap-1.5 bg-surface-container-low border border-outline-variant/40 hover:border-outline-variant text-on-surface rounded-sm font-code-sm text-code-sm transition-colors">
+<span class="material-symbols-outlined text-outline" data-icon="terminal">terminal</span>
+<span>Atlas CLI</span>
+</button>
+<!-- Mobile / Companion Sync Button -->
+<button class="h-7 px-2.5 flex items-center gap-1.5 bg-surface-container-low border border-outline-variant/40 hover:border-outline-variant text-on-surface-variant hover:text-on-surface rounded-sm font-label-md text-label-md transition-colors">
+<span class="material-symbols-outlined text-outline" data-icon="phone_iphone">phone_iphone</span>
+<span>Celular</span>
+</button>
+<!-- Language Toggle PT/EN -->
+<div class="flex items-center bg-surface-container-lowest border border-outline-variant/40 rounded-sm p-0.5 font-code-sm text-code-sm">
+<button class="px-1.5 py-0.5 rounded-sm bg-surface-container-high text-primary font-medium">PT</button>
+<button class="px-1.5 py-0.5 rounded-sm text-outline hover:text-on-surface transition-colors">EN</button>
+</div>
+<!-- Icon Actions Divider -->
+<div class="h-4 w-px bg-outline-variant/30"></div>
+<!-- Action Icons -->
+<div class="flex items-center gap-1">
+<button class="w-7 h-7 flex items-center justify-center rounded-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors relative" title="Notificações">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-indigo-500 rounded-full"></span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center rounded-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors" title="Configurações Rápidas">
+<span class="material-symbols-outlined" data-icon="tune">tune</span>
+</button>
+</div>
+<!-- User Operator Avatar -->
+<div class="flex items-center gap-2 pl-2 border-l border-outline-variant/30">
+<div class="relative">
+<img class="w-6 h-6 rounded-sm object-cover border border-outline-variant/50" data-alt="A cinematic macro portrait of a senior systems architect in a dark multi-monitor control room, illuminated by soft indigo and cool slate terminal screen reflections, clean tech aesthetic, photorealistic, subtle depth of field" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCNFM6Z_bUfWSdOXUIW6zexYft2zMY1jIZu_gOyCvK6SaNpWj4K6Zt15KwkYJCAVU6J5sPvqs3qct5avZN8ntSyIs8kwZTwJxRZQVQ9J77mSrP2Y5VpadZb8f4xBkEJQHqy1nwNzLHtzTuQA9EMFV9h1z5oQPRgJWrJ85x5-DFQGEsWfMYsVlqRu6Xc06g3rjn8NQ7b1TkgwyLTZbTe0zvAuMbs4oP5NuxN847uISjuEMA-oysCP5OdjKMBp9F5zhnoXgTxBWVlmw"/>
+<span class="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-surface-container-lowest" title="Operador Online"></span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface font-medium hidden lg:inline">operator@atlas</span>
+</div>
+</div>
+</header>
+<!-- ==================== MAIN WORKSPACE CANVAS ==================== -->
+<main class="fixed top-12 left-[216px] right-0 bottom-0 overflow-y-auto bg-surface-container-lowest p-space-lg">
+<div class="max-w-[1440px] mx-auto flex flex-col gap-space-lg pb-12">
+<!-- ==================== SECTION 1: TOP HEADER ==================== -->
+<header class="flex flex-col md:flex-row md:items-center justify-between gap-space-md pb-space-md border-b border-outline-variant/30">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<h1 class="text-headline-lg font-headline-lg font-semibold tracking-tight text-on-surface">Projetos e Harness</h1>
+<span class="px-2 py-0.5 rounded-sm bg-surface-container border border-outline-variant/40 font-code-sm text-code-sm text-outline">Cluster 01-PROD</span>
+</div>
+<p class="text-body-md font-body-md text-outline max-w-3xl">
+            Gerencie os repositórios vinculados ao Transport ERP, status de análise estática e mapa cognitivo de Harness utilizado pelos agentes autônomos.
+          </p>
+</div>
+<div class="flex items-center gap-space-sm shrink-0">
+<button class="h-8 px-space-md flex items-center gap-2 bg-[#6366f1] hover:bg-[#4f46e5] text-on-surface font-label-md text-label-md font-medium rounded-sm transition-colors active:scale-[0.99]">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+<span>+ Adicionar pasta de projeto</span>
+</button>
+</div>
+</header>
+<!-- ==================== SECTION 2: PROJETOS VINCULADOS (2) ==================== -->
+<section class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<h2 class="text-headline-sm font-headline-sm font-medium text-on-surface">Projetos Vinculados</h2>
+<span class="px-1.5 py-0.5 rounded-sm bg-surface-container-high text-on-surface font-code-sm text-code-sm border border-outline-variant/30">2</span>
+</div>
+<div class="flex items-center gap-2 text-outline font-code-sm text-code-sm">
+<span class="material-symbols-outlined text-sm" data-icon="filter_list">filter_list</span>
+<span>Filtro: Todos os módulos</span>
+</div>
+</div>
+<!-- Table / List Container -->
+<div class="bg-surface-container-low border border-outline-variant/30 rounded-sm divide-y divide-outline-variant/30">
+<!-- ==================== ROW 1 (billing-service - Saudável) ==================== -->
+<article class="p-space-md hover:bg-surface-container transition-colors duration-150 flex flex-col xl:flex-row xl:items-center justify-between gap-space-md">
+<!-- Left Info Block -->
+<div class="flex flex-col gap-1.5 min-w-0 max-w-xl">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="text-body-lg font-headline-sm font-semibold text-on-surface">billing-service</span>
+<span class="px-1.5 py-0.5 rounded-sm bg-primary-container/20 border border-primary/40 text-primary font-code-sm text-code-sm font-medium">Principal</span>
+<span class="px-1.5 py-0.5 rounded-sm bg-[#6366f1]/15 border border-[#6366f1]/30 text-[#c0c1ff] font-code-sm text-code-sm">Backend</span>
+<!-- Harness Status -->
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-label-md text-label-md">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  Saudável
+                </span>
+</div>
+<!-- Path with JetBrains Mono + Copy Icon -->
+<div class="flex items-center gap-2 text-outline font-code-sm text-code-sm">
+<span class="material-symbols-outlined text-outline" data-icon="folder">folder</span>
+<span class="text-on-surface-variant font-code-sm">/repos/transport-erp/services/billing-service</span>
+<button class="hover:text-on-surface text-outline transition-colors p-0.5" title="Copiar caminho">
+<span class="material-symbols-outlined text-sm" data-icon="content_copy">content_copy</span>
+</button>
+</div>
+<!-- Stack info -->
+<div class="text-body-sm font-body-sm text-outline flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sm" data-icon="layers">layers</span>
+<span>Java 21 · Spring Boot · Maven · PostgreSQL</span>
+</div>
+</div>
+<!-- Middle: Findings Mini-Segmented Bar & Counts -->
+<div class="flex flex-col gap-1.5 xl:w-[420px] shrink-0 bg-surface-container-lowest p-2.5 rounded-sm border border-outline-variant/30">
+<div class="flex items-center justify-between font-code-sm text-code-sm">
+<span class="text-on-surface font-medium">42 achados</span>
+<span class="text-outline">Harness Sync: 100%</span>
+</div>
+<!-- Proportional Segmented Bar -->
+<div class="w-full h-2 rounded-sm bg-surface-container-high overflow-hidden flex gap-0.5">
+<!-- 31 verificados (Emerald #10b981) -> ~73.8% -->
+<div class="h-full bg-emerald-500" style="width: 73.8%" title="31 verificados"></div>
+<!-- 9 inferidos (Indigo #6366f1) -> ~21.4% -->
+<div class="h-full bg-[#6366f1]" style="width: 21.4%" title="9 inferidos"></div>
+<!-- 2 seus (Amber #f59e0b) -> ~4.8% -->
+<div class="h-full bg-amber-500" style="width: 4.8%" title="2 seus"></div>
+<!-- 0 desconhecidos -->
+</div>
+<!-- Legend / Details breakdown -->
+<div class="flex items-center gap-3 text-label-sm font-code-sm text-outline flex-wrap">
+<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>31 verificados</span>
+<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-[#6366f1]"></span>9 inferidos</span>
+<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>2 seus</span>
+<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>0 desconhecidos</span>
+</div>
+</div>
+<!-- Telemetry & Action Buttons -->
+<div class="flex flex-col sm:flex-row xl:flex-col items-start xl:items-end justify-between gap-2 shrink-0">
+<div class="text-left xl:text-right font-code-sm text-code-sm text-outline">
+<div>Última análise <span class="text-on-surface">14 out 2026, 18:05</span></div>
+<div class="text-label-sm">Usa: <span class="text-primary">transport-erp</span></div>
+</div>
+<!-- Actions per Row -->
+<div class="flex items-center gap-1.5 mt-1">
+<button class="h-7 px-2 flex items-center gap-1 bg-surface-container border border-outline-variant/40 hover:bg-surface-container-high text-on-surface rounded-sm font-label-md text-label-md transition-colors" title="Atualizar varredura">
+<span class="material-symbols-outlined text-sm" data-icon="refresh">refresh</span>
+<span>Atualizar</span>
+</button>
+<button class="h-7 px-2 flex items-center gap-1 bg-surface-container border border-outline-variant/40 hover:bg-surface-container-high text-on-surface rounded-sm font-label-md text-label-md transition-colors" title="Recarregar">
+<span class="material-symbols-outlined text-sm" data-icon="sync">sync</span>
+<span>Recarregar</span>
+</button>
+<button class="h-7 px-2 flex items-center gap-1 bg-surface-container border border-outline-variant/40 hover:bg-surface-container-high text-on-surface rounded-sm font-label-md text-label-md transition-colors" title="Editar configurações">
+<span class="material-symbols-outlined text-sm" data-icon="edit">edit</span>
+<span>Editar</span>
+</button>
+<!-- More dropdown trigger -->
+<div class="relative dropdown-trigger">
+<button class="h-7 w-7 flex items-center justify-center bg-surface-container border border-outline-variant/40 hover:bg-surface-container-high text-outline hover:text-on-surface rounded-sm transition-colors" tabindex="0">
+<span class="material-symbols-outlined" data-icon="more_horiz">more_horiz</span>
+</button>
+<div class="action-dropdown absolute right-0 top-8 w-40 bg-[#1c2128] border border-outline-variant/50 rounded-sm py-1 z-50 shadow-2xl">
+<button class="w-full text-left px-3 py-1.5 font-label-md text-label-md text-on-surface hover:bg-surface-container-high flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="terminal">terminal</span> Abrir no Terminal
+                    </button>
+<button class="w-full text-left px-3 py-1.5 font-label-md text-label-md text-on-surface hover:bg-surface-container-high flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="lock_reset">lock_reset</span> Recompilar Lock
+                    </button>
+<div class="my-1 border-t border-outline-variant/30"></div>
+<button class="w-full text-left px-3 py-1.5 font-label-md text-label-md text-amber-400 hover:bg-surface-container-high flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="restart_alt">restart_alt</span> Resetar
+                    </button>
+<button class="w-full text-left px-3 py-1.5 font-label-md text-label-md text-[#ef4444] hover:bg-surface-container-high flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="delete">delete</span> Excluir
+                    </button>
+</div>
+</div>
+</div>
+</div>
+</article>
+<!-- ==================== ROW 2 (fleet-portal-web - Não Analisado) ==================== -->
+<article class="p-space-md hover:bg-surface-container transition-colors duration-150 flex flex-col xl:flex-row xl:items-center justify-between gap-space-md bg-surface-container-low/40">
+<!-- Left Info Block -->
+<div class="flex flex-col gap-1.5 min-w-0 max-w-xl">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="text-body-lg font-headline-sm font-semibold text-on-surface">fleet-portal-web</span>
+<span class="px-1.5 py-0.5 rounded-sm bg-secondary/15 border border-secondary/30 text-secondary-fixed-dim font-code-sm text-code-sm">Frontend</span>
+<!-- Harness Status -->
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-slate-500/10 border border-slate-500/30 text-slate-400 font-label-md text-label-md">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+                  Não analisado
+                </span>
+</div>
+<!-- Path with JetBrains Mono + Copy Icon -->
+<div class="flex items-center gap-2 text-outline font-code-sm text-code-sm">
+<span class="material-symbols-outlined text-outline" data-icon="folder">folder</span>
+<span class="text-on-surface-variant font-code-sm">/repos/transport-erp/apps/fleet-portal-web</span>
+<button class="hover:text-on-surface text-outline transition-colors p-0.5" title="Copiar caminho">
+<span class="material-symbols-outlined text-sm" data-icon="content_copy">content_copy</span>
+</button>
+</div>
+<!-- Stack info -->
+<div class="text-body-sm font-body-sm text-outline flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sm" data-icon="layers">layers</span>
+<span>Angular · TypeScript · Docker</span>
+</div>
+</div>
+<!-- Middle: Findings Mini-Segmented Bar & Counts (Empty / Dashed) -->
+<div class="flex flex-col gap-1.5 xl:w-[420px] shrink-0 bg-surface-container-lowest p-2.5 rounded-sm border border-outline-variant/30">
+<div class="flex items-center justify-between font-code-sm text-code-sm">
+<span class="text-outline">0 achados</span>
+<span class="text-amber-400/90 font-label-sm">Pendente de varredura estática</span>
+</div>
+<!-- Dashed / Muted Placeholder Bar -->
+<div class="w-full h-2 rounded-sm border border-dashed border-outline-variant/60 bg-surface-container/30"></div>
+<!-- Legend / Details breakdown -->
+<div class="flex items-center gap-3 text-label-sm font-code-sm text-outline/60 flex-wrap">
+<span>0 verificados</span>
+<span>·</span>
+<span>0 inferidos</span>
+<span>·</span>
+<span>0 seus</span>
+<span>·</span>
+<span>0 desconhecidos</span>
+</div>
+</div>
+<!-- Telemetry & Action Buttons -->
+<div class="flex flex-col sm:flex-row xl:flex-col items-start xl:items-end justify-between gap-2 shrink-0">
+<div class="text-left xl:text-right font-code-sm text-code-sm text-outline">
+<div class="text-outline/70">Sem análise prévia</div>
+<div class="text-label-sm">Usa: <span class="text-outline">transport-erp</span></div>
+</div>
+<!-- Actions per Row -->
+<div class="flex items-center gap-1.5 mt-1">
+<button class="h-7 px-2 flex items-center gap-1 bg-[#6366f1]/20 border border-[#6366f1]/40 hover:bg-[#6366f1]/30 text-primary font-label-md text-label-md rounded-sm transition-colors" title="Iniciar primeira varredura">
+<span class="material-symbols-outlined text-sm" data-icon="play_arrow">play_arrow</span>
+<span>Atualizar</span>
+</button>
+<button class="h-7 px-2 flex items-center gap-1 bg-surface-container border border-outline-variant/40 hover:bg-surface-container-high text-on-surface rounded-sm font-label-md text-label-md transition-colors" title="Recarregar">
+<span class="material-symbols-outlined text-sm" data-icon="sync">sync</span>
+<span>Recarregar</span>
+</button>
+<button class="h-7 px-2 flex items-center gap-1 bg-surface-container border border-outline-variant/40 hover:bg-surface-container-high text-on-surface rounded-sm font-label-md text-label-md transition-colors" title="Editar configurações">
+<span class="material-symbols-outlined text-sm" data-icon="edit">edit</span>
+<span>Editar</span>
+</button>
+<!-- More dropdown trigger -->
+<div class="relative dropdown-trigger">
+<button class="h-7 w-7 flex items-center justify-center bg-surface-container border border-outline-variant/40 hover:bg-surface-container-high text-outline hover:text-on-surface rounded-sm transition-colors" tabindex="0">
+<span class="material-symbols-outlined" data-icon="more_horiz">more_horiz</span>
+</button>
+<div class="action-dropdown absolute right-0 top-8 w-40 bg-[#1c2128] border border-outline-variant/50 rounded-sm py-1 z-50 shadow-2xl">
+<button class="w-full text-left px-3 py-1.5 font-label-md text-label-md text-on-surface hover:bg-surface-container-high flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="terminal">terminal</span> Abrir no Terminal
+                    </button>
+<div class="my-1 border-t border-outline-variant/30"></div>
+<button class="w-full text-left px-3 py-1.5 font-label-md text-label-md text-amber-400 hover:bg-surface-container-high flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="restart_alt">restart_alt</span> Resetar
+                    </button>
+<button class="w-full text-left px-3 py-1.5 font-label-md text-label-md text-[#ef4444] hover:bg-surface-container-high flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="delete">delete</span> Excluir
+                    </button>
+</div>
+</div>
+</div>
+</div>
+</article>
+</div>
+</section>
+<!-- ==================== SECTION 3: LOWER SECTION (THREE CARDS) ==================== -->
+<section class="grid grid-cols-1 lg:grid-cols-3 gap-space-md">
+<!-- BLOCK 1: Harness de Execução -->
+<div class="bg-surface-container-low border border-outline-variant/30 rounded-sm p-space-md flex flex-col justify-between gap-space-md">
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-6 h-6 rounded-sm bg-[#6366f1]/20 border border-[#6366f1]/40 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-sm" data-icon="security">security</span>
+</span>
+<h3 class="font-headline-sm text-headline-sm font-semibold text-on-surface">Harness de Execução</h3>
+</div>
+<span class="px-2 py-0.5 rounded-sm bg-surface-container-high text-outline font-code-sm text-code-sm border border-outline-variant/30">.atlas/harness.lock</span>
+</div>
+<p class="font-body-sm text-body-sm text-outline leading-relaxed">
+              O Harness compila regras de negócio invioláveis, arquitetura e convenções do repositório em um arquivo <code class="text-primary font-code-sm">.atlas/harness.lock</code> imutável para guiar os agentes e evitar commits inválidos.
+            </p>
+<div class="mt-2 p-2.5 rounded-sm bg-surface-container-lowest border border-outline-variant/30 flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-amber-400"></span>
+<span class="font-code-sm text-code-sm text-on-surface">1 projeto com Harness ativo · 1 pendente de compilação</span>
+</div>
+</div>
+<!-- Action buttons -->
+<div class="flex flex-col sm:flex-row gap-2 pt-2 border-t border-outline-variant/20">
+<button class="h-8 px-3 flex-1 flex items-center justify-center gap-1.5 bg-[#6366f1] hover:bg-[#4f46e5] text-on-surface font-label-md text-label-md font-medium rounded-sm transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="bolt">bolt</span>
+<span>Iniciar o Harness de 2 projeto(s)</span>
+</button>
+<button class="h-8 px-3 flex items-center justify-center gap-1.5 bg-surface-container border border-outline-variant/40 hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface font-label-md text-label-md rounded-sm transition-colors">
+<span>Resetar todos</span>
+</button>
+</div>
+</div>
+<!-- BLOCK 2: Contexto do Workspace -->
+<div class="bg-surface-container-low border border-outline-variant/30 rounded-sm p-space-md flex flex-col justify-between gap-space-md">
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-6 h-6 rounded-sm bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+<span class="material-symbols-outlined text-sm" data-icon="dataset">dataset</span>
+</span>
+<h3 class="font-headline-sm text-headline-sm font-semibold text-on-surface">Contexto do Workspace</h3>
+</div>
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-code-sm text-code-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                Atualizado
+              </span>
+</div>
+<p class="font-body-sm text-body-sm text-outline leading-relaxed">
+              Sincronização global do contexto de negócio do Transport ERP com a camada de orquestração dos agentes Claude CLI e OpenCode.
+            </p>
+<div class="mt-2 p-2.5 rounded-sm bg-surface-container-lowest border border-outline-variant/30 flex flex-col gap-1">
+<div class="flex items-center justify-between font-code-sm text-code-sm text-outline">
+<span>Última sincronização:</span>
+<span class="text-on-surface">Hoje às 18:05</span>
+</div>
+<div class="flex items-center justify-between font-code-sm text-code-sm text-outline">
+<span>Contratos mapeados:</span>
+<span class="text-primary font-medium">14 contratos de API</span>
+</div>
+</div>
+</div>
+<!-- Action button -->
+<div class="pt-2 border-t border-outline-variant/20">
+<button class="w-full h-8 px-3 flex items-center justify-center gap-2 bg-surface-container border border-outline-variant/40 hover:bg-surface-container-high text-on-surface font-label-md text-label-md rounded-sm transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="sync">sync</span>
+<span>Refazer contexto</span>
+</button>
+</div>
+</div>
+<!-- BLOCK 3: Notas do Workspace -->
+<div class="bg-surface-container-low border border-outline-variant/30 rounded-sm p-space-md flex flex-col justify-between gap-space-md">
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-6 h-6 rounded-sm bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+<span class="material-symbols-outlined text-sm" data-icon="sticky_note_2">sticky_note_2</span>
+</span>
+<h3 class="font-headline-sm text-headline-sm font-semibold text-on-surface">Notas do Workspace</h3>
+</div>
+<span class="font-code-sm text-code-sm text-outline">Injetado no Prompt</span>
+</div>
+<p class="font-body-sm text-body-sm text-outline leading-relaxed">
+              Instruções globais e diretrizes operacionais repassadas para todos os agentes atuando neste workspace.
+            </p>
+<div class="mt-1">
+<label class="sr-only" for="workspace-notes">Instruções para agentes</label>
+<textarea class="w-full bg-surface-container-lowest border border-outline-variant/40 focus:border-primary text-on-surface font-code-sm text-code-sm p-2 rounded-sm outline-none resize-none leading-relaxed transition-colors" id="workspace-notes" rows="3">Atenção: Não alterar a tabela legacy_freight_log sem prévia aprovação do Arquiteto. O gateway Santander requer idempotency key de 24h em todos os endpoints de cobrança recorrente.</textarea>
+</div>
+</div>
+<!-- Action button aligned right -->
+<div class="flex justify-end pt-2 border-t border-outline-variant/20">
+<button class="h-8 px-4 flex items-center gap-1.5 bg-[#6366f1] hover:bg-[#4f46e5] text-on-surface font-label-md text-label-md font-medium rounded-sm transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="save">save</span>
+<span>Salvar notas</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Context Footprint / Bottom Telemetry Strip -->
+<footer class="mt-space-sm py-2 px-space-md bg-surface-container-lowest border border-outline-variant/30 rounded-sm flex flex-col md:flex-row items-center justify-between text-outline font-code-sm text-code-sm gap-2">
+<div class="flex items-center gap-4">
+<span class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            Harness Engine: v1.8.2-runtime
+          </span>
+<span>Daemon: pid 4821</span>
+<span>Memory: 312MB / 4GB</span>
+</div>
+<div class="flex items-center gap-3">
+<span>Sandbox Mode: Docker Isolation (gVisor)</span>
+<span class="text-outline-variant">|</span>
+<a class="text-primary hover:underline" href="#doc">Documentação de Harness &amp; Specs →</a>
+</div>
+</footer>
+</div>
+</main>
+<!-- Interactive script for copy-path feedback -->
+<script>
+    document.querySelectorAll('[data-icon="content_copy"]').forEach(button => {
+      button.parentElement.addEventListener('click', () => {
+        const originalText = button.textContent;
+        button.textContent = 'check';
+        button.classList.add('text-emerald-400');
+        setTimeout(() => {
+          button.textContent = originalText;
+          button.classList.remove('text-emerald-400');
+        }, 1200);
+      });
+    });
+  </script>
+</body></html>

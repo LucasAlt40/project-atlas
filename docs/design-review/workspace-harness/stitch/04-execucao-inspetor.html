@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas Orchestrator — Execução #e1 (Inspetor)</title>
+<!-- Google Fonts: Geist & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS with custom configuration -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-tertiary": "#640039",
+            "surface-container-high": "#272a2e",
+            "outline": "#908fa0",
+            "surface-container-low": "#191c20",
+            "secondary": "#7bd0ff",
+            "inverse-surface": "#e1e2e8",
+            "surface-dim": "#111418",
+            "on-tertiary-fixed": "#3e0022",
+            "tertiary": "#ffb0cd",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "primary-fixed": "#e1e0ff",
+            "on-primary-fixed": "#07006c",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "on-error": "#690005",
+            "outline-variant": "#464554",
+            "on-primary": "#1000a9",
+            "on-primary-container": "#0d0096",
+            "error": "#ffb4ab",
+            "surface-bright": "#36393e",
+            "on-secondary-fixed": "#001e2c",
+            "inverse-primary": "#494bd6",
+            "on-secondary": "#00354a",
+            "tertiary-container": "#f751a1",
+            "surface-container-lowest": "#0b0e12",
+            "secondary-fixed": "#c4e7ff",
+            "on-surface": "#e1e2e8",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "on-background": "#e1e2e8",
+            "tertiary-fixed": "#ffd9e4",
+            "primary": "#c0c1ff",
+            "surface": "#111418",
+            "on-secondary-container": "#00374d",
+            "surface-variant": "#323539",
+            "primary-container": "#8083ff",
+            "surface-container": "#1d2024",
+            "secondary-fixed-dim": "#7bd0ff",
+            "primary-fixed-dim": "#c0c1ff",
+            "inverse-on-surface": "#2e3135",
+            "error-container": "#93000a",
+            "background": "#111418",
+            "on-surface-variant": "#c7c4d7",
+            "on-error-container": "#ffdad6",
+            "secondary-container": "#00a6e0",
+            "on-tertiary-container": "#570032",
+            "on-secondary-fixed-variant": "#004c69",
+            "surface-container-highest": "#323539",
+            "surface-tint": "#c0c1ff"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "gutter": "0.5rem",
+            "space-xl": "1.25rem",
+            "space-lg": "0.875rem",
+            "space-sm": "0.375rem",
+            "space-md": "0.625rem",
+            "space-xs": "0.25rem",
+            "margin": "0.75rem"
+          },
+          "fontFamily": {
+            "display": ["Geist", "sans-serif"],
+            "code-lg": ["JetBrains Mono", "monospace"],
+            "body-sm": ["Geist", "sans-serif"],
+            "code-sm": ["JetBrains Mono", "monospace"],
+            "body-lg": ["Geist", "sans-serif"],
+            "headline-sm": ["Geist", "sans-serif"],
+            "label-md": ["Geist", "sans-serif"],
+            "body-md": ["Geist", "sans-serif"],
+            "label-sm": ["JetBrains Mono", "monospace"],
+            "headline-lg": ["Geist", "sans-serif"],
+            "code-md": ["JetBrains Mono", "monospace"]
+          },
+          "fontSize": {
+            "display": ["1.75rem", { lineHeight: "2.25rem", letterSpacing: "-0.025em", fontWeight: "600" }],
+            "code-lg": ["0.875rem", { lineHeight: "1.375rem", letterSpacing: "-0.01em", fontWeight: "400" }],
+            "body-sm": ["0.75rem", { lineHeight: "1.125rem", letterSpacing: "0.005em", fontWeight: "400" }],
+            "code-sm": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0em", fontWeight: "400" }],
+            "body-lg": ["0.9375rem", { lineHeight: "1.375rem", letterSpacing: "-0.005em", fontWeight: "400" }],
+            "headline-sm": ["1.125rem", { lineHeight: "1.5rem", letterSpacing: "-0.015em", fontWeight: "500" }],
+            "label-md": ["0.75rem", { lineHeight: "1rem", letterSpacing: "0.01em", fontWeight: "500" }],
+            "body-md": ["0.8125rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "label-sm": ["0.625rem", { lineHeight: "0.875rem", letterSpacing: "0.04em", fontWeight: "500" }],
+            "headline-lg": ["1.375rem", { lineHeight: "1.75rem", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "code-md": ["0.75rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 350, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    /* Subtle custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0e12;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #272a2e;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #464554;
+    }
+  </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface antialiased font-body-md select-none overflow-hidden h-screen w-screen">
+<!-- ========================================================================= -->
+<!-- SHARED COMPONENT: SideNavBar (Atlas Core Left Shell - 216px)            -->
+<!-- ========================================================================= -->
+<aside class="fixed top-0 left-0 bottom-0 w-[216px] flex flex-col justify-between py-space-md z-40 bg-surface-container-lowest border-r border-outline-variant/30">
+<!-- Header: Logo, title, cluster & workspace dropdown -->
+<div>
+<div class="px-space-md pb-space-sm border-b border-outline-variant/20 mb-space-sm">
+<div class="flex items-center gap-space-sm mb-1">
+<div class="w-5 h-5 rounded bg-primary/20 border border-primary/40 flex items-center justify-center text-primary font-headline-sm text-body-sm font-semibold">
+            ▲
+          </div>
+<div>
+<h1 class="text-body-md font-headline-lg font-semibold tracking-tight text-on-surface leading-none">Atlas Core</h1>
+<span class="text-code-sm font-code-sm text-outline block mt-0.5">v2.4.0 • Cluster Online</span>
+</div>
+</div>
+<!-- Current Workspace Badge/Selector -->
+<div class="mt-space-md flex items-center justify-between px-space-sm py-1 bg-surface-container-low border border-outline-variant/30 rounded text-body-sm hover:border-outline-variant/60 cursor-pointer transition-colors duration-150">
+<div class="flex items-center gap-1.5 min-w-0">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+<span class="text-label-md font-label-md text-on-surface truncate">Transport ERP</span>
+</div>
+<span class="material-symbols-outlined text-outline text-[14px]">unfold_more</span>
+</div>
+</div>
+<!-- Quick Action CTA -->
+<div class="px-space-md mb-space-sm">
+<button class="w-full flex items-center justify-center gap-1.5 py-1 px-space-sm bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded text-label-md font-label-md transition-colors duration-150 active:scale-[0.99]">
+<span class="material-symbols-outlined text-[14px]">add</span>
+<span>Novo Fluxo</span>
+</button>
+</div>
+<!-- Navigation Tabs (from JSON: Workspace, Workflow, Agentes, Personalidades, Specs, MCP Hub) -->
+<nav class="flex flex-col space-y-0.5">
+<!-- Tab: Workspace (Active) -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm bg-surface-container-high text-primary border-l-2 border-primary rounded-none font-medium text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined">space_dashboard</span>
+<span>Workspace</span>
+</a>
+<!-- Tab: Workflow -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span>Workflow</span>
+</a>
+<!-- Tab: Agentes -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- Tab: Personalidades -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- Tab: Specs -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined">description</span>
+<span>Specs</span>
+</a>
+<!-- Tab: MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined">hub</span>
+<span>MCP Hub</span>
+</a>
+</nav>
+</div>
+<!-- Footer: Settings & Telemetry -->
+<div class="px-space-md pt-space-sm border-t border-outline-variant/20 flex flex-col gap-2">
+<a class="flex items-center gap-space-sm py-1 text-outline hover:text-on-surface transition-colors duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-[16px]">settings</span>
+<span>Configurações</span>
+</a>
+<!-- RPC Latency / Cluster status indicator -->
+<div class="flex items-center justify-between text-code-sm font-code-sm text-outline/70 pt-1 border-t border-outline-variant/15">
+<span class="flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+<span>sa-east-1a</span>
+</span>
+<span>18ms</span>
+</div>
+</div>
+</aside>
+<!-- ========================================================================= -->
+<!-- SHARED COMPONENT: TopNavBar (Fixed 48px Header)                         -->
+<!-- ========================================================================= -->
+<header class="fixed top-0 right-0 left-[216px] h-12 flex items-center justify-between px-space-lg z-30 border-b border-outline-variant/30 bg-surface-container-lowest">
+<!-- Left: Breadcrumb / Path -->
+<div class="flex items-center gap-2 text-label-md font-label-md">
+<span class="text-outline hover:text-on-surface transition-colors cursor-pointer">Atlas</span>
+<span class="text-outline/40">/</span>
+<span class="text-outline hover:text-on-surface transition-colors cursor-pointer">Workspace</span>
+<span class="text-outline/40">/</span>
+<span class="text-outline hover:text-on-surface transition-colors cursor-pointer">Transport ERP</span>
+<span class="text-outline/40">/</span>
+<span class="text-on-surface font-code-md text-code-md px-1.5 py-0.5 rounded bg-surface-container-high border border-outline-variant/40">Execução #e1</span>
+</div>
+<!-- Right: Quick actions, language switcher, alerts, user -->
+<div class="flex items-center gap-3">
+<!-- "Celular" toggle mode -->
+<button class="flex items-center gap-1 px-2 py-1 text-code-sm font-code-sm text-outline hover:text-on-surface hover:bg-surface-container-high border border-outline-variant/30 rounded transition-colors duration-150">
+<span class="material-symbols-outlined text-[14px]">smartphone</span>
+<span>Celular</span>
+</button>
+<!-- Language selector -->
+<div class="flex items-center border border-outline-variant/30 rounded overflow-hidden text-code-sm font-code-sm">
+<button class="px-2 py-0.5 bg-surface-container-high text-on-surface font-semibold">PT</button>
+<button class="px-2 py-0.5 text-outline hover:text-on-surface bg-surface-container-lowest">EN</button>
+</div>
+<!-- Trailing Icon Actions -->
+<div class="flex items-center gap-1 border-l border-outline-variant/30 pl-3">
+<button class="w-7 h-7 flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container-high rounded transition-colors" title="Terminal">
+<span class="material-symbols-outlined text-[16px]">terminal</span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container-high rounded transition-colors relative" title="Notificações">
+<span class="material-symbols-outlined text-[16px]">notifications</span>
+<span class="absolute top-1 right-1 w-1.5 h-1.5 bg-primary rounded-full"></span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container-high rounded transition-colors" title="Ajustes">
+<span class="material-symbols-outlined text-[16px]">tune</span>
+</button>
+</div>
+<!-- User avatar operator status online -->
+<div class="flex items-center gap-2 pl-2 border-l border-outline-variant/30">
+<div class="relative w-6 h-6 rounded bg-surface-container-high border border-outline-variant/40 flex items-center justify-center text-code-sm font-code-sm text-primary font-bold">
+          OP
+          <span class="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-surface-container-lowest"></span>
+</div>
+</div>
+</div>
+</header>
+<!-- ========================================================================= -->
+<!-- MAIN WORKSPACE BACKGROUND CANVAS (Simulating background specs & graph)     -->
+<!-- ========================================================================= -->
+<main class="fixed inset-0 top-12 left-[216px] overflow-hidden p-6 bg-surface flex flex-col gap-4 pointer-events-none select-none opacity-40">
+<!-- Mocked spec approval pipeline matching image reference -->
+<div class="grid grid-cols-5 gap-3">
+<div class="p-3 bg-surface-container-lowest border border-outline-variant/40 rounded flex items-center gap-2">
+<span class="material-symbols-outlined text-emerald-400 text-[18px]">check_circle</span>
+<div>
+<div class="text-body-sm font-medium">Proposta</div>
+<div class="text-code-sm text-outline">Aprovado</div>
+</div>
+</div>
+<div class="p-3 bg-surface-container-lowest border border-outline-variant/40 rounded flex items-center gap-2">
+<span class="material-symbols-outlined text-emerald-400 text-[18px]">check_circle</span>
+<div>
+<div class="text-body-sm font-medium">Requisitos</div>
+<div class="text-code-sm text-outline">Aprovado</div>
+</div>
+</div>
+<div class="p-3 bg-surface-container-lowest border border-outline-variant/40 rounded flex items-center gap-2">
+<span class="material-symbols-outlined text-emerald-400 text-[18px]">check_circle</span>
+<div>
+<div class="text-body-sm font-medium">Design</div>
+<div class="text-code-sm text-outline">Aprovado</div>
+</div>
+</div>
+<div class="p-3 bg-surface-container-lowest border border-outline-variant/40 rounded flex items-center gap-2">
+<span class="material-symbols-outlined text-emerald-400 text-[18px]">check_circle</span>
+<div>
+<div class="text-body-sm font-medium">Tarefas</div>
+<div class="text-code-sm text-outline">Aprovado</div>
+</div>
+</div>
+<div class="p-3 bg-surface-container-high border border-primary/40 rounded flex items-center gap-2">
+<span class="text-code-sm font-code-sm px-1 rounded bg-primary/20 text-primary">5</span>
+<div>
+<div class="text-body-sm font-medium text-primary">Revisão final</div>
+<div class="text-code-sm text-outline">A fazer</div>
+</div>
+</div>
+</div>
+<!-- Mocked main spec editor block -->
+<div class="flex-1 bg-surface-container-lowest border border-outline-variant/30 rounded p-4 flex flex-col gap-3">
+<div class="flex items-center justify-between border-b border-outline-variant/20 pb-2">
+<span class="text-body-md font-medium text-on-surface">Revisão pelo agente revisor</span>
+<span class="text-code-sm text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Concluída</span>
+</div>
+<p class="text-body-sm text-outline">
+        Arquiteto backend lê os documentos aprovados procurando lacunas, ambiguidades e contradições. Só lê; não altera nada.
+      </p>
+<div class="h-32 bg-surface-container-low border border-outline-variant/20 rounded p-3 text-code-sm font-code-sm text-outline">
+        // Simulação do buffer de auditoria de contexto...
+      </div>
+</div>
+</main>
+<!-- ========================================================================= -->
+<!-- MODAL SCRIM & BACKDROP (40% Pitch-black Scrim + 12px Backdrop Blur)        -->
+<!-- ========================================================================= -->
+<div class="fixed inset-0 top-12 left-[216px] z-50 bg-[#000000]/60 backdrop-blur-[12px] flex items-center justify-center p-6">
+<!-- ======================================================================= -->
+<!-- INSPECTOR MODAL: "Execução — Inspetor"                                 -->
+<!-- Max width 1240px, sharp borders (#242c37), deep slate layering           -->
+<!-- ======================================================================= -->
+<div class="w-full max-w-[1240px] h-[calc(100vh-7rem)] bg-surface-container-low border border-outline-variant/50 rounded-xl flex flex-col shadow-[0_12px_36px_-6px_rgba(0,0,0,0.85),0_2px_8px_0_rgba(0,0,0,0.6)] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+<!-- MODAL HEADER -->
+<div class="px-space-xl py-3 bg-surface-container-lowest border-b border-outline-variant/30 flex items-center justify-between shrink-0">
+<!-- Title and breadcrumb tag -->
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-2">
+<span class="px-1.5 py-0.5 text-label-sm font-code-sm rounded bg-primary/10 text-primary border border-primary/30 uppercase tracking-wider">
+              EXECUÇÃO #e1
+            </span>
+<span class="text-outline/40">•</span>
+<h2 class="text-body-lg font-headline-sm font-semibold text-on-surface">
+              Execução #e1 — Revisar a camada de faturamento
+            </h2>
+</div>
+<!-- Metrics & Status Chips -->
+<div class="flex items-center gap-2 ml-2">
+<!-- Status Pill: Concluída -->
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-code-sm font-code-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+<span class="font-medium">Concluída</span>
+</div>
+<!-- Duration Chip -->
+<div class="flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container-high border border-outline-variant/30 text-on-surface-variant text-code-sm font-code-sm">
+<span class="material-symbols-outlined text-[13px] text-outline">schedule</span>
+<span>Duração: <strong class="text-on-surface font-semibold">9m 00s</strong></span>
+</div>
+<!-- Cost Chip -->
+<div class="flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container-high border border-outline-variant/30 text-on-surface-variant text-code-sm font-code-sm">
+<span class="material-symbols-outlined text-[13px] text-outline">sell</span>
+<span>Custo: <strong class="text-on-surface font-semibold">US$ 0,31</strong></span>
+</div>
+</div>
+</div>
+<!-- Header Controls -->
+<div class="flex items-center gap-2">
+<button class="flex items-center gap-1 px-2.5 py-1 text-code-sm font-code-sm text-outline hover:text-on-surface bg-surface-container-low hover:bg-surface-container-high border border-outline-variant/30 rounded transition-colors duration-150">
+<span class="material-symbols-outlined text-[14px]">file_download</span>
+<span>Exportar Log</span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container-high rounded border border-outline-variant/30 transition-colors" title="Mais opções">
+<span class="material-symbols-outlined text-[16px]">more_horiz</span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center text-outline hover:text-error hover:bg-error-container/20 rounded border border-outline-variant/30 transition-colors" title="Fechar Inspetor">
+<span class="material-symbols-outlined text-[16px]">close</span>
+</button>
+</div>
+</div>
+<!-- INSPECTOR NAVIGATION TABS (Exactly 5 tabs) -->
+<div class="px-space-xl bg-surface-container-lowest border-b border-outline-variant/30 flex items-center gap-1 shrink-0">
+<!-- 1. Detalhes (ACTIVE TAB) -->
+<button class="flex items-center gap-1.5 px-3 py-2 text-label-md font-label-md text-primary border-b-2 border-primary font-medium transition-colors">
+<span class="material-symbols-outlined text-[15px]">info</span>
+<span>Detalhes</span>
+</button>
+<!-- 2. Contexto -->
+<button class="flex items-center gap-1.5 px-3 py-2 text-label-md font-label-md text-outline hover:text-on-surface border-b-2 border-transparent transition-colors">
+<span class="material-symbols-outlined text-[15px]">memory</span>
+<span>Contexto</span>
+</button>
+<!-- 3. Atividade -->
+<button class="flex items-center gap-1.5 px-3 py-2 text-label-md font-label-md text-outline hover:text-on-surface border-b-2 border-transparent transition-colors">
+<span class="material-symbols-outlined text-[15px]">browse_activity</span>
+<span>Atividade</span>
+<span class="px-1 text-code-sm font-code-sm bg-surface-container-high text-outline rounded text-[10px]">6</span>
+</button>
+<!-- 4. Chat -->
+<button class="flex items-center gap-1.5 px-3 py-2 text-label-md font-label-md text-outline hover:text-on-surface border-b-2 border-transparent transition-colors">
+<span class="material-symbols-outlined text-[15px]">chat_bubble</span>
+<span>Chat</span>
+</button>
+<!-- 5. Terminal -->
+<button class="flex items-center gap-1.5 px-3 py-2 text-label-md font-label-md text-outline hover:text-on-surface border-b-2 border-transparent transition-colors">
+<span class="material-symbols-outlined text-[15px]">terminal</span>
+<span>Terminal</span>
+</button>
+</div>
+<!-- MAIN INSPECTOR CONTENT SPLIT VIEW -->
+<div class="flex-1 flex overflow-hidden">
+<!-- =================================================================== -->
+<!-- LEFT COLUMN: Detalhes & Métricas (65% width)                        -->
+<!-- =================================================================== -->
+<div class="w-[65%] border-r border-outline-variant/30 flex flex-col overflow-y-auto p- space-xl">
+<div class="flex items-center justify-between mb-space-md">
+<h3 class="text-body-md font-headline-sm font-semibold text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[17px]">tune</span>
+<span>Parâmetros e Métricas de Execução</span>
+</h3>
+<span class="text-code-sm font-code-sm text-outline">Sessão: cl-session-88b14e</span>
+</div>
+<!-- Compact Data Grid (Two-column layout of 13 specific key/value telemetry items) -->
+<div class="grid grid-cols-2 gap-2 bg-surface-container-lowest p-3 border border-outline-variant/30 rounded-lg">
+<!-- 1. Status -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low border border-outline-variant/20">
+<span class="text-body-sm text-outline flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+<span>Status</span>
+</span>
+<span class="text-code-sm font-code-sm font-semibold text-emerald-400">Concluída (Exit Code 0)</span>
+</div>
+<!-- 2. Workspace -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low border border-outline-variant/20">
+<span class="text-body-sm text-outline flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]">domain</span>
+<span>Workspace</span>
+</span>
+<span class="text-code-sm font-code-sm text-on-surface font-medium">Transport ERP</span>
+</div>
+<!-- 3. Agente -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low border border-outline-variant/20">
+<span class="text-body-sm text-outline flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]">smart_toy</span>
+<span>Agente</span>
+</span>
+<span class="text-code-sm font-code-sm text-primary font-medium">Arquiteto Backend</span>
+</div>
+<!-- 4. Personalidade -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low border border-outline-variant/20">
+<span class="text-body-sm text-outline flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]">psychology</span>
+<span>Personalidade</span>
+</span>
+<span class="text-code-sm font-code-sm text-secondary font-medium">Architect</span>
+</div>
+<!-- 5. Runtime -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low border border-outline-variant/20">
+<span class="text-body-sm text-outline flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]">terminal</span>
+<span>Runtime</span>
+</span>
+<span class="text-code-sm font-code-sm text-on-surface">Claude CLI (v1.2.0)</span>
+</div>
+<!-- 6. Modelo -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low border border-outline-variant/20">
+<span class="text-body-sm text-outline flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]">auto_awesome</span>
+<span>Modelo</span>
+</span>
+<span class="text-code-sm font-code-sm text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">claude-3-5-sonnet</span>
+</div>
+<!-- 7. Início -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low border border-outline-variant/20">
+<span class="text-body-sm text-outline flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]">play_arrow</span>
+<span>Início</span>
+</span>
+<span class="text-code-sm font-code-sm text-on-surface">14:19:04 (hoje)</span>
+</div>
+<!-- 8. Fim -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low border border-outline-variant/20">
+<span class="text-body-sm text-outline flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]">stop</span>
+<span>Fim</span>
+</span>
+<span class="text-code-sm font-code-sm text-on-surface">14:28:04 (hoje)</span>
+</div>
+<!-- 9. Processo -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low border border-outline-variant/20">
+<span class="text-body-sm text-outline flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]">shield</span>
+<span>Processo</span>
+</span>
+<span class="text-code-sm font-code-sm text-outline-variant text-[11px] font-mono">PID 18472 / sandboxed</span>
+</div>
+<!-- 10. Entrada -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low border border-outline-variant/20">
+<span class="text-body-sm text-outline flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]">input</span>
+<span>Entrada</span>
+</span>
+<span class="text-code-sm font-code-sm text-on-surface">12.000 tokens <span class="text-outline text-[10px]">(12 mil)</span></span>
+</div>
+<!-- 11. Saída -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low border border-outline-variant/20">
+<span class="text-body-sm text-outline flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]">output</span>
+<span>Saída</span>
+</span>
+<span class="text-code-sm font-code-sm text-on-surface">3.100 tokens <span class="text-outline text-[10px]">(3,1 mil)</span></span>
+</div>
+<!-- 12. Total -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low border border-outline-variant/20">
+<span class="text-body-sm text-outline flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]">data_usage</span>
+<span>Total</span>
+</span>
+<span class="text-code-sm font-code-sm font-medium text-primary">15.100 tokens <span class="text-outline text-[10px]">(15,1 mil)</span></span>
+</div>
+<!-- 13. Custo (Spans 2 columns for impact) -->
+<div class="col-span-2 flex items-center justify-between p-2 rounded bg-surface-container-high border border-outline-variant/40">
+<span class="text-body-sm text-on-surface font-medium flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[15px] text-emerald-400">payments</span>
+<span>Custo Consolidado da Sessão</span>
+</span>
+<div class="flex items-center gap-2">
+<span class="text-code-sm text-outline">Tarifa Sonnet v3.5</span>
+<span class="text-code-lg font-code-lg font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">US$ 0,31</span>
+</div>
+</div>
+</div>
+<!-- Resumo da Execução & Validação Box -->
+<div class="mt-space-lg flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<h4 class="text-body-md font-headline-sm font-semibold text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[16px]">verified</span>
+<span>Resumo da Execução &amp; Validação</span>
+</h4>
+<span class="text-code-sm font-code-sm text-emerald-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">task_alt</span>
+<span>14/14 testes passaram</span>
+</span>
+</div>
+<div class="p-3.5 bg-surface-container-lowest border border-outline-variant/30 rounded-lg flex flex-col gap-2.5">
+<p class="text-body-sm text-on-surface leading-relaxed">
+                Refatoração do módulo de conciliação concluída sem quebra de contrato. Testes unitários 14/14 aprovados. Isolamento Git preservado.
+              </p>
+<!-- Git Diff badge summary -->
+<div class="flex items-center gap-3 pt-2 border-t border-outline-variant/20 text-code-sm font-code-sm">
+<div class="flex items-center gap-1.5 text-on-surface">
+<span class="material-symbols-outlined text-[14px] text-outline">description</span>
+<span>billing-service/PaymentGatewayService.java</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-emerald-400 bg-emerald-500/10 px-1 rounded font-semibold">+47</span>
+<span class="text-error bg-error-container/20 px-1 rounded font-semibold">-2</span>
+</div>
+<span class="text-outline/40">|</span>
+<span class="text-outline">Branch: <code class="text-on-surface">feature/fix-billing-concil</code></span>
+</div>
+</div>
+</div>
+<!-- Security note / Sandboxing tag -->
+<div class="mt-space-md p-2.5 bg-primary/5 border border-primary/20 rounded flex items-center gap-2 text-body-sm text-on-surface">
+<span class="material-symbols-outlined text-primary text-[16px]">lock</span>
+<span>Ambiente restrito sem permissão de gravação direta na branch principal. Modificações preparadas em staging Git.</span>
+</div>
+</div>
+<!-- =================================================================== -->
+<!-- RIGHT COLUMN: Linha do Tempo de Atividade (35% width)               -->
+<!-- =================================================================== -->
+<div class="w-[35%] bg-surface-container-lowest flex flex-col overflow-hidden">
+<!-- Timeline Header -->
+<div class="px-space-lg py-space-md border-b border-outline-variant/30 flex items-center justify-between shrink-0">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline text-[16px]">history</span>
+<h3 class="text-body-md font-headline-sm font-semibold text-on-surface">Linha do Tempo de Atividade</h3>
+</div>
+<span class="px-2 py-0.5 rounded text-code-sm font-code-sm bg-surface-container-high border border-outline-variant/30 text-outline">
+              6 eventos
+            </span>
+</div>
+<!-- Timeline Events Stream -->
+<div class="flex-1 overflow-y-auto p-space-lg">
+<div class="relative border-l border-outline-variant/40 ml-2.5 pl-4 flex flex-col gap-5">
+<!-- Node 1: 14:19:04 -->
+<div class="relative group">
+<!-- Dot -->
+<div class="absolute -left-[21px] top-0.5 w-2.5 h-2.5 rounded-full bg-surface-container-high border-2 border-emerald-400"></div>
+<div class="flex items-baseline justify-between mb-0.5">
+<span class="text-body-sm font-semibold text-on-surface">Execução iniciada</span>
+<span class="text-code-sm font-code-sm text-outline">14:19:04</span>
+</div>
+<p class="text-body-sm text-outline">Spawn do processo sandboxed com identificador de sessão ativo.</p>
+<span class="inline-block mt-1 text-[10px] font-code-sm text-outline/70 bg-surface-container-low px-1.5 py-0.5 rounded border border-outline-variant/20">
+                  runtime::spawn
+                </span>
+</div>
+<!-- Node 2: 14:19:12 -->
+<div class="relative group">
+<!-- Dot -->
+<div class="absolute -left-[21px] top-0.5 w-2.5 h-2.5 rounded-full bg-surface-container-high border-2 border-emerald-400"></div>
+<div class="flex items-baseline justify-between mb-0.5">
+<span class="text-body-sm font-semibold text-on-surface">Iniciando runtime</span>
+<span class="text-code-sm font-code-sm text-outline">14:19:12</span>
+</div>
+<p class="text-body-sm text-outline">Handshake Claude CLI e verificação de ambiente isolado.</p>
+<span class="inline-block mt-1 text-[10px] font-code-sm text-emerald-400/90 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                  cli_handshake: ok
+                </span>
+</div>
+<!-- Node 3: 14:19:25 -->
+<div class="relative group">
+<!-- Dot -->
+<div class="absolute -left-[21px] top-0.5 w-2.5 h-2.5 rounded-full bg-surface-container-high border-2 border-secondary"></div>
+<div class="flex items-baseline justify-between mb-0.5">
+<span class="text-body-sm font-semibold text-on-surface">Enviando prompt</span>
+<span class="text-code-sm font-code-sm text-outline">14:19:25</span>
+</div>
+<p class="text-body-sm text-outline">Injeção de contexto do projeto e regras de arquitetura estrita.</p>
+<span class="inline-block mt-1 text-[10px] font-code-sm text-secondary bg-secondary/10 px-1.5 py-0.5 rounded border border-secondary/20">
+                  prompt_size: 12k tokens
+                </span>
+</div>
+<!-- Node 4: 14:21:40 -->
+<div class="relative group">
+<!-- Dot -->
+<div class="absolute -left-[21px] top-0.5 w-2.5 h-2.5 rounded-full bg-surface-container-high border-2 border-primary"></div>
+<div class="flex items-baseline justify-between mb-0.5">
+<span class="text-body-sm font-semibold text-on-surface">Aguardando modelo</span>
+<span class="text-code-sm font-code-sm text-outline">14:21:40</span>
+</div>
+<p class="text-body-sm text-outline">Streaming de tokens e análise estrutural de dependências do código.</p>
+<div class="mt-1 flex items-center gap-1.5 text-[10px] font-code-sm text-primary">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+<span>streaming inference complete</span>
+</div>
+</div>
+<!-- Node 5: 14:24:18 -->
+<div class="relative group">
+<!-- Dot -->
+<div class="absolute -left-[21px] top-0.5 w-2.5 h-2.5 rounded-full bg-surface-container-high border-2 border-amber-400"></div>
+<div class="flex items-baseline justify-between mb-0.5">
+<span class="text-body-sm font-semibold text-on-surface">Ferramenta Read executada</span>
+<span class="text-code-sm font-code-sm text-outline">14:24:18</span>
+</div>
+<p class="text-body-sm text-outline">Leitura de <span class="font-code-sm text-on-surface text-[11px]">billing-service/PaymentGatewayService.java</span></p>
+<span class="inline-block mt-1 text-[10px] font-code-sm text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                  tool_call: fs_read (1 file)
+                </span>
+</div>
+<!-- Node 6: 14:28:04 -->
+<div class="relative group">
+<!-- Dot (Concluída - Solid Green) -->
+<div class="absolute -left-[21px] top-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-4 ring-emerald-400/20"></div>
+<div class="flex items-baseline justify-between mb-0.5">
+<span class="text-body-sm font-semibold text-emerald-400">Concluída</span>
+<span class="text-code-sm font-code-sm text-emerald-400 font-semibold">14:28:04</span>
+</div>
+<p class="text-body-sm text-outline">Execução finalizada com sucesso e métricas computadas no ledger.</p>
+<div class="mt-1 flex items-center gap-1 text-[10px] font-code-sm text-emerald-400">
+<span class="material-symbols-outlined text-[13px]">check</span>
+<span>Exit Code 0 • Sync 100%</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Timeline mini telemetry footer -->
+<div class="px-space-md py-2 border-t border-outline-variant/20 bg-surface-container-low text-code-sm font-code-sm text-outline flex items-center justify-between">
+<span>Latência média de tool: 140ms</span>
+<span class="text-emerald-400">Sem erros</span>
+</div>
+</div>
+</div>
+<!-- ===================================================================== -->
+<!-- MODAL FOOTER                                                          -->
+<!-- ===================================================================== -->
+<div class="px-space-xl py-2.5 bg-surface-container-lowest border-t border-outline-variant/30 flex items-center justify-between shrink-0">
+<!-- Telemetry & runtime metadata -->
+<div class="flex items-center gap-2 text-code-sm font-code-sm text-outline">
+<span class="flex items-center gap-1 text-on-surface-variant">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+<span>Cluster sa-east-1</span>
+</span>
+<span class="text-outline/40">·</span>
+<span>Atlas Runtime v2.4.0</span>
+<span class="text-outline/40">·</span>
+<span class="text-primary font-medium flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]">lock</span>
+<span>Isolamento Git: Ativo</span>
+</span>
+</div>
+<!-- Action buttons -->
+<div class="flex items-center gap-2">
+<button class="flex items-center gap-1.5 px-3 py-1.5 text-label-md font-label-md text-outline hover:text-on-surface bg-surface-container-low hover:bg-surface-container-high border border-outline-variant/30 rounded transition-colors duration-150">
+<span class="material-symbols-outlined text-[14px]">refresh</span>
+<span>Reexecutar tarefa</span>
+</button>
+<button class="flex items-center gap-1.5 px-3 py-1.5 text-label-md font-label-md text-outline hover:text-on-surface bg-surface-container-low hover:bg-surface-container-high border border-outline-variant/30 rounded transition-colors duration-150">
+<span class="material-symbols-outlined text-[14px]">difference</span>
+<span>Ver diff no Git</span>
+</button>
+<button class="flex items-center gap-1.5 px-4 py-1.5 text-label-md font-label-md bg-primary hover:bg-primary-container text-on-primary font-medium rounded transition-colors duration-150 active:scale-[0.99]">
+<span class="material-symbols-outlined text-[15px]">open_in_new</span>
+<span>Abrir no Workspace</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</body></html>

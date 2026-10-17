@@ -10,15 +10,15 @@ compartilhada do desktop obrigatoriamente (veja §2). Dossiê: [`README.md`](REA
 
 Ids das telas geradas no Stitch (registro e avaliação em `prompts.md`).
 
-| #   | Tela (nome no Stitch)                  | Id da tela nova | Código do app (hipótese a confirmar)                                             |
-| --- | -------------------------------------- | --------------- | -------------------------------------------------------------------------------- |
-| M1  | Celular — Painel de execuções          | `353aa8a106af44408c2dc337f053d82f`   | `src/mobile/Dashboard.tsx`, `Banners.tsx`, `StatusChip.tsx`, `Mobile.module.css` |
-| M2  | Celular — Execução esperando resposta  | `068a7930a0ec4643ad87d2ea16a2f904`   | `RunScreen.tsx`, `InteractionCard.tsx`                                           |
-| M3  | Celular — Execução: etapas e resultado | `35e8c067f9364cdfa829f555d3c89832`   | `RunScreen.tsx`, `Timeline.tsx`, `labels.ts`                                     |
-| M4  | Celular — Conectar este celular        | `6c341e698dc048c28b6782f9af6cd74c`   | `PairScreen.tsx`                                                                 |
-| M5a | Celular — Sem conexão                  | `62b2772d85634fd7ba9794c4983b88a2` | `MobileApp.tsx` (fase `unreachable`) |
-| M5b | Celular — Sem execuções                | `2c352cadb9e94203b96e2173b81f1a35` | `Dashboard.tsx` (vazio)              |
-| D1  | Computador — Acesso pelo celular       | `c86519c324ba40a9b41f4552b9c5527d`   | `src/features/remote/MobileAccessDialog.tsx`, `Remote.module.css`                |
+| #   | Tela (nome no Stitch)                  | Id da tela nova                    | Código do app (hipótese a confirmar)                                             |
+| --- | -------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------- |
+| M1  | Celular — Painel de execuções          | `353aa8a106af44408c2dc337f053d82f` | `src/mobile/Dashboard.tsx`, `Banners.tsx`, `StatusChip.tsx`, `Mobile.module.css` |
+| M2  | Celular — Execução esperando resposta  | `068a7930a0ec4643ad87d2ea16a2f904` | `RunScreen.tsx`, `InteractionCard.tsx`                                           |
+| M3  | Celular — Execução: etapas e resultado | `35e8c067f9364cdfa829f555d3c89832` | `RunScreen.tsx`, `Timeline.tsx`, `labels.ts`                                     |
+| M4  | Celular — Conectar este celular        | `6c341e698dc048c28b6782f9af6cd74c` | `PairScreen.tsx`                                                                 |
+| M5a | Celular — Sem conexão                  | `62b2772d85634fd7ba9794c4983b88a2` | `MobileApp.tsx` (fase `unreachable`)                                             |
+| M5b | Celular — Sem execuções                | `2c352cadb9e94203b96e2173b81f1a35` | `Dashboard.tsx` (vazio)                                                          |
+| D1  | Computador — Acesso pelo celular       | `c86519c324ba40a9b41f4552b9c5527d` | `src/features/remote/MobileAccessDialog.tsx`, `Remote.module.css`                |
 
 O botão "Celular" da barra superior (`MobileAccessButton`) é **moldura**: não muda. Textos em `mobile.*` e
 `remote.*` de `pt-BR.ts` e `en-US.ts`; a página do celular escolhe o idioma pelo navegador (`pt` → pt-BR).
