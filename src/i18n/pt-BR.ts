@@ -3164,7 +3164,7 @@ export const ptBR: Record<TranslationKey, string> = {
     'Recomendado: um agente com a personalidade Arquiteto de Especificações. Qualquer agente pode escrever.',
   'specs.new.reviewer': 'Agente que revisa',
   'specs.new.sameAgent': 'O mesmo que escreve',
-  'specs.new.noAgents': 'Este workspace não tem agentes. Adicione um no Workspace antes.',
+  'specs.new.noAgents': 'Não há agentes. Crie um em Agentes antes.',
   'specs.new.nothingRuns': 'Criar apenas guarda o pedido. Nenhum agente roda até você iniciar.',
   'specs.new.create': 'Criar',
   'specs.import.intro':

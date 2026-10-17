@@ -4,7 +4,7 @@ import { Modal } from '@/components/ui/Modal';
 import type { Agent } from '@/features/agents/types';
 import type { Workspace } from '@/features/workspace/types';
 import { useI18n } from '@/i18n/I18nProvider';
-import { agentsOf, authorName } from '../model/agents';
+import { authorChoices, authorName } from '../model/agents';
 import { IntegrationsPicker } from './IntegrationsPicker';
 import type { SpecView } from '../types';
 import styles from './Specs.module.css';
@@ -21,7 +21,7 @@ interface Props {
 /** Who writes the documents and who reviews them, when that has to change. */
 export function AgentsDialog({ workspace, agents, view, busy, onSave, onClose }: Props) {
   const { t } = useI18n();
-  const choices = useMemo(() => agentsOf(workspace, agents), [workspace, agents]);
+  const choices = useMemo(() => authorChoices(agents), [agents]);
   const [author, setAuthor] = useState(view.spec.authorAgentId);
   const [reviewer, setReviewer] = useState(view.spec.reviewerAgentId);
   const [integrations, setIntegrations] = useState(view.spec.integrations);

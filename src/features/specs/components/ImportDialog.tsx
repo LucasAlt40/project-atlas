@@ -5,7 +5,7 @@ import type { Agent } from '@/features/agents/types';
 import type { Workspace } from '@/features/workspace/types';
 import { useI18n } from '@/i18n/I18nProvider';
 import { errorMessage } from '@/i18n/messages';
-import { agentsOf, authorName, isRecommendedAuthor, suggestedAuthor } from '../model/agents';
+import { authorChoices, authorName, isRecommendedAuthor, suggestedAuthor } from '../model/agents';
 import { stageName } from '../model/messages';
 import { importSpec, listImportable } from '../services/specService';
 import type { ImportCandidate, SpecView } from '../types';
@@ -39,7 +39,7 @@ function problemText(t: ReturnType<typeof useI18n>['t'], code: string): string {
 /** The OpenSpec changes already in the project. They are read, never changed or approved. */
 export function ImportDialog({ workspace, agents, onClose, onImported }: Props) {
   const { t } = useI18n();
-  const inWorkspace = useMemo(() => agentsOf(workspace, agents), [workspace, agents]);
+  const inWorkspace = useMemo(() => authorChoices(agents), [agents]);
   const [projectId, setProjectId] = useState(workspace.projects[0]?.id ?? '');
   const [author, setAuthor] = useState(suggestedAuthor(inWorkspace)?.id ?? '');
   const [loaded, setLoaded] = useState<{ projectId: string; list: ImportCandidate[] } | null>(null);

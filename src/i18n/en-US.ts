@@ -3122,7 +3122,7 @@ export const enUS = {
     'Recommended: an agent with the Spec Architect personality. Any agent can write.',
   'specs.new.reviewer': 'Agent that reviews',
   'specs.new.sameAgent': 'Same as the writer',
-  'specs.new.noAgents': 'This workspace has no agents. Add one in Workspace first.',
+  'specs.new.noAgents': 'There are no agents. Create one in Agents first.',
   'specs.new.nothingRuns': 'Creating only saves the request. No agent runs until you start it.',
   'specs.new.create': 'Create',
   'specs.import.intro':

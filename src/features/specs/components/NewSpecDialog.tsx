@@ -7,7 +7,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { errorMessage } from '@/i18n/messages';
 import { listWorkspaceProjects } from '@/features/workspace/services/workspaceService';
 import type { ProjectInfoDto } from '@/lib/tauri/commands';
-import { agentsOf, authorName, isRecommendedAuthor, suggestedAuthor } from '../model/agents';
+import { authorChoices, authorName, isRecommendedAuthor, suggestedAuthor } from '../model/agents';
 import { IntegrationsPicker } from './IntegrationsPicker';
 import { contextFromAnswers, profileOf, questionsFor } from '../model/contextQuestions';
 import { createSpec } from '../services/specService';
@@ -30,7 +30,7 @@ interface Props {
  */
 export function NewSpecDialog({ workspace, agents, onClose, onCreated }: Props) {
   const { t } = useI18n();
-  const inWorkspace = useMemo(() => agentsOf(workspace, agents), [workspace, agents]);
+  const inWorkspace = useMemo(() => authorChoices(agents), [agents]);
   const [title, setTitle] = useState('');
   const [request, setRequest] = useState('');
   const [context, setContext] = useState('');
