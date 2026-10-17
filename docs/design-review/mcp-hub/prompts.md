@@ -122,6 +122,7 @@ adicionar 2 a 1 arquivo(s), trazer 1 para o Atlas". Estado alternativo: o texto 
 | -------------- | ------- | --------------------- | ---------- |
 | H1 | 2026-10-16 | "MCP Hub — Servidores" `fa3cca4a27654726aacc04dca4b578b4` (2560×2048) | `edit_screens` criou tela nova; a original `2aa1bde3…` segue intacta. Avaliação abaixo. |
 | H3 | 2026-10-16 | "MCP Hub — Adicionar servidor" `53d6a8c1b2b64645a9cd1c5ef1f6f302` (2560×2048) | `generate_screen_from_text` com o design system, sem timeout. |
+| H4 | 2026-10-16 | "MCP Hub — Importar e exportar configuração" `45ec47aac884449faa1028ad973a7bf5` (2560×2048) | `generate_screen_from_text`; deu timeout, não reenviado, confirmado por `list_screens`. |
 
 ## Avaliação
 
@@ -160,3 +161,25 @@ Desvios de conteúdo: a nota diz "versão 0.21" por erro de renderização (o te
 descrições de "Registro MCP" e "Manual" apareceram como linha de texto no topo, o que o app não tem (cada
 aba mostra só o próprio conteúdo). Descrição da aba "Registro MCP" foi cortada: "Busque no Registro MCP
 oficial…" é só a nota inicial da aba.
+
+### H4 — MCP Hub — Importar e exportar configuração
+
+Conferência geral com `list_screens`: as três telas do MCP Hub existem (H1 `fa3cca4a…`, H3 `53d6a8c1…`,
+H4 `45ec47aa…`), mais a base original `2aa1bde3…`.
+
+Fiel: modal com título, duas abas (Importar aberta), nota de segurança em destaque, "Formato: Detectar",
+"Ler o arquivo da CLI" e "Carregar arquivo…", área "Configuração" com JSON, "Importar (desligados)" e o
+resumo de três linhas, sem rodapé de protocolo inventado (o reforço no P0 funcionou).
+
+O Stitch mostra, o app não tem (não implementar):
+
+- Texto mono "JSON syntax / raw payload" ao lado de "Configuração".
+- A descrição da aba Exportar (era só instrução para o Stitch) apareceu como faixa de texto no modal:
+  "Exportação suporta formato, 'Só o servidor selecionado'…". Não existe no app.
+- Ícones decorativos nas abas, no título e nos botões; escudo na nota.
+- A página ao fundo traz um subtítulo diferente do real ("Gerenciador unificado de servidores…") em vez do
+  texto oficial; ignorar, o fundo é só contexto.
+
+Desvios: o motivo de "Deixados de fora: 1" saiu como "(já existe ou protocolo incompatível)", motivo
+inventado; o app mostra o motivo real de cada servidor deixado de fora. O resumo ficou em mono; manter o
+estilo atual de texto, com selo verde apenas no ponto de sucesso.
