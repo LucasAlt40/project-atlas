@@ -158,6 +158,7 @@ uma rede) existem só como texto.
 | M2 | 2026-10-16 | "Celular — Execução esperando resposta" `068a7930a0ec4643ad87d2ea16a2f904` (canvas 2560×2048, coluna de celular) | `generate_screen_from_text` com `deviceType: MOBILE`; respondeu sem timeout. |
 | M3 | 2026-10-16 | "Celular — Execução: etapas e resultado" `35e8c067f9364cdfa829f555d3c89832` (canvas de celular, 780×1768 na captura) | `generate_screen_from_text` com `deviceType: MOBILE`; timeout, não reenviado, confirmado por `list_screens`. |
 | M4 | 2026-10-16 | "Celular — Conectar este celular" `6c341e698dc048c28b6782f9af6cd74c` (canvas 2560×2048, coluna de celular) | `generate_screen_from_text` com `deviceType: MOBILE`; respondeu sem timeout. |
+| M5a | 2026-10-16 | "Celular — Sem conexão" `62b2772d85634fd7ba9794c4983b88a2` (canvas 2560×2048, coluna de celular) | `generate_screen_from_text` com `deviceType: MOBILE`; respondeu sem timeout. |
 
 ## Avaliação
 
@@ -223,3 +224,10 @@ embaixo. Sem QR code desenhado, sem teclado e sem barra de status (o reforço fu
 Observação de layout: entre o campo e o botão há um vazio grande, porque o botão ficou ancorado no pé da
 tela (alcance do polegar). É intencional e deve ser mantido no app. O erro e o estado "Conectando…" não
 foram desenhados (só descritos): implementar a faixa vermelha acima do campo e trocar o rótulo do botão.
+
+### M5a — Celular — Sem conexão
+
+Exatamente o pedido: topo só com "Atlas", faixa vermelha com ponto de estado e o texto completo, e
+"Tentar de novo" em largura total logo abaixo. Nada inventado. Observação: aqui a barra de topo ocupou a
+largura inteira do canvas, mas o conteúdo ficou na coluna de celular; vale a coluna. O botão ficou logo
+abaixo da faixa (no meio da tela) e não no pé: aceitável, já que a tela só tem essa ação.
