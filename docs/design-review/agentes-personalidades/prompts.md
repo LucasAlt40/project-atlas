@@ -110,6 +110,24 @@ personalidade"). Campos: "Nome" (placeholder "Arquiteto .NET Sênior"), "Descri�
 
 ## Registro de envios
 
-| Prompt         | Enviado | Tela gerada no Stitch | Observação |
-| -------------- | ------- | --------------------- | ---------- |
-| (nenhum ainda) |         |                       |            |
+| Prompt | Enviado    | Tela gerada no Stitch                                                                          | Observação                                                                                                                                |
+| ------ | ---------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| A1     | 2026-10-16 | "Agentes — Lista de agentes" (`42f5fb75c558460f8d86936f0028e54c`, 2560×2048)                   | `edit_screens` criou tela nova; a original `a692a557…` continua intacta. Timeout na chamada, geração concluída.                           |
+| A3     | 2026-10-16 | "Agentes — Criar e editar agente" (`5b2df1e4aaa2428e8a009701747f3b6a`, 2560×2048)              | `edit_screens` criou tela nova; a original `9e4c180f…` continua intacta. Timeout na chamada, geração concluída.                           |
+| P1     | 2026-10-16 | "Personalidades — Biblioteca" (`efdc4e192ab14fb39ee2c4f515a96ede`, 2560×2048)                  | `edit_screens` criou tela nova; a original `ada6c661…` continua intacta. Timeout na chamada, geração concluída.                           |
+| A2     | 2026-10-16 | "Agentes — Sem agentes" (`387895715cfb402db603a057a1a6dfa4`, 2560×2048)                        | `generate_screen_from_text` com o design system `assets/7aa0774b…`; tela nova. Desta vez a chamada **não** deu timeout e devolveu a tela. |
+| P2     | 2026-10-16 | "Personalidades — Nova e editar personalidade" (`2ca471ef773643e2a1a37920e186afc7`, 2560×2048) | `generate_screen_from_text` com o design system `assets/7aa0774b…`; tela nova. Timeout na chamada, geração concluída.                     |
+
+Avaliação do A1 (vista pelo PNG exportado): fiel ao prompt (resumo numa linha, abas, cartões de 2 colunas, `Editar` + `⋯`, selo INDISPONÍVEL). Desvio: o Stitch pôs "Atlas Core · v2.4.0 · Cluster" no topo da barra lateral e "v0.1.0" no rodapé, mesmo com o P0 proibindo; a implementação ignora ("O Stitch mostra, o app não tem").
+
+Avaliação do A3 (vista pelo PNG exportado): fiel em estrutura (duas colunas, cinco seções, rodapé fixo, `Detectar runtimes novamente` no cabeçalho da seção). O reforço do P0 funcionou: a barra lateral voltou a ter só "Atlas". Inventados (a implementação ignora ou troca pelo texto do app): subtítulo "Configure a identidade, runtime e políticas de isolamento."; texto de ajuda e placeholder de "Instruções adicionais" ("Diretrizes operacionais extras…", "// Forneça diretrizes específicas…") e o rótulo "Markdown / Plaintext"; a explicação do isolamento ("Cria uma árvore de trabalho temporária…", o app tem o seu próprio texto). As seções ainda têm um ponto de acento no título e continuam em cartões.
+
+Avaliação do P1 (vista pelo PNG exportado): fiel em estrutura (cabeçalho com chips e ações, abas com contagem, busca, grade de 3 colunas, cartão expandido com Comportamento e Instruções, `Usar esta personalidade` + `⋯`). Desvios: o aviso "Injeção global do protocolo Atlas" veio **aberto** (o prompt pedia fechado); o título da página virou "Personalidades — Biblioteca" (o app mantém "Personalidades"); tags e descrição de "Arquiteto .NET Sênior" e as tags de Arquiteto e QA foram inventadas (a implementação usa os dados reais); ponto verde ao lado do workspace na barra lateral (inventado). O prompt trazia "2 disponíveis"; o Stitch corrigiu para 3 (correto: 2 nativas + 1 customizada). Os cartões fechados e o expandido têm alturas diferentes e a metade de baixo da página fica vazia.
+
+Avaliação do A2 (vista pelo PNG exportado): fiel e simples — cabeçalho igual ao da lista (sem chip, resumo nem abas), estado vazio centralizado com o texto atual e o botão `Criar agente`. Observações: "Criar agente" aparece duas vezes (cabeçalho e centro), como o prompt pediu; o Stitch pôs "Configurações" no rodapé da barra lateral, separado dos demais itens (a moldura real as tem na mesma lista: a implementação segue o app).
+
+Avaliação do P2 (vista pelo PNG exportado): estrutura fiel (painel de 440px sobre a biblioteca esmaecida, título com o selo "Personalizada", quatro campos, rodapé `Cancelar` / `Salvar personalidade`). Desvios: o placeholder de "Instruções" é um texto longo inventado (C#, .NET 8, MediatR) — o app tem o seu; o campo de instruções ocupa quase toda a altura do painel; a biblioteca ao fundo mostra "Nativa" e descrições inventadas (o app diz "padrão"/"nativas" conforme a tela); o breadcrumb traz o nome inteiro da tela.
+
+## Fechamento do módulo
+
+Cinco telas geradas no Stitch (A1, A2, A3, P1, P2), todas registradas acima. Resumo do que a implementação deve ignorar ou trocar pelo texto do app: subtítulo, ajuda e placeholder inventados em A3 e P2; tags e descrições inventadas em P1; "Atlas Core · v2.4.0 · Cluster" em A1; o aviso "Injeção global" que veio aberto em P1.
