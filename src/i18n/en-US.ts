@@ -2981,7 +2981,6 @@ export const enUS = {
 
   // Specs (ADR 0035)
   'nav.specs': 'Specs',
-  'specs.crumb': 'SDD · Spec-driven development',
   'specs.subtitle': 'Define, check and approve a specification before the agents write any code.',
   'specs.noWorkspace': 'Open a workspace to work on specs.',
   'specs.loading': 'Loading…',
@@ -3002,10 +3001,6 @@ export const enUS = {
   'specs.pendingQuestions': '{count} question(s) for you',
   'specs.openFindings': '{count} open finding(s)',
   'specs.implementedBy': 'Built in {count} run(s)',
-  'specs.counters': 'Summary',
-  'specs.counter.progress': '{count} in progress',
-  'specs.counter.attention': '{count} waiting for you',
-  'specs.counter.ready': '{count} ready to build',
   'specs.launchFailed': 'Saved, but the agent could not start',
   'specs.stages': 'Stages',
   'specs.group.all': 'All',
@@ -3671,6 +3666,7 @@ export const enUS = {
   'memory.tabs': 'Memory sections',
   'portability.settings.importCard': 'Import',
   'portability.settings.exportCard': 'Export',
+  'specs.moreActions': 'More actions for {title}',
 } as const;
 
 export type TranslationKey = keyof typeof enUS;

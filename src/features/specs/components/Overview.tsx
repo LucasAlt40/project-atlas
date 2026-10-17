@@ -56,6 +56,23 @@ export function Overview({ specs, agents, onOpen, onNew, onImport }: Props) {
   return (
     <section className={styles.overview} aria-label={t('specs.list')}>
       <div className={styles.filters}>
+        <div className={styles.tabs} role="group" aria-label={t('specs.filter')}>
+          {GROUPS.map((name) => (
+            <button
+              key={name}
+              type="button"
+              className={styles.tab}
+              aria-pressed={group === name}
+              data-group={name}
+              onClick={() => {
+                setGroup(name);
+              }}
+            >
+              {t(`specs.group.${name}`)}
+              <span className={styles.chipCount}>{counts[name]}</span>
+            </button>
+          ))}
+        </div>
         <label className={styles.search}>
           <Icon name="search" size={14} />
           <input
@@ -68,23 +85,6 @@ export function Overview({ specs, agents, onOpen, onNew, onImport }: Props) {
             }}
           />
         </label>
-        <div className={styles.chips} role="group" aria-label={t('specs.filter')}>
-          {GROUPS.map((name) => (
-            <button
-              key={name}
-              type="button"
-              className={styles.chip}
-              aria-pressed={group === name}
-              data-group={name}
-              onClick={() => {
-                setGroup(name);
-              }}
-            >
-              {t(`specs.group.${name}`)}
-              <span className={styles.chipCount}>{counts[name]}</span>
-            </button>
-          ))}
-        </div>
       </div>
       {shown.length === 0 ? (
         <p className={styles.muted} role="status">

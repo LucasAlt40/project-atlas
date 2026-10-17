@@ -1,12 +1,21 @@
 import type { ReactNode } from 'react';
+import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import type { Tone } from '../model/status';
-import styles from './Specs.module.css';
+
+/** One map from the tone a status has in Specs to the badge that says so. */
+const TONE: Record<Tone, BadgeTone> = {
+  neutral: 'neutral',
+  info: 'info',
+  running: 'info',
+  success: 'success',
+  warning: 'warning',
+  danger: 'danger',
+};
 
 export function StatusBadge({ tone, children }: { tone: Tone; children: ReactNode }) {
   return (
-    <span className={styles.badge} data-tone={tone}>
-      <span className={styles.badgeDot} aria-hidden="true" />
+    <Badge dot mono caps={false} tone={TONE[tone]}>
       {children}
-    </span>
+    </Badge>
   );
 }

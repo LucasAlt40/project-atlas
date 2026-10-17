@@ -3022,7 +3022,6 @@ export const ptBR: Record<TranslationKey, string> = {
     'Desligar encerra todas as conexões e o acesso de todos os celulares de uma vez. As execuções continuam.',
   // Specs (ADR 0035)
   'nav.specs': 'Specs',
-  'specs.crumb': 'SDD · Desenvolvimento orientado a especificação',
   'specs.subtitle':
     'Defina, valide e aprove uma especificação antes de os agentes escreverem código.',
   'specs.noWorkspace': 'Abra um workspace para trabalhar com specs.',
@@ -3044,10 +3043,6 @@ export const ptBR: Record<TranslationKey, string> = {
   'specs.pendingQuestions': '{count} pergunta(s) para você',
   'specs.openFindings': '{count} achado(s) em aberto',
   'specs.implementedBy': 'Implementada em {count} execução(ões)',
-  'specs.counters': 'Resumo',
-  'specs.counter.progress': '{count} em andamento',
-  'specs.counter.attention': '{count} aguardando você',
-  'specs.counter.ready': '{count} prontas para implementar',
   'specs.launchFailed': 'Registrado, mas o agente não pôde começar',
   'specs.stages': 'Etapas',
   'specs.group.all': 'Todas',
@@ -3714,4 +3709,5 @@ export const ptBR: Record<TranslationKey, string> = {
   'memory.tabs': 'Seções da memória',
   'portability.settings.importCard': 'Importar',
   'portability.settings.exportCard': 'Exportar',
+  'specs.moreActions': 'Mais ações de {title}',
 };
