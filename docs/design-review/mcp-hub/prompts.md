@@ -123,6 +123,7 @@ adicionar 2 a 1 arquivo(s), trazer 1 para o Atlas". Estado alternativo: o texto 
 | H1 | 2026-10-16 | "MCP Hub — Servidores" `fa3cca4a27654726aacc04dca4b578b4` (2560×2048) | `edit_screens` criou tela nova; a original `2aa1bde3…` segue intacta. Avaliação abaixo. |
 | H3 | 2026-10-16 | "MCP Hub — Adicionar servidor" `53d6a8c1b2b64645a9cd1c5ef1f6f302` (2560×2048) | `generate_screen_from_text` com o design system, sem timeout. |
 | H4 | 2026-10-16 | "MCP Hub — Importar e exportar configuração" `45ec47aac884449faa1028ad973a7bf5` (2560×2048) | `generate_screen_from_text`; deu timeout, não reenviado, confirmado por `list_screens`. |
+| H5 | 2026-10-16 | "MCP Hub — Sincronizar CLIs" `79542e2d8e214051a07687861df13a0c` (2560×2048) | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`. |
 
 ## Avaliação
 
@@ -183,3 +184,21 @@ O Stitch mostra, o app não tem (não implementar):
 Desvios: o motivo de "Deixados de fora: 1" saiu como "(já existe ou protocolo incompatível)", motivo
 inventado; o app mostra o motivo real de cada servidor deixado de fora. O resumo ficou em mono; manter o
 estilo atual de texto, com selo verde apenas no ponto de sucesso.
+
+### H5 — MCP Hub — Sincronizar CLIs
+
+Muito fiel, a mais limpa do módulo: nota em destaque com "Mais detalhes" recolhido, quatro cartões de
+estado das CLIs (arquivo encontrado, sem arquivo, ilegível), tabela servidor × CLI com selos de uma
+mesma família, aviso âmbar com GITHUB_TOKEN e rodapé "Cancelar" + botão primário com o texto pedido.
+
+O Stitch mostra, o app não tem (não implementar):
+
+- Títulos de seção "Estado de detecção das CLIs" e "Mapeamento e plano de sincronização".
+- Chip "stdio" ao lado do nome de cada servidor na tabela.
+- Ícones de info, aviso e sincronização.
+- Página ao fundo com métricas e botões quebrados em duas linhas; ignorar, é contexto.
+
+Desvios: o link "Mais detalhes" do app é o recolhimento da nota longa (manter o comportamento atual);
+as quatro células da coluna Codex dizem "indisponível" porque o arquivo é ilegível, coerente com o prompt.
+O selo "será trazido para o Atlas" saiu em azul-info e "será adicionado" em índigo: manter no mapa único
+de estado → Badge.
