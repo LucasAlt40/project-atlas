@@ -1,5 +1,6 @@
 import { useState, type SyntheticEvent } from 'react';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import type { TranslationKey } from '@/i18n';
 import { errorMessage } from '@/i18n/messages';
 import { useT } from '@/i18n/I18nProvider';
@@ -162,7 +163,13 @@ export function AgentForm({
           </section>
 
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>{t('agents.form.section.runtime')}</h2>
+            <div className={styles.sectionHead}>
+              <h2 className={styles.sectionTitle}>{t('agents.form.section.runtime')}</h2>
+              <Button type="button" variant="ghost" onClick={onRefreshRuntimes}>
+                <Icon name="refresh" size={14} />
+                {t('agents.form.redetect')}
+              </Button>
+            </div>
             {runtimes.status === 'loading' && (
               <p className={styles.hint}>{t('agents.form.detecting')}</p>
             )}
@@ -186,11 +193,6 @@ export function AgentForm({
             {runtime && !runtime.runtime.capabilities.fileEdit && (
               <p className={styles.hint}>{t('agents.form.noFileEdit')}</p>
             )}
-            <div>
-              <Button type="button" variant="secondary" onClick={onRefreshRuntimes}>
-                {t('agents.form.redetect')}
-              </Button>
-            </div>
           </section>
 
           <section className={styles.section}>
