@@ -3659,6 +3659,18 @@ export const enUS = {
   'hub.metric.label': 'Hub summary',
   'hub.inspector.more': 'More actions for {name}',
   'hub.sync.cliState': 'CLI state',
+  'settings.nav.label': 'Settings sections',
+  'settings.nav.general': 'General',
+  'settings.nav.memory': 'Memory',
+  'settings.nav.portability': 'Import and export',
+  'settings.nav.about': 'About and updates',
+  'settings.sandbox.how': 'How it works',
+  'memory.unconfirmed': 'Unconfirmed',
+  'memory.heldShort': 'Awaiting validation',
+  'memory.moreActions': 'More actions for {name}',
+  'memory.tabs': 'Memory sections',
+  'portability.settings.importCard': 'Import',
+  'portability.settings.exportCard': 'Export',
 } as const;
 
 export type TranslationKey = keyof typeof enUS;

@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { Badge } from '@/components/ui/Badge';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { useI18n } from '@/i18n/I18nProvider';
 import { errorMessage } from '@/i18n/messages';
 import type { SandboxModeDto, SandboxSettingsDto, SandboxStatusDto } from '@/lib/tauri/commands';
@@ -45,40 +47,48 @@ export function SandboxSettings() {
   const { settings } = status;
 
   return (
-    <div className={styles.field}>
-      <p className={styles.help}>{t('settings.sandbox.help')}</p>
-      <p className={styles.help}>
-        {t(status.available ? 'settings.sandbox.available' : 'settings.sandbox.unavailable')}
+    <div className={styles.stack}>
+      <p className={styles.availability} data-available={status.available}>
+        <Badge dot mono caps={false} tone={status.available ? 'success' : 'warning'}>
+          {t(status.available ? 'settings.sandbox.available' : 'settings.sandbox.unavailable')}
+        </Badge>
       </p>
-      <label htmlFor="settings-sandbox-mode" className={styles.label}>
-        {t('settings.sandbox.mode')}
-      </label>
-      <select
-        id="settings-sandbox-mode"
-        className={styles.control}
-        value={settings.mode}
-        onChange={(event) => {
-          const mode = MODES.find((m) => m === event.target.value);
-          if (mode) void change({ ...settings, mode });
-        }}
-      >
-        {MODES.map((mode) => (
-          <option key={mode} value={mode}>
-            {t(`settings.sandbox.mode.${mode}`)}
-          </option>
-        ))}
-      </select>
-      <label className={styles.toggle}>
-        <input
-          type="checkbox"
-          checked={settings.devCaches}
+      <div className={styles.group}>
+        <label htmlFor="settings-sandbox-mode" className={styles.label}>
+          {t('settings.sandbox.mode')}
+        </label>
+        <select
+          id="settings-sandbox-mode"
+          className={styles.control}
+          value={settings.mode}
           onChange={(event) => {
-            void change({ ...settings, devCaches: event.target.checked });
+            const mode = MODES.find((m) => m === event.target.value);
+            if (mode) void change({ ...settings, mode });
           }}
-        />
-        {t('settings.sandbox.devCaches')}
-      </label>
-      <p className={styles.help}>{t('settings.sandbox.devCachesHelp')}</p>
+        >
+          {MODES.map((mode) => (
+            <option key={mode} value={mode}>
+              {t(`settings.sandbox.mode.${mode}`)}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className={styles.group}>
+        <label className={styles.toggle}>
+          <input
+            type="checkbox"
+            checked={settings.devCaches}
+            onChange={(event) => {
+              void change({ ...settings, devCaches: event.target.checked });
+            }}
+          />
+          {t('settings.sandbox.devCaches')}
+        </label>
+        <p className={styles.help}>{t('settings.sandbox.devCachesHelp')}</p>
+      </div>
+      <CollapsibleSection title={t('settings.sandbox.how')} defaultOpen={false}>
+        <p className={styles.help}>{t('settings.sandbox.help')}</p>
+      </CollapsibleSection>
       {failure && <p role="alert">{failure}</p>}
     </div>
   );
