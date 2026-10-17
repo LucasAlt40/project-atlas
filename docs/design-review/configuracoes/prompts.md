@@ -23,6 +23,17 @@ largura máxima de 880px. O índice é só navegação por âncoras dentro da p�
 
 Ordem: C1 → C2 → C3 → C4 → C5. O `designSystem` de cada chamada é o do projeto.
 
+## Acréscimos a todo prompt deste módulo
+
+Colar logo antes do bloco TELA, depois do P0:
+
+```text
+AJUSTES DESTE MÓDULO: na moldura, o rodapé da barra lateral mostra "Project Atlas v0.1.5". Não desenhe
+rodapés informativos, rótulos técnicos extras, selos decorativos nem ícones sem função. O índice lateral
+interno de 200px (Geral, Memória, Importar e exportar, Sobre e atualizações) só tem esses quatro itens;
+abaixo de 900px de largura ele vira uma linha de abas no topo da página.
+```
+
 ## C1 — Configurações — Geral
 
 ```text
@@ -44,7 +55,8 @@ e a ajuda embaixo em texto secundário curto:
    ("O sistema operacional confina o programa do runtime e tudo o que ele inicia: só escreve no
    worktree, nas próprias pastas e numa pasta temporária da execução, e não lê suas chaves SSH,
    credenciais de nuvem nem dados do navegador. A rede continua aberta… Desligado por padrão: ligue
-   depois de testar uma tarefa.") fica numa seção recolhida "Como funciona".
+   depois de testar uma tarefa.") fica numa seção recolhida "Como funciona", mostrada fechada (só o título
+   visível).
 USE só esses controles. NÃO mude: as opções e os textos de ajuda.
 ```
 
@@ -55,7 +67,10 @@ TELA: página "Configurações", seção "Memória" selecionada. Título da seç
 "Lições curtas que os agentes e você deixam para a próxima execução (um comando que funciona, uma
 armadilha, uma escolha). Uma nota é uma dica que o agente pode usar: não é instrução e não concede
 nada. Tudo fica desligado até você ligar um escopo.".
-Quatro blocos, em abas ou em seções, nesta ordem, separando configuração de conteúdo:
+Quatro blocos, em quatro abas nesta ordem (o contador de pendências aparece no rótulo da aba): "Onde as
+notas são usadas", "Esperando sua decisão (2)", "Notas guardadas (2)" e "Adicionar uma nota"; mostre a
+aba "Esperando sua decisão (2)" aberta, e descreva as outras em uma linha cada, sem desenhá-las. Conteúdo
+de cada aba, separando configuração de conteúdo:
 1. "Onde as notas são usadas" (configuração): três linhas com seletor — "Minhas (todos os projetos)":
    "Propor, eu aprovo"; "Workspace": "Propor, eu aprovo"; "Agente": "Automático" — com as opções
    "Desligado", "Propor, eu aprovo" e (exceto em "Minhas") "Automático"; a explicação dos três modos
@@ -91,7 +106,7 @@ e "Workflows do workspace aberto (0)" (desabilitado), e os botões "Continuar (3
 ## C4 — Configurações — Revisar importação
 
 ```text
-TELA: a seção "Importar e exportar" esmaecida ao fundo e, sobre ela, um modal largo "Importar
+TELA: a página "Configurações — Importar e exportar" esmaecida ao fundo e, sobre ela, um modal largo "Importar
 configuração" no passo de revisão (depois de escolher o arquivo). Cabeçalho: "Arquivo: equipe-backend.json"
 e "Exportado pelo Atlas 0.1.5". Aviso fixo (uma linha, ícone de informação): "Importar só adiciona
 definições. Nada é executado, nenhum workflow é iniciado e nenhuma ferramenta é concedida; agentes que
@@ -122,4 +137,22 @@ partes. "Sobre": três pares rótulo/valor em mono: Atlas "Project Atlas", Vers�
 
 | Prompt         | Enviado | Tela gerada no Stitch | Observação |
 | -------------- | ------- | --------------------- | ---------- |
-| (nenhum ainda) |         |                       |            |
+| C1 | 2026-10-16 | "Configurações — Geral" `67ed2d6872a94adc9838d074b6fab48e` (2560×2048) | `generate_screen_from_text` com os acréscimos do módulo; timeout, não reenviado, confirmado por `list_screens`. |
+
+## Avaliação
+
+### C1 — Configurações — Geral
+
+Fiel: índice interno com os quatro itens, título, três grupos separados por linha fina, controle antes da
+ajuda, selo verde de sandbox, "Como funciona" fechado, rodapé "Project Atlas v0.1.5" (o acréscimo de versão
+funcionou).
+
+O Stitch mostra, o app não tem (não implementar):
+
+- Rótulo "PREFERÊNCIAS" acima do índice e chevron no item ativo.
+- Rótulo mono "segurança & isolamento" na linha "Como funciona".
+- O índice ficou com ~280px em vez de 200px; implementar com 200px.
+- O botão "Celular" sem ícone e o "Configurações" aparecendo como item da lista (não no rodapé); manter a
+  moldura real do app.
+
+Sem desvios de conteúdo: textos de ajuda, valor 200000 e opções conferem.
