@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spec — Revisão final e publicação</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Geist', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            surface: {
+              base: '#0b0d10',
+              layer1: '#101317',
+              layer2: '#15191e',
+              layer3: '#1c2128',
+              layer4: '#242c37',
+            },
+            primary: {
+              DEFAULT: '#6366f1',
+              hover: '#4f46e5',
+            },
+            status: {
+              success: '#10b981',
+              warning: '#f59e0b',
+              error: '#ef4444',
+              running: '#60a5fa',
+              info: '#38bdf8',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #0b0d10;
+      color: #e2e8f0;
+      font-family: 'Geist', sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #0b0d10;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #1c2128;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #242c37;
+    }
+  </style>
+</head>
+<body class="flex h-screen w-screen overflow-hidden text-sm bg-surface-base select-none">
+
+  <!-- BARRA LATERAL FIXA DE 216px -->
+  <aside class="w-[216px] shrink-0 h-full bg-surface-base border-r border-surface-layer3 flex flex-col justify-between z-30">
+    <div>
+      <!-- Topo: Logo Atlas limpo -->
+      <div class="h-12 px-4 flex items-center border-b border-surface-layer3">
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3" fill="currentColor"/>
+            <path d="M12 2a10 10 0 0 0-10 10c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/>
+          </svg>
+          <span class="font-semibold text-base text-gray-100 tracking-tight">Atlas</span>
+        </div>
+      </div>
+
+      <!-- Seletor de Workspace -->
+      <div class="p-3 border-b border-surface-layer3">
+        <div class="px-2.5 py-2 bg-surface-layer1 border border-surface-layer3 rounded hover:border-surface-layer4 transition-colors cursor-pointer">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-gray-200">Transport ERP</span>
+            <svg class="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="m6 9 6 6 6-6"/>
+            </svg>
+          </div>
+          <div class="text-[11px] font-mono text-gray-400 mt-0.5 truncate">/dev/transport-erp</div>
+        </div>
+      </div>
+
+      <!-- Itens de Navegação (Specs ativo destacado) -->
+      <nav class="p-2 space-y-0.5">
+        <a href="#" class="flex items-center gap-2.5 px-3 py-2 rounded text-gray-400 hover:text-gray-200 hover:bg-surface-layer1 transition-colors">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+          <span class="text-xs">Workspace</span>
+        </a>
+        <a href="#" class="flex items-center gap-2.5 px-3 py-2 rounded text-gray-400 hover:text-gray-200 hover:bg-surface-layer1 transition-colors">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="6" height="6" x="3" y="3" rx="1"/><rect width="6" height="6" x="15" y="15" rx="1"/><path d="M6 9v3a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V9"/><path d="M12 13v2"/></svg>
+          <span class="text-xs">Workflow</span>
+        </a>
+        <a href="#" class="flex items-center gap-2.5 px-3 py-2 rounded text-gray-400 hover:text-gray-200 hover:bg-surface-layer1 transition-colors">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+          <span class="text-xs">Agentes</span>
+        </a>
+        <a href="#" class="flex items-center gap-2.5 px-3 py-2 rounded text-gray-400 hover:text-gray-200 hover:bg-surface-layer1 transition-colors">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a8 8 0 0 0-8 8c0 3.25 1.94 6.06 4.72 7.27.42.18.68.61.68 1.07V20a2 2 0 0 0 2 2h1.2a2 2 0 0 0 2-2v-1.66c0-.46.26-.89.68-1.07A8 8 0 0 0 12 2Z"/></svg>
+          <span class="text-xs">Personalidades</span>
+        </a>
+        <a href="#" class="flex items-center gap-2.5 px-3 py-2 rounded text-primary bg-surface-layer2 border-l-2 border-primary font-medium">
+          <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
+          <span class="text-xs">Specs</span>
+        </a>
+        <a href="#" class="flex items-center gap-2.5 px-3 py-2 rounded text-gray-400 hover:text-gray-200 hover:bg-surface-layer1 transition-colors">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="19" r="2"/><circle cx="5" cy="19" r="2"/><path d="M17.3 6.7 13.7 10.3"/><path d="m6.7 6.7 3.6 3.6"/><path d="m17.3 17.3-3.6-3.6"/><path d="m6.7 17.3 3.6-3.6"/></svg>
+          <span class="text-xs">MCP Hub</span>
+        </a>
+        <a href="#" class="flex items-center gap-2.5 px-3 py-2 rounded text-gray-400 hover:text-gray-200 hover:bg-surface-layer1 transition-colors">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span class="text-xs">Configurações</span>
+        </a>
+      </nav>
+    </div>
+
+    <!-- Rodapé da barra lateral: Project Atlas v0.1.5 -->
+    <div class="p-3 border-t border-surface-layer3 text-[11px] font-mono text-gray-500">
+      Project Atlas v0.1.5
+    </div>
+  </aside>
+
+  <!-- CONTEÚDO PRINCIPAL (COM TOPBAR DE 48px) -->
+  <div class="flex-1 flex flex-col h-full overflow-hidden bg-surface-base">
+    
+    <!-- Barra Superior de 48px -->
+    <header class="h-12 px-4 shrink-0 bg-surface-base border-b border-surface-layer3 flex items-center justify-between z-20">
+      <div class="flex items-center gap-3">
+        <button class="text-gray-400 hover:text-gray-200 transition-colors p-1" title="Recolher barra lateral">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect width="18" height="18" x="3" y="3" rx="2"/>
+            <path d="M9 3v18"/>
+          </svg>
+        </button>
+        <div class="text-xs text-gray-400 flex items-center gap-1.5 font-medium">
+          <span>Transport ERP</span>
+          <span class="text-gray-600">/</span>
+          <span class="text-gray-200 font-semibold">Spec — Revisão final e publicação</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button class="flex items-center gap-1.5 px-2.5 py-1 text-xs text-gray-300 hover:text-gray-100 hover:bg-surface-layer1 border border-surface-layer3 rounded transition-colors">
+          <svg class="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect width="14" height="20" x="5" y="2" rx="2" ry="2"/>
+            <path d="M12 18h.01"/>
+          </svg>
+          <span>Celular</span>
+        </button>
+        <div class="flex items-center bg-surface-layer1 border border-surface-layer3 rounded text-xs overflow-hidden">
+          <span class="px-2 py-1 font-semibold text-gray-200 bg-surface-layer2">PT</span>
+          <span class="px-2 py-1 text-gray-400 hover:text-gray-200 cursor-pointer transition-colors">EN</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ÁREA DE ROLAGEM PRINCIPAL -->
+    <main class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
+
+      <!-- CABEÇALHO DA SPEC (Idêntico ao padrão das outras telas) -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-3">
+            <a href="#" class="text-xs text-gray-400 hover:text-gray-200 flex items-center gap-1 font-medium transition-colors">
+              <span>← Todas as specs</span>
+            </a>
+            <span class="text-gray-600">|</span>
+            <h1 class="text-lg font-semibold text-gray-100 tracking-tight">Refatorar o faturamento</h1>
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-emerald-950/40 text-status-success border border-status-success/30">
+              <span class="w-1.5 h-1.5 rounded-full bg-status-success"></span>
+              Pronta para implementação
+            </span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button class="px-3 py-1.5 text-xs font-medium text-gray-300 bg-surface-layer1 hover:bg-surface-layer2 border border-surface-layer3 rounded transition-colors">
+              Agentes
+            </button>
+            <div class="relative">
+              <button class="px-2 py-1.5 text-xs font-mono text-gray-400 hover:text-gray-200 bg-surface-layer1 hover:bg-surface-layer2 border border-surface-layer3 rounded transition-colors" title="Mais opções">
+                ⋯
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Linha de Metadados em mono discreta -->
+        <div class="text-[11px] font-mono text-gray-400">
+          billing-refactor · Formato spec-driven/1 · transport-erp · Escreve: Arquiteto Backend · Revisa: QA Regressão
+        </div>
+      </div>
+
+      <!-- STEPPER HORIZONTAL DE 5 ETAPAS -->
+      <div class="grid grid-cols-5 gap-3">
+        <!-- 1. Proposta -->
+        <div class="p-3 bg-surface-layer1 border border-surface-layer3 rounded flex flex-col justify-between">
+          <div class="text-xs font-medium text-gray-200">Proposta</div>
+          <div class="mt-1 flex items-center gap-1 text-[11px] text-status-success font-medium">
+            <span>✓</span>
+            <span>Aprovado</span>
+          </div>
+        </div>
+
+        <!-- 2. Requisitos -->
+        <div class="p-3 bg-surface-layer1 border border-surface-layer3 rounded flex flex-col justify-between">
+          <div class="text-xs font-medium text-gray-200">Requisitos</div>
+          <div class="mt-1 flex items-center gap-1 text-[11px] text-status-success font-medium">
+            <span>✓</span>
+            <span>Aprovado</span>
+          </div>
+        </div>
+
+        <!-- 3. Design -->
+        <div class="p-3 bg-surface-layer1 border border-surface-layer3 rounded flex flex-col justify-between">
+          <div class="text-xs font-medium text-gray-200">Design</div>
+          <div class="mt-1 flex items-center gap-1 text-[11px] text-status-success font-medium">
+            <span>✓</span>
+            <span>Aprovado</span>
+          </div>
+        </div>
+
+        <!-- 4. Tarefas -->
+        <div class="p-3 bg-surface-layer1 border border-surface-layer3 rounded flex flex-col justify-between">
+          <div class="text-xs font-medium text-gray-200">Tarefas</div>
+          <div class="mt-1 flex items-center gap-1 text-[11px] text-status-success font-medium">
+            <span>✓</span>
+            <span>Aprovado</span>
+          </div>
+        </div>
+
+        <!-- 5. Revisão final (ATUAL - DESTACADA COM BORDA ÍNDIGO) -->
+        <div class="p-3 bg-surface-layer2 border-2 border-primary rounded flex flex-col justify-between shadow-sm shadow-primary/10">
+          <div class="text-xs font-semibold text-gray-100 flex items-center justify-between">
+            <span>Revisão final</span>
+            <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+          </div>
+          <div class="mt-1 text-[11px] text-primary font-medium">
+            Pronta
+          </div>
+        </div>
+      </div>
+
+      <!-- BLOCO PRINCIPAL: O QUE FALTA PARA ESTA SPEC FICAR PRONTA -->
+      <section class="bg-surface-layer1 border border-surface-layer3 rounded-lg overflow-hidden">
+        <!-- Cabeçalho do Bloco -->
+        <div class="p-4 bg-surface-layer2/60 border-b border-surface-layer3 flex items-center justify-between flex-wrap gap-3">
+          <div class="flex items-center gap-3">
+            <h2 class="text-sm font-semibold text-gray-100">O que falta para esta spec ficar pronta</h2>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold bg-emerald-950/60 text-status-success border border-status-success/40">
+              <span class="w-2 h-2 rounded-full bg-status-success"></span>
+              Pronta
+            </span>
+            <a href="#" class="text-xs text-primary hover:text-indigo-400 font-medium transition-colors ml-1">
+              Rodar validações novamente
+            </a>
+          </div>
+
+          <!-- Botão Primário da Página -->
+          <button class="px-4 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-semibold rounded shadow transition-colors">
+            Aprovar a especificação
+          </button>
+        </div>
+
+        <!-- LISTA DE SETE VERIFICAÇÕES EM LINHAS (Não em cartões) -->
+        <div class="divide-y divide-surface-layer3">
+
+          <!-- Verificação 1 -->
+          <div class="px-4 py-3 flex items-center justify-between hover:bg-surface-layer2/40 transition-colors">
+            <div class="flex items-center gap-3 min-w-0 pr-4">
+              <span class="text-status-success font-semibold shrink-0">✓</span>
+              <div class="text-xs">
+                <span class="font-medium text-gray-200">Os quatro documentos aprovados</span>
+                <span class="text-gray-400 ml-1.5">— Todos os documentos estão aprovados e atualizados.</span>
+              </div>
+            </div>
+            <a href="#" class="text-xs font-medium text-primary hover:text-indigo-400 transition-colors shrink-0">
+              Abrir
+            </a>
+          </div>
+
+          <!-- Verificação 2 -->
+          <div class="px-4 py-3 flex items-center justify-between hover:bg-surface-layer2/40 transition-colors">
+            <div class="flex items-center gap-3 min-w-0 pr-4">
+              <span class="text-status-success font-semibold shrink-0">✓</span>
+              <div class="text-xs">
+                <span class="font-medium text-gray-200">Estrutura validada</span>
+                <span class="text-gray-400 ml-1.5">— Nenhum erro em nenhum documento.</span>
+              </div>
+            </div>
+            <a href="#" class="text-xs font-medium text-primary hover:text-indigo-400 transition-colors shrink-0">
+              Abrir
+            </a>
+          </div>
+
+          <!-- Verificação 3 -->
+          <div class="px-4 py-3 flex items-center justify-between hover:bg-surface-layer2/40 transition-colors">
+            <div class="flex items-center gap-3 min-w-0 pr-4">
+              <span class="text-status-success font-semibold shrink-0">✓</span>
+              <div class="text-xs">
+                <span class="font-medium text-gray-200">Documentos coerentes entre si</span>
+                <span class="text-gray-400 ml-1.5">— Nada se contradiz entre proposta, requisitos, design e tarefas.</span>
+              </div>
+            </div>
+            <a href="#" class="text-xs font-medium text-primary hover:text-indigo-400 transition-colors shrink-0">
+              Abrir
+            </a>
+          </div>
+
+          <!-- Verificação 4 -->
+          <div class="px-4 py-3 flex items-center justify-between hover:bg-surface-layer2/40 transition-colors">
+            <div class="flex items-center gap-3 min-w-0 pr-4">
+              <span class="text-status-success font-semibold shrink-0">✓</span>
+              <div class="text-xs">
+                <span class="font-medium text-gray-200">Nenhuma pergunta em aberto</span>
+                <span class="text-gray-400 ml-1.5">— Os agentes não têm pergunta esperando resposta.</span>
+              </div>
+            </div>
+            <a href="#" class="text-xs font-medium text-primary hover:text-indigo-400 transition-colors shrink-0">
+              Abrir
+            </a>
+          </div>
+
+          <!-- Verificação 5 -->
+          <div class="px-4 py-3 flex items-center justify-between hover:bg-surface-layer2/40 transition-colors">
+            <div class="flex items-center gap-3 min-w-0 pr-4">
+              <span class="text-status-success font-semibold shrink-0">✓</span>
+              <div class="text-xs">
+                <span class="font-medium text-gray-200">Revisada pelo agente revisor</span>
+                <span class="text-gray-400 ml-1.5">— A revisão leu exatamente estas revisões.</span>
+              </div>
+            </div>
+            <a href="#" class="text-xs font-medium text-primary hover:text-indigo-400 transition-colors shrink-0">
+              Abrir
+            </a>
+          </div>
+
+          <!-- Verificação 6 -->
+          <div class="px-4 py-3 flex items-center justify-between hover:bg-surface-layer2/40 transition-colors">
+            <div class="flex items-center gap-3 min-w-0 pr-4">
+              <span class="text-status-success font-semibold shrink-0">✓</span>
+              <div class="text-xs">
+                <span class="font-medium text-gray-200">Achados decididos</span>
+                <span class="text-gray-400 ml-1.5">— Nenhum achado sério aguarda a sua decisão.</span>
+              </div>
+            </div>
+            <a href="#" class="text-xs font-medium text-primary hover:text-indigo-400 transition-colors shrink-0">
+              Abrir
+            </a>
+          </div>
+
+          <!-- Verificação 7 -->
+          <div class="px-4 py-3 flex items-center justify-between hover:bg-surface-layer2/40 transition-colors">
+            <div class="flex items-center gap-3 min-w-0 pr-4">
+              <span class="text-status-success font-semibold shrink-0">✓</span>
+              <div class="text-xs">
+                <span class="font-medium text-gray-200">Sua aprovação final</span>
+                <span class="text-gray-400 ml-1.5">— Dada sobre estas mesmas revisões.</span>
+              </div>
+            </div>
+            <a href="#" class="text-xs font-medium text-primary hover:text-indigo-400 transition-colors shrink-0">
+              Abrir
+            </a>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- QUATRO SEÇÕES RECOLHÍVEIS (TODAS FECHADAS) -->
+      <div class="space-y-3">
+
+        <!-- 1. Revisão pelo agente revisor (FECHADA) -->
+        <div class="bg-surface-layer1 border border-surface-layer3 rounded-lg overflow-hidden transition-colors">
+          <div class="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-surface-layer2/60 transition-colors">
+            <div class="flex items-center gap-2.5">
+              <svg class="w-3.5 h-3.5 text-gray-500 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m9 18 6-6-6-6"/>
+              </svg>
+              <span class="text-xs font-semibold text-gray-200">Revisão pelo agente revisor</span>
+            </div>
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-surface-layer3 text-gray-400 border border-surface-layer4">
+              <span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+              Não executada
+            </span>
+          </div>
+
+          <!-- Conteúdo interno (preparado e colapsável via CSS/estrutura) -->
+          <div class="hidden border-t border-surface-layer3 p-4 bg-surface-base/40 space-y-3">
+            <p class="text-xs text-gray-400 leading-relaxed">
+              QA Regressão lê os documentos aprovados procurando lacunas, ambiguidades e contradições. Só lê: não altera nada.
+            </p>
+            <div class="flex items-center gap-3 pt-1">
+              <button class="px-3 py-1.5 text-xs font-medium text-gray-200 bg-surface-layer2 hover:bg-surface-layer3 border border-surface-layer3 rounded transition-colors">
+                Rodar a revisão
+              </button>
+              <button class="text-xs text-gray-400 hover:text-gray-200 transition-colors">
+                Seguir sem a revisão…
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Publicar no projeto (FECHADA) -->
+        <div class="bg-surface-layer1 border border-surface-layer3 rounded-lg overflow-hidden transition-colors">
+          <div class="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-surface-layer2/60 transition-colors">
+            <div class="flex items-center gap-2.5">
+              <svg class="w-3.5 h-3.5 text-gray-500 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m9 18 6-6-6-6"/>
+              </svg>
+              <span class="text-xs font-semibold text-gray-200">Publicar no projeto</span>
+            </div>
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-surface-layer3 text-gray-400 border border-surface-layer4">
+              <span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+              Não publicada
+            </span>
+          </div>
+
+          <!-- Conteúdo interno colapsável -->
+          <div class="hidden border-t border-surface-layer3 p-4 bg-surface-base/40 space-y-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-300 mb-1">Nome da pasta da mudança</label>
+              <input type="text" value="billing-refactor" readonly class="w-full max-w-sm px-3 py-1.5 bg-surface-layer1 border border-surface-layer3 rounded text-xs font-mono text-gray-200 focus:outline-none">
+              <span class="block text-[11px] text-gray-400 mt-1">Letras minúsculas, dígitos e hífens</span>
+            </div>
+            <div class="pt-1">
+              <!-- Ação irreversível em destaque cuidadoso, não como primário da página -->
+              <button class="px-3.5 py-1.5 text-xs font-medium text-amber-300 bg-amber-950/40 hover:bg-amber-900/50 border border-amber-500/40 rounded transition-colors">
+                Publicar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Implementar a partir desta spec (FECHADA) -->
+        <div class="bg-surface-layer1 border border-surface-layer3 rounded-lg overflow-hidden transition-colors">
+          <div class="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-surface-layer2/60 transition-colors">
+            <div class="flex items-center gap-2.5">
+              <svg class="w-3.5 h-3.5 text-gray-500 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m9 18 6-6-6-6"/>
+              </svg>
+              <span class="text-xs font-semibold text-gray-200">Implementar a partir desta spec</span>
+            </div>
+            <svg class="w-3.5 h-3.5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+
+          <!-- Conteúdo interno colapsável -->
+          <div class="hidden border-t border-surface-layer3 p-4 bg-surface-base/40">
+            <button class="px-3.5 py-1.5 text-xs font-medium text-gray-200 bg-surface-layer2 hover:bg-surface-layer3 border border-surface-layer3 rounded transition-colors">
+              Iniciar um workflow a partir desta spec
+            </button>
+          </div>
+        </div>
+
+        <!-- 4. Arquivar com o OpenSpec CLI (FECHADA) -->
+        <div class="bg-surface-layer1 border border-surface-layer3 rounded-lg overflow-hidden transition-colors">
+          <div class="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-surface-layer2/60 transition-colors">
+            <div class="flex items-center gap-2.5">
+              <svg class="w-3.5 h-3.5 text-gray-500 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m9 18 6-6-6-6"/>
+              </svg>
+              <span class="text-xs font-semibold text-gray-200">Arquivar com o OpenSpec CLI</span>
+            </div>
+            <svg class="w-3.5 h-3.5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+
+          <!-- Conteúdo interno colapsável -->
+          <div class="hidden border-t border-surface-layer3 p-4 bg-surface-base/40">
+            <button class="px-3.5 py-1.5 text-xs font-medium text-rose-300 bg-rose-950/40 hover:bg-rose-900/50 border border-rose-500/40 rounded transition-colors">
+              Arquivar
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+</body>
+</html>

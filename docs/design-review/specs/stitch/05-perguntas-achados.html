@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Spec — Perguntas e achados</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-variant": "#323539",
+            "surface-container-lowest": "#0b0e12",
+            "surface": "#111418",
+            "secondary-container": "#00a6e0",
+            "on-secondary-fixed-variant": "#004c69",
+            "background": "#111418",
+            "surface-dim": "#111418",
+            "on-surface": "#e1e2e8",
+            "outline-variant": "#464554",
+            "inverse-on-surface": "#2e3135",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "primary-fixed": "#e1e0ff",
+            "on-error-container": "#ffdad6",
+            "on-primary-fixed": "#07006c",
+            "secondary-fixed-dim": "#7bd0ff",
+            "surface-container": "#1d2024",
+            "on-secondary": "#00354a",
+            "on-tertiary-fixed": "#3e0022",
+            "on-primary-container": "#0d0096",
+            "error-container": "#93000a",
+            "surface-bright": "#36393e",
+            "on-secondary-fixed": "#001e2c",
+            "on-tertiary": "#640039",
+            "surface-tint": "#c0c1ff",
+            "secondary": "#7bd0ff",
+            "primary": "#c0c1ff",
+            "on-primary": "#1000a9",
+            "on-background": "#e1e2e8",
+            "tertiary-fixed": "#ffd9e4",
+            "error": "#ffb4ab",
+            "secondary-fixed": "#c4e7ff",
+            "primary-fixed-dim": "#c0c1ff",
+            "surface-container-highest": "#323539",
+            "outline": "#908fa0",
+            "on-secondary-container": "#00374d",
+            "tertiary-container": "#f751a1",
+            "tertiary": "#ffb0cd",
+            "surface-container-high": "#272a2e",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "inverse-surface": "#e1e2e8",
+            "primary-container": "#8083ff",
+            "on-surface-variant": "#c7c4d7",
+            "on-error": "#690005",
+            "surface-container-low": "#191c20",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "inverse-primary": "#494bd6",
+            "on-tertiary-container": "#570032"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "margin": "0.75rem",
+            "space-md": "0.625rem",
+            "gutter": "0.5rem",
+            "space-xs": "0.25rem",
+            "space-xl": "1.25rem",
+            "space-sm": "0.375rem",
+            "space-lg": "0.875rem"
+          },
+          "fontFamily": {
+            "label-sm": ["JetBrains Mono"],
+            "body-md": ["Geist"],
+            "headline-lg": ["Geist"],
+            "body-sm": ["Geist"],
+            "body-lg": ["Geist"],
+            "display": ["Geist"],
+            "code-md": ["JetBrains Mono"],
+            "label-md": ["Geist"],
+            "code-lg": ["JetBrains Mono"],
+            "code-sm": ["JetBrains Mono"],
+            "headline-sm": ["Geist"]
+          },
+          "fontSize": {
+            "label-sm": ["0.625rem", { "lineHeight": "0.875rem", "letterSpacing": "0.04em", "fontWeight": "500" }],
+            "body-md": ["0.8125rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-lg": ["1.375rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "body-sm": ["0.75rem", { "lineHeight": "1.125rem", "letterSpacing": "0.005em", "fontWeight": "400" }],
+            "body-lg": ["0.9375rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "display": ["1.75rem", { "lineHeight": "2.25rem", "letterSpacing": "-0.025em", "fontWeight": "600" }],
+            "code-md": ["0.75rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "label-md": ["0.75rem", { "lineHeight": "1rem", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "code-lg": ["0.875rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+            "code-sm": ["0.6875rem", { "lineHeight": "1rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-sm": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.015em", "fontWeight": "500" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+    }
+    ::selection {
+      background-color: rgba(99, 102, 241, 0.3);
+      color: #f1f5f9;
+    }
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0e12;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #272a2e;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #323539;
+    }
+  </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface antialiased font-body-md text-body-md h-screen w-screen overflow-hidden flex">
+<!-- ========================================== -->
+<!-- BARRA LATERAL FIXA ESQUERDA (216px)        -->
+<!-- ========================================== -->
+<aside class="fixed top-0 left-0 bottom-0 w-[216px] h-screen shrink-0 z-40 bg-surface-container-lowest border-r border-outline-variant/30 flex flex-col justify-between py-space-md select-none">
+<!-- Topo Sidebar: Logo + Workspace Selector + Navigation -->
+<div class="flex flex-col gap-space-md w-full">
+<!-- 1. Logo Atlas estilizado -->
+<div class="px-space-md py-space-xs flex items-center gap-2">
+<div class="w-6 h-6 rounded bg-primary/10 border border-primary/30 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">hub</span>
+</div>
+<span class="font-headline-sm text-headline-sm font-semibold tracking-tight text-on-surface">Atlas</span>
+</div>
+<!-- 2. Workspace Selector -->
+<div class="px-space-xs">
+<button class="w-full text-left bg-surface-container-low hover:bg-surface-container-high border border-outline-variant/30 rounded p-2 flex items-center justify-between group transition-colors duration-150">
+<div class="flex flex-col min-w-0 pr-1">
+<span class="font-label-md text-label-md font-semibold text-on-surface truncate">Transport ERP</span>
+<span class="font-code-sm text-code-sm text-outline truncate">/dev/transport-erp</span>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-on-surface shrink-0">unfold_more</span>
+</button>
+</div>
+<!-- 3. Vertical Navigation Items -->
+<nav class="flex flex-col gap-0.5 mt-1">
+<!-- Workspace -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">space_dashboard</span>
+<span class="font-label-md text-label-md">Workspace</span>
+</a>
+<!-- Workflow -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span class="font-label-md text-label-md">Workflow</span>
+</a>
+<!-- Agentes -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="font-label-md text-label-md">Agentes</span>
+</a>
+<!-- Personalidades -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">psychology</span>
+<span class="font-label-md text-label-md">Personalidades</span>
+</a>
+<!-- Specs (DESTACADO COMO ATIVO) -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm bg-surface-container-high text-primary border-l-2 border-primary rounded-none font-medium" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">description</span>
+<span class="font-label-md text-label-md">Specs</span>
+</a>
+<!-- MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">hub</span>
+<span class="font-label-md text-label-md">MCP Hub</span>
+</a>
+</nav>
+</div>
+<!-- Base Sidebar: Configurações + Rodapé da barra lateral -->
+<div class="flex flex-col gap-2 pt-2 border-t border-outline-variant/30">
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-md text-label-md">Configurações</span>
+</a>
+<div class="px-space-md pt-1">
+<span class="font-code-sm text-code-sm text-outline/60 block">Project Atlas v0.1.5</span>
+</div>
+</div>
+</aside>
+<!-- ========================================== -->
+<!-- ÁREA DIREITA: TOPBAR + CANVAS CONTEÚDO     -->
+<!-- ========================================== -->
+<div class="flex-1 flex flex-col pl-[216px] h-screen overflow-hidden">
+<!-- BARRA SUPERIOR (48px / h-12) RIGOROSA -->
+<header class="fixed top-0 right-0 left-[216px] h-12 flex items-center justify-between px-6 z-30 border-b border-outline-variant/30 bg-surface-container-lowest select-none">
+<!-- Esquerda: Toggle Sidebar + Breadcrumb -->
+<div class="flex items-center gap-3">
+<button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" title="Recolher/expandir sidebar">
+<span class="material-symbols-outlined">dock_to_left</span>
+</button>
+<div class="h-3.5 w-[1px] bg-outline-variant/40"></div>
+<div class="flex items-center gap-1.5 font-label-md text-label-md text-outline">
+<span>Transport ERP</span>
+<span class="text-outline-variant">/</span>
+<span class="text-on-surface font-medium">Spec — Perguntas e achados</span>
+</div>
+</div>
+<!-- Direita: Botão Celular + Alternador de idioma PT | EN -->
+<div class="flex items-center gap-3">
+<!-- Botão compacto Celular -->
+<button class="h-[28px] px-2.5 rounded bg-surface-container-low border border-outline-variant/40 hover:border-outline text-on-surface hover:bg-surface-container font-label-md text-label-md flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-[15px]">smartphone</span>
+<span>Celular</span>
+</button>
+<!-- Alternador PT | EN -->
+<div class="h-[28px] bg-surface-container-lowest border border-outline-variant/40 rounded flex items-center p-0.5 text-label-sm font-label-sm">
+<span class="px-1.5 py-0.5 rounded bg-surface-container-high text-primary font-medium select-none cursor-default">PT</span>
+<span class="px-1 text-outline-variant">|</span>
+<span class="px-1.5 py-0.5 rounded text-outline hover:text-on-surface cursor-pointer select-none">EN</span>
+</div>
+</div>
+</header>
+<!-- ÁREA DE ROLAGEM PRINCIPAL (Conteúdo da Spec) -->
+<main class="flex-1 mt-12 overflow-y-auto px-8 py-7 bg-surface-container-lowest text-on-surface">
+<div class="max-w-[1080px] mx-auto flex flex-col gap-6">
+<!-- 1. CABEÇALHO DA SPEC -->
+<section class="flex flex-col gap-2.5">
+<!-- Seta de retorno -->
+<div>
+<a class="inline-flex items-center gap-1 text-outline hover:text-on-surface font-label-md text-label-md transition-colors" href="#">
+<span>←</span>
+<span>Todas as specs</span>
+</a>
+</div>
+<!-- Linha de título & Ações -->
+<div class="flex items-center justify-between gap-4 pt-1">
+<div class="flex items-center gap-3">
+<h1 class="font-headline-lg text-headline-lg font-semibold tracking-tight text-on-surface">Recuperação de senha</h1>
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-code-sm text-code-sm font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                Alterações solicitadas
+              </span>
+</div>
+<div class="flex items-center gap-2">
+<button class="h-[28px] px-3 rounded bg-surface-container-low border border-outline-variant/40 hover:border-outline text-on-surface font-label-md text-label-md flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-[15px]">smart_toy</span>
+<span>Agentes</span>
+</button>
+<!-- Menu dropdown simples estilizado -->
+<div class="relative group">
+<button class="h-[28px] w-[28px] rounded bg-surface-container-low border border-outline-variant/40 hover:border-outline text-outline hover:text-on-surface flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+<div class="absolute right-0 top-full mt-1 w-32 bg-surface-container border border-outline-variant/50 rounded shadow-2xl py-1 hidden group-hover:block z-50">
+<button class="w-full text-left px-3 py-1.5 text-red-400 hover:bg-surface-container-high font-label-md text-label-md flex items-center gap-2 transition-colors">
+<span class="material-symbols-outlined text-[14px]">delete</span>
+<span>Excluir</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Linha de metadados técnica -->
+<div class="font-code-sm text-code-sm text-outline flex items-center flex-wrap gap-x-2 gap-y-1">
+<span class="text-outline-variant font-semibold">password-recovery</span>
+<span>·</span>
+<span>Formato spec-driven/1</span>
+<span>·</span>
+<span class="text-on-surface-variant font-medium">transport-erp</span>
+<span>·</span>
+<span>Escreve: <span class="text-on-surface">Arquiteto Backend</span></span>
+<span>·</span>
+<span>Revisa: <span class="text-on-surface">QA Regressão</span></span>
+</div>
+</section>
+<!-- 2. STEPPER HORIZONTAL DE 5 ETAPAS -->
+<section class="grid grid-cols-5 gap-3 select-none">
+<!-- Card 1: Proposta -->
+<div class="bg-surface-container-low border border-outline-variant/20 rounded p-2.5 flex flex-col justify-between h-[66px]">
+<span class="font-label-md text-label-md font-semibold text-on-surface">Proposta</span>
+<span class="font-code-sm text-code-sm text-emerald-400 flex items-center gap-1">
+<span>✓</span> Aprovado
+            </span>
+</div>
+<!-- Card 2: Requisitos -->
+<div class="bg-surface-container-low border border-outline-variant/20 rounded p-2.5 flex flex-col justify-between h-[66px]">
+<span class="font-label-md text-label-md font-semibold text-on-surface">Requisitos</span>
+<span class="font-code-sm text-code-sm text-emerald-400 flex items-center gap-1">
+<span>✓</span> Aprovado
+            </span>
+</div>
+<!-- Card 3: Design (ATUAL) -->
+<div class="bg-surface-container-high border-2 border-primary rounded p-2.5 flex flex-col justify-between h-[66px] shadow-sm shadow-primary/5">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md font-bold text-on-surface">Design</span>
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+</div>
+<span class="font-code-sm text-code-sm text-amber-400 flex items-center gap-1 font-medium truncate">
+<span>●</span> Alterações solicitadas
+            </span>
+</div>
+<!-- Card 4: Tarefas -->
+<div class="bg-surface-container-low/60 border border-outline-variant/10 rounded p-2.5 flex flex-col justify-between h-[66px] opacity-70">
+<span class="font-label-md text-label-md text-outline">Tarefas</span>
+<span class="font-code-sm text-code-sm text-outline/70 truncate">Aguardando anteriores</span>
+</div>
+<!-- Card 5: Revisão final -->
+<div class="bg-surface-container-low/60 border border-outline-variant/10 rounded p-2.5 flex flex-col justify-between h-[66px] opacity-70">
+<span class="font-label-md text-label-md text-outline">Revisão final</span>
+<span class="font-code-sm text-code-sm text-outline/70">A fazer</span>
+</div>
+</section>
+<!-- 3. PARTE 1: CARTÃO DE DESTAQUE - O agente precisa da sua resposta -->
+<section class="bg-surface-container-low border border-primary/40 rounded-lg p-5 flex flex-col gap-4 relative overflow-hidden">
+<div class="absolute top-0 left-0 bottom-0 w-1 bg-primary"></div>
+<!-- Cabeçalho do Card -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+<h2 class="font-headline-sm text-headline-sm font-semibold text-on-surface">O agente precisa da sua resposta</h2>
+</div>
+<span class="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-label-sm text-label-sm font-semibold">
+              Requer decisão
+            </span>
+</div>
+<!-- Pergunta destacada -->
+<div class="bg-surface-container-lowest border border-outline-variant/30 rounded p-3.5">
+<span class="font-code-sm text-code-sm text-outline uppercase tracking-wider block mb-1">Pergunta do agente</span>
+<p class="font-code-md text-code-md font-medium text-primary-fixed">
+              "Devo manter a sessão ativa ao redefinir a senha?"
+            </p>
+</div>
+<!-- Campo para o usuário -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label-md text-label-md text-on-surface-variant font-medium" for="agent-response">Sua resposta</label>
+<div class="relative">
+<textarea class="w-full bg-surface-container-lowest border border-outline-variant/40 focus:border-primary focus:ring-1 focus:ring-primary rounded p-3 font-body-md text-body-md text-on-surface placeholder:text-outline/50 outline-none transition-colors resize-none" id="agent-response" placeholder="Ex: Não, invalide todas as sessões ativas e exija novo login com a nova senha..." rows="3"></textarea>
+</div>
+</div>
+<!-- Ação primária -->
+<div class="flex items-center justify-between pt-1">
+<button class="h-[32px] px-4 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-label-md text-label-md font-medium flex items-center gap-2 shadow-sm transition-colors">
+<span>Enviar resposta e continuar</span>
+<span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+</button>
+<span class="font-code-sm text-code-sm text-outline">Pressione ⌘ + Enter para submeter</span>
+</div>
+<!-- Linha secundária informativa -->
+<div class="mt-1 pt-3 border-t border-outline-variant/20 flex items-center justify-between text-body-sm text-body-sm">
+<div class="flex items-center gap-2 text-outline">
+<span class="material-symbols-outlined text-[16px] text-amber-400">help_outline</span>
+<span>Este documento deixa <strong>2 pergunta(s)</strong> em aberto</span>
+</div>
+<button class="h-[26px] px-2.5 rounded hover:bg-surface-container border border-outline-variant/30 hover:border-outline text-on-surface font-label-md text-label-md transition-colors">
+              Responder
+            </button>
+</div>
+</section>
+<!-- 4. PARTE 2: ACHADOS DA REVISÃO -->
+<section class="flex flex-col gap-3 pb-8">
+<!-- Cabeçalho da seção -->
+<div class="flex items-baseline justify-between border-b border-outline-variant/20 pb-2">
+<h2 class="font-headline-sm text-headline-sm font-semibold text-on-surface">Achados da revisão</h2>
+<span class="font-code-sm text-code-sm text-outline">1 em aberto · 1 pergunta algo a você</span>
+</div>
+<!-- Card do Achado Principal (EXPANDIDO) -->
+<article class="bg-surface-container-low border border-outline-variant/30 rounded-lg p-5 flex flex-col gap-4">
+<!-- Linha de Topo do Achado: Selos + Título -->
+<div class="flex flex-col gap-2">
+<div class="flex items-center gap-2 flex-wrap">
+<!-- Categoria -->
+<span class="px-2 py-0.5 rounded bg-surface-container-high border border-outline-variant/40 text-on-surface font-label-sm text-label-sm font-medium uppercase tracking-wider">
+                  Risco
+                </span>
+<!-- Severidade -->
+<span class="px-2 py-0.5 rounded bg-red-500/10 border border-red-500/30 text-red-400 font-label-sm text-label-sm font-semibold flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                  Alta
+                </span>
+<!-- Estado -->
+<span class="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-label-sm text-label-sm font-medium">
+                  Em aberto
+                </span>
+</div>
+<h3 class="font-headline-sm text-headline-sm font-semibold text-on-surface">
+                Link de redefinição sem expiração
+              </h3>
+</div>
+<!-- Conteúdo expandido: Evidência e Raciocínio -->
+<div class="flex flex-col gap-1.5 bg-surface-container-lowest/80 border border-outline-variant/20 rounded p-3">
+<span class="font-label-md text-label-md font-semibold text-on-surface flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[15px] text-outline">search_check</span>
+                Evidência e raciocínio
+              </span>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+                Na seção de modelagem da URL de resgate, o payload transporta apenas o hash identificador do usuário persistido no banco relacional, omitindo timestamp de validade ou sinalização de revogação imediata pós-uso, viabilizando ataques de replay por captura de link.
+              </p>
+</div>
+<!-- Sugestão -->
+<div class="flex flex-col gap-1.5 bg-surface-container-lowest/80 border border-outline-variant/20 rounded p-3">
+<span class="font-label-md text-label-md font-semibold text-emerald-400 flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[15px]">tips_and_updates</span>
+                Sugestão:
+              </span>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+                Adotar token criptográfico com TTL estrito de 15 minutos, uso descartável (one-time token) persistido em Redis com chave de invalidação atômica e consumo em transação única.
+              </p>
+</div>
+<!-- Nota de Governança -->
+<div class="flex items-center gap-2 px-3 py-2 rounded bg-surface-container border border-outline-variant/20 text-body-sm text-body-sm text-outline">
+<span class="material-symbols-outlined text-[16px] text-primary">info</span>
+<span>Opinião do agente revisor, não uma validação que falhou. Você decide.</span>
+</div>
+<!-- Barra de Ações do Achado -->
+<div class="flex flex-wrap items-center gap-2 pt-1 border-t border-outline-variant/20">
+<button class="h-[28px] px-2.5 rounded bg-transparent hover:bg-surface-container text-outline hover:text-on-surface font-label-md text-label-md flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[15px]">open_in_new</span>
+<span>Ver no documento</span>
+</button>
+<button class="h-[28px] px-2.5 rounded bg-surface-container hover:bg-surface-container-high border border-outline-variant/30 text-on-surface font-label-md text-label-md transition-colors">
+                Marcar como resolvido
+              </button>
+<button class="h-[28px] px-2.5 rounded bg-surface-container hover:bg-surface-container-high border border-outline-variant/30 text-outline hover:text-on-surface font-label-md text-label-md transition-colors">
+                Não é problema
+              </button>
+<!-- Decisão: Aceitar o Risco com formulário acoplado -->
+<div class="ml-auto flex items-center gap-2">
+<button class="h-[28px] px-3 rounded bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 text-amber-300 font-label-md text-label-md font-medium transition-colors">
+                  Aceitar o risco…
+                </button>
+</div>
+</div>
+<!-- Campo explicativo acoplado para "Aceitar o risco" -->
+<div class="mt-1 bg-surface-container-lowest border border-amber-500/30 rounded p-3 flex flex-col gap-2">
+<label class="font-label-md text-label-md text-amber-300/90 font-medium" for="risk-justification">
+                Por que é aceitável? (fica registrado na spec)
+              </label>
+<div class="flex gap-2">
+<input class="flex-1 bg-surface-container border border-outline-variant/40 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded px-2.5 py-1.5 font-body-md text-body-md text-on-surface placeholder:text-outline/40 outline-none" id="risk-justification" placeholder="Ex: Mitigado por WAF perimetral na v1, TTL será implementado na v2..." type="text"/>
+<button class="h-[32px] px-3 rounded bg-amber-500 hover:bg-amber-400 text-black font-label-md text-label-md font-semibold shrink-0 transition-colors">
+                  Confirmar decisão
+                </button>
+</div>
+</div>
+</article>
+<!-- Seção Recolhida: Achados que você já decidiu -->
+<div class="bg-surface-container-low border border-outline-variant/20 rounded-lg p-3 flex items-center justify-between text-outline hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer select-none">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+<span class="font-label-md text-label-md font-medium">Achados que você já decidiu (1)</span>
+</div>
+<span class="font-code-sm text-code-sm text-outline/60">Histórico de governança</span>
+</div>
+</section>
+</div>
+</main>
+</div>
+</body></html>

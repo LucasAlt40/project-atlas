@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Specs — Lista de especificações | Atlas</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "secondary-container": "#00a6e0",
+            "on-primary-container": "#0d0096",
+            "outline-variant": "#242c37",
+            "on-tertiary-fixed": "#3e0022",
+            "on-secondary-fixed": "#001e2c",
+            "background": "#0b0d10",
+            "tertiary-fixed": "#ffd9e4",
+            "inverse-surface": "#e1e2e8",
+            "inverse-on-surface": "#2e3135",
+            "surface-container-high": "#1c2128",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-primary-fixed": "#07006c",
+            "on-error-container": "#ffdad6",
+            "surface-bright": "#36393e",
+            "surface-container": "#15191e",
+            "on-surface-variant": "#94a3b8",
+            "on-background": "#e1e2e8",
+            "surface-tint": "#6366f1",
+            "surface-container-highest": "#242c37",
+            "inverse-primary": "#494bd6",
+            "surface-container-low": "#101317",
+            "on-primary": "#ffffff",
+            "surface": "#0b0d10",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "on-surface": "#f1f5f9",
+            "on-secondary-container": "#00374d",
+            "tertiary": "#ffb0cd",
+            "error-container": "#93000a",
+            "outline": "#64748b",
+            "surface-variant": "#1c2128",
+            "secondary-fixed-dim": "#7bd0ff",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "primary-container": "#6366f1",
+            "primary": "#6366f1",
+            "on-secondary": "#00354a",
+            "surface-dim": "#0b0d10",
+            "tertiary-container": "#f751a1",
+            "primary-fixed": "#e1e0ff",
+            "surface-container-lowest": "#0b0d10",
+            "error": "#ef4444",
+            "on-error": "#ffffff",
+            "on-tertiary-container": "#570032",
+            "on-secondary-fixed-variant": "#004c69",
+            "secondary": "#38bdf8",
+            "on-tertiary": "#640039",
+            "secondary-fixed": "#c4e7ff"
+          },
+          borderRadius: {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.375rem",
+            "full": "0.5rem"
+          },
+          spacing: {
+            "space-xs": "0.25rem",
+            "space-sm": "0.375rem",
+            "gutter": "0.5rem",
+            "space-md": "0.625rem",
+            "margin": "0.75rem",
+            "space-lg": "0.875rem",
+            "space-xl": "1.25rem"
+          },
+          fontFamily: {
+            "body-md": ["Geist", "sans-serif"],
+            "code-sm": ["JetBrains Mono", "monospace"],
+            "code-md": ["JetBrains Mono", "monospace"],
+            "headline-lg": ["Geist", "sans-serif"],
+            "display": ["Geist", "sans-serif"],
+            "body-lg": ["Geist", "sans-serif"],
+            "body-sm": ["Geist", "sans-serif"],
+            "label-md": ["Geist", "sans-serif"],
+            "label-sm": ["JetBrains Mono", "monospace"],
+            "headline-sm": ["Geist", "sans-serif"],
+            "code-lg": ["JetBrains Mono", "monospace"]
+          },
+          fontSize: {
+            "body-md": ["0.8125rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "code-sm": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0em", fontWeight: "400" }],
+            "code-md": ["0.75rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "headline-lg": ["1.375rem", { lineHeight: "1.75rem", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "display": ["1.75rem", { lineHeight: "2.25rem", letterSpacing: "-0.025em", fontWeight: "600" }],
+            "body-lg": ["0.9375rem", { lineHeight: "1.375rem", letterSpacing: "-0.005em", fontWeight: "400" }],
+            "body-sm": ["0.75rem", { lineHeight: "1.125rem", letterSpacing: "0.005em", fontWeight: "400" }],
+            "label-md": ["0.75rem", { lineHeight: "1rem", letterSpacing: "0.01em", fontWeight: "500" }],
+            "label-sm": ["0.625rem", { lineHeight: "0.875rem", letterSpacing: "0.04em", fontWeight: "500" }],
+            "headline-sm": ["1.125rem", { lineHeight: "1.5rem", letterSpacing: "-0.015em", fontWeight: "500" }],
+            "code-lg": ["0.875rem", { lineHeight: "1.375rem", letterSpacing: "-0.01em", fontWeight: "400" }]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    
+    /* Scrollbar minimalista */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0d10;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #242c37;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3b4554;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface font-body-md antialiased overflow-hidden h-screen w-screen flex select-none">
+<!-- ========================================== -->
+<!-- BARRA LATERAL FIXA (216px)                  -->
+<!-- ========================================== -->
+<aside class="fixed top-0 left-0 bottom-0 w-[216px] h-screen bg-surface-container-lowest border-r border-outline-variant flex flex-col justify-between py-space-md z-40 select-none">
+<div class="flex flex-col gap-space-md">
+<!-- Topo: Logo Atlas limpo -->
+<div class="px-space-md py-space-xs flex items-center gap-2">
+<div class="w-5 h-5 rounded-lg bg-surface-container-high border border-outline-variant flex items-center justify-center text-[#6366f1]">
+<span class="material-symbols-outlined" style="font-size: 14px;">hub</span>
+</div>
+<span class="font-headline-sm text-headline-sm font-semibold tracking-tight text-on-surface">Atlas</span>
+</div>
+<!-- Seletor de workspace -->
+<div class="px-space-sm">
+<button class="w-full text-left p-space-xs rounded bg-surface-container-low hover:bg-surface-container border border-outline-variant/60 transition-colors duration-150 flex items-center justify-between group">
+<div class="overflow-hidden">
+<div class="font-label-md text-label-md text-on-surface font-medium truncate">Transport ERP</div>
+<div class="font-code-sm text-code-sm text-outline truncate">/dev/transport-erp</div>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-on-surface ml-1 shrink-0" style="font-size: 14px;">unfold_more</span>
+</button>
+</div>
+<!-- Menu de Navegação -->
+<nav class="flex flex-col gap-[2px] mt-1">
+<!-- Workspace -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">space_dashboard</span>
+<span>Workspace</span>
+</a>
+<!-- Workflow -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span>Workflow</span>
+</a>
+<!-- Agentes -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- Personalidades -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- Specs (ATIVO) -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm bg-surface-container-high text-on-surface border-l-2 border-[#6366f1] font-label-md text-label-md font-medium" href="#">
+<span class="material-symbols-outlined text-[#6366f1]">description</span>
+<span class="text-on-surface">Specs</span>
+</a>
+<!-- MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">hub</span>
+<span>MCP Hub</span>
+</a>
+<!-- Configurações -->
+<a class="flex items-center gap-space-sm px-space-md py-space-sm text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-150 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Rodapé da barra lateral -->
+<div class="px-space-md pt-space-xs border-t border-outline-variant/40">
+<div class="font-code-sm text-code-sm text-outline/80">Project Atlas v0.1.5</div>
+</div>
+</aside>
+<!-- ========================================== -->
+<!-- BARRA SUPERIOR FIXA (h-12 / 48px)          -->
+<!-- ========================================== -->
+<header class="fixed top-0 right-0 left-[216px] h-12 bg-surface-container-lowest border-b border-outline-variant flex items-center justify-between px-space-lg z-30 select-none">
+<!-- À esquerda: recolher barra e breadcrumb -->
+<div class="flex items-center gap-space-md">
+<button class="w-7 h-7 flex items-center justify-center rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" title="Recolher barra lateral">
+<span class="material-symbols-outlined" style="font-size: 18px;">dock_to_left</span>
+</button>
+<div class="h-3 w-[1px] bg-outline-variant"></div>
+<nav class="flex items-center gap-1 font-body-sm text-body-sm text-outline">
+<span class="hover:text-on-surface cursor-pointer">Transport ERP</span>
+<span class="text-outline-variant">/</span>
+<span class="text-on-surface font-medium">Specs — Lista de especificações</span>
+</nav>
+</div>
+<!-- À direita: Celular e Alternância de Idioma -->
+<div class="flex items-center gap-space-md">
+<button class="flex items-center gap-1.5 px-2 py-1 rounded bg-surface-container-low hover:bg-surface-container border border-outline-variant text-outline hover:text-on-surface font-label-md text-label-md transition-colors">
+<span class="material-symbols-outlined" style="font-size: 15px;">smartphone</span>
+<span>Celular</span>
+</button>
+<div class="h-3.5 w-[1px] bg-outline-variant"></div>
+<div class="flex items-center font-code-sm text-code-sm border border-outline-variant rounded overflow-hidden">
+<span class="px-2 py-0.5 bg-surface-container-high text-on-surface font-medium">PT</span>
+<span class="px-2 py-0.5 bg-surface-container-low text-outline hover:text-on-surface cursor-pointer">EN</span>
+</div>
+</div>
+</header>
+<!-- ========================================== -->
+<!-- ÁREA DE CONTEÚDO PRINCIPAL (SPECS)         -->
+<!-- ========================================== -->
+<main class="ml-[216px] mt-12 w-[calc(100vw-216px)] h-[calc(100vh-48px)] flex flex-col overflow-y-auto bg-surface-container-lowest">
+<div class="p-space-xl max-w-7xl w-full mx-auto flex flex-col gap-space-lg">
+<!-- CABEÇALHO DA PÁGINA -->
+<section class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2">
+<div>
+<h1 class="font-headline-lg text-headline-lg font-semibold text-on-surface tracking-tight">Specs</h1>
+<p class="font-body-md text-body-md text-outline mt-0.5">
+            Defina, valide e aprove uma especificação antes de os agentes escreverem código.
+          </p>
+</div>
+<div class="flex items-center gap-space-sm shrink-0">
+<button class="h-[30px] px-3 rounded bg-surface-container border border-outline-variant hover:border-outline text-on-surface font-label-md text-label-md transition-colors flex items-center gap-1.5">
+<span class="material-symbols-outlined" style="font-size: 16px;">upload_file</span>
+<span>Importar specs</span>
+</button>
+<button class="h-[30px] px-3.5 rounded bg-[#6366f1] hover:bg-[#4f46e5] text-white font-label-md text-label-md font-medium transition-colors flex items-center gap-1.5 shadow-none">
+<span class="material-symbols-outlined" style="font-size: 16px;">add</span>
+<span>+ Nova especificação</span>
+</button>
+</div>
+</section>
+<!-- BARRA DE FILTROS & BUSCA -->
+<section class="flex flex-col md:flex-row md:items-center justify-between border-b border-outline-variant gap-3">
+<!-- Abas de filtro -->
+<div class="flex items-center gap-1 overflow-x-auto pb-0 -mb-[1px]">
+<!-- Todas (5) - ATIVA -->
+<button class="flex items-center gap-1 px-3 py-2 border-b-2 border-[#6366f1] text-on-surface font-label-md text-label-md font-medium whitespace-nowrap">
+<span>Todas</span>
+<span class="font-code-sm text-code-sm text-[#6366f1] ml-0.5">(5)</span>
+</button>
+<!-- Em andamento (2) -->
+<button class="flex items-center gap-1 px-3 py-2 border-b-2 border-transparent text-outline hover:text-on-surface font-label-md text-label-md whitespace-nowrap transition-colors">
+<span>Em andamento</span>
+<span class="font-code-sm text-code-sm text-outline/80 ml-0.5">(2)</span>
+</button>
+<!-- Aguardando você (2) -->
+<button class="flex items-center gap-1 px-3 py-2 border-b-2 border-transparent text-outline hover:text-on-surface font-label-md text-label-md whitespace-nowrap transition-colors">
+<span>Aguardando você</span>
+<span class="font-code-sm text-code-sm text-outline/80 ml-0.5">(2)</span>
+</button>
+<!-- Bloqueadas (0) -->
+<button class="flex items-center gap-1 px-3 py-2 border-b-2 border-transparent text-outline hover:text-on-surface font-label-md text-label-md whitespace-nowrap transition-colors">
+<span>Bloqueadas</span>
+<span class="font-code-sm text-code-sm text-outline/80 ml-0.5">(0)</span>
+</button>
+<!-- Prontas (1) -->
+<button class="flex items-center gap-1 px-3 py-2 border-b-2 border-transparent text-outline hover:text-on-surface font-label-md text-label-md whitespace-nowrap transition-colors">
+<span>Prontas</span>
+<span class="font-code-sm text-code-sm text-outline/80 ml-0.5">(1)</span>
+</button>
+<!-- Arquivadas (0) -->
+<button class="flex items-center gap-1 px-3 py-2 border-b-2 border-transparent text-outline hover:text-on-surface font-label-md text-label-md whitespace-nowrap transition-colors">
+<span>Arquivadas</span>
+<span class="font-code-sm text-code-sm text-outline/80 ml-0.5">(0)</span>
+</button>
+</div>
+<!-- Campo de busca -->
+<div class="pb-2 md:pb-1">
+<div class="relative w-full md:w-72">
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-outline" style="font-size: 15px;">search</span>
+<input class="w-full bg-surface-container-low border border-outline-variant focus:border-outline focus:ring-0 rounded h-7 pl-8 pr-2.5 font-body-sm text-body-sm text-on-surface placeholder:text-outline/70 transition-colors" placeholder="Buscar por título, id ou pedido" type="text"/>
+</div>
+</div>
+</section>
+<!-- GRADE DE ESPECIFICAÇÕES (ATÉ 3 COLUNAS) -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-md">
+<!-- ============================================== -->
+<!-- CARTÃO 1: Modo escuro (Azul #60a5fa)           -->
+<!-- ============================================== -->
+<article class="bg-surface-container-low hover:bg-surface-container border border-outline-variant rounded flex overflow-hidden transition-colors relative group">
+<!-- Barra fina vertical de estado (Azul) -->
+<div class="w-[3px] bg-[#60a5fa] shrink-0"></div>
+<div class="p-space-lg flex flex-col justify-between flex-grow min-w-0">
+<div>
+<!-- Topo: ID & Selo -->
+<div class="flex items-center justify-between gap-2 mb-2">
+<span class="font-code-sm text-code-sm text-outline bg-surface-container-lowest px-1.5 py-0.5 rounded border border-outline-variant/40">dark-mode</span>
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#60a5fa]/10 border border-[#60a5fa]/20 text-[#60a5fa] font-label-md text-[11px] leading-tight">
+<span class="w-1.5 h-1.5 rounded-full bg-[#60a5fa]"></span>
+<span>Aguardando sua revisão</span>
+</div>
+</div>
+<!-- Título -->
+<h2 class="font-headline-sm text-headline-sm font-semibold text-on-surface leading-snug truncate">
+                Modo escuro
+              </h2>
+<!-- Pedido / Descrição -->
+<p class="font-body-md text-body-md text-outline mt-1.5 line-clamp-2">
+                Suporte completo a tema escuro sincronizado com as preferências do sistema operacional.
+              </p>
+</div>
+<!-- Seção de Progresso e Rodapé -->
+<div class="mt-4 pt-3 border-t border-outline-variant/40 flex flex-col gap-2.5">
+<!-- Barra de aprovação -->
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between font-label-sm text-label-sm text-outline">
+<span>Aprovação técnica</span>
+<span class="font-code-sm text-code-sm text-on-surface font-medium">1/4 aprovados</span>
+</div>
+<div class="w-full h-1 bg-surface-container-high rounded-full overflow-hidden">
+<div class="bg-[#60a5fa] h-full rounded-full" style="width: 25%"></div>
+</div>
+</div>
+<!-- Rodapé do cartão -->
+<div class="font-code-sm text-[11px] text-outline flex items-center gap-1.5 truncate">
+<span class="text-on-surface-variant font-medium">Arquiteto Backend</span>
+<span class="text-outline-variant">·</span>
+<span>Agora: Requisitos</span>
+<span class="text-outline-variant">·</span>
+<span>há 32 segundos</span>
+</div>
+</div>
+</div>
+</article>
+<!-- ============================================== -->
+<!-- CARTÃO 2: Exportar faturas em CSV (Azul)       -->
+<!-- ============================================== -->
+<article class="bg-surface-container-low hover:bg-surface-container border border-outline-variant rounded flex overflow-hidden transition-colors relative group">
+<!-- Barra fina vertical de estado (Azul) -->
+<div class="w-[3px] bg-[#60a5fa] shrink-0"></div>
+<div class="p-space-lg flex flex-col justify-between flex-grow min-w-0">
+<div>
+<!-- Topo: ID & Selo -->
+<div class="flex items-center justify-between gap-2 mb-2">
+<span class="font-code-sm text-code-sm text-outline bg-surface-container-lowest px-1.5 py-0.5 rounded border border-outline-variant/40">export-invoices-csv</span>
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#60a5fa]/10 border border-[#60a5fa]/20 text-[#60a5fa] font-label-md text-[11px] leading-tight">
+<span class="w-1.5 h-1.5 rounded-full bg-[#60a5fa] animate-pulse"></span>
+<span>Agente escrevendo</span>
+</div>
+</div>
+<!-- Título -->
+<h2 class="font-headline-sm text-headline-sm font-semibold text-on-surface leading-snug truncate">
+                Exportar faturas em CSV
+              </h2>
+<!-- Pedido / Descrição -->
+<p class="font-body-md text-body-md text-outline mt-1.5 line-clamp-2">
+                Exportação em lote de faturas consolidadas em formato CSV com filtros por data.
+              </p>
+</div>
+<!-- Seção de Progresso e Rodapé -->
+<div class="mt-4 pt-3 border-t border-outline-variant/40 flex flex-col gap-2.5">
+<!-- Barra de aprovação -->
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between font-label-sm text-label-sm text-outline">
+<span>Aprovação técnica</span>
+<span class="font-code-sm text-code-sm text-outline font-medium">0/4 aprovados</span>
+</div>
+<div class="w-full h-1 bg-surface-container-high rounded-full overflow-hidden">
+<div class="bg-[#60a5fa] h-full rounded-full" style="width: 0%"></div>
+</div>
+</div>
+<!-- Rodapé do cartão -->
+<div class="font-code-sm text-[11px] text-outline flex items-center gap-1.5 truncate">
+<span class="text-on-surface-variant font-medium">Implementador API</span>
+<span class="text-outline-variant">·</span>
+<span>Agora: Proposta</span>
+<span class="text-outline-variant">·</span>
+<span>há 5 minutos</span>
+</div>
+</div>
+</div>
+</article>
+<!-- ============================================== -->
+<!-- CARTÃO 3: Recuperação de senha (Âmbar #f59e0b) -->
+<!-- ============================================== -->
+<article class="bg-surface-container-low hover:bg-surface-container border border-outline-variant rounded flex overflow-hidden transition-colors relative group">
+<!-- Barra fina vertical de estado (Âmbar) -->
+<div class="w-[3px] bg-[#f59e0b] shrink-0"></div>
+<div class="p-space-lg flex flex-col justify-between flex-grow min-w-0">
+<div>
+<!-- Topo: ID & Selo -->
+<div class="flex items-center justify-between gap-2 mb-2">
+<span class="font-code-sm text-code-sm text-outline bg-surface-container-lowest px-1.5 py-0.5 rounded border border-outline-variant/40">password-recovery</span>
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#f59e0b]/10 border border-[#f59e0b]/20 text-[#f59e0b] font-label-md text-[11px] leading-tight">
+<span class="w-1.5 h-1.5 rounded-full bg-[#f59e0b]"></span>
+<span>Alterações solicitadas</span>
+</div>
+</div>
+<!-- Título -->
+<h2 class="font-headline-sm text-headline-sm font-semibold text-on-surface leading-snug truncate">
+                Recuperação de senha
+              </h2>
+<!-- Pedido / Descrição -->
+<p class="font-body-md text-body-md text-outline mt-1.5 line-clamp-2">
+                Fluxo de redefinição de credenciais via token seguro de curta duração por e-mail.
+              </p>
+<!-- Linha de alerta âmbar em destaque -->
+<div class="mt-2.5 px-2 py-1 bg-[#f59e0b]/10 border border-[#f59e0b]/25 rounded flex items-center gap-1.5 text-[#f59e0b] font-code-sm text-[11px]">
+<span class="material-symbols-outlined shrink-0" style="font-size: 14px;">warning</span>
+<span class="truncate">2 pergunta(s) para você · 1 achado(s) em aberto</span>
+</div>
+</div>
+<!-- Seção de Progresso e Rodapé -->
+<div class="mt-4 pt-3 border-t border-outline-variant/40 flex flex-col gap-2.5">
+<!-- Barra de aprovação -->
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between font-label-sm text-label-sm text-outline">
+<span>Aprovação técnica</span>
+<span class="font-code-sm text-code-sm text-[#f59e0b] font-medium">2/4 aprovados</span>
+</div>
+<div class="w-full h-1 bg-surface-container-high rounded-full overflow-hidden">
+<div class="bg-[#f59e0b] h-full rounded-full" style="width: 50%"></div>
+</div>
+</div>
+<!-- Rodapé do cartão -->
+<div class="font-code-sm text-[11px] text-outline flex items-center gap-1.5 truncate">
+<span class="text-on-surface-variant font-medium">Arquiteto Backend</span>
+<span class="text-outline-variant">·</span>
+<span>Agora: Design Técnico</span>
+<span class="text-outline-variant">·</span>
+<span>há 1 hora</span>
+</div>
+</div>
+</div>
+</article>
+<!-- ============================================== -->
+<!-- CARTÃO 4: Refatorar o faturamento (Verde)      -->
+<!-- ============================================== -->
+<article class="bg-surface-container-low hover:bg-surface-container border border-outline-variant rounded flex overflow-hidden transition-colors relative group">
+<!-- Barra fina vertical de estado (Verde #10b981) -->
+<div class="w-[3px] bg-[#10b981] shrink-0"></div>
+<div class="p-space-lg flex flex-col justify-between flex-grow min-w-0">
+<div>
+<!-- Topo: ID & Selo -->
+<div class="flex items-center justify-between gap-2 mb-2">
+<span class="font-code-sm text-code-sm text-outline bg-surface-container-lowest px-1.5 py-0.5 rounded border border-outline-variant/40">billing-refactor</span>
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#10b981]/10 border border-[#10b981]/20 text-[#10b981] font-label-md text-[11px] leading-tight">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+<span>Pronta para implementação</span>
+</div>
+</div>
+<!-- Título -->
+<h2 class="font-headline-sm text-headline-sm font-semibold text-on-surface leading-snug truncate">
+                Refatorar o faturamento
+              </h2>
+<!-- Pedido / Descrição -->
+<p class="font-body-md text-body-md text-outline mt-1.5 line-clamp-2">
+                Separação dos módulos de gateway de pagamento e conciliação bancária determinística.
+              </p>
+</div>
+<!-- Seção de Progresso e Rodapé -->
+<div class="mt-4 pt-3 border-t border-outline-variant/40 flex flex-col gap-2.5">
+<!-- Barra de aprovação -->
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between font-label-sm text-label-sm text-outline">
+<span class="text-[#10b981] flex items-center gap-1">
+<span class="material-symbols-outlined" style="font-size: 13px;">check_circle</span>
+                    Todos os documentos aprovados
+                  </span>
+<span class="font-code-sm text-code-sm text-[#10b981] font-medium">4/4 aprovados</span>
+</div>
+<div class="w-full h-1 bg-surface-container-high rounded-full overflow-hidden">
+<div class="bg-[#10b981] h-full rounded-full" style="width: 100%"></div>
+</div>
+</div>
+<!-- Rodapé do cartão -->
+<div class="font-code-sm text-[11px] text-outline flex items-center gap-1.5 truncate">
+<span class="text-on-surface-variant font-medium">Arquiteto Backend</span>
+<span class="text-outline-variant">·</span>
+<span>Agora: Validação Final</span>
+<span class="text-outline-variant">·</span>
+<span>há 2 dias</span>
+</div>
+</div>
+</div>
+</article>
+<!-- ============================================== -->
+<!-- CARTÃO 5: Painel de métricas (Cinza #64748b)   -->
+<!-- ============================================== -->
+<article class="bg-surface-container-low hover:bg-surface-container border border-outline-variant rounded flex overflow-hidden transition-colors relative group">
+<!-- Barra fina vertical de estado (Cinza neutro) -->
+<div class="w-[3px] bg-[#64748b] shrink-0"></div>
+<div class="p-space-lg flex flex-col justify-between flex-grow min-w-0">
+<div>
+<!-- Topo: ID & Selo -->
+<div class="flex items-center justify-between gap-2 mb-2">
+<span class="font-code-sm text-code-sm text-outline bg-surface-container-lowest px-1.5 py-0.5 rounded border border-outline-variant/40">metrics-dashboard</span>
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#64748b]/10 border border-[#64748b]/20 text-[#94a3b8] font-label-md text-[11px] leading-tight">
+<span class="w-1.5 h-1.5 rounded-full bg-[#64748b]"></span>
+<span>Rascunho</span>
+</div>
+</div>
+<!-- Título -->
+<h2 class="font-headline-sm text-headline-sm font-semibold text-on-surface leading-snug truncate">
+                Painel de métricas
+              </h2>
+<!-- Pedido / Descrição -->
+<p class="font-body-md text-body-md text-outline mt-1.5 line-clamp-2">
+                Visualização consolidada de latência, vazão de agentes e consumo de tokens por cluster.
+              </p>
+</div>
+<!-- Seção de Progresso e Rodapé -->
+<div class="mt-4 pt-3 border-t border-outline-variant/40 flex flex-col gap-2.5">
+<!-- Barra de aprovação -->
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between font-label-sm text-label-sm text-outline">
+<span>Aprovação técnica</span>
+<span class="font-code-sm text-code-sm text-outline font-medium">0/4 aprovados</span>
+</div>
+<div class="w-full h-1 bg-surface-container-high rounded-full overflow-hidden">
+<div class="bg-[#64748b] h-full rounded-full" style="width: 0%"></div>
+</div>
+</div>
+<!-- Rodapé do cartão -->
+<div class="font-code-sm text-[11px] text-outline flex items-center gap-1.5 truncate">
+<span class="text-on-surface-variant font-medium">Arquiteto .NET Sênior</span>
+<span class="text-outline-variant">·</span>
+<span>Agora: Proposta</span>
+<span class="text-outline-variant">·</span>
+<span>há 3 dias</span>
+</div>
+</div>
+</div>
+</article>
+</section>
+</div>
+</main>
+</body></html>

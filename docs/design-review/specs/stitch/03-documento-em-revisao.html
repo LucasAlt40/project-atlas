@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spec — Documento em revisão - Project Atlas</title>
+  <!-- Tailwind CSS CDN com suporte a tema dark e classes customizadas -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Geist', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            surface: {
+              lowest: '#0b0d10',
+              DEFAULT: '#101317',
+              dim: '#111418',
+              card: '#15191e',
+              higher: '#1c2128',
+              top: '#242c37',
+            },
+            outline: {
+              subtle: '#262c36',
+              DEFAULT: '#363d49',
+              variant: '#1f242c'
+            },
+            accent: {
+              DEFAULT: '#6366f1',
+              hover: '#4f46e5',
+            },
+            state: {
+              success: '#10b981',
+              warning: '#f59e0b',
+              error: '#ef4444',
+              running: '#60a5fa',
+              info: '#38bdf8'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #0b0d10;
+      color: #e2e8f0;
+      font-family: 'Geist', sans-serif;
+      margin: 0;
+      overflow-x: hidden;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+    /* Estilo de scrollbar técnica */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0d10;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1c2128;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #242c37;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex antialiased selection:bg-accent/30 selection:text-white">
+
+  <!-- ========================================================================= -->
+  <!-- BARRA LATERAL FIXA (216px)                                                -->
+  <!-- ========================================================================= -->
+  <aside class="w-[216px] h-screen bg-[#0b0d10] border-r border-[#1c2128] flex flex-col justify-between shrink-0 select-none fixed top-0 left-0 z-40">
+    <div class="flex flex-col">
+      <!-- Logo Atlas (sem subtítulo, sem cluster, sem versão no topo) -->
+      <div class="h-12 px-4 flex items-center border-b border-[#1c2128] gap-2.5">
+        <svg class="w-5 h-5 text-accent" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" stroke-dasharray="4 2"/>
+          <path d="M12 7V17M7 12H17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="12" cy="12" r="3" fill="currentColor"/>
+        </svg>
+        <span class="font-semibold text-sm tracking-tight text-white">Atlas</span>
+      </div>
+
+      <!-- Seletor de Workspace -->
+      <div class="p-2 border-b border-[#1c2128]">
+        <div class="px-2.5 py-2 rounded-[4px] bg-[#101317] border border-[#1c2128] flex flex-col gap-0.5 cursor-pointer hover:border-[#242c37] transition-colors">
+          <div class="flex items-center justify-between text-xs font-medium text-slate-200">
+            <span class="truncate">Transport ERP</span>
+            <span class="material-symbols-outlined text-[14px] text-slate-400">unfold_more</span>
+          </div>
+          <span class="font-mono text-[10px] text-slate-500 truncate">/dev/transport-erp</span>
+        </div>
+      </div>
+
+      <!-- Itens de Navegação Canônicos -->
+      <nav class="p-2 flex flex-col gap-0.5 text-xs">
+        <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-[4px] text-slate-400 hover:text-slate-200 hover:bg-[#15191e] transition-colors">
+          <span class="material-symbols-outlined text-[18px]">space_dashboard</span>
+          <span>Workspace</span>
+        </a>
+        <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-[4px] text-slate-400 hover:text-slate-200 hover:bg-[#15191e] transition-colors">
+          <span class="material-symbols-outlined text-[18px]">account_tree</span>
+          <span>Workflow</span>
+        </a>
+        <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-[4px] text-slate-400 hover:text-slate-200 hover:bg-[#15191e] transition-colors">
+          <span class="material-symbols-outlined text-[18px]">smart_toy</span>
+          <span>Agentes</span>
+        </a>
+        <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-[4px] text-slate-400 hover:text-slate-200 hover:bg-[#15191e] transition-colors">
+          <span class="material-symbols-outlined text-[18px]">psychology</span>
+          <span>Personalidades</span>
+        </a>
+        <!-- Specs destacado (tela atual) -->
+        <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-[4px] bg-[#1c2128] text-white font-medium border-l-2 border-accent transition-colors">
+          <span class="material-symbols-outlined text-[18px] text-accent">description</span>
+          <span>Specs</span>
+        </a>
+        <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-[4px] text-slate-400 hover:text-slate-200 hover:bg-[#15191e] transition-colors">
+          <span class="material-symbols-outlined text-[18px]">hub</span>
+          <span>MCP Hub</span>
+        </a>
+        <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-[4px] text-slate-400 hover:text-slate-200 hover:bg-[#15191e] transition-colors">
+          <span class="material-symbols-outlined text-[18px]">settings</span>
+          <span>Configurações</span>
+        </a>
+      </nav>
+    </div>
+
+    <!-- Rodapé da Barra Lateral -->
+    <div class="p-3 border-t border-[#1c2128] text-[11px] font-mono text-slate-500">
+      Project Atlas v0.1.5
+    </div>
+  </aside>
+
+  <!-- ========================================================================= -->
+  <!-- ÁREA PRINCIPAL                                                            -->
+  <!-- ========================================================================= -->
+  <div class="flex-1 ml-[216px] min-h-screen flex flex-col bg-[#0b0d10]">
+
+    <!-- Barra superior de 48px -->
+    <header class="h-12 border-b border-[#1c2128] bg-[#0b0d10] px-6 flex items-center justify-between shrink-0 sticky top-0 z-30">
+      <div class="flex items-center gap-3">
+        <button class="text-slate-400 hover:text-slate-200 p-1 rounded-[4px] hover:bg-[#15191e] transition-colors" title="Recolher barra lateral">
+          <span class="material-symbols-outlined text-[18px]">dock_to_right</span>
+        </button>
+        <!-- Breadcrumb fixo da tela -->
+        <div class="text-xs text-slate-400 flex items-center gap-1.5 font-medium">
+          <span>Transport ERP</span>
+          <span class="text-slate-600">/</span>
+          <span class="text-slate-200">Spec — Documento em revisão</span>
+        </div>
+      </div>
+
+      <!-- Controles da direita -->
+      <div class="flex items-center gap-3">
+        <button class="px-2.5 py-1 rounded-[4px] border border-[#1c2128] bg-[#101317] hover:bg-[#15191e] text-xs text-slate-300 flex items-center gap-1.5 transition-colors">
+          <span class="material-symbols-outlined text-[14px]">smartphone</span>
+          <span>Celular</span>
+        </button>
+        <div class="flex items-center text-[11px] font-mono bg-[#101317] border border-[#1c2128] rounded-[4px] p-0.5">
+          <span class="px-1.5 py-0.5 bg-[#1c2128] text-white rounded-[2px] font-medium">PT</span>
+          <span class="px-1.5 py-0.5 text-slate-400 hover:text-slate-200 cursor-pointer">EN</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Conteúdo da Página -->
+    <main class="flex-1 p-6 max-w-[1400px] w-full mx-auto flex flex-col gap-6">
+
+      <!-- ===================================================================== -->
+      <!-- CABEÇALHO DA SPEC                                                     -->
+      <!-- ===================================================================== -->
+      <div class="flex flex-col gap-2">
+        <div class="flex items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <a href="#" class="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200 transition-colors">
+              <span class="material-symbols-outlined text-[16px]">arrow_back</span>
+              <span>Todas as specs</span>
+            </a>
+            <span class="text-slate-600">|</span>
+            <h1 class="text-xl font-semibold text-white tracking-tight">Modo escuro</h1>
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[4px] bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-medium">
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+              Aguardando sua revisão
+            </span>
+          </div>
+
+          <!-- Ações à direita -->
+          <div class="flex items-center gap-2">
+            <button class="px-3 py-1.5 rounded-[4px] border border-[#1c2128] bg-[#15191e] hover:bg-[#1c2128] text-xs font-medium text-slate-200 transition-colors">
+              Agentes
+            </button>
+            <div class="relative group">
+              <button class="px-2 py-1.5 rounded-[4px] border border-[#1c2128] bg-[#15191e] hover:bg-[#1c2128] text-xs text-slate-300 transition-colors">
+                ⋯
+              </button>
+              <!-- Menu suspenso com Excluir em vermelho -->
+              <div class="absolute right-0 mt-1 w-32 py-1 bg-[#15191e] border border-[#1c2128] rounded-[4px] shadow-lg hidden group-hover:block z-20">
+                <button class="w-full text-left px-3 py-1.5 text-xs text-state-error hover:bg-[#1c2128] transition-colors">
+                  Excluir
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Linha de metadados em mono discreta -->
+        <div class="text-xs font-mono text-slate-400 tracking-tight">
+          dark-mode · Formato spec-driven/1 · transport-erp · Escreve: Arquiteto Backend · Revisa: QA Regressão
+        </div>
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- STEPPER HORIZONTAL DE 5 ETAPAS                                        -->
+      <!-- ===================================================================== -->
+      <div class="bg-[#101317] border border-[#1c2128] rounded-[6px] p-3">
+        <!-- Layout horizontal em desktop (vira lista vertical abaixo de 900px via responsive) -->
+        <div class="grid grid-cols-1 min-[900px]:grid-cols-5 gap-3">
+          
+          <!-- Etapa 1: Proposta — Aprovado -->
+          <div class="flex flex-col gap-1 p-2 rounded-[4px] bg-[#15191e]/50 border border-[#1c2128]">
+            <div class="text-xs font-medium text-slate-300">Proposta</div>
+            <div class="inline-flex items-center gap-1.5 text-[11px] text-state-success font-medium">
+              <span class="material-symbols-outlined text-[14px]">check</span>
+              <span>Aprovado</span>
+            </div>
+          </div>
+
+          <!-- Etapa 2: Requisitos — Aguardando revisão (atual, destacada) -->
+          <div class="flex flex-col gap-1 p-2 rounded-[4px] bg-[#15191e] border-2 border-accent shadow-sm">
+            <div class="text-xs font-semibold text-white">Requisitos</div>
+            <div class="inline-flex items-center gap-1.5 text-[11px] text-blue-400 font-medium">
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
+              <span>Aguardando revisão</span>
+            </div>
+          </div>
+
+          <!-- Etapa 3: Design — Aguardando documentos anteriores -->
+          <div class="flex flex-col gap-1 p-2 rounded-[4px] bg-[#0b0d10] border border-[#1c2128] opacity-70">
+            <div class="text-xs font-medium text-slate-400">Design</div>
+            <div class="inline-flex items-center gap-1.5 text-[11px] text-slate-500">
+              <span>Aguardando documentos anteriores</span>
+            </div>
+          </div>
+
+          <!-- Etapa 4: Tarefas — Aguardando documentos anteriores -->
+          <div class="flex flex-col gap-1 p-2 rounded-[4px] bg-[#0b0d10] border border-[#1c2128] opacity-70">
+            <div class="text-xs font-medium text-slate-400">Tarefas</div>
+            <div class="inline-flex items-center gap-1.5 text-[11px] text-slate-500">
+              <span>Aguardando documentos anteriores</span>
+            </div>
+          </div>
+
+          <!-- Etapa 5: Revisão final — A fazer -->
+          <div class="flex flex-col gap-1 p-2 rounded-[4px] bg-[#0b0d10] border border-[#1c2128] opacity-70">
+            <div class="text-xs font-medium text-slate-400">Revisão final</div>
+            <div class="inline-flex items-center gap-1.5 text-[11px] text-slate-500">
+              <span>A fazer</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- CARTÃO DE DESTAQUE: SUA DECISÃO                                       -->
+      <!-- ===================================================================== -->
+      <div class="bg-[#15191e] border border-[#1c2128] rounded-[6px] p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex flex-col gap-1">
+          <span class="text-xs font-semibold text-white uppercase tracking-wider">Sua decisão</span>
+          <p class="text-xs text-slate-300">
+            Leia o documento Requisitos. Aprovar libera a escrita de Design; pedir alterações envia suas palavras ao agente.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2 shrink-0">
+          <button class="px-3 py-1.5 rounded-[4px] text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-[#1c2128] transition-colors">
+            Escrever de novo
+          </button>
+          <button class="px-3 py-1.5 rounded-[4px] border border-[#1c2128] bg-[#101317] hover:bg-[#1c2128] text-xs font-medium text-slate-200 transition-colors">
+            Solicitar alterações
+          </button>
+          <button class="px-3.5 py-1.5 rounded-[4px] bg-accent hover:bg-accent-hover text-xs font-medium text-white transition-colors shadow-sm">
+            Aprovar e continuar
+          </button>
+        </div>
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- CONTEÚDO EM DUAS COLUNAS                                              -->
+      <!-- ===================================================================== -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- =================================================================== -->
+        <!-- COLUNA PRINCIPAL: DOCUMENTO (LG: 8 COLS)                            -->
+        <!-- =================================================================== -->
+        <section class="lg:col-span-8 flex flex-col bg-[#101317] border border-[#1c2128] rounded-[6px] overflow-hidden">
+          
+          <!-- Barra superior do documento -->
+          <div class="px-4 py-3 border-b border-[#1c2128] bg-[#15191e] flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
+              <span class="font-mono text-xs font-medium text-white">specs/dark-mode/spec.md</span>
+              <span class="text-slate-600 hidden sm:inline">·</span>
+              <span class="text-xs text-slate-400">Revisão 1 · escrito pelo agente · há 1 minuto</span>
+            </div>
+
+            <!-- Alternância Requisitos | Markdown -->
+            <div class="flex items-center text-xs font-medium bg-[#101317] border border-[#1c2128] rounded-[4px] p-0.5">
+              <button class="px-2.5 py-1 bg-[#1c2128] text-white rounded-[2px] transition-colors">
+                Requisitos
+              </button>
+              <button class="px-2.5 py-1 text-slate-400 hover:text-slate-200 transition-colors">
+                Markdown
+              </button>
+            </div>
+          </div>
+
+          <!-- Conteúdo do documento em inglês exatamente como solicitado -->
+          <div class="p-6 flex flex-col gap-6 text-sm text-slate-200 font-sans">
+
+            <!-- Cabeçalho de adição -->
+            <div class="inline-flex items-center gap-2 text-xs font-mono font-medium text-state-success bg-state-success/10 border border-state-success/20 px-2.5 py-1 rounded-[4px] w-fit">
+              <span>+</span>
+              <span>ADDED Requirements</span>
+            </div>
+
+            <!-- Bloco de Requisito -->
+            <div class="flex flex-col gap-3 p-4 rounded-[4px] bg-[#15191e]/50 border border-[#1c2128]">
+              <h2 class="text-sm font-semibold text-white tracking-tight">
+                Requirement: User can switch the theme
+              </h2>
+              <p class="text-xs text-slate-300 leading-relaxed font-mono bg-[#0b0d10] p-3 rounded-[4px] border border-[#1c2128]">
+                The system SHALL let the user pick light or dark.
+              </p>
+            </div>
+
+            <!-- Cenário de especificação BDD -->
+            <div class="flex flex-col gap-3 p-4 rounded-[4px] bg-[#15191e]/50 border border-[#1c2128]">
+              <div class="text-xs font-medium text-slate-400 font-mono uppercase tracking-wider">
+                Scenario: Switch to dark
+              </div>
+              <div class="flex flex-col gap-2 font-mono text-xs">
+                <div class="flex items-start gap-2 bg-[#0b0d10] p-2.5 rounded-[4px] border border-[#1c2128]">
+                  <span class="text-blue-400 font-bold shrink-0">WHEN</span>
+                  <span class="text-slate-200">the user picks dark</span>
+                </div>
+                <div class="flex items-start gap-2 bg-[#0b0d10] p-2.5 rounded-[4px] border border-[#1c2128]">
+                  <span class="text-state-success font-bold shrink-0">THEN</span>
+                  <span class="text-slate-200">the interface uses the dark theme</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- =================================================================== -->
+        <!-- COLUNA LATERAL: SEÇÕES RECOLHÍVEIS (LG: 4 COLS)                      -->
+        <!-- =================================================================== -->
+        <aside class="lg:col-span-4 flex flex-col gap-4">
+
+          <!-- Seção 1: Validações automáticas (Aberta) -->
+          <div class="bg-[#101317] border border-[#1c2128] rounded-[6px] overflow-hidden">
+            <div class="p-3 bg-[#15191e] border-b border-[#1c2128] flex items-center justify-between">
+              <span class="text-xs font-medium text-white flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px] text-slate-400">verified</span>
+                Validações automáticas
+              </span>
+              <span class="inline-flex items-center gap-1 text-[11px] text-state-success font-medium bg-state-success/10 px-2 py-0.5 rounded-[4px] border border-state-success/20">
+                <span class="w-1.5 h-1.5 rounded-full bg-state-success"></span>
+                Aprovado
+              </span>
+            </div>
+            <div class="p-3 flex flex-col gap-3">
+              <p class="text-xs text-slate-300 leading-relaxed">
+                Nenhum problema encontrado na estrutura.
+              </p>
+              <div>
+                <a href="#" class="text-xs font-medium text-accent hover:underline inline-flex items-center gap-1">
+                  <span>Rodar validações novamente</span>
+                  <span class="material-symbols-outlined text-[14px]">refresh</span>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Seção 2: Histórico (Aberta) -->
+          <div class="bg-[#101317] border border-[#1c2128] rounded-[6px] overflow-hidden">
+            <div class="p-3 bg-[#15191e] border-b border-[#1c2128] flex items-center justify-between">
+              <span class="text-xs font-medium text-white flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px] text-slate-400">history</span>
+                Histórico
+              </span>
+              <span class="material-symbols-outlined text-[16px] text-slate-400">expand_less</span>
+            </div>
+            <div class="p-3 flex flex-col gap-2">
+              <div class="text-xs text-slate-300 font-mono bg-[#0b0d10] p-2.5 rounded-[4px] border border-[#1c2128]">
+                Revisão 1 · escrito pelo agente · há 1 minuto
+              </div>
+            </div>
+          </div>
+
+          <!-- Seção 3: Consumo (Fechada) -->
+          <div class="bg-[#101317] border border-[#1c2128] rounded-[6px] overflow-hidden">
+            <div class="p-3 bg-[#15191e] flex items-center justify-between cursor-pointer hover:bg-[#1c2128] transition-colors">
+              <span class="text-xs font-medium text-slate-300 flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px] text-slate-400">token</span>
+                Consumo
+              </span>
+              <span class="material-symbols-outlined text-[16px] text-slate-400">expand_more</span>
+            </div>
+          </div>
+
+        </aside>
+
+      </div>
+
+    </main>
+
+  </div>
+
+</body>
+</html>

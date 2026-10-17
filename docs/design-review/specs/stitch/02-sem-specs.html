@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas — Specs</title>
+<!-- Google Fonts: Geist & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-container-lowest": "#0b0e12",
+            "surface-container-low": "#101317",
+            "surface-container": "#15191e",
+            "surface-container-high": "#1c2128",
+            "surface-container-highest": "#242c37",
+            "surface": "#111418",
+            "outline": "#94a3b8",
+            "outline-variant": "#242c37",
+            "on-surface": "#f1f5f9",
+            "on-surface-variant": "#c7c4d7",
+            "primary": "#6366f1",
+            "primary-container": "#4f46e5",
+            "on-primary": "#ffffff",
+            "secondary": "#7bd0ff",
+            "error": "#ffb4ab",
+            "background": "#0b0d10"
+          },
+          fontFamily: {
+            "body-md": ["Geist", "sans-serif"],
+            "body-sm": ["Geist", "sans-serif"],
+            "body-lg": ["Geist", "sans-serif"],
+            "label-md": ["Geist", "sans-serif"],
+            "label-sm": ["JetBrains Mono", "monospace"],
+            "headline-sm": ["Geist", "sans-serif"],
+            "headline-lg": ["Geist", "sans-serif"],
+            "code-sm": ["JetBrains Mono", "monospace"],
+            "code-md": ["JetBrains Mono", "monospace"],
+            "code-lg": ["JetBrains Mono", "monospace"]
+          },
+          fontSize: {
+            "body-md": ["0.8125rem", { lineHeight: "1.25rem", fontWeight: "400" }],
+            "body-sm": ["0.75rem", { lineHeight: "1.125rem", fontWeight: "400" }],
+            "body-lg": ["0.9375rem", { lineHeight: "1.375rem", fontWeight: "400" }],
+            "label-md": ["0.75rem", { lineHeight: "1rem", fontWeight: "500" }],
+            "label-sm": ["0.625rem", { lineHeight: "0.875rem", fontWeight: "500" }],
+            "headline-sm": ["1.125rem", { lineHeight: "1.5rem", fontWeight: "500" }],
+            "headline-lg": ["1.375rem", { lineHeight: "1.75rem", fontWeight: "600" }],
+            "code-sm": ["0.6875rem", { lineHeight: "1rem", fontWeight: "400" }],
+            "code-md": ["0.75rem", { lineHeight: "1.25rem", fontWeight: "400" }],
+            "code-lg": ["0.875rem", { lineHeight: "1.375rem", fontWeight: "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 18px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    body {
+      background-color: #0b0d10;
+      color: #f1f5f9;
+      font-family: 'Geist', sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+  </style>
+</head>
+<body class="flex h-screen w-screen overflow-hidden antialiased bg-[#0b0d10] text-[#f1f5f9] select-none">
+<!-- ======================================================== -->
+<!-- BARRA LATERAL FIXA (216px, bg-[#0b0d10], border-[#1c2128]) -->
+<!-- ======================================================== -->
+<aside class="w-[216px] h-screen bg-[#0b0d10] border-r border-[#1c2128] flex flex-col justify-between shrink-0 z-40">
+<div class="flex flex-col">
+<!-- Topo: Logo Atlas -->
+<div class="h-12 px-4 flex items-center gap-2.5">
+<span class="material-symbols-outlined text-white" style="font-size: 20px;">hub</span>
+<span class="font-semibold text-white tracking-tight text-[15px]">Atlas</span>
+</div>
+<!-- Seletor de workspace -->
+<div class="px-3 py-1">
+<div class="flex items-center justify-between px-2.5 py-2 rounded bg-[#101317] border border-[#1c2128] cursor-pointer hover:border-[#242c37] transition-colors">
+<div class="flex flex-col min-w-0 pr-1">
+<span class="text-[12px] font-medium text-white truncate leading-tight">Transport ERP</span>
+<span class="text-[10px] font-mono text-[#94a3b8] truncate leading-tight mt-0.5">/dev/transport-erp</span>
+</div>
+<span class="material-symbols-outlined text-[#94a3b8] shrink-0" style="font-size: 16px;">expand_more</span>
+</div>
+</div>
+<!-- Navegação vertical -->
+<nav class="mt-3 px-2 flex flex-col gap-0.5">
+<!-- Workspace -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-[13px] text-[#94a3b8] hover:text-white hover:bg-[#15191e] transition-colors" href="#">
+<span class="material-symbols-outlined text-[#94a3b8]" style="font-size: 17px;">space_dashboard</span>
+<span>Workspace</span>
+</a>
+<!-- Workflow -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-[13px] text-[#94a3b8] hover:text-white hover:bg-[#15191e] transition-colors" href="#">
+<span class="material-symbols-outlined text-[#94a3b8]" style="font-size: 17px;">account_tree</span>
+<span>Workflow</span>
+</a>
+<!-- Agentes -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-[13px] text-[#94a3b8] hover:text-white hover:bg-[#15191e] transition-colors" href="#">
+<span class="material-symbols-outlined text-[#94a3b8]" style="font-size: 17px;">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- Personalidades -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-[13px] text-[#94a3b8] hover:text-white hover:bg-[#15191e] transition-colors" href="#">
+<span class="material-symbols-outlined text-[#94a3b8]" style="font-size: 17px;">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- Specs (ATIVO) -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-[13px] bg-[#1c2128]/60 text-white font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-white" style="font-size: 17px;">description</span>
+<span>Specs</span>
+</a>
+<!-- MCP Hub -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-[13px] text-[#94a3b8] hover:text-white hover:bg-[#15191e] transition-colors" href="#">
+<span class="material-symbols-outlined text-[#94a3b8]" style="font-size: 17px;">hub</span>
+<span>MCP Hub</span>
+</a>
+<!-- Configurações -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-[13px] text-[#94a3b8] hover:text-white hover:bg-[#15191e] transition-colors mt-2" href="#">
+<span class="material-symbols-outlined text-[#94a3b8]" style="font-size: 17px;">settings</span>
+<span>Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Rodapé da barra lateral -->
+<div class="px-4 py-3 border-t border-[#1c2128]/50">
+<span class="text-[11px] text-[#64748b] font-mono tracking-wide">Project Atlas v0.1.5</span>
+</div>
+</aside>
+<!-- ======================================================== -->
+<!-- CONTEÚDO PRINCIPAL (COM BARRA SUPERIOR FIXA) -->
+<!-- ======================================================== -->
+<div class="flex-1 flex flex-col h-screen min-w-0 bg-[#0b0d10] overflow-hidden">
+<!-- BARRA SUPERIOR (48px, bg-[#0b0d10], border-[#1c2128]) -->
+<header class="h-12 w-full bg-[#0b0d10] border-b border-[#1c2128] px-4 flex items-center justify-between shrink-0 z-30">
+<!-- Esquerda: Botão recolher + Breadcrumb -->
+<div class="flex items-center gap-3">
+<button class="text-[#94a3b8] hover:text-white p-1 rounded hover:bg-[#15191e] transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-size: 18px;">view_sidebar</span>
+</button>
+<div class="flex items-center gap-1.5 text-xs">
+<span class="text-[#94a3b8] font-medium">Transport ERP</span>
+<span class="text-[#464554]">/</span>
+<span class="text-white font-medium">Specs — Sem especificações</span>
+</div>
+</div>
+<!-- Direita: Celular + Seletor de Idioma -->
+<div class="flex items-center gap-4">
+<!-- Botão Celular -->
+<button class="flex items-center gap-1.5 text-xs text-[#94a3b8] hover:text-white px-2 py-1 rounded hover:bg-[#15191e] transition-colors">
+<span class="material-symbols-outlined" style="font-size: 16px;">smartphone</span>
+<span>Celular</span>
+</button>
+<!-- Seletor de idioma PT | EN -->
+<div class="flex items-center text-xs font-mono font-medium tracking-wider text-[#64748b] border-l border-[#1c2128] pl-3">
+<span class="text-white cursor-pointer px-1">PT</span>
+<span class="text-[#3b4252] px-0.5">|</span>
+<span class="text-[#94a3b8] hover:text-white cursor-pointer px-1 transition-colors">EN</span>
+</div>
+</div>
+</header>
+<!-- ÁREA DE PÁGINA (bg-[#0b0d10] / #101317) -->
+<main class="flex-1 flex flex-col min-h-0 overflow-y-auto px-8 py-7 bg-[#0b0d10]">
+<!-- Cabeçalho de página -->
+<div class="flex items-center justify-between pb-6 border-b border-[#1c2128]/60 shrink-0">
+<div>
+<h1 class="text-2xl font-bold text-white tracking-tight leading-snug">Specs</h1>
+<p class="text-sm text-[#94a3b8] mt-1">Defina, valide e aprove uma especificação antes de os agentes escreverem código.</p>
+</div>
+<div class="flex items-center gap-3">
+<!-- Botão secundário Importar specs -->
+<button class="px-3.5 py-2 text-xs font-medium text-white bg-[#15191e] border border-[#242c37] hover:border-[#3b4554] hover:bg-[#1c2128] rounded-md transition-colors flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[#94a3b8]" style="font-size: 16px;">file_download</span>
+<span>Importar specs</span>
+</button>
+<!-- Botão primário + Nova especificação -->
+<button class="px-4 py-2 text-xs font-medium text-white bg-[#6366f1] hover:bg-[#4f46e5] rounded-md transition-colors shadow-sm flex items-center gap-1">
+<span>+ Nova especificação</span>
+</button>
+</div>
+</div>
+<!-- Estado vazio centralizado -->
+<div class="flex-1 flex items-center justify-center p-6">
+<div class="w-full max-w-lg bg-[#101317] border border-[#1c2128] rounded-lg p-8 flex flex-col items-center text-center shadow-none">
+<!-- Ícone sutil no topo do cartão -->
+<div class="bg-[#15191e] border border-[#242c37] p-3 rounded-md mb-4 text-[#94a3b8] flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-size: 24px;">description</span>
+</div>
+<!-- Título do cartão -->
+<h2 class="text-lg font-semibold text-white mb-2 tracking-tight">Nenhuma especificação ainda</h2>
+<!-- Texto descritivo -->
+<p class="text-sm text-[#94a3b8] leading-relaxed mb-6 max-w-md">
+            Descreva o que você quer construir. Os agentes escrevem a proposta, os requisitos, o design e as tarefas, um de cada vez, e você aprova cada um antes do próximo. Nada roda até você confirmar.
+          </p>
+<!-- Grupo de botões de ação centralizado -->
+<div class="flex items-center justify-center gap-3 w-full">
+<button class="bg-[#6366f1] hover:bg-[#4f46e5] text-white px-4 py-2 rounded-md font-medium text-sm transition-colors shadow-sm">
+              Nova especificação
+            </button>
+<button class="bg-[#15191e] hover:bg-[#1c2128] border border-[#242c37] text-white px-4 py-2 rounded-md font-medium text-sm transition-colors">
+              Importar specs
+            </button>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>
