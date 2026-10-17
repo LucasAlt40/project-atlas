@@ -24,6 +24,22 @@ para o Stitch desenhar cada situação sem inventar:
 Ordem: S1 → S3 → S6 → S4 → S5 → S7 → S8 → S2. Em S3 a S6 o **cabeçalho e o stepper são idênticos**:
 mantenha-os iguais nas quatro telas.
 
+## Acréscimos a todo prompt deste módulo
+
+Colar logo antes do bloco TELA, depois do P0. Também vale trocar, na moldura do P0, "Barra lateral de
+216px" por "Barra lateral de 216px, de cima a baixo da janela" e "Barra superior de 48px" por "Barra
+superior de 48px, só à direita da barra lateral":
+
+```text
+AJUSTES DESTE MÓDULO: na moldura, o rodapé da barra lateral mostra "Project Atlas v0.1.5". Não desenhe
+rodapés informativos, rótulos técnicos extras, selos decorativos nem ícones sem função, e não escreva
+resumos, descrições de cartões, listas de nomes nem textos de exemplo que não estejam descritos. Quando o
+prompt dá um dado "de exemplo", use exatamente esse.
+```
+
+Para S1 e S6 (`edit_screens`), acrescentar também: "Ignore a moldura e os textos da tela base que não
+estejam descritos aqui; vale a moldura do P0."
+
 ## S1 — Specs — Lista de especificações
 
 ```text
@@ -50,9 +66,12 @@ USE só esses dados. NÃO mude: os grupos de filtro, a busca, o que cada cartão
 ## S2 — Specs — Sem especificações
 
 ```text
-TELA: a página "Specs" sem nenhuma spec. Cabeçalho igual ao da lista. No centro, um estado vazio com o
-título "Nenhuma especificação ainda", uma frase curta e os botões "Nova especificação" (primário) e
-"Importar specs" (secundário). Nada mais.
+TELA: a página "Specs" sem nenhuma spec. Cabeçalho igual ao da lista (título "Specs", subtítulo "Defina,
+valide e aprove uma especificação antes de os agentes escreverem código." e os botões "Importar specs" e
+"Nova especificação"). No centro, um estado vazio simples com o título "Nenhuma especificação ainda", o
+texto "Descreva o que você quer construir. Os agentes escrevem a proposta, os requisitos, o design e as
+tarefas, um de cada vez, e você aprova cada um antes do próximo. Nada roda até você confirmar." e os
+botões "Nova especificação" (primário) e "Importar specs" (secundário). Nada mais.
 ```
 
 ## S3 — Spec — Documento em revisão
@@ -63,13 +82,15 @@ Cabeçalho: seta "← Todas as specs", título "Modo escuro", selo "Aguardando s
 botões "Agentes" (secundário) e um menu "⋯" com "Excluir" em vermelho. Linha de metadados em mono
 discreta: "dark-mode · Formato spec-driven/1 · transport-erp · Escreve: Arquiteto Backend · Revisa: QA
 Regressão".
-Stepper horizontal de 5 etapas, um selo por etapa: "Proposta — Aprovado" (✓ verde), "Requisitos —
+Stepper horizontal de 5 etapas (o nome da etapa em cima e o estado embaixo, em texto pequeno; abaixo de
+900px de largura vira uma lista vertical), um selo por etapa: "Proposta — Aprovado" (✓ verde), "Requisitos —
 Aguardando revisão" (atual, destacada), "Design — Aguardando documentos anteriores" (cinza),
 "Tarefas — Aguardando documentos anteriores" (cinza), "Revisão final — A fazer" (cinza).
 Logo abaixo do stepper, um cartão de destaque "Sua decisão": "Leia o documento Requisitos. Aprovar
 libera a escrita de Design; pedir alterações envia suas palavras ao agente." com as ações "Escrever de
 novo" (ghost), "Solicitar alterações" (secundário) e "Aprovar e continuar" (primário).
-Conteúdo em duas colunas. Coluna principal: o documento — nome do arquivo "specs/dark-mode/spec.md",
+Conteúdo em duas colunas. O conteúdo do documento fica em inglês, exatamente como escrito (só a interface
+é em português). Coluna principal: o documento — nome do arquivo "specs/dark-mode/spec.md",
 "Revisão 1 · escrito pelo agente · há 1 minuto", alternância "Requisitos | Markdown" e o texto:
 "ADDED Requirements", "Requirement: User can switch the theme", "The system SHALL let the user pick
 light or dark.", "Scenario: Switch to dark — WHEN the user picks dark — THEN the interface uses the dark
@@ -82,13 +103,13 @@ USE só esses dados. NÃO mude: as etapas, as ações da decisão, o que as seç
 ## S4 — Spec — Agente escrevendo
 
 ```text
-TELA: o mesmo detalhe de spec (mesmo cabeçalho e stepper que "Spec — Documento em revisão"), agora com
+TELA: o mesmo detalhe de spec (mesmo cabeçalho e stepper que "Spec — Documento em revisão", com o stepper de nome em cima e estado embaixo), agora com
 a etapa "Proposta" sendo escrita. Stepper: "Proposta — Escrevendo" (atual, com indicador de
 progresso azul) e as demais em cinza. Em vez do cartão "Sua decisão" aparece a faixa de execução:
 "Arquiteto Backend está escrevendo: Proposta" com o botão "Cancelar execução" (secundário) e um link
 "Detalhes". A coluna principal mostra o texto parcial do documento "proposal.md" ("Proposal — Why — Night
 users find the bright interface tiring…") esmaecido; a coluna lateral mostra "Validações automáticas"
-("Nada escrito ainda.") e "Histórico" vazio. Sem outras ações.
+("Nada escrito ainda.") e "Histórico" sem nenhum texto dentro. Sem outras ações.
 ```
 
 ## S5 — Spec — Perguntas e achados
@@ -96,7 +117,8 @@ users find the bright interface tiring…") esmaecido; a coluna lateral mostra "
 ```text
 TELA: o mesmo detalhe de spec (mesmo cabeçalho e stepper), de "Recuperação de senha", selo "Alterações
 solicitadas", na etapa "Design" com duas partes visíveis.
-1. Cartão de destaque "O agente precisa da sua resposta" com a pergunta do agente, o campo "Sua resposta"
+1. Cartão de destaque "O agente precisa da sua resposta" com a pergunta do agente (dado de exemplo: "Devo
+   manter a sessão ativa ao redefinir a senha?"), o campo "Sua resposta"
    e o botão "Enviar resposta e continuar"; embaixo, "Este documento deixa 2 pergunta(s) em aberto" com o
    botão "Responder" que abre o diálogo de respostas.
 2. Seção "Achados da revisão" com o resumo "1 em aberto · 1 pergunta algo a você" e a lista de achados;
@@ -105,8 +127,9 @@ solicitadas", na etapa "Design" com duas partes visíveis.
    Descartado), o título e, ao expandir, "Evidência e raciocínio", "Sugestão:", a nota "Opinião do agente
    revisor, não uma validação que falhou. Você decide." e as ações "Ver no documento", "Marcar como
    resolvido", "Não é problema", "Aceitar o risco…" (pede o motivo "Por que é aceitável? (fica registrado
-   na spec)") e "Reabrir". Mostre dois achados: um de Risco e severidade Alta, em aberto, expandido; e um de
-   Ambiguidade, severidade Baixa, resolvido. Abaixo, "Achados que você já decidiu (1)" recolhido.
+   na spec)") e "Reabrir". Mostre dois achados: um de Risco e severidade Alta, em aberto, expandido, com o título (dado de exemplo)
+   "Link de redefinição sem expiração"; e um de Ambiguidade, severidade Baixa, resolvido, com o título
+   (dado de exemplo) "Prazo do link não definido". Abaixo, "Achados que você já decidiu (1)" recolhido.
 USE só esses dados.
 ```
 
@@ -138,7 +161,8 @@ USE só esses dados. NÃO mude: as sete verificações, as ações de cada seç�
 
 ```text
 TELA: a lista "Specs — Lista de especificações" esmaecida ao fundo e, sobre ela, um modal largo "Nova
-especificação" em duas colunas, sem rolagem interna. Coluna esquerda: "Título" (placeholder "Modo escuro
+especificação" em duas colunas, sem rolagem interna em 1440×900 (abaixo de 900px de largura as colunas
+empilham e o modal pode rolar). Coluna esquerda: "Título" (placeholder "Modo escuro
 na tela de configurações"), "Projeto" ("transport-erp"), "O que você quer construir?" (área de texto com a
 ajuda "Regras de negócio que você conhece entram aqui. O que ficar de fora, os agentes perguntam em vez de
 inventar."), "Mais alguma coisa que o agente deve saber" ("Texto livre: links, exemplos, restrições, o que
@@ -158,8 +182,11 @@ TELA: a lista "Specs — Lista de especificações" esmaecida ao fundo e, sobre 
 specs". Texto: "Mudanças OpenSpec que já estão na pasta openspec/changes deste projeto. São apenas lidas:
 nada no projeto muda e nada é aprovado por você.". Dois seletores lado a lado: "Projeto" ("transport-erp")
 e "Agente que escreve" ("Arquiteto Backend"). Lista do que foi encontrado, com uma linha por mudança
-(nome da pasta em mono, os documentos presentes como selos e, quando houver, o problema: "Sem o documento
-Design", "Arquivo que o Atlas não lê: notes.txt", "Já é uma spec aqui") e uma caixa de seleção por linha.
+(nome da pasta em mono, os documentos presentes como selos e, quando houver, o problema) e uma caixa de
+seleção por linha. Três linhas, dados de exemplo: "add-search" (Proposta, Requisitos, Design e Tarefas
+presentes, sem problema), "fix-login" (problema "Sem o documento Design") e "notes-cleanup" (problema
+"Arquivo que o Atlas não lê: notes.txt"). O problema "Já é uma spec aqui" aparece só quando a pasta já foi
+importada (não desenhe).
 Estado alternativo: "Nenhuma mudança OpenSpec encontrada neste projeto.". Aviso: "Você revisa e aprova os
 documentos importados; os que faltam podem ser escritos a partir dos demais.". Rodapé: "Cancelar" e
 "Importar" (primário).
