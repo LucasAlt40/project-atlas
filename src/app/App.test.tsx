@@ -126,6 +126,8 @@ describe('App', () => {
         'Pergunta: o que deve ser construído e como? Decide a arquitetura, as fronteiras e os contratos antes de qualquer implementação.',
       ),
     ).toBeInTheDocument();
+    // The behavior list shows when the card is opened.
+    await user.click(screen.getByRole('button', { name: 'Expandir Architect' }));
     expect(screen.getByText('Identifica fronteiras')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Configurações' }));

@@ -1,6 +1,5 @@
 import { errorMessage } from '@/i18n/messages';
 import { useT } from '@/i18n/I18nProvider';
-import { ImportButton } from '@/features/portability';
 import { PersonalityBrowser } from '../components/PersonalityBrowser';
 import { useCatalog } from '../hooks/useCatalog';
 import styles from './Pages.module.css';
@@ -34,27 +33,6 @@ export function PersonalitiesPage({ onUse }: Props) {
   }
   return (
     <section className={styles.page}>
-      <header className={styles.titleRow}>
-        <h1 className={styles.title}>{t('personalities.title')}</h1>
-        <span className={styles.countChip}>
-          {t('personalities.available', { n: catalog.personalities.length })}
-        </span>
-        <span className={styles.countChip}>
-          {t('personalities.customCount', {
-            n: catalog.personalities.filter((p) => p.source === 'custom').length,
-          })}
-        </span>
-        <span className={styles.countChip}>
-          {t('personalities.builtinCount', {
-            n: catalog.personalities.filter((p) => p.source === 'builtin').length,
-          })}
-        </span>
-        <ImportButton
-          onImported={() => {
-            void reloadCatalog();
-          }}
-        />
-      </header>
       <PersonalityBrowser
         personalities={catalog.personalities}
         onUse={onUse}
@@ -62,6 +40,9 @@ export function PersonalitiesPage({ onUse }: Props) {
         onEdit={editPersonality}
         onDelete={removePersonality}
         onRestoreDefaults={restorePersonalities}
+        onImported={() => {
+          void reloadCatalog();
+        }}
       />
     </section>
   );

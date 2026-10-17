@@ -11,9 +11,11 @@ interface Props {
   onSubmit: (input: CreatePersonalityInput) => Promise<Personality>;
   onSaved: (personality: Personality) => void;
   onCancel: () => void;
+  /** Drawn inside a side panel: it fills the panel instead of being a card. */
+  panel?: boolean;
 }
 
-export function PersonalityForm({ initial, onSubmit, onSaved, onCancel }: Props) {
+export function PersonalityForm({ initial, onSubmit, onSaved, onCancel, panel = false }: Props) {
   const t = useT();
   const [name, setName] = useState(initial?.name ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
@@ -36,7 +38,7 @@ export function PersonalityForm({ initial, onSubmit, onSaved, onCancel }: Props)
 
   return (
     <form
-      className={styles.form}
+      className={panel ? styles.panelForm : styles.form}
       onSubmit={submit}
       aria-label={
         initial ? t('workspace.editAgent', { name: initial.name }) : t('personalities.form.new')
@@ -70,7 +72,7 @@ export function PersonalityForm({ initial, onSubmit, onSaved, onCancel }: Props)
           }}
         />
       </div>
-      <div className={styles.field}>
+      <div className={[styles.field, panel ? styles.grow : undefined].filter(Boolean).join(' ')}>
         <label htmlFor="personality-instructions" className={styles.label}>
           {t('personalities.form.instructions')}
         </label>
@@ -106,7 +108,7 @@ export function PersonalityForm({ initial, onSubmit, onSaved, onCancel }: Props)
           {error}
         </p>
       )}
-      <div className={styles.actions}>
+      <div className={panel ? styles.panelActions : styles.actions}>
         <Button type="button" variant="secondary" onClick={onCancel}>
           {t('common.cancel')}
         </Button>

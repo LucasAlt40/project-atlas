@@ -32,9 +32,13 @@ describe('PersonalitiesPage', () => {
   });
 
   it('shows what a personality does, including its instructions, before it is used', async () => {
+    const user = userEvent.setup();
     show();
 
     const card = await screen.findByRole('article', { name: 'Architect' });
+    // A card is compact until it is opened; one card is open at a time.
+    expect(within(card).queryByText('Identifies boundaries')).not.toBeInTheDocument();
+    await user.click(within(card).getByRole('button', { name: 'Expand Architect' }));
     expect(within(card).getByText('Identifies boundaries')).toBeInTheDocument();
     expect(within(card).getByLabelText('Architect system instructions')).toHaveTextContent(
       'You are an experienced software architect.',
@@ -116,7 +120,8 @@ describe('PersonalitiesPage', () => {
       behavior: [],
     });
 
-    await user.click(await screen.findByRole('button', { name: 'Edit Architect' }));
+    await user.click(await screen.findByRole('button', { name: 'More actions for Architect' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Edit' }));
     const form = screen.getByRole('form', { name: 'Edit Architect' });
     expect(within(form).getByLabelText('Instructions')).toHaveValue(
       'You are an experienced software architect.',
@@ -148,14 +153,16 @@ describe('PersonalitiesPage', () => {
         detail: null,
       });
 
-    await user.click(await screen.findByRole('button', { name: 'Delete QA' }));
+    await user.click(await screen.findByRole('button', { name: 'More actions for QA' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Delete' }));
     expect(deletePersonality).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Confirm delete' }));
     await waitFor(() => {
       expect(screen.queryByRole('article', { name: 'QA' })).not.toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole('button', { name: 'Delete Architect' }));
+    await user.click(screen.getByRole('button', { name: 'More actions for Architect' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Delete' }));
     await user.click(screen.getByRole('button', { name: 'Confirm delete' }));
     const card = screen.getByRole('article', { name: 'Architect' });
     expect(await within(card).findByRole('alert')).toHaveTextContent(
@@ -178,7 +185,9 @@ describe('PersonalitiesPage', () => {
     show();
 
     const card = await screen.findByRole('article', { name: 'Architect' });
-    expect(within(card).getByRole('button', { name: 'Export Architect' })).toBeInTheDocument();
+    await user.click(within(card).getByRole('button', { name: 'More actions for Architect' }));
+    expect(screen.getByRole('menuitem', { name: 'Export' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
     await user.click(screen.getByRole('button', { name: 'Import' }));
     expect(await screen.findByRole('dialog', { name: 'Import configuration' })).toBeInTheDocument();
   });
