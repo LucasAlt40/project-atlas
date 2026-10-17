@@ -121,6 +121,7 @@ adicionar 2 a 1 arquivo(s), trazer 1 para o Atlas". Estado alternativo: o texto 
 | Prompt         | Enviado | Tela gerada no Stitch | Observação |
 | -------------- | ------- | --------------------- | ---------- |
 | H1 | 2026-10-16 | "MCP Hub — Servidores" `fa3cca4a27654726aacc04dca4b578b4` (2560×2048) | `edit_screens` criou tela nova; a original `2aa1bde3…` segue intacta. Avaliação abaixo. |
+| H3 | 2026-10-16 | "MCP Hub — Adicionar servidor" `53d6a8c1b2b64645a9cd1c5ef1f6f302` (2560×2048) | `generate_screen_from_text` com o design system, sem timeout. |
 
 ## Avaliação
 
@@ -141,3 +142,21 @@ Desvios para a implementação tratar:
 - O seletor "Escolher agente" aparece com o texto cortado na vertical (artefato do Stitch).
 - O aviso do playwright mostra só duas mensagens (as do prompt eram exemplos); manter as mensagens reais.
 - A linha de métricas usa mono em tudo; rótulos ficam em fonte de texto, só os números em mono.
+
+### H3 — MCP Hub — Adicionar servidor
+
+Fiel: modal largo sobre a página esmaecida, três abas com "Conhecidos do Atlas" aberta, cartão do Chrome
+DevTools completo (selo "risco alto", comando mono, nota de versão, requisitos verdes, "Adicionar (fica
+desligada)" e "Fonte"), Figma e Jira com aviso âmbar e botão desabilitado. Moldura correta.
+
+O Stitch mostra, o app não tem (não implementar):
+
+- Texto "Catálogo testado e seguro" ao lado das notas das abas e rodapé "Atlas MCP Hub • Protocolo 2024-11-05".
+- Chip "stdio" dentro do bloco do comando e chips "remoto / oauth" nos cartões Figma e Jira.
+- Ícones decorativos em cada cartão e na aba ativa; ponto índigo antes do título.
+- Botão desabilitado com o texto "Indisponível no Atlas" (o app mostra o botão de adicionar desabilitado).
+
+Desvios de conteúdo: a nota diz "versão 0.21" por erro de renderização (o texto real é 0.2.1); as
+descrições de "Registro MCP" e "Manual" apareceram como linha de texto no topo, o que o app não tem (cada
+aba mostra só o próprio conteúdo). Descrição da aba "Registro MCP" foi cortada: "Busque no Registro MCP
+oficial…" é só a nota inicial da aba.
