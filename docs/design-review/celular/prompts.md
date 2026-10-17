@@ -160,6 +160,7 @@ uma rede) existem só como texto.
 | M4 | 2026-10-16 | "Celular — Conectar este celular" `6c341e698dc048c28b6782f9af6cd74c` (canvas 2560×2048, coluna de celular) | `generate_screen_from_text` com `deviceType: MOBILE`; respondeu sem timeout. |
 | M5a | 2026-10-16 | "Celular — Sem conexão" `62b2772d85634fd7ba9794c4983b88a2` (canvas 2560×2048, coluna de celular) | `generate_screen_from_text` com `deviceType: MOBILE`; respondeu sem timeout. |
 | M5b | 2026-10-16 | "Celular — Sem execuções" `2c352cadb9e94203b96e2173b81f1a35` (canvas 2560×2048, coluna de celular) | `generate_screen_from_text` com `deviceType: MOBILE`; respondeu sem timeout. |
+| D1 | 2026-10-16 | "Computador — Acesso pelo celular" `c86519c324ba40a9b41f4552b9c5527d` (2560×2048, desktop) | `generate_screen_from_text` com `deviceType: DESKTOP`, P0 normal com moldura reforçada; timeout, não reenviado, confirmado por `list_screens`. |
 
 ## Avaliação
 
@@ -239,3 +240,34 @@ Fiel e sem invenções: topo completo ("Atlas" à esquerda, "iPhone do Lucas" em
 com o texto e, no pé, o link "Desconectar este celular" seguido do aviso (a ordem pedida, ao contrário de
 M1). Sem faixa de alerta, grupos nem botões. O link saiu como texto simples sem aparência de toque; no app
 manter alvo de pelo menos 44px.
+
+### D1 — Computador — Acesso pelo celular
+
+Estrutura fiel: moldura correta (barra lateral inteira, "Configurações" na lista, rodapé v0.1.5 sem ponto,
+sem "Core" nem "Novo Fluxo"), botão "Celular" destacado na barra superior, modal em duas colunas sem
+rolagem com título, estado "Ligado" e "Desligar", faixa âmbar, QR code grande com o texto e "Expira em 4:00"
+e "Novo código", o código em mono, o endereço com "Copiar", "Celulares pareados" com o iPhone e "Desconectar"
+(vermelho) e "Desconectar todos", e "O que saber" fechado.
+
+O Stitch mostra, o app não tem (não implementar):
+
+- "Agente: Invoice OCR Engine" na faixa âmbar (o app só diz "1 pergunta espera uma resposta.").
+- Rótulo "Local Token Auth" ao lado do título da coluna esquerda e "256-bit" ao lado do código.
+- "CÓDIGO DE PAREAMENTO ALTERNATIVO" como título do código (o app mostra só o código) e "Ou acesse o endereço
+  da rede local no navegador:" antes do endereço.
+- "Permissão: Responder perguntas e monitoramento de workflow" dentro do cartão do celular pareado.
+- Rodapé "Sub-rede: 192.168.1.0/24" e o botão "Concluído" (o app fecha pelo "✕").
+- Ponto verde ao lado do nome "iPhone do Lucas" e ícones nos títulos das colunas.
+
+Desvios: "Desligar" ficou como texto solto ao lado do selo; manter como botão secundário. A primeira frase de
+"O que saber" não ficou visível com a seção fechada (o prompt pedia a frase visível): mostrar a frase e
+deixar o resto recolhido.
+
+## Resumo do módulo
+
+As seis telas estão geradas (cinco do celular e uma do computador). Pontos comuns para a implementação: (1) a
+página do celular não tem a moldura do desktop: topo de 48px com "Atlas" e o nome do celular; (2) a barra de
+ações fixa no pé de M2 é o principal ganho para o polegar; (3) em M1 e M2 o Stitch usou um canvas de desktop
+com uma coluna de celular, valendo a coluna; (4) rótulos e textos extras listados por tela não existem no
+app, e os estados só descritos (erro de código, "Conectando…", confirmação de cancelar, "Desligado") seguem
+o prompt; (5) o D1 é o único do módulo com moldura de desktop.

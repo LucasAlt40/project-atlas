@@ -25,7 +25,7 @@ a sua pasta ao lado (`docs/design-review/<módulo>/`).
 | 3   | MCP Hub                          | `mcp-hub/`                | 5 telas geradas; falta implementar        |
 | 4   | Configurações                    | `configuracoes/`          | 5 telas geradas; falta implementar        |
 | 5   | Specs                            | `specs/`                  | 8 telas geradas; falta implementar        |
-| 6   | App móvel (celular)              | `celular/`                | plano pronto, prompts por enviar          |
+| 6   | App móvel (celular)              | `celular/`                | 6 telas geradas; falta implementar        |
 | 7   | Workflow (por último, é o maior) | `workflow/`               | plano pronto, prompts por enviar          |
 
 ## Layout de cada pasta de módulo
