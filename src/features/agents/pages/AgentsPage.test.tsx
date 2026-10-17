@@ -143,7 +143,7 @@ describe('AgentsPage', () => {
     expect(within(form).getByLabelText('Personality')).toHaveValue('qa');
   });
 
-  it('creates a Claude agent by typing a model id, since Claude cannot list models', async () => {
+  it('creates a Claude agent from a list of aliases, with Other for any other model id', async () => {
     const user = userEvent.setup();
     show({ startCreating: {} }, []);
     vi.mocked(createAgent).mockResolvedValue(agent('c', 'Claude Architect', 'claude', 'sonnet'));
@@ -155,12 +155,14 @@ describe('AgentsPage', () => {
 
     expect(within(form).getByLabelText('Connection')).toHaveValue('claude');
     const model = within(form).getByLabelText('Model');
-    expect(model).toHaveRole('textbox');
-    expect(
-      within(form).getByText(/Claude CLI does not expose model discovery/),
-    ).toBeInTheDocument();
+    expect(model).toHaveRole('combobox');
     expect(within(form).getByText(/Use an alias such as sonnet or opus/)).toBeInTheDocument();
-    await user.type(model, 'sonnet');
+    expect(within(form).queryByLabelText('Model ID')).not.toBeInTheDocument();
+
+    await user.selectOptions(model, 'Other model…');
+    await user.type(within(form).getByLabelText('Model ID'), 'claude-opus-4-1');
+    await user.selectOptions(model, 'sonnet');
+    expect(within(form).queryByLabelText('Model ID')).not.toBeInTheDocument();
     await user.click(within(form).getByRole('button', { name: 'Create Agent' }));
 
     expect(createAgent).toHaveBeenCalledWith(

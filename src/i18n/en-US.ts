@@ -644,6 +644,7 @@ export const enUS = {
   'runtime.selectConnection': 'Select a connection…',
   'runtime.model': 'Model',
   'runtime.selectModel': 'Select a model…',
+  'runtime.otherModel': 'Other model…',
   'runtime.modelId': 'Model ID',
   'runtime.reason.notInstalled': 'not installed',
   'runtime.reason.unavailable': 'unavailable',
@@ -3064,6 +3065,7 @@ export const enUS = {
   'specs.delete.title': 'Delete this specification?',
   'specs.delete.body': '“{title}” and its drafts will be removed from Atlas.',
   'specs.delete.files': 'Files already published to the project are not touched.',
+  'specs.new.project': 'Project',
   'specs.new.title': 'Title',
   'specs.new.titlePlaceholder': 'Dark mode for the settings screen',
   'specs.new.intro':
@@ -3115,7 +3117,6 @@ export const enUS = {
   'specs.new.ctx.extra': 'Anything else the agent should know',
   'specs.new.ctx.extraHelp': 'Free text: links, examples, constraints, what was tried before.',
   'specs.new.context': 'Extra context (optional)',
-  'specs.new.project': 'Project',
   'specs.new.author': 'Agent that writes',
   'specs.new.recommended': '{name} (recommended)',
   'specs.new.authorHint':
@@ -3337,7 +3338,7 @@ export const enUS = {
   'specs.why.reviewer_missing': 'The reviewing agent is no longer in this workspace.',
   'specs.publish.title': 'Publish to the project',
   'specs.publish.intro':
-    'Writes the change to openspec/changes/ in the project. Until then the drafts stay in Atlas and the repository is untouched. Existing files are never overwritten.',
+    'Writes the change to openspec/changes/ in every project of the workspace. Until then the drafts stay in Atlas and the repository is untouched. Existing files are never overwritten.',
   'specs.publish.state.not_published': 'Not published',
   'specs.publish.state.in_progress': 'Left half way',
   'specs.publish.state.published': 'Published',

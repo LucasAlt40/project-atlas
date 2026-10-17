@@ -111,7 +111,6 @@ export function SpecDetail({ workspace, agents, specId, onBack, onImplement, onD
   const stage = picked ?? defaultStage(view);
   const artifact = stage === 'final' ? undefined : spec.artifacts.find((a) => a.id === stage);
   const status = statusView(view.status);
-  const project = workspace.projects.find((p) => p.id === spec.projectId);
   const nextStage = STAGES[STAGES.indexOf(stage) + 1];
   const questions = spec.questions.filter(
     (q) => q.status === 'pending' && q.source === 'artifact' && q.artifactId === stage,
@@ -251,7 +250,9 @@ export function SpecDetail({ workspace, agents, specId, onBack, onImplement, onD
           <div className={styles.meta}>
             <span className={styles.mono}>{spec.changeId}</span>
             <span>{t('specs.meta.format', { schema: spec.frameworkSchema })}</span>
-            {project && <span>{project.name}</span>}
+            {workspace.projects.length > 1 && (
+              <span>{workspace.projects.map((p) => p.name).join(', ')}</span>
+            )}
             <span>
               {t('specs.meta.author')}: {nameOf(spec.authorAgentId)}
             </span>

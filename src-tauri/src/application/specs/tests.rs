@@ -2154,10 +2154,13 @@ fn the_list_shows_where_each_spec_is() {
 fn agents_that_are_gone_are_said_so_and_can_be_replaced() {
     let w = world();
     let id = started(&w);
+    // Taking the agent out of the workspace does not matter: any agent of the app can write.
     w.workspaces
         .remove_agent(&w.workspace_id, &w.agent_id)
         .unwrap();
+    assert!(w.specs.view(&id).unwrap().author_available);
 
+    w.agents.delete(&w.agent_id).unwrap();
     let view = w.specs.view(&id).unwrap();
     assert!(!view.author_available);
     assert!(w.runner.prepare_generation(&id, "proposal").is_err());

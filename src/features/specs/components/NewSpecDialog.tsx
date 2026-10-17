@@ -34,7 +34,6 @@ export function NewSpecDialog({ workspace, agents, onClose, onCreated }: Props) 
   const [title, setTitle] = useState('');
   const [request, setRequest] = useState('');
   const [context, setContext] = useState('');
-  const [projectId, setProjectId] = useState(workspace.projects[0]?.id ?? '');
   const [author, setAuthor] = useState(suggestedAuthor(inWorkspace)?.id ?? '');
   const [reviewer, setReviewer] = useState('');
   const [projects, setProjects] = useState<ProjectInfoDto[]>([]);
@@ -55,11 +54,17 @@ export function NewSpecDialog({ workspace, agents, onClose, onCreated }: Props) 
     };
   }, [workspace.id]);
 
-  const project = projects.find((p) => p.id === projectId);
-  const profile = useMemo(
-    () => profileOf(project?.role ?? null, project?.technologies ?? []),
-    [project],
-  );
+  // A request often spans several projects (a backend and its frontend): ask what any of them
+  // needs, not only what the project the spec is saved in needs.
+  const profile = useMemo(() => {
+    const profiles = projects.map((p) => profileOf(p.role ?? null, p.technologies));
+    if (profiles.length === 0) return profileOf(null, []);
+    return {
+      ui: profiles.some((p) => p.ui),
+      server: profiles.some((p) => p.server),
+      data: profiles.some((p) => p.data),
+    };
+  }, [projects]);
   const asked = useMemo(
     () => (request.trim().length >= 12 ? questionsFor(request, profile) : []),
     [request, profile],
@@ -83,7 +88,6 @@ export function NewSpecDialog({ workspace, agents, onClose, onCreated }: Props) 
     try {
       const view = await createSpec({
         workspaceId: workspace.id,
-        projectId,
         title: title.trim(),
         request: request.trim(),
         context: contextFromAnswers(
@@ -120,23 +124,6 @@ export function NewSpecDialog({ workspace, agents, onClose, onCreated }: Props) 
                   }}
                 />
               </label>
-              {workspace.projects.length > 1 && (
-                <label className={styles.field}>
-                  <span>{t('specs.new.project')}</span>
-                  <select
-                    value={projectId}
-                    onChange={(event) => {
-                      setProjectId(event.target.value);
-                    }}
-                  >
-                    {workspace.projects.map((project) => (
-                      <option key={project.id} value={project.id}>
-                        {project.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
               <label className={styles.field}>
                 <span>{t('specs.new.request')}</span>
                 <textarea

@@ -645,6 +645,7 @@ export const ptBR: Record<TranslationKey, string> = {
   'runtime.selectConnection': 'Selecione uma conexão…',
   'runtime.model': 'Modelo',
   'runtime.selectModel': 'Selecione um modelo…',
+  'runtime.otherModel': 'Outro modelo…',
   'runtime.modelId': 'ID do modelo',
   'runtime.reason.notInstalled': 'não instalado',
   'runtime.reason.unavailable': 'indisponível',
@@ -3106,6 +3107,7 @@ export const ptBR: Record<TranslationKey, string> = {
   'specs.delete.title': 'Excluir esta especificação?',
   'specs.delete.body': '“{title}” e seus rascunhos serão removidos do Atlas.',
   'specs.delete.files': 'Arquivos já publicados no projeto não são alterados.',
+  'specs.new.project': 'Projeto',
   'specs.new.title': 'Título',
   'specs.new.titlePlaceholder': 'Modo escuro na tela de configurações',
   'specs.new.intro':
@@ -3157,7 +3159,6 @@ export const ptBR: Record<TranslationKey, string> = {
   'specs.new.ctx.extra': 'Mais alguma coisa que o agente deve saber',
   'specs.new.ctx.extraHelp': 'Texto livre: links, exemplos, restrições, o que já foi tentado.',
   'specs.new.context': 'Contexto adicional (opcional)',
-  'specs.new.project': 'Projeto',
   'specs.new.author': 'Agente que escreve',
   'specs.new.recommended': '{name} (recomendado)',
   'specs.new.authorHint':
@@ -3379,7 +3380,7 @@ export const ptBR: Record<TranslationKey, string> = {
   'specs.why.reviewer_missing': 'O agente revisor não está mais neste workspace.',
   'specs.publish.title': 'Publicar no projeto',
   'specs.publish.intro':
-    'Escreve a mudança em openspec/changes/ no projeto. Até lá os rascunhos ficam no Atlas e o repositório não é tocado. Arquivos existentes nunca são sobrescritos.',
+    'Escreve a mudança em openspec/changes/ de todos os projetos do workspace. Até lá os rascunhos ficam no Atlas e o repositório não é tocado. Arquivos existentes nunca são sobrescritos.',
   'specs.publish.state.not_published': 'Não publicada',
   'specs.publish.state.in_progress': 'Parada no meio',
   'specs.publish.state.published': 'Publicada',

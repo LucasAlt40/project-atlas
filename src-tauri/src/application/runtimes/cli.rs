@@ -211,6 +211,16 @@ pub fn classify_failure(details: &str, model_id: &str) -> RuntimeError {
     let lower = details.to_lowercase();
     let has = |needles: &[&str]| needles.iter().any(|n| lower.contains(n));
     if has(&[
+        "model not found",
+        "modelnotfound",
+        "unknown model",
+        "selected model",
+        "may not exist",
+    ]) {
+        // Before the sign-in check: a wrong model name often comes with words like "login" and
+        // must not be reported as a sign-in problem.
+        RuntimeError::ModelUnavailable(model_id.to_owned())
+    } else if has(&[
         "rate limit",
         "rate_limit",
         "ratelimit",
@@ -234,14 +244,6 @@ pub fn classify_failure(details: &str, model_id: &str) -> RuntimeError {
         "401",
     ]) {
         RuntimeError::AuthenticationRequired
-    } else if has(&[
-        "model not found",
-        "modelnotfound",
-        "unknown model",
-        "selected model",
-        "may not exist",
-    ]) {
-        RuntimeError::ModelUnavailable(model_id.to_owned())
     } else {
         RuntimeError::ExecutionFailed(details.chars().take(MAX_DETAILS_CHARS).collect())
     }

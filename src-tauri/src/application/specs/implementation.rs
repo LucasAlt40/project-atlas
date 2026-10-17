@@ -54,14 +54,20 @@ impl SpecImplementation {
                         AppError::new(ErrorCode::SpecInvalid).with("reason", "project_mismatch")
                     );
                 }
+                let mut read = requested.read_project_ids;
+                for id in &context.sibling_project_ids {
+                    if !read.contains(id) {
+                        read.push(id.clone());
+                    }
+                }
                 Some(ScopeRequest {
                     working_project_id: Some(context.project_id.clone()),
-                    ..requested
+                    read_project_ids: read,
                 })
             }
             None => Some(ScopeRequest {
                 working_project_id: Some(context.project_id.clone()),
-                read_project_ids: Vec::new(),
+                read_project_ids: context.sibling_project_ids.clone(),
             }),
         };
         let task = if task.trim().is_empty() {

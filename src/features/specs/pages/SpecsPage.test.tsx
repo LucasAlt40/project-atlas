@@ -196,7 +196,6 @@ describe('creating a spec', () => {
 
     expect(createSpec).toHaveBeenCalledWith({
       workspaceId: 'ws1',
-      projectId: 'ws1-main',
       title: 'Dark mode',
       request: 'Add a dark mode',
       context: '',

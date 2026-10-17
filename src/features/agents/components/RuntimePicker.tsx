@@ -18,6 +18,20 @@ const MODEL_HINTS: Record<string, TranslationKey> = {
   gemini_model: 'runtime.hint.gemini_model',
 };
 
+/**
+ * Aliases the Claude CLI resolves itself to the current model of that family, offered when the
+ * runtime cannot list models. Any other id stays possible through "Other".
+ */
+const CLAUDE_ALIASES: { id: string; name: string }[] = [
+  { id: 'opus', name: 'Opus' },
+  { id: 'sonnet', name: 'Sonnet' },
+  { id: 'haiku', name: 'Haiku' },
+  { id: 'opusplan', name: 'Opus Plan' },
+  { id: 'opus[1m]', name: 'Opus (1M)' },
+  { id: 'sonnet[1m]', name: 'Sonnet (1M)' },
+];
+const OTHER_MODEL = '__other__';
+
 type UnselectableReason = 'notInstalled' | 'unavailable' | 'notSupported';
 
 /** Why a runtime cannot be chosen, or `null` if it can. */
@@ -58,6 +72,49 @@ function ModelField({
   const { name, modelHint } = status.runtime;
   const hasList = status.modelDiscovery === 'discovered' && status.availableModels.length > 0;
   const hintKey = modelHint ? MODEL_HINTS[modelHint] : undefined;
+  const suggestions = !hasList && modelHint === 'claude_alias' ? CLAUDE_ALIASES : [];
+  const [custom, setCustom] = useState(
+    suggestions.length > 0 && modelId !== '' && !suggestions.some((m) => m.id === modelId),
+  );
+  if (suggestions.length > 0) {
+    return (
+      <div className={styles.field}>
+        <label htmlFor="model-input" className={styles.label}>
+          {t('runtime.model')}
+        </label>
+        <select
+          id="model-input"
+          className={styles.control}
+          value={custom ? OTHER_MODEL : modelId}
+          onChange={(e) => {
+            const picked = e.target.value;
+            setCustom(picked === OTHER_MODEL);
+            onModelChange(picked === OTHER_MODEL ? '' : picked);
+          }}
+        >
+          <option value="">{t('runtime.selectModel')}</option>
+          {suggestions.map((model) => (
+            <option key={model.id} value={model.id}>
+              {model.name}
+            </option>
+          ))}
+          <option value={OTHER_MODEL}>{t('runtime.otherModel')}</option>
+        </select>
+        {custom && (
+          <input
+            className={styles.control}
+            value={modelId}
+            placeholder={t('runtime.modelId')}
+            aria-label={t('runtime.modelId')}
+            onChange={(e) => {
+              onModelChange(e.target.value);
+            }}
+          />
+        )}
+        <p className={styles.hint}>{hintKey ? t(hintKey) : ''}</p>
+      </div>
+    );
+  }
   return (
     <div className={styles.field}>
       <label htmlFor="model-input" className={styles.label}>

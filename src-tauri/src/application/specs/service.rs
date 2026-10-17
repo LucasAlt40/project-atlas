@@ -91,6 +91,8 @@ pub struct ImplementationContext {
     pub spec_id: String,
     /// The project the spec is for: where the run works.
     pub project_id: String,
+    /// The workspace's other projects, which the run may read.
+    pub sibling_project_ids: Vec<String>,
     pub title: String,
     pub change_id: String,
     /// The task, short: what the run is for.
@@ -262,13 +264,7 @@ impl SpecService {
             .workspaces
             .get(&spec.workspace_id)
             .is_some_and(|w| w.project(&spec.project_id).is_some());
-        let usable = |agent_id: &str| {
-            self.agents.find(agent_id).is_some()
-                && self
-                    .workspaces
-                    .get(&spec.workspace_id)
-                    .is_some_and(|w| w.layout.is_placed(agent_id))
-        };
+        let usable = |agent_id: &str| self.agents.find(agent_id).is_some();
         Availability {
             project,
             author: usable(&spec.author_agent_id),
@@ -306,6 +302,42 @@ impl SpecService {
             .get(&spec.workspace_id)?
             .project(&spec.project_id)
             .map(|p| p.path.clone())
+    }
+
+    /// The folders of every project of the spec's workspace, the spec's own project first. A spec
+    /// belongs to the workspace, so publishing writes it to all of them.
+    pub fn project_roots(&self, spec: &Spec) -> Vec<String> {
+        let Some(workspace) = self.workspaces.get(&spec.workspace_id) else {
+            return Vec::new();
+        };
+        let mut roots: Vec<String> = workspace
+            .project(&spec.project_id)
+            .map(|p| p.path.clone())
+            .into_iter()
+            .collect();
+        roots.extend(
+            workspace
+                .projects
+                .iter()
+                .filter(|p| p.id != spec.project_id)
+                .map(|p| p.path.clone()),
+        );
+        roots
+    }
+
+    /// The other projects of the spec's workspace. A request often spans several (a backend and
+    /// its frontend), so the agents may read them all; the spec's own project is where it lives.
+    pub fn sibling_project_ids(&self, spec: &Spec) -> Vec<String> {
+        self.workspaces
+            .get(&spec.workspace_id)
+            .map(|w| {
+                w.projects
+                    .iter()
+                    .filter(|p| p.id != spec.project_id)
+                    .map(|p| p.id.clone())
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     pub fn project_specs(&self, spec: &Spec) -> ProjectSpecs {
@@ -551,17 +583,14 @@ impl SpecService {
 
     // ---- creating --------------------------------------------------------------------------------
 
-    fn usable_agent(&self, workspace_id: &str, agent_id: &str) -> bool {
+    /// Any agent of the app can write or review a spec; it need not be placed in the workspace.
+    fn usable_agent(&self, _workspace_id: &str, agent_id: &str) -> bool {
         self.agents.find(agent_id).is_some()
-            && self
-                .workspaces
-                .get(workspace_id)
-                .is_some_and(|w| w.layout.is_placed(agent_id))
     }
 
     /// A change id from the title that no other spec of the project has and no folder of the
     /// project's `openspec/changes/` has.
-    fn free_change_id(&self, workspace_id: &str, project_root: &str, title: &str) -> String {
+    fn free_change_id(&self, workspace_id: &str, project_roots: &[String], title: &str) -> String {
         let base = self.framework.suggest_change_id(title);
         let taken: BTreeSet<String> = self
             .specs
@@ -571,8 +600,12 @@ impl SpecService {
             .map(|s| s.change_id.clone())
             .collect();
         let root = self.framework.changes_root();
-        let used =
-            |id: &str| taken.contains(id) || self.files.change_exists(project_root, root, id);
+        let used = |id: &str| {
+            taken.contains(id)
+                || project_roots
+                    .iter()
+                    .any(|project_root| self.files.change_exists(project_root, root, id))
+        };
         if !used(&base) {
             return base;
         }
@@ -625,7 +658,8 @@ impl SpecService {
             }
         }
         let integrations = self.known_connections(&workspace.id, &request.integrations)?;
-        let change_id = self.free_change_id(&workspace.id, &project.path, &title);
+        let roots: Vec<String> = workspace.projects.iter().map(|p| p.path.clone()).collect();
+        let change_id = self.free_change_id(&workspace.id, &roots, &title);
         let now = now_ms();
         let mut spec = rules::create(
             NewSpec {
@@ -1068,7 +1102,8 @@ impl SpecService {
 
     // ---- publishing --------------------------------------------------------------------------------
 
-    /// Writes the spec's files to `<project>/openspec/changes/<change id>/`. Never overwrites a
+    /// Writes the spec's files to `<project>/openspec/changes/<change id>/` of every project of
+    /// the workspace. Never overwrites a
     /// change that is not this spec's; picks up where a failed attempt stopped; confirms what it
     /// wrote by reading it back before it says so.
     ///
@@ -1078,9 +1113,10 @@ impl SpecService {
     /// offer another id), or [`ErrorCode::SpecPublishFailed`] when writing stopped.
     pub fn publish(&self, id: &str, change_id: Option<&str>) -> Result<SpecView, AppError> {
         let spec = self.require(id)?;
-        let root = self
-            .project_root(&spec)
-            .ok_or_else(|| invalid("project_invalid"))?;
+        let roots = self.project_roots(&spec);
+        if roots.is_empty() {
+            return Err(invalid("project_invalid"));
+        }
         let target = change_id.unwrap_or(&spec.change_id).trim().to_owned();
         self.framework
             .check_change_id(&target)
@@ -1093,7 +1129,11 @@ impl SpecService {
             | Publication::Published { change_id, .. } => *change_id == target,
             Publication::NotPublished => false,
         };
-        if !own && self.files.change_exists(&root, changes_root, &target) {
+        if !own
+            && roots
+                .iter()
+                .any(|root| self.files.change_exists(root, changes_root, &target))
+        {
             return Err(AppError::new(ErrorCode::SpecChangeExists).with("change", target));
         }
         self.transition(id, |spec| {
@@ -1109,14 +1149,16 @@ impl SpecService {
         let mut written = Vec::new();
         for file in &planned {
             let relative = format!("{changes_root}/{target}/{}", file.path);
-            let outcome = match self.files.read(&root, &relative) {
-                Some(existing) if existing == file.content => Ok(()),
-                Some(_) if own => self.files.replace(&root, &relative, &file.content),
-                Some(_) => Err(FilesError::Exists),
-                None => self.files.create(&root, &relative, &file.content),
-            };
-            if let Err(error) = outcome {
-                return Err(self.publication_failed(id, &relative, &error, &target));
+            for root in &roots {
+                let outcome = match self.files.read(root, &relative) {
+                    Some(existing) if existing == file.content => Ok(()),
+                    Some(_) if own => self.files.replace(root, &relative, &file.content),
+                    Some(_) => Err(FilesError::Exists),
+                    None => self.files.create(root, &relative, &file.content),
+                };
+                if let Err(error) = outcome {
+                    return Err(self.publication_failed(id, &relative, &error, &target));
+                }
             }
             self.transition(id, |spec| {
                 rules::publication_progress(spec, &file.path, now_ms());
@@ -1127,13 +1169,15 @@ impl SpecService {
         // Said done only when it can be read back as it was written.
         for file in &planned {
             let relative = format!("{changes_root}/{target}/{}", file.path);
-            if self.files.read(&root, &relative).as_deref() != Some(file.content.as_str()) {
-                return Err(self.publication_failed(
-                    id,
-                    &relative,
-                    &FilesError::Io("the file read back differs".to_owned()),
-                    &target,
-                ));
+            for root in &roots {
+                if self.files.read(root, &relative).as_deref() != Some(file.content.as_str()) {
+                    return Err(self.publication_failed(
+                        id,
+                        &relative,
+                        &FilesError::Io("the file read back differs".to_owned()),
+                        &target,
+                    ));
+                }
             }
         }
         self.transition(id, |spec| {
@@ -1436,6 +1480,7 @@ impl SpecService {
         Ok(ImplementationContext {
             spec_id: spec.id.clone(),
             project_id: spec.project_id.clone(),
+            sibling_project_ids: self.sibling_project_ids(&spec),
             title: spec.title.clone(),
             change_id: spec.change_id.clone(),
             task: format!(

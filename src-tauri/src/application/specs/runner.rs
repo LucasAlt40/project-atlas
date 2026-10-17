@@ -226,10 +226,10 @@ impl SpecRunner {
                 display_task: prompt.display_task,
                 instruction: prompt.instruction,
                 context_query: prompt.context_query,
-                // The agent reads the project the spec is for, and only that one.
+                // The agent works in the spec's project and may read the workspace's others.
                 scope: Some(ScopeRequest {
                     working_project_id: Some(spec.project_id.clone()),
-                    read_project_ids: Vec::new(),
+                    read_project_ids: self.specs.sibling_project_ids(spec),
                 }),
             })
             .map_err(|e| chat_error(&e))?;
