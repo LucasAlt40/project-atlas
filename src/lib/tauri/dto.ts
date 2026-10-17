@@ -74,6 +74,7 @@ export interface CommandMap {
   set_specs_max_tokens: { args: { max: number | null }; result: AppSettingsDto };
   get_sandbox_status: { args: undefined; result: SandboxStatusDto };
   set_sandbox_settings: { args: { sandbox: SandboxSettingsDto }; result: AppSettingsDto };
+  set_presence_settings: { args: { presence: PresenceSettingsDto }; result: AppSettingsDto };
   list_memories: { args: undefined; result: MemoryDto[] };
   create_memory: {
     args: {
@@ -1244,6 +1245,16 @@ export interface AppSettingsDto {
   };
   /** Whether the runtime process is confined by the OS (ADR 0038). */
   sandbox?: SandboxSettingsDto;
+  /** Discord Rich Presence: what Atlas shares on the person's profile. Off by default. */
+  presence?: PresenceSettingsDto;
+}
+
+export interface PresenceSettingsDto {
+  enabled: boolean;
+  /** Send the names of the workspace, workflow and step; off: generic texts only. */
+  showNames: boolean;
+  /** The Discord application id (Developer Portal); none: `ATLAS_DISCORD_CLIENT_ID`. */
+  clientId: string | null;
 }
 
 export type SandboxModeDto = 'off' | 'auto' | 'required';

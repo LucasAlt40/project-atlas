@@ -77,6 +77,21 @@ impl SettingsService {
         })
     }
 
+    /// What Atlas shares on the person's Discord profile (off by default).
+    ///
+    /// # Errors
+    ///
+    /// Fails if saving fails.
+    pub fn set_presence_settings(
+        &self,
+        presence: crate::domain::presence::PresenceSettings,
+    ) -> Result<AppSettings, AppError> {
+        self.config.modify(|config| {
+            config.settings.presence = presence;
+            Ok(config.settings.clone())
+        })
+    }
+
     /// Remembers which workspace is open (`None`: none).
     ///
     /// # Errors
@@ -154,6 +169,7 @@ mod tests {
                 selected_workspace_id: None,
                 optimization: crate::application::config::OptimizationSettings::default(),
                 sandbox: crate::domain::security::SandboxSettings::default(),
+                presence: crate::domain::presence::PresenceSettings::default(),
             }
         );
     }

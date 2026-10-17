@@ -4,6 +4,7 @@
 pub mod config_file;
 mod credential_store;
 mod curl_registry;
+mod discord_ipc;
 mod fs_watcher;
 mod git_worktree;
 mod harness_store;
@@ -24,6 +25,7 @@ mod workspace_context_store;
 
 pub use credential_store::KeyringCredentialStore;
 pub use curl_registry::CurlRegistryClient;
+pub use discord_ipc::DiscordIpc;
 pub use fs_watcher::NotifyWatcher;
 pub use git_worktree::GitWorktreeManager;
 pub use harness_store::FsHarnessStore;

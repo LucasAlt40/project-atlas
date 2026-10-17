@@ -3703,6 +3703,19 @@ export const ptBR: Record<TranslationKey, string> = {
   'settings.nav.portability': 'Importar e exportar',
   'settings.nav.about': 'Sobre e atualizações',
   'settings.sandbox.how': 'Como funciona',
+  'settings.presence.advanced': 'Avançado',
+  'settings.presence.title': 'Presença no Discord',
+  'settings.presence.help':
+    'Mostra no seu perfil do Discord o que o Atlas está fazendo: o workspace aberto, o workflow em execução e o passo atual, como a extensão do VS Code faz. Desligado por padrão. O texto de prompts, arquivos e respostas nunca é enviado. Só precisa do Discord aberto neste computador.',
+  'settings.presence.enabled': 'Mostrar o que o Atlas está fazendo no Discord',
+  'settings.presence.showNames': 'Mostrar nomes do workspace, do workflow e do passo',
+  'settings.presence.showNamesHelp':
+    'Desligado, o Discord mostra só textos genéricos ("Executando um workflow").',
+  'settings.presence.clientId': 'Application ID próprio (avançado)',
+  'settings.presence.clientIdPlaceholder': 'Ex.: 123456789012345678',
+  'settings.presence.clientIdSave': 'Salvar ID',
+  'settings.presence.clientIdHelp':
+    'Opcional. Deixe vazio para usar o app Atlas padrão. Só preencha se você mantém um fork com o próprio aplicativo no Discord Developer Portal.',
   'memory.unconfirmed': 'Não confirmada',
   'memory.heldShort': 'Aguardando validação',
   'memory.moreActions': 'Mais ações de {name}',

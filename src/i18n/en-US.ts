@@ -3660,6 +3660,19 @@ export const enUS = {
   'settings.nav.portability': 'Import and export',
   'settings.nav.about': 'About and updates',
   'settings.sandbox.how': 'How it works',
+  'settings.presence.advanced': 'Advanced',
+  'settings.presence.title': 'Discord presence',
+  'settings.presence.help':
+    'Shows on your Discord profile what Atlas is doing: the open workspace, the running workflow and the current step, like the VS Code extension does. Off by default. The text of prompts, files and answers is never sent. It only needs Discord open on this computer.',
+  'settings.presence.enabled': 'Show what Atlas is doing on Discord',
+  'settings.presence.showNames': 'Show the names of the workspace, workflow and step',
+  'settings.presence.showNamesHelp':
+    'Off, Discord shows only generic texts ("Running a workflow").',
+  'settings.presence.clientId': 'Own Application ID (advanced)',
+  'settings.presence.clientIdPlaceholder': 'E.g. 123456789012345678',
+  'settings.presence.clientIdSave': 'Save ID',
+  'settings.presence.clientIdHelp':
+    'Optional. Leave empty to use the default Atlas app. Only fill it in if you maintain a fork with its own application in the Discord Developer Portal.',
   'memory.unconfirmed': 'Unconfirmed',
   'memory.heldShort': 'Awaiting validation',
   'memory.moreActions': 'More actions for {name}',

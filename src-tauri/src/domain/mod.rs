@@ -12,6 +12,7 @@ pub mod memory;
 pub mod optimization;
 pub mod orchestration;
 pub mod personality;
+pub mod presence;
 pub mod project;
 pub mod result_contract;
 pub mod rules;

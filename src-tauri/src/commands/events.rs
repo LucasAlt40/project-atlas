@@ -54,6 +54,9 @@ impl<R: Runtime> ExecutionObserver for TauriEventObserver<R> {
     fn on_event(&self, event: &ExecutionEvent) {
         self.emit(EXECUTION_PROGRESS_EVENT, event);
         announce_to_phone(&self.app, |hub| hub.publish_activity(&event.workspace_id));
+        if let Some(state) = self.app.try_state::<AppState>() {
+            state.presence.on_execution_event(event);
+        }
     }
 }
 
@@ -96,6 +99,9 @@ impl<R: Runtime> WorkflowObserver for TauriWorkflowObserver<R> {
             eprintln!("failed to emit {name}: {error}");
         }
         announce_to_phone(&self.app, |hub| hub.publish_workflow(event));
+        if let Some(state) = self.app.try_state::<AppState>() {
+            state.presence.on_workflow_event(event);
+        }
     }
 }
 

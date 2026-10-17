@@ -30,6 +30,9 @@ pub struct AppSettings {
     /// Whether the runtime process of an execution is confined by the OS (ADR 0038).
     #[serde(default)]
     pub sandbox: crate::domain::security::SandboxSettings,
+    /// Discord Rich Presence: what the person shares about what Atlas is doing. Off by default.
+    #[serde(default)]
+    pub presence: crate::domain::presence::PresenceSettings,
 }
 
 /// Which parts of the Optimization Layer are on. Phase 0 has only the metrics, and they only
@@ -103,6 +106,7 @@ impl Default for AppSettings {
             selected_workspace_id: None,
             optimization: OptimizationSettings::default(),
             sandbox: crate::domain::security::SandboxSettings::default(),
+            presence: crate::domain::presence::PresenceSettings::default(),
         }
     }
 }

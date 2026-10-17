@@ -16,6 +16,7 @@
     "allow-set-memory-settings",
     "allow-get-sandbox-status",
     "allow-set-sandbox-settings",
+    "allow-set-presence-settings",
     "allow-check-for-update",
     "allow-install-update",
     "allow-list-mcp-connections",

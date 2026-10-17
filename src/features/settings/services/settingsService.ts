@@ -2,6 +2,7 @@ import {
   invokeCommand,
   type AppSettingsDto,
   type MemorySettingsDto,
+  type PresenceSettingsDto,
   type SandboxSettingsDto,
   type SandboxStatusDto,
 } from '@/lib/tauri/commands';
@@ -38,4 +39,9 @@ export function setMemorySettings(memory: MemorySettingsDto): Promise<AppSetting
 /** The most tokens the runs of one specification may use together (`null`: no limit). */
 export function setSpecsMaxTokens(max: number | null): Promise<AppSettingsDto> {
   return invokeCommand('set_specs_max_tokens', { max });
+}
+
+/** What Atlas shares on the person's Discord profile (Rich Presence; off by default). */
+export function setPresenceSettings(presence: PresenceSettingsDto): Promise<AppSettingsDto> {
+  return invokeCommand('set_presence_settings', { presence });
 }

@@ -6,6 +6,7 @@ import { MemorySettings } from '@/features/memory';
 import { PortabilitySettings } from '@/features/portability';
 import { LANGUAGES } from '@/i18n';
 import { useI18n } from '@/i18n/I18nProvider';
+import { PresenceSettings } from '../components/PresenceSettings';
 import { SandboxSettings } from '../components/SandboxSettings';
 import { UpdateChecker } from '../components/UpdateChecker';
 import { useSettings } from '../hooks/SettingsProvider';
@@ -148,6 +149,11 @@ export function SettingsPage() {
             <div className={styles.group}>
               <h2 className={styles.heading}>{t('settings.sandbox.title')}</h2>
               <SandboxSettings />
+            </div>
+
+            <div className={styles.group}>
+              <h2 className={styles.heading}>{t('settings.presence.title')}</h2>
+              <PresenceSettings />
             </div>
           </section>
 

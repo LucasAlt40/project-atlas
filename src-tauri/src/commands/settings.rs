@@ -32,5 +32,7 @@ pub fn select_workspace(
     state: State<'_, AppState>,
     workspace_id: Option<String>,
 ) -> Result<AppSettings, AppError> {
-    state.settings.select_workspace(workspace_id.as_deref())
+    let saved = state.settings.select_workspace(workspace_id.as_deref())?;
+    state.presence.poke();
+    Ok(saved)
 }

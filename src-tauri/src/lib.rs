@@ -143,6 +143,7 @@ pub fn run() {
             commands::specs::raise_spec_budget,
             commands::specs::set_spec_integrations,
             commands::settings::select_workspace,
+            commands::presence::set_presence_settings,
             commands::chat::send_message,
             commands::chat::list_messages,
             commands::chat::list_executions,
@@ -535,6 +536,15 @@ fn build_state(
         runtimes.clone(),
         workspaces.clone(),
     ));
+    // Nothing reaches Discord until the person switches it on in the settings.
+    let presence = Arc::new(application::presence::PresenceService::start(
+        Arc::new(application::presence::AtlasEnv {
+            settings: settings.clone(),
+            workspaces: workspaces.clone(),
+            workflows: workflows.clone(),
+        }),
+        Arc::new(infrastructure::DiscordIpc::system()),
+    ));
     AppState {
         app_info,
         personalities,
@@ -564,6 +574,7 @@ fn build_state(
         spec_runner,
         spec_work,
         spec_cli,
+        presence,
     }
 }
 

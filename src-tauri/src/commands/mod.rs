@@ -13,6 +13,7 @@ pub mod mcp;
 pub mod memory;
 pub mod personalities;
 pub mod portability;
+pub mod presence;
 pub mod remote;
 pub mod runtimes;
 pub mod sandbox;

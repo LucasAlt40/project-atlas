@@ -69,6 +69,8 @@ pub struct AppState {
     pub spec_work: Arc<crate::application::specs::implementation::SpecImplementation>,
     /// The optional `OpenSpec` command (a second look at a published change, and the archive).
     pub spec_cli: Arc<crate::application::specs::cli_service::SpecCliService>,
+    /// Discord Rich Presence (proof of concept): shows what Atlas is doing, if the person allows.
+    pub presence: Arc<crate::application::presence::PresenceService>,
 }
 
 #[cfg(test)]
@@ -254,6 +256,8 @@ impl AppState {
                 "127.0.0.1",
             )])),
         ));
+        let (settings_for_presence, workspaces_for_presence, workflows_for_presence) =
+            (settings.clone(), workspaces.clone(), workflows.clone());
         Self {
             app_info,
             personalities,
@@ -294,6 +298,14 @@ impl AppState {
             spec_runner,
             spec_work,
             spec_cli,
+            presence: Arc::new(crate::application::presence::PresenceService::start(
+                Arc::new(crate::application::presence::AtlasEnv {
+                    settings: settings_for_presence,
+                    workspaces: workspaces_for_presence,
+                    workflows: workflows_for_presence,
+                }),
+                Arc::new(crate::application::presence::NullTransport),
+            )),
         }
     }
 }
