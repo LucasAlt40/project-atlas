@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
+import { OverflowMenu } from '@/components/ui/OverflowMenu';
 import type { Agent } from '@/features/agents/types';
 import type { Workspace } from '@/features/workspace/types';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -267,7 +268,7 @@ export function SpecDetail({ workspace, agents, specId, onBack, onImplement, onD
         </div>
         <div className={styles.headActions}>
           <Button
-            variant="ghost"
+            variant="secondary"
             disabled={busy || !!spec.archived}
             onClick={() => {
               setDialog('agents');
@@ -275,21 +276,32 @@ export function SpecDetail({ workspace, agents, specId, onBack, onImplement, onD
           >
             {t('specs.agents.action')}
           </Button>
-          <Button
-            variant="ghost"
-            disabled={busy || spec.implementations.length > 0 || view.busy}
-            onClick={() => {
-              setDialog('delete');
-            }}
-          >
-            {t('common.delete')}
-          </Button>
+          {!busy && spec.implementations.length === 0 && !view.busy && (
+            <OverflowMenu
+              label={t('specs.moreActions', { title: spec.title })}
+              items={[
+                {
+                  label: t('common.delete'),
+                  icon: 'trash',
+                  danger: true,
+                  onSelect: () => {
+                    setDialog('delete');
+                  },
+                },
+              ]}
+            />
+          )}
         </div>
       </header>
 
       {spec.started && <Stepper view={view} selected={stage} onSelect={go} />}
 
-      <UsageBar view={view} busy={busy} onContinue={() => void act(() => raiseBudget(specId))} />
+      <UsageBar
+        part="banner"
+        view={view}
+        busy={busy}
+        onContinue={() => void act(() => raiseBudget(specId))}
+      />
 
       {error !== null && (
         <div className={styles.banner} data-tone="danger" role="alert">
@@ -369,11 +381,24 @@ export function SpecDetail({ workspace, agents, specId, onBack, onImplement, onD
                 })
               }
             />
+            <UsageBar
+              part="panel"
+              view={view}
+              busy={busy}
+              onContinue={() => void act(() => raiseBudget(specId))}
+            />
           </div>
         </div>
       ) : (
         artifact && (
           <>
+            <Dock
+              dock={dockFor(view, artifact.id)}
+              busy={busy}
+              stage={stageName(t, artifact.id)}
+              next={nextStage ? stageName(t, nextStage) : ''}
+              onAction={(id) => void onDock(id)}
+            />
             <div className={styles.workArea}>
               <div className={styles.main}>{pane(artifact)}</div>
               <aside className={styles.inspector} aria-label={t('specs.inspector.title')}>
@@ -386,15 +411,14 @@ export function SpecDetail({ workspace, agents, specId, onBack, onImplement, onD
                     go('final');
                   }}
                 />
+                <UsageBar
+                  part="panel"
+                  view={view}
+                  busy={busy}
+                  onContinue={() => void act(() => raiseBudget(specId))}
+                />
               </aside>
             </div>
-            <Dock
-              dock={dockFor(view, artifact.id)}
-              busy={busy}
-              stage={stageName(t, artifact.id)}
-              next={nextStage ? stageName(t, nextStage) : ''}
-              onAction={(id) => void onDock(id)}
-            />
           </>
         )
       )}

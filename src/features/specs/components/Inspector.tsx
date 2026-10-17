@@ -4,6 +4,7 @@ import { agoText } from '@/features/workflow/model/time';
 import { useI18n } from '@/i18n/I18nProvider';
 import { failureText, issueText, stageName } from '../model/messages';
 import type { SpecArtifact, SpecView, ValidationIssue } from '../types';
+import { PanelSection } from './PanelSection';
 import styles from './Specs.module.css';
 
 interface Props {
@@ -35,17 +36,18 @@ export function Inspector({ view, artifact, busy, onRevalidate, onFindings }: Pr
     .reverse();
   return (
     <div className={styles.inspectorBody}>
-      <section className={styles.panel} aria-label={t('specs.inspector.checks')}>
-        <header className={styles.panelHead}>
-          <h3>{t('specs.inspector.checks')}</h3>
-          {validation && (
-            <span className={styles.panelTag} data-tone={errors > 0 ? 'danger' : 'success'}>
-              {errors > 0
-                ? t('specs.inspector.errors', { count: errors })
-                : t('specs.inspector.passed')}
-            </span>
-          )}
-        </header>
+      <PanelSection
+        title={t('specs.inspector.checks')}
+        tone={errors > 0 ? 'danger' : 'success'}
+        {...(validation
+          ? {
+              tag:
+                errors > 0
+                  ? t('specs.inspector.errors', { count: errors })
+                  : t('specs.inspector.passed'),
+            }
+          : {})}
+      >
         {!latest && <p className={styles.muted}>{t('specs.inspector.nothing')}</p>}
         {latest && !validation && <p className={styles.muted}>{t('specs.inspector.notChecked')}</p>}
         {validation && issues.length === 0 && (
@@ -82,16 +84,14 @@ export function Inspector({ view, artifact, busy, onRevalidate, onFindings }: Pr
             {t('specs.inspector.rerun')}
           </Button>
         )}
-      </section>
+      </PanelSection>
 
       {findings.length > 0 && (
-        <section className={styles.panel} aria-label={t('specs.inspector.findings')}>
-          <header className={styles.panelHead}>
-            <h3>{t('specs.inspector.findings')}</h3>
-            <span className={styles.panelTag} data-tone="warning">
-              {findings.length}
-            </span>
-          </header>
+        <PanelSection
+          title={t('specs.inspector.findings')}
+          tone="warning"
+          tag={String(findings.length)}
+        >
           <ul className={styles.plain}>
             {findings.map((finding) => (
               <li key={finding.id}>
@@ -103,14 +103,11 @@ export function Inspector({ view, artifact, busy, onRevalidate, onFindings }: Pr
           <Button variant="ghost" onClick={onFindings}>
             {t('specs.inspector.seeReview')}
           </Button>
-        </section>
+        </PanelSection>
       )}
 
       {artifact.feedback.length > 0 && (
-        <section className={styles.panel} aria-label={t('specs.inspector.feedback')}>
-          <header className={styles.panelHead}>
-            <h3>{t('specs.inspector.feedback')}</h3>
-          </header>
+        <PanelSection title={t('specs.inspector.feedback')}>
           <ul className={styles.plain}>
             {[...artifact.feedback].reverse().map((feedback) => (
               <li key={feedback.id}>
@@ -123,13 +120,10 @@ export function Inspector({ view, artifact, busy, onRevalidate, onFindings }: Pr
               </li>
             ))}
           </ul>
-        </section>
+        </PanelSection>
       )}
 
-      <section className={styles.panel} aria-label={t('specs.inspector.history')}>
-        <header className={styles.panelHead}>
-          <h3>{t('specs.inspector.history')}</h3>
-        </header>
+      <PanelSection title={t('specs.inspector.history')}>
         {artifact.revisions.length === 0 && (
           <p className={styles.muted}>{t('specs.inspector.nothing')}</p>
         )}
@@ -173,7 +167,7 @@ export function Inspector({ view, artifact, busy, onRevalidate, onFindings }: Pr
         {artifact.generation.state === 'failed' && (
           <p className={styles.errorLine}>{failureText(t, artifact.generation.message).text}</p>
         )}
-      </section>
+      </PanelSection>
     </div>
   );
 }
