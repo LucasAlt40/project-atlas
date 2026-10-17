@@ -200,6 +200,7 @@ documentos importados; os que faltam podem ser escritos a partir dos demais.". R
 | S3 | 2026-10-16 | "Spec — Documento em revisão" `d439e1fbb75c4b7f9d684b0b3c46a543` (2560×2048) | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`. |
 | S6 | 2026-10-16 | "Spec — Revisão final e publicação" `fb6be8f6a81149e3873c33d6d98f31f0` (2560×2048) | `edit_screens` a partir de `5126e494…`; timeout, não reenviado, confirmado por `list_screens`. A original segue intacta. |
 | S4 | 2026-10-16 | "Spec — Agente escrevendo" `4981422ada754146b0cb711a0df3e897` (2560×2048) | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`. |
+| S5 | 2026-10-16 | "Spec — Perguntas e achados" `6eadf408b4f543b6b75a02cab206660e` (2560×2048) | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`. A captura corta no meio do achado; o HTML tem o resto. |
 
 ## Avaliação
 
@@ -268,3 +269,26 @@ O Stitch mostra, o app não tem (não implementar):
   percentual; não mostrar avanço que não existe (usar o indicador animado de "executando").
 - O texto "Proposal / Why" foi desenhado com marcadores "#" e "##" de Markdown visíveis; no app o documento
   em escrita aparece como texto simples esmaecido.
+
+### S5 — Spec — Perguntas e achados
+
+Fiel no que aparece: mesmo cabeçalho e stepper (Design atual, "Alterações solicitadas"), cartão "O agente
+precisa da sua resposta" com pergunta, campo, "Enviar resposta e continuar" e a linha "Este documento deixa
+2 pergunta(s) em aberto" com "Responder"; "Achados da revisão" com o resumo e o achado de Risco / Alta / Em
+aberto expandido ("Evidência e raciocínio", "Sugestão:"). A imagem do Stitch termina no meio do achado
+(altura fixa); conferi o HTML da tela e ele contém "Ver no documento", "Marcar como resolvido", "Não é
+problema", "Aceitar o risco…" com o motivo, a nota "Opinião do agente revisor…" e a seção "Achados que você
+já decidiu". "Reabrir" não foi desenhado (estava dentro da seção fechada, como pedido).
+
+O Stitch mostra, o app não tem (não implementar):
+
+- Selo "Requer decisão" no cartão da pergunta e rótulo "PERGUNTA DO AGENTE" acima do texto.
+- Placeholder do campo ("Ex: Não, invalide todas as sessões ativas…") e a dica "Pressione ⌘ + Enter para
+  submeter" (atalho que o app não tem).
+- Seta em "Enviar resposta e continuar →" e ícones de ajuda/lâmpada/lupa.
+- Textos de evidência e de sugestão (token, TTL de 15 minutos, Redis) são exemplo inventado; usar o texto
+  real do agente revisor.
+- Ordem da barra lateral: "Configurações" saiu no rodapé, fora da lista; a moldura real tem a lista do P0.
+
+Ponto positivo a manter: a pergunta é o elemento mais forte da tela e vem antes dos achados, com o resumo
+"1 em aberto · 1 pergunta algo a você" em mono à direita do título.
