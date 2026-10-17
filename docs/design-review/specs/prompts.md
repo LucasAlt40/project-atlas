@@ -197,6 +197,7 @@ documentos importados; os que faltam podem ser escritos a partir dos demais.". R
 | Prompt         | Enviado | Tela gerada no Stitch | Observação |
 | -------------- | ------- | --------------------- | ---------- |
 | S1 | 2026-10-16 | "Specs — Lista de especificações" `a7eb1bf978364f498e6908e8e85b6ed4` (2560×2048) | `edit_screens` a partir de `a60e9fda…`, com bloco comum; timeout, não reenviado, confirmado por `list_screens`. A original segue intacta. |
+| S3 | 2026-10-16 | "Spec — Documento em revisão" `d439e1fbb75c4b7f9d684b0b3c46a543` (2560×2048) | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`. |
 
 ## Avaliação
 
@@ -217,3 +218,21 @@ O Stitch mostra, o app não tem (não implementar):
 Problemas de layout para o app não repetir: o pé do cartão ("Agora: …  há …") e o alerta âmbar ficam
 cortados (o texto precisa quebrar ou ir para duas linhas); o id "billing-refactor" e o selo "Pronta para
 implementação" quebram em duas linhas; o botão primário saiu com "+ +" (ícone e texto repetidos).
+
+### S3 — Spec — Documento em revisão
+
+Muito fiel: cabeçalho com seta, título, selo e metadados em mono; stepper em cinco cartões (nome em cima,
+estado embaixo, atual destacada com borda índigo); "Sua decisão" com as três ações na ordem certa;
+documento com a alternância Requisitos | Markdown; coluna lateral com Validações, Histórico e Consumo
+(fechada). Sem texto cortado. É a tela de referência do cabeçalho e do stepper para S4, S5 e S6.
+
+O Stitch mostra, o app não tem (não implementar):
+
+- Títulos "SUA DECISÃO" em caixa alta com espaçamento (usar o título normal do app).
+- O documento renderizado em blocos: chip "+ ADDED Requirements", cartão por requisito e "SCENARIO: SWITCH
+  TO DARK" com WHEN/THEN coloridos em caixas separadas. A aba "Requisitos" do app já faz uma renderização
+  própria: manter o que ela faz hoje e usar o Stitch só como direção de espaçamento e hierarquia.
+- Ícones decorativos nos títulos das seções laterais e o menu "⋯" sem o menu aberto (só o botão).
+
+Desvio: o stepper ocupa um cartão grande com cada etapa em sua própria caixa; no app pode ser mais enxuto
+(uma linha de passos) desde que mantenha nome, estado e destaque da etapa atual.
