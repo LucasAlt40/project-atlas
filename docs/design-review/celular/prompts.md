@@ -156,6 +156,7 @@ uma rede) existem só como texto.
 | -------------- | ------- | --------------------- | ---------- |
 | M1 | 2026-10-16 | "Celular — Painel de execuções" `353aa8a106af44408c2dc337f053d82f` (canvas 2560×2048, coluna de celular centralizada) | `generate_screen_from_text` com `deviceType: MOBILE` e bloco comum; respondeu sem timeout. |
 | M2 | 2026-10-16 | "Celular — Execução esperando resposta" `068a7930a0ec4643ad87d2ea16a2f904` (canvas 2560×2048, coluna de celular) | `generate_screen_from_text` com `deviceType: MOBILE`; respondeu sem timeout. |
+| M3 | 2026-10-16 | "Celular — Execução: etapas e resultado" `35e8c067f9364cdfa829f555d3c89832` (canvas de celular, 780×1768 na captura) | `generate_screen_from_text` com `deviceType: MOBILE`; timeout, não reenviado, confirmado por `list_screens`. |
 
 ## Avaliação
 
@@ -199,3 +200,15 @@ O Stitch mostra, o app não tem (não implementar):
 Pontos positivos a manter: a barra de ações fixa, o "Refazer o plano" com contorno vermelho (não preenchido,
 para não competir com "Aprovar") e a seção "Controlar a execução" fechada por padrão. "Mostrar menos" e as
 mensagens condicionais não foram desenhadas (só descritas).
+
+### M3 — Celular — Execução: etapas e resultado
+
+Muito fiel, e desta vez o canvas veio em formato de celular (diferente de M1 e M2). Mesmo topo e cabeçalho,
+a pergunta reduzida a uma linha âmbar "Developer espera você" com seta, "Etapas" aberta com a linha do
+tempo (Architect ✓ "Concluída", Developer ? "Esperando você" com "Depois: QA", QA ○ "Não iniciada"; nome,
+selo e agente · duração por linha, "O que ela relatou" recolhível) e as quatro seções fechadas com selo
+("Até agora", "0 arquivos alterados (+0 −0)") ou sem selo. Sem barra de ações, como pedido.
+
+Sem invenções relevantes. Observações: o ícone "‹" do "Voltar" virou chevron grande e o "Atlas" fica ao lado
+(igual a M2); o marcador de cada etapa é um círculo com ícone (✓, ?, ○), o que combina com o pedido. Os
+textos condicionais e a confirmação de cancelar não foram desenhados (só descritos).
