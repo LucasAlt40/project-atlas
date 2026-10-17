@@ -139,6 +139,7 @@ partes. "Sobre": três pares rótulo/valor em mono: Atlas "Project Atlas", Vers�
 | -------------- | ------- | --------------------- | ---------- |
 | C1 | 2026-10-16 | "Configurações — Geral" `67ed2d6872a94adc9838d074b6fab48e` (2560×2048) | `generate_screen_from_text` com os acréscimos do módulo; timeout, não reenviado, confirmado por `list_screens`. |
 | C2 | 2026-10-16 | "Configurações — Memória" `531ba78a90f042819c5788c9f9a07fac` (2560×2048) | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`. |
+| C3 | 2026-10-16 | "Configurações — Importar e exportar" `f51323b94a09433fb8f5a56733ff2fee` (2560×2048) | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`. |
 
 ## Avaliação
 
@@ -174,3 +175,21 @@ O Stitch mostra, o app não tem (não implementar):
 
 Falta ver (só descrito): as outras três abas; "Apagar as 2 nota(s) automática(s)", o menu "⋯" e o
 formulário de adicionar. Implementar pelo prompt, usando o mesmo sistema de abas e selos.
+
+### C3 — Configurações — Importar e exportar
+
+Fiel no que importa: dois cartões lado a lado, passo "O que exportar" aberto com os quatro grupos (três
+desabilitados, "Agentes (3)" marcado), "Continuar (3)" primário e "Cancelar" ghost. Sem resumos de outras
+abas (o reforço funcionou).
+
+O Stitch mostra, o app não tem (não implementar):
+
+- Descrições dos cartões ("Restaurar agentes, personalidades ou pacotes arquivados para o workspace
+  atual.", "Selecione os componentes do workspace para gerar um pacote de transferência seguro.").
+- Chip mono com os nomes dos agentes ("transport-core, router-agent, metrics-sync") ao lado de "Agentes (3)".
+- Seta em "Continuar (3) →" e ícones nos cartões.
+- Cartão "Exportar" com borda destacada (foco inventado).
+
+Desvio de moldura: a barra superior ocupou a largura toda, por cima da barra lateral, e o logo "Atlas"
+ficou abaixo dela. A moldura real é: barra lateral com o logo no topo e a barra superior só à direita.
+Ignorar; vale o app.
