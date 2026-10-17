@@ -3653,6 +3653,12 @@ export const enUS = {
   'harness.manual.cta': 'Continue without AI',
   'agents.card.runtime': 'Runtime',
   'agents.summary': 'Agents summary',
+  'hub.card.warnings': '{n} warnings',
+  'hub.card.warningsOne': '1 warning',
+  'hub.config.menu': 'Configuration',
+  'hub.metric.label': 'Hub summary',
+  'hub.inspector.more': 'More actions for {name}',
+  'hub.sync.cliState': 'CLI state',
 } as const;
 
 export type TranslationKey = keyof typeof enUS;

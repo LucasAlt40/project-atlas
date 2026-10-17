@@ -3696,4 +3696,10 @@ export const ptBR: Record<TranslationKey, string> = {
   'harness.manual.cta': 'Prosseguir sem IA',
   'agents.card.runtime': 'Runtime',
   'agents.summary': 'Resumo dos agentes',
+  'hub.card.warnings': '{n} avisos',
+  'hub.card.warningsOne': '1 aviso',
+  'hub.config.menu': 'Configuração',
+  'hub.metric.label': 'Resumo do hub',
+  'hub.inspector.more': 'Mais ações de {name}',
+  'hub.sync.cliState': 'Estado das CLIs',
 };

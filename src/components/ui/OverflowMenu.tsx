@@ -13,11 +13,13 @@ export interface OverflowItem {
 interface Props {
   /** Accessible name of the "⋯" button. */
   label: string;
+  /** A visible name next to the dots: the menu then reads as a button ("⋯ Configuration"). */
+  text?: string;
   items: OverflowItem[];
 }
 
 /** The "⋯" menu: the secondary and destructive actions of a row, out of the way until asked. */
-export function OverflowMenu({ label, items }: Props) {
+export function OverflowMenu({ label, text, items }: Props) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLSpanElement>(null);
   const menuId = useId();
@@ -43,8 +45,8 @@ export function OverflowMenu({ label, items }: Props) {
       <button
         type="button"
         className={styles.trigger}
-        aria-label={label}
-        title={label}
+        data-text={text ? true : undefined}
+        {...(text ? {} : { 'aria-label': label, title: label })}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
@@ -53,6 +55,7 @@ export function OverflowMenu({ label, items }: Props) {
         }}
       >
         <Icon name="more" size={16} />
+        {text}
       </button>
       {open && (
         <div id={menuId} role="menu" className={styles.menu}>
