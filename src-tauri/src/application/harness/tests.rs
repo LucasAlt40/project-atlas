@@ -42,6 +42,7 @@ impl SemanticModelFactory for ScriptedFactory {
     fn model_for(
         &self,
         _: &str,
+        _: Option<&str>,
         _: &str,
         _: &str,
         _: bool,

@@ -405,6 +405,7 @@ impl HarnessService {
     fn gather(
         &self,
         workspace_id: &str,
+        project_id: Option<&str>,
         path: &str,
         semantic: Option<&SemanticRequest>,
         previous: Option<&HarnessKnowledge>,
@@ -445,6 +446,7 @@ impl HarnessService {
         if let Some(request) = semantic {
             let result = self.run_semantic(
                 workspace_id,
+                project_id,
                 path,
                 request,
                 &snapshot,
@@ -482,9 +484,11 @@ impl HarnessService {
         ))
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn run_semantic(
         &self,
         workspace_id: &str,
+        project_id: Option<&str>,
         path: &str,
         request: &SemanticRequest,
         snapshot: &ScanSnapshot,
@@ -495,7 +499,13 @@ impl HarnessService {
             .semantic
             .as_ref()
             .ok_or_else(|| AppError::new(ErrorCode::SemanticUnsupported))?;
-        let model = factory.model_for(workspace_id, &request.agent_id, path, request.restricted)?;
+        let model = factory.model_for(
+            workspace_id,
+            project_id,
+            &request.agent_id,
+            path,
+            request.restricted,
+        )?;
         let mode = if request.restricted {
             Mode::Restricted
         } else {
@@ -555,7 +565,13 @@ impl HarnessService {
     ) -> Result<ProjectAnalysis, AppError> {
         let path = self.project_path_of(workspace_id, project_id)?;
         let (manifest, knowledge) = self.previous(&path);
-        let (_, state) = self.gather(workspace_id, &path, semantic, knowledge.as_ref())?;
+        let (_, state) = self.gather(
+            workspace_id,
+            project_id,
+            &path,
+            semantic,
+            knowledge.as_ref(),
+        )?;
         let choices = manifest.as_ref().map(choices_of).unwrap_or_default();
         let conflicts = Self::conflicts(&state, knowledge.as_ref(), &choices.corrections);
         let raw = state.raw_findings();
@@ -690,7 +706,7 @@ impl HarnessService {
         {
             return Ok(state);
         }
-        Ok(self.gather(workspace_id, path, None, previous)?.1)
+        Ok(self.gather(workspace_id, None, path, None, previous)?.1)
     }
 
     fn apply(
@@ -761,7 +777,7 @@ impl HarnessService {
         };
         let manifest = parse_manifest(&text)?;
         let (_, knowledge) = self.previous(&path);
-        let (_, state) = self.gather(workspace_id, &path, None, knowledge.as_ref())?;
+        let (_, state) = self.gather(workspace_id, project_id, &path, None, knowledge.as_ref())?;
         let choices = choices_of(&manifest);
         let raw = state.raw_findings();
         let changes = knowledge

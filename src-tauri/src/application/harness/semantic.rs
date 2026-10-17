@@ -533,6 +533,9 @@ pub struct RuntimeSemanticModel {
     pub agents: Arc<AgentService>,
     pub runtimes: Arc<RuntimeRegistry>,
     pub workspace_id: String,
+    /// The workspace project being read, when it is not the primary one: the security layer holds
+    /// the process to that project's folder, not to the primary's.
+    pub project_id: Option<String>,
     pub agent_id: String,
     /// The project's folder: the process guard requires a working directory inside it. With no
     /// tools the model cannot read from it.
@@ -596,7 +599,7 @@ impl SemanticModel for RuntimeSemanticModel {
                 task_id: id.clone(),
                 runtime_access: runtime.info().capabilities.tool_access,
                 isolated: false,
-                project_id: None,
+                project_id: self.project_id.clone(),
             },
             text_only: self.text_only,
             allow_edits: false,
@@ -636,6 +639,7 @@ pub trait SemanticModelFactory: Send + Sync {
     fn model_for(
         &self,
         workspace_id: &str,
+        project_id: Option<&str>,
         agent_id: &str,
         project_path: &str,
         restricted: bool,
@@ -652,6 +656,7 @@ impl SemanticModelFactory for RuntimeSemanticFactory {
     fn model_for(
         &self,
         workspace_id: &str,
+        project_id: Option<&str>,
         agent_id: &str,
         project_path: &str,
         restricted: bool,
@@ -671,6 +676,7 @@ impl SemanticModelFactory for RuntimeSemanticFactory {
             agents: self.agents.clone(),
             runtimes: self.runtimes.clone(),
             workspace_id: workspace_id.to_owned(),
+            project_id: project_id.map(str::to_owned),
             agent_id: agent_id.to_owned(),
             project_path: PathBuf::from(project_path),
             text_only: restricted,
@@ -910,7 +916,7 @@ mod tests {
         let rig = rig(true, "the answer");
         let model = rig
             .factory
-            .model_for("w1", &rig.agent_id, "/erp", true)
+            .model_for("w1", None, &rig.agent_id, "/erp", true)
             .unwrap();
 
         assert_eq!(model.complete("EVIDENCE").unwrap(), "the answer");
@@ -933,6 +939,21 @@ mod tests {
     }
 
     #[test]
+    fn the_agent_is_scoped_to_the_project_it_reads_so_a_second_project_is_not_outside_the_first() {
+        let rig = rig(true, "ok");
+        let model = rig
+            .factory
+            .model_for("w1", Some("prj2"), &rig.agent_id, "/erp/web", false)
+            .unwrap();
+
+        model.complete("go").unwrap();
+
+        let request = rig.runtime.requests.lock().unwrap()[0].clone();
+        assert_eq!(request.scope.project_id.as_deref(), Some("prj2"));
+        assert_eq!(request.working_dir, PathBuf::from("/erp/web"));
+    }
+
+    #[test]
     fn what_the_agent_is_doing_is_reported_so_the_screen_can_show_it_and_stop_it() {
         struct Recorder(std::sync::Mutex<Vec<ProgressUpdate>>);
         impl HarnessProgress for Recorder {
@@ -945,7 +966,7 @@ mod tests {
         rig.factory.progress = Some(recorder.clone());
         let model = rig
             .factory
-            .model_for("w1", &rig.agent_id, "/erp", false)
+            .model_for("w1", None, &rig.agent_id, "/erp", false)
             .unwrap();
 
         model.complete("go").unwrap();
@@ -973,7 +994,7 @@ mod tests {
 
         let error = rig
             .factory
-            .model_for("w1", &rig.agent_id, "/erp", true)
+            .model_for("w1", None, &rig.agent_id, "/erp", true)
             .err()
             .unwrap();
 
@@ -981,7 +1002,7 @@ mod tests {
         assert!(rig.runtime.requests.lock().unwrap().is_empty());
         assert_eq!(
             rig.factory
-                .model_for("w1", "ghost", "/erp", true)
+                .model_for("w1", None, "ghost", "/erp", true)
                 .err()
                 .unwrap()
                 .code,
