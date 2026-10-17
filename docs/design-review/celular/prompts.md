@@ -155,6 +155,7 @@ uma rede) existem só como texto.
 | Prompt         | Enviado | Tela gerada no Stitch | Observação |
 | -------------- | ------- | --------------------- | ---------- |
 | M1 | 2026-10-16 | "Celular — Painel de execuções" `353aa8a106af44408c2dc337f053d82f` (canvas 2560×2048, coluna de celular centralizada) | `generate_screen_from_text` com `deviceType: MOBILE` e bloco comum; respondeu sem timeout. |
+| M2 | 2026-10-16 | "Celular — Execução esperando resposta" `068a7930a0ec4643ad87d2ea16a2f904` (canvas 2560×2048, coluna de celular) | `generate_screen_from_text` com `deviceType: MOBILE`; respondeu sem timeout. |
 
 ## Avaliação
 
@@ -178,3 +179,23 @@ O Stitch mostra, o app não tem (não implementar):
 
 Desvio de ordem: no fim da lista o aviso "O Atlas roda no seu computador…" veio antes do link "Desconectar
 este celular"; o prompt pedia o link primeiro. Manter a ordem do app.
+
+### M2 — Celular — Execução esperando resposta
+
+Muito fiel e a melhor tela do módulo até aqui: topo com "‹ Voltar", cabeçalho com título, selo e metadados
+em mono, a tarefa numa caixa recolhível, a pergunta como cartão âmbar com faixa lateral (tipo, pergunta e
+plano com "Mostrar o texto inteiro"), seções "Etapas" e "Controlar a execução" recolhidas (o "Cancelar a
+execução" fica dentro da segunda, separado), e a barra fixa no pé com a nota recolhida, "Aprovar" em largura
+total e "Pedir ajustes" / "Refazer o plano" (vermelho) lado a lado. Sem barra de status nem teclado.
+
+O Stitch mostra, o app não tem (não implementar):
+
+- "Atlas" colado ao "‹ Voltar" no meio da barra de topo (o prompt manda "Atlas" à esquerda e o nome do
+  celular à direita; em telas internas o "‹ Voltar" fica à esquerda e "Atlas" logo depois: manter assim só
+  se o app já faz).
+- A caixa da tarefa mostra "Tarefa" e o texto cortado com reticências; ao abrir deve mostrar o texto inteiro.
+- Ícone "+" no botão "Uma nota para o agente (opcional)".
+
+Pontos positivos a manter: a barra de ações fixa, o "Refazer o plano" com contorno vermelho (não preenchido,
+para não competir com "Aprovar") e a seção "Controlar a execução" fechada por padrão. "Mostrar menos" e as
+mensagens condicionais não foram desenhadas (só descritas).
