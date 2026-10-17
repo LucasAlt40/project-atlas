@@ -22,11 +22,11 @@ a sua pasta ao lado (`docs/design-review/<módulo>/`).
 | --- | -------------------------------- | ------------------------- | ----------------------------------------- |
 | 1   | Workspace + Harness              | `workspace-harness/`      | feito (branch `design/workspace-harness`) |
 | 2   | Agentes e Personalidades         | `agentes-personalidades/` | 5 telas geradas no Stitch; falta implementar |
-| 3   | MCP Hub                          | `mcp-hub/`                | plano pronto, prompts por enviar          |
-| 4   | Configurações                    | `configuracoes/`          | plano pronto, prompts por enviar          |
-| 5   | Specs                            | `specs/`                  | plano pronto, prompts por enviar          |
-| 6   | App móvel (celular)              | `celular/`                | plano pronto, prompts por enviar          |
-| 7   | Workflow (por último, é o maior) | `workflow/`               | plano pronto, prompts por enviar          |
+| 3   | MCP Hub                          | `mcp-hub/`                | 5 telas geradas; falta implementar        |
+| 4   | Configurações                    | `configuracoes/`          | 5 telas geradas; falta implementar        |
+| 5   | Specs                            | `specs/`                  | 5 telas geradas; falta implementar        |
+| 6   | App móvel (celular)              | `celular/`                | 5 telas geradas; falta implementar        |
+| 7   | Workflow (por último, é o maior) | `workflow/`               | 5 telas geradas; falta implementar        |
 
 ## Layout de cada pasta de módulo
 
