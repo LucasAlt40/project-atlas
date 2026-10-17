@@ -202,6 +202,7 @@ documentos importados; os que faltam podem ser escritos a partir dos demais.". R
 | S4 | 2026-10-16 | "Spec — Agente escrevendo" `4981422ada754146b0cb711a0df3e897` (2560×2048) | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`. |
 | S5 | 2026-10-16 | "Spec — Perguntas e achados" `6eadf408b4f543b6b75a02cab206660e` (2560×2048) | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`. A captura corta no meio do achado; o HTML tem o resto. |
 | S7 | 2026-10-16 | "Specs — Nova especificação" `3e2672ca7f07412bbe13d373685356fb` (2560×2048) | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`. |
+| S8 | 2026-10-16 | "Specs — Importar do projeto" `00d70d7a6e5e4f649ceff03b2273646d` (2560×2048) | `generate_screen_from_text` com bloco comum e moldura reforçada; timeout, não reenviado, confirmado por `list_screens`. |
 
 ## Avaliação
 
@@ -317,3 +318,23 @@ O Stitch mostra, o app não tem (não implementar):
   rodapé.
 
 O selo do motivo "Sua descrição fala de telas" não foi desenhado (aparece só conforme a descrição).
+
+### S8 — Specs — Importar do projeto
+
+Fiel, e a moldura voltou correta (sem "Core" nem "Novo Fluxo"; o reforço explícito funcionou). Modal com o
+texto e `openspec/changes` em mono, seletores "Projeto" e "Agente que escreve" lado a lado, as três pastas
+com caixa de seleção, selos dos documentos presentes e o problema de cada uma em âmbar, o aviso de uma linha
+e o rodapé "Cancelar" + "Importar".
+
+O Stitch mostra, o app não tem (não implementar):
+
+- Título de seção "O QUE FOI ENCONTRADO" com "3 pastas detectadas" e o rodapé "3 itens selecionados".
+- Selo "Completo" em "add-search" e ponto de estado verde em cada selo de documento (o app mostra só o nome
+  do documento; usar o mesmo selo do mapa de estados se houver, sem inventar "Completo").
+- Todas as caixas de seleção marcadas por padrão e a pasta "notes-cleanup" com só um documento; no app a
+  seleção inicial é a que o app define hoje (conferir antes de mudar).
+- Ponto verde no rodapé da barra lateral (ao lado de "Project Atlas v0.1.5"): não existe.
+- Cadeado e ícone de pasta no campo "Projeto"; ícones no título do modal, no aviso e no botão "Importar".
+
+Não desenhados (só descritos): o problema "Já é uma spec aqui" e o estado "Nenhuma mudança OpenSpec
+encontrada neste projeto.".
