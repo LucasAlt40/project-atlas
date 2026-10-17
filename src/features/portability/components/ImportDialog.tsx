@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
@@ -119,7 +120,7 @@ export function ImportDialog({ onClose, onImported }: Props) {
 
   const label = t('portability.import.title');
   return (
-    <Modal label={label} onClose={onClose} size="analyze">
+    <Modal label={label} onClose={onClose} size={stage.name === 'review' ? 'wide' : 'analyze'}>
       <div className={styles.dialog}>
         <h2 className={styles.title}>{label}</h2>
         {stage.name === 'pick' && (
@@ -196,12 +197,18 @@ function Review({
   return (
     <>
       <div className={styles.meta}>
-        <span>{t('portability.import.file', { file })}</span>
+        <Badge mono caps={false}>
+          {t('portability.import.file', { file })}
+        </Badge>
         {preview.source.appVersion && (
-          <span>{t('portability.import.from', { version: preview.source.appVersion })}</span>
+          <Badge mono caps={false}>
+            {t('portability.import.from', { version: preview.source.appVersion })}
+          </Badge>
         )}
         {preview.exportedAt !== null && (
-          <span>{new Date(preview.exportedAt).toLocaleString()}</span>
+          <Badge mono caps={false}>
+            {new Date(preview.exportedAt).toLocaleString()}
+          </Badge>
         )}
       </div>
       <p className={styles.safety}>{t('portability.safety')}</p>
@@ -230,7 +237,7 @@ function Review({
 
       {preview.external.length > 0 && (
         <section className={styles.section} aria-label={t('portability.external.title')}>
-          <h3 className={styles.sectionTitle}>{t('portability.external.title')}</h3>
+          <h3 className={styles.sectionHeading}>{t('portability.external.title')}</h3>
           <p className={styles.muted}>{t('portability.external.hint')}</p>
           {preview.external.map((external) => (
             <label key={external.ref} className={styles.field}>
@@ -272,7 +279,7 @@ function Review({
       )}
 
       <section className={styles.section} aria-label={t('portability.import.items')}>
-        <h3 className={styles.sectionTitle}>{t('portability.import.items')}</h3>
+        <h3 className={styles.sectionHeading}>{t('portability.import.items')}</h3>
         <ul className={styles.list}>
           {items.map((item) => (
             <ImportItemCard

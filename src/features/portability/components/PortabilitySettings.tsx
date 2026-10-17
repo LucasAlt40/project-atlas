@@ -80,19 +80,33 @@ export function PortabilitySettings() {
   return (
     <div className={styles.section}>
       <p className={styles.muted}>{t('portability.settings.help')}</p>
-      <div className={styles.row}>
-        <ImportButton />
-        <Button
-          variant="secondary"
-          onClick={() => {
-            setChoosing(true);
-          }}
-        >
-          <Icon name="upload" size={14} /> {t('portability.settings.exportAll')}
-        </Button>
+      <div className={styles.cards}>
+        <div className={styles.actionCard}>
+          <h3 className={styles.cardTitle}>
+            <Icon name="download" size={16} /> {t('portability.settings.importCard')}
+          </h3>
+          <div className={styles.row}>
+            <ImportButton />
+          </div>
+        </div>
+        <div className={styles.actionCard}>
+          <h3 className={styles.cardTitle}>
+            <Icon name="upload" size={16} /> {t('portability.settings.exportCard')}
+          </h3>
+          <div className={styles.row}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setChoosing(true);
+              }}
+            >
+              <Icon name="upload" size={14} /> {t('portability.settings.exportAll')}
+            </Button>
+          </div>
+        </div>
       </div>
       {choosing && !targets && (
-        <fieldset className={styles.section}>
+        <fieldset className={styles.chooser}>
           <legend className={styles.sectionTitle}>{t('portability.settings.choose')}</legend>
           {groups.map((group) => (
             <label key={group.kind} className={styles.check}>

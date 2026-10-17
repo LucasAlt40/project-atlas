@@ -118,6 +118,8 @@ describe('ImportDialog', () => {
     expect(within(agent).getByText('Needs: Reviewer')).toBeInTheDocument();
     const dependency = within(list).getByRole('listitem', { name: 'Reviewer' });
     expect(within(dependency).getByText('Needed by another')).toBeInTheDocument();
+    // A dependency with nothing wrong waits folded until it is opened.
+    await user.click(within(dependency).getByRole('button', { name: 'Expand Reviewer' }));
     await user.click(within(dependency).getByText('Read the content of Reviewer'));
     expect(within(dependency).getByText('You are Reviewer. Be strict.')).toBeVisible();
     expect(screen.getByText('2 new · 0 replaced · 0 reused · 0 left out')).toBeInTheDocument();
@@ -338,6 +340,7 @@ describe('ImportDialog', () => {
     it('does not let something be imported without what it needs', async () => {
       const { user } = await review(importPreview([reviewer, architect()]));
 
+      await user.click(screen.getByRole('button', { name: 'Expand Reviewer' }));
       await user.selectOptions(
         screen.getByRole('combobox', { name: 'What to do with Reviewer' }),
         'skip',
