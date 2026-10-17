@@ -199,6 +199,7 @@ documentos importados; os que faltam podem ser escritos a partir dos demais.". R
 | S1 | 2026-10-16 | "Specs — Lista de especificações" `a7eb1bf978364f498e6908e8e85b6ed4` (2560×2048) | `edit_screens` a partir de `a60e9fda…`, com bloco comum; timeout, não reenviado, confirmado por `list_screens`. A original segue intacta. |
 | S3 | 2026-10-16 | "Spec — Documento em revisão" `d439e1fbb75c4b7f9d684b0b3c46a543` (2560×2048) | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`. |
 | S6 | 2026-10-16 | "Spec — Revisão final e publicação" `fb6be8f6a81149e3873c33d6d98f31f0` (2560×2048) | `edit_screens` a partir de `5126e494…`; timeout, não reenviado, confirmado por `list_screens`. A original segue intacta. |
+| S4 | 2026-10-16 | "Spec — Agente escrevendo" `4981422ada754146b0cb711a0df3e897` (2560×2048) | `generate_screen_from_text` com bloco comum; timeout, não reenviado, confirmado por `list_screens`. |
 
 ## Avaliação
 
@@ -250,3 +251,20 @@ Pequenos desvios (não implementar): chevron duplicado (à esquerda e à direita
 partir desta spec" e "Arquivar com o OpenSpec CLI"; ponto azul solto no canto da etapa "Revisão final";
 selo "Pronta" repetido (no stepper como texto e no bloco como selo; manter só o do bloco). Os conteúdos
 das quatro seções (campos, botões, textos) não foram desenhados: implementar pelo prompt.
+
+### S4 — Spec — Agente escrevendo
+
+Fiel e consistente com S3/S6 (cabeçalho, metadados, stepper em cartões, moldura). A etapa "Proposta" ficou
+destacada, com "Escrevendo" e barra de progresso azul; a faixa de execução substituiu "Sua decisão" com
+"Detalhes" e "Cancelar execução"; o texto parcial aparece com cursor, e a coluna lateral mostra "Nada
+escrito ainda." e Histórico sem texto.
+
+O Stitch mostra, o app não tem (não implementar):
+
+- Rótulos "transmissão em tempo real" ao lado do nome do arquivo e "Markdown" no canto do cartão do documento.
+- "Aguardando" como selo de "Validações automáticas" (o app não mostra selo antes de haver documento).
+- Um traço "—" no corpo do Histórico (o prompt pedia nenhum texto).
+- Barra de progresso dentro do cartão da etapa "Proposta": o app tem um indicador de execução, mas sem
+  percentual; não mostrar avanço que não existe (usar o indicador animado de "executando").
+- O texto "Proposal / Why" foi desenhado com marcadores "#" e "##" de Markdown visíveis; no app o documento
+  em escrita aparece como texto simples esmaecido.
