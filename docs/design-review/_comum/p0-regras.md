@@ -22,7 +22,7 @@ MOLDURA FIXA (igual em todas as telas, não redesenhe e não acrescente nada):
   direita o botão "Celular" e a alternância PT | EN.
 - NÃO desenhe: busca ou atalho ⌘K, botão "Atlas CLI", ícones de terminal, notificações ou ajustes na
   barra superior, avatar ou e-mail, "Sync OK", botão "Novo Fluxo", telemetria (cluster, latência,
-  RAM, região), barra de status inferior, número de versão inventado.
+  RAM, região), barra de status inferior, número de versão inventado. O topo da barra lateral mostra só o logo "Atlas", sem subtítulo, sem versão e sem "Core" ou "Cluster".
 
 TIPO DE TRABALHO: é uma REPAGINAÇÃO, não um redesenho do zero. Mantenha a identidade atual (tema
 escuro, tokens, fontes, tom técnico). O objetivo é facilidade de acesso e de leitura: hoje o Atlas
@@ -37,7 +37,7 @@ semântica) em vez de formatos diferentes. Cada ação aparece UMA vez (sem bot�
 no rodapé).
 
 USE SÓ O QUE ESTÁ DESCRITO: não invente dados, métricas, contadores, botões, filtros, buscas,
-atalhos de teclado, selos, etapas nem textos de status que não estejam descritos abaixo. Se faltar
+atalhos de teclado, selos, etapas nem textos de status que não estejam descritos abaixo. Não escreva subtítulos, textos de ajuda nem placeholders que não estejam descritos. Se faltar
 informação para preencher um espaço, deixe o espaço vazio ou use um estado vazio simples.
 
 NOME DA TELA: dê um nome curto, claro e em português que diga o que a tela é e para que serve. Use o

@@ -120,4 +120,24 @@ adicionar 2 a 1 arquivo(s), trazer 1 para o Atlas". Estado alternativo: o texto 
 
 | Prompt         | Enviado | Tela gerada no Stitch | Observação |
 | -------------- | ------- | --------------------- | ---------- |
-| (nenhum ainda) |         |                       |            |
+| H1 | 2026-10-16 | "MCP Hub — Servidores" `fa3cca4a27654726aacc04dca4b578b4` (2560×2048) | `edit_screens` criou tela nova; a original `2aa1bde3…` segue intacta. Avaliação abaixo. |
+
+## Avaliação
+
+### H1 — MCP Hub — Servidores
+
+Fiel ao prompt: cabeçalho com subtítulo em duas a três linhas, métricas em uma linha, filtros em uma
+linha, lista compacta de três servidores (github selecionado, playwright com "obrigatória" e "Falhou",
+postgres desligado e esmaecido), avisos recolhíveis com as mensagens, inspetor com as quatro abas, chips
+mono das ferramentas, nota, concessões com "Revogar" e formulário "Conceder". Moldura correta (sem busca
+⌘K na barra superior, sem versão inventada; o ⌘K aparece só no campo de busca, que foi pedido).
+
+Desvios para a implementação tratar:
+
+- "Configuração" saiu como botão com "⋯" à esquerda, não como menu; implementar como `OverflowMenu`.
+- "Guardrails do Atlas" saiu **aberto**; o prompt pedia recolhido (usar `CollapsibleSection` recolhida).
+- O rodapé do inspetor mostra "Exportar…" com "⋯" e "Remover" como botões lado a lado, em vez de menu
+  com "Remover" separado em vermelho; seguir o prompt (menu "⋯", "Remover" em vermelho separado).
+- O seletor "Escolher agente" aparece com o texto cortado na vertical (artefato do Stitch).
+- O aviso do playwright mostra só duas mensagens (as do prompt eram exemplos); manter as mensagens reais.
+- A linha de métricas usa mono em tudo; rótulos ficam em fonte de texto, só os números em mono.
