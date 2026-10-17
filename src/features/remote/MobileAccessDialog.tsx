@@ -70,7 +70,7 @@ export function MobileAccessDialog({ onClose }: { onClose: () => void }) {
   const picked = candidates.find((c) => c.address === chosen);
 
   return (
-    <Modal label={t('remote.title')} onClose={onClose}>
+    <Modal label={t('remote.title')} onClose={onClose} size="wide">
       <div className={styles.dialog}>
         <h2 className={styles.title}>{t('remote.title')}</h2>
         <p className={styles.muted}>{t('remote.intro')}</p>
@@ -145,94 +145,101 @@ export function MobileAccessDialog({ onClose }: { onClose: () => void }) {
               </p>
             )}
 
-            {status.pairing && remaining > 0 ? (
-              <div className={styles.pairing}>
-                <img
-                  className={styles.qr}
-                  src={qrSource(status.pairing.qrSvg)}
-                  alt={t('remote.qr.alt')}
-                  width={224}
-                  height={224}
-                />
-                <div className={styles.pairingText}>
-                  <p className={styles.muted}>{t('remote.scan')}</p>
-                  <p className={styles.codeLabel}>{t('remote.code')}</p>
-                  <p className={styles.code}>{status.pairing.code}</p>
-                  <p className={styles.help}>{t('remote.codeHelp', { url: status.url ?? '' })}</p>
-                  <p className={styles.help}>
-                    {t('remote.expiresIn', { time: countdown(remaining) })}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <p className={styles.muted}>{t('remote.noCode')}</p>
-            )}
-            <div className={styles.row}>
-              <Button
-                variant="secondary"
-                disabled={busy}
-                onClick={() => {
-                  void act(newPairingCode);
-                }}
-              >
-                {t('remote.newCode')}
-              </Button>
-              {status.url && (
-                <>
-                  <code className={styles.url} aria-label={t('remote.url')}>
-                    {status.url}
-                  </code>
-                  <CopyButton text={status.url} />
-                </>
-              )}
-            </div>
-
-            <div className={styles.field}>
-              <div className={styles.rowBetween}>
-                <h3 className={styles.heading}>{t('remote.devices')}</h3>
-                {status.devices.length > 1 && (
+            <div className={styles.columns}>
+              <div className={styles.column}>
+                {status.pairing && remaining > 0 ? (
+                  <div className={styles.pairing}>
+                    <img
+                      className={styles.qr}
+                      src={qrSource(status.pairing.qrSvg)}
+                      alt={t('remote.qr.alt')}
+                      width={224}
+                      height={224}
+                    />
+                    <div className={styles.pairingText}>
+                      <p className={styles.muted}>{t('remote.scan')}</p>
+                      <p className={styles.codeLabel}>{t('remote.code')}</p>
+                      <p className={styles.code}>{status.pairing.code}</p>
+                      <p className={styles.help}>
+                        {t('remote.codeHelp', { url: status.url ?? '' })}
+                      </p>
+                      <p className={styles.help}>
+                        {t('remote.expiresIn', { time: countdown(remaining) })}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className={styles.muted}>{t('remote.noCode')}</p>
+                )}
+                <div className={styles.row}>
                   <Button
-                    variant="ghost"
+                    variant="secondary"
                     disabled={busy}
                     onClick={() => {
-                      void act(revokeAllDevices);
+                      void act(newPairingCode);
                     }}
                   >
-                    {t('remote.revokeAll')}
+                    {t('remote.newCode')}
                   </Button>
-                )}
+                  {status.url && (
+                    <>
+                      <code className={styles.url} aria-label={t('remote.url')}>
+                        {status.url}
+                      </code>
+                      <CopyButton text={status.url} />
+                    </>
+                  )}
+                </div>
               </div>
-              {status.devices.length === 0 ? (
-                <p className={styles.muted}>{t('remote.devices.none')}</p>
-              ) : (
-                <ul className={styles.devices}>
-                  {status.devices.map((device) => (
-                    <li key={device.id} className={styles.device}>
-                      <div>
-                        <strong>{device.name}</strong>
-                        <div className={styles.help}>
-                          {t('remote.devices.meta', {
-                            address: device.address,
-                            time: new Date(device.lastSeen).toLocaleTimeString(language, {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            }),
-                          })}
-                        </div>
-                      </div>
+              <div className={styles.column}>
+                <div className={styles.field}>
+                  <div className={styles.rowBetween}>
+                    <h3 className={styles.heading}>{t('remote.devices')}</h3>
+                    {status.devices.length > 1 && (
                       <Button
-                        variant="danger"
+                        variant="ghost"
                         disabled={busy}
                         onClick={() => {
-                          void act(() => revokeDevice(device.id));
+                          void act(revokeAllDevices);
                         }}
                       >
-                        {t('remote.revoke')}
+                        {t('remote.revokeAll')}
                       </Button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                    )}
+                  </div>
+                  {status.devices.length === 0 ? (
+                    <p className={styles.muted}>{t('remote.devices.none')}</p>
+                  ) : (
+                    <ul className={styles.devices}>
+                      {status.devices.map((device) => (
+                        <li key={device.id} className={styles.device}>
+                          <div>
+                            <strong>{device.name}</strong>
+                            <div className={styles.help}>
+                              {t('remote.devices.meta', {
+                                address: device.address,
+                                time: new Date(device.lastSeen).toLocaleTimeString(language, {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                }),
+                              })}
+                            </div>
+                          </div>
+                          <Button
+                            variant="danger"
+                            disabled={busy}
+                            onClick={() => {
+                              void act(() => revokeDevice(device.id));
+                            }}
+                          >
+                            {t('remote.revoke')}
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
             </div>
           </>
         )}
