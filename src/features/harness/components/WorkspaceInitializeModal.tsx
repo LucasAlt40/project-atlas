@@ -101,6 +101,20 @@ export function WorkspaceInitializeModal({ workspaceId, projects, onClose, onDon
   const ready = projects.filter((p) => item(p.id).status === 'ready');
   const active = item(activeId);
   const names = Object.fromEntries(projects.map((p) => [p.path, p.name]));
+  const aiFailed = ready.filter(
+    (p) =>
+      item(p.id).aiProblem !== undefined ||
+      item(p.id).analysis?.analysis.semantic.status === 'failed',
+  );
+  const aiWarning = (
+    <>
+      {aiFailed.length > 0 && (
+        <p role="alert" className={styles.warning}>
+          {t('harness.multi.aiFailed', { names: aiFailed.map((p) => p.name).join(', ') })}
+        </p>
+      )}
+    </>
+  );
 
   function runSemantic() {
     const request: SemanticRequestDto = {
@@ -108,13 +122,16 @@ export function WorkspaceInitializeModal({ workspaceId, projects, onClose, onDon
       instructions: ai.instructions.trim(),
       restricted: ai.restricted,
     };
+    const targets = ready.filter(
+      (p) => item(p.id).analysis?.analysis.semantic.status !== 'completed',
+    );
     setBusy(true);
     setRunning({
       agentId: request.agentId,
       agentName: ai.agents.find((a) => a.id === request.agentId)?.name ?? request.agentId,
     });
     void Promise.all(
-      ready.map((project) =>
+      targets.map((project) =>
         analyzeProject(workspaceId, request, project.id)
           .then((analysis) => {
             patch(project.id, { analysis, aiProblem: undefined });
@@ -177,7 +194,10 @@ export function WorkspaceInitializeModal({ workspaceId, projects, onClose, onDon
             ? '✓'
             : state.status === 'analyzing'
               ? '…'
-              : state.status === 'failed' || state.submitProblem
+              : state.status === 'failed' ||
+                  state.submitProblem ||
+                  state.aiProblem ||
+                  state.analysis?.analysis.semantic.status === 'failed'
                 ? '!'
                 : '';
         return (
@@ -239,7 +259,12 @@ export function WorkspaceInitializeModal({ workspaceId, projects, onClose, onDon
                   busy={busy}
                   error={active.aiProblem ?? null}
                   form={ai}
-                  header={tabs}
+                  header={
+                    <>
+                      {tabs}
+                      {aiWarning}
+                    </>
+                  }
                   onCancel={onClose}
                   onReview={reviewAll}
                   onUseExisting={reviewAll}
@@ -300,7 +325,12 @@ export function WorkspaceInitializeModal({ workspaceId, projects, onClose, onDon
                 review={active.review}
                 busy={busy}
                 error={active.submitProblem ?? null}
-                header={tabs}
+                header={
+                  <>
+                    {tabs}
+                    {aiWarning}
+                  </>
+                }
                 submitLabel={t('harness.multi.initializeAll', { count: String(ready.length) })}
                 onChange={(review) => {
                   patch(activeId, { review });

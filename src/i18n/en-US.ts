@@ -162,6 +162,8 @@ export const enUS = {
   'harness.multi.initializeAll': 'Initialize {count} project(s)',
   'harness.multi.done': '{done} of {total} projects initialized.',
   'harness.multi.retry': 'Try the failed ones again',
+  'harness.multi.aiFailed':
+    'The AI did not analyse: {names}. They keep only the local analysis until you try again.',
   'projects.reset': 'Reset Harness of {name}',
   'projects.resetConfirm':
     'Delete the Harness of {name} (.atlas/ context, knowledge and backups) so it can be generated again? Your code and your other .atlas/ files stay.',

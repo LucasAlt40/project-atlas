@@ -160,6 +160,8 @@ export const ptBR: Record<TranslationKey, string> = {
   'harness.multi.initializeAll': 'Inicializar {count} projeto(s)',
   'harness.multi.done': '{done} de {total} projetos inicializados.',
   'harness.multi.retry': 'Tentar de novo os que falharam',
+  'harness.multi.aiFailed':
+    'A IA não analisou: {names}. Esses projetos ficam só com a análise local até você tentar de novo.',
   'projects.reset': 'Resetar o Harness de {name}',
   'projects.resetConfirm':
     'Apagar o Harness de {name} (contexto, conhecimento e backups em .atlas/) para gerá-lo de novo? Seu código e os outros arquivos de .atlas/ continuam.',
