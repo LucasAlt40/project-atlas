@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Celular — Painel de execuções</title>
+  <!-- Google Fonts: Geist & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            surface: '#0b0d10',
+            'surface-1': '#101317',
+            'surface-2': '#15191e',
+            'surface-3': '#1c2128',
+            'surface-4': '#242c37',
+            border: '#242c37',
+            'border-subtle': '#1c2128',
+            indigo: {
+              accent: '#6366f1',
+              hover: '#4f46e5',
+            },
+            status: {
+              success: '#10b981',
+              warning: '#f59e0b',
+              error: '#ef4444',
+              running: '#60a5fa',
+            }
+          },
+          fontFamily: {
+            sans: ['Geist', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          borderRadius: {
+            'btn': '12px',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Mobile-first specific resets and constraints */
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      background-color: #0b0d10;
+      color: #f3f4f6;
+      font-family: 'Geist', sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .mobile-viewport {
+      width: 100%;
+      max-width: 390px;
+      min-height: 844px;
+      background-color: #0b0d10;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid #1c2128;
+      border-right: 1px solid #1c2128;
+      padding-bottom: 32px;
+    }
+  </style>
+</head>
+<body class="bg-black antialiased">
+
+  <div class="mobile-viewport">
+
+    <!-- BARRA DE TOPO FIXA (48px) -->
+    <header class="h-12 w-full bg-surface-1 border-b border-border flex items-center justify-between px-4 shrink-0 z-20">
+      <div class="flex items-center gap-2">
+        <span class="font-bold text-[17px] tracking-tight text-white">Atlas</span>
+      </div>
+      <div class="text-[14px] text-zinc-400 font-medium">
+        iPhone do Lucas
+      </div>
+    </header>
+
+    <!-- FAIXA DE ALERTA DISPENSÁVEL (Só quando há) -->
+    <div id="alert-banner" class="bg-amber-950/30 border-b border-amber-500/30 px-4 py-2.5 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+        <span class="text-[15px] font-medium text-amber-200 truncate">Esperando sua resposta</span>
+      </div>
+      <button onclick="document.getElementById('alert-banner').style.display='none'" class="text-[13px] font-medium text-amber-300 hover:text-amber-100 px-2 py-1 rounded border border-amber-500/30 active:bg-amber-900/40 shrink-0">
+        Dispensar
+      </button>
+    </div>
+
+    <!-- ÁREA DE CONTEÚDO PRINCIPAL (Lista agrupada por urgência) -->
+    <main class="flex-1 px-4 py-5 flex flex-col gap-6">
+
+      <!-- GRUPO 1: Precisa de você (1) -->
+      <section class="flex flex-col gap-2.5">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+          <h2 class="text-[14px] font-semibold uppercase tracking-wider text-amber-400">
+            Precisa de você (1)
+          </h2>
+        </div>
+
+        <!-- Cartão 1: Recuperação de senha -->
+        <div role="button" tabindex="0" class="w-full bg-surface-1 active:bg-surface-2 border border-amber-500/40 rounded-lg p-3.5 flex flex-col gap-1.5 transition-colors cursor-pointer shadow-none">
+          <!-- Linha 1: Nome do workflow e selo -->
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-[17px] font-semibold text-white tracking-tight">Recuperação de senha</span>
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[12px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/30 shrink-0">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+              Esperando você
+            </span>
+          </div>
+          <!-- Linha 2: Workspace e tarefa -->
+          <div class="text-[13px] text-zinc-400 truncate font-normal">
+            Transport ERP · Implementar a recuperação de senha por e-mail...
+          </div>
+          <!-- Linha 3: O que importa agora -->
+          <div class="text-[15px] font-medium text-amber-300 pt-0.5">
+            Uma pergunta espera sua resposta
+          </div>
+        </div>
+      </section>
+
+      <!-- GRUPO 2: Em andamento (1) -->
+      <section class="flex flex-col gap-2.5">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+          <h2 class="text-[14px] font-semibold uppercase tracking-wider text-zinc-300">
+            Em andamento (1)
+          </h2>
+        </div>
+
+        <!-- Cartão 2: Revisão do faturamento -->
+        <div role="button" tabindex="0" class="w-full bg-surface-1 active:bg-surface-2 border border-border rounded-lg p-3.5 flex flex-col gap-1.5 transition-colors cursor-pointer">
+          <!-- Linha 1: Nome do workflow e selo -->
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-[17px] font-semibold text-white tracking-tight">Revisão do faturamento</span>
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[12px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/30 shrink-0">
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
+              Executando
+            </span>
+          </div>
+          <!-- Linha 2: Workspace e tarefa -->
+          <div class="text-[13px] text-zinc-400 truncate font-normal">
+            Transport ERP · Auditoria de conciliação bancária determinística...
+          </div>
+          <!-- Linha 3: O que importa agora -->
+          <div class="text-[14px] text-zinc-300 flex items-center justify-between pt-0.5 font-normal">
+            <span>Developer · 2 de 4 etapas</span>
+            <span class="font-mono text-[13px] text-zinc-400">32m 01s</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- GRUPO 3: Com falha (1) -->
+      <section class="flex flex-col gap-2.5">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-red-400"></span>
+          <h2 class="text-[14px] font-semibold uppercase tracking-wider text-red-400">
+            Com falha (1)
+          </h2>
+        </div>
+
+        <!-- Cartão 3: Exportar CSV -->
+        <div role="button" tabindex="0" class="w-full bg-surface-1 active:bg-surface-2 border border-red-500/30 rounded-lg p-3.5 flex flex-col gap-1.5 transition-colors cursor-pointer">
+          <!-- Linha 1: Nome do workflow e selo -->
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-[17px] font-semibold text-white tracking-tight">Exportar CSV</span>
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[12px] font-medium bg-red-500/10 text-red-400 border border-red-500/30 shrink-0">
+              <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+              Falhou
+            </span>
+          </div>
+          <!-- Linha 2: Workspace e tarefa -->
+          <div class="text-[13px] text-zinc-400 truncate font-normal">
+            Transport ERP · Exportação em lote de faturas consolidadas...
+          </div>
+          <!-- Linha 3: O que importa agora -->
+          <div class="text-[15px] font-medium text-red-400 pt-0.5">
+            A execução falhou.
+          </div>
+        </div>
+      </section>
+
+      <!-- GRUPO 4: Terminadas recentemente (1) -->
+      <section class="flex flex-col gap-2.5">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <h2 class="text-[14px] font-semibold uppercase tracking-wider text-zinc-400">
+            Terminadas recentemente (1)
+          </h2>
+        </div>
+
+        <!-- Cartão 4: Modo escuro -->
+        <div role="button" tabindex="0" class="w-full bg-surface-1 active:bg-surface-2 border border-border rounded-lg p-3.5 flex flex-col gap-1.5 transition-colors cursor-pointer">
+          <!-- Linha 1: Nome do workflow e selo -->
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-[17px] font-semibold text-white tracking-tight">Modo escuro</span>
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[12px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shrink-0">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              Concluída
+            </span>
+          </div>
+          <!-- Linha 2: Workspace e tarefa -->
+          <div class="text-[13px] text-zinc-400 truncate font-normal">
+            Transport ERP · Suporte completo ao tema escuro sincronizado...
+          </div>
+          <!-- Linha 3: O que importa agora -->
+          <div class="text-[14px] text-zinc-300 flex items-center justify-between pt-0.5 font-normal">
+            <span>3 de 3 etapas</span>
+            <span class="font-mono text-[13px] text-zinc-400">1h 00m</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ÁREA INFERIOR: AVISO E DESCONEXÃO -->
+      <div class="mt-4 pt-4 border-t border-border flex flex-col gap-3">
+        <div class="text-[13px] text-zinc-500 leading-relaxed font-normal">
+          O Atlas roda no seu computador. Esta página só funciona enquanto ele estiver ligado, acordado e na mesma rede.
+        </div>
+        <div class="pt-1">
+          <a href="#" class="inline-block text-[15px] font-medium text-zinc-400 hover:text-red-400 active:text-red-300 transition-colors py-2">
+            Desconectar este celular
+          </a>
+        </div>
+      </div>
+
+    </main>
+
+  </div>
+
+</body>
+</html>

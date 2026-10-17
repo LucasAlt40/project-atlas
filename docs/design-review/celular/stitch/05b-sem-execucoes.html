@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Celular — Sem execuções</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            surface: {
+              DEFAULT: '#0b0d10',
+              base: '#0b0d10',
+              elevated: '#101317',
+              card: '#15191e',
+              border: '#1c2128',
+              hover: '#242c37'
+            },
+            accent: {
+              indigo: '#6366f1'
+            },
+            status: {
+              success: '#10b981',
+              warning: '#f59e0b',
+              error: '#ef4444',
+              running: '#60a5fa'
+            }
+          },
+          fontFamily: {
+            sans: ['Geist', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      background-color: #0b0d10;
+      color: #f3f4f6;
+      font-family: 'Geist', sans-serif;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-[#0b0d10] text-gray-100 flex flex-col justify-between selection:bg-[#6366f1]/30">
+
+  <!-- Top Bar Fixa de 48px -->
+  <header class="h-12 w-full border-b border-[#1c2128] bg-[#0b0d10] px-5 flex items-center justify-between shrink-0 select-none">
+    <div class="text-[17px] font-semibold tracking-tight text-white flex items-center gap-2">
+      <span>Atlas</span>
+    </div>
+    <div class="text-[13px] font-mono text-gray-400">
+      iPhone do Lucas
+    </div>
+  </header>
+
+  <!-- Área Central: Estado Vazio -->
+  <main class="flex-1 flex flex-col items-center justify-center px-6 text-center max-w-[390px] mx-auto w-full">
+    <div class="p-6 rounded-lg border border-[#1c2128] bg-[#101317] w-full">
+      <p class="text-[15px] leading-relaxed text-gray-300 font-normal">
+        Ainda não há execuções. Inicie um workflow no computador e ele aparece aqui.
+      </p>
+    </div>
+  </main>
+
+  <!-- Rodapé: Desconectar e Aviso de Conectividade Local -->
+  <footer class="w-full px-6 pb-8 pt-4 flex flex-col items-center text-center max-w-[390px] mx-auto shrink-0 space-y-4">
+    <!-- Link com alvo de toque adequado de no mínimo 44px -->
+    <a 
+      href="#" 
+      class="min-h-[44px] inline-flex items-center justify-center text-[15px] font-medium text-gray-400 hover:text-white transition-colors duration-150 active:text-gray-200"
+    >
+      Desconectar este celular
+    </a>
+
+    <!-- Aviso sobre o Atlas rodar no computador -->
+    <p class="text-[13px] leading-relaxed text-gray-500 font-normal">
+      O Atlas roda no seu computador. Esta página só funciona enquanto ele estiver ligado, acordado e na mesma rede.
+    </p>
+  </footer>
+
+</body>
+</html>

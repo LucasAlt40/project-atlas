@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Celular — Execução esperando resposta</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            surface: {
+              DEFAULT: '#0b0d10',
+              layer1: '#101317',
+              layer2: '#15191e',
+              layer3: '#1c2128',
+              layer4: '#242c37',
+            },
+            primary: '#6366f1',
+            semantic: {
+              success: '#10b981',
+              warning: '#f59e0b',
+              error: '#ef4444',
+              running: '#60a5fa',
+            }
+          },
+          fontFamily: {
+            sans: ['Geist', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Safe areas and clean interaction styling */
+    body {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .touch-target {
+      min-height: 44px;
+    }
+  </style>
+</head>
+<body class="bg-surface text-slate-100 font-sans antialiased min-h-screen flex justify-center selection:bg-primary/30">
+
+  <!-- Mobile Device Frame Container (390px x 844px) -->
+  <main class="w-full max-w-[390px] min-h-[844px] bg-surface flex flex-col relative border-x border-surface-layer3/40 shadow-2xl">
+
+    <!-- Top Fixed Bar (48px) -->
+    <header class="h-12 w-full bg-surface-layer1 border-b border-surface-layer3 flex items-center justify-between px-4 sticky top-0 z-30 shrink-0">
+      <div class="flex items-center gap-3">
+        <button type="button" class="text-[15px] font-medium text-slate-400 hover:text-slate-100 flex items-center gap-1 touch-target py-2 pr-2 active:opacity-70 transition-opacity">
+          <span>‹</span>
+          <span>Voltar</span>
+        </button>
+        <span class="text-[16px] font-semibold text-slate-100 tracking-tight">Atlas</span>
+      </div>
+      <div class="text-[13px] font-mono text-slate-400">
+        iPhone do Lucas
+      </div>
+    </header>
+
+    <!-- Scrollable Content Container (padding bottom for fixed action bar) -->
+    <div class="flex-1 flex flex-col px-4 pt-4 pb-48 overflow-y-auto space-y-4">
+
+      <!-- Execution Header Block -->
+      <section class="space-y-2">
+        <div class="flex items-center justify-between gap-2">
+          <h1 class="text-[19px] font-semibold text-slate-100 tracking-tight leading-snug">
+            Recuperação de senha
+          </h1>
+          <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-semantic-warning/10 border border-semantic-warning/30 text-semantic-warning shrink-0">
+            <span class="w-2 h-2 rounded-full bg-semantic-warning animate-pulse"></span>
+            <span class="text-[12px] font-medium tracking-wide">Esperando você</span>
+          </div>
+        </div>
+
+        <!-- Meta Line in Mono -->
+        <div class="text-[13px] font-mono text-slate-400">
+          Transport ERP · iniciada 22:10 · 14m 06s
+        </div>
+
+        <!-- Tarefa Recolhível -->
+        <details class="group bg-surface-layer1 border border-surface-layer3 rounded-[8px] overflow-hidden">
+          <summary class="list-none flex items-center justify-between px-3 py-2.5 cursor-pointer touch-target active:bg-surface-layer2 transition-colors">
+            <span class="text-[13px] text-slate-400">Tarefa</span>
+            <div class="flex items-center gap-1.5 text-slate-400 group-open:text-slate-200">
+              <span class="text-[13px] font-medium text-slate-300 truncate max-w-[210px] group-open:hidden">Implementar a recuperação de senha...</span>
+              <svg class="w-4 h-4 transition-transform duration-200 group-open:rotate-180 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </summary>
+          <div class="px-3 pb-3 pt-1 border-t border-surface-layer3/40 text-[14px] text-slate-300 leading-relaxed">
+            Implementar a recuperação de senha por e-mail
+          </div>
+        </details>
+      </section>
+
+      <!-- Question Card (Amber Focus Element) -->
+      <section class="bg-surface-layer1 border border-semantic-warning/40 rounded-[8px] p-4 space-y-3 relative overflow-hidden">
+        <div class="absolute top-0 left-0 bottom-0 w-1 bg-semantic-warning"></div>
+
+        <!-- Role / Sender Tag -->
+        <div class="text-[13px] font-mono text-semantic-warning/90 font-medium pl-1">
+          Plano para aprovar · Developer · Dev agent
+        </div>
+
+        <!-- Main Question -->
+        <h2 class="text-[18px] font-semibold text-slate-100 leading-snug pl-1">
+          Você aprova este plano?
+        </h2>
+
+        <!-- Plan Document Box -->
+        <div class="bg-surface-layer2 border border-surface-layer3 rounded-[6px] p-3 space-y-2">
+          <p id="plan-text" class="text-[15px] text-slate-200 leading-relaxed">
+            O plano: criar a rota de recuperação; enviar o e-mail com o link; escrever os testes
+          </p>
+
+          <button type="button" id="toggle-plan-btn" class="text-[13px] font-medium text-primary hover:text-indigo-400 touch-target flex items-center py-1 select-none active:opacity-75">
+            Mostrar o texto inteiro
+          </button>
+        </div>
+      </section>
+
+      <!-- Collapsible Section: Etapas -->
+      <details class="group bg-surface-layer1 border border-surface-layer3 rounded-[8px] overflow-hidden">
+        <summary class="list-none flex items-center justify-between px-3 py-3 cursor-pointer touch-target active:bg-surface-layer2 transition-colors">
+          <div class="flex flex-col">
+            <span class="text-[15px] font-medium text-slate-200">Etapas</span>
+            <span class="text-[13px] font-mono text-slate-400">1 de 3 etapas concluídas · Developer espera você</span>
+          </div>
+          <svg class="w-4 h-4 transition-transform duration-200 group-open:rotate-180 text-slate-400 shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </summary>
+        <div class="px-3 pb-3 pt-2 border-t border-surface-layer3/40 space-y-2 text-[14px]">
+          <div class="flex items-center justify-between py-1 border-b border-surface-layer3/30">
+            <span class="text-slate-400">1. Análise e escopo</span>
+            <span class="text-semantic-success font-mono text-[13px]">Concluída</span>
+          </div>
+          <div class="flex items-center justify-between py-1 border-b border-surface-layer3/30">
+            <span class="text-slate-200 font-medium">2. Elaboração do plano</span>
+            <span class="text-semantic-warning font-mono text-[13px]">Esperando você</span>
+          </div>
+          <div class="flex items-center justify-between py-1">
+            <span class="text-slate-500">3. Implementação e testes</span>
+            <span class="text-slate-500 font-mono text-[13px]">Pendente</span>
+          </div>
+        </div>
+      </details>
+
+      <!-- Collapsible Section: Controlar a execução -->
+      <details class="group bg-surface-layer1 border border-surface-layer3 rounded-[8px] overflow-hidden">
+        <summary class="list-none flex items-center justify-between px-3 py-3 cursor-pointer touch-target active:bg-surface-layer2 transition-colors">
+          <span class="text-[15px] font-medium text-slate-200">Controlar a execução</span>
+          <svg class="w-4 h-4 transition-transform duration-200 group-open:rotate-180 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </summary>
+        <div class="px-3 pb-3 pt-2 border-t border-surface-layer3/40 flex justify-end">
+          <button type="button" class="px-3.5 py-2 rounded-[8px] border border-semantic-error/40 text-semantic-error hover:bg-semantic-error/10 text-[14px] font-medium touch-target active:opacity-75 transition-colors">
+            Cancelar a execução
+          </button>
+        </div>
+      </details>
+
+    </div>
+
+    <!-- Fixed Action Bar at the Bottom (Thumb-reach area) -->
+    <footer class="fixed bottom-0 w-full max-w-[390px] bg-surface-layer1/95 backdrop-blur-md border-t border-surface-layer3 p-4 z-40 space-y-2.5">
+
+      <!-- Note toggle and expanding input -->
+      <div>
+        <button type="button" id="toggle-note-btn" class="text-[13px] font-medium text-slate-400 hover:text-slate-200 flex items-center gap-1.5 py-1 px-1 touch-target active:opacity-75 transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          <span>Uma nota para o agente (opcional)</span>
+        </button>
+        <div id="note-input-container" class="hidden pt-1.5">
+          <textarea rows="2" class="w-full bg-surface-layer2 border border-surface-layer3 rounded-[8px] p-2.5 text-[14px] text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary resize-none" placeholder="Escreva instruções ou observações para o agente..."></textarea>
+        </div>
+      </div>
+
+      <!-- Primary Action: Aprovar (Full width, 48px height, 12px radius) -->
+      <button type="button" class="w-full h-12 rounded-[12px] bg-primary hover:bg-indigo-500 text-white font-medium text-[16px] shadow-sm flex items-center justify-center active:scale-[0.99] transition-transform touch-target">
+        Aprovar
+      </button>
+
+      <!-- Secondary Actions: Pedir ajustes & Refazer o plano -->
+      <div class="grid grid-cols-2 gap-2.5 pt-0.5">
+        <button type="button" class="h-11 rounded-[12px] bg-surface-layer2 border border-surface-layer3 hover:bg-surface-layer3 text-slate-200 font-medium text-[14px] flex items-center justify-center active:bg-surface-layer4 transition-colors touch-target">
+          Pedir ajustes
+        </button>
+        <button type="button" class="h-11 rounded-[12px] bg-surface-layer2 border border-semantic-error/40 hover:bg-semantic-error/10 text-semantic-error font-medium text-[14px] flex items-center justify-center active:bg-semantic-error/20 transition-colors touch-target">
+          Refazer o plano
+        </button>
+      </div>
+
+    </footer>
+
+  </main>
+
+  <script>
+    // Toggle plan text expansion
+    const togglePlanBtn = document.getElementById('toggle-plan-btn');
+    const planText = document.getElementById('plan-text');
+    let isPlanExpanded = false;
+
+    if (togglePlanBtn && planText) {
+      togglePlanBtn.addEventListener('click', () => {
+        isPlanExpanded = !isPlanExpanded;
+        if (isPlanExpanded) {
+          planText.textContent = "O plano: criar a rota de recuperação; enviar o e-mail com o link; escrever os testes. Detalhamento de execução: validar o formato do e-mail de entrada no repositório de usuários, gerar token criptografado com TTL de 15 minutos, disparar template HTML via provedor SMTP configurado e validar com suíte de testes unitários e de integração.";
+          togglePlanBtn.textContent = "Mostrar menos";
+        } else {
+          planText.textContent = "O plano: criar a rota de recuperação; enviar o e-mail com o link; escrever os testes";
+          togglePlanBtn.textContent = "Mostrar o texto inteiro";
+        }
+      });
+    }
+
+    // Toggle note input visibility
+    const toggleNoteBtn = document.getElementById('toggle-note-btn');
+    const noteContainer = document.getElementById('note-input-container');
+
+    if (toggleNoteBtn && noteContainer) {
+      toggleNoteBtn.addEventListener('click', () => {
+        noteContainer.classList.toggle('hidden');
+        if (!noteContainer.classList.contains('hidden')) {
+          const textarea = noteContainer.querySelector('textarea');
+          if (textarea) textarea.focus();
+        }
+      });
+    }
+  </script>
+</body>
+</html>
