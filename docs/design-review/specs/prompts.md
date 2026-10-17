@@ -196,4 +196,24 @@ documentos importados; os que faltam podem ser escritos a partir dos demais.". R
 
 | Prompt         | Enviado | Tela gerada no Stitch | Observação |
 | -------------- | ------- | --------------------- | ---------- |
-| (nenhum ainda) |         |                       |            |
+| S1 | 2026-10-16 | "Specs — Lista de especificações" `a7eb1bf978364f498e6908e8e85b6ed4` (2560×2048) | `edit_screens` a partir de `a60e9fda…`, com bloco comum; timeout, não reenviado, confirmado por `list_screens`. A original segue intacta. |
+
+## Avaliação
+
+### S1 — Specs — Lista de especificações
+
+Fiel: cabeçalho sem a trilha "SDD…", abas com contagem e busca na mesma linha, cartões em grade de 3 colunas
+com barra colorida e selo de estado, barra de avanço, alerta âmbar no cartão de senha e "Todos os documentos
+aprovados" no cartão pronto. Moldura correta, v0.1.5.
+
+O Stitch mostra, o app não tem (não implementar):
+
+- Rótulo "Aprovação técnica" acima da barra de avanço (o app mostra só "1/4 aprovados").
+- Textos de pedido inventados em todos os cartões ("Suporte completo a tema escuro…"); usar o pedido real.
+- Agentes inventados ("Implementador API", "Arquiteto .NET Sênior") e etapas "Design Técnico" e "Validação
+  Final"; usar os nomes reais das etapas (Proposta, Requisitos, Design, Tarefas, Revisão final).
+- Ids novos além do pedido ("export-invoices-csv", "password-recovery", "metrics-dashboard"); só o dado real.
+
+Problemas de layout para o app não repetir: o pé do cartão ("Agora: …  há …") e o alerta âmbar ficam
+cortados (o texto precisa quebrar ou ir para duas linhas); o id "billing-refactor" e o selo "Pronta para
+implementação" quebram em duas linhas; o botão primário saiu com "+ +" (ícone e texto repetidos).
