@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { AtlasLogo } from '@/components/brand/AtlasLogo';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import styles from './AppShell.module.css';
@@ -31,16 +31,36 @@ interface Props {
 const COLLAPSED_KEY = 'atlas.sidebar.collapsed';
 
 /** Below this width the window has no room for the sidebar, unless the user chose otherwise. */
-const NARROW_WINDOW = 900;
+const NARROW_QUERY = '(max-width: 899px)';
 
-function readCollapsed(): boolean {
+/** What the user chose for the sidebar, or `null` when they never did. */
+function readChoice(): boolean | null {
   try {
     const stored = localStorage.getItem(COLLAPSED_KEY);
-    if (stored !== null) return stored === '1';
+    return stored === null ? null : stored === '1';
   } catch {
-    // Without storage the window width decides.
+    return null;
   }
-  return window.innerWidth < NARROW_WINDOW;
+}
+
+/** Whether the window is narrow now, and when that changes. */
+function useNarrowWindow(): boolean {
+  const [narrow, setNarrow] = useState(
+    () => typeof window.matchMedia === 'function' && window.matchMedia(NARROW_QUERY).matches,
+  );
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return undefined;
+    const query = window.matchMedia(NARROW_QUERY);
+    const update = () => {
+      setNarrow(query.matches);
+    };
+    update();
+    query.addEventListener('change', update);
+    return () => {
+      query.removeEventListener('change', update);
+    };
+  }, []);
+  return narrow;
 }
 
 export function AppShell({
@@ -56,11 +76,13 @@ export function AppShell({
   breadcrumb,
   children,
 }: Props) {
-  const [collapsed, setCollapsed] = useState(readCollapsed);
+  const [choice, setChoice] = useState(readChoice);
+  const narrow = useNarrowWindow();
+  const collapsed = choice ?? narrow;
   const toggleLabel = collapsed ? expandLabel : collapseLabel;
   function toggle() {
     const next = !collapsed;
-    setCollapsed(next);
+    setChoice(next);
     try {
       localStorage.setItem(COLLAPSED_KEY, next ? '1' : '0');
     } catch {

@@ -87,73 +87,61 @@
   outline: 0;
 }
 
+.back {
+  align-self: flex-start;
+  margin-left: calc(var(--space-3) * -1);
+}
 .crumb {
   color: var(--text-dim);
   font-family: var(--font-mono);
   font-size: 0.75rem;
 }
 
-/* A row of instrument readouts above the list: one bordered strip, cells split by 1px strokes. */
-.stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  margin: 0;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--surface-1);
-}
-.stat {
+/* The numbers of the catalogue as one quiet line, not four boxes. */
+.summary {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--space-3) var(--space-4);
-}
-.stat + .stat {
-  border-left: 1px solid var(--border-subtle);
-}
-.statLabel {
-  color: var(--text-dim);
-  font-family: var(--font-mono);
-  font-size: 0.625rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-.statValue {
+  flex-wrap: wrap;
+  gap: var(--space-1) 0;
   margin: 0;
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border-subtle);
+  list-style: none;
+  color: var(--text-muted);
+}
+.summary li + li::before {
+  content: '·';
+  margin: 0 var(--space-3);
+  color: var(--text-dim);
+}
+.summary b {
   color: var(--text-high);
   font-family: var(--font-mono);
-  font-size: var(--font-size-lg);
-  font-variant-numeric: tabular-nums;
+  font-weight: 500;
 }
-.statDetail {
-  color: var(--text-muted);
-  font-size: 0.6875rem;
-}
-
 .tabsBar {
-  display: inline-flex;
-  gap: 2px;
-  align-self: flex-start;
-  padding: 2px;
-  border-radius: var(--radius-md);
-  background: var(--surface-void);
+  display: flex;
+  gap: var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+  overflow-x: auto;
 }
 .filterTab {
-  height: 1.75rem;
-  padding: 0 var(--space-4);
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  flex: none;
+  height: 2.25rem;
+  margin-bottom: -1px;
+  padding: 0 var(--space-1);
+  border: 0;
+  border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--text-muted);
   font: inherit;
   font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
 }
 .filterTab:hover {
   color: var(--text-high);
 }
 .filterTab[aria-pressed='true'] {
-  border-color: var(--border-strong);
-  background: var(--surface-2);
+  border-bottom-color: var(--accent-soft);
   color: var(--text-high);
 }

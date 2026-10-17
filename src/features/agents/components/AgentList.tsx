@@ -1,9 +1,12 @@
 import { useState } from 'react';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
+import { OverflowMenu } from '@/components/ui/OverflowMenu';
 import type { TranslationKey } from '@/i18n';
 import { errorMessage } from '@/i18n/messages';
 import { useT } from '@/i18n/I18nProvider';
-import { ExportButton } from '@/features/portability';
+import { ExportDialog } from '@/features/portability';
 import type { Agent, Personality } from '../types';
 import styles from './Panels.module.css';
 
@@ -18,6 +21,8 @@ interface Props {
   onDelete: (agentId: string) => Promise<void>;
   /** The list is narrowed by a search, so an empty list means "no match". */
   filtered?: boolean;
+  /** Offered in the empty state, when there is no agent at all. */
+  onCreate?: () => void;
 }
 
 /** Every saved agent, whether or not it is in a workspace. */
@@ -29,10 +34,12 @@ export function AgentList({
   onEdit,
   onDelete,
   filtered = false,
+  onCreate,
 }: Props) {
   const t = useT();
   const [confirming, setConfirming] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState<Agent | null>(null);
 
   function confirmDelete(agentId: string) {
     setError(null);
@@ -46,7 +53,18 @@ export function AgentList({
   }
 
   if (agents.length === 0) {
-    return <p className={styles.muted}>{t(filtered ? 'agents.noMatch' : 'agents.empty')}</p>;
+    if (filtered) return <p className={styles.muted}>{t('agents.noMatch')}</p>;
+    return (
+      <div className={styles.emptyState}>
+        <p>{t('agents.empty')}</p>
+        {onCreate && (
+          <Button onClick={onCreate}>
+            <Icon name="plus" size={14} />
+            {t('agents.create')}
+          </Button>
+        )}
+      </div>
+    );
   }
   return (
     <>
@@ -78,19 +96,23 @@ export function AgentList({
             <li key={agent.id} className={styles.agentCard}>
               <header className={styles.agentCardHead}>
                 <span className={styles.agentIcon} aria-hidden="true">
-                  <Icon name="agents" size={22} />
+                  <Icon name="agents" size={20} />
                 </span>
                 <div className={styles.agentCardTitle}>
                   <div className={styles.agentNameRow}>
                     <strong className={styles.agentCardName}>{agent.name}</strong>
-                    <span className={styles.chip}>{personality?.name ?? agent.personalityId}</span>
+                    <Badge mono caps={false}>
+                      {personality?.name ?? agent.personalityId}
+                    </Badge>
                   </div>
-                  <span className={styles.agentRuntime}>{runtimeName(agent.runtimeId)}</span>
+                  <span className={styles.agentRuntime}>
+                    {t('agents.card.runtime')}: <b>{runtimeName(agent.runtimeId)}</b>
+                  </span>
                 </div>
                 {ready !== undefined && (
-                  <span className={styles.statusPill} data-ready={ready}>
+                  <Badge dot mono tone={ready ? 'success' : 'warning'}>
                     {t(ready ? 'agent.status.ready' : 'agent.status.unavailable')}
-                  </span>
+                  </Badge>
                 )}
               </header>
               <dl className={styles.agentFacts}>
@@ -109,50 +131,54 @@ export function AgentList({
                     className={styles.confirm}
                   >
                     {t('agents.deleteConfirm', { name: agent.name })}
-                    <button
-                      type="button"
-                      className={styles.danger}
+                    <Button
+                      variant="danger"
                       onClick={() => {
                         confirmDelete(agent.id);
                       }}
                     >
                       {t('common.confirmDelete')}
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.linkButton}
+                    </Button>
+                    <Button
+                      variant="ghost"
                       onClick={() => {
                         setConfirming(null);
                       }}
                     >
                       {t('common.cancel')}
-                    </button>
+                    </Button>
                   </span>
                 ) : (
                   <span className={styles.iconActions}>
-                    <ExportButton kind="agent" id={agent.id} name={agent.name} />
-                    <button
-                      type="button"
-                      className={styles.iconButton}
+                    <Button
+                      variant="secondary"
                       aria-label={t('workspace.editAgent', { name: agent.name })}
-                      title={t('common.edit')}
                       onClick={() => {
                         onEdit(agent.id);
                       }}
                     >
-                      <Icon name="edit" size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className={[styles.iconButton, styles.iconDanger].join(' ')}
-                      aria-label={t('workspace.manage.deleteLabel', { name: agent.name })}
-                      title={t('common.delete')}
-                      onClick={() => {
-                        setConfirming(agent.id);
-                      }}
-                    >
-                      <Icon name="trash" size={16} />
-                    </button>
+                      {t('common.edit')}
+                    </Button>
+                    <OverflowMenu
+                      label={t('agent.moreActions', { name: agent.name })}
+                      items={[
+                        {
+                          label: t('portability.export'),
+                          icon: 'upload',
+                          onSelect: () => {
+                            setExporting(agent);
+                          },
+                        },
+                        {
+                          label: t('common.delete'),
+                          icon: 'trash',
+                          danger: true,
+                          onSelect: () => {
+                            setConfirming(agent.id);
+                          },
+                        },
+                      ]}
+                    />
                   </span>
                 )}
               </footer>
@@ -160,6 +186,15 @@ export function AgentList({
           );
         })}
       </ul>
+      {exporting && (
+        <ExportDialog
+          targets={[{ kind: 'agent', id: exporting.id }]}
+          title={t('portability.export.title', { name: exporting.name })}
+          onClose={() => {
+            setExporting(null);
+          }}
+        />
+      )}
     </>
   );
 }

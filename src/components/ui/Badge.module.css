@@ -20,6 +20,10 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
+.badge[data-mono][data-caps='false'] {
+  text-transform: none;
+  letter-spacing: 0;
+}
 .badge[data-tone='accent'] {
   --tone: var(--accent-soft);
 }
@@ -31,6 +35,9 @@
 }
 .badge[data-tone='danger'] {
   --tone: var(--danger);
+}
+.badge[data-tone='policy'] {
+  --tone: var(--policy);
 }
 .badge[data-tone='info'] {
   --tone: var(--info);

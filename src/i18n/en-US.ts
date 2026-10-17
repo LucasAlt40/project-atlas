@@ -588,10 +588,10 @@ export const enUS = {
   'agents.subtitle': 'Manage your autonomous agents, runtime connections and permissions.',
   'agents.search': 'Search agent or model…',
   'agents.count': '{n} total',
-  'agents.stat.agents': 'Agents',
-  'agents.stat.runtimes': 'Runtimes ready',
-  'agents.stat.isolated': 'With Git isolation',
-  'agents.stat.contract': 'With a defined result',
+  'agents.stat.agents': 'agents',
+  'agents.stat.runtimes': 'runtimes ready',
+  'agents.stat.isolated': 'with Git isolation',
+  'agents.stat.contract': 'with a defined result',
   'agents.filter.label': 'Filter by availability',
   'agents.filter.all': 'All',
   'agents.filter.ready': 'Ready',
@@ -3651,6 +3651,8 @@ export const enUS = {
   'harness.manual.local': 'Local, immediate detection',
   'harness.manual.noTokens': 'No model tokens used',
   'harness.manual.cta': 'Continue without AI',
+  'agents.card.runtime': 'Runtime',
+  'agents.summary': 'Agents summary',
 } as const;
 
 export type TranslationKey = keyof typeof enUS;
