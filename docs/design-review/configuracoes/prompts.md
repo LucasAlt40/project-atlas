@@ -135,13 +135,13 @@ partes. "Sobre": três pares rótulo/valor em mono: Atlas "Project Atlas", Vers�
 
 ## Registro de envios
 
-| Prompt         | Enviado | Tela gerada no Stitch | Observação |
-| -------------- | ------- | --------------------- | ---------- |
-| C1 | 2026-10-16 | "Configurações — Geral" `67ed2d6872a94adc9838d074b6fab48e` (2560×2048) | `generate_screen_from_text` com os acréscimos do módulo; timeout, não reenviado, confirmado por `list_screens`. |
-| C2 | 2026-10-16 | "Configurações — Memória" `531ba78a90f042819c5788c9f9a07fac` (2560×2048) | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`. |
-| C3 | 2026-10-16 | "Configurações — Importar e exportar" `f51323b94a09433fb8f5a56733ff2fee` (2560×2048) | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`. |
-| C4 | 2026-10-16 | "Configurações — Revisar importação" `34439c29d5234a84aa9bea57546f8c17` (2560×2048) | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`. |
-| C5 | 2026-10-16 | "Configurações — Sobre e atualizações" `7c2b416caa5d408c974bc972850cc9c3` (2560×2048) | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`. |
+| Prompt | Enviado    | Tela gerada no Stitch                                                                 | Observação                                                                                                      |
+| ------ | ---------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| C1     | 2026-10-16 | "Configurações — Geral" `67ed2d6872a94adc9838d074b6fab48e` (2560×2048)                | `generate_screen_from_text` com os acréscimos do módulo; timeout, não reenviado, confirmado por `list_screens`. |
+| C2     | 2026-10-16 | "Configurações — Memória" `531ba78a90f042819c5788c9f9a07fac` (2560×2048)              | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`.                             |
+| C3     | 2026-10-16 | "Configurações — Importar e exportar" `f51323b94a09433fb8f5a56733ff2fee` (2560×2048)  | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`.                             |
+| C4     | 2026-10-16 | "Configurações — Revisar importação" `34439c29d5234a84aa9bea57546f8c17` (2560×2048)   | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`.                             |
+| C5     | 2026-10-16 | "Configurações — Sobre e atualizações" `7c2b416caa5d408c974bc972850cc9c3` (2560×2048) | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`.                             |
 
 ## Avaliação
 

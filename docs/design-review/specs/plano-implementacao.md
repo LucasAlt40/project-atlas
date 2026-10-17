@@ -13,16 +13,16 @@ estado da spec e confira cada um com o harness antes de passar ao próximo.
 
 Ids das telas geradas no Stitch (registro e avaliação em `prompts.md`).
 
-| #   | Tela (nome no Stitch)             | Id da tela nova | Código do app (hipótese a confirmar)                                                                                             |
-| --- | --------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| S1  | Specs — Lista de especificações   | `a7eb1bf978364f498e6908e8e85b6ed4`   | `specs/pages/SpecsPage.tsx`, `components/Overview.tsx`, `SpecCard.tsx`, `StatusBadge.tsx`, `model/status.ts`, `Specs.module.css` |
-| S2  | Specs — Sem especificações        | `0de3cab5da26442f9bf7cf0ca0d08ba0`   | `Overview.tsx` (ramo vazio)                                                                                                      |
-| S3  | Spec — Documento em revisão       | `d439e1fbb75c4b7f9d684b0b3c46a543`   | `SpecDetail.tsx`, `Stepper.tsx`, `Dock.tsx`, `ArtifactDocument.tsx`, `Inspector.tsx`, `UsageBar.tsx`, `RequestChangesDialog.tsx` |
-| S4  | Spec — Agente escrevendo          | `4981422ada754146b0cb711a0df3e897`   | `RunBanner.tsx`, `SpecDetail.tsx`                                                                                                |
-| S5  | Spec — Perguntas e achados        | `6eadf408b4f543b6b75a02cab206660e`   | `OpenQuestions.tsx`, `QuestionCard.tsx`, `AnswerQuestionsDialog.tsx`, `SendAnswersDialog.tsx`, `Findings.tsx`                    |
-| S6  | Spec — Revisão final e publicação | `fb6be8f6a81149e3873c33d6d98f31f0`   | `FinalReview.tsx`, `ReviewPanel.tsx`, `PublishPanel.tsx`, `CliPanel.tsx`, `SpecRunPanel.tsx`                                     |
-| S7  | Specs — Nova especificação        | `3e2672ca7f07412bbe13d373685356fb`   | `NewSpecDialog.tsx`, `IntegrationsPicker.tsx`, `AgentsDialog.tsx`                                                                |
-| S8  | Specs — Importar do projeto       | `00d70d7a6e5e4f649ceff03b2273646d`   | `components/ImportDialog.tsx` (o de Specs, não o de portabilidade)                                                               |
+| #   | Tela (nome no Stitch)             | Id da tela nova                    | Código do app (hipótese a confirmar)                                                                                             |
+| --- | --------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| S1  | Specs — Lista de especificações   | `a7eb1bf978364f498e6908e8e85b6ed4` | `specs/pages/SpecsPage.tsx`, `components/Overview.tsx`, `SpecCard.tsx`, `StatusBadge.tsx`, `model/status.ts`, `Specs.module.css` |
+| S2  | Specs — Sem especificações        | `0de3cab5da26442f9bf7cf0ca0d08ba0` | `Overview.tsx` (ramo vazio)                                                                                                      |
+| S3  | Spec — Documento em revisão       | `d439e1fbb75c4b7f9d684b0b3c46a543` | `SpecDetail.tsx`, `Stepper.tsx`, `Dock.tsx`, `ArtifactDocument.tsx`, `Inspector.tsx`, `UsageBar.tsx`, `RequestChangesDialog.tsx` |
+| S4  | Spec — Agente escrevendo          | `4981422ada754146b0cb711a0df3e897` | `RunBanner.tsx`, `SpecDetail.tsx`                                                                                                |
+| S5  | Spec — Perguntas e achados        | `6eadf408b4f543b6b75a02cab206660e` | `OpenQuestions.tsx`, `QuestionCard.tsx`, `AnswerQuestionsDialog.tsx`, `SendAnswersDialog.tsx`, `Findings.tsx`                    |
+| S6  | Spec — Revisão final e publicação | `fb6be8f6a81149e3873c33d6d98f31f0` | `FinalReview.tsx`, `ReviewPanel.tsx`, `PublishPanel.tsx`, `CliPanel.tsx`, `SpecRunPanel.tsx`                                     |
+| S7  | Specs — Nova especificação        | `3e2672ca7f07412bbe13d373685356fb` | `NewSpecDialog.tsx`, `IntegrationsPicker.tsx`, `AgentsDialog.tsx`                                                                |
+| S8  | Specs — Importar do projeto       | `00d70d7a6e5e4f649ceff03b2273646d` | `components/ImportDialog.tsx` (o de Specs, não o de portabilidade)                                                               |
 
 Entradas e ligações: `Home` em `SpecsPage.tsx` recebe `open-spec` e `new-spec` por intenção de
 navegação (`NavigationContext`); `onImplement` navega para o Workflow com `workflow-from-spec`.
