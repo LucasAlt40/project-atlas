@@ -124,6 +124,7 @@ adicionar 2 a 1 arquivo(s), trazer 1 para o Atlas". Estado alternativo: o texto 
 | H3 | 2026-10-16 | "MCP Hub — Adicionar servidor" `53d6a8c1b2b64645a9cd1c5ef1f6f302` (2560×2048) | `generate_screen_from_text` com o design system, sem timeout. |
 | H4 | 2026-10-16 | "MCP Hub — Importar e exportar configuração" `45ec47aac884449faa1028ad973a7bf5` (2560×2048) | `generate_screen_from_text`; deu timeout, não reenviado, confirmado por `list_screens`. |
 | H5 | 2026-10-16 | "MCP Hub — Sincronizar CLIs" `79542e2d8e214051a07687861df13a0c` (2560×2048) | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`. |
+| H2 | 2026-10-16 | "MCP Hub — Sem servidores" `0b3b8385e6eb4bfd9ec0074764e14b2f` (2560×2048) | `generate_screen_from_text`; timeout, não reenviado, confirmado por `list_screens`. |
 
 ## Avaliação
 
@@ -202,3 +203,19 @@ Desvios: o link "Mais detalhes" do app é o recolhimento da nota longa (manter o
 as quatro células da coluna Codex dizem "indisponível" porque o arquivo é ilegível, coerente com o prompt.
 O selo "será trazido para o Atlas" saiu em azul-info e "será adicionado" em índigo: manter no mapa único
 de estado → Badge.
+
+### H2 — MCP Hub — Sem servidores
+
+Fiel e simples: cabeçalho idêntico ao da lista (título, subtítulo e as três ações), sem métricas, filtros
+nem inspetor, e um cartão central com o texto pedido e os botões "Adicionar servidor MCP" (primário) e
+"Sincronizar CLIs" (secundário). Moldura correta, sem itens inventados.
+
+Detalhes: ícone do MCP Hub no cartão (decorativo, pode ficar ou sair); "Configuração" saiu sem o "⋯"
+legível (implementar como `OverflowMenu`, como em H1).
+
+## Resumo do módulo
+
+As cinco telas estão geradas. Pontos comuns para a implementação: (1) menus "⋯" que o Stitch desenhou como
+botões, (2) seções recolhíveis que ele deixou abertas, (3) chips e títulos extras de contexto técnico
+("stdio", "remoto / oauth", "JSON syntax / raw payload", rodapé de protocolo) que o app não tem, (4)
+motivos e textos de exemplo que o app deve substituir pelos dados reais.

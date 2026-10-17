@@ -8,15 +8,15 @@ existir). Princípios, fases, fonte do visual, relatório e regras de divergênc
 
 ## 1. Telas e código
 
-Ids a preencher depois do envio dos prompts (registro em `prompts.md`).
+Ids das telas geradas no Stitch (registro e avaliação em `prompts.md`).
 
 | #   | Tela (nome no Stitch)                      | Id da tela nova | Código do app (hipótese a confirmar)                                                                                                                                       |
 | --- | ------------------------------------------ | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| H1  | MCP Hub — Servidores                       | _a preencher_   | `workspace/pages/McpHubPage.tsx`, `workspace/components/hub/ServerCard.tsx`, `hub/Inspector.tsx`, `hub/GrantAgents.tsx`, `hub/McpHub.module.css`, `workspace/model/hub.ts` |
-| H2  | MCP Hub — Sem servidores                   | _a preencher_   | `McpHubPage.tsx` (ramo vazio)                                                                                                                                              |
-| H3  | MCP Hub — Adicionar servidor               | _a preencher_   | `hub/AddServer.tsx` (abas Registro MCP, Conhecidos do Atlas, Manual)                                                                                                       |
-| H4  | MCP Hub — Importar e exportar configuração | _a preencher_   | `hub/ConfigIo.tsx`                                                                                                                                                         |
-| H5  | MCP Hub — Sincronizar CLIs                 | _a preencher_   | `hub/SyncRuntimes.tsx`                                                                                                                                                     |
+| H1  | MCP Hub — Servidores                       | `fa3cca4a27654726aacc04dca4b578b4`   | `workspace/pages/McpHubPage.tsx`, `workspace/components/hub/ServerCard.tsx`, `hub/Inspector.tsx`, `hub/GrantAgents.tsx`, `hub/McpHub.module.css`, `workspace/model/hub.ts` |
+| H2  | MCP Hub — Sem servidores                   | `0b3b8385e6eb4bfd9ec0074764e14b2f`   | `McpHubPage.tsx` (ramo vazio)                                                                                                                                              |
+| H3  | MCP Hub — Adicionar servidor               | `53d6a8c1b2b64645a9cd1c5ef1f6f302`   | `hub/AddServer.tsx` (abas Registro MCP, Conhecidos do Atlas, Manual)                                                                                                       |
+| H4  | MCP Hub — Importar e exportar configuração | `45ec47aac884449faa1028ad973a7bf5`   | `hub/ConfigIo.tsx`                                                                                                                                                         |
+| H5  | MCP Hub — Sincronizar CLIs                 | `79542e2d8e214051a07687861df13a0c`   | `hub/SyncRuntimes.tsx`                                                                                                                                                     |
 
 Compartilhado com outras telas: `workspace/components/connectionParts` e `McpPanel.tsx` (painel MCP
 na gaveta de detalhes do agente, módulo 1). Textos em `hub.*` e `integrations.*` de `pt-BR.ts` e
