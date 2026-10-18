@@ -49,8 +49,20 @@ pub enum StepCompletion {
     Failed {
         message: String,
     },
+    /// The agent ran to the end but its answer had no valid outcome for its contract: a slip in
+    /// the result protocol, not in the work. Retried once (see [`MAX_PROTOCOL_RETRIES`]); never
+    /// read as any outcome.
+    NoValidOutcome {
+        message: String,
+    },
     Cancelled,
 }
+
+/// How many times a step is run again, in one pass, when its agent's answer had no valid outcome.
+/// Measured on real runs (2026-10): about one step in a hundred ends this way, and each one used to
+/// fail a whole run. Once only: a model that keeps missing it fails as before, and a result is
+/// never guessed. Not used while the run is being cancelled.
+pub const MAX_PROTOCOL_RETRIES: u32 = 1;
 
 /// Whether a step was allowed to start.
 #[derive(Debug)]
@@ -452,6 +464,7 @@ impl<'a> WorkflowEngine<'a> {
                 state.status = NodeStatus::Completed;
                 state.facts = facts.clone();
                 state.failed_attempts = 0;
+                state.protocol_retries = 0;
                 state.routed = false;
                 state.unrouted = false;
                 state.reason = None;
@@ -468,6 +481,33 @@ impl<'a> WorkflowEngine<'a> {
             }
             StepCompletion::Failed { message } => {
                 self.step_failed(exec, node_id, &message, at, &mut events);
+            }
+            StepCompletion::NoValidOutcome { message } => {
+                let retry = !exec.cancel_requested && state.protocol_retries < MAX_PROTOCOL_RETRIES;
+                if retry {
+                    state.protocol_retries += 1;
+                    if let Some(attempt) = state.attempts.last_mut() {
+                        attempt.status = AttemptStatus::Failed;
+                        attempt.completed_at = Some(at);
+                        attempt.failure = Some(message.clone());
+                    }
+                    state.status = NodeStatus::Ready;
+                    state.continuing = true;
+                    let next = state.attempts.len() + 1;
+                    events.push(exec.record(
+                        WorkflowEventKind::NodeRetrying,
+                        Some(node_id),
+                        format!("{label} gave no valid outcome and will be asked again"),
+                        meta(&[
+                            ("attempt", next.to_string()),
+                            ("error", message),
+                            ("reason", "result_protocol".to_owned()),
+                        ]),
+                        at,
+                    ));
+                } else {
+                    self.step_failed(exec, node_id, &message, at, &mut events);
+                }
             }
             StepCompletion::Cancelled => {
                 if let Some(attempt) = state.attempts.last_mut() {
@@ -1060,6 +1100,7 @@ impl<'a> WorkflowEngine<'a> {
         }
         state.status = NodeStatus::Failed;
         state.failed_attempts = 0;
+        state.protocol_retries = 0;
         state.reason = Some(message.to_owned());
         events.push(exec.record(
             WorkflowEventKind::NodeFailed,
@@ -1129,6 +1170,7 @@ impl<'a> WorkflowEngine<'a> {
         }
         let state = exec.nodes.get_mut(node_id).expect("node state exists");
         state.iterations += 1;
+        state.protocol_retries = 0;
         state.activated_edges.clear();
         if let Some(policy) = &node.loop_policy {
             let count = state.iterations;

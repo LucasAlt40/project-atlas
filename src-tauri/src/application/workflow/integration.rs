@@ -17,7 +17,7 @@ use super::service::WorkflowService;
 use crate::application::errors::{AppError, ErrorCode};
 use crate::application::ide::{Ide, IdeError, IdeLauncher};
 use crate::application::security::changeset;
-use crate::application::support::now_ms;
+use crate::application::support::{now_ms, LockExt};
 use crate::application::workspace::WorkspaceService;
 use crate::application::worktree::{UnapplyOutcome, WorktreeError, WorktreeService};
 use crate::domain::guardrail::{ChangeSetHealth, ChangeSetReview, GuardrailDecision};
@@ -103,7 +103,64 @@ pub fn integration_from_close(
     close: &WorkspaceClose,
     at: u64,
 ) -> WorkflowIntegration {
-    integration_from_worktree(previous, &close.worktree, close.changes.as_ref(), at)
+    let mut next = integration_from_worktree(previous, &close.worktree, close.changes.as_ref(), at);
+    if let (Some(before), Some(after)) = (&previous.checkout_at_start, &close.checkout) {
+        next.checkout_changed = checkout_changes(before, after);
+    }
+    next
+}
+
+/// Files changed in the project's own checkout while the run was going hold the first Apply: the
+/// person is shown them (Atlas did not put them there: they did, or an agent wrote outside its
+/// worktree) and applies again having seen them. Nothing is undone or blamed: Atlas cannot tell
+/// who wrote them.
+fn checkout_hold(exec: &WorkflowExecution, at: u64) -> Option<Held> {
+    const LISTED: usize = 10;
+    let changed = &exec.integration.checkout_changed;
+    if changed.is_empty() {
+        return None;
+    }
+    let seen = changed.join("\n");
+    if exec.integration.checkout_seen.as_deref() == Some(seen.as_str()) {
+        return None;
+    }
+    let mut listed = changed
+        .iter()
+        .take(LISTED)
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(", ");
+    if changed.len() > LISTED {
+        listed = format!("{listed} and {} more", changed.len() - LISTED);
+    }
+    let mut next = exec.integration.clone();
+    next.status = IntegrationStatus::Blocked;
+    next.block_reason = Some(BlockReason::NeedsReview);
+    next.can_apply = true;
+    next.checkout_seen = Some(seen);
+    next.message = Some(format!(
+        "While the run was going, files changed in the project's own folder: {listed}. This run \
+         did not put them there: you did, another run's Apply did, or an agent wrote outside its \
+         worktree (the sandbox in Settings prevents that). Look at them, then apply again."
+    ));
+    next.updated_at = at;
+    Some((next, "The project's folder changed while the run was going"))
+}
+
+/// The files whose content differs between two looks at a checkout, or that are in only one.
+fn checkout_changes(
+    before: &std::collections::BTreeMap<String, String>,
+    after: &std::collections::BTreeMap<String, String>,
+) -> Vec<String> {
+    let mut changed: Vec<String> = after
+        .iter()
+        .filter(|(path, id)| before.get(*path) != Some(*id))
+        .map(|(path, _)| path.clone())
+        .chain(before.keys().filter(|p| !after.contains_key(*p)).cloned())
+        .collect();
+    changed.sort();
+    changed.dedup();
+    changed
 }
 
 /// The integration to record and what to say about it.
@@ -116,6 +173,11 @@ pub struct IntegrationService {
     worktrees: Arc<WorktreeService>,
     workspaces: Arc<WorkspaceService>,
     ide: Arc<dyn IdeLauncher>,
+    /// One decision about a run's code at a time (apply, keep, discard), each made on the state
+    /// as it is once the previous one is saved. Two Applies at once (a double click, the phone and
+    /// the desktop) used to both pass the check; the second then hit Git's own lock and saved the
+    /// run as "failed" over the first one's success.
+    deciding: std::sync::Mutex<()>,
 }
 
 fn invalid() -> AppError {
@@ -134,6 +196,7 @@ impl IntegrationService {
             worktrees,
             workspaces,
             ide,
+            deciding: std::sync::Mutex::new(()),
         }
     }
 
@@ -236,6 +299,7 @@ impl IntegrationService {
     ///
     /// Fails if the run has not ended, was not completed, or has nothing waiting to be applied.
     pub fn apply(&self, run_id: &str) -> Result<WorkflowExecution, AppError> {
+        let _deciding = self.deciding.lock_or_recover();
         let (exec, primary) = self.load(run_id)?;
         let waiting = matches!(
             exec.integration.status,
@@ -249,6 +313,9 @@ impl IntegrationService {
             return Err(invalid());
         }
         let at = now_ms();
+        if let Some(held) = checkout_hold(&exec, at) {
+            return self.save(exec, held.0, held.1);
+        }
         // What is about to enter the project is looked at first, whoever asks: a person's Apply
         // is never a way around it.
         let (review, held) = self.review_before_apply(&exec, &primary, at)?;
@@ -398,6 +465,7 @@ impl IntegrationService {
     ///
     /// Fails if there are no changes waiting.
     pub fn keep(&self, run_id: &str) -> Result<WorkflowExecution, AppError> {
+        let _deciding = self.deciding.lock_or_recover();
         let (exec, primary) = self.load(run_id)?;
         // Changes already applied to the project: keeping them isolated means taking them back out.
         if exec.integration.status == IntegrationStatus::Integrated {
@@ -476,6 +544,7 @@ impl IntegrationService {
     ///
     /// Fails if there is no worktree to discard, or Git refuses to remove it.
     pub fn discard(&self, run_id: &str) -> Result<WorkflowExecution, AppError> {
+        let _deciding = self.deciding.lock_or_recover();
         let (exec, primary) = self.load(run_id)?;
         if !matches!(
             exec.integration.status,

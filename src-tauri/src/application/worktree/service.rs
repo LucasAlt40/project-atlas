@@ -1047,6 +1047,18 @@ impl WorktreeService {
     /// # Errors
     ///
     /// See [`LiveTargetError`].
+    /// What the project's own checkout (the one a run's changes would be applied to) holds beyond
+    /// its last commit, by file and content. `None` when it cannot be read.
+    pub fn checkout_contents(
+        &self,
+        primary_id: &str,
+    ) -> Option<std::collections::BTreeMap<String, String>> {
+        let primary = self.get(primary_id)?;
+        self.manager
+            .dirty_contents(Path::new(&primary.repository_path))
+            .ok()
+    }
+
     pub fn live_target(&self, primary_id: &str) -> Result<LiveTarget, LiveTargetError> {
         let primary = self.get(primary_id).ok_or(LiveTargetError::Unknown)?;
         let run_id = primary

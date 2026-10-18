@@ -1582,7 +1582,7 @@ export const enUS = {
   'workflow.issue.duplicate_loop_id': 'Two nodes use the same loop name.',
   'workflow.issue.invalid_condition': 'A condition is not valid ({reason}).',
   'workflow.issue.undeclared_outcome':
-    'The route {edge} waits for the outcome "{outcome}", which the agent "{agent}" does not declare.',
+    'The route {edge} waits for the outcome "{outcome}", which the agent "{agent}" does not declare. Give the agent a result contract with it (a validator or QA: Validation, pass/fail) in Agents, or change the route.',
   'workflow.issue.outcome_without_route':
     'The outcome "{outcome}" of the agent "{agent}" has no route: a step that ends with it would find nowhere to go.',
   'workflow.issue.outcome_without_route_none':
@@ -1675,6 +1675,8 @@ export const enUS = {
     'The changes touch files you also changed. Nothing in your project was overwritten.',
   'integration.block.protected_paths':
     'Atlas did not let these changes in: they touch paths that must not enter the project ({message}). Nothing was applied.',
+  'integration.block.checkout_changed':
+    'While the run was going, files changed in your project folder: {paths}. This run did not put them there: you did, another run did, or an agent wrote outside its worktree (the sandbox in Settings prevents that). Nothing was applied: look at them, then apply again.',
   'integration.block.needs_review':
     'These changes include something you should look at first ({message}). Nothing was applied: apply again once you have seen it.',
   'integration.note':
@@ -2778,6 +2780,8 @@ export const enUS = {
   'mobile.retry': 'Try again',
   'mobile.back': 'Back',
   'mobile.signOut': 'Disconnect this phone',
+  'mobile.signOutFailed':
+    'This phone could not be disconnected: the computer did not confirm it. Try again, or revoke it in Atlas on the computer.',
   'mobile.footer':
     'Atlas runs on your computer. This page only works while it is on, awake and on the same network.',
   'mobile.pair.lead': 'Follow your workflows and answer what is waiting for you.',

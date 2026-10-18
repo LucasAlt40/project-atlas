@@ -476,6 +476,7 @@ impl Orchestrator {
         exec.integration.branch = Some(handle.branch);
         exec.integration.base_branch = Some(handle.base_branch);
         exec.integration.base_revision = Some(handle.base_revision);
+        exec.integration.checkout_at_start = handle.checkout;
         exec.integration.updated_at = at;
         vec![exec.record(
             WorkflowEventKind::IntegrationChanged,
@@ -550,7 +551,7 @@ impl Orchestrator {
 
         loop {
             let events = self.dispatch(exec, &engine, tx, observer, &mut lock);
-            self.persist(exec, observer.as_ref(), &events)?;
+            self.persist_settled(exec, observer.as_ref(), events)?;
 
             // A run that must stop (cancelled, or failed by a loop limit) stops what is running.
             if exec.cancel_requested {
@@ -573,7 +574,7 @@ impl Orchestrator {
                         detail: None,
                     };
                     let events = engine.fail(exec, failure, now_ms());
-                    self.persist(exec, observer.as_ref(), &events)?;
+                    self.persist_settled(exec, observer.as_ref(), events)?;
                     return Ok(());
                 }
             };
@@ -582,7 +583,7 @@ impl Orchestrator {
                 events.extend(self.handle(exec, &engine, message, &mut lock));
             }
             events.extend(self.watch_approvals(exec, &engine));
-            self.persist(exec, observer.as_ref(), &events)?;
+            self.persist_settled(exec, observer.as_ref(), events)?;
             if exec.status.is_final() {
                 return Ok(());
             }
@@ -847,7 +848,7 @@ impl Orchestrator {
                             let message = no_valid_outcome(&contract, &problem);
                             failure_message = Some(message.clone());
                             parsed = Some(result);
-                            StepCompletion::Failed { message }
+                            StepCompletion::NoValidOutcome { message }
                         } else {
                             events.extend(record_result(
                                 exec,
@@ -1143,6 +1144,21 @@ impl Orchestrator {
                     .cancel(&exec.workspace_id, agent, &attempt.execution_id);
             }
         }
+    }
+
+    /// [`Self::persist`], and when these events end the run, its code is looked at first: the end
+    /// and where the code stands are saved and announced together, so nobody reading the run
+    /// when it says it ended finds its code still "in progress".
+    fn persist_settled(
+        &self,
+        exec: &mut WorkflowExecution,
+        observer: &dyn WorkflowObserver,
+        mut events: Vec<WorkflowEvent>,
+    ) -> Result<(), AppError> {
+        if exec.status.is_final() {
+            events.extend(self.conclude_workspace(exec));
+        }
+        self.persist(exec, observer, &events)
     }
 
     fn persist(

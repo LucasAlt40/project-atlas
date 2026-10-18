@@ -1191,3 +1191,120 @@ fn an_outcome_the_workflow_does_not_route_fails_the_run_instead_of_completing_it
     sim.run(|_, _| concluded("fail"));
     assert_eq!(sim.ended(), WorkflowExecutionStatus::Failed);
 }
+
+// ---- a slip in the result protocol ------------------------------------------------------------------
+
+fn no_outcome() -> StepCompletion {
+    StepCompletion::NoValidOutcome {
+        message: "No valid outcome: the agent did not declare one of [pass, fail]".to_owned(),
+    }
+}
+
+#[test]
+fn a_step_without_a_valid_outcome_is_asked_once_more_and_goes_on_when_the_second_answer_is_valid() {
+    let w = linear();
+    let (mut exec, _) = engine_run(&w);
+    let engine = WorkflowEngine::new(&w);
+    engine.begin_step(&mut exec, "architect", "e1", 3);
+    engine.complete_step(&mut exec, "architect", no_outcome(), 4);
+
+    assert_eq!(exec.nodes["architect"].status, NodeStatus::Ready);
+    assert_eq!(
+        exec.nodes["architect"].attempts[0].status,
+        AttemptStatus::Failed
+    );
+    let retrying = exec
+        .events
+        .iter()
+        .find(|e| e.kind == WorkflowEventKind::NodeRetrying)
+        .expect("the retry is announced");
+    assert_eq!(retrying.metadata["reason"], "result_protocol");
+
+    engine.begin_step(&mut exec, "architect", "e2", 5);
+    engine.complete_step(&mut exec, "architect", done("success"), 6);
+    assert_eq!(exec.nodes["architect"].status, NodeStatus::Completed);
+    assert_eq!(exec.nodes["architect"].attempts.len(), 2);
+    // The pass that ended well starts the next one with the allowance whole again.
+    assert_eq!(exec.nodes["architect"].protocol_retries, 0);
+}
+
+#[test]
+fn a_step_that_misses_its_outcome_twice_fails_and_nothing_is_taken_for_a_result() {
+    let w = linear();
+    let (mut exec, _) = engine_run(&w);
+    let engine = WorkflowEngine::new(&w);
+    engine.begin_step(&mut exec, "architect", "e1", 3);
+    engine.complete_step(&mut exec, "architect", no_outcome(), 4);
+    engine.begin_step(&mut exec, "architect", "e2", 5);
+    engine.complete_step(&mut exec, "architect", no_outcome(), 6);
+
+    assert_eq!(exec.nodes["architect"].status, NodeStatus::Failed);
+    assert_eq!(exec.status, WorkflowExecutionStatus::Failed);
+    assert!(exec.nodes["architect"].facts.is_empty());
+    assert!(exec.nodes["architect"]
+        .attempts
+        .iter()
+        .all(|a| a.outcome.is_none()));
+}
+
+#[test]
+fn a_step_without_a_valid_outcome_is_not_asked_again_while_the_run_is_cancelled() {
+    let w = linear();
+    let (mut exec, _) = engine_run(&w);
+    let engine = WorkflowEngine::new(&w);
+    engine.begin_step(&mut exec, "architect", "e1", 3);
+    engine.request_cancel(&mut exec, 4);
+    engine.complete_step(&mut exec, "architect", no_outcome(), 5);
+
+    assert_ne!(exec.nodes["architect"].status, NodeStatus::Ready);
+    assert!(!exec
+        .events
+        .iter()
+        .any(|e| e.kind == WorkflowEventKind::NodeRetrying));
+    assert!(exec.status.is_final());
+}
+
+#[test]
+fn any_other_failure_is_not_retried_by_the_protocol_allowance() {
+    let w = linear();
+    let (mut exec, _) = engine_run(&w);
+    let engine = WorkflowEngine::new(&w);
+    engine.begin_step(&mut exec, "architect", "e1", 3);
+    engine.complete_step(
+        &mut exec,
+        "architect",
+        failed("The runtime needs you to sign in"),
+        4,
+    );
+
+    assert_eq!(exec.nodes["architect"].status, NodeStatus::Failed);
+    assert_eq!(exec.status, WorkflowExecutionStatus::Failed);
+}
+
+#[test]
+fn each_pass_of_a_loop_has_its_own_protocol_allowance() {
+    let w = qa_loop(3);
+    let (mut exec, _) = engine_run(&w);
+    let engine = WorkflowEngine::new(&w);
+    let mut n = 0;
+    let mut step = |exec: &mut _, node: &str, completion: StepCompletion| {
+        n += 1;
+        engine.begin_step(exec, node, &format!("e{n}"), n);
+        engine.complete_step(exec, node, completion, n);
+    };
+    step(&mut exec, "architect", done("success"));
+    step(&mut exec, "dev", done("success"));
+    // Pass 1 of QA: one slip, then a fail that sends the work to the fixer.
+    step(&mut exec, "qa", no_outcome());
+    step(&mut exec, "qa", done("fail"));
+    step(&mut exec, "fixer", done("success"));
+    // Pass 2: a slip is asked again, as in pass 1.
+    step(&mut exec, "qa", no_outcome());
+    assert_eq!(
+        exec.nodes["qa"].status,
+        NodeStatus::Ready,
+        "pass 2 has its own retry"
+    );
+    step(&mut exec, "qa", done("pass"));
+    assert_eq!(exec.status, WorkflowExecutionStatus::Completed);
+}

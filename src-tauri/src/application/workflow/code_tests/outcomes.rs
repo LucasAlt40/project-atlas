@@ -255,7 +255,56 @@ fn an_answer_without_a_declared_outcome_fails_the_step_and_is_never_taken_for_a_
         assert!(s.saw("QA").is_empty(), "{label}");
         assert!(s.saw("Bug Fixer").is_empty(), "{label}");
         assert_eq!(run.nodes["Validator"].attempts[0].outcome, None, "{label}");
+        // Asked once more (a slip in the result protocol), and the second answer was no better.
+        assert_eq!(run.nodes["Validator"].attempts.len(), 2, "{label}");
+        assert!(
+            run.nodes["Validator"]
+                .attempts
+                .iter()
+                .all(|a| a.outcome.is_none()),
+            "{label}"
+        );
     }
+}
+
+/// Measured on real runs: about one step in a hundred ends without its result block, and that
+/// used to fail the whole run. The step is asked once more; a valid answer then goes on as usual.
+#[test]
+fn a_step_that_forgot_its_outcome_is_asked_once_more_and_the_run_goes_on() {
+    let answers = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let count = answers.clone();
+    let s = stack(Permission::Allowed, move |saw, request| {
+        Ok(match saw.step.as_str() {
+            "Developer" => {
+                write(&request.working_dir, "src/foo.ts", FOO);
+                said("implemented", "")
+            }
+            "Validator" => {
+                if count.fetch_add(1, Ordering::SeqCst) == 0 {
+                    "I checked it and it looks right.".to_owned()
+                } else {
+                    said("pass", "")
+                }
+            }
+            _ => said("pass", ""),
+        })
+    });
+    contracted_team(&s);
+
+    let run = s.run(&routed_workflow(&s));
+
+    assert_eq!(
+        run.status,
+        WorkflowExecutionStatus::Completed,
+        "{:?}",
+        run.failure
+    );
+    assert_eq!(answers.load(Ordering::SeqCst), 2);
+    let validator = &run.nodes["Validator"];
+    assert_eq!(validator.attempts.len(), 2);
+    assert_eq!(validator.attempts[0].outcome, None);
+    assert_eq!(validator.attempts[1].outcome.as_deref(), Some("pass"));
+    assert!(!s.saw("QA").is_empty());
 }
 
 #[test]
@@ -768,13 +817,15 @@ fn real_claude_workflow_developer_validator_fixer_validator_qa() {
         env.service.clone(),
         Arc::default(),
     );
+    // `ATLAS_REAL_CLAUDE_MODEL=haiku` runs it on the cheapest model.
+    let model = std::env::var("ATLAS_REAL_CLAUDE_MODEL").unwrap_or_else(|_| "sonnet".to_owned());
     let seat = |agent: &str, personality: &str, instructions: &str, kind, profile: &str| {
         config
             .modify(|c| {
                 for a in &mut c.agents {
                     if a.id == agent {
                         a.runtime_id = "claude".to_owned();
-                        a.model_id = "sonnet".to_owned();
+                        a.model_id.clone_from(&model);
                         a.personality_id = personality.to_owned();
                         a.instructions = instructions.to_owned();
                         a.permission_profile_id = Some(profile.to_owned());

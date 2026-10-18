@@ -839,6 +839,48 @@ impl WorktreeManager for GitWorktreeManager {
             .collect())
     }
 
+    fn dirty_contents(
+        &self,
+        path: &Path,
+    ) -> Result<std::collections::BTreeMap<String, String>, WorktreeError> {
+        const MAX_HASHED: usize = 2_000;
+        let paths = self.get_status(path)?;
+        // Ids for the files that are there, read through one Git call; a name with a newline
+        // cannot go through a line-based question, and is known by its name only.
+        let hashed: Vec<&String> = paths
+            .iter()
+            .filter(|p| !p.contains('\n') && path.join(p).is_file())
+            .take(MAX_HASHED)
+            .collect();
+        let ids: Vec<String> = if hashed.is_empty() {
+            Vec::new()
+        } else {
+            let input = hashed
+                .iter()
+                .map(|p| p.as_str())
+                .collect::<Vec<_>>()
+                .join("\n")
+                .into_bytes();
+            self.run_with(path, ["hash-object", "--stdin-paths"], None, Some(input))
+                .ok()
+                .filter(Output::ok)
+                .map(|out| {
+                    String::from_utf8_lossy(&out.stdout)
+                        .lines()
+                        .map(str::to_owned)
+                        .collect()
+                })
+                .filter(|ids: &Vec<String>| ids.len() == hashed.len())
+                .unwrap_or_default()
+        };
+        let mut contents: std::collections::BTreeMap<String, String> =
+            paths.iter().map(|p| (p.clone(), String::new())).collect();
+        for (p, id) in hashed.into_iter().zip(ids) {
+            contents.insert(p.clone(), id);
+        }
+        Ok(contents)
+    }
+
     fn head_commit(&self, path: &Path) -> Result<String, WorktreeError> {
         Ok(self.run_ok(path, ["rev-parse", "HEAD"])?.text())
     }

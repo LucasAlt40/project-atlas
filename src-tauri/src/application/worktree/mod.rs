@@ -231,6 +231,24 @@ pub trait WorktreeManager: Send + Sync {
     /// Fails if Git cannot read it.
     fn get_status(&self, path: &Path) -> Result<Vec<String>, WorktreeError>;
 
+    /// What a checkout holds beyond its last commit: each changed or untracked file with an id of
+    /// its content (`""` when it is gone or was not read), so that a later look can tell what
+    /// changed in between, a file that was already changed included.
+    ///
+    /// # Errors
+    ///
+    /// Fails if Git cannot read it.
+    fn dirty_contents(
+        &self,
+        path: &Path,
+    ) -> Result<std::collections::BTreeMap<String, String>, WorktreeError> {
+        Ok(self
+            .get_status(path)?
+            .into_iter()
+            .map(|p| (p, String::new()))
+            .collect())
+    }
+
     /// The commit a worktree (or checkout) is at.
     ///
     /// # Errors

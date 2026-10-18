@@ -96,6 +96,8 @@ pub struct WorkspaceHandle {
     pub branch: String,
     pub base_branch: String,
     pub base_revision: String,
+    /// The project's own checkout as the run found it (see [`WorkspaceClose::checkout`]).
+    pub checkout: Option<std::collections::BTreeMap<String, String>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -111,6 +113,10 @@ pub struct WorkspaceClose {
     pub worktree: ExecutionWorktree,
     /// By Git; `None` when the worktree is gone (nothing to apply, so it was removed).
     pub changes: Option<ChangeSet>,
+    /// The project's own checkout as the run left it: its changed files by content. Compared with
+    /// how the run found it, it shows what changed there while the run was going (a person, or an
+    /// agent that wrote outside its worktree).
+    pub checkout: Option<std::collections::BTreeMap<String, String>>,
 }
 
 /// A step that has an execution reserved and an agent held for it. Running it blocks until the

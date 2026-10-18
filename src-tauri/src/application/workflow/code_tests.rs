@@ -529,6 +529,52 @@ fn the_run_says_its_code_is_waiting_not_that_it_is_in_the_project() {
     );
 }
 
+/// Reads the stored run the moment its end is announced, as the app's notification does.
+struct ReadsTheEnd {
+    workflows: Arc<WorkflowService>,
+    seen: Mutex<Vec<IntegrationStatus>>,
+}
+
+impl ExecutionObserver for ReadsTheEnd {
+    fn on_event(&self, _: &ExecutionEvent) {}
+}
+
+impl ChatObserver for ReadsTheEnd {
+    fn on_message(&self, _: &Message) {}
+}
+
+impl WorkflowObserver for ReadsTheEnd {
+    fn on_workflow_event(&self, event: &WorkflowEvent) {
+        if event.kind == crate::domain::workflow::WorkflowEventKind::Completed {
+            let run = self.workflows.execution(&event.execution_id).unwrap();
+            self.seen.lock().unwrap().push(run.integration.status);
+        }
+    }
+}
+
+/// Measured through the real app: a run read right after it said "completed" still had its code
+/// "in progress" (nothing to apply yet), and the notification it raises read it then. The end of
+/// a run and where its code stands are saved and announced together.
+#[test]
+fn a_run_is_never_announced_as_completed_before_its_code_is_settled() {
+    let s = stack(Permission::Allowed, team);
+    let run = s
+        .workflows
+        .start_unvalidated(&s.pipeline().id, "Implement password recovery")
+        .unwrap();
+    let observer = Arc::new(ReadsTheEnd {
+        workflows: s.workflows.clone(),
+        seen: Mutex::default(),
+    });
+
+    s.orchestrator.run(&run.id, observer.clone()).unwrap();
+
+    assert_eq!(
+        *observer.seen.lock().unwrap(),
+        vec![IntegrationStatus::ChangesAvailable]
+    );
+}
+
 #[test]
 fn each_step_is_handed_what_the_one_before_produced_and_can_be_inspected_afterwards() {
     let s = stack(Permission::Allowed, team);
@@ -780,6 +826,215 @@ fn a_failure_route_hands_the_failure_and_the_code_to_the_node_that_takes_over() 
 }
 
 // ---- the user decides --------------------------------------------------------------------------------
+
+/// The project's own checkout, found from a worktree the way any process in it can: its `.git`
+/// names the repository.
+fn checkout_of(worktree: &Path) -> PathBuf {
+    let common = git(
+        worktree,
+        &["rev-parse", "--path-format=absolute", "--git-common-dir"],
+    );
+    Path::new(common.trim()).parent().unwrap().to_path_buf()
+}
+
+/// The developer does its work and also writes into the project's own checkout, as an agent that
+/// leaves its worktree would (nothing at the OS level stops it with the sandbox off).
+fn team_that_leaves_its_worktree(
+    saw: &Seen,
+    request: &RuntimeRequest,
+) -> Result<String, RuntimeError> {
+    if saw.step == "Developer" {
+        let checkout = checkout_of(&request.working_dir);
+        write(&checkout, "ESCAPED.txt", "written from a worktree\n");
+        // A file the person had already changed before the run, changed again.
+        write(&checkout, "notes.md", "changed during the run\n");
+    }
+    team(saw, request)
+}
+
+/// Measured with a stand-in agent: an agent can write into the project's checkout from its
+/// worktree, and the run used to offer Apply as if nothing had happened. What changed there while
+/// the run was going is listed and holds the first Apply; the person applies again having seen it.
+#[test]
+fn files_changed_in_the_checkout_during_a_run_hold_apply_until_a_person_has_seen_them() {
+    let s = stack(Permission::Allowed, team_that_leaves_its_worktree);
+    // Changed before the run: one file that will change again, one that will not.
+    write(s.project(), "notes.md", "the person's notes\n");
+    write(s.project(), "draft.md", "left alone\n");
+    let run = s.run(&s.pipeline());
+
+    assert_eq!(run.status, WorkflowExecutionStatus::Completed);
+    assert_eq!(
+        run.integration.checkout_changed,
+        vec!["ESCAPED.txt".to_owned(), "notes.md".to_owned()],
+        "draft.md did not change during the run"
+    );
+    assert!(run.integration.can_apply);
+
+    let held = s.integration.apply(&run.id).unwrap();
+    assert_eq!(held.integration.status, IntegrationStatus::Blocked);
+    assert_eq!(
+        held.integration.block_reason,
+        Some(BlockReason::NeedsReview)
+    );
+    assert!(held.integration.can_apply);
+    let message = held.integration.message.clone().unwrap();
+    assert!(
+        message.contains("ESCAPED.txt") && message.contains("notes.md"),
+        "{message}"
+    );
+    assert!(
+        !s.project().join("src/foo.ts").exists(),
+        "nothing was applied yet"
+    );
+
+    let applied = s.integration.apply(&run.id).unwrap();
+    assert_eq!(applied.integration.status, IntegrationStatus::Integrated);
+    assert_eq!(
+        fs::read_to_string(s.project().join("src/foo.ts")).unwrap(),
+        FOO
+    );
+}
+
+#[test]
+fn a_run_with_nothing_changed_in_the_checkout_applies_at_once() {
+    let s = stack(Permission::Allowed, team);
+    write(s.project(), "draft.md", "the person's draft\n");
+    let run = s.run(&s.pipeline());
+
+    assert!(run.integration.checkout_changed.is_empty());
+    let applied = s.integration.apply(&run.id).unwrap();
+    assert_eq!(applied.integration.status, IntegrationStatus::Integrated);
+}
+
+/// Two Applies at once (a double click, or the phone and the desktop together) apply the changes
+/// once: one wins, the other is told there is nothing to apply, and the project gets the file once.
+#[test]
+fn two_applies_at_once_apply_the_changes_once() {
+    let s = Arc::new(stack(Permission::Allowed, team));
+    let run = s.run(&s.pipeline());
+    let start = Arc::new(std::sync::Barrier::new(2));
+    let threads: Vec<_> = (0..2)
+        .map(|_| {
+            let (s, start, id) = (s.clone(), start.clone(), run.id.clone());
+            std::thread::spawn(move || {
+                start.wait();
+                s.integration.apply(&id)
+            })
+        })
+        .collect();
+    let results: Vec<_> = threads.into_iter().map(|t| t.join().unwrap()).collect();
+
+    let applied = results
+        .iter()
+        .filter(|r| {
+            r.as_ref()
+                .is_ok_and(|e| e.integration.status == IntegrationStatus::Integrated)
+        })
+        .count();
+    let refused = results
+        .iter()
+        .filter(|r| {
+            r.as_ref()
+                .is_err_and(|e| e.code == ErrorCode::IntegrationNotAvailable)
+        })
+        .count();
+    assert_eq!((applied, refused), (1, 1), "{results:?}");
+    assert_eq!(
+        fs::read_to_string(s.project().join("src/foo.ts")).unwrap(),
+        FOO
+    );
+    assert_eq!(
+        s.workflows.execution(&run.id).unwrap().integration.status,
+        IntegrationStatus::Integrated
+    );
+}
+
+/// Two runs going at the same time, each in its own worktree: each one's Apply brings its own
+/// file and only that, and neither sees the other's work while they run.
+#[test]
+fn two_runs_at_once_each_apply_only_their_own_changes() {
+    let s = Arc::new(stack(Permission::Allowed, |saw, request| {
+        if saw.step == "Developer" {
+            let name = if saw.prompt.contains("task A") {
+                "a"
+            } else {
+                "b"
+            };
+            // What the other run wrote is not in this worktree.
+            let other = if name == "a" { "src/b.ts" } else { "src/a.ts" };
+            assert!(
+                !request.working_dir.join(other).exists(),
+                "{other} leaked in"
+            );
+            write(&request.working_dir, &format!("src/{name}.ts"), name);
+        }
+        Ok(result("pass", ""))
+    }));
+    let runs: Vec<String> = ["task A", "task B"]
+        .into_iter()
+        .map(|task| {
+            let workflow = s.pipeline();
+            s.workflows
+                .start_unvalidated(&workflow.id, task)
+                .unwrap()
+                .id
+        })
+        .collect();
+    let threads: Vec<_> = runs
+        .iter()
+        .map(|id| {
+            let (s, id) = (s.clone(), id.clone());
+            std::thread::spawn(move || {
+                s.orchestrator
+                    .run(&id, Arc::new(Collector::default()))
+                    .unwrap();
+            })
+        })
+        .collect();
+    for thread in threads {
+        thread.join().unwrap();
+    }
+    let changed = |id: &str| -> Vec<String> {
+        let run = s.workflows.execution(id).unwrap();
+        assert_eq!(
+            run.status,
+            WorkflowExecutionStatus::Completed,
+            "{:?}",
+            run.failure
+        );
+        run.changes
+            .unwrap()
+            .files
+            .into_iter()
+            .map(|f| f.path)
+            .collect()
+    };
+    assert_eq!(changed(&runs[0]), vec!["src/a.ts".to_owned()]);
+    assert_eq!(changed(&runs[1]), vec!["src/b.ts".to_owned()]);
+
+    s.integration.apply(&runs[0]).unwrap();
+    assert!(s.project().join("src/a.ts").exists());
+    assert!(
+        !s.project().join("src/b.ts").exists(),
+        "B's work came in with A's Apply"
+    );
+    s.integration.apply(&runs[1]).unwrap();
+    assert!(s.project().join("src/b.ts").exists());
+}
+
+/// Discarding is final for Apply: the changes are not applied afterwards.
+#[test]
+fn changes_that_were_discarded_cannot_be_applied_afterwards() {
+    let s = stack(Permission::Allowed, team);
+    let run = s.run(&s.pipeline());
+    s.integration.discard(&run.id).unwrap();
+
+    let refused = s.integration.apply(&run.id).unwrap_err();
+
+    assert_eq!(refused.code, ErrorCode::IntegrationNotAvailable);
+    assert!(!s.project().join("src/foo.ts").exists());
+}
 
 #[test]
 fn apply_puts_the_changes_in_the_project_only_when_asked_and_the_run_stays_what_it_was() {

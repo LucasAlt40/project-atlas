@@ -91,7 +91,18 @@ export function deliveryOf(run: WorkflowRun): Delivery | null {
     case 'blocked':
       return {
         ...base,
-        codeLine: code.blockReason ? BLOCKS[code.blockReason] : 'integration.block.undetermined',
+        // Held because the project's own folder changed during the run: say which files.
+        ...(code.blockReason === 'needs_review' && (code.checkoutChanged?.length ?? 0) > 0
+          ? {
+              params: { ...base.params, paths: (code.checkoutChanged ?? []).join(', ') },
+            }
+          : {}),
+        codeLine:
+          code.blockReason === 'needs_review' && (code.checkoutChanged?.length ?? 0) > 0
+            ? 'integration.block.checkout_changed'
+            : code.blockReason
+              ? BLOCKS[code.blockReason]
+              : 'integration.block.undetermined',
         tone: 'problem',
         review: true,
         openInIde: true,

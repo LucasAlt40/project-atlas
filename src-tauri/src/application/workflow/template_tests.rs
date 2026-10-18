@@ -4,7 +4,7 @@
 
 use std::collections::BTreeMap;
 
-use super::orchestrator_tests::{env, Env};
+use super::orchestrator_tests::{env, outcome as declared, Env, Scripted};
 use super::template_text as text;
 use super::templates::{self, TemplateKind};
 use crate::application::errors::ErrorCode;
@@ -108,6 +108,40 @@ fn the_three_featured_templates_lead_the_list_and_say_what_they_do_before_anythi
     // The rest keep their ids, so workflows made from them before still point at a template.
     assert!(list.iter().skip(3).all(|t| !t.featured));
     assert_eq!(list.len(), 8);
+}
+
+/// Every template of the catalogue, not only the featured ones, with the agents as a person creates
+/// them in the app (the agent form starts from the personality's suggested contract): a template
+/// the list offers must build a workflow that can start.
+#[test]
+fn every_template_of_the_catalogue_builds_a_workflow_that_can_start_with_default_agents() {
+    let env = env();
+    let personalities =
+        crate::application::personalities::PersonalityService::new(env.config.clone());
+    for id in env.agents.values() {
+        let personality = env.agent_service.find(id).unwrap().personality_id;
+        let suggested = personalities.find(&personality).unwrap().suggested_contract;
+        env.agent_service
+            .set_result_contract(id, suggested)
+            .unwrap();
+    }
+    let ids: Vec<String> = env.service.templates().into_iter().map(|t| t.id).collect();
+    assert!(ids.len() >= 8, "{ids:?}");
+    let mut broken = Vec::new();
+    for id in &ids {
+        let built = env
+            .service
+            .create_from_template(&env.workspace_id, id, None, WorkflowMode::Custom)
+            .unwrap();
+        let report = env.service.validate(&built.workflow);
+        if !report.valid || !built.missing_roles.is_empty() {
+            broken.push(format!(
+                "{id}: {:?} missing={:?}",
+                report.issues, built.missing_roles
+            ));
+        }
+    }
+    assert!(broken.is_empty(), "{broken:#?}");
 }
 
 #[test]
@@ -636,4 +670,122 @@ fn a_workflow_stored_before_criteria_and_read_only_steps_reads_as_it_always_ran(
     // Nor does a configuration written before saved templates existed lack anything.
     let config: crate::application::config::UserConfig = serde_json::from_str("{}").unwrap();
     assert_eq!(config.workflow_templates.len(), 0);
+}
+
+/// The agents as the agent form creates them: each with its personality's suggested contract.
+fn seat_as_the_form_does(env: &Env) {
+    let personalities =
+        crate::application::personalities::PersonalityService::new(env.config.clone());
+    for id in env.agents.values() {
+        let personality = env.agent_service.find(id).unwrap().personality_id;
+        let suggested = personalities.find(&personality).unwrap().suggested_contract;
+        env.agent_service
+            .set_result_contract(id, suggested)
+            .unwrap();
+    }
+}
+
+/// The quick templates have no fixer: a judge's rejection must end the run as failed, never as a
+/// success, and an agent that declares no verdict keeps the plain route it always had.
+#[test]
+fn a_quick_template_ends_failed_when_its_judge_rejects_and_completed_when_all_accept() {
+    use crate::domain::workflow::WorkflowExecutionStatus::{Completed, Failed};
+    let cases: [(&str, &str, &str, _); 5] = [
+        ("feature_with_validation", "fail", "pass", Failed),
+        ("feature_with_validation", "pass", "fail", Failed),
+        ("feature_with_validation", "pass", "pass", Completed),
+        ("feature_basic", "", "fail", Failed),
+        ("feature_basic", "", "pass", Completed),
+    ];
+    for (template, validator, qa, expected) in cases {
+        let env = env();
+        seat_as_the_form_does(&env);
+        let workflow = build(&env, template);
+        assert!(env.service.validate(&workflow).valid, "{template}");
+        let runner = Scripted::new();
+        runner.script("architect", vec![declared("approved", "")]);
+        runner.script("developer", vec![declared("implemented", "")]);
+        if !validator.is_empty() {
+            runner.script("validator", vec![declared(validator, "")]);
+        }
+        runner.script("qa", vec![declared(qa, "")]);
+
+        let (exec, _) = env.run(&runner, &workflow.id);
+
+        assert_eq!(
+            exec.status, expected,
+            "{template} validator={validator} qa={qa}"
+        );
+        if expected == Failed {
+            // QA never runs after a rejected validation.
+            assert_eq!(
+                runner.requests_for("qa").len(),
+                usize::from(validator != "fail")
+            );
+        }
+    }
+}
+
+#[test]
+fn a_quick_template_with_general_agents_keeps_its_plain_route() {
+    let env = env();
+    for id in ["feature_basic", "feature_with_validation"] {
+        let workflow = build(&env, id);
+        assert!(env.service.validate(&workflow).valid, "{id}");
+        assert!(
+            workflow.edges.iter().all(|e| e.condition.is_none()),
+            "{id}: a general agent has no verdict to route on"
+        );
+    }
+}
+
+/// An agent saved before result contracts existed (or imported without one) declares no verdict.
+/// Nothing is invented for it: a template that must route on its verdict is born a draft that
+/// names it, and the run cannot start until the person gives it a contract.
+#[test]
+fn a_template_whose_judge_declares_no_verdict_is_a_draft_that_names_it_and_cannot_start() {
+    let env = env();
+    // As loaded from an old config: the agents carry the `general` contract.
+    let built = env
+        .service
+        .create_from_template(
+            &env.workspace_id,
+            "software_feature",
+            None,
+            WorkflowMode::Custom,
+        )
+        .unwrap();
+    assert_eq!(
+        built.workflow.status,
+        crate::domain::workflow::WorkflowStatus::Draft
+    );
+    let report = env.service.validate(&built.workflow);
+    let named: Vec<_> = report
+        .issues
+        .iter()
+        .filter(|i| i.code == super::validation::IssueCode::UndeclaredOutcome)
+        .filter_map(|i| i.params.get("agent").cloned())
+        .collect();
+    assert!(named.iter().any(|a| a == "qa agent"), "{named:?}");
+    let refused = env
+        .service
+        .start(&built.workflow.id, "Implement password recovery")
+        .unwrap_err();
+    assert_eq!(refused.code, ErrorCode::WorkflowInvalid);
+
+    // Once the person gives the judges the contract their personality suggests, it can start.
+    seat_as_the_form_does(&env);
+    let rebuilt = build(&env, "software_feature");
+    assert!(env.service.validate(&rebuilt).valid);
+}
+
+#[test]
+fn an_agent_stored_or_imported_without_a_contract_reads_as_general() {
+    let stored: crate::domain::agent::Agent = serde_json::from_value(serde_json::json!({
+        "id": "agent-old", "name": "Old QA", "personalityId": "qa", "runtimeId": "opencode",
+        "modelId": "m", "instructions": "", "createdAt": 1
+    }))
+    .unwrap();
+    assert_eq!(stored.result_contract, ResultContract::general());
+    assert!(!stored.result_contract.requires_outcome());
 }

@@ -627,6 +627,32 @@ impl<'a> Builder<'a> {
         self.on(from, problem_to, problem);
     }
 
+    /// A step that judges, in a template with nothing to correct its findings: on to `ok_to` when
+    /// it accepts, and to a failed End when it does not, so a rejected change never ends the run
+    /// as a success. An agent that declares no verdict (a general one) goes on to `ok_to`, as
+    /// before: it has no verdict to ignore.
+    fn verdict_gate(&mut self, from: &str, ok_to: &str) {
+        let declared = self.declared(from);
+        let has = |o: &str| declared.iter().any(|d| d.eq_ignore_ascii_case(o));
+        let pair = if has("pass") && has("fail") {
+            Some(("pass", "fail"))
+        } else if has("approved") && has("changes_requested") {
+            Some(("approved", "changes_requested"))
+        } else {
+            None
+        };
+        let Some((ok, problem)) = pair else {
+            self.then(from, ok_to);
+            return;
+        };
+        let rejected = "not-accepted";
+        if !self.nodes.iter().any(|n| n.id == rejected) {
+            self.end_as(rejected, "Not accepted", EndOutcome::Failed);
+        }
+        self.on(from, ok_to, ok);
+        self.on(from, rejected, problem);
+    }
+
     /// A step that fixes: on to `ok_to` when it says it fixed, to `blocked_to` when it says it
     /// could not. An agent that does not declare that pair (a general one) goes on to `ok_to`
     /// whatever it says, so the template is never born with a route its agent cannot take.
@@ -688,13 +714,9 @@ pub fn instantiate(
             );
             b.step("qa", "QA", Role::Qa, text::IMPL_QA);
             b.end("done", "Done");
-            for (a, c) in [
-                ("architect", "developer"),
-                ("developer", "qa"),
-                ("qa", "done"),
-            ] {
-                b.then(a, c);
-            }
+            b.then("architect", "developer");
+            b.then("developer", "qa");
+            b.verdict_gate("qa", "done");
         }
         "feature_with_validation" => {
             b.step("architect", "Architect", Role::Architect, text::ARCHITECT);
@@ -707,14 +729,10 @@ pub fn instantiate(
             );
             b.step("qa", "QA", Role::Qa, text::QA);
             b.end("done", "Done");
-            for (a, c) in [
-                ("architect", "developer"),
-                ("developer", "validator"),
-                ("validator", "qa"),
-                ("qa", "done"),
-            ] {
-                b.then(a, c);
-            }
+            b.then("architect", "developer");
+            b.then("developer", "validator");
+            b.verdict_gate("validator", "qa");
+            b.verdict_gate("qa", "done");
         }
         "feature_with_bug_fix_loop" => {
             b.step("architect", "Architect", Role::Architect, text::ARCHITECT);

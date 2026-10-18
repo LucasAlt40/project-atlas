@@ -3188,6 +3188,11 @@ export interface WorkflowIntegrationDto {
   review: ChangeSetReviewDto | null;
   /** The review that needs a person: Apply again, having seen it, is their decision. */
   reviewPending: string | null;
+  /**
+   * Files of the project's own checkout that changed while the run was going (the person, another
+   * run's Apply, or an agent that wrote outside its worktree). Holds the first Apply.
+   */
+  checkoutChanged?: string[];
   updatedAt: number;
 }
 

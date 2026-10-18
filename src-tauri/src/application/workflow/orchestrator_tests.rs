@@ -74,7 +74,7 @@ pub(super) fn ok(status: &str, extra: &str) -> Step {
 }
 
 /// A step that ended with a declared *outcome* (what a template routes on).
-fn outcome(outcome: &str, extra: &str) -> Step {
+pub(super) fn outcome(outcome: &str, extra: &str) -> Step {
     ok(outcome, &format!(r#","outcome":"{outcome}"{extra}"#))
 }
 
@@ -389,7 +389,7 @@ impl Env {
         }
     }
 
-    fn run(
+    pub(super) fn run(
         &self,
         runner: &Arc<Scripted>,
         workflow_id: &str,

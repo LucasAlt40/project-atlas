@@ -67,5 +67,17 @@ pub struct WorkflowIntegration {
     /// another review.
     #[serde(default)]
     pub review_pending: Option<String>,
+    /// The project's own checkout when the run's worktree was made: its changed files by content.
+    /// Kept to compare with how the run leaves it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checkout_at_start: Option<std::collections::BTreeMap<String, String>>,
+    /// Files of the project's own checkout that changed while the run was going: by the person,
+    /// or by an agent that wrote outside its worktree. Atlas did not put them there.
+    #[serde(default)]
+    pub checkout_changed: Vec<String>,
+    /// The `checkout_changed` a person was shown when Apply held for it; applying again with the
+    /// same list is their yes.
+    #[serde(default)]
+    pub checkout_seen: Option<String>,
     pub updated_at: u64,
 }

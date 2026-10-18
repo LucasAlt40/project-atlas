@@ -128,6 +128,10 @@ pub struct NodeState {
     /// Failed attempts in the current pass; interruptions do not count.
     #[serde(default)]
     pub failed_attempts: u32,
+    /// Attempts in the current pass that did the work but ended without a valid outcome (see
+    /// [`crate::application::workflow::engine::MAX_PROTOCOL_RETRIES`]).
+    #[serde(default)]
+    pub protocol_retries: u32,
     #[serde(default)]
     pub attempts: Vec<NodeAttempt>,
     /// The facts the node's last result gave conditions to test.
@@ -155,6 +159,7 @@ impl NodeState {
             activated_edges: BTreeSet::new(),
             iterations: 0,
             failed_attempts: 0,
+            protocol_retries: 0,
             attempts: Vec::new(),
             facts: BTreeMap::new(),
             reason: None,

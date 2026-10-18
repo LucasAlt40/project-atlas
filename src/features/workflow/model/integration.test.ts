@@ -35,6 +35,25 @@ describe('what the screen may say about the code', () => {
     }
   });
 
+  it('names the files that changed in the project folder during the run when Apply held for them', () => {
+    const held = deliveryOf(
+      withCode(done(), 'blocked', {
+        blockReason: 'needs_review',
+        canApply: true,
+        checkoutChanged: ['ESCAPED.txt', 'notes.md'],
+      }),
+    );
+    expect(held?.codeLine).toBe('integration.block.checkout_changed');
+    expect(held?.params.paths).toBe('ESCAPED.txt, notes.md');
+    expect(held?.apply).toBe(true);
+
+    // A review of the changes themselves keeps its own sentence.
+    const review = deliveryOf(
+      withCode(done(), 'blocked', { blockReason: 'needs_review', canApply: true }),
+    );
+    expect(review?.codeLine).toBe('integration.block.needs_review');
+  });
+
   it('offers the decisions that make sense for where the code is', () => {
     const offers = (
       status: IntegrationStatusDto,

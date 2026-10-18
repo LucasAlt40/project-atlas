@@ -230,7 +230,9 @@ impl StepRunner for ChatStepRunner {
         if let Some(live) = &self.live {
             let _ = live.start(&id);
         }
+        let checkout = worktrees.checkout_contents(&id);
         Some(WorkspaceHandle {
+            checkout,
             primary_execution_id: id,
             branch: prepared.worktree.branch_name,
             base_branch: prepared.worktree.base_branch,
@@ -273,6 +275,11 @@ impl StepRunner for ChatStepRunner {
         }
         let worktree = worktrees.close_shared(primary_execution_id, outcome, Validation::NotRun)?;
         let changes = worktrees.change_set(primary_execution_id).ok();
-        Some(WorkspaceClose { worktree, changes })
+        let checkout = worktrees.checkout_contents(primary_execution_id);
+        Some(WorkspaceClose {
+            worktree,
+            changes,
+            checkout,
+        })
     }
 }

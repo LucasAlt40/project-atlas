@@ -1599,7 +1599,7 @@ export const ptBR: Record<TranslationKey, string> = {
   'workflow.issue.duplicate_loop_id': 'Dois nós usam o mesmo nome de ciclo.',
   'workflow.issue.invalid_condition': 'Uma condição não é válida ({reason}).',
   'workflow.issue.undeclared_outcome':
-    'A rota {edge} espera o resultado "{outcome}", que o agente "{agent}" não declara.',
+    'A rota {edge} espera o resultado "{outcome}", que o agente "{agent}" não declara. Dê ao agente um contrato de resultado com ele (validador ou QA: Validação, pass/fail) em Agentes, ou mude a rota.',
   'workflow.issue.outcome_without_route':
     'O resultado "{outcome}" do agente "{agent}" não tem rota: um passo que termine com ele não teria para onde ir.',
   'workflow.issue.outcome_without_route_none':
@@ -1692,6 +1692,8 @@ export const ptBR: Record<TranslationKey, string> = {
     'As alterações tocam arquivos que você também alterou. Nada no seu projeto foi sobrescrito.',
   'integration.block.protected_paths':
     'O Atlas não deixou essas alterações entrarem: elas tocam caminhos que não podem entrar no projeto ({message}). Nada foi aplicado.',
+  'integration.block.checkout_changed':
+    'Enquanto o run acontecia, arquivos mudaram na pasta do seu projeto: {paths}. Não foi este run que os colocou lá: foi você, outro run ou um agente que escreveu fora do worktree (o sandbox em Configurações impede isso). Nada foi aplicado: veja-os e aplique de novo.',
   'integration.block.needs_review':
     'Essas alterações incluem algo que você deve ver antes ({message}). Nada foi aplicado: aplique de novo depois de ver.',
   'integration.note':
@@ -2815,6 +2817,8 @@ export const ptBR: Record<TranslationKey, string> = {
   'mobile.retry': 'Tentar de novo',
   'mobile.back': 'Voltar',
   'mobile.signOut': 'Desconectar este celular',
+  'mobile.signOutFailed':
+    'Não foi possível desconectar este celular: o computador não confirmou. Tente de novo ou revogue-o no Atlas do computador.',
   'mobile.footer':
     'O Atlas roda no seu computador. Esta página só funciona enquanto ele estiver ligado, acordado e na mesma rede.',
   'mobile.pair.lead': 'Acompanhe seus workflows e responda o que está esperando por você.',
