@@ -177,7 +177,8 @@ describe('App', () => {
     await user.type(within(form).getByLabelText('Name'), 'Architecture Expert');
     await user.selectOptions(within(form).getByLabelText('Personality'), 'architect');
     await user.selectOptions(await within(form).findByLabelText('AI Provider'), 'anthropic');
-    await user.type(within(form).getByLabelText('Model'), 'sonnet');
+    // Claude cannot list models, so its aliases are offered.
+    await user.selectOptions(within(form).getByLabelText('Model'), 'sonnet');
     await user.click(within(form).getByRole('button', { name: 'Create Agent' }));
 
     expect(createAgent).toHaveBeenCalledWith(

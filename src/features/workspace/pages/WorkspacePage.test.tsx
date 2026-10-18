@@ -396,8 +396,7 @@ describe('WorkspacePage', () => {
     expect(within(panel).getByLabelText('Model')).toHaveValue('sonnet');
     await user.clear(within(panel).getByLabelText('Name'));
     await user.type(within(panel).getByLabelText('Name'), 'Lead Architect');
-    await user.clear(within(panel).getByLabelText('Model'));
-    await user.type(within(panel).getByLabelText('Model'), 'opus');
+    await user.selectOptions(within(panel).getByLabelText('Model'), 'opus');
     await user.click(within(panel).getByRole('button', { name: 'Save agent' }));
 
     expect(updateAgent).toHaveBeenCalledWith('a1', {

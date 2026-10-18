@@ -1577,13 +1577,28 @@ fn a_spec_can_be_created_listed_read_and_deleted_through_the_commands() {
 }
 
 #[test]
-fn a_spec_for_an_agent_that_is_not_in_the_workspace_is_refused_with_a_code() {
+fn a_spec_for_an_agent_that_does_not_exist_is_refused_with_a_code() {
+    let (_app, window) = window();
+    let ws = create_workspace(&window, "A", "/atlas");
+
+    let error = invoke(
+        &window,
+        "create_spec",
+        spec_body(&ws, &json!({ "id": "agent-gone" })),
+    )
+    .unwrap_err();
+
+    assert_eq!(error["code"], "spec_invalid");
+    assert_eq!(error["params"]["reason"], "agent_invalid");
+}
+
+#[test]
+fn any_agent_of_the_app_can_write_a_spec_even_one_not_placed_in_the_workspace() {
     let (_app, window) = window();
     let ws = create_workspace(&window, "A", "/atlas");
     let agent = create_agent(&window);
 
-    let error = invoke(&window, "create_spec", spec_body(&ws, &agent)).unwrap_err();
+    let created = invoke(&window, "create_spec", spec_body(&ws, &agent)).unwrap();
 
-    assert_eq!(error["code"], "spec_invalid");
-    assert_eq!(error["params"]["reason"], "agent_invalid");
+    assert_eq!(created["spec"]["authorAgentId"], agent["id"]);
 }

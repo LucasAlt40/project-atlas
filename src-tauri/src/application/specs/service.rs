@@ -584,7 +584,7 @@ impl SpecService {
     // ---- creating --------------------------------------------------------------------------------
 
     /// Any agent of the app can write or review a spec; it need not be placed in the workspace.
-    fn usable_agent(&self, _workspace_id: &str, agent_id: &str) -> bool {
+    fn usable_agent(&self, agent_id: &str) -> bool {
         self.agents.find(agent_id).is_some()
     }
 
@@ -653,7 +653,7 @@ impl SpecService {
             .clone()
             .unwrap_or_else(|| request.author_agent_id.clone());
         for agent in [&request.author_agent_id, &reviewer] {
-            if !self.usable_agent(&workspace.id, agent) {
+            if !self.usable_agent(agent) {
                 return Err(invalid("agent_invalid"));
             }
         }
@@ -692,16 +692,16 @@ impl SpecService {
     ///
     /// # Errors
     ///
-    /// When an agent is not one of the workspace's, or a run is going.
+    /// When an agent does not exist, or a run is going.
     pub fn assign_agents(
         &self,
         id: &str,
         author: &str,
         reviewer: &str,
     ) -> Result<SpecView, AppError> {
-        let spec = self.require(id)?;
+        self.require(id)?;
         for agent in [author, reviewer] {
-            if !self.usable_agent(&spec.workspace_id, agent) {
+            if !self.usable_agent(agent) {
                 return Err(invalid("agent_invalid"));
             }
         }
@@ -1321,8 +1321,8 @@ impl SpecService {
     ///
     /// # Errors
     ///
-    /// When the change cannot be read, is already a spec of the workspace, or the agents are
-    /// not the workspace's.
+    /// When the change cannot be read, is already a spec of the workspace, or an agent does not
+    /// exist.
     pub fn import(
         &self,
         workspace_id: &str,
@@ -1334,7 +1334,7 @@ impl SpecService {
         let root = self.workspace_project_root(workspace_id, project_id)?;
         let reviewer = reviewer_agent_id.unwrap_or(author_agent_id);
         for agent in [author_agent_id, reviewer] {
-            if !self.usable_agent(workspace_id, agent) {
+            if !self.usable_agent(agent) {
                 return Err(invalid("agent_invalid"));
             }
         }
