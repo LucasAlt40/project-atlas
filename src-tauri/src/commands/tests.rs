@@ -17,11 +17,22 @@ impl PlatformInfo for FakePlatform {
     }
 }
 
-#[allow(clippy::too_many_lines)] // the command list
 fn window() -> (tauri::App<MockRuntime>, WebviewWindow<MockRuntime>) {
     let app_info = AppInfoService::new("9.9.9".to_owned(), std::sync::Arc::new(FakePlatform));
-    let app = mock_builder()
-        .manage(AppState::for_tests(app_info))
+    app_window(Some(AppState::for_tests(app_info)))
+}
+
+/// The mock app with every command registered. Without a state, the caller manages one (the real
+/// composition root needs the app's handle for its event sinks first).
+#[allow(clippy::too_many_lines)] // the command list
+pub(super) fn app_window(
+    state: Option<AppState>,
+) -> (tauri::App<MockRuntime>, WebviewWindow<MockRuntime>) {
+    let mut builder = mock_builder();
+    if let Some(state) = state {
+        builder = builder.manage(state);
+    }
+    let app = builder
         .invoke_handler(tauri::generate_handler![
             super::app::get_app_info,
             super::memory::list_memories,
@@ -127,6 +138,64 @@ fn window() -> (tauri::App<MockRuntime>, WebviewWindow<MockRuntime>) {
             super::specs::approve_spec,
             super::specs::publish_spec,
             super::specs::list_ready_specs,
+            super::specs::assign_spec_agents,
+            super::specs::start_spec,
+            super::specs::generate_spec_artifact,
+            super::specs::keep_spec_artifact,
+            super::specs::answer_spec_question,
+            super::specs::answer_spec_findings,
+            super::specs::resolve_spec_finding,
+            super::specs::run_spec_review,
+            super::specs::waive_spec_review,
+            super::specs::validate_spec,
+            super::specs::archive_spec,
+            super::specs::cancel_spec_run,
+            super::specs::get_spec_progress,
+            super::specs::get_openspec_cli_status,
+            super::specs::check_spec_with_cli,
+            super::harness::build_workspace_context,
+            super::harness::get_workspace_harness,
+            super::harness::get_workspace_notes,
+            super::harness::initialize_workspace_harness,
+            super::harness::reset_workspace_harness,
+            super::harness::save_workspace_notes,
+            super::mcp::add_mcp_connection,
+            super::mcp::add_mcp_preset,
+            super::mcp::apply_mcp_sync,
+            super::mcp::apply_mcp_to_runtime,
+            super::mcp::clear_mcp_secret,
+            super::mcp::export_mcp_config,
+            super::mcp::grant_mcp_connection,
+            super::mcp::import_mcp_config,
+            super::mcp::list_mcp_catalog,
+            super::mcp::list_mcp_connections,
+            super::mcp::plan_mcp_sync,
+            super::mcp::probe_mcp_connection,
+            super::mcp::read_runtime_mcp_config,
+            super::mcp::remove_mcp_connection,
+            super::mcp::revoke_mcp_grant,
+            super::mcp::search_mcp_registry,
+            super::mcp::set_mcp_connection_enabled,
+            super::mcp::set_mcp_secret,
+            super::mcp::update_mcp_connection,
+            super::presence::set_presence_settings,
+            super::remote::get_remote_status,
+            super::remote::new_remote_pairing_code,
+            super::remote::revoke_all_remote_devices,
+            super::remote::revoke_remote_device,
+            super::remote::set_remote_enabled,
+            super::specs::archive_spec_with_cli,
+            super::specs::import_spec,
+            super::specs::list_importable_specs,
+            super::updater::check_for_update,
+            super::updater::install_update,
+            super::workflow::get_workflow_recovery,
+            super::workflow::repair_workflow_routes,
+            super::workflow::suggest_route_repairs,
+            super::workspace::add_workspace_project,
+            super::workspace::list_workspace_projects,
+            super::workspace::remove_workspace_project,
+            super::workspace::update_workspace_project,
         ])
         .build(crate::context())
         .expect("failed to build mock app");
@@ -136,7 +205,11 @@ fn window() -> (tauri::App<MockRuntime>, WebviewWindow<MockRuntime>) {
     (app, window)
 }
 
-fn invoke(window: &WebviewWindow<MockRuntime>, cmd: &str, body: Value) -> Result<Value, Value> {
+pub(super) fn invoke(
+    window: &WebviewWindow<MockRuntime>,
+    cmd: &str,
+    body: Value,
+) -> Result<Value, Value> {
     tauri::test::get_ipc_response(
         window,
         InvokeRequest {
@@ -1601,4 +1674,45 @@ fn any_agent_of_the_app_can_write_a_spec_even_one_not_placed_in_the_workspace() 
     let created = invoke(&window, "create_spec", spec_body(&ws, &agent)).unwrap();
 
     assert_eq!(created["spec"]["authorAgentId"], agent["id"]);
+}
+
+/// Every command the app registers (`lib.rs`) is registered here too and allowed by the capability
+/// file: a call reaches its handler, whatever the handler then says about the arguments. Commands
+/// with an effect outside the app (the updater, native dialogs, opening an IDE) are not called.
+#[test]
+fn every_command_the_app_registers_reaches_its_handler_through_the_capability() {
+    const OUTSIDE: [&str; 5] = [
+        "check_for_update",
+        "install_update",
+        "pick_config_file",
+        "save_config_file",
+        "open_workflow_in_ide",
+    ];
+    let source = include_str!("../lib.rs");
+    let start = source.find("generate_handler![").unwrap();
+    let end = start + source[start..].find(']').unwrap();
+    let names: Vec<&str> = source[start..end]
+        .split(',')
+        .filter_map(|item| item.trim().rsplit("::").next())
+        .filter(|name| !name.is_empty() && !name.contains('['))
+        .collect();
+    assert!(names.len() > 150, "{}", names.len());
+    let (_app, window) = window();
+    // The check below must be able to see a refusal at all.
+    let unknown = invoke(&window, "definitely_not_a_command", json!({})).unwrap_err();
+    assert!(
+        unknown.to_string().contains("not allowed") || unknown.to_string().contains("not found"),
+        "{unknown}"
+    );
+    let mut refused = Vec::new();
+    for name in names.iter().filter(|n| !OUTSIDE.contains(n)) {
+        // A bogus argument: commands that take some say which one is missing.
+        if let Err(error) = invoke(&window, name, json!({ "probe": true })) {
+            let text = error.to_string();
+            if text.contains("not allowed") || text.contains("not found") {
+                refused.push(format!("{name}: {text}"));
+            }
+        }
+    }
+    assert!(refused.is_empty(), "{refused:#?}");
 }

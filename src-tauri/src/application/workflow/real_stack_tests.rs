@@ -5,6 +5,7 @@
 
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -163,6 +164,9 @@ fn stack_on(runtime_id: &str, stand_in: Option<&str>, model: &str, git: bool) ->
         ("developer", "developer"),
         ("qa", "qa"),
         ("fixer", "bug-fixer"),
+        // The other roles of the product's templates, so any of them can be built here.
+        ("architect", "architect"),
+        ("validator", "architecture-validator"),
     ]
     .into_iter()
     .map(|(key, personality)| {
@@ -1193,5 +1197,739 @@ fn real_claude_guardrail_asks_before_starting_and_starts_the_real_cli_after_a_ye
     assert_eq!(
         guard.context_review.as_ref().unwrap().health,
         crate::domain::guardrail::ContextHealth::NeedsReview
+    );
+}
+
+// ---- the product's templates, through a real model ------------------------------------------------
+
+/// What a template run left behind, read back from Git and the run itself.
+struct TemplateRun {
+    status: WorkflowExecutionStatus,
+    /// Every step that started, in order (a step that ran twice is listed twice).
+    started: Vec<String>,
+    /// `git show <run's branch>:<path>`, for the files asked about.
+    files: std::collections::BTreeMap<String, Option<String>>,
+    /// Paths Git says the run changed.
+    changed: Vec<String>,
+    failure: Option<String>,
+    /// The run's branch, to take its whole tree out and run it.
+    branch: Option<String>,
+}
+
+fn git_out(project: &std::path::Path, args: &[&str]) -> Option<String> {
+    let out = std::process::Command::new("git")
+        .args(args)
+        .current_dir(project)
+        .output()
+        .ok()?;
+    out.status
+        .success()
+        .then(|| String::from_utf8_lossy(&out.stdout).into_owned())
+}
+
+/// A real Git project with `files` committed, the product template `template_id` built from the
+/// agents of the workspace (one per role, all on `runtime_id`/`model`), run on `task` with plans
+/// approved. Reads back the files named in `read` from the run's branch.
+#[allow(clippy::too_many_lines)] // setup, run and the read-back, printed for the record
+fn run_template(
+    runtime_id: &str,
+    model: &str,
+    template_id: &str,
+    files: &[(&str, &str)],
+    task: &str,
+    read: &[&str],
+) -> (Stack, TemplateRun) {
+    let s = stack_on(runtime_id, None, model, true);
+    for (path, content) in files {
+        let target = s.project.join(path);
+        fs::create_dir_all(target.parent().unwrap()).unwrap();
+        fs::write(target, content).unwrap();
+    }
+    if !files.is_empty() {
+        for args in [
+            vec!["add", "--all"],
+            vec![
+                "-c",
+                "user.name=Test",
+                "-c",
+                "user.email=t@example.com",
+                "-c",
+                "commit.gpgsign=false",
+                "commit",
+                "--quiet",
+                "-m",
+                "fixture",
+            ],
+        ] {
+            assert!(git_out(&s.project, &args).is_some(), "git {args:?}");
+        }
+    }
+    // As the agent form does: each agent starts from its personality's suggested contract.
+    // Read first: the config's lock is not reentrant, so nothing inside `modify` may read it.
+    let personalities = PersonalityService::new(s.config.clone());
+    let suggested: std::collections::BTreeMap<String, _> = s
+        .config
+        .agents()
+        .into_iter()
+        .map(|a| {
+            let contract = personalities
+                .find(&a.personality_id)
+                .unwrap()
+                .suggested_contract;
+            (a.id, contract)
+        })
+        .collect();
+    s.config
+        .modify(|c| {
+            for agent in &mut c.agents {
+                agent.result_contract = suggested[&agent.id].clone();
+            }
+            Ok(())
+        })
+        .unwrap();
+    let built = s
+        .workflows
+        .create_from_template(&s.workspace_id, template_id, None, WorkflowMode::Custom)
+        .unwrap();
+    assert!(
+        built.missing_roles.is_empty(),
+        "every role has an agent: {:?}",
+        built.missing_roles
+    );
+    let run = s
+        .workflows
+        .start_with_plans(&built.workflow.id, task, true)
+        .unwrap();
+    let observer = Arc::new(Collector::default());
+    let began = std::time::Instant::now();
+    s.orchestrator.run(&run.id, observer.clone()).unwrap();
+    let done = s.workflows.execution(&run.id).unwrap();
+
+    let started: Vec<String> = observer
+        .0
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|e| e.kind == crate::domain::workflow::WorkflowEventKind::NodeStarted)
+        .filter_map(|e| e.node_id.clone())
+        .collect();
+    println!(
+        "--- {template_id} on {runtime_id}/{model} in {:?}",
+        began.elapsed()
+    );
+    println!("status: {:?}, failure: {:?}", done.status, done.failure);
+    println!("steps started: {started:?}");
+    for (id, node) in &done.nodes {
+        println!(
+            "{id}: {:?} attempts={} facts={:?}",
+            node.status,
+            node.attempts.len(),
+            node.facts
+        );
+    }
+    println!("integration: {:?}", done.integration);
+    let branch = s
+        .worktrees
+        .as_ref()
+        .unwrap()
+        .list(None, None)
+        .into_iter()
+        .find(|w| w.shared_with.is_none())
+        .map(|w| w.branch_name);
+    println!("branch: {branch:?}");
+    let changed = branch
+        .as_deref()
+        .and_then(|b| git_out(&s.project, &["diff", "--name-only", "main", b]))
+        .map(|text| text.lines().map(str::to_owned).collect())
+        .unwrap_or_default();
+    println!("changed: {changed:?}");
+    let files = read
+        .iter()
+        .map(|path| {
+            let shown = branch
+                .as_deref()
+                .and_then(|b| git_out(&s.project, &["show", &format!("{b}:{path}")]));
+            println!("{path} on the branch: {shown:?}");
+            ((*path).to_owned(), shown)
+        })
+        .collect();
+    // The project's own checkout is never touched by a run: changes wait for the person.
+    let status = git_out(&s.project, &["status", "--porcelain"]).unwrap_or_default();
+    assert!(status.trim().is_empty(), "the checkout changed: {status}");
+    let failure = done.failure.as_ref().map(|f| format!("{f:?}"));
+    let result = TemplateRun {
+        status: done.status,
+        started,
+        files,
+        changed,
+        failure,
+        branch,
+    };
+    (s, result)
+}
+
+/// Runs `node` on `script` (a `CommonJS` check) inside a folder holding `files`; its stdout.
+fn node_check(files: &[(&str, &str)], script: &str) -> String {
+    let dir = TempDir::new("template-check");
+    for (path, content) in files {
+        let target = dir.path().join(path);
+        fs::create_dir_all(target.parent().unwrap()).unwrap();
+        fs::write(target, content).unwrap();
+    }
+    let out = std::process::Command::new("node")
+        .args(["-e", script])
+        .current_dir(dir.path())
+        .output()
+        .expect("node is installed");
+    format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout).trim(),
+        String::from_utf8_lossy(&out.stderr).trim()
+    )
+}
+
+/// Index of the first start of `step` (panics with the order when it never started).
+fn first(run: &TemplateRun, step: &str) -> usize {
+    run.started
+        .iter()
+        .position(|s| s == step)
+        .unwrap_or_else(|| panic!("{step} never started: {:?}", run.started))
+}
+
+const SUM_CHECK: &str = "const {sum}=require('./src/sum.js');\
+     console.log(sum(2,3)===5&&sum(-1,1)===0?'OK':'WRONG '+sum(2,3))";
+
+/// "Quick change" (Architect -> Developer -> QA): a small function with explicit acceptance
+/// criteria, checked by running it.
+fn real_template_quick_change_on(runtime_id: &str, model: &str) {
+    let (_s, run) = run_template(
+        runtime_id,
+        model,
+        "feature_basic",
+        &[(
+            "README.md",
+            "# Calc\nA tiny CommonJS project. No dependencies.\n",
+        )],
+        "Create the file src/sum.js, a CommonJS module that exports a function sum(a, b) \
+         returning a + b, exactly as: module.exports = { sum }. Acceptance: sum(2, 3) === 5 and \
+         sum(-1, 1) === 0. Touch no other file. Keep it to a few lines.",
+        &["src/sum.js"],
+    );
+    assert_eq!(
+        run.status,
+        WorkflowExecutionStatus::Completed,
+        "{:?}",
+        run.failure
+    );
+    assert!(first(&run, "architect") < first(&run, "developer"));
+    assert!(first(&run, "developer") < first(&run, "qa"));
+    let sum = run.files["src/sum.js"]
+        .clone()
+        .expect("src/sum.js on the branch");
+    assert_eq!(node_check(&[("src/sum.js", &sum)], SUM_CHECK), "OK");
+}
+
+/// "Feature with fix loop": the defect is already in the project and the developer is told to
+/// leave it, so QA has to fail it, the Bug Fixer has to repair it, and QA has to pass it again.
+fn real_template_fix_loop_on(runtime_id: &str, model: &str) {
+    let (_s, run) = run_template(
+        runtime_id,
+        model,
+        "feature_with_bug_fix_loop",
+        &[
+            (
+                "README.md",
+                "# Calc\nA tiny CommonJS project. No dependencies.\n",
+            ),
+            (
+                "src/sum.js",
+                "function sum(a, b) {\n  return a - b;\n}\nmodule.exports = { sum };\n",
+            ),
+        ],
+        "Two parts. Part 1, for the Architect and the Developer: add one line '- sum' to a new \
+         file FEATURES.md and change nothing else; in particular the Developer must NOT open or \
+         edit src/sum.js. Part 2, for QA: read src/sum.js; the acceptance criterion is that \
+         sum(2, 3) === 5. If src/sum.js does not return a + b, the outcome is fail with a \
+         finding on src/sum.js. For the Bug Fixer: make src/sum.js return a + b, nothing else.",
+        &["src/sum.js", "FEATURES.md"],
+    );
+    let qa_runs = run.started.iter().filter(|s| *s == "qa").count();
+    println!("qa ran {qa_runs} time(s)");
+    assert_eq!(
+        run.status,
+        WorkflowExecutionStatus::Completed,
+        "{:?}",
+        run.failure
+    );
+    let fixer = first(&run, "bug-fixer");
+    assert!(
+        first(&run, "qa") < fixer,
+        "QA failed first, then the fixer ran"
+    );
+    assert!(
+        run.started[fixer..].iter().any(|s| s == "qa"),
+        "QA ran again after the fix: {:?}",
+        run.started
+    );
+    let sum = run.files["src/sum.js"]
+        .clone()
+        .expect("src/sum.js on the branch");
+    assert_eq!(node_check(&[("src/sum.js", &sum)], SUM_CHECK), "OK");
+}
+
+/// "Review & audit": an intentional defect must be reported and no file may change.
+fn real_template_review_on(runtime_id: &str, model: &str) {
+    let (s, run) = run_template(
+        runtime_id,
+        model,
+        "code_review",
+        &[(
+            "src/average.js",
+            "// Average of a list of numbers.\nfunction average(values) {\n  let total = 0;\n  \
+             for (const v of values) total += v;\n  return total / values.length;\n}\n\
+             module.exports = { average };\n",
+        )],
+        "Review src/average.js for correctness. Report each defect as a finding with the file \
+         and the line. Change nothing.",
+        &[],
+    );
+    assert!(run.status.is_final());
+    assert!(
+        run.changed.is_empty(),
+        "a review changed files: {:?}",
+        run.changed
+    );
+    // What the review said, as the person reads it.
+    let said: String = s
+        .chat
+        .messages(Some(&s.workspace_id), None)
+        .iter()
+        .map(|m| m.content.to_lowercase())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        [
+            "empty",
+            "length === 0",
+            "length is 0",
+            "zero",
+            "nan",
+            "division"
+        ]
+        .iter()
+        .any(|w| said.contains(w)),
+        "the empty-list defect was reported:\n{said}"
+    );
+}
+
+/// "Debug & fix": a reported symptom, fixed minimally and checked by running it.
+fn real_template_debug_fix_on(runtime_id: &str, model: &str) {
+    let (_s, run) = run_template(
+        runtime_id,
+        model,
+        "bug_fix",
+        &[(
+            "src/parse.js",
+            "function parseList(text) {\n  return text.split(',').map(Number);\n}\n\
+             module.exports = { parseList };\n",
+        )],
+        "Bug: parseList('1,2,') in src/parse.js returns [1, 2, 0] but must return [1, 2]: empty \
+         items (and items that are only spaces) are ignored. parseList('3, 4') must still return \
+         [3, 4]. Fix it in src/parse.js.",
+        &["src/parse.js"],
+    );
+    assert_eq!(
+        run.status,
+        WorkflowExecutionStatus::Completed,
+        "{:?}",
+        run.failure
+    );
+    let code = run.files["src/parse.js"]
+        .clone()
+        .expect("src/parse.js on the branch");
+    assert_eq!(
+        node_check(
+            &[("src/parse.js", &code)],
+            "const {parseList}=require('./src/parse.js');\
+             const a=JSON.stringify(parseList('1,2,')),b=JSON.stringify(parseList('3, 4'));\
+             console.log(a==='[1,2]'&&b==='[3,4]'?'OK':'WRONG '+a+' '+b)"
+        ),
+        "OK"
+    );
+}
+
+/// "Implement" (the recommended template): plan, change, review, QA.
+fn real_template_implement_on(runtime_id: &str, model: &str) {
+    let (_s, run) = run_template(
+        runtime_id,
+        model,
+        "software_feature",
+        &[(
+            "README.md",
+            "# Calc\nA tiny CommonJS project. No dependencies.\n",
+        )],
+        "Create the file src/sum.js, a CommonJS module that exports a function sum(a, b) \
+         returning a + b, exactly as: module.exports = { sum }. Acceptance: sum(2, 3) === 5 and \
+         sum(-1, 1) === 0. Touch no other file.",
+        &["src/sum.js"],
+    );
+    assert_eq!(
+        run.status,
+        WorkflowExecutionStatus::Completed,
+        "{:?}",
+        run.failure
+    );
+    assert_eq!(run.started.first().map(String::as_str), Some("architect"));
+    let sum = run.files["src/sum.js"]
+        .clone()
+        .expect("src/sum.js on the branch");
+    assert_eq!(node_check(&[("src/sum.js", &sum)], SUM_CHECK), "OK");
+}
+
+// OpenCode's free models: no cost.
+#[test]
+#[ignore = "needs the OpenCode CLI; makes real (free) model calls"]
+fn real_template_quick_change_opencode() {
+    real_template_quick_change_on("opencode", "opencode/big-pickle");
+}
+
+#[test]
+#[ignore = "needs the OpenCode CLI; makes real (free) model calls"]
+fn real_template_fix_loop_opencode() {
+    real_template_fix_loop_on("opencode", "opencode/big-pickle");
+}
+
+#[test]
+#[ignore = "needs the OpenCode CLI; makes real (free) model calls"]
+fn real_template_review_opencode() {
+    real_template_review_on("opencode", "opencode/big-pickle");
+}
+
+#[test]
+#[ignore = "needs the OpenCode CLI; makes real (free) model calls"]
+fn real_template_debug_fix_opencode() {
+    real_template_debug_fix_on("opencode", "opencode/big-pickle");
+}
+
+#[test]
+#[ignore = "needs the OpenCode CLI; makes real (free) model calls"]
+fn real_template_implement_opencode() {
+    real_template_implement_on("opencode", "opencode/big-pickle");
+}
+
+#[test]
+#[ignore = "needs the Copilot CLI signed in; one premium request per step"]
+fn real_template_fix_loop_copilot() {
+    real_template_fix_loop_on("copilot", "auto");
+}
+
+#[test]
+#[ignore = "needs the Codex CLI signed in; makes real model calls"]
+fn real_template_quick_change_codex() {
+    real_template_quick_change_on("codex", "gpt-5.6-luna");
+}
+
+#[test]
+#[ignore = "needs the Claude CLI signed in; makes real model calls"]
+fn real_template_fix_loop_claude() {
+    real_template_fix_loop_on("claude", "haiku");
+}
+
+/// The run's branch as a folder of files, to run what the agents wrote.
+fn tree_of(s: &Stack, run: &TemplateRun) -> TempDir {
+    let branch = run.branch.as_deref().expect("the run has a branch");
+    let dir = TempDir::new("template-tree");
+    let archive = std::process::Command::new("git")
+        .args(["archive", "--format=tar", branch])
+        .current_dir(&s.project)
+        .output()
+        .unwrap();
+    assert!(archive.status.success());
+    let mut untar = std::process::Command::new("tar")
+        .args(["-x", "-C"])
+        .arg(dir.path())
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    std::io::Write::write_all(untar.stdin.as_mut().unwrap(), &archive.stdout).unwrap();
+    assert!(untar.wait().unwrap().success());
+    dir
+}
+
+/// `node <args>` in `dir`: (succeeded, stdout + stderr).
+fn node_in(dir: &std::path::Path, args: &[&str]) -> (bool, String) {
+    let out = std::process::Command::new("node")
+        .args(args)
+        .current_dir(dir)
+        .output()
+        .expect("node is installed");
+    (
+        out.status.success(),
+        format!(
+            "{}{}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        ),
+    )
+}
+
+const README_JSDOC: &str = "# Calc\nA tiny CommonJS project. No dependencies.\n\n## Conventions\n\n\
+Every exported function MUST have a JSDoc comment (/** ... */) directly above it. Code without it is \
+not accepted.\n";
+
+/// "Feature with validation", accepted: the change follows the convention, the validator and QA
+/// pass, and the code works.
+fn real_template_feature_with_validation_accepted_on(runtime_id: &str, model: &str) {
+    let (s, run) = run_template(
+        runtime_id,
+        model,
+        "feature_with_validation",
+        &[("README.md", README_JSDOC)],
+        "Create src/sum.js, a CommonJS module that exports sum(a, b) returning a + b, exactly as \
+         module.exports = { sum }, with a JSDoc comment directly above the function as the README \
+         requires. Acceptance: sum(2, 3) === 5. Touch no other file.",
+        &["src/sum.js"],
+    );
+    assert_eq!(
+        run.status,
+        WorkflowExecutionStatus::Completed,
+        "{:?}",
+        run.failure
+    );
+    assert!(first(&run, "developer") < first(&run, "validator"));
+    assert!(first(&run, "validator") < first(&run, "qa"));
+    let tree = tree_of(&s, &run);
+    let (ok, out) = node_in(tree.path(), &["-e", SUM_CHECK]);
+    assert!(ok && out.trim() == "OK", "{out}");
+    assert!(run.files["src/sum.js"]
+        .as_deref()
+        .unwrap_or("")
+        .contains("/**"));
+}
+
+/// "Feature with validation", rejected: the task makes the developer break the project's
+/// convention, so the validator must fail it, and the run must fail without QA.
+fn real_template_feature_with_validation_rejected_on(runtime_id: &str, model: &str) {
+    let (_s, run) = run_template(
+        runtime_id,
+        model,
+        "feature_with_validation",
+        &[("README.md", README_JSDOC)],
+        "Create src/sum.js, a CommonJS module that exports sum(a, b) returning a + b, exactly as \
+         module.exports = { sum }. The Developer must write NO comment of any kind in the file. The \
+         Validator must check the change against the README's conventions and fail it if any \
+         convention is broken.",
+        &["src/sum.js"],
+    );
+    let sum = run.files["src/sum.js"].clone().unwrap_or_default();
+    println!("the developer wrote a comment: {}", sum.contains("/**"));
+    assert_eq!(
+        run.status,
+        WorkflowExecutionStatus::Failed,
+        "a broken convention was accepted"
+    );
+    assert!(run.started.contains(&"validator".to_owned()));
+    assert!(
+        !run.started.contains(&"qa".to_owned()),
+        "QA ran after a rejection"
+    );
+}
+
+/// "Full-stack development": a backend and a frontend that must talk to each other, checked by
+/// starting the backend and calling it through the frontend's client.
+fn real_template_full_stack_on(runtime_id: &str, model: &str) {
+    let (s, run) = run_template(
+        runtime_id,
+        model,
+        "full_development",
+        &[(
+            "README.md",
+            "# Sum service\nTwo parts, CommonJS, Node's standard library only, no dependencies:\n\
+             - backend/server.js\n- frontend/api.js\n",
+        )],
+        "Build a tiny full-stack sum feature, Node standard library only, CommonJS, no dependencies. \
+         Backend: backend/server.js exports createServer(), returning a node:http Server (not \
+         listening) that answers GET /api/sum?a=<n>&b=<n> with status 200 and the JSON body \
+         {\"result\": a + b} (numbers), and 400 when a or b is not a number. Frontend: \
+         frontend/api.js exports async function getSum(baseUrl, a, b) that calls the backend with \
+         the global fetch and returns the number in result. module.exports = { createServer } and \
+         module.exports = { getSum }. Acceptance: getSum against a running createServer() returns 5 \
+         for 2 and 3.",
+        &["backend/server.js", "frontend/api.js"],
+    );
+    assert_eq!(
+        run.status,
+        WorkflowExecutionStatus::Completed,
+        "{:?}",
+        run.failure
+    );
+    assert!(first(&run, "backend") < first(&run, "validator"));
+    assert!(first(&run, "frontend") < first(&run, "validator"));
+    let tree = tree_of(&s, &run);
+    let check = "const {createServer}=require('./backend/server.js');\
+        const {getSum}=require('./frontend/api.js');\
+        const server=createServer();\
+        server.listen(0,'127.0.0.1',async()=>{\
+          const base='http://127.0.0.1:'+server.address().port;\
+          try{\
+            const five=await getSum(base,2,3);\
+            const bad=await fetch(base+'/api/sum?a=x&b=1');\
+            console.log(five===5&&bad.status===400?'OK':'WRONG '+five+' '+bad.status);\
+          }catch(e){console.log('ERROR '+e.message);}\
+          server.close();\
+        });";
+    let (ok, out) = node_in(tree.path(), &["-e", check]);
+    assert!(ok && out.trim() == "OK", "{out}");
+}
+
+const PRICE_BEFORE: &str = "// Price of an order line, with the discounts the shop gives.\n\
+function price(kind, qty, unit) {\n\
+  if (kind === 'book') {\n    let total = qty * unit;\n    if (qty >= 10) { total = total - total * 0.1; }\n    return Math.round(total * 100) / 100;\n  }\n\
+  if (kind === 'food') {\n    let total = qty * unit;\n    if (qty >= 10) { total = total - total * 0.05; }\n    return Math.round(total * 100) / 100;\n  }\n\
+  if (kind === 'toy') {\n    let total = qty * unit;\n    if (qty >= 10) { total = total - total * 0.2; }\n    return Math.round(total * 100) / 100;\n  }\n\
+  let total = qty * unit;\n  return Math.round(total * 100) / 100;\n}\nmodule.exports = { price };\n";
+
+const PRICE_TESTS: &str =
+    "const test = require('node:test');\nconst assert = require('node:assert');\n\
+const { price } = require('../src/price.js');\n\
+test('book discount from 10', () => { assert.strictEqual(price('book', 10, 2), 18); });\n\
+test('food no discount under 10', () => { assert.strictEqual(price('food', 9, 1.5), 13.5); });\n\
+test('toy discount', () => { assert.strictEqual(price('toy', 12, 3.33), 31.97); });\n\
+test('other kinds', () => { assert.strictEqual(price('pen', 10, 1), 10); });\n";
+
+/// "Refactor": duplication removed, behaviour kept. Checked by the project's own tests and by
+/// comparing the new code with the old one on many inputs.
+fn real_template_refactor_on(runtime_id: &str, model: &str) {
+    let (s, run) = run_template(
+        runtime_id,
+        model,
+        "refactoring",
+        &[
+            ("src/price.js", PRICE_BEFORE),
+            ("test/price.test.js", PRICE_TESTS),
+            ("README.md", "# Shop\nRun the tests with: node --test\n"),
+        ],
+        "Refactor src/price.js to remove the duplicated discount logic (for example a table of \
+         discount rates by kind), keeping its behaviour exactly the same for every input, \
+         including rounding. Keep module.exports = { price }. Do not change test/price.test.js.",
+        &["src/price.js", "test/price.test.js"],
+    );
+    assert_eq!(
+        run.status,
+        WorkflowExecutionStatus::Completed,
+        "{:?}",
+        run.failure
+    );
+    let after = run.files["src/price.js"]
+        .clone()
+        .expect("src/price.js on the branch");
+    assert_ne!(after, PRICE_BEFORE, "nothing was refactored");
+    assert_eq!(
+        run.files["test/price.test.js"].as_deref(),
+        Some(PRICE_TESTS),
+        "the regression tests were changed"
+    );
+    let tree = tree_of(&s, &run);
+    let (ok, out) = node_in(tree.path(), &["--test"]);
+    assert!(ok, "the project's tests fail after the refactor:\n{out}");
+    fs::write(tree.path().join("old.js"), PRICE_BEFORE).unwrap();
+    let compare = "const a=require('./old.js').price,b=require('./src/price.js').price;\
+        let bad=[];for(const k of ['book','food','toy','pen',''])\
+        for(const q of [0,1,9,10,11,25])for(const u of [0,0.1,1.5,3.33,19.99])\
+        if(a(k,q,u)!==b(k,q,u))bad.push([k,q,u,a(k,q,u),b(k,q,u)]);\
+        console.log(bad.length?'DIFF '+JSON.stringify(bad.slice(0,5)):'SAME');";
+    let (ok, out) = node_in(tree.path(), &["-e", compare]);
+    assert!(ok && out.trim() == "SAME", "behaviour changed: {out}");
+}
+
+#[test]
+#[ignore = "needs the OpenCode CLI; makes real (free) model calls"]
+fn real_template_feature_with_validation_accepted_opencode() {
+    real_template_feature_with_validation_accepted_on("opencode", "opencode/big-pickle");
+}
+
+#[test]
+#[ignore = "needs the OpenCode CLI; makes real (free) model calls"]
+fn real_template_feature_with_validation_rejected_opencode() {
+    real_template_feature_with_validation_rejected_on("opencode", "opencode/big-pickle");
+}
+
+#[test]
+#[ignore = "needs the OpenCode CLI; makes real (free) model calls"]
+fn real_template_full_stack_opencode() {
+    real_template_full_stack_on("opencode", "opencode/big-pickle");
+}
+
+#[test]
+#[ignore = "needs the OpenCode CLI; makes real (free) model calls"]
+fn real_template_refactor_opencode() {
+    real_template_refactor_on("opencode", "opencode/big-pickle");
+}
+
+// ---- isolation: an agent that leaves its worktree ---------------------------------------------------
+
+/// A stand-in agent that does its work in the worktree and also, at the developer step, finds the
+/// project's own checkout through Git (the worktree's `.git` names it) and writes a file there.
+/// It keeps every prompt it was given, to see which folders it was told about.
+const ESCAPING_CLAUDE: &str = r#"#!/bin/sh
+printf '%s\n----\n' "$*" >> "$ATLAS_TEST_PROMPTS"
+printf '%s\n' "$PWD" >> "$ATLAS_TEST_PROMPTS.cwd"
+status=success
+case "$*" in
+  *"Current step: developer"*)
+    echo work > feature.txt
+    main=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+    echo escaped > "$main/ESCAPED.txt" ;;
+  *"Current step: QA"*) status=pass ;;
+esac
+printf '{"type":"system","subtype":"init"}\r\n'
+printf '{"type":"result","subtype":"success","is_error":false,"duration_ms":5,"num_turns":1,"result":"Did it.\\n```atlas-result\\n{\\"status\\":\\"%s\\",\\"summary\\":\\"step done with %s\\"}\\n```","total_cost_usd":0.001}\r\n' "$status" "$status"
+"#;
+
+/// What Atlas tells an agent about where it works, and what happens when one writes into the
+/// project's own checkout anyway (the OS sandbox is off, as it is by default).
+#[test]
+fn an_agent_that_writes_into_the_project_checkout_is_named_by_the_run() {
+    let prompts = TempDir::new("escape-prompts");
+    let log = prompts.path().join("prompts.txt");
+    std::env::set_var("ATLAS_TEST_PROMPTS", &log);
+    let s = stack_with(Some(ESCAPING_CLAUDE), "sonnet", true);
+    let workflow = s.workflow(
+        vec![
+            agent("developer", "developer"),
+            agent("QA", "qa"),
+            end("done", EndOutcome::Done),
+        ],
+        vec![edge("developer", "QA"), when("QA", "done", "pass")],
+    );
+    let run = s
+        .workflows
+        .start(&workflow.id, "Build the feature")
+        .unwrap();
+    s.orchestrator
+        .run(&run.id, Arc::new(Collector::default()))
+        .unwrap();
+    let done = s.workflows.execution(&run.id).unwrap();
+
+    let told = fs::read_to_string(&log).unwrap_or_default();
+    let dirs = fs::read_to_string(log.with_extension("txt.cwd")).unwrap_or_default();
+    let project = s.project.canonicalize().unwrap();
+    println!(
+        "status {:?}, integration {:?}",
+        done.status, done.integration.status
+    );
+    println!("working directories: {dirs}");
+    // Where the agents were told they work: the worktree, never the checkout.
+    assert!(
+        !told.contains(&project.to_string_lossy().to_string()),
+        "a prompt names the project's checkout"
+    );
+    assert!(dirs.lines().all(|d| !Path::new(d).starts_with(&project)));
+    // The agent did get out (nothing at the OS level stops it with the sandbox off) ...
+    assert!(s.project.join("ESCAPED.txt").exists());
+    // ... and the run says so instead of offering its changes as if nothing had happened.
+    assert_eq!(
+        done.integration.checkout_changed,
+        vec!["ESCAPED.txt".to_owned()]
     );
 }

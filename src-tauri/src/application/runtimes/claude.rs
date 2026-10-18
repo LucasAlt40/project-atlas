@@ -1335,7 +1335,10 @@ mod tests {
             "Claude CLI is not installed"
         );
 
-        let mut ping = request("sonnet");
+        // `ATLAS_REAL_CLAUDE_MODEL=haiku` runs it on the cheapest model.
+        let model =
+            std::env::var("ATLAS_REAL_CLAUDE_MODEL").unwrap_or_else(|_| "sonnet".to_owned());
+        let mut ping = request(&model);
         ping.prompt.instruction = "Reply with exactly the word: pong".to_owned();
         ping.working_dir = std::env::temp_dir();
         let result = runtime.execute(&ping, &|stage| println!("stage: {stage:?}"));

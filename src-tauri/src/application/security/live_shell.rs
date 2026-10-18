@@ -643,3 +643,97 @@ fn real_opencode_can_be_interrupted() {
 fn real_copilot_can_be_interrupted() {
     real_cli_can_be_interrupted("copilot", "auto");
 }
+
+/// Two agents of one workspace run at the same time on the real CLI; one is interrupted. The other
+/// must finish on its own, with its own answer, and neither terminal may carry the other's output.
+fn real_cli_two_agents_at_once_one_interrupted(runtime_id: &str, model_id: &str) {
+    let s = build_stack(None, runtime_id, model_id);
+    let nonce = format!(
+        "ATLAS-B-{}",
+        crate::application::support::now_ms() % 100_000
+    );
+    let run = |agent: usize, id: String, description: String| {
+        let executions = s.executions.clone();
+        let request = RunAgentRequest {
+            task_id: format!("task-{id}"),
+            workspace_id: s.workspace_id.clone(),
+            agent_id: s.agents[agent].clone(),
+            description,
+            scope: None,
+        };
+        thread::spawn(move || {
+            executions
+                .run_with_id(id, request, &Collector::default())
+                .unwrap()
+        })
+    };
+    let long = s.executions.next_execution_id();
+    let short = s.executions.next_execution_id();
+    let a = run(
+        0,
+        long.clone(),
+        "Write a very long, detailed essay (at least 3000 words) about the history of computing. \
+         Do not use any tools."
+            .to_owned(),
+    );
+    let b = run(
+        1,
+        short.clone(),
+        format!("Reply with exactly this text and nothing else: {nonce}. Do not use any tools."),
+    );
+
+    let target_a = s.target(0, &long);
+    for _ in 0..1500 {
+        let output = s
+            .sessions
+            .snapshot(&target_a)
+            .map(|t| t.output)
+            .unwrap_or_default();
+        if output.len() > 40 || a.is_finished() {
+            break;
+        }
+        thread::sleep(Duration::from_millis(40));
+    }
+    s.sessions.interrupt(&target_a).unwrap();
+    let record_a = a.join().unwrap();
+    let record_b = b.join().unwrap();
+    println!(
+        "A: {:?}; B: {:?} {:?}",
+        record_a.execution.status, record_b.execution.status, record_b.execution.result
+    );
+
+    assert_eq!(record_a.execution.status, ExecutionStatus::Cancelled);
+    assert_eq!(
+        record_b.execution.status,
+        ExecutionStatus::Completed,
+        "{:?}",
+        record_b.execution.failure
+    );
+    assert!(record_b
+        .execution
+        .result
+        .as_deref()
+        .unwrap_or_default()
+        .contains(&nonce));
+    // Each terminal holds its own process's output only.
+    let terminal_a = s.sessions.snapshot(&target_a).unwrap().output;
+    assert!(
+        !terminal_a.contains(&nonce),
+        "A's terminal shows B's answer"
+    );
+    assert!(record_a
+        .execution
+        .result
+        .as_deref()
+        .is_none_or(|text| !text.contains(&nonce)));
+    assert!(
+        s.sessions.live_executions().is_empty(),
+        "no process is left"
+    );
+}
+
+#[test]
+#[ignore = "needs OpenCode installed and a free model; makes real model calls"]
+fn real_opencode_two_agents_at_once_one_interrupted() {
+    real_cli_two_agents_at_once_one_interrupted("opencode", "opencode/big-pickle");
+}

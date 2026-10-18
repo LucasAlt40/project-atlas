@@ -28,4 +28,6 @@ pub mod workspace;
 pub mod worktree;
 
 #[cfg(test)]
+mod real_app_tests;
+#[cfg(test)]
 mod tests;

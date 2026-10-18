@@ -29,7 +29,7 @@ use super::workflow::service::WorkflowService;
 use super::workspace::WorkspaceService;
 use crate::application::support::LockExt;
 use crate::domain::execution::{ExecutionEvent, ExecutionEventKind};
-use crate::domain::presence::{Activity, DEFAULT_CLIENT_ID, PresenceSettings};
+use crate::domain::presence::{Activity, PresenceSettings, DEFAULT_CLIENT_ID};
 use crate::domain::workflow::{WorkflowEvent, WorkflowEventKind};
 
 /// Discord drops updates beyond about five per twenty seconds.
