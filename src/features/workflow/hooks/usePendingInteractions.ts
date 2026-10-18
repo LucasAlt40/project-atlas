@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { subscribe } from '@/lib/subscribe';
 import { listPendingInteractions, subscribeToWorkflowEvents } from '../services/workflowService';
 import type { PendingInteraction } from '../types';
 
@@ -25,22 +26,14 @@ export function usePendingInteractions(workspaceId: string | undefined): Pending
 
   useEffect(() => {
     refresh();
-    let stop: (() => void) | undefined;
-    let disposed = false;
-    subscribeToWorkflowEvents((event) => {
-      if (event.workspaceId !== workspaceId) return;
-      timer.current ??= setTimeout(refresh, 40);
-    })
-      .then((unlisten) => {
-        if (disposed) unlisten();
-        else stop = unlisten;
-      })
-      .catch(() => {
-        // Live updates are best-effort.
-      });
+    const stop = subscribe(() =>
+      subscribeToWorkflowEvents((event) => {
+        if (event.workspaceId !== workspaceId) return;
+        timer.current ??= setTimeout(refresh, 40);
+      }),
+    );
     return () => {
-      disposed = true;
-      stop?.();
+      stop();
       if (timer.current) clearTimeout(timer.current);
       timer.current = undefined;
     };

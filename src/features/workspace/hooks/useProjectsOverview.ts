@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { subscribe } from '@/lib/subscribe';
 import type { ProjectInfoDto, WorkspaceHarnessOverviewDto } from '@/lib/tauri/commands';
 import {
   getWorkspaceHarness,
@@ -43,26 +44,21 @@ export function useProjectsOverview(workspaceId: string, signature: string) {
     };
   }, [workspaceId, key, version]);
 
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    let disposed = false;
-    void subscribeToWorkspaceHarnessProgress((update) => {
-      if (update.workspaceId !== workspaceId) return;
-      setRunning((current) => {
-        const others = Object.fromEntries(
-          Object.entries(current).filter(([id]) => id !== update.projectId),
-        );
-        return update.state === 'running' ? { ...others, [update.projectId]: true } : others;
-      });
-    }).then((off) => {
-      if (disposed) off();
-      else unlisten = off;
-    });
-    return () => {
-      disposed = true;
-      unlisten?.();
-    };
-  }, [workspaceId]);
+  useEffect(
+    () =>
+      subscribe(() =>
+        subscribeToWorkspaceHarnessProgress((update) => {
+          if (update.workspaceId !== workspaceId) return;
+          setRunning((current) => {
+            const others = Object.fromEntries(
+              Object.entries(current).filter(([id]) => id !== update.projectId),
+            );
+            return update.state === 'running' ? { ...others, [update.projectId]: true } : others;
+          });
+        }),
+      ),
+    [workspaceId],
+  );
 
   // The folders may have changed while Atlas was in the background: look again on return.
   useEffect(() => {

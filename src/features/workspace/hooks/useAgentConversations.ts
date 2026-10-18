@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useReducer, useState } from 'react';
+import { subscribe as subscribeFor } from '@/lib/subscribe';
 import type {
   ExecutionRefDto,
   ExecutionWorktreeDto,
@@ -26,22 +27,8 @@ function useSubscription<T>(
   subscribe: (handler: (value: T) => void) => Promise<() => void>,
   handler: (value: T) => void,
 ) {
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    let disposed = false;
-    subscribe(handler)
-      .then((stop) => {
-        if (disposed) stop();
-        else unlisten = stop;
-      })
-      .catch(() => {
-        // Live updates are best-effort; conversations can always be re-read.
-      });
-    return () => {
-      disposed = true;
-      unlisten?.();
-    };
-  }, [subscribe, handler]);
+  // Live updates are best-effort; conversations can always be re-read.
+  useEffect(() => subscribeFor(() => subscribe(handler)), [subscribe, handler]);
 }
 
 /**

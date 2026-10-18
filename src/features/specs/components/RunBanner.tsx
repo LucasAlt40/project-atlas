@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { subscribe } from '../hooks/subscribe';
+import { subscribe } from '@/lib/subscribe';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { useNow } from '@/features/agents/hooks/useNow';

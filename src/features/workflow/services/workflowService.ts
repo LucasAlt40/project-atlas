@@ -200,8 +200,18 @@ export async function openInIde(executionId: string, ideId: string): Promise<voi
 export async function subscribeToWorkflowEvents(
   handler: (event: WorkflowEvent) => void,
 ): Promise<() => void> {
-  const stops = await Promise.all(WORKFLOW_EVENT_NAMES.map((name) => listenToEvent(name, handler)));
-  return () => {
+  const opened = await Promise.allSettled(
+    WORKFLOW_EVENT_NAMES.map((name) => listenToEvent(name, handler)),
+  );
+  const stops = opened.flatMap((o) => (o.status === 'fulfilled' ? [o.value] : []));
+  const stopAll = () => {
     for (const stop of stops) stop();
   };
+  // All or nothing: a listener that did open must not be left behind when another did not.
+  const failed = opened.find((o) => o.status === 'rejected');
+  if (failed) {
+    stopAll();
+    throw failed.reason;
+  }
+  return stopAll;
 }

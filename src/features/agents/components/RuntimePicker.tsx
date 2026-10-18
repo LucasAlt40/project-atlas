@@ -254,7 +254,15 @@ export function RuntimePicker({
         </div>
       )}
 
-      {selected && <ModelField status={selected} modelId={modelId} onModelChange={onModelChange} />}
+      {selected && (
+        // Keyed by runtime: "Other model" chosen for one runtime is not carried over to the next.
+        <ModelField
+          key={selected.runtime.id}
+          status={selected}
+          modelId={modelId}
+          onModelChange={onModelChange}
+        />
+      )}
     </>
   );
 }

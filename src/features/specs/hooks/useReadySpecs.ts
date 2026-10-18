@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { listReadySpecs, subscribeToSpecChanges } from '../services/specService';
 import type { SpecSummary } from '../types';
-import { subscribe } from './subscribe';
+import { subscribe } from '@/lib/subscribe';
 
 /**
  * The specs a workflow could be started from (ready, not archived). A failed read is an empty list: the workflow screen works without specs.

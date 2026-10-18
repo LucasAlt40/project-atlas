@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { listSpecs, subscribeToSpecChanges } from '../services/specService';
-import { subscribe } from './subscribe';
+import { subscribe } from '@/lib/subscribe';
 import type { SpecSummary } from '../types';
 
 export type SpecsState =

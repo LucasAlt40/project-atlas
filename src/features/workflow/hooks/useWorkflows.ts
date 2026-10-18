@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { subscribe } from '@/lib/subscribe';
 import type { InteractionAnswerDto, ScopeRequestDto, WorkflowModeDto } from '@/lib/tauri/commands';
 import { addAgentNode, addConditionNode, addEndNode, asCustom } from '../model/edit';
 import { preferredIde, rememberIde } from '../model/preferredIde';
@@ -280,19 +281,9 @@ export function useWorkflows(workspaceId: string | undefined) {
     [workspaceId, refreshRuns],
   );
   useEffect(() => {
-    let stop: (() => void) | undefined;
-    let disposed = false;
-    subscribeToWorkflowEvents(onEvent)
-      .then((unlisten) => {
-        if (disposed) unlisten();
-        else stop = unlisten;
-      })
-      .catch(() => {
-        // Live updates are best-effort.
-      });
+    const stop = subscribe(() => subscribeToWorkflowEvents(onEvent));
     return () => {
-      disposed = true;
-      stop?.();
+      stop();
       if (timer.current) clearTimeout(timer.current);
       timer.current = undefined;
     };
