@@ -41,7 +41,16 @@ export function codeInAddress(): string | null {
   return code.length === CODE_LENGTH ? code : null;
 }
 
-export function PairScreen({ remote, linkCode }: { remote: Remote; linkCode: string | null }) {
+export function PairScreen({
+  remote,
+  linkCode,
+  onLinkUsed,
+}: {
+  remote: Remote;
+  linkCode: string | null;
+  /** The code of the link was sent: it is not to be sent again. */
+  onLinkUsed: () => void;
+}) {
   const t = useT();
   const [typed, setTyped] = useState('');
   const [error, setError] = useState<TranslationKey | null>(null);
@@ -69,7 +78,10 @@ export function PairScreen({ remote, linkCode }: { remote: Remote; linkCode: str
   useEffect(() => {
     if (attempted.current) return;
     attempted.current = true;
-    if (linkCode) attempt(linkCode);
+    if (linkCode) {
+      onLinkUsed();
+      attempt(linkCode);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the page opens
   }, []);
 

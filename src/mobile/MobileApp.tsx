@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { I18nProvider, useT } from '@/i18n/I18nProvider';
 import { isLanguage, type Language } from '@/i18n';
@@ -40,7 +40,15 @@ function browserLanguage(): Language {
   return navigator.language.toLowerCase().startsWith('pt') ? 'pt-BR' : 'en-US';
 }
 
-function Shell({ remote, linkCode }: { remote: Remote; linkCode: string | null }) {
+function Shell({
+  remote,
+  linkCode,
+  onLinkUsed,
+}: {
+  remote: Remote;
+  linkCode: string | null;
+  onLinkUsed: () => void;
+}) {
   const t = useT();
   const route = useRoute();
   const needing = remote.runs.filter((run) => run.attention === 'needs_answer').length;
@@ -57,7 +65,9 @@ function Shell({ remote, linkCode }: { remote: Remote; linkCode: string | null }
       </p>
     );
   }
-  if (remote.phase === 'unpaired') return <PairScreen remote={remote} linkCode={linkCode} />;
+  if (remote.phase === 'unpaired') {
+    return <PairScreen remote={remote} linkCode={linkCode} onLinkUsed={onLinkUsed} />;
+  }
   if (remote.phase === 'unreachable') {
     return (
       <main className={styles.pair}>
@@ -119,8 +129,13 @@ function Shell({ remote, linkCode }: { remote: Remote; linkCode: string | null }
 export function MobileApp() {
   const remote = useRemote();
   // The code in the QR's link is read once, as the page opens (the pairing screen may come later,
-  // after the server has said there is no session), and then taken out of the address bar.
-  const [linkCode] = useState(codeInAddress);
+  // after the server has said there is no session), and then taken out of the address bar. It is
+  // tried once: a code works once, and a pairing screen shown again later (after a disconnect or a
+  // revocation) must not send it again, which the computer would count as a wrong code.
+  const [linkCode, setLinkCode] = useState(codeInAddress);
+  const linkUsed = useCallback(() => {
+    setLinkCode(null);
+  }, []);
   useEffect(() => {
     if (window.location.hash.length > 1 && !window.location.hash.startsWith('#/')) {
       window.history.replaceState(null, '', `${window.location.pathname}#/`);
@@ -133,7 +148,7 @@ export function MobileApp() {
   }, [language]);
   return (
     <I18nProvider language={language}>
-      <Shell remote={remote} linkCode={linkCode} />
+      <Shell remote={remote} linkCode={linkCode} onLinkUsed={linkUsed} />
     </I18nProvider>
   );
 }

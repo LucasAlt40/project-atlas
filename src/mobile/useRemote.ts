@@ -40,6 +40,7 @@ export interface Remote {
   dismissAlert: (id: string) => void;
   refresh: () => Promise<void>;
   pair: (code: string, deviceName: string) => Promise<void>;
+  /** Ends this phone's session on the computer. Rejects, and stays paired, if it could not. */
   signOut: () => Promise<void>;
   /** Tells `listener` about every change the stream announces and every reconnection. */
   onChange: (listener: (event: ChangeEvent | null) => void) => () => void;
@@ -283,8 +284,10 @@ export function useRemote(): Remote {
   const signOut = useCallback(async () => {
     try {
       await api.logout();
-    } catch {
-      // The session ends here either way.
+    } catch (failure) {
+      // A session that is already gone ends here. Any other failure leaves it valid on the
+      // computer (and the cookie in this browser): saying "disconnected" would not be true.
+      if (!(failure instanceof ApiError && failure.unauthenticated)) throw failure;
     }
     sessionLost('new');
   }, [sessionLost]);

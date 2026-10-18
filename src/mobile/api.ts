@@ -30,10 +30,10 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   let response: Response;
   try {
     const init: RequestInit = { method, credentials: 'same-origin', cache: 'no-store' };
-    if (body !== undefined) {
-      init.headers = { 'Content-Type': 'application/json' };
-      init.body = JSON.stringify(body);
-    }
+    // The server takes a write only as JSON (a cross-site form cannot send it, ADR 0034 §6), a
+    // write without a body (`DELETE`) included.
+    if (method !== 'GET') init.headers = { 'Content-Type': 'application/json' };
+    if (body !== undefined) init.body = JSON.stringify(body);
     response = await fetch(path, init);
   } catch {
     throw new ApiError(0, 'unreachable');

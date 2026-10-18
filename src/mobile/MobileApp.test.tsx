@@ -67,6 +67,23 @@ describe('the phone page', () => {
       expect(window.location.href).not.toContain('ABCD');
     });
 
+    it('sends the code of the link only once, not again after a disconnect', async () => {
+      const user = userEvent.setup();
+      window.location.hash = '#ABCD-EFGH-IJKL-MNOP';
+      server.on('GET', '/api/session', () => problem(401, 'unauthenticated'));
+      server.on('POST', '/api/pair', () => json(200, SESSION));
+      server.on('GET', '/api/runs', () => json(200, overview([summary()])));
+      server.on('DELETE', '/api/session', () => json(200, { ok: true }));
+      render(<MobileApp />);
+
+      await user.click(await screen.findByRole('button', { name: 'Disconnect this phone' }));
+
+      expect(await screen.findByLabelText('Pairing code')).toBeInTheDocument();
+      // A second try of the spent code would count on the computer as a wrong one.
+      expect(server.count('POST', '/api/pair')).toBe(1);
+      expect(screen.queryByText(/not valid/)).not.toBeInTheDocument();
+    });
+
     it('takes a code typed in, however it is written', async () => {
       const user = userEvent.setup();
       server.on('GET', '/api/session', () => problem(401, 'unauthenticated'));
@@ -686,6 +703,19 @@ describe('the phone page', () => {
 
       expect(server.count('DELETE', '/api/session')).toBe(1);
       expect(await screen.findByLabelText('Pairing code')).toBeInTheDocument();
+    });
+
+    it('stays paired, and says so, when the computer does not confirm the disconnect', async () => {
+      const user = userEvent.setup();
+      paired([summary()]);
+      server.on('DELETE', '/api/session', () => problem(403, 'bad_origin'));
+      render(<MobileApp />);
+
+      await user.click(await screen.findByRole('button', { name: 'Disconnect this phone' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/could not be disconnected/);
+      expect(screen.queryByLabelText('Pairing code')).not.toBeInTheDocument();
+      expect(screen.getByText('Password recovery')).toBeInTheDocument();
     });
 
     it('reads the run again when the page comes back to the foreground', async () => {

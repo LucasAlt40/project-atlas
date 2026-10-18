@@ -118,6 +118,7 @@ function Section({
  */
 export function Dashboard({ remote }: { remote: Remote }) {
   const { t } = useI18n();
+  const [signOutFailed, setSignOutFailed] = useState(false);
   const anyActive = remote.runs.some((run) => !isFinal(run));
   const now = useNow(remote.clockOffset, anyActive);
   const needs = remote.runs.filter(
@@ -145,11 +146,19 @@ export function Dashboard({ remote }: { remote: Remote }) {
           type="button"
           className={styles.quiet}
           onClick={() => {
-            void remote.signOut();
+            setSignOutFailed(false);
+            remote.signOut().catch(() => {
+              setSignOutFailed(true);
+            });
           }}
         >
           {t('mobile.signOut')}
         </button>
+        {signOutFailed && (
+          <p className={styles.fine} role="alert">
+            {t('mobile.signOutFailed')}
+          </p>
+        )}
         <p className={styles.fine}>{t('mobile.footer')}</p>
       </div>
     </div>

@@ -86,6 +86,11 @@ export function installServer(): FakeServer {
       };
       calls.push(call);
       if (server.offline) return Promise.reject(new TypeError('network'));
+      // The real server's rule (`write_ok` in remote_server.rs): a write is taken only as JSON.
+      const headers = new Headers(init?.headers);
+      if (call.method !== 'GET' && !headers.get('Content-Type')?.startsWith('application/json')) {
+        return Promise.resolve(problem(403, 'bad_origin'));
+      }
       for (const entry of handlers) {
         if (entry.method === call.method && matches(entry.path, call.path)) {
           const response = entry.handler(call);
