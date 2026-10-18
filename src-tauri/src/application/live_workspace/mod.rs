@@ -28,7 +28,7 @@ mod tracker;
 use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
@@ -37,6 +37,7 @@ pub use tracker::LiveTracker;
 use super::errors::{AppError, ErrorCode};
 use super::workflow::service::WorkflowService;
 use super::worktree::{LiveTargetError, WorktreeError, WorktreeService};
+use crate::application::support::LockExt;
 use crate::domain::live_workspace::{
     is_plain_relative_path, LiveFile, LivePhase, LiveWorkspaceState, LiveWorkspaceUpdate,
     ObservationMode, WorktreeAvailability,
@@ -203,12 +204,6 @@ pub struct LiveWorkspaceService {
     finished: Mutex<HashMap<String, LiveWorkspaceState>>,
 }
 
-fn locked<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
-    mutex
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-}
-
 impl LiveWorkspaceService {
     pub fn new(
         worktrees: Arc<WorktreeService>,
@@ -241,17 +236,17 @@ impl LiveWorkspaceService {
     ///
     /// If the worktree is not one that may be observed.
     pub fn start(&self, primary_id: &str) -> Result<LiveWorkspaceState, LiveError> {
-        let mut sessions = locked(&self.sessions);
+        let mut sessions = self.sessions.lock_or_recover();
         if let Some(session) = sessions.get(primary_id) {
             if session.alive() {
-                return Ok(locked(&session.state).clone());
+                return Ok(session.state.lock_or_recover().clone());
             }
         }
         let target = self.worktrees.live_target(primary_id)?;
         let previous = sessions
             .remove(primary_id)
-            .map(|s| locked(&s.state).clone())
-            .or_else(|| locked(&self.finished).remove(primary_id));
+            .map(|s| s.state.lock_or_recover().clone())
+            .or_else(|| self.finished.lock_or_recover().remove(primary_id));
         let (commands, inbox) = mpsc::channel();
         // The watcher starts first: whatever happens during the first look is queued, and
         // reading a path twice is harmless.
@@ -308,7 +303,7 @@ impl LiveWorkspaceService {
     /// Tells the observer what the run is doing. Waiting, idle and cancelled phases also read the
     /// whole worktree: the agent stopped, so what is there is what it left.
     pub fn set_phase(&self, primary_id: &str, phase: LivePhase) {
-        if let Some(session) = locked(&self.sessions).get(primary_id) {
+        if let Some(session) = self.sessions.lock_or_recover().get(primary_id) {
             let _ = session.commands.send(Command::Phase(phase));
         }
     }
@@ -316,7 +311,7 @@ impl LiveWorkspaceService {
     /// The run is over. Reads the whole worktree one last time, records `phase`, and stops
     /// observing. The returned state is what the review starts from. Blocks until done.
     pub fn finish(&self, primary_id: &str, phase: LivePhase) -> Option<LiveWorkspaceState> {
-        let session = locked(&self.sessions).remove(primary_id);
+        let session = self.sessions.lock_or_recover().remove(primary_id);
         let Some(mut session) = session else {
             // Never observed (or already over): one look is all there is.
             return self.snapshot(primary_id, phase);
@@ -328,8 +323,10 @@ impl LiveWorkspaceService {
         if let Some(thread) = session.thread.take() {
             let _ = thread.join();
         }
-        let last = locked(&session.state).clone();
-        locked(&self.finished).insert(primary_id.to_owned(), last.clone());
+        let last = session.state.lock_or_recover().clone();
+        self.finished
+            .lock_or_recover()
+            .insert(primary_id.to_owned(), last.clone());
         Some(last)
     }
 
@@ -341,7 +338,7 @@ impl LiveWorkspaceService {
     /// If the worktree cannot be observed, or the observer does not answer.
     pub fn refresh(&self, primary_id: &str) -> Result<LiveWorkspaceState, LiveError> {
         {
-            let sessions = locked(&self.sessions);
+            let sessions = self.sessions.lock_or_recover();
             if let Some(session) = sessions.get(primary_id).filter(|s| s.alive()) {
                 let (done, wait) = mpsc::channel();
                 session
@@ -352,7 +349,7 @@ impl LiveWorkspaceService {
                 drop(sessions);
                 wait.recv_timeout(Duration::from_secs(60))
                     .map_err(|_| LiveError::Unresponsive)?;
-                return Ok(locked(&state).clone());
+                return Ok(state.lock_or_recover().clone());
             }
         }
         self.snapshot(primary_id, LivePhase::Idle)
@@ -362,10 +359,10 @@ impl LiveWorkspaceService {
     /// The state of a worktree: what the observer holds, or what it last held, or (for a run
     /// nobody is observing, as after a restart) one look at the worktree.
     pub fn state(&self, primary_id: &str) -> Option<LiveWorkspaceState> {
-        if let Some(session) = locked(&self.sessions).get(primary_id) {
-            return Some(locked(&session.state).clone());
+        if let Some(session) = self.sessions.lock_or_recover().get(primary_id) {
+            return Some(session.state.lock_or_recover().clone());
         }
-        let mut last = locked(&self.finished).get(primary_id)?.clone();
+        let mut last = self.finished.lock_or_recover().get(primary_id)?.clone();
         // The run is over, but its folder may not be (applied and removed, discarded): say so.
         match self.worktrees.live_target(primary_id) {
             Ok(_) => {}
@@ -450,7 +447,9 @@ impl LiveWorkspaceService {
     /// One look at a worktree nobody observes. Not stored: observing it is [`Self::start`].
     fn snapshot(&self, primary_id: &str, phase: LivePhase) -> Option<LiveWorkspaceState> {
         let target = self.worktrees.live_target(primary_id).ok()?;
-        let revision = locked(&self.finished)
+        let revision = self
+            .finished
+            .lock_or_recover()
             .get(primary_id)
             .map_or(0, |s| s.revision);
         let mut tracker = LiveTracker::new(self.worktrees.clone(), target, revision);
@@ -458,7 +457,9 @@ impl LiveWorkspaceService {
         tracker.set_phase(phase);
         let state = tracker.state().clone();
         if phase.is_final() {
-            locked(&self.finished).insert(primary_id.to_owned(), state.clone());
+            self.finished
+                .lock_or_recover()
+                .insert(primary_id.to_owned(), state.clone());
         }
         Some(state)
     }
@@ -653,7 +654,7 @@ impl Worker {
     }
 
     fn publish(&self, update: Option<LiveWorkspaceUpdate>) -> bool {
-        *locked(&self.shared) = self.tracker.state().clone();
+        *self.shared.lock_or_recover() = self.tracker.state().clone();
         match update {
             Some(update) => {
                 self.sink.on_update(&update);

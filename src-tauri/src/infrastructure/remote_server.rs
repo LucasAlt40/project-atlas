@@ -617,25 +617,27 @@ fn events(request: &Request<Incoming>, device: &Device, context: &Arc<Shared>) -
         let mut wake = hub.subscribe();
         let epoch = hub.epoch();
         // The start of a stream: the page either resumes from a cursor or reads everything.
-        let mut last = match &cursor {
+        // Decided once, from one replay: asking the hub again could see a ring that moved on.
+        let start = match &cursor {
             Some((e, seq)) => match hub.replay(Some(e), *seq) {
-                Replay::Events(missed) => {
-                    let mut last = *seq;
-                    for event in missed {
-                        last = event.seq;
-                        if tx.send(event_frame(&epoch, &event)).await.is_err() {
-                            return;
-                        }
-                    }
-                    last
-                }
-                Replay::Resync => hub.seq(),
+                Replay::Events(missed) => Some((*seq, missed)),
+                Replay::Resync => None,
             },
+            None => None,
+        };
+        let resync = start.is_none();
+        let mut last = match start {
+            Some((mut last, missed)) => {
+                for event in missed {
+                    last = event.seq;
+                    if tx.send(event_frame(&epoch, &event)).await.is_err() {
+                        return;
+                    }
+                }
+                last
+            }
             None => hub.seq(),
         };
-        let resync = cursor
-            .as_ref()
-            .is_none_or(|(e, seq)| matches!(hub.replay(Some(e), *seq), Replay::Resync));
         if resync {
             let data = serde_json::json!({ "epoch": epoch, "seq": last }).to_string();
             if tx

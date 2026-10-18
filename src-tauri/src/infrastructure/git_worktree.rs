@@ -24,6 +24,7 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
 
+use crate::application::support::LockExt;
 use crate::application::worktree::{
     ApplyOutcome, Assessment, BaseInfo, BaseReadiness, MergeOutcome, NewWorktree, WorktreeError,
     WorktreeLayout, WorktreeManager,
@@ -93,9 +94,7 @@ impl GitWorktreeManager {
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, ()> {
-        self.write_lock
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
+        self.write_lock.lock_or_recover()
     }
 
     /// Runs Git in `cwd` and waits (bounded) for it.

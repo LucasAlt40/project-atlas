@@ -36,17 +36,17 @@ struct Recorder(Mutex<Vec<LiveWorkspaceUpdate>>);
 
 impl Recorder {
     fn all(&self) -> Vec<LiveWorkspaceUpdate> {
-        locked(&self.0).clone()
+        self.0.lock_or_recover().clone()
     }
 
     fn count(&self) -> usize {
-        locked(&self.0).len()
+        self.0.lock_or_recover().len()
     }
 }
 
 impl LiveSink for Recorder {
     fn on_update(&self, update: &LiveWorkspaceUpdate) {
-        locked(&self.0).push(update.clone());
+        self.0.lock_or_recover().push(update.clone());
     }
 }
 
@@ -62,7 +62,7 @@ struct ScriptedWatcher {
 
 impl ScriptedWatcher {
     fn send(&self, signal: WatchSignal) {
-        let callback = locked(&self.callback).clone();
+        let callback = self.callback.lock_or_recover().clone();
         (callback.expect("a worktree is being watched"))(signal);
     }
 
@@ -79,10 +79,10 @@ impl WorktreeWatcher for Arc<ScriptedWatcher> {
         _root: &Path,
         on_signal: Box<dyn Fn(WatchSignal) + Send + Sync>,
     ) -> Result<Box<dyn Send>, String> {
-        if let Some(reason) = locked(&self.refuse).clone() {
+        if let Some(reason) = self.refuse.lock_or_recover().clone() {
             return Err(reason);
         }
-        *locked(&self.callback) = Some(Arc::new(on_signal));
+        *self.callback.lock_or_recover() = Some(Arc::new(on_signal));
         Ok(Box::new(()))
     }
 }
@@ -572,7 +572,7 @@ fn more_paths_than_a_few_files_is_read_as_the_whole_worktree() {
 #[test]
 fn without_filesystem_events_the_worktree_is_looked_at_on_a_schedule_that_slows_down() {
     let l = scripted();
-    *locked(&l.scripted.refuse) = Some("out of watches".to_owned());
+    *l.scripted.refuse.lock_or_recover() = Some("out of watches".to_owned());
 
     let state = l.service.start(PRIMARY).unwrap();
     assert_eq!(state.observation, ObservationMode::Polling);
@@ -774,7 +774,9 @@ fn a_worktree_that_is_removed_is_reported_missing_and_its_last_files_are_kept() 
     assert!(state.files.iter().any(|f| f.path == "kept.ts"));
     // It cannot be started again, and says why.
     wait_until("the observer to end", || {
-        locked(&l.service.sessions)
+        l.service
+            .sessions
+            .lock_or_recover()
             .get(PRIMARY)
             .is_none_or(|s| !s.alive())
     });

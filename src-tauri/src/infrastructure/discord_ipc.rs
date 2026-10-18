@@ -10,6 +10,7 @@ use std::time::Duration;
 use serde_json::{json, Value};
 
 use crate::application::presence::{PresenceTransport, Published};
+use crate::application::support::LockExt;
 use crate::domain::presence::Activity;
 
 const OP_HANDSHAKE: u32 = 0;
@@ -75,10 +76,7 @@ impl DiscordIpc {
 
 impl PresenceTransport for DiscordIpc {
     fn publish(&self, published: Option<&Published>) -> Result<(), String> {
-        let mut guard = self
-            .connection
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut guard = self.connection.lock_or_recover();
         // A connection belongs to one application id.
         if let (Some(connection), Some(published)) = (guard.as_ref(), published) {
             if connection.client_id != published.client_id {

@@ -12,6 +12,7 @@ use crate::application::process::{
     ProcessContext, ProcessError, ProcessEvent, ProcessOutput, ProcessRunner, ProcessSpec,
 };
 use crate::application::sessions::SessionRegistry;
+use crate::application::support::LockExt;
 use std::sync::Arc;
 
 /// Output beyond this is drained and dropped, so a chatty tool cannot exhaust memory.
@@ -208,20 +209,12 @@ impl Reader {
     fn take(self, deadline: Instant) -> Vec<u8> {
         let left = deadline.saturating_duration_since(Instant::now());
         let _ = self.done.recv_timeout(left);
-        std::mem::take(
-            &mut *self
-                .collected
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner),
-        )
+        std::mem::take(&mut *self.collected.lock_or_recover())
     }
 }
 
 fn append(collected: &Collected, bytes: &[u8]) {
-    collected
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .extend_from_slice(bytes);
+    collected.lock_or_recover().extend_from_slice(bytes);
 }
 
 /// Reads a stream line by line, sending each line (without its ending) to `lines` as soon as
@@ -236,7 +229,12 @@ fn read_lines(stream: impl Read + Send + 'static, lines: mpsc::Sender<String>) -
         let mut line = Vec::new();
         loop {
             line.clear();
-            match reader.read_until(b'\n', &mut line) {
+            // Bounded too: output that never ends a line must not grow one without limit. A line
+            // longer than this arrives in pieces.
+            match (&mut reader)
+                .take(MAX_OUTPUT_BYTES)
+                .read_until(b'\n', &mut line)
+            {
                 Ok(0) | Err(_) => break,
                 Ok(_) => {
                     if kept < MAX_OUTPUT_BYTES {
@@ -477,6 +475,35 @@ mod tests {
                 ProcessEvent::StdoutLine("hello".to_owned()),
             ]
         );
+    }
+
+    #[test]
+    fn output_that_never_ends_a_line_is_delivered_in_bounded_pieces() {
+        let longest = std::cell::Cell::new(0_usize);
+        let pieces = std::cell::Cell::new(0_usize);
+
+        let output = SystemProcessRunner::new()
+            .run(
+                &spec(
+                    "sh",
+                    // 20 MB with no newline at all.
+                    &["-c", "head -c 20000000 /dev/zero | tr '\\0' a"],
+                    None,
+                    Duration::from_secs(30),
+                ),
+                &|event| {
+                    if let ProcessEvent::StdoutLine(line) = event {
+                        longest.set(longest.get().max(line.len()));
+                        pieces.set(pieces.get() + 1);
+                    }
+                },
+            )
+            .unwrap();
+
+        let cap = usize::try_from(MAX_OUTPUT_BYTES).unwrap();
+        assert!(longest.get() <= cap, "a piece was {} bytes", longest.get());
+        assert_eq!(pieces.get(), 3);
+        assert!(output.stdout.len() <= 2 * cap);
     }
 
     #[test]

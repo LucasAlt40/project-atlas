@@ -10,7 +10,7 @@ use super::validate::{name_key, validate};
 use crate::application::config::ConfigRepository;
 use crate::application::errors::{AppError, ErrorCode};
 use crate::application::runtimes::RuntimeRegistry;
-use crate::application::support::{new_id, now_ms};
+use crate::application::support::{new_id, now_ms, LockExt};
 use crate::domain::mcp::{
     McpConnection, McpDiscovery, McpEnvValue, McpGrant, McpSupport, McpTransport, Secret,
     ToolSelection,
@@ -987,8 +987,7 @@ impl McpService {
         };
         let recently_failed = |id: &str| {
             self.refresh_failed
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .lock_or_recover()
                 .get(id)
                 .is_some_and(|at| now.saturating_sub(*at) < max_age_ms)
         };
@@ -998,10 +997,7 @@ impl McpService {
             .filter(|connection| due(connection) && !recently_failed(&connection.id))
             .filter(|connection| {
                 let ok = self.probe(&connection.id, runtime_id).is_ok();
-                let mut failed = self
-                    .refresh_failed
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                let mut failed = self.refresh_failed.lock_or_recover();
                 if ok {
                     failed.remove(&connection.id);
                 } else {

@@ -27,6 +27,7 @@ use super::settings::SettingsService;
 use super::support::now_ms;
 use super::workflow::service::WorkflowService;
 use super::workspace::WorkspaceService;
+use crate::application::support::LockExt;
 use crate::domain::execution::{ExecutionEvent, ExecutionEventKind};
 use crate::domain::presence::{Activity, PresenceSettings};
 use crate::domain::workflow::{WorkflowEvent, WorkflowEventKind};
@@ -165,9 +166,7 @@ struct Shared {
 
 impl Shared {
     fn lock(&self) -> MutexGuard<'_, State> {
-        self.state
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
+        self.state.lock_or_recover()
     }
 }
 

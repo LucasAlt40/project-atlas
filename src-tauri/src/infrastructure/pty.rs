@@ -20,7 +20,7 @@ use std::ffi::OsStr;
 use std::io::{Read, Write};
 use std::path::Path;
 use std::sync::mpsc::{self, RecvTimeoutError};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -34,6 +34,7 @@ use crate::application::security::guard::display_command;
 use crate::application::sessions::{
     OpenSession, ProcessSession, SessionError, SessionHandle, SessionRegistry,
 };
+use crate::application::support::LockExt;
 
 const POLL_INTERVAL: Duration = Duration::from_millis(20);
 /// Output kept for the result, like the pipe runner.
@@ -52,13 +53,6 @@ fn spawn_error(error: impl std::fmt::Display) -> ProcessError {
     ProcessError::Spawn(error.to_string())
 }
 
-fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
-    // A poisoned lock only means another thread panicked; the data is still usable.
-    mutex
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-}
-
 /// The OS side of one PTY process.
 struct PtyShared {
     pid: u32,
@@ -74,10 +68,10 @@ struct PtyShared {
 impl PtyShared {
     /// Ends the process group and the process itself, right now.
     fn kill_now(&self) {
-        let reaped = lock(&self.reaped);
+        let reaped = self.reaped.lock_or_recover();
         if !*reaped {
             self.signal_group(Signal::Kill);
-            let _ = lock(&self.killer).kill();
+            let _ = self.killer.lock_or_recover().kill();
         }
     }
 
@@ -133,8 +127,8 @@ impl PtyShared {
 
     /// Closes the terminal. The kernel hangs up on whatever is still attached to it.
     fn close(&self) {
-        lock(&self.writer).take();
-        lock(&self.master).take();
+        self.writer.lock_or_recover().take();
+        self.master.lock_or_recover().take();
     }
 }
 
@@ -150,10 +144,10 @@ impl ProcessSession for PtySession {
     fn write(&self, data: &[u8]) -> Result<(), SessionError> {
         // Not holding `reaped` while writing: a process that does not read its input can make a
         // write wait, and `reaped` is what ending the process (terminate, timeout) needs.
-        if *lock(&self.0.reaped) {
+        if *self.0.reaped.lock_or_recover() {
             return Err(SessionError::Exited);
         }
-        let mut writer = lock(&self.0.writer);
+        let mut writer = self.0.writer.lock_or_recover();
         let writer = writer.as_mut().ok_or(SessionError::Exited)?;
         writer
             .write_all(data)
@@ -164,7 +158,7 @@ impl ProcessSession for PtySession {
     /// Ctrl+C. If a paste is stuck in the terminal (the process is not reading) the interrupt
     /// cannot get in behind it: it says so instead of waiting, and the user can terminate.
     fn interrupt(&self) -> Result<(), SessionError> {
-        if *lock(&self.0.reaped) {
+        if *self.0.reaped.lock_or_recover() {
             return Err(SessionError::Exited);
         }
         let mut writer = match self.0.writer.try_lock() {
@@ -185,20 +179,20 @@ impl ProcessSession for PtySession {
 
     fn terminate(&self) -> Result<(), SessionError> {
         {
-            let reaped = lock(&self.0.reaped);
+            let reaped = self.0.reaped.lock_or_recover();
             if *reaped {
                 return Err(SessionError::Exited);
             }
             self.0.signal_group(Signal::Term);
             #[cfg(windows)]
-            let _ = lock(&self.0.killer).kill();
+            let _ = self.0.killer.lock_or_recover().kill();
         }
         // The polite request may be ignored: do not wait for it on the caller's thread.
         let shared = self.0.clone();
         thread::spawn(move || {
             let deadline = Instant::now() + TERMINATE_GRACE;
             while Instant::now() < deadline {
-                if *lock(&shared.reaped) {
+                if *shared.reaped.lock_or_recover() {
                     return;
                 }
                 thread::sleep(POLL_INTERVAL);
@@ -209,10 +203,10 @@ impl ProcessSession for PtySession {
     }
 
     fn resize(&self, size: TerminalSize) -> Result<(), SessionError> {
-        if *lock(&self.0.reaped) {
+        if *self.0.reaped.lock_or_recover() {
             return Err(SessionError::Exited);
         }
-        let master = lock(&self.0.master);
+        let master = self.0.master.lock_or_recover();
         let master = master.as_ref().ok_or(SessionError::Exited)?;
         master
             .resize(pty_size(size))
@@ -320,7 +314,7 @@ pub fn run_in_terminal(
             // Timeout or a broken wait: the process must not outlive its execution.
             shared.kill_now();
             let _ = child.wait();
-            *lock(&shared.reaped) = true;
+            *shared.reaped.lock_or_recover() = true;
             shared.close();
             let _ = reader_thread.join();
             if let Some(session) = session {
@@ -360,7 +354,7 @@ fn reap(
     shared: &PtyShared,
     child: &mut (dyn Child + Send + Sync),
 ) -> std::io::Result<Option<portable_pty::ExitStatus>> {
-    let mut reaped = lock(&shared.reaped);
+    let mut reaped = shared.reaped.lock_or_recover();
     let status = child.try_wait()?;
     if status.is_some() {
         *reaped = true;
