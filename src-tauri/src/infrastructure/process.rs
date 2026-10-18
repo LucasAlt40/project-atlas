@@ -322,6 +322,10 @@ impl ProcessRunner for SystemProcessRunner {
             }
             _ => None,
         };
+        // Counted as alive while it runs, so closing the app warns about it and ends it.
+        let _alive = stop_check
+            .as_ref()
+            .map(|(sessions, id)| PipedAlive::new(sessions.clone(), id.clone()));
         let mut input_reported = false;
         let status = loop {
             if !input_reported && written_rx.try_recv().is_ok() {
@@ -390,6 +394,28 @@ impl ProcessRunner for SystemProcessRunner {
             stdout: String::from_utf8_lossy(&stdout).into_owned(),
             stderr: String::from_utf8_lossy(&collect(stderr)).into_owned(),
         })
+    }
+}
+
+/// An execution's process that runs through pipes, registered as alive for as long as it runs.
+struct PipedAlive {
+    sessions: Arc<SessionRegistry>,
+    execution_id: String,
+}
+
+impl PipedAlive {
+    fn new(sessions: Arc<SessionRegistry>, execution_id: String) -> Self {
+        sessions.piped_started(&execution_id);
+        Self {
+            sessions,
+            execution_id,
+        }
+    }
+}
+
+impl Drop for PipedAlive {
+    fn drop(&mut self) {
+        self.sessions.piped_ended(&self.execution_id);
     }
 }
 
@@ -711,6 +737,43 @@ mod tests {
         assert!(gone(pid), "the grandchild outlived the stop");
         // Not the user: nothing is recorded as a user action.
         assert_eq!(sessions.user_action("exec-1"), None);
+    }
+
+    /// Closing the app ends every live process. A run without a terminal (an npm `.cmd` shim on
+    /// Windows takes this path) must be counted and ended too, or it would be left running.
+    #[test]
+    fn closing_the_app_counts_and_ends_a_piped_run_and_what_it_started() {
+        let file = pid_file();
+        let sessions = Arc::new(SessionRegistry::default());
+        let runner = SystemProcessRunner::new().with_sessions(sessions.clone());
+        let mut request = spec(
+            "sh",
+            &["-c", &with_grandchild(&file)],
+            None,
+            Duration::from_secs(60),
+        );
+        request.context =
+            ProcessContext::Runtime(crate::application::process::ExecutionScope::for_tests());
+        let id = crate::application::process::ExecutionScope::for_tests().execution_id;
+
+        let closer = {
+            let sessions = sessions.clone();
+            let file = file.clone();
+            thread::spawn(move || {
+                let pid = pid_in(&file);
+                let counted = sessions.live_executions();
+                sessions.terminate_all_and_wait(Duration::from_secs(10));
+                (pid, counted, sessions.live_executions())
+            })
+        };
+        let result = runner.run(&request, &|_| {});
+
+        let (pid, counted, after) = closer.join().unwrap();
+        assert_eq!(counted, vec![id], "the exit dialog sees the run");
+        assert!(result.is_err(), "{result:?}");
+        assert!(gone(pid), "the grandchild outlived the app");
+        assert!(after.is_empty(), "{after:?}");
+        assert_eq!(sessions.live_executions(), Vec::<String>::new());
     }
 }
 

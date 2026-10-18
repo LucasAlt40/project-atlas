@@ -223,6 +223,10 @@ struct State {
     /// Executions Atlas itself asked to stop (not the user): the pipe runner, which has no
     /// session to terminate, looks here.
     stops: std::collections::HashSet<String>,
+    /// Executions whose process runs through pipes (no terminal: an npm `.cmd` shim on Windows
+    /// with a multi-line prompt). They have no session, but they are alive all the same: closing
+    /// the app must count them and end them, or they would be left running on their own.
+    piped: std::collections::HashSet<String>,
 }
 
 /// Every live process session, keyed by execution. See the module documentation.
@@ -329,6 +333,16 @@ impl SessionRegistry {
         }
     }
 
+    /// The pipe runner started the execution's process (it has no terminal session).
+    pub fn piped_started(&self, execution_id: &str) {
+        self.lock().piped.insert(execution_id.to_owned());
+    }
+
+    /// The pipe runner's process for the execution is gone.
+    pub fn piped_ended(&self, execution_id: &str) {
+        self.lock().piped.remove(execution_id);
+    }
+
     /// Whether [`Self::stop`] was called for the execution since the last [`Self::clear_stop`].
     pub fn stop_requested(&self, execution_id: &str) -> bool {
         self.lock().stops.contains(execution_id)
@@ -341,12 +355,22 @@ impl SessionRegistry {
 
     /// Executions whose process is still alive.
     pub fn live_executions(&self) -> Vec<String> {
-        self.lock()
+        let state = self.lock();
+        let mut live: Vec<String> = state
             .entries
             .values()
             .filter(|entry| entry.status != SessionStatus::Exited)
             .map(|entry| entry.scope.execution_id.clone())
-            .collect()
+            .collect();
+        live.extend(
+            state
+                .piped
+                .iter()
+                .filter(|id| !live.contains(id))
+                .cloned()
+                .collect::<Vec<_>>(),
+        );
+        live
     }
 
     /// Ctrl+C for the execution's process. The first thing to try: the process may stop
@@ -463,13 +487,18 @@ impl SessionRegistry {
     /// Ends every live process (the application is closing). Not a user action on one
     /// execution, so it records none.
     pub fn terminate_all(&self) {
-        let sessions: Vec<_> = self
-            .lock()
-            .entries
-            .values()
-            .filter(|entry| entry.status != SessionStatus::Exited)
-            .map(|entry| entry.session.clone())
-            .collect();
+        let sessions: Vec<_> = {
+            let mut state = self.lock();
+            // A process without a terminal is stopped by its runner, which polls for this.
+            let piped: Vec<String> = state.piped.iter().cloned().collect();
+            state.stops.extend(piped);
+            state
+                .entries
+                .values()
+                .filter(|entry| entry.status != SessionStatus::Exited)
+                .map(|entry| entry.session.clone())
+                .collect()
+        };
         for session in sessions {
             let _ = session.terminate();
         }
