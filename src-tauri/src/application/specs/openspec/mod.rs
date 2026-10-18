@@ -107,13 +107,13 @@ fn read_blocks(output: &str) -> (Vec<(String, String)>, Option<String>) {
         match &mut open {
             None => {
                 if let Some(rest) = trimmed.strip_prefix(DOC_OPEN) {
-                    if let Some(path) = rest.strip_suffix(DOC_OPEN_END) {
+                    if let Some(path) = marker_end(rest, "\"") {
                         open = Some((path.trim().to_owned(), Vec::new()));
                     }
                 }
             }
             Some((path, body)) => {
-                if trimmed == DOC_CLOSE {
+                if is_close(trimmed) {
                     blocks.push((path.clone(), clean_document(&body.join("\n"))));
                     open = None;
                 } else {
@@ -123,6 +123,26 @@ fn read_blocks(output: &str) -> (Vec<(String, String)>, Option<String>) {
         }
     }
     (blocks, open.map(|(path, _)| path))
+}
+
+/// What comes before the end of a marker: `before` then one to three `>`. Models write the
+/// documented `">>>` but small ones also drop a `>` (measured: `path="tasks.md">>`); the marker
+/// still fills its line and its path is still quoted, so it cannot be mistaken for text.
+fn marker_end<'a>(rest: &'a str, before: &str) -> Option<&'a str> {
+    let without = rest.trim_end_matches('>');
+    let arrows = rest.len() - without.len();
+    (1..=DOC_OPEN_END.len() - 1)
+        .contains(&arrows)
+        .then(|| without.strip_suffix(before))
+        .flatten()
+}
+
+/// Whether `line` closes a document: [`DOC_CLOSE`], or the same with one or two `>` dropped.
+fn is_close(line: &str) -> bool {
+    line == DOC_CLOSE
+        || line
+            .strip_prefix(DOC_CLOSE.trim_end_matches('>'))
+            .is_some_and(|rest| marker_end(rest, "").is_some())
 }
 
 /// The document without blank lines around it and without a code fence an agent wrapped it in
@@ -742,6 +762,39 @@ mod tests {
             files.iter().map(|f| f.path.as_str()).collect::<Vec<_>>(),
             vec!["specs/a-cap/spec.md", "specs/b-cap/spec.md"]
         );
+    }
+
+    /// Measured with a real model (`opencode/big-pickle`, a tasks document): the opening marker
+    /// came back with two `>`, and the whole answer was refused as having no document.
+    #[test]
+    fn a_marker_that_dropped_an_arrow_still_opens_and_closes_a_document() {
+        let answer = format!(
+            "The design states no open questions.\n\n<<<ATLAS-DOCUMENT path=\"tasks.md\">>\n{TASKS}\n<<<END-ATLAS-DOCUMENT>>\n"
+        );
+
+        let files = adapter()
+            .parse_output(ArtifactKind::Tasks, &answer)
+            .unwrap();
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "tasks.md");
+        assert_eq!(files[0].content, TASKS.trim());
+    }
+
+    #[test]
+    fn a_marker_with_no_arrow_or_text_after_it_is_not_a_marker() {
+        for opener in [
+            "<<<ATLAS-DOCUMENT path=\"tasks.md\"",
+            "<<<ATLAS-DOCUMENT path=\"tasks.md\">>>> extra",
+            "<<<ATLAS-DOCUMENT path=\"tasks.md\">>>>",
+        ] {
+            let answer = format!("{opener}\n{TASKS}\n{DOC_CLOSE}\n");
+            assert_eq!(
+                adapter().parse_output(ArtifactKind::Tasks, &answer),
+                Err(OutputProblem::NoDocument),
+                "{opener}"
+            );
+        }
     }
 
     #[test]
