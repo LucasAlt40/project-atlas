@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
+use super::atomic_file;
 use crate::application::errors::{AppError, ErrorCode};
 use crate::application::harness::workspace_context::{ContextFile, WorkspaceContextStore};
 
@@ -49,10 +50,8 @@ impl WorkspaceContextStore for FsWorkspaceContextStore {
         if let Some(dir) = path.parent() {
             fs::create_dir_all(dir).map_err(|e| failed(e.to_string()))?;
         }
-        // Beside the target and renamed, so a crash never leaves half a file.
-        let temp = path.with_extension("md.tmp");
-        fs::write(&temp, text).map_err(|e| failed(e.to_string()))?;
-        fs::rename(&temp, &path).map_err(|e| failed(e.to_string()))
+        // A crash never leaves half a file.
+        atomic_file::write(&path, text.as_bytes()).map_err(|e| failed(e.to_string()))
     }
 
     fn remove(&self, workspace_id: &str) {

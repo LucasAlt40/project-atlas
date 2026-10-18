@@ -63,6 +63,16 @@ impl RuntimeConfigFiles for FsRuntimeConfigFiles {
 
     fn write(&self, path: &str, text: &str) -> Result<Option<String>, RuntimeFileError> {
         let target = Path::new(path);
+        // A link is neither written through nor replaced. In a project it can be planted by the
+        // repository (`.mcp.json` pointing at a private file elsewhere), and the backup and the
+        // merged file would carry that file's contents into the repository; in the home folder it
+        // is usually a person's dotfiles, which replacing it would silently detach.
+        if std::fs::symlink_metadata(target).is_ok_and(|m| m.file_type().is_symlink()) {
+            return Err(RuntimeFileError(format!(
+                "{} is a link; Atlas does not write through or replace it",
+                target.display()
+            )));
+        }
         if let Some(folder) = target.parent() {
             std::fs::create_dir_all(folder).map_err(|e| error("creating", folder, &e))?;
         }
@@ -78,17 +88,58 @@ impl RuntimeConfigFiles for FsRuntimeConfigFiles {
         } else {
             None
         };
-        let mut staging = target.as_os_str().to_owned();
-        staging.push(".atlas-tmp");
-        let staging = PathBuf::from(staging);
-        std::fs::write(&staging, text).map_err(|e| error("writing", &staging, &e))?;
-        if let Ok(meta) = std::fs::metadata(target) {
-            let _ = std::fs::set_permissions(&staging, meta.permissions());
-        }
-        std::fs::rename(&staging, target).map_err(|e| {
-            let _ = std::fs::remove_file(&staging);
-            error("replacing", target, &e)
-        })?;
+        // Keeps the file's permissions: these files can hold tokens and are often private.
+        super::atomic_file::write(target, text.as_bytes())
+            .map_err(|e| error("replacing", target, &e))?;
         Ok(backup.and_then(|b| b.to_str().map(str::to_owned)))
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    fn folder(name: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("atlas-runtime-files-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn a_file_is_replaced_and_the_old_one_is_kept_as_a_backup() {
+        let dir = folder("backup");
+        let path = dir.join(".mcp.json");
+        fs::write(&path, "{\"old\":true}").unwrap();
+
+        let backup = FsRuntimeConfigFiles
+            .write(path.to_str().unwrap(), "{\"new\":true}")
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(fs::read_to_string(&path).unwrap(), "{\"new\":true}");
+        assert_eq!(fs::read_to_string(backup).unwrap(), "{\"old\":true}");
+    }
+
+    #[test]
+    fn a_link_planted_in_a_project_is_not_written_and_its_target_is_not_copied() {
+        let project = folder("planted");
+        let private = folder("planted-private").join("config.json");
+        fs::write(&private, "{\"auths\":{\"registry\":\"secret\"}}").unwrap();
+        let path = project.join(".mcp.json");
+        std::os::unix::fs::symlink(&private, &path).unwrap();
+
+        let refused = FsRuntimeConfigFiles.write(path.to_str().unwrap(), "{}");
+
+        assert!(refused.unwrap_err().0.contains("is a link"));
+        assert!(fs::symlink_metadata(&path).unwrap().is_symlink());
+        assert_eq!(
+            fs::read_to_string(&private).unwrap(),
+            "{\"auths\":{\"registry\":\"secret\"}}"
+        );
+        let names: Vec<_> = fs::read_dir(&project).unwrap().flatten().collect();
+        assert_eq!(names.len(), 1, "no backup of the private file was made");
     }
 }

@@ -3,6 +3,7 @@ use std::fs;
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 
+use super::atomic_file;
 use crate::application::specs::framework::ChangeFolder;
 use crate::application::specs::ports::{FilesError, ProjectFiles};
 use crate::domain::spec::SpecFile;
@@ -215,12 +216,7 @@ impl ProjectFiles for FsProjectFiles {
         if fs::symlink_metadata(&target).is_ok_and(|m| m.is_symlink()) {
             return Err(FilesError::Unsafe(target.display().to_string()));
         }
-        let temp = target.with_extension("atlas-tmp");
-        fs::write(&temp, content).map_err(|e| FilesError::Io(e.to_string()))?;
-        fs::rename(&temp, &target).map_err(|e| {
-            let _ = fs::remove_file(&temp);
-            FilesError::Io(e.to_string())
-        })
+        atomic_file::write(&target, content.as_bytes()).map_err(|e| FilesError::Io(e.to_string()))
     }
 }
 
@@ -303,7 +299,7 @@ mod tests {
         files.replace(&root, "a/b.md", "new").unwrap();
 
         assert_eq!(files.read(&root, "a/b.md").as_deref(), Some("new"));
-        assert!(!Path::new(&root).join("a/b.atlas-tmp").exists());
+        assert!(!Path::new(&root).join("a/.b.md.atlas-tmp").exists());
     }
 
     #[test]

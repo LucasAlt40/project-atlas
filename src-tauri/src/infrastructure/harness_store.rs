@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
+use super::atomic_file;
 use crate::application::errors::{AppError, ErrorCode};
 use crate::application::harness::manifest::MAX_MANIFEST_BYTES;
 use crate::application::harness::HarnessStore;
@@ -151,10 +152,10 @@ impl HarnessStore for FsHarnessStore {
                 }
                 Err(_) => {}
             }
-            // Written beside the target and renamed, so a crash never leaves half a file.
-            let temp = target.with_extension("atlas-tmp");
-            fs::write(&temp, &file.content).map_err(|e| failed(e.to_string()))?;
-            fs::rename(&temp, &target).map_err(|e| failed(e.to_string()))?;
+            // A crash never leaves half a file, and a link planted in the repository is never
+            // written through.
+            atomic_file::write(&target, file.content.as_bytes())
+                .map_err(|e| failed(e.to_string()))?;
             report.written.push(file.path.clone());
         }
         Ok(report)
@@ -229,10 +230,8 @@ impl HarnessStore for FsHarnessStore {
             text.push('\n');
         }
         text.push_str("# Atlas: local project knowledge, kept out of Git\n.atlas/\n");
-        // Written beside it and renamed, so a crash never leaves half a file.
-        let temp = project.join(".gitignore.atlas-tmp");
-        fs::write(&temp, text).map_err(|e| failed(e.to_string()))?;
-        fs::rename(&temp, &file).map_err(|e| failed(e.to_string()))?;
+        // A crash never leaves half a file.
+        atomic_file::write(&file, text.as_bytes()).map_err(|e| failed(e.to_string()))?;
         Ok(GitIgnoreStatus::Added)
     }
 }
@@ -391,6 +390,38 @@ mod tests {
         assert!(FsHarnessStore
             .read_manifest(&linked.to_string_lossy())
             .is_err());
+    }
+
+    /// A cloned repository can carry a link where the temporary file of a write would go.
+    #[cfg(unix)]
+    #[test]
+    fn a_link_planted_at_the_temporary_name_is_not_written_through() {
+        let dir = project("planted-temp");
+        let outside = project("planted-temp-outside");
+        fs::create_dir_all(dir.join(".git")).unwrap();
+        fs::write(outside.join("victim"), "precious").unwrap();
+        fs::create_dir_all(dir.join(".atlas/context")).unwrap();
+        for name in [".stack.md.atlas-tmp", "stack.atlas-tmp"] {
+            std::os::unix::fs::symlink(
+                outside.join("victim"),
+                dir.join(".atlas/context").join(name),
+            )
+            .unwrap();
+        }
+        std::os::unix::fs::symlink(outside.join("victim"), dir.join(".gitignore.atlas-tmp"))
+            .unwrap();
+
+        write(&dir, &[file("context/stack.md", "generated", false)]).unwrap();
+        assert_eq!(ignore(&dir), GitIgnoreStatus::Added);
+
+        assert_eq!(
+            fs::read_to_string(outside.join("victim")).unwrap(),
+            "precious"
+        );
+        assert_eq!(
+            fs::read_to_string(dir.join(".atlas/context/stack.md")).unwrap(),
+            "generated"
+        );
     }
 
     #[test]

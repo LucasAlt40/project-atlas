@@ -19,6 +19,11 @@ worktree não é parado pelo Atlas — o prompt só deixa de revelar o caminho d
 - **Nenhum comando aceita programa, linha de comando, caminho de pasta de trabalho ou aprovação vindos do webview.**
   Controle de processo nomeia `workspaceId` + `agentId` + `executionId`; o core revalida os três.
 - Segredos nunca vão em `config.json` (futuro: credential store do SO atrás de um port).
+- **Toda regravação de arquivo passa por `infrastructure/atomic_file.rs`**: temporário oculto criado com `create_new`
+  (um symlink plantado no nome do temporário é removido, nunca seguido), `fsync` antes do `rename`, permissões do
+  arquivo anterior preservadas (um script continua executável, um arquivo privado continua privado) e limpeza em caso
+  de erro. Arquivos de configuração das CLIs (`.mcp.json`, `~/.codex/config.toml`…) que sejam links não são gravados
+  nem substituídos: num projeto, um link plantado levaria o conteúdo de um arquivo privado para dentro do repositório.
 
 ## 2. Política de permissões
 

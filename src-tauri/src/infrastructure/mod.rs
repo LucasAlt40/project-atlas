@@ -1,6 +1,7 @@
 //! Adapters for the world outside the process: child processes and the filesystem.
 //! Each implements a port declared in `application/`; `lib.rs` wires them.
 
+mod atomic_file;
 pub mod config_file;
 mod credential_store;
 mod curl_registry;

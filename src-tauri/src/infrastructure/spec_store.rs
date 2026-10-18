@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
+use super::atomic_file;
 use crate::application::specs::ports::SpecStore;
 use crate::domain::spec::Spec;
 
@@ -58,11 +59,8 @@ impl SpecStore for FsSpecStore {
             .ok_or_else(|| "the spec's id is not a plain name".to_owned())?;
         fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
         let json = serde_json::to_string_pretty(spec).map_err(|e| e.to_string())?;
-        // Beside the target and renamed, so a crash never leaves half a record: the previous one
-        // stays until the new one is whole.
-        let temp = folder.join(format!("{FILE}.tmp"));
-        fs::write(&temp, json).map_err(|e| e.to_string())?;
-        fs::rename(&temp, folder.join(FILE)).map_err(|e| e.to_string())
+        // A crash never leaves half a record: the previous one stays until the new one is whole.
+        atomic_file::write(&folder.join(FILE), json.as_bytes()).map_err(|e| e.to_string())
     }
 
     fn remove(&self, id: &str) -> Result<(), String> {
@@ -135,7 +133,11 @@ mod tests {
 
         assert_eq!(loaded.len(), 1);
         assert_eq!(loaded[0].title, "Changed");
-        assert!(!store.root.join("spec-1").join("spec.json.tmp").exists());
+        let files: Vec<_> = fs::read_dir(store.root.join("spec-1"))
+            .unwrap()
+            .flatten()
+            .collect();
+        assert_eq!(files.len(), 1, "no temporary file stays behind");
     }
 
     #[test]

@@ -2,8 +2,8 @@
 //! comes from a native file dialog the person used, never from the webview; what is read is bounded
 //! and what is written replaces the file only once it is complete.
 
-use std::fs::{self, File};
-use std::io::{Read, Write};
+use std::fs::File;
+use std::io::Read;
 use std::path::Path;
 
 use crate::application::errors::{AppError, ErrorCode};
@@ -38,27 +38,13 @@ pub fn read_limited(path: &Path, max: usize) -> Result<String, AppError> {
 ///
 /// Fails if the folder is not writable or the file cannot be replaced.
 pub fn write_atomic(path: &Path, text: &str) -> Result<(), AppError> {
-    let name = path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .ok_or_else(|| AppError::new(ErrorCode::ConfigFileIo))?;
-    let temporary = path.with_file_name(format!(".{name}.atlas-tmp"));
-    let written = File::create(&temporary)
-        .and_then(|mut file| {
-            file.write_all(text.as_bytes())?;
-            file.sync_all()
-        })
-        .and_then(|()| fs::rename(&temporary, path));
-    if let Err(error) = written {
-        let _ = fs::remove_file(&temporary);
-        return Err(io("write", &error));
-    }
-    Ok(())
+    super::atomic_file::write(path, text.as_bytes()).map_err(|e| io("write", &e))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     fn folder(name: &str) -> std::path::PathBuf {
         let dir =

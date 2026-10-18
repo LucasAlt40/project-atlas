@@ -1,7 +1,7 @@
 use std::fs;
-use std::io::Write;
 use std::path::PathBuf;
 
+use super::atomic_file;
 use crate::application::config::{ConfigStore, UserConfig};
 
 /// Stores the user config as one pretty-printed JSON file.
@@ -47,24 +47,8 @@ impl ConfigStore for JsonConfigStore {
         if let Some(parent) = self.path.parent() {
             fs::create_dir_all(parent).map_err(|error| error.to_string())?;
         }
-        // Write, flush to disk, then rename: a crash never leaves a half-written config, and
-        // never a renamed file whose contents had not reached the disk yet.
-        let temp = self.path.with_extension("json.tmp");
-        let mut file = fs::File::create(&temp).map_err(|error| error.to_string())?;
-        file.write_all(text.as_bytes())
-            .and_then(|()| file.sync_all())
-            .map_err(|error| error.to_string())?;
-        drop(file);
-        fs::rename(&temp, &self.path).map_err(|error| error.to_string())?;
-        // Best effort: make the rename itself durable (a folder cannot be opened this way on
-        // every platform).
-        #[cfg(unix)]
-        if let Some(parent) = self.path.parent() {
-            if let Ok(dir) = fs::File::open(parent) {
-                let _ = dir.sync_all();
-            }
-        }
-        Ok(())
+        // A crash never leaves a half-written config.
+        atomic_file::write(&self.path, text.as_bytes()).map_err(|error| error.to_string())
     }
 }
 

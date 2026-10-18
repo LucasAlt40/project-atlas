@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
+use super::atomic_file;
 use crate::application::memory::{MemoryStore, ProjectProbe};
 use crate::domain::memory::Memory;
 
@@ -56,11 +57,8 @@ impl MemoryStore for FsMemoryStore {
             .ok_or_else(|| "the memory's id is not a plain name".to_owned())?;
         fs::create_dir_all(&self.root).map_err(|e| e.to_string())?;
         let json = serde_json::to_string_pretty(memory).map_err(|e| e.to_string())?;
-        // Beside the target and renamed, so a crash never leaves half a record: the previous one
-        // stays until the new one is whole.
-        let temp = file.with_extension("json.tmp");
-        fs::write(&temp, json).map_err(|e| e.to_string())?;
-        fs::rename(&temp, file).map_err(|e| e.to_string())
+        // A crash never leaves half a record: the previous one stays until the new one is whole.
+        atomic_file::write(&file, json.as_bytes()).map_err(|e| e.to_string())
     }
 
     fn remove(&self, id: &str) -> Result<(), String> {
