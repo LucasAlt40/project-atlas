@@ -16,9 +16,6 @@ pub struct PresenceSettings {
     /// generic texts ("Running a workflow").
     #[serde(default = "show_names_default")]
     pub show_names: bool,
-    /// Another Discord application id (for a fork). `None`: `ATLAS_DISCORD_CLIENT_ID`, then Atlas's.
-    #[serde(default)]
-    pub client_id: Option<String>,
 }
 
 const fn show_names_default() -> bool {
@@ -30,26 +27,7 @@ impl Default for PresenceSettings {
         Self {
             enabled: false,
             show_names: true,
-            client_id: None,
         }
-    }
-}
-
-impl PresenceSettings {
-    /// The application id to use: the setting, then `ATLAS_DISCORD_CLIENT_ID`, then Atlas's own.
-    pub fn resolved_client_id(&self) -> String {
-        self.client_id
-            .as_deref()
-            .map(str::trim)
-            .filter(|id| !id.is_empty())
-            .map(str::to_owned)
-            .or_else(|| {
-                std::env::var("ATLAS_DISCORD_CLIENT_ID")
-                    .ok()
-                    .map(|id| id.trim().to_owned())
-                    .filter(|id| !id.is_empty())
-            })
-            .unwrap_or_else(|| DEFAULT_CLIENT_ID.to_owned())
     }
 }
 

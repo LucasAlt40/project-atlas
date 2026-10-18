@@ -1253,8 +1253,6 @@ export interface PresenceSettingsDto {
   enabled: boolean;
   /** Send the names of the workspace, workflow and step; off: generic texts only. */
   showNames: boolean;
-  /** The Discord application id (Developer Portal); none: `ATLAS_DISCORD_CLIENT_ID`. */
-  clientId: string | null;
 }
 
 export type SandboxModeDto = 'off' | 'auto' | 'required';

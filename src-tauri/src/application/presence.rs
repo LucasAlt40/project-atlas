@@ -29,7 +29,7 @@ use super::workflow::service::WorkflowService;
 use super::workspace::WorkspaceService;
 use crate::application::support::LockExt;
 use crate::domain::execution::{ExecutionEvent, ExecutionEventKind};
-use crate::domain::presence::{Activity, PresenceSettings};
+use crate::domain::presence::{Activity, DEFAULT_CLIENT_ID, PresenceSettings};
 use crate::domain::workflow::{WorkflowEvent, WorkflowEventKind};
 
 /// Discord drops updates beyond about five per twenty seconds.
@@ -303,7 +303,6 @@ struct Desired {
 
 fn desired(shared: &Shared) -> Desired {
     let settings = shared.env.settings();
-    let client_id = settings.resolved_client_id();
     if !settings.enabled {
         return Desired {
             published: None,
@@ -325,7 +324,7 @@ fn desired(shared: &Shared) -> Desired {
         .map(|left| Duration::from_millis(left + 50));
     Desired {
         published: Some(Published {
-            client_id,
+            client_id: DEFAULT_CLIENT_ID.to_owned(),
             activity,
         }),
         wake_in,
@@ -553,7 +552,6 @@ mod tests {
                 settings: Mutex::new(PresenceSettings {
                     enabled,
                     show_names: true,
-                    client_id: Some("123".to_owned()),
                 }),
                 language: "en-US",
                 selected: Mutex::new(Some("Billing".to_owned())),
@@ -670,7 +668,7 @@ mod tests {
         wait_for("done", || {
             last(&transport).is_some_and(|p| p.activity.details == "Workflow completed")
         });
-        assert_eq!(last(&transport).unwrap().client_id, "123");
+        assert_eq!(last(&transport).unwrap().client_id, DEFAULT_CLIENT_ID);
     }
 
     #[test]

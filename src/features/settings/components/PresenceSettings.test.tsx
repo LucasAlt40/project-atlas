@@ -15,7 +15,7 @@ beforeEach(() => {
   vi.mocked(getSettings).mockResolvedValue({
     language: 'en-US',
     selectedWorkspaceId: null,
-    presence: { enabled: false, showNames: true, clientId: null },
+    presence: { enabled: false, showNames: true },
   });
   vi.mocked(setPresenceSettings).mockImplementation((presence) =>
     Promise.resolve({ language: 'en-US', selectedWorkspaceId: null, presence }),
@@ -35,12 +35,11 @@ describe('PresenceSettings', () => {
     expect(setPresenceSettings).toHaveBeenCalledWith({
       enabled: true,
       showNames: true,
-      clientId: null,
     });
     expect(await screen.findByLabelText('Show what Atlas is doing on Discord')).toBeChecked();
   });
 
-  it('hides names on request and saves a trimmed application id', async () => {
+  it('hides names on request', async () => {
     const person = userEvent.setup();
     renderWithProviders(<PresenceSettings />);
 
@@ -50,16 +49,6 @@ describe('PresenceSettings', () => {
     expect(setPresenceSettings).toHaveBeenLastCalledWith({
       enabled: false,
       showNames: false,
-      clientId: null,
-    });
-
-    await person.click(screen.getByRole('button', { name: 'Advanced' }));
-    await person.type(screen.getByLabelText('Own Application ID (advanced)'), ' 123456 ');
-    await person.click(screen.getByRole('button', { name: 'Save ID' }));
-    expect(setPresenceSettings).toHaveBeenLastCalledWith({
-      enabled: false,
-      showNames: false,
-      clientId: '123456',
     });
   });
 });

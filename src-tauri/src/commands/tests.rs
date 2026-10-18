@@ -484,7 +484,7 @@ fn settings_default_to_portuguese_and_persist_language_and_selected_workspace() 
                 "memory": { "user": "off", "workspace": "off", "agent": "off", "maxTokens": 600 }
             },
             "sandbox": { "mode": "off", "devCaches": true },
-            "presence": { "enabled": false, "showNames": true, "clientId": null },
+            "presence": { "enabled": false, "showNames": true },
         })
     );
     invoke(&window, "set_language", json!({ "language": "en-US" })).unwrap();

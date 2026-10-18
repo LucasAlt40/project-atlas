@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/Button';
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { useI18n } from '@/i18n/I18nProvider';
 import { errorMessage } from '@/i18n/messages';
@@ -7,7 +6,7 @@ import type { PresenceSettingsDto } from '@/lib/tauri/commands';
 import { getSettings, setPresenceSettings } from '../services/settingsService';
 import styles from '../pages/SettingsPage.module.css';
 
-const OFF: PresenceSettingsDto = { enabled: false, showNames: true, clientId: null };
+const OFF: PresenceSettingsDto = { enabled: false, showNames: true };
 
 /**
  * Discord Rich Presence (proof of concept): what Atlas may show on the person's profile. Off until
@@ -16,7 +15,6 @@ const OFF: PresenceSettingsDto = { enabled: false, showNames: true, clientId: nu
 export function PresenceSettings() {
   const { t } = useI18n();
   const [settings, setSettings] = useState<PresenceSettingsDto | null>(null);
-  const [clientId, setClientId] = useState('');
   const [failure, setFailure] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,9 +22,7 @@ export function PresenceSettings() {
     Promise.resolve(getSettings())
       .then((loaded) => {
         if (cancelled) return;
-        const presence = loaded.presence ?? OFF;
-        setSettings(presence);
-        setClientId(presence.clientId ?? '');
+        setSettings(loaded.presence ?? OFF);
       })
       .catch((error: unknown) => {
         if (!cancelled) setFailure(errorMessage(t, error));
@@ -75,35 +71,6 @@ export function PresenceSettings() {
         </label>
         <p className={styles.help}>{t('settings.presence.showNamesHelp')}</p>
       </div>
-      <CollapsibleSection title={t('settings.presence.advanced')} defaultOpen={false}>
-        <form
-          className={styles.group}
-          onSubmit={(event) => {
-            event.preventDefault();
-            void change({ ...settings, clientId: clientId.trim() === '' ? null : clientId.trim() });
-          }}
-        >
-          <label htmlFor="settings-presence-client-id" className={styles.label}>
-            {t('settings.presence.clientId')}
-          </label>
-          <div className={styles.inline}>
-            <input
-              id="settings-presence-client-id"
-              className={styles.control}
-              inputMode="numeric"
-              value={clientId}
-              placeholder={t('settings.presence.clientIdPlaceholder')}
-              onChange={(event) => {
-                setClientId(event.target.value);
-              }}
-            />
-            <Button type="submit" variant="secondary">
-              {t('settings.presence.clientIdSave')}
-            </Button>
-          </div>
-          <p className={styles.help}>{t('settings.presence.clientIdHelp')}</p>
-        </form>
-      </CollapsibleSection>
       <CollapsibleSection title={t('settings.sandbox.how')} defaultOpen={false}>
         <p className={styles.help}>{t('settings.presence.help')}</p>
       </CollapsibleSection>
