@@ -54,6 +54,11 @@ pub trait OptimizationFlags: Send + Sync {
         crate::domain::memory::MemorySettings::default()
     }
 
+    /// The memory server on this machine that notes may be read from (ADR 0040). Off unless said.
+    fn external_memory(&self) -> crate::domain::memory::ExternalMemorySettings {
+        crate::domain::memory::ExternalMemorySettings::default()
+    }
+
     /// `optimization.context.maxTokens`: a budget for the prompt, in estimated tokens. `None`: no
     /// budget, nothing is ever left out for size.
     fn context_max_tokens(&self) -> Option<u64> {
@@ -85,6 +90,10 @@ impl OptimizationFlags for ConfigRepository {
     fn memory_settings(&self) -> crate::domain::memory::MemorySettings {
         self.read(|config| config.settings.optimization.memory)
     }
+
+    fn external_memory(&self) -> crate::domain::memory::ExternalMemorySettings {
+        self.read(|config| config.settings.external_memory.clone())
+    }
 }
 
 /// A fixed answer, for tests.
@@ -98,6 +107,7 @@ pub struct FixedFlags {
     pub skills: bool,
     pub guardrails: bool,
     pub memory: crate::domain::memory::MemorySettings,
+    pub external: crate::domain::memory::ExternalMemorySettings,
 }
 
 #[cfg(test)]
@@ -129,7 +139,17 @@ impl FixedFlags {
             skills: false,
             guardrails: false,
             memory: crate::domain::memory::MemorySettings::default(),
+            external: crate::domain::memory::ExternalMemorySettings::default(),
         }
+    }
+
+    #[must_use]
+    pub fn with_external(
+        mut self,
+        external: crate::domain::memory::ExternalMemorySettings,
+    ) -> Self {
+        self.external = external;
+        self
     }
 
     #[must_use]
@@ -163,6 +183,10 @@ impl OptimizationFlags for FixedFlags {
 
     fn memory_settings(&self) -> crate::domain::memory::MemorySettings {
         self.memory
+    }
+
+    fn external_memory(&self) -> crate::domain::memory::ExternalMemorySettings {
+        self.external.clone()
     }
 }
 

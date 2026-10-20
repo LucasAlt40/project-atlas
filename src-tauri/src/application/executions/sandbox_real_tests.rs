@@ -85,6 +85,7 @@ fn run_confined(runtime_id: &str, model: &str, prompt: &dyn Fn(&Path) -> String)
         files: &[("README.md", "test project\n")],
         sandbox: SandboxMode::Required,
         memory: MemorySettings::default(),
+        external: crate::domain::memory::ExternalMemorySettings::default(),
     });
     let record = world.run(&prompt(&world.project));
     Outcome {

@@ -58,6 +58,8 @@ pub struct AppState {
     pub sandbox: Arc<crate::application::security::MacosSandbox>,
     /// The notes of earlier work (ADR 0037).
     pub memory: Arc<crate::application::memory::MemoryService>,
+    /// A memory server on this machine that notes are read from and shared with (ADR 0040).
+    pub external_memory: Arc<crate::application::memory::ExternalMemoryService>,
     /// Export and import of configurations as files.
     pub portability: Arc<PortabilityService>,
     /// Watching and answering runs from a phone on the local network. Off until the person
@@ -87,7 +89,47 @@ impl AppState {
         use crate::application::security::{AuditLog, SecurityService};
         use crate::application::usage::UsageLedger;
 
+        use crate::application::memory::external::{
+            ExternalError, ExternalHit, ExternalScope, Page,
+        };
+        use crate::application::memory::ExternalMemory;
+        use crate::domain::memory::ExternalMemorySettings;
+
+        /// No memory server: every question is answered with "not running".
+        struct NoExternalServer;
+        impl ExternalMemory for NoExternalServer {
+            fn search(
+                &self,
+                _: &ExternalMemorySettings,
+                _: &ExternalScope,
+                _: &str,
+                _: u8,
+            ) -> Result<Vec<ExternalHit>, ExternalError> {
+                Err(ExternalError::NotRunning)
+            }
+            fn publish(
+                &self,
+                _: &ExternalMemorySettings,
+                _: &ExternalScope,
+                _: &Page,
+            ) -> Result<(), ExternalError> {
+                Err(ExternalError::NotRunning)
+            }
+            fn retire(
+                &self,
+                _: &ExternalMemorySettings,
+                _: &ExternalScope,
+                _: &str,
+            ) -> Result<(), ExternalError> {
+                Err(ExternalError::NotRunning)
+            }
+        }
+
         let config = Arc::new(ConfigRepository::load(Box::<MemoryStore>::default()));
+        let memory = Arc::new(crate::application::memory::MemoryService::new(
+            Arc::new(crate::application::memory::ports::MemoryMemoryStore::default()),
+            Arc::new(crate::application::memory::ports::FakeProbe::default()),
+        ));
         let personalities = Arc::new(PersonalityService::new(config.clone()));
         let runtimes = Arc::new(RuntimeRegistry::new(vec![Arc::new(FakeRuntime::new(
             "fake",
@@ -167,7 +209,7 @@ impl AppState {
             runtimes.clone(),
             workspaces.clone(),
         ));
-        let settings = Arc::new(SettingsService::new(config));
+        let settings = Arc::new(SettingsService::new(config.clone()));
         let chat = ChatService::new(
             agents.clone(),
             executions.clone(),
@@ -288,9 +330,16 @@ impl AppState {
                 std::env::temp_dir().join("atlas-test-sandbox"),
                 crate::application::runtimes::confinement::default_confinements(),
             )),
-            memory: Arc::new(crate::application::memory::MemoryService::new(
-                Arc::new(crate::application::memory::ports::MemoryMemoryStore::default()),
-                Arc::new(crate::application::memory::ports::FakeProbe::default()),
+            memory: memory.clone(),
+            external_memory: Arc::new(crate::application::memory::ExternalMemoryService::new(
+                Arc::new(NoExternalServer),
+                config.clone(),
+                Arc::new(crate::application::memory::external::ExternalMirror::new(
+                    Arc::new(NoExternalServer),
+                    config.clone(),
+                    Arc::new(crate::application::memory::external::MemoryLedger::default()),
+                )),
+                memory,
             )),
             portability,
             remote,

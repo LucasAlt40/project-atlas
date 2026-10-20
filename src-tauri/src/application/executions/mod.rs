@@ -30,7 +30,7 @@ use super::workspace::WorkspaceService;
 use super::worktree::{RunOutcome, WorktreeError, WorktreeService};
 use crate::application::harness::scope_context::{self, WorkspaceText};
 use crate::application::harness::workspace_context::{told, ContextFile, WorkspaceContextStore};
-use crate::domain::context::ManifestIds;
+use crate::domain::context::{ManifestIds, ManifestMemory, MemoryStatusInPrompt};
 use crate::domain::execution::{
     Execution, ExecutionEvent, ExecutionEventKind, ExecutionFailure, ExecutionRecord,
     ExecutionStatus,
@@ -232,6 +232,8 @@ pub struct ExecutionService {
     mcp: Option<Arc<McpService>>,
     /// Where memories are recovered from. Without it (or with every scope off) no prompt carries one.
     memory: Option<Arc<MemoryService>>,
+    /// A memory server on this machine that is not Atlas (ADR 0040); read only while the setting says so.
+    external_memory: Option<Arc<dyn crate::application::memory::ExternalMemory>>,
     next_id: AtomicU64,
 }
 
@@ -260,6 +262,7 @@ impl ExecutionService {
             rules: None,
             mcp: None,
             memory: None,
+            external_memory: None,
             next_id: AtomicU64::new(1),
         }
     }
@@ -320,6 +323,17 @@ impl ExecutionService {
     #[must_use]
     pub fn with_memory(mut self, memory: Arc<MemoryService>) -> Self {
         self.memory = Some(memory);
+        self
+    }
+
+    /// Lets executions read notes from a memory server on this machine, while the setting says so
+    /// (ADR 0040).
+    #[must_use]
+    pub fn with_external_memory(
+        mut self,
+        server: Arc<dyn crate::application::memory::ExternalMemory>,
+    ) -> Self {
+        self.external_memory = Some(server);
         self
     }
 
@@ -662,6 +676,8 @@ impl ExecutionService {
             context_query.unwrap_or(description),
             &project.path,
         );
+        let external_notes =
+            self.recall_external(context_query.unwrap_or(description), &project.path);
         // Rules are read like the Harness: at the project's own root, before the path is swapped
         // for the worktree's, and they reach the agent as prompt text only.
         let rule_resolution = self.resolve_rules(
@@ -804,7 +820,12 @@ impl ExecutionService {
             description: task.description.clone(),
             parts: brief_parts.cloned(),
             rules: rule_resolution.applied.iter().map(RuleBlock::of).collect(),
-            memories: recalled.selected.iter().map(MemoryBlock::of).collect(),
+            memories: recalled
+                .selected
+                .iter()
+                .map(MemoryBlock::of)
+                .chain(external_notes.blocks.iter().cloned())
+                .collect(),
         };
         let build = |inputs: &guardrails::PromptInputs| {
             let reworked = Task {
@@ -1025,7 +1046,29 @@ impl ExecutionService {
             .filter(|block| block.text.starts_with("[Left out"))
             .map(|block| block.reference.clone())
             .collect();
-        let memory_records = recalled.manifest(&inputs.memories);
+        let mut memory_records = recalled.manifest(&inputs.memories);
+        // What the memory server added is said too: each note and whether it is still in the prompt.
+        for block in &external_notes.blocks {
+            let still_there = inputs
+                .memories
+                .iter()
+                .any(|b| b.id == block.id && !b.text.trim().is_empty());
+            memory_records.0.push(ManifestMemory {
+                id: block.id.clone(),
+                title: external_notes
+                    .titles
+                    .get(&block.id)
+                    .cloned()
+                    .unwrap_or_default(),
+                status: if still_there {
+                    MemoryStatusInPrompt::Sent
+                } else {
+                    MemoryStatusInPrompt::OmittedForBudget
+                },
+                reason: Some("from the memory server on this machine".to_owned()),
+                automatic: true,
+            });
+        }
         execution.manifest = Some(optimization::platform::manifest_of(
             &optimization::platform::ManifestSource {
                 ids: ManifestIds {
@@ -1197,6 +1240,39 @@ impl ExecutionService {
         })
     }
 
+    /// The notes the external memory server has for this task; none when it is not wired, is off
+    /// or cannot answer. Said on the log, never an error of the run.
+    fn recall_external(
+        &self,
+        task: &str,
+        project_root: &str,
+    ) -> crate::application::memory::ExternalRecall {
+        let (Some(server), Some(flags)) =
+            (self.external_memory.as_ref(), self.optimization.as_ref())
+        else {
+            return crate::application::memory::ExternalRecall::default();
+        };
+        let settings = flags.external_memory();
+        // Atlas weighs its own notes, in every workspace: the page of one of them is not news. A page
+        // of a note this Atlas does not know (another machine's) is.
+        let own: std::collections::BTreeSet<String> = self
+            .memory
+            .as_ref()
+            .map(|memory| memory.list().into_iter().map(|m| m.id).collect())
+            .unwrap_or_default();
+        let got = crate::application::memory::external::recall(
+            server.as_ref(),
+            &settings,
+            project_root,
+            task,
+            &own,
+        );
+        if let Some(why) = &got.unavailable {
+            eprintln!("external memory unavailable ({why}); the run goes on without it");
+        }
+        got
+    }
+
     /// Whether the person let agents propose notes (and memory is wired at all).
     fn memory_proposals_on(&self) -> bool {
         self.memory.is_some()
@@ -1267,7 +1343,7 @@ impl ExecutionService {
         if let (Some(service), false) = (self.memory.as_ref(), blocks.is_empty()) {
             let ids: Vec<String> = blocks
                 .iter()
-                .filter(|b| !b.text.trim().is_empty())
+                .filter(|b| !b.text.trim().is_empty() && !b.id.starts_with("ext:"))
                 .map(|b| b.id.clone())
                 .collect();
             service.record_use(&ids, now_ms());
@@ -2382,6 +2458,8 @@ impl Emitter<'_> {
 
 #[cfg(test)]
 mod context_tests;
+#[cfg(test)]
+mod external_memory_tests;
 #[cfg(test)]
 mod mcp_tests;
 #[cfg(test)]

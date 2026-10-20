@@ -1,6 +1,9 @@
 import {
   invokeCommand,
   type AppSettingsDto,
+  type ExternalCheckDto,
+  type ExternalMemorySettingsDto,
+  type ExternalSyncDto,
   type MemorySettingsDto,
   type PresenceSettingsDto,
   type SandboxSettingsDto,
@@ -34,6 +37,21 @@ export function setSandboxSettings(sandbox: SandboxSettingsDto): Promise<AppSett
 /** Which scopes of the Memory are recalled and proposed to, and the most a prompt may spend. */
 export function setMemorySettings(memory: MemorySettingsDto): Promise<AppSettingsDto> {
   return invokeCommand('set_memory_settings', { memory });
+}
+
+/** The memory server on this machine that notes may be read from (off by default; loopback only). */
+export function setExternalMemory(external: ExternalMemorySettingsDto): Promise<AppSettingsDto> {
+  return invokeCommand('set_external_memory', { external });
+}
+
+/** Whether the memory server answers with Atlas's token, using the saved settings. */
+export function checkExternalMemory(): Promise<ExternalCheckDto> {
+  return invokeCommand('check_external_memory');
+}
+
+/** Publishes the approved notes to the memory server and retires the ones out of use. */
+export function syncExternalMemory(): Promise<ExternalSyncDto> {
+  return invokeCommand('sync_external_memory');
 }
 
 /** The most tokens the runs of one specification may use together (`null`: no limit). */

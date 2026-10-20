@@ -75,6 +75,9 @@ export interface CommandMap {
   get_sandbox_status: { args: undefined; result: SandboxStatusDto };
   set_sandbox_settings: { args: { sandbox: SandboxSettingsDto }; result: AppSettingsDto };
   set_presence_settings: { args: { presence: PresenceSettingsDto }; result: AppSettingsDto };
+  set_external_memory: { args: { external: ExternalMemorySettingsDto }; result: AppSettingsDto };
+  check_external_memory: { args: undefined; result: ExternalCheckDto };
+  sync_external_memory: { args: undefined; result: ExternalSyncDto };
   list_memories: { args: undefined; result: MemoryDto[] };
   create_memory: {
     args: {
@@ -1247,6 +1250,43 @@ export interface AppSettingsDto {
   sandbox?: SandboxSettingsDto;
   /** Discord Rich Presence: what Atlas shares on the person's profile. Off by default. */
   presence?: PresenceSettingsDto;
+  /** A memory server on this machine that notes are read from (ADR 0040). Off by default. */
+  externalMemory?: ExternalMemorySettingsDto;
+}
+
+export interface ExternalMemorySettingsDto {
+  enabled: boolean;
+  /** Only a loopback address (`http://127.0.0.1:port`): the token never leaves the machine. */
+  serverUrl: string;
+  /** The server's data folder, where Atlas reads its access token. */
+  dataDir: string;
+  /** The most notes one prompt may take from it. */
+  maxHits: number;
+  /** The most the notes may add to a prompt, in estimated tokens. */
+  maxTokens: number;
+  /** The server's workspace that holds the projects (`default` is where its own tools put them). */
+  workspace: string;
+  /** Also publish the notes a person approved in Atlas, so the person's other tools see them. */
+  share: boolean;
+  /** Only bring a note whose title shares words with the task: fewer notes about something else. */
+  precise: boolean;
+}
+
+export interface ExternalCheckDto {
+  reachable: boolean;
+  /** A stable code (`not_running`, `refused`, `server`…) the screen words in the person's language. */
+  reason: string | null;
+  /** What the code leaves out, such as the status the server answered. */
+  detail: string | null;
+}
+
+export interface ExternalSyncDto {
+  ok: boolean;
+  reason: string | null;
+  detail: string | null;
+  published: number;
+  retired: number;
+  failed: number;
 }
 
 export interface PresenceSettingsDto {

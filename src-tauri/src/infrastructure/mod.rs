@@ -1,6 +1,7 @@
 //! Adapters for the world outside the process: child processes and the filesystem.
 //! Each implements a port declared in `application/`; `lib.rs` wires them.
 
+mod ai_memory;
 mod atomic_file;
 pub mod config_file;
 mod credential_store;
@@ -17,6 +18,7 @@ mod project_files;
 mod project_inspector;
 mod project_scanner;
 mod pty;
+mod published_ledger;
 mod remote_server;
 mod runtime_config_files;
 mod skill_store;
@@ -24,6 +26,7 @@ mod spec_store;
 mod system_network;
 mod workspace_context_store;
 
+pub use ai_memory::AiMemoryHttp;
 pub use credential_store::KeyringCredentialStore;
 pub use curl_registry::CurlRegistryClient;
 pub use discord_ipc::DiscordIpc;
@@ -37,6 +40,7 @@ pub use process::SystemProcessRunner;
 pub use project_files::FsProjectFiles;
 pub use project_inspector::FsProjectInspector;
 pub use project_scanner::FsProjectScanner;
+pub use published_ledger::FsPublishedLedger;
 #[cfg(test)]
 pub use remote_server::start_in as start_remote_server_in;
 pub use remote_server::{start as start_remote_server, ServerDeps};

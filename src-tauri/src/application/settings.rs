@@ -62,6 +62,29 @@ impl SettingsService {
         })
     }
 
+    /// The memory server on this machine that Atlas may read notes from (off by default).
+    ///
+    /// # Errors
+    ///
+    /// Fails if the server address is not a loopback one, or if saving fails.
+    pub fn set_external_memory(
+        &self,
+        external: crate::domain::memory::ExternalMemorySettings,
+    ) -> Result<AppSettings, AppError> {
+        if external.enabled && external.loopback_authority().is_none() {
+            return Err(AppError::new(ErrorCode::ExternalAddressInvalid));
+        }
+        let external = crate::domain::memory::ExternalMemorySettings {
+            max_hits: external.max_hits.clamp(1, 10),
+            max_tokens: external.max_tokens.clamp(50, 2000),
+            ..external
+        };
+        self.config.modify(|config| {
+            config.settings.external_memory = external;
+            Ok(config.settings.clone())
+        })
+    }
+
     /// Whether, and how strictly, the runtime process of an execution is confined by the OS.
     ///
     /// # Errors
@@ -170,6 +193,7 @@ mod tests {
                 optimization: crate::application::config::OptimizationSettings::default(),
                 sandbox: crate::domain::security::SandboxSettings::default(),
                 presence: crate::domain::presence::PresenceSettings::default(),
+                external_memory: crate::domain::memory::ExternalMemorySettings::default(),
             }
         );
     }

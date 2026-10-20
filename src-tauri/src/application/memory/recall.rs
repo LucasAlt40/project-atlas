@@ -171,6 +171,147 @@ fn expired(memory: &Memory, now: u64) -> bool {
         })
 }
 
+/// More notes than this sharing a word with the task is a flood, not a match: below it every note
+/// that shares a word is kept, as it always was.
+const PRUNE_ABOVE: usize = 5;
+/// A memory with fewer notes than this is never pruned: a few notes about one subject (six of
+/// eight mention "build") are all relevant to a task about it, and the budget is enough for them.
+const PRUNE_NEEDS_NOTES: usize = 12;
+/// A note that got in on a rare word, or on one title word, must score at least this percent of the
+/// best one to stay.
+const KEEP_PERCENT: u64 = 60;
+/// A note that shares this many uncommon words with the task, in its title or its content, stays if
+/// it scores at least [`TWO_WORDS_PERCENT`] of the best. Added after trying the rules on notes the
+/// project actually recorded, where the title seldom repeats the task's words: without it the
+/// pruning lost 5 of the 26 notes a developer wanted (88% found became 69%).
+const TWO_WORDS_MIN: usize = 2;
+const TWO_WORDS_PERCENT: u64 = 40;
+/// A word is rare when at most one note in this many has it (and at least one note, always).
+const RARE_ONE_IN: usize = 20;
+/// A word that more than one note in this many has says nothing about which note is the right one
+/// ("change", "service"): it adds nothing to a note's score. Only counted in a memory big enough
+/// for the share to mean something.
+const GENERIC_ONE_IN: usize = 4;
+const GENERIC_NEEDS_NOTES: usize = 20;
+
+/// Keeps, out of a flood of notes that share a word with the task, the ones that are about it:
+///
+/// - the title carries two of its words (or the one it has): the note says it is about the task; or
+/// - the note shares a word few notes have, or a word of its title that is not common, **and** its
+///   score is at least [`KEEP_PERCENT`] of the best; or
+/// - the note shares [`TWO_WORDS_MIN`] uncommon words with the task and scores at least
+///   [`TWO_WORDS_PERCENT`] of the best.
+///
+/// The score weighs each word by how rare it is (title twice) and counts for nothing a word most
+/// notes have. All of it is whole numbers (thousandths), so the same notes give the same answer on
+/// any platform. What is left out is `NoMatch`, so a task nothing really matches gets no notes. What
+/// stays is ordered in tenths of the best score, then by [`memory::tie_bonus`], so that use and
+/// recency decide between notes that score alike. Measured on 240 lookalike notes
+/// (`spikes/ai-memory-analysis.md`): without this the native recall filled the whole budget of every
+/// prompt from about fifteen notes, nine of them about something else.
+fn prune<'a>(
+    candidates: Vec<(&'a Memory, memory::Fit)>,
+    pool: &[&Memory],
+    task_words: usize,
+    result: &mut Recall,
+) -> Vec<(&'a Memory, u32)> {
+    struct Scored<'b> {
+        memory: &'b Memory,
+        weight: u64,
+        /// Its title carries the words of the task.
+        in_title: bool,
+        /// A word of its title is not a common one.
+        title_word: bool,
+        /// It shares a word few notes have.
+        rare: bool,
+        /// How many distinct words, not common ones, it shares with the task.
+        informative: usize,
+    }
+
+    let docs: Vec<BTreeSet<String>> = pool
+        .iter()
+        .map(|m| {
+            let mut words =
+                memory::stems(&format!("{} {}", m.title, m.topic.as_deref().unwrap_or("")));
+            words.extend(memory::stems(&m.content));
+            words
+        })
+        .collect();
+    let n = docs.len();
+    let document_frequency = |word: &str| docs.iter().filter(|d| d.contains(word)).count().max(1);
+    let rare_at = (n / RARE_ONE_IN).max(1);
+    let is_generic = |df: usize| n >= GENERIC_NEEDS_NOTES && df * GENERIC_ONE_IN > n;
+    // ln(1 + N/df) in thousandths: whole numbers from here on.
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss
+    )] // counts of a few hundred notes; the result is small and positive
+    let idf = |df: usize| ((1.0 + n as f64 / df as f64).ln() * 1000.0).round() as u64;
+    let need_in_title = task_words.min(2);
+
+    let scored: Vec<Scored> = candidates
+        .into_iter()
+        .map(|(memory, fit)| {
+            let (mut weight, mut rare, mut title_word, mut informative) = (0, false, false, 0usize);
+            for (word, times, in_title) in fit
+                .title
+                .iter()
+                .map(|w| (w, 2, true))
+                .chain(fit.content.iter().map(|w| (w, 1, false)))
+            {
+                let df = document_frequency(word);
+                // A word nearly every note has cannot tell the right note from the others: without
+                // this, the notes that add "change" and "service" to the same subject outrank the
+                // one that holds the answer.
+                if !is_generic(df) {
+                    weight += idf(df) * times;
+                    title_word |= in_title;
+                    // a word more than half of the notes have is not uncommon in any memory,
+                    // however small
+                    informative += usize::from(df * 2 <= n);
+                }
+                rare |= df <= rare_at;
+            }
+            Scored {
+                memory,
+                weight,
+                in_title: fit.title.len() >= need_in_title,
+                title_word,
+                rare,
+                informative,
+            }
+        })
+        .collect();
+    let best = scored.iter().map(|s| s.weight).max().unwrap_or(0);
+    let mut kept = Vec::new();
+    for s in scored {
+        let near_best = s.weight * 100 >= KEEP_PERCENT * best;
+        // A title that carries the task's words is the note saying it is about it: it stays. A note
+        // that got in on one rare word, or on one word of its title, has to be near the best to
+        // stay, or a single odd word would bring any note.
+        // Two uncommon words of the task in the content are enough to be about it, even when the
+        // title echoes nothing, if the note is not far behind the best (a looser bar than one odd
+        // word has to clear).
+        let two_words =
+            s.informative >= TWO_WORDS_MIN && s.weight * 100 >= TWO_WORDS_PERCENT * best;
+        if s.in_title || ((s.rare || s.title_word) && near_best) || two_words {
+            // In tenths of the best, rounding to the nearest: a difference smaller than that is
+            // noise (one more common word), and what separates two notes then is the rank's next
+            // keys. The edge between two tenths is a step, not a slope.
+            let tenths = (s.weight * 10 + best / 2)
+                .checked_div(best)
+                .map_or(0, |t| u32::try_from(t).unwrap_or(10));
+            kept.push((s.memory, tenths * 10 + memory::tie_bonus(s.memory)));
+        } else {
+            result
+                .considered
+                .push(Considered::of(s.memory, RecallOutcome::NoMatch));
+        }
+    }
+    kept
+}
+
 /// Chooses the memories for one execution. Pure: the same memories, task and project always give
 /// the same answer.
 pub fn recall(memories: &[Memory], req: &RecallRequest<'_>, probe: &dyn ProjectProbe) -> Recall {
@@ -181,9 +322,12 @@ pub fn recall(memories: &[Memory], req: &RecallRequest<'_>, probe: &dyn ProjectP
     let ceiling = req
         .budget_tokens
         .map_or(req.settings.max_tokens, |b| b.min(req.settings.max_tokens));
-    let task_terms: BTreeSet<String> = memory::terms(req.task);
+    let task_terms: BTreeSet<String> = memory::stems(req.task);
 
-    let mut candidates: Vec<(&Memory, u32)> = Vec::new();
+    let mut candidates: Vec<(&Memory, memory::Fit)> = Vec::new();
+    // Every note that could be recovered for this execution, matching or not: the base the rarity of
+    // a word is measured against.
+    let mut pool: Vec<&Memory> = Vec::new();
     for item in memories {
         if item.status != MemoryStatus::Active
             || req.settings.mode(item.scope) == MemoryMode::Off
@@ -199,14 +343,26 @@ pub fn recall(memories: &[Memory], req: &RecallRequest<'_>, probe: &dyn ProjectP
             result
                 .considered
                 .push(Considered::of(item, RecallOutcome::Stale(reason)));
-        } else if let Some(score) = memory::relevance(item, &task_terms) {
-            candidates.push((item, score));
         } else {
-            result
-                .considered
-                .push(Considered::of(item, RecallOutcome::NoMatch));
+            pool.push(item);
+            if let Some(fit) = memory::fit(item, &task_terms) {
+                candidates.push((item, fit));
+            } else {
+                result
+                    .considered
+                    .push(Considered::of(item, RecallOutcome::NoMatch));
+            }
         }
     }
+    let mut candidates: Vec<(&Memory, u32)> =
+        if candidates.len() > PRUNE_ABOVE && pool.len() >= PRUNE_NEEDS_NOTES {
+            prune(candidates, &pool, task_terms.len(), &mut result)
+        } else {
+            candidates
+                .into_iter()
+                .map(|(m, fit)| (m, fit.score))
+                .collect()
+        };
     candidates.sort_by_key(|(item, score)| memory::rank(item, *score));
 
     let mut by_topic: BTreeMap<String, String> = BTreeMap::new();
@@ -508,5 +664,516 @@ mod tests {
         );
 
         assert_eq!(ids(&forward), ids(&backward));
+    }
+
+    // ----- a flood of notes that share a word (measured on 240 lookalike notes; see the analysis)
+
+    /// A note of the workspace with a title and a content of its own.
+    fn note(id: &str, title: &str, content: &str) -> Memory {
+        let mut m = memory(id, MemoryScope::Workspace, Some("w1"), content);
+        m.title = title.to_owned();
+        m
+    }
+
+    /// `count` notes that are about other things and share only common words with the task.
+    fn lookalikes(count: usize) -> Vec<Memory> {
+        (0..count)
+            .map(|i| {
+                note(
+                    &format!("other-{i}"),
+                    &format!("About topic{i} handling"),
+                    &format!("When you change topic{i}, restart the service: its limit is read at start."),
+                )
+            })
+            .collect()
+    }
+
+    const TASK: &str = "Change the retry limit of this service";
+
+    #[test]
+    fn with_a_handful_of_matches_every_note_that_shares_a_word_is_kept_as_it_always_was() {
+        let notes = lookalikes(5);
+
+        let got = recall(&notes, &request(TASK, on()), &FakeProbe::default());
+
+        assert_eq!(got.selected.len(), 5);
+    }
+
+    #[test]
+    fn in_a_flood_only_the_notes_about_the_task_stay() {
+        let mut notes = lookalikes(14);
+        notes.push(note(
+            "answer",
+            "Retry limit lives in deploy/limits.cfg",
+            "The MAXTRY key is the real one; the retries key in config/app.toml is not read.",
+        ));
+
+        let got = recall(&notes, &request(TASK, on()), &FakeProbe::default());
+
+        assert_eq!(ids(&got), ["answer"]);
+        // the rest are said to be of no use, so the manifest counts them as not relevant
+        assert!(matches!(outcome(&got, "other-3"), RecallOutcome::NoMatch));
+    }
+
+    #[test]
+    fn a_note_that_shares_a_word_few_notes_have_survives_the_flood() {
+        let mut notes = lookalikes(14);
+        notes.push(note(
+            "pm",
+            "Package manager",
+            "Use pnpm; npm is not installed on the build machines.",
+        ));
+
+        let got = recall(
+            &notes,
+            &request(
+                "Add the npm audit step to the service and change its limit",
+                on(),
+            ),
+            &FakeProbe::default(),
+        );
+
+        assert_eq!(ids(&got), ["pm"]);
+    }
+
+    #[test]
+    fn when_nothing_really_matches_a_flood_gets_no_notes_at_all() {
+        let notes = lookalikes(14);
+
+        let got = recall(&notes, &request(TASK, on()), &FakeProbe::default());
+
+        assert_eq!(ids(&got), [] as [&str; 0]);
+        assert_eq!(got.tokens, 0);
+        assert_eq!(got.considered.len(), 14);
+    }
+
+    #[test]
+    fn a_word_meets_its_other_forms() {
+        let notes = [note(
+            "n",
+            "Retries are capped",
+            "The limits live in deploy/limits.cfg.",
+        )];
+
+        let got = recall(
+            &notes,
+            &request("Raise the retry limit", on()),
+            &FakeProbe::default(),
+        );
+
+        assert_eq!(ids(&got), ["n"]);
+    }
+
+    #[test]
+    fn what_stays_after_a_flood_is_ordered_by_how_much_the_task_is_about_it() {
+        let mut notes = lookalikes(10);
+        notes.push(note("weak", "Limit of the service", "Mentioned once."));
+        notes.push(note(
+            "strong",
+            "Retry limit of the service",
+            "Retry limit is MAXTRY.",
+        ));
+
+        let got = recall(&notes, &request(TASK, on()), &FakeProbe::default());
+
+        assert_eq!(ids(&got).first(), Some(&"strong"));
+    }
+
+    #[test]
+    fn words_nearly_every_note_has_do_not_lift_a_note_above_the_one_that_was_used() {
+        // ten notes on the same subject whose content also says "change" and "service", and the
+        // one that was used in three completed steps, which says neither. 51 notes in all, so those
+        // two words are in nearly every note while the subject is in a fifth of them.
+        let mut notes: Vec<Memory> = (0..10)
+            .map(|i| {
+                note(
+                    &format!("advice-{i}"),
+                    "About retry limit",
+                    "When you change it, restart the service: it is read once at start.",
+                )
+            })
+            .collect();
+        let mut answer = note(
+            "answer",
+            "Retry limit lives in deploy/limits.cfg",
+            "The key is MAXTRY; the retries key in config/app.toml is not read.",
+        );
+        answer.uses = 3;
+        notes.push(answer);
+        notes.extend((0..40).map(|i| {
+            note(
+                &format!("filler-{i}"),
+                &format!("Topic{i}"),
+                "Restart the service after you change it.",
+            )
+        }));
+
+        let got = recall(&notes, &request(TASK, on()), &FakeProbe::default());
+
+        // the words they add do not count, so what separates them is what the rank says next
+        assert_eq!(ids(&got).first(), Some(&"answer"));
+        assert_eq!(got.selected.len(), 11);
+    }
+
+    #[test]
+    fn between_notes_that_score_alike_the_one_that_has_been_used_comes_first() {
+        // Eight rare words in both titles; the other note adds one common word in its content, a
+        // few percent of the score. 60 notes in all, and the extra word is in 14 of them.
+        let eight = "alfa bravo charlie delta echo foxtrot golf hotel";
+        let mut notes: Vec<Memory> = (0..58)
+            .map(|i| {
+                let content = if i < 13 { "india" } else { "Unrelated words." };
+                note(&format!("filler-{i}"), &format!("Topic{i}"), content)
+            })
+            .collect();
+        let mut tried = note("tried", &format!("Notes on {eight}"), "MAXTRY.");
+        tried.uses = 3;
+        notes.push(tried);
+        notes.push(note("higher", &format!("Also {eight}"), "india"));
+        // enough other notes about the subject for this to be a flood
+        notes.extend((0..4).map(|i| note(&format!("side-{i}"), "alfa bravo only", "x")));
+
+        let got = recall(
+            &notes,
+            &request(&format!("Change {eight} and india"), on()),
+            &FakeProbe::default(),
+        );
+
+        let order = ids(&got);
+        let position = |id| order.iter().position(|x| *x == id).unwrap();
+        assert!(position("tried") < position("higher"), "{order:?}");
+    }
+
+    #[test]
+    fn a_small_memory_about_one_subject_does_not_call_its_own_subject_generic() {
+        // eight notes, six of which mention "build": here that word is the subject, not noise
+        let mut notes: Vec<Memory> = (0..6)
+            .map(|i| {
+                note(
+                    &format!("b{i}"),
+                    &format!("Build tip {i}"),
+                    "Keep the build cache warm.",
+                )
+            })
+            .collect();
+        notes.push(note("x", "Deploy", "Use the blue slot."));
+        notes.push(note("y", "Review", "Two approvals."));
+
+        let got = recall(
+            &notes,
+            &request("Speed up the build", on()),
+            &FakeProbe::default(),
+        );
+
+        // every build note shares the title word and the weight is not zeroed
+        assert_eq!(got.selected.len(), 6);
+    }
+
+    // ----- the edges of the pruning (each of these would pass with the pruning removed only if the
+    // pool or the number of matches were on the safe side of the edge, which is what they check)
+
+    /// `matching` notes that share only the word "service" with the task, and `others` that share
+    /// nothing: a memory of `matching + others` notes in which nothing is about the task.
+    fn only_common_words(matching: usize, others: usize) -> Vec<Memory> {
+        let mut notes: Vec<Memory> = (0..matching)
+            .map(|i| {
+                note(
+                    &format!("m{i}"),
+                    &format!("Topic{i}"),
+                    "Restart the service after deploy.",
+                )
+            })
+            .collect();
+        notes.extend(
+            (0..others).map(|i| note(&format!("o{i}"), &format!("Other{i}"), "Unrelated words.")),
+        );
+        notes
+    }
+
+    #[test]
+    fn five_matches_are_not_a_flood_and_six_are() {
+        let ask = |n| {
+            recall(
+                &only_common_words(n, 14 - n),
+                &request("Check the service", on()),
+                &FakeProbe::default(),
+            )
+        };
+
+        assert_eq!(ask(5).selected.len(), 5);
+        assert_eq!(ask(6).selected.len(), 0);
+    }
+
+    #[test]
+    fn a_memory_of_eleven_notes_is_never_pruned_and_one_of_twelve_is() {
+        let ask = |others| {
+            recall(
+                &only_common_words(6, others),
+                &request("Check the service", on()),
+                &FakeProbe::default(),
+            )
+        };
+
+        assert_eq!(ask(5).selected.len(), 6, "11 notes");
+        assert_eq!(ask(6).selected.len(), 0, "12 notes");
+    }
+
+    #[test]
+    fn in_a_flood_a_pitfall_comes_before_a_decision_that_scores_the_same() {
+        use crate::domain::memory::MemoryKind;
+        let mut notes: Vec<Memory> = (0..3)
+            .map(|i| {
+                let mut m = note(&format!("decision-{i}"), "Retry limit choice", "Chosen.");
+                m.kind = MemoryKind::Decision;
+                m
+            })
+            .collect();
+        notes.extend((0..3).map(|i| {
+            let mut m = note(&format!("pitfall-{i}"), "Retry limit trap", "Careful.");
+            m.kind = MemoryKind::Pitfall;
+            m
+        }));
+        notes.extend(
+            (0..8).map(|i| note(&format!("o{i}"), &format!("Other{i}"), "Unrelated words.")),
+        );
+
+        let got = recall(
+            &notes,
+            &request("Change the retry limit", on()),
+            &FakeProbe::default(),
+        );
+
+        let order = ids(&got);
+        assert_eq!(order.len(), 6);
+        assert!(
+            order[..3].iter().all(|id| id.starts_with("pitfall")),
+            "{order:?}"
+        );
+    }
+
+    #[test]
+    fn a_note_with_one_uncommon_word_in_its_title_survives_in_a_small_flood() {
+        // 15 notes; six share "build" or "service" with the task, and the docker note (one title
+        // word, not rare: three notes mention it) must not be turned away for being short of two
+        let mut notes: Vec<Memory> = (0..5)
+            .map(|i| {
+                note(
+                    &format!("b{i}"),
+                    &format!("Build tip {i}"),
+                    "Run it on the service.",
+                )
+            })
+            .collect();
+        notes.push(note(
+            "docker",
+            "Docker caching",
+            "Layer cache, docker layers.",
+        ));
+        notes.push(note("d2", "CI", "We use docker there."));
+        notes.push(note("d3", "Registry", "Push the docker image."));
+        notes.extend(
+            (0..7).map(|i| note(&format!("o{i}"), &format!("Other{i}"), "Unrelated words.")),
+        );
+
+        let got = recall(
+            &notes,
+            &request("Add the docker build step to the service", on()),
+            &FakeProbe::default(),
+        );
+
+        assert!(ids(&got).contains(&"docker"), "{:?}", ids(&got));
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)] // the notes of the memory are the test
+    fn a_hand_written_memory_finds_what_each_task_needs_and_little_else() {
+        // 24 notes written the way a team would, not generated: the check that the rules were not
+        // only tuned to the benchmark's templates
+        let corpus = [
+            (
+                "pnpm",
+                "Package manager",
+                "Use pnpm, never npm: the lockfile is pnpm-lock.yaml.",
+            ),
+            (
+                "dev",
+                "Run the app",
+                "Start the desktop app with npm run tauri dev; vite serves port 1420.",
+            ),
+            (
+                "fmt",
+                "Rust formatting",
+                "Run cargo fmt before committing; CI fails on unformatted files.",
+            ),
+            (
+                "clippy",
+                "Clippy is strict",
+                "cargo clippy runs with -D warnings, so fix every warning.",
+            ),
+            (
+                "i18n",
+                "Translations",
+                "Every user-visible string needs a key in pt-BR and en-US.",
+            ),
+            (
+                "wt",
+                "Git worktrees",
+                "Agents work in a worktree under .atlas/worktrees; never edit main directly.",
+            ),
+            (
+                "mig",
+                "Config migration",
+                "Old config.json files are migrated on load; keep the serde defaults.",
+            ),
+            (
+                "sbx",
+                "macOS sandbox",
+                "sandbox-exec profiles allow writes only to the worktree and tmp.",
+            ),
+            (
+                "flaky",
+                "Flaky timing tests",
+                "live_workspace timing tests fail when two cargo runs overlap; rerun alone.",
+            ),
+            (
+                "mcp",
+                "MCP servers",
+                "A stdio MCP server needs an executable and args; secrets live in the keychain.",
+            ),
+            (
+                "prompt",
+                "Prompt sections",
+                "Memory notes are untrusted context under a notice, never instructions.",
+            ),
+            (
+                "usage",
+                "Usage ledger",
+                "Token usage is recorded per execution in the usage ledger.",
+            ),
+            (
+                "remote",
+                "Mobile access",
+                "The phone connects over the LAN with a QR code that is valid once.",
+            ),
+            (
+                "css",
+                "Styling",
+                "Components use CSS modules and design tokens, not inline styles.",
+            ),
+            (
+                "fe",
+                "Frontend tests",
+                "Vitest with testing-library; mock services with vi.mock.",
+            ),
+            (
+                "ids",
+                "Identifiers",
+                "Ids come from new_id and are never reused.",
+            ),
+            (
+                "adr",
+                "ADR numbering",
+                "Architecture decisions are numbered in docs/architecture/adr.",
+            ),
+            (
+                "secrets",
+                "Secrets",
+                "Never log tokens; redact_secrets runs before anything is stored.",
+            ),
+            (
+                "log",
+                "Logging",
+                "Use eprintln only for degraded paths; there is no tracing crate.",
+            ),
+            (
+                "release",
+                "Release",
+                "The version lives in tauri.conf.json and Cargo.toml.",
+            ),
+            (
+                "perf",
+                "Performance",
+                "Avoid cloning the whole config; read through ConfigRepository::read.",
+            ),
+            (
+                "errors",
+                "Error codes",
+                "A new error needs an ErrorCode and a message in both languages.",
+            ),
+            ("hooks", "Git hooks", "Do not skip hooks with --no-verify."),
+            (
+                "design",
+                "Design source",
+                "The UI follows the Stitch design system tokens.",
+            ),
+        ];
+        let notes: Vec<Memory> = corpus.iter().map(|(id, t, c)| note(id, t, c)).collect();
+        let cases: [(&str, &[&str]); 6] = [
+            ("Add a new error code for a failed export", &["errors"]),
+            (
+                "Format the Rust code and fix the clippy warnings",
+                &["fmt", "clippy"],
+            ),
+            (
+                "Install the dependencies with the package manager",
+                &["pnpm"],
+            ),
+            ("Add the pt-BR translation for the new string", &["i18n"]),
+            (
+                "Make the timing tests stable in the live workspace",
+                &["flaky"],
+            ),
+            ("Let agents edit files safely in a worktree", &["wt", "sbx"]),
+        ];
+
+        for (task, expected) in cases {
+            let got = recall(&notes, &request(task, on()), &FakeProbe::default());
+            let found = ids(&got);
+            for id in expected {
+                assert!(
+                    found.contains(id),
+                    "{task:?} should find {id}, found {found:?}"
+                );
+            }
+            assert!(found.len() <= 6, "{task:?} brought {found:?}");
+        }
+    }
+
+    #[test]
+    fn a_note_with_two_uncommon_words_in_its_content_stays_but_one_with_a_single_word_does_not() {
+        // 14 notes; six mention "service"; the note about tests shares "timing" and "fail" with the
+        // task but not in its title, and the unrelated one shares only "fail"
+        let mut notes: Vec<Memory> = (0..6)
+            .map(|i| {
+                note(
+                    &format!("s{i}"),
+                    &format!("Topic{i}"),
+                    "Restart the service after deploy.",
+                )
+            })
+            .collect();
+        notes.push(note(
+            "about",
+            "Cargo runs",
+            "Timing tests fail when two runs overlap.",
+        ));
+        notes.push(note("single", "Release", "A release can fail."));
+        // neither "timing" nor "fail" is rare, because two other notes have each: so only the
+        // two-word rule can keep "about"
+        notes.push(note("t", "Clock", "Timing is logged."));
+        notes.push(note("f", "Build", "Some builds fail."));
+        notes.extend(
+            (0..6).map(|i| note(&format!("o{i}"), &format!("Other{i}"), "Unrelated words.")),
+        );
+
+        let got = recall(
+            &notes,
+            &request("Why do the timing checks fail on the service", on()),
+            &FakeProbe::default(),
+        );
+
+        let found = ids(&got);
+        assert!(found.contains(&"about"), "{found:?}");
+        assert!(!found.contains(&"single"), "{found:?}");
     }
 }

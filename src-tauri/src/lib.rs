@@ -138,6 +138,9 @@ pub fn run() {
             commands::memory::promote_memory,
             commands::memory::delete_automatic_memories,
             commands::memory::set_memory_settings,
+            commands::memory::set_external_memory,
+            commands::memory::check_external_memory,
+            commands::memory::sync_external_memory,
             commands::sandbox::get_sandbox_status,
             commands::sandbox::set_sandbox_settings,
             commands::specs::raise_spec_budget,
@@ -319,10 +322,40 @@ fn build_state(
     );
     let mcp_catalog = Arc::new(application::mcp::McpCatalog::new(runner.clone()));
     // Notes of earlier work live in Atlas's own data folder, never in a project (ADR 0037).
-    let memory = Arc::new(application::memory::MemoryService::new(
-        Arc::new(infrastructure::FsMemoryStore::new(data_dir.join("memory"))),
-        Arc::new(infrastructure::FsProjectProbe),
+    // A memory server on this machine may follow the notes a person approves (ADR 0040); it does
+    // nothing until the person turns it on.
+    let external_server: Arc<dyn application::memory::ExternalMemory> =
+        Arc::new(infrastructure::AiMemoryHttp);
+    // What was published is kept apart from the notes, so a page can be retired even if the note
+    // was deleted while the server was off. The mirror works on a thread of its own.
+    let mirror = Arc::new(application::memory::external::ExternalMirror::queued(
+        external_server.clone(),
+        config.clone(),
+        Arc::new(infrastructure::FsPublishedLedger::new(
+            data_dir.join("external-memory-published.json"),
+        )),
     ));
+    let memory = Arc::new(
+        application::memory::MemoryService::new(
+            Arc::new(infrastructure::FsMemoryStore::new(data_dir.join("memory"))),
+            Arc::new(infrastructure::FsProjectProbe),
+        )
+        .with_mirror(mirror.clone()),
+    );
+    let external_memory = Arc::new(application::memory::ExternalMemoryService::new(
+        external_server.clone(),
+        config.clone(),
+        mirror,
+        memory.clone(),
+    ));
+    // At start the server is brought up to date with the notes (a no-op while sharing is off), off
+    // the thread that opens the window.
+    {
+        let external_memory = external_memory.clone();
+        std::thread::spawn(move || {
+            let _ = external_memory.sync();
+        });
+    }
     let personalities = Arc::new(PersonalityService::new(config.clone()));
     let agents = Arc::new(AgentService::new(
         config.clone(),
@@ -410,6 +443,7 @@ fn build_state(
         .with_optimization(config.clone())
         .with_mcp(mcp.clone())
         .with_memory(memory.clone())
+        .with_external_memory(external_server.clone())
         .with_rules(Arc::new(application::rules::RuleService::new(
             config.clone(),
         )))
@@ -568,6 +602,7 @@ fn build_state(
         mcp_catalog,
         sandbox,
         memory,
+        external_memory,
         portability,
         remote,
         specs,

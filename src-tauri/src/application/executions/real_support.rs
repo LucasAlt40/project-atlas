@@ -50,6 +50,8 @@ pub(super) struct Setup<'a> {
     pub sandbox: SandboxMode,
     /// Memory on with these settings (the service is wired either way, so a note can be seeded).
     pub memory: MemorySettings,
+    /// The `ai-memory` server on this machine that notes may be read from (ADR 0040).
+    pub external: crate::domain::memory::ExternalMemorySettings,
 }
 
 pub(super) struct RealWorld {
@@ -162,11 +164,26 @@ impl RealWorld {
             config.clone(),
             security.clone(),
         ));
-        let memory = Arc::new(MemoryService::new(
-            Arc::new(crate::application::memory::ports::MemoryMemoryStore::default()),
-            // The real probe: a note that names a file is checked against the real project.
-            Arc::new(crate::infrastructure::FsProjectProbe),
+        config
+            .modify(|c| {
+                c.settings.external_memory = setup.external.clone();
+                Ok(())
+            })
+            .unwrap();
+        // Notes a person approves follow to the memory server, when the setup shares them.
+        let mirror = Arc::new(crate::application::memory::external::ExternalMirror::new(
+            Arc::new(crate::infrastructure::AiMemoryHttp),
+            config.clone(),
+            Arc::new(crate::application::memory::external::MemoryLedger::default()),
         ));
+        let memory = Arc::new(
+            MemoryService::new(
+                Arc::new(crate::application::memory::ports::MemoryMemoryStore::default()),
+                // The real probe: a note that names a file is checked against the real project.
+                Arc::new(crate::infrastructure::FsProjectProbe),
+            )
+            .with_mirror(mirror),
+        );
         let service = ExecutionService::new(agents, personalities, registry, workspaces, audit)
             .with_optimization(Arc::new(
                 FixedFlags {
@@ -174,11 +191,13 @@ impl RealWorld {
                     guardrails: true,
                     ..FixedFlags::default()
                 }
-                .with_memory(setup.memory),
+                .with_memory(setup.memory)
+                .with_external(setup.external.clone()),
             ))
             .with_policies(security)
             .with_worktrees(worktrees)
             .with_memory(memory.clone())
+            .with_external_memory(Arc::new(crate::infrastructure::AiMemoryHttp))
             .with_sessions(sessions);
         Self {
             service,

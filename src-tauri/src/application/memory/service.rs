@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex};
 
+use super::external::MemoryMirror;
 use super::ports::{MemoryStore, ProjectProbe};
 use super::proposal::Proposal;
 use super::recall::{recall, Recall, RecallRequest};
@@ -122,6 +123,9 @@ pub struct MemoryService {
     store: Arc<dyn MemoryStore>,
     probe: Arc<dyn ProjectProbe>,
     items: Mutex<Vec<Memory>>,
+    /// Told after a note is written or removed, so a memory server on this machine can follow
+    /// (ADR 0040). Never part of whether the write succeeded.
+    mirror: Option<Arc<dyn MemoryMirror>>,
 }
 
 impl MemoryService {
@@ -135,6 +139,21 @@ impl MemoryService {
             store,
             probe,
             items: Mutex::new(items),
+            mirror: None,
+        }
+    }
+
+    /// Lets the notes a person approves be shared with a memory server on this machine, while the
+    /// settings say so.
+    #[must_use]
+    pub fn with_mirror(mut self, mirror: Arc<dyn MemoryMirror>) -> Self {
+        self.mirror = Some(mirror);
+        self
+    }
+
+    fn changed(&self, memory: &Memory) {
+        if let Some(mirror) = &self.mirror {
+            mirror.changed(memory);
         }
     }
 
@@ -184,7 +203,9 @@ impl MemoryService {
             updated_at: now,
             last_used_at: None,
         };
-        self.insert(memory)
+        let stored = self.insert(memory)?;
+        self.changed(&stored);
+        Ok(stored)
     }
 
     fn insert(&self, memory: Memory) -> Result<Memory, MemoryServiceError> {
@@ -211,7 +232,7 @@ impl MemoryService {
         topic: Option<String>,
         now: u64,
     ) -> Result<Memory, MemoryServiceError> {
-        self.change(id, |m| {
+        let edited = self.change(id, |m| {
             title.trim().clone_into(&mut m.title);
             content.trim().clone_into(&mut m.content);
             m.topic = topic;
@@ -222,7 +243,9 @@ impl MemoryService {
             if m.status == MemoryStatus::Stale {
                 m.status = MemoryStatus::Active;
             }
-        })
+        })?;
+        self.changed(&edited);
+        Ok(edited)
     }
 
     /// Moves a memory between `Active`, `Stale` and `Archived`. A candidate is decided on with
@@ -237,10 +260,12 @@ impl MemoryService {
         status: MemoryStatus,
         now: u64,
     ) -> Result<Memory, MemoryServiceError> {
-        self.change(id, |m| {
+        let moved = self.change(id, |m| {
             m.status = status;
             m.updated_at = now;
-        })
+        })?;
+        self.changed(&moved);
+        Ok(moved)
     }
 
     /// A person accepts a candidate; it becomes active and counts as theirs.
@@ -249,26 +274,33 @@ impl MemoryService {
     ///
     /// When it does not exist or the write fails.
     pub fn approve(&self, id: &str, now: u64) -> Result<Memory, MemoryServiceError> {
-        self.change(id, |m| {
+        let approved = self.change(id, |m| {
             if m.status == MemoryStatus::Candidate {
                 m.status = MemoryStatus::Active;
                 m.provenance.automatic = false;
                 m.updated_at = now;
             }
-        })
+        })?;
+        self.changed(&approved);
+        Ok(approved)
     }
 
     /// # Errors
     ///
     /// When it does not exist or the write fails.
     pub fn delete(&self, id: &str) -> Result<(), MemoryServiceError> {
-        let mut items = self.items.lock_or_recover();
-        let position = items
-            .iter()
-            .position(|m| m.id == id)
-            .ok_or(MemoryServiceError::NotFound)?;
-        self.store.remove(id).map_err(MemoryServiceError::Storage)?;
-        items.remove(position);
+        let removed = {
+            let mut items = self.items.lock_or_recover();
+            let position = items
+                .iter()
+                .position(|m| m.id == id)
+                .ok_or(MemoryServiceError::NotFound)?;
+            self.store.remove(id).map_err(MemoryServiceError::Storage)?;
+            items.remove(position)
+        };
+        if let Some(mirror) = &self.mirror {
+            mirror.removed(&removed);
+        }
         Ok(())
     }
 
@@ -535,12 +567,14 @@ impl MemoryService {
     ///
     /// When it does not exist or the write fails.
     pub fn promote(&self, id: &str, now: u64) -> Result<Memory, MemoryServiceError> {
-        self.change(id, |m| {
+        let promoted = self.change(id, |m| {
             m.provenance.origin = MemoryOrigin::User;
             m.provenance.automatic = false;
             m.validity.expires_after_days = None;
             m.updated_at = now;
-        })
+        })?;
+        self.changed(&promoted);
+        Ok(promoted)
     }
 
     /// Counts a use for each memory that reached the prompt of a step that completed.

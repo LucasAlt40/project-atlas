@@ -3665,6 +3665,48 @@ export const enUS = {
   'settings.nav.portability': 'Import and export',
   'settings.nav.about': 'About and updates',
   'settings.sandbox.how': 'How it works',
+  'settings.externalMemory.title': 'External memory server',
+  'settings.externalMemory.help':
+    "Reads notes from an ai-memory server running on this computer and puts them in the prompt as hints, under the same notice as Atlas's own notes. Atlas only reads: it does not write to the server, install hooks or talk to any other machine. If the server is off, the run goes on without the notes. Off by default.",
+  'settings.externalMemory.enabled': 'Read notes from the memory server',
+  'settings.externalMemory.url': 'Server address',
+  'settings.externalMemory.urlHelp':
+    'Only 127.0.0.1, localhost or [::1] are accepted, such as http://127.0.0.1:49374.',
+  'settings.externalMemory.dataDir': "Server's data folder",
+  'settings.externalMemory.dataDirHelp':
+    'Absolute path. Atlas reads the access token from the auth-token file in that folder; it is never stored in the settings.',
+  'settings.externalMemory.save': 'Save address, folder and workspace',
+  'settings.externalMemory.workspace': "Server's workspace",
+  'settings.externalMemory.workspaceHelp':
+    'ai-memory keeps each project inside a workspace; "default" is where its own tools put a project unless told otherwise. The project is the folder name.',
+  'settings.externalMemory.share': 'Share the notes I approve with the server',
+  'settings.externalMemory.shareHelp':
+    'Workspace notes you approved (never automatic ones) become a page in the project, for your other tools to read. Archiving, going stale or deleting retires the page.',
+  'settings.externalMemory.precise': 'Only bring notes whose title matches the task',
+  'settings.externalMemory.preciseHelp':
+    'Avoids bringing notes about something else when the task is worded differently. A note with a generic title that does not echo the task is not brought.',
+  'settings.externalMemory.reason.address': 'the address must be on this computer',
+  'settings.externalMemory.reason.data_dir': "the server's data folder is not set",
+  'settings.externalMemory.reason.token': 'the access token could not be read in that folder',
+  'settings.externalMemory.reason.not_running': 'the server is not running',
+  'settings.externalMemory.reason.timeout': 'the server took too long to answer',
+  'settings.externalMemory.reason.refused': "the server refused Atlas's token",
+  'settings.externalMemory.reason.unreadable': "the server's answer is not the expected one",
+  'settings.externalMemory.reason.too_large': "the server's answer is too large",
+  'settings.externalMemory.reason.server': 'the server answered with status {detail}',
+  'settings.externalMemory.reason.only_atlas_pages': 'Atlas only writes and retires its own pages',
+  'settings.externalMemory.reason.sharing_off': 'sharing notes is off',
+  'settings.externalMemory.reason.unknown': 'unknown reason',
+  'error.external_address_invalid':
+    "The memory server's address must be on this computer: http://127.0.0.1:port, http://localhost:port or http://[::1]:port.",
+  'settings.externalMemory.check': 'Test connection',
+  'settings.externalMemory.checkOk': 'The server answered.',
+  'settings.externalMemory.checkFail': 'No answer: {reason}',
+  'settings.externalMemory.sync': 'Publish now',
+  'settings.externalMemory.syncDone':
+    'Published: {published} · retired: {retired} · failed: {failed}',
+  'settings.externalMemory.syncFail': 'Could not publish: {reason}',
+  'settings.externalMemory.needsEnabled': 'Turn on reading from the server to share.',
   'settings.presence.title': 'Discord presence',
   'settings.presence.help':
     'Shows on your Discord profile what Atlas is doing: the open workspace, the running workflow and the current step, like the VS Code extension does. Off by default. The text of prompts, files and answers is never sent. It only needs Discord open on this computer.',

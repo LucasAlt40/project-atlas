@@ -81,6 +81,95 @@ impl MemorySettings {
     }
 }
 
+/// A memory kept by a server on this machine that is not Atlas (the `ai-memory` project, ADR 0040).
+/// Off by default: it adds text to prompts. Atlas only reads from it before a run; the server is
+/// started and kept by the person, and nothing here reaches a machine other than this one.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExternalMemorySettings {
+    #[serde(default)]
+    pub enabled: bool,
+    /// Where the server listens. Only a loopback address is accepted: the token never leaves the
+    /// machine.
+    #[serde(default = "default_external_url")]
+    pub server_url: String,
+    /// The server's data directory: Atlas reads its access token from there, never from a setting.
+    #[serde(default)]
+    pub data_dir: String,
+    /// The most notes one prompt may take from it.
+    #[serde(default = "default_external_hits")]
+    pub max_hits: u8,
+    /// The most the notes of the server may add to a prompt, in estimated tokens.
+    #[serde(default = "default_external_tokens")]
+    pub max_tokens: u32,
+    /// The server's workspace that holds the person's projects. `default` is where its own tools
+    /// put a project unless told otherwise, so notes are seen by both sides.
+    #[serde(default = "default_external_workspace")]
+    pub workspace: String,
+    /// Also publish the notes a person approved in Atlas (workspace scope) to the server, so the
+    /// person's other tools see them. Off by default: it writes outside Atlas's own data.
+    #[serde(default)]
+    pub share: bool,
+    /// Only bring a note whose title shares words with the task (two, or the one the task has).
+    /// Measured against a server of 240 lookalike notes: a task worded differently from the note
+    /// otherwise got two notes about other things in every prompt. A note with a title that does not
+    /// echo the task is not brought; turn this off to take whatever the search finds.
+    #[serde(default = "default_external_precise")]
+    pub precise: bool,
+}
+
+fn default_external_url() -> String {
+    "http://127.0.0.1:49374".to_owned()
+}
+
+fn default_external_workspace() -> String {
+    "default".to_owned()
+}
+
+const fn default_external_precise() -> bool {
+    true
+}
+
+const fn default_external_hits() -> u8 {
+    3
+}
+
+const fn default_external_tokens() -> u32 {
+    400
+}
+
+impl Default for ExternalMemorySettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            server_url: default_external_url(),
+            data_dir: String::new(),
+            max_hits: default_external_hits(),
+            max_tokens: default_external_tokens(),
+            workspace: default_external_workspace(),
+            share: false,
+            precise: default_external_precise(),
+        }
+    }
+}
+
+impl ExternalMemorySettings {
+    /// The `host:port` of the server when the URL is plain `http` on a loopback address, and `None`
+    /// for anything else. No other host is ever contacted.
+    pub fn loopback_authority(&self) -> Option<String> {
+        let authority = self
+            .server_url
+            .strip_prefix("http://")?
+            .trim_end_matches('/');
+        if authority.contains(['/', '@', '?']) {
+            return None;
+        }
+        let (host, port) = authority.rsplit_once(':')?;
+        port.parse::<u16>().ok()?;
+        matches!(host, "127.0.0.1" | "localhost" | "[::1]").then(|| authority.to_owned())
+    }
+}
+
 /// The longest a lesson may be. A lesson that does not fit is a fact about the project and belongs
 /// in the Harness.
 pub const MAX_CONTENT_CHARS: usize = 480;
@@ -335,34 +424,100 @@ pub fn terms(text: &str) -> BTreeSet<String> {
         .collect()
 }
 
-/// How relevant `memory` is to a task, as a whole number (higher is better) or `None` when it
-/// shares nothing with it. A memory that shares no term is never recovered: a lesson that has
-/// nothing to do with the task is a cost with no benefit.
-///
-/// Order of what counts: shared terms (title and topic weigh double), then the kind, then who
-/// wrote it. Recency and use are tie-breakers in [`rank`], not relevance.
-pub fn relevance(memory: &Memory, task_terms: &BTreeSet<String>) -> Option<u32> {
-    let title_terms = terms(&format!(
+/// A word without its common endings, the same way for a note and for a task, so `retry` meets
+/// `retries`, `limit` meets `limits`, `change` meets `changed`, `log` meets `logging`. The memory
+/// server's own search does this too. Crude on purpose: both sides go through it, so a bad cut
+/// still compares equal. It cuts only when a stem of four letters or more is left (`string` is not
+/// `str`) and keeps a final `e` on short words (`pipe` is not `pip`, `rate` is not `rat`); a word
+/// it does not know how to cut is left alone, which costs a missed match and never a false one.
+pub fn stem(word: &str) -> String {
+    let mut w = word.to_lowercase();
+    // plural: retries -> retry, limits -> limit; not class, status, analysis
+    if w.len() > 4 && w.ends_with("ies") {
+        w.truncate(w.len() - 3);
+        w.push('y');
+    } else if w.len() > 3
+        && w.ends_with('s')
+        && !(w.ends_with("ss") || w.ends_with("us") || w.ends_with("is"))
+    {
+        w.pop();
+    }
+    // verb endings: changed -> chang, logging -> log, settings -> setting -> set
+    for suffix in ["ing", "ed"] {
+        if let Some(rest) = w.strip_suffix(suffix) {
+            if rest.chars().count() >= 4 {
+                w = undouble(rest);
+                break;
+            }
+        }
+    }
+    // change -> chang, to meet changed; short words keep it (pipe, rate)
+    if w.len() >= 5 && w.ends_with('e') {
+        w.pop();
+    }
+    w
+}
+
+/// `logg` -> `log`, `stopp` -> `stop`; not `install` or `process`, whose double letter is the word's.
+fn undouble(stem: &str) -> String {
+    let mut chars = stem.chars().rev();
+    match (chars.next(), chars.next()) {
+        (Some(a), Some(b)) if a == b && a.is_alphabetic() && !"lszaeiou".contains(a) => {
+            stem[..stem.len() - a.len_utf8()].to_owned()
+        }
+        _ => stem.to_owned(),
+    }
+}
+
+/// [`terms`] of a text, each through [`stem`]: what a note and a task are matched on.
+pub fn stems(text: &str) -> BTreeSet<String> {
+    terms(text).iter().map(|t| stem(t)).collect()
+}
+
+/// What separates two notes that share the same words: a pitfall before a how-to before a
+/// decision, and what a person wrote before what an agent proposed. Always below 10.
+pub fn tie_bonus(memory: &Memory) -> u32 {
+    u32::from(3 - memory.kind.rank()) + u32::from(memory.provenance.origin == MemoryOrigin::User)
+}
+
+/// What a memory shares with a task: the words, and how they add up to a relevance.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Fit {
+    /// Higher is better; see [`relevance`].
+    pub score: u32,
+    /// The task's words found in the title or topic.
+    pub title: BTreeSet<String>,
+    /// The task's words found only in the content.
+    pub content: BTreeSet<String>,
+}
+
+/// What `memory` shares with a task (`task_stems` come from [`stems`]), or `None` when nothing.
+/// A memory that shares no term is never recovered: a lesson that has nothing to do with the task
+/// is a cost with no benefit.
+pub fn fit(memory: &Memory, task_stems: &BTreeSet<String>) -> Option<Fit> {
+    let title_terms = stems(&format!(
         "{} {}",
         memory.title,
         memory.topic.as_deref().unwrap_or("")
     ));
-    let content_terms = terms(&memory.content);
-    let shared_title = title_terms.intersection(task_terms).count();
-    let shared_content = content_terms
+    let content_terms = stems(&memory.content);
+    let title: BTreeSet<String> = title_terms.intersection(task_stems).cloned().collect();
+    let content: BTreeSet<String> = content_terms
         .difference(&title_terms)
-        .filter(|t| task_terms.contains(*t))
-        .count();
-    if shared_title + shared_content == 0 {
+        .filter(|t| task_stems.contains(*t))
+        .cloned()
+        .collect();
+    if title.len() + content.len() == 0 {
         return None;
     }
-    let mut score = u32::try_from(shared_title * 2 + shared_content).unwrap_or(u32::MAX);
+    let mut score = u32::try_from(title.len() * 2 + content.len()).unwrap_or(u32::MAX);
     score = score.saturating_mul(10);
-    score += u32::from(3 - memory.kind.rank());
-    if memory.provenance.origin == MemoryOrigin::User {
-        score += 1;
-    }
-    Some(score)
+    score += tie_bonus(memory);
+    Some(Fit {
+        score,
+        title,
+        content,
+    })
 }
 
 /// What [`rank`] sorts by.
@@ -419,7 +574,11 @@ pub(crate) mod tests {
     }
 
     fn task(text: &str) -> BTreeSet<String> {
-        terms(text)
+        stems(text)
+    }
+
+    fn relevance(memory: &Memory, task_stems: &BTreeSet<String>) -> Option<u32> {
+        fit(memory, task_stems).map(|f| f.score)
     }
 
     #[test]
@@ -505,9 +664,9 @@ pub(crate) mod tests {
         );
 
         for task in ["the and for", "para com uma", "los del con"] {
-            assert_eq!(relevance(&lesson, &terms(task)), None, "{task}");
+            assert_eq!(relevance(&lesson, &stems(task)), None, "{task}");
         }
-        assert!(relevance(&lesson, &terms("fix the tests")).is_some());
+        assert!(relevance(&lesson, &stems("fix the tests")).is_some());
     }
 
     #[test]
@@ -531,5 +690,52 @@ pub(crate) mod tests {
 
         assert_eq!((stored.uses, stored.owner, stored.topic), (0, None, None));
         assert!(!stored.provenance.automatic);
+    }
+
+    #[test]
+    fn the_stem_joins_forms_of_a_word_and_keeps_unrelated_words_apart() {
+        for (a, b) in [
+            ("retry", "retries"),
+            ("limit", "limits"),
+            ("limit", "limited"),
+            ("change", "changed"),
+            ("change", "changes"),
+            ("change", "changing"),
+            ("log", "logging"),
+            ("log", "logs"),
+            ("setting", "settings"),
+            ("cache", "cached"),
+            ("cache", "caches"),
+        ] {
+            assert_eq!(stem(a), stem(b), "{a} and {b}");
+        }
+        for (a, b) in [
+            ("pipe", "pip"),
+            ("rate", "rat"),
+            ("node", "nod"),
+            ("site", "sit"),
+            ("case", "cas"),
+            ("string", "str"),
+            ("status", "statu"),
+            ("class", "clas"),
+        ] {
+            assert_ne!(stem(a), stem(b), "{a} and {b} are different words");
+        }
+        assert_eq!(stem("install"), "install");
+        assert_eq!(stem("process"), "process");
+    }
+
+    #[test]
+    fn a_pitfall_and_a_note_a_person_wrote_win_a_tie() {
+        let mut pitfall = memory("p", MemoryScope::User, None, "windows escape");
+        pitfall.kind = MemoryKind::Pitfall;
+        let mut decision = pitfall.clone();
+        decision.kind = MemoryKind::Decision;
+        let mut proposed = pitfall.clone();
+        proposed.provenance.origin = MemoryOrigin::Agent;
+
+        assert!(tie_bonus(&pitfall) > tie_bonus(&decision));
+        assert!(tie_bonus(&pitfall) > tie_bonus(&proposed));
+        assert!(tie_bonus(&pitfall) < 10);
     }
 }

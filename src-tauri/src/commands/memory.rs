@@ -3,6 +3,7 @@
 //! origin are Atlas's. Nothing here lets a memory be written as something the person did not
 //! decide: a memory made here is the person's.
 
+use serde::Serialize;
 use tauri::State;
 
 use crate::application::config::AppSettings;
@@ -102,6 +103,81 @@ pub fn delete_automatic_memories(state: State<'_, AppState>) -> Result<usize, Ap
 #[tauri::command(async)]
 pub fn delete_memory(state: State<'_, AppState>, id: String) -> Result<(), AppError> {
     Ok(state.memory.delete(&id)?)
+}
+
+/// The memory server on this machine that Atlas may read notes from (ADR 0040). Off by default;
+/// only a loopback address is accepted.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command]
+pub fn set_external_memory(
+    state: State<'_, AppState>,
+    external: crate::domain::memory::ExternalMemorySettings,
+) -> Result<AppSettings, AppError> {
+    state.settings.set_external_memory(external)
+}
+
+/// What asking the memory server on this machine came to: it answered, or why it did not.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExternalCheckDto {
+    pub reachable: bool,
+    /// A stable code the screen words in the person's language.
+    pub reason: Option<String>,
+    pub detail: Option<String>,
+}
+
+/// What a sync of the approved notes did, or why it could not run.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExternalSyncDto {
+    pub ok: bool,
+    pub reason: Option<String>,
+    pub detail: Option<String>,
+    pub published: usize,
+    pub retired: usize,
+    pub failed: usize,
+}
+
+/// Whether the memory server answers with Atlas's token, using the saved settings.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+pub fn check_external_memory(state: State<'_, AppState>) -> ExternalCheckDto {
+    match state.external_memory.check() {
+        Ok(()) => ExternalCheckDto {
+            reachable: true,
+            reason: None,
+            detail: None,
+        },
+        Err(why) => ExternalCheckDto {
+            reachable: false,
+            reason: Some(why.code().to_owned()),
+            detail: why.detail(),
+        },
+    }
+}
+
+/// Publishes the notes a person approved to the memory server, and retires the ones out of use.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+pub fn sync_external_memory(state: State<'_, AppState>) -> ExternalSyncDto {
+    match state.external_memory.sync() {
+        Ok(report) => ExternalSyncDto {
+            ok: true,
+            reason: None,
+            detail: None,
+            published: report.published,
+            retired: report.retired,
+            failed: report.failed,
+        },
+        Err(why) => ExternalSyncDto {
+            ok: false,
+            reason: Some(why.code().to_owned()),
+            detail: why.detail(),
+            published: 0,
+            retired: 0,
+            failed: 0,
+        },
+    }
 }
 
 /// Which scopes of the Memory are on, and the most a prompt may spend on them.

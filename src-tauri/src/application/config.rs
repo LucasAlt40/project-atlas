@@ -33,6 +33,9 @@ pub struct AppSettings {
     /// Discord Rich Presence: what the person shares about what Atlas is doing. Off by default.
     #[serde(default)]
     pub presence: crate::domain::presence::PresenceSettings,
+    /// A memory server on this machine that is not Atlas (ADR 0040). Off by default.
+    #[serde(default)]
+    pub external_memory: crate::domain::memory::ExternalMemorySettings,
 }
 
 /// Which parts of the Optimization Layer are on. Phase 0 has only the metrics, and they only
@@ -107,6 +110,7 @@ impl Default for AppSettings {
             optimization: OptimizationSettings::default(),
             sandbox: crate::domain::security::SandboxSettings::default(),
             presence: crate::domain::presence::PresenceSettings::default(),
+            external_memory: crate::domain::memory::ExternalMemorySettings::default(),
         }
     }
 }

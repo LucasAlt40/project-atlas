@@ -122,6 +122,7 @@ mod tests {
                 optimization: crate::application::config::OptimizationSettings::default(),
                 sandbox: crate::domain::security::SandboxSettings::default(),
                 presence: crate::domain::presence::PresenceSettings::default(),
+                external_memory: crate::domain::memory::ExternalMemorySettings::default(),
             },
             worktrees: vec![ExecutionWorktree {
                 execution_id: "exec-42".to_owned(),

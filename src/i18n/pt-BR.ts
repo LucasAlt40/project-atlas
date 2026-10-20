@@ -3708,6 +3708,49 @@ export const ptBR: Record<TranslationKey, string> = {
   'settings.nav.portability': 'Importar e exportar',
   'settings.nav.about': 'Sobre e atualizações',
   'settings.sandbox.how': 'Como funciona',
+  'settings.externalMemory.title': 'Servidor de memória externo',
+  'settings.externalMemory.help':
+    'Lê notas de um servidor ai-memory que roda neste computador e as coloca no prompt como dicas, sob o mesmo aviso das notas do Atlas. O Atlas só lê: não escreve no servidor, não instala hooks e nunca fala com outra máquina. Se o servidor estiver desligado, a execução segue sem as notas. Desligado por padrão.',
+  'settings.externalMemory.enabled': 'Ler notas do servidor de memória',
+  'settings.externalMemory.url': 'Endereço do servidor',
+  'settings.externalMemory.urlHelp':
+    'Só vale 127.0.0.1, localhost ou [::1], como http://127.0.0.1:49374.',
+  'settings.externalMemory.dataDir': 'Pasta de dados do servidor',
+  'settings.externalMemory.dataDirHelp':
+    'Caminho absoluto. O Atlas lê o token de acesso do arquivo auth-token dessa pasta; ele nunca é guardado nas configurações.',
+  'settings.externalMemory.save': 'Salvar endereço, pasta e workspace',
+  'settings.externalMemory.workspace': 'Workspace no servidor',
+  'settings.externalMemory.workspaceHelp':
+    'O ai-memory guarda cada projeto dentro de um workspace; "default" é onde as ferramentas dele colocam um projeto se nada disser o contrário. O projeto é o nome da pasta.',
+  'settings.externalMemory.share': 'Compartilhar com o servidor as notas que eu aprovar',
+  'settings.externalMemory.shareHelp':
+    'Notas de workspace aprovadas por você (nunca as automáticas) viram uma página no projeto, para as suas outras ferramentas lerem. Arquivar, ficar obsoleta ou apagar retira a página.',
+  'settings.externalMemory.precise': 'Só trazer notas cujo título combine com a tarefa',
+  'settings.externalMemory.preciseHelp':
+    'Evita trazer notas sobre outro assunto quando a tarefa é dita com outras palavras. Uma nota com título genérico, que não cita a tarefa, não é trazida.',
+  'settings.externalMemory.reason.address': 'o endereço precisa ser deste computador',
+  'settings.externalMemory.reason.data_dir': 'a pasta de dados do servidor não foi informada',
+  'settings.externalMemory.reason.token': 'o token de acesso não pôde ser lido nessa pasta',
+  'settings.externalMemory.reason.not_running': 'o servidor não está rodando',
+  'settings.externalMemory.reason.timeout': 'o servidor demorou demais para responder',
+  'settings.externalMemory.reason.refused': 'o servidor recusou o token do Atlas',
+  'settings.externalMemory.reason.unreadable': 'a resposta do servidor não é a esperada',
+  'settings.externalMemory.reason.too_large': 'a resposta do servidor é grande demais',
+  'settings.externalMemory.reason.server': 'o servidor respondeu com o status {detail}',
+  'settings.externalMemory.reason.only_atlas_pages':
+    'o Atlas só escreve e retira as próprias páginas',
+  'settings.externalMemory.reason.sharing_off': 'o compartilhamento de notas está desligado',
+  'settings.externalMemory.reason.unknown': 'motivo desconhecido',
+  'error.external_address_invalid':
+    'O endereço do servidor de memória precisa ser deste computador: http://127.0.0.1:porta, http://localhost:porta ou http://[::1]:porta.',
+  'settings.externalMemory.check': 'Testar conexão',
+  'settings.externalMemory.checkOk': 'O servidor respondeu.',
+  'settings.externalMemory.checkFail': 'Sem resposta: {reason}',
+  'settings.externalMemory.sync': 'Publicar agora',
+  'settings.externalMemory.syncDone':
+    'Publicadas: {published} · retiradas: {retired} · falhas: {failed}',
+  'settings.externalMemory.syncFail': 'Não foi possível publicar: {reason}',
+  'settings.externalMemory.needsEnabled': 'Ligue a leitura do servidor para poder compartilhar.',
   'settings.presence.title': 'Presença no Discord',
   'settings.presence.help':
     'Mostra no seu perfil do Discord o que o Atlas está fazendo: o workspace aberto, o workflow em execução e o passo atual, como a extensão do VS Code faz. Desligado por padrão. O texto de prompts, arquivos e respostas nunca é enviado. Só precisa do Discord aberto neste computador.',

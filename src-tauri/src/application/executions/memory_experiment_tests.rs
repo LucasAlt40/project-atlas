@@ -13,6 +13,15 @@
 //! `ATLAS_M4_OUT=<file>` is set, writes it as Markdown. What it does assert are the invariants of
 //! the arms (A carries no notes, B does, C's second run carries what the first left).
 //!
+//! - **D, `ai-memory`** (ADR 0040): Atlas's memory is off and the same note as B's is kept by a
+//!   real `ai-memory` server on this machine, which Atlas asks before the run. Needs
+//!   `ATLAS_M4_AIMEM_BIN` (the binary), `ATLAS_M4_AIMEM_DATA` (its data folder) and the server
+//!   running at `ATLAS_M4_AIMEM_URL` (default `http://127.0.0.1:49391`). Run it with
+//!   `ATLAS_M4_ARMS=AD`.
+//! - **E, shared** (ADR 0040): the note is approved in one Atlas, published to the server, and read by
+//!   a second Atlas with no memory of its own; then deleted in the first and its page retired.
+//!   Same environment as D; `ATLAS_M4_ARMS=AE`.
+//!
 //! Costs tokens, so it runs only by exact name, never with a broad `--ignored`:
 //! `ATLAS_M4_N=3 cargo test application::executions::memory_experiment_tests::<name> -- --ignored --exact --nocapture`.
 
@@ -79,6 +88,11 @@ enum Arm {
     B,
     C1,
     C2,
+    D,
+    E,
+    F,
+    G,
+    H,
 }
 
 impl Arm {
@@ -88,6 +102,11 @@ impl Arm {
             Self::B => "B note",
             Self::C1 => "C run 1",
             Self::C2 => "C run 2",
+            Self::D => "D ai-memory",
+            Self::E => "E shared",
+            Self::F => "F captured",
+            Self::G => "G captured, no title check",
+            Self::H => "H native, 240 notes",
         }
     }
 }
@@ -175,6 +194,7 @@ fn setup<'a>(runtime: &'a str, model: &'a str, memory: MemorySettings) -> Setup<
         files: FILES,
         sandbox: SandboxMode::Off,
         memory,
+        external: crate::domain::memory::ExternalMemorySettings::default(),
     }
 }
 
@@ -259,6 +279,186 @@ fn trial_b(runtime: &str, model: &str) -> Trial {
     timed(&world, Arm::B)
 }
 
+fn aimem_env(name: &str) -> String {
+    std::env::var(name).unwrap_or_else(|_| panic!("arm D needs {name}"))
+}
+
+/// Arm D: Atlas's memory is off; the note of arm B lives in a real `ai-memory` server, in the scope
+/// this world's workspace and project resolve to, and Atlas asks for it before the run.
+fn trial_d(runtime: &str, model: &str) -> Trial {
+    let url =
+        std::env::var("ATLAS_M4_AIMEM_URL").unwrap_or_else(|_| "http://127.0.0.1:49391".to_owned());
+    let data = aimem_env("ATLAS_M4_AIMEM_DATA");
+    let mut s = setup(runtime, model, MemorySettings::default());
+    s.external = crate::domain::memory::ExternalMemorySettings {
+        enabled: true,
+        server_url: url.clone(),
+        data_dir: data.clone(),
+        ..crate::domain::memory::ExternalMemorySettings::default()
+    };
+    let world = RealWorld::build(&s);
+    let scope = crate::application::memory::external::scope_of(
+        &s.external,
+        &world.project.to_string_lossy(),
+    );
+    let wrote = std::process::Command::new(aimem_env("ATLAS_M4_AIMEM_BIN"))
+        .args(["--data-dir", &data, "write-page"])
+        .args(["--path", "notes/retry-limit.md", "--kind", "gotcha"])
+        .args(["--title", NOTE_TITLE, "--body", NOTE])
+        .args(["--workspace", &scope.workspace, "--project", &scope.project])
+        .env("AI_MEMORY_SERVER_URL", &url)
+        .output()
+        .expect("run ai-memory write-page");
+    assert!(
+        wrote.status.success(),
+        "could not seed ai-memory: {}",
+        String::from_utf8_lossy(&wrote.stderr)
+    );
+    let trial = timed(&world, Arm::D);
+    // The page it seeded is taken away, so no other arm finds a note it did not earn.
+    let removed = std::process::Command::new(aimem_env("ATLAS_M4_AIMEM_BIN"))
+        .args([
+            "--data-dir",
+            &data,
+            "delete-page",
+            "--path",
+            "notes/retry-limit.md",
+        ])
+        .args(["--workspace", &scope.workspace, "--project", &scope.project])
+        .env("AI_MEMORY_SERVER_URL", &url)
+        .output()
+        .expect("run ai-memory delete-page");
+    assert!(
+        removed.status.success(),
+        "could not clean up the seeded page"
+    );
+    trial
+}
+
+fn external_settings(share: bool) -> crate::domain::memory::ExternalMemorySettings {
+    crate::domain::memory::ExternalMemorySettings {
+        enabled: true,
+        share,
+        server_url: std::env::var("ATLAS_M4_AIMEM_URL")
+            .unwrap_or_else(|_| "http://127.0.0.1:49391".to_owned()),
+        data_dir: aimem_env("ATLAS_M4_AIMEM_DATA"),
+        ..crate::domain::memory::ExternalMemorySettings::default()
+    }
+}
+
+/// How many pages the server finds for the note, in the scope of `world`'s project.
+fn pages_on_server(
+    world: &RealWorld,
+    settings: &crate::domain::memory::ExternalMemorySettings,
+) -> usize {
+    use crate::application::memory::external::{query_of, scope_of};
+    use crate::application::memory::ExternalMemory;
+    let scope = scope_of(settings, &world.project.to_string_lossy());
+    crate::infrastructure::AiMemoryHttp
+        .search(settings, &scope, &query_of(NOTE).unwrap(), 5)
+        .expect("the server answers")
+        .len()
+}
+
+/// Arm E: the whole loop through the server. A person approves a note in one Atlas, which publishes
+/// it; a second Atlas, whose own memory is empty and off, reads it from the server before the run.
+/// Then the note is deleted in the first and its page is retired.
+fn trial_e(runtime: &str, model: &str) -> Trial {
+    let share = external_settings(true);
+    let mut writer_setup = setup(runtime, model, workspace_only(MemoryMode::Propose));
+    writer_setup.external = share.clone();
+    let writer = RealWorld::build(&writer_setup);
+    assert_eq!(
+        pages_on_server(&writer, &share),
+        0,
+        "the scope is not clean"
+    );
+    let note = writer
+        .memory
+        .create(
+            NewMemory {
+                scope: MemoryScope::Workspace,
+                owner: Some(writer.workspace_id.clone()),
+                kind: MemoryKind::Pitfall,
+                title: NOTE_TITLE.to_owned(),
+                content: NOTE.to_owned(),
+                topic: None,
+                validity: MemoryValidity::default(),
+                origin: MemoryOrigin::User,
+            },
+            1,
+        )
+        .unwrap();
+    assert_eq!(
+        pages_on_server(&writer, &share),
+        1,
+        "the note was not published"
+    );
+
+    let mut reader_setup = setup(runtime, model, MemorySettings::default());
+    reader_setup.external = external_settings(false);
+    let reader = RealWorld::build(&reader_setup);
+    assert!(
+        reader.memory.list().is_empty(),
+        "the reader has notes of its own"
+    );
+    let trial = timed(&reader, Arm::E);
+
+    writer.memory.delete(&note.id).unwrap();
+    assert_eq!(
+        pages_on_server(&writer, &share),
+        0,
+        "the page was not retired"
+    );
+    trial
+}
+
+/// Arm H: Atlas's own memory holding the 240 lookalike notes of the retrieval benchmark (the one
+/// about the retry limit among them), Workspace scope on. It measures what the native recall does
+/// with a crowded memory: how many notes reach the prompt, and whether the run still avoids the
+/// decoy. Needs `ATLAS_BENCH_CORPUS` (written by `retrieval_bench.py`).
+fn trial_crowded(runtime: &str, model: &str) -> Trial {
+    #[derive(serde::Deserialize)]
+    struct Corpus {
+        pages: std::collections::BTreeMap<String, (String, String)>,
+    }
+    let path = std::env::var("ATLAS_BENCH_CORPUS").expect("arm H needs ATLAS_BENCH_CORPUS");
+    let corpus: Corpus = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    let world = RealWorld::build(&setup(runtime, model, workspace_only(MemoryMode::Propose)));
+    for (title, body) in corpus.pages.values() {
+        world
+            .memory
+            .create(
+                NewMemory {
+                    scope: MemoryScope::Workspace,
+                    owner: Some(world.workspace_id.clone()),
+                    kind: MemoryKind::Pitfall,
+                    title: title.chars().take(80).collect(),
+                    content: body.clone(),
+                    topic: None,
+                    validity: MemoryValidity::default(),
+                    origin: MemoryOrigin::User,
+                },
+                1,
+            )
+            .unwrap();
+    }
+    timed(&world, Arm::H)
+}
+
+/// Arms F and G: read what the server's own capture and consolidation wrote (stage 1 of
+/// `spikes/ai-memory-capture-experiment.md`), with nothing seeded and nothing cleaned up. The server
+/// must already hold the sessions of a project folder named `project`. G turns the title check off.
+fn trial_captured(runtime: &str, model: &str, precise: bool) -> Trial {
+    let mut s = setup(runtime, model, MemorySettings::default());
+    s.external = crate::domain::memory::ExternalMemorySettings {
+        precise,
+        ..external_settings(false)
+    };
+    let world = RealWorld::build(&s);
+    timed(&world, if precise { Arm::F } else { Arm::G })
+}
+
 /// Run 1 knows nothing; whatever it leaves is what run 2 gets.
 fn trial_c(runtime: &str, model: &str) -> (Trial, Trial) {
     let world = RealWorld::build(&setup(runtime, model, workspace_only(MemoryMode::Auto)));
@@ -297,7 +497,17 @@ fn report(runtime: &str, model: &str, trials: &[Trial]) -> String {
     let mut out = format!(
         "## {runtime} · {model}\n\n| arm | runs | completed | right file | touched decoy | input (median) | cached | output | tool calls | notes in prompt (est. tokens) | seconds |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
     );
-    for arm in [Arm::A, Arm::B, Arm::C1, Arm::C2] {
+    for arm in [
+        Arm::A,
+        Arm::B,
+        Arm::C1,
+        Arm::C2,
+        Arm::D,
+        Arm::E,
+        Arm::F,
+        Arm::G,
+        Arm::H,
+    ] {
         let of: Vec<&Trial> = trials.iter().filter(|t| t.arm == arm).collect();
         if of.is_empty() {
             continue;
@@ -363,6 +573,37 @@ fn experiment(runtime: &str, model: &str) {
                 "the note did not reach the prompt"
             );
             trials.push(b);
+        }
+        if arms.contains('H') {
+            let t = trial_crowded(runtime, model);
+            assert!(t.prompt_has_notes, "the crowded memory sent no note");
+            trials.push(t);
+        }
+        for (letter, precise) in [('F', true), ('G', false)] {
+            if arms.contains(letter) {
+                let t = trial_captured(runtime, model, precise);
+                assert!(
+                    t.prompt_has_notes,
+                    "no note of the captured sessions reached the prompt"
+                );
+                trials.push(t);
+            }
+        }
+        if arms.contains('E') {
+            let e = trial_e(runtime, model);
+            assert!(
+                e.prompt_has_notes,
+                "the shared note did not reach the second Atlas"
+            );
+            trials.push(e);
+        }
+        if arms.contains('D') {
+            let d = trial_d(runtime, model);
+            assert!(
+                d.prompt_has_notes,
+                "the note of the server did not reach the prompt"
+            );
+            trials.push(d);
         }
     }
     if arms.contains('C') && std::env::var("ATLAS_M4_C1_ONLY").is_ok() {

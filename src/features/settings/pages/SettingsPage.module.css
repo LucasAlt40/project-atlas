@@ -142,6 +142,11 @@
   border-color: var(--border-focus);
   outline: 0;
 }
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
 .help {
   margin: 0;
   color: var(--text-dim);

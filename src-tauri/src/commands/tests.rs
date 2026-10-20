@@ -44,6 +44,9 @@ pub(super) fn app_window(
             super::memory::promote_memory,
             super::memory::delete_automatic_memories,
             super::memory::set_memory_settings,
+            super::memory::set_external_memory,
+            super::memory::check_external_memory,
+            super::memory::sync_external_memory,
             super::sandbox::get_sandbox_status,
             super::sandbox::set_sandbox_settings,
             super::personalities::list_personalities,
@@ -558,6 +561,7 @@ fn settings_default_to_portuguese_and_persist_language_and_selected_workspace() 
             },
             "sandbox": { "mode": "off", "devCaches": true },
             "presence": { "enabled": false, "showNames": true },
+            "externalMemory": { "enabled": false, "serverUrl": "http://127.0.0.1:49374", "dataDir": "", "maxHits": 3, "maxTokens": 400, "workspace": "default", "share": false, "precise": true },
         })
     );
     invoke(&window, "set_language", json!({ "language": "en-US" })).unwrap();

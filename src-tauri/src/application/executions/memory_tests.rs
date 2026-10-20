@@ -33,15 +33,15 @@ impl ExecutionObserver for Quiet {
     }
 }
 
-struct World {
-    service: ExecutionService,
-    memory: Arc<MemoryService>,
-    store: Arc<MemoryMemoryStore>,
-    agent_id: String,
-    workspace_id: String,
+pub(super) struct World {
+    pub(super) service: ExecutionService,
+    pub(super) memory: Arc<MemoryService>,
+    pub(super) store: Arc<MemoryMemoryStore>,
+    pub(super) agent_id: String,
+    pub(super) workspace_id: String,
 }
 
-fn on() -> MemorySettings {
+pub(super) fn on() -> MemorySettings {
     MemorySettings {
         user: MemoryMode::Propose,
         workspace: MemoryMode::Propose,
@@ -50,7 +50,7 @@ fn on() -> MemorySettings {
     }
 }
 
-fn flags(memory: MemorySettings) -> FixedFlags {
+pub(super) fn flags(memory: MemorySettings) -> FixedFlags {
     FixedFlags {
         metrics: true,
         guardrails: true,
@@ -60,7 +60,7 @@ fn flags(memory: MemorySettings) -> FixedFlags {
 }
 
 /// The real service over a fake runtime, with the memory service wired when `wired`.
-fn world(flags: FixedFlags, wired: bool, answer: Result<&str, RuntimeError>) -> World {
+pub(super) fn world(flags: FixedFlags, wired: bool, answer: Result<&str, RuntimeError>) -> World {
     let config = Arc::new(ConfigRepository::load(Box::<ConfigMemoryStore>::default()));
     let personalities = Arc::new(PersonalityService::new(config.clone()));
     let runtime = Arc::new(FakeRuntime::new("rt-a", answer));
@@ -121,7 +121,7 @@ fn world(flags: FixedFlags, wired: bool, answer: Result<&str, RuntimeError>) -> 
     }
 }
 
-fn learn(world: &World, title: &str, content: &str) -> Memory {
+pub(super) fn learn(world: &World, title: &str, content: &str) -> Memory {
     world
         .memory
         .create(
@@ -140,7 +140,7 @@ fn learn(world: &World, title: &str, content: &str) -> Memory {
         .unwrap()
 }
 
-fn run(world: &World, task: &str) -> ExecutionRecord {
+pub(super) fn run(world: &World, task: &str) -> ExecutionRecord {
     world
         .service
         .run_with_id(
@@ -157,7 +157,7 @@ fn run(world: &World, task: &str) -> ExecutionRecord {
         .unwrap()
 }
 
-const TASK: &str = "Fix the invoice total rounding";
+pub(super) const TASK: &str = "Fix the invoice total rounding";
 const LESSON: &str = "Invoice totals round half even, never use floats";
 
 #[test]

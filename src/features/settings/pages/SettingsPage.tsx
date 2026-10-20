@@ -6,6 +6,7 @@ import { MemorySettings } from '@/features/memory';
 import { PortabilitySettings } from '@/features/portability';
 import { LANGUAGES } from '@/i18n';
 import { useI18n } from '@/i18n/I18nProvider';
+import { ExternalMemorySettings } from '../components/ExternalMemorySettings';
 import { PresenceSettings } from '../components/PresenceSettings';
 import { SandboxSettings } from '../components/SandboxSettings';
 import { UpdateChecker } from '../components/UpdateChecker';
@@ -164,6 +165,10 @@ export function SettingsPage() {
           >
             <h2 className={styles.sectionTitle}>{t('settings.nav.memory')}</h2>
             <MemorySettings />
+            <div className={styles.group}>
+              <h2 className={styles.heading}>{t('settings.externalMemory.title')}</h2>
+              <ExternalMemorySettings />
+            </div>
           </section>
 
           <section

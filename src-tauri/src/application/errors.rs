@@ -107,6 +107,8 @@ pub enum ErrorCode {
     /// The text of the memory looks like a secret; a memory is stored in the clear and sent to a
     /// model.
     MemoryLooksLikeSecret,
+    /// The memory server's address is not one on this machine (ADR 0040).
+    ExternalAddressInvalid,
     McpGrantInvalid,
     /// The OS credential store could not be reached (locked, missing).
     McpCredentialStoreUnavailable,
