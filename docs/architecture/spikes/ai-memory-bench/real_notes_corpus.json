@@ -1,0 +1,342 @@
+{
+  "notes": [
+    {
+      "id": "ignored-tests",
+      "kind": "pitfall",
+      "title": "Never run broad --ignored cargo filters",
+      "content": "cargo test real_claude -- --ignored also matched paid real-model tests and spent tokens without asking. Run ignored real tests only by their exact full name with --exact; list them first with -- --ignored --list."
+    },
+    {
+      "id": "ask-tokens",
+      "kind": "preference",
+      "title": "Ask before spending tokens",
+      "content": "The user wants to be told before real models are run: say what it costs first and wait for the go. Report any accidental spend at once."
+    },
+    {
+      "id": "optim-numbers",
+      "kind": "decision",
+      "title": "Measure before saying optimized",
+      "content": "Never call something optimized without numbers. Required prompt text such as rules, protocols and the grants no permissions notices is not shortened as an optimization."
+    },
+    {
+      "id": "rtk-removed",
+      "kind": "decision",
+      "title": "RTK was removed",
+      "content": "Phase 3 (RTK) was built and then removed (ADR 0023): no Atlas agent runs commands through Atlas, so it saved nothing. Atlas never installs software or edits ~/.claude."
+    },
+    {
+      "id": "commits",
+      "kind": "preference",
+      "title": "Commits: conventional, in the user's name, only own files",
+      "content": "Use conventional commits in the user's name with no Claude co-author trailer, and commit only the files that belong to the work, never the user's unrelated changes (docs/guia and RESUMO.md were theirs)."
+    },
+    {
+      "id": "flags-default",
+      "kind": "decision",
+      "title": "Optimization flags defaults",
+      "content": "metrics and guardrailsEnabled are on by default; contextEnabled and skillsEnabled are off because they change prompts."
+    },
+    {
+      "id": "claude-zero-cost",
+      "kind": "how_to",
+      "title": "Inspect Claude's tools at zero cost",
+      "content": "claude -p ... --model not-a-real-model-xyz prints its init message (tools, mcp_servers, skills) and fails at the first request, so it costs nothing."
+    },
+    {
+      "id": "mcp-tools-flag",
+      "kind": "pitfall",
+      "title": "--tools does not limit MCP tools",
+      "content": "For Claude, --tools does not limit MCP tools; --disallowedTools mcp__srv__tool does (fail-open for new tools). A bad tool schema drops all the server's tools yet the server shows connected. text_only must get no --mcp-config."
+    },
+    {
+      "id": "figma-http",
+      "kind": "pitfall",
+      "title": "Figma MCP is HTTP with OAuth",
+      "content": "The official Figma MCP is HTTP+OAuth, not stdio, so it waits for an HTTP transport. Chrome DevTools MCP is stdio via npx: pin the version and never auto-start it."
+    },
+    {
+      "id": "mcp-timeout",
+      "kind": "pitfall",
+      "title": "A slow npx start looks like a failed MCP server",
+      "content": "A slow npx start was reported as a failed MCP server until MCP_TIMEOUT was set. The nvm, fnm and volta PATH must be found for node and npx (the user uses nvm)."
+    },
+    {
+      "id": "mcp-secret-names",
+      "kind": "pitfall",
+      "title": "MCP secret variables can collide",
+      "content": "Secret variable names collided between servers named web-2 and web_2; the names are normalised before they reach the environment."
+    },
+    {
+      "id": "codex-mcp",
+      "kind": "how_to",
+      "title": "MCP works differently on each runtime",
+      "content": "Claude needs --allowedTools; Codex needs default_tools_approval_mode=approve; OpenCode takes an allow-list through the tools map and has no tool filter, so named grants are refused; Antigravity is not strict."
+    },
+    {
+      "id": "announce",
+      "kind": "how_to",
+      "title": "Name the MCP servers in the prompt",
+      "content": "Codex ignored the browser server until the prompt named it: the workflow setting executionPolicy.announceIntegrations (default on) adds two lines naming the granted servers."
+    },
+    {
+      "id": "mcp-registry",
+      "kind": "decision",
+      "title": "MCP search uses the official registry",
+      "content": "mcpservers.org has no public API (robots disallow /api, 403), so the official registry registry.modelcontextprotocol.io/v0/servers is used through the system curl."
+    },
+    {
+      "id": "mcp-config-write",
+      "kind": "pitfall",
+      "title": "Never overwrite a CLI MCP config",
+      "content": "Writing to a CLI config keeps a .atlas-backup copy, never overwrites, and refuses files it cannot parse (JSON with comments). Secrets are only written as env references."
+    },
+    {
+      "id": "templates",
+      "kind": "pitfall",
+      "title": "Template text must not ask for a test run",
+      "content": "No Atlas agent can run commands: the editing prompt says so and Claude gets only Read, Grep, Glob, Edit and Write. A workflow template must never ask for a test run or claim one."
+    },
+    {
+      "id": "portab",
+      "kind": "how_to",
+      "title": "Import is preview first",
+      "content": "Config import is parse, then a preview that changes nothing, then a decision per item (create, use existing, replace, skip), then one atomic modify. Agents arrive read-only unless the person ticks keep permissions; matching is by name only."
+    },
+    {
+      "id": "portab-not",
+      "kind": "decision",
+      "title": "What the export leaves out",
+      "content": "Not exported on purpose: workspaces, MCP connections, grants and secrets, conversations, runs, usage, rules, harness. A model or runtime missing on the destination is reported with alternatives, never swapped silently."
+    },
+    {
+      "id": "mobile-policy",
+      "kind": "decision",
+      "title": "The phone may only narrow authority",
+      "content": "The phone can deny, never allow; guardrail approvals, command approvals and apply code are desktop-only. Any new remote action is a line in policy.rs plus a route plus a test, never a generic proxy of Tauri commands."
+    },
+    {
+      "id": "mobile-http",
+      "kind": "decision",
+      "title": "Mobile access is HTTP only",
+      "content": "No HTTPS or push, on purpose. Pairing is single-use and the session is HttpOnly with Host and Origin checks. The server is off at start."
+    },
+    {
+      "id": "atomic",
+      "kind": "pitfall",
+      "title": "Atomic writes must not follow symlinks",
+      "content": "Use infrastructure/atomic_file.rs: the temp file is created with create_new, fsync, and keeps the permissions. Hand-rolled writes followed symlinks at the temp name. FsRuntimeConfigFiles refuses links: a planted .mcp.json could copy private files into a repo."
+    },
+    {
+      "id": "lockext",
+      "kind": "how_to",
+      "title": "Use LockExt for mutex locks",
+      "content": "Use LockExt (lock_or_recover) everywhere instead of unwrap on a Mutex, so a poisoned lock does not take the app down."
+    },
+    {
+      "id": "logging",
+      "kind": "decision",
+      "title": "Logging is eprintln",
+      "content": "Logging is eprintln!, invisible in a release GUI build; there is no tracing crate. Pending: cargo audit is not installed, so the Rust dependencies are unaudited."
+    },
+    {
+      "id": "timing",
+      "kind": "pitfall",
+      "title": "live_workspace timing tests fail under load",
+      "content": "The live_workspace timing tests fail only under CPU contention (two cargo runs at once) and pass alone. Rerun alone before investigating."
+    },
+    {
+      "id": "claude-loggedout",
+      "kind": "pitfall",
+      "title": "The Claude CLI may be logged out",
+      "content": "When the Claude OAuth expires only the runtime unavailable path is proven. Check claude auth status before a real Claude run; only the user can log in."
+    },
+    {
+      "id": "stale-tests",
+      "kind": "pitfall",
+      "title": "Tests drift when the agent selection changes",
+      "content": "After commit 9901d80 three tests were stale on main and CI was red; they were updated to the intended behavior. Check the contract tests when the selection of agent or model changes."
+    },
+    {
+      "id": "protocol-retry",
+      "kind": "decision",
+      "title": "One retry for a missing result block",
+      "content": "A step whose model forgets the result block gets one protocol retry (MAX_PROTOCOL_RETRIES=1, StepCompletion::NoValidOutcome); quick templates fail on a judge's rejection (verdict_gate)."
+    },
+    {
+      "id": "contract",
+      "kind": "pitfall",
+      "title": "Agents without a contract invalidate templates",
+      "content": "Agents created without a result contract make 5 of 8 templates invalid; the UI always sends one."
+    },
+    {
+      "id": "apply",
+      "kind": "pitfall",
+      "title": "Apply serialises integration decisions",
+      "content": "Checkout changes during a run are listed and hold the first Apply; integration decisions are serialised. A run is announced completed only after its integration settled."
+    },
+    {
+      "id": "sandbox-codex",
+      "kind": "pitfall",
+      "title": "Codex's seatbelt fails inside ours",
+      "content": "Codex's own seatbelt fails inside Atlas's sandbox-exec (sandbox_apply: Operation not permitted), so adapt_to_confinement swaps --sandbox to danger-full-access and keeps read-only runs read-only through the profile."
+    },
+    {
+      "id": "sandbox-observe",
+      "kind": "how_to",
+      "title": "Observe sandbox writes with find -newer",
+      "content": "sandbox-exec's (trace) and the system log are not usable for discovery; observe writes with find -newer. Network by domain is impossible in SBPL."
+    },
+    {
+      "id": "sandbox-regex",
+      "kind": "pitfall",
+      "title": "SBPL regex needs a single backslash",
+      "content": "In sandbox profiles a regex needs a single backslash (\\.) and parameters go only through -D."
+    },
+    {
+      "id": "worktree-commit",
+      "kind": "how_to",
+      "title": "A worktree commit writes to the main .git",
+      "content": "A git worktree commit writes to the MAIN repo .git: it needs worktrees/<id>, objects, refs/heads/atlas and logs/refs/heads/atlas. hooks, config and main stay protected."
+    },
+    {
+      "id": "memory-untrusted",
+      "kind": "decision",
+      "title": "Memory notes are untrusted",
+      "content": "Notes go into the prompt under a notice as hints, never instructions; they grant no permission. Auto never applies to preference notes or the User scope; an automatic note is held until an independent validator passes the run."
+    },
+    {
+      "id": "memory-rule",
+      "kind": "pitfall",
+      "title": "Small models ignore the memory block",
+      "content": "Claude haiku never wrote the atlas-memory block (0 of 18 runs); the rule goes at the end of the prompt, after the task. Success of a step is not the truth of a lesson."
+    },
+    {
+      "id": "fmt-other",
+      "kind": "pitfall",
+      "title": "cargo fmt reformats unrelated files",
+      "content": "cargo fmt also reformats two pre-existing unformatted files (commands/harness.rs and infrastructure/harness_store.rs); that diff is not part of the work."
+    },
+    {
+      "id": "shared-tree",
+      "kind": "pitfall",
+      "title": "Another session may use the same tree",
+      "content": "When another Claude session works in the same tree, never touch or format its files and never git add -A; commit with selective staging. Cargo runs from two sessions at once make timing tests fail."
+    },
+    {
+      "id": "stitch",
+      "kind": "how_to",
+      "title": "Stitch gives timeouts but finishes",
+      "content": "edit_screens and generate_screen_from_text time out but the generation ends: do not resend, wait for the user to confirm the screen and check with list_screens."
+    },
+    {
+      "id": "p-copilot-models",
+      "kind": "pitfall",
+      "title": "Modelos do Copilot vêm do ACP",
+      "content": "Os modelos do Copilot vêm do ACP (copilot --acp, session/new), nunca de help config: ele lista 28 que a conta não tem. A conta do usuário só aceita auto."
+    },
+    {
+      "id": "p-copilot-slow",
+      "kind": "how_to",
+      "title": "Mac lento: espere, não mate processos",
+      "content": "Se o Mac estiver lento (syspolicyd alto), espere em vez de matar processos: outras sessões podem ter testes rodando no mesmo target/."
+    },
+    {
+      "id": "p-design-process",
+      "kind": "how_to",
+      "title": "Prompts do Stitch: uma tela por vez",
+      "content": "Ao enviar prompts ao Stitch, use o P0 mais o bloco TELA, mostre os prompts ao usuário antes de enviar, mande uma tela por vez e registre em prompts.md."
+    },
+    {
+      "id": "p-stitch-invents",
+      "kind": "pitfall",
+      "title": "O Stitch inventa funções",
+      "content": "O Stitch inventa moldura e funções (busca ⌘K, Sync OK, Exportar log). O P0 v2 proíbe; o que sobrar vai para a lista do que o Stitch mostra e o app não tem. O Stitch é referência visual, nunca especificação funcional."
+    },
+    {
+      "id": "p-design-ui",
+      "kind": "decision",
+      "title": "Interface com informação demais",
+      "content": "O usuário acha que o Atlas mostra informação demais e quer separar melhor, mantendo o tema. Use os componentes compartilhados Badge, CollapsibleSection, OverflowMenu e Steps."
+    },
+    {
+      "id": "p-presence",
+      "kind": "decision",
+      "title": "Rich Presence desligado por padrão",
+      "content": "O Discord Rich Presence vem desligado; showNames separa nomes de textos genéricos. Não foi testado contra um Discord real e o Windows (named pipe) não foi testado."
+    },
+    {
+      "id": "p-sandbox",
+      "kind": "decision",
+      "title": "Sandbox: só a escrita é restrita",
+      "content": "O sandbox do macOS permite tudo por padrão e nega apenas a escrita fora do worktree e do tmp da execução; a leitura de credenciais (.ssh, .aws) é negada. A rede por domínio é impossível no SBPL."
+    },
+    {
+      "id": "p-design-dir",
+      "kind": "how_to",
+      "title": "Dossiê de design por módulo",
+      "content": "A repaginação visual é feita por módulo em docs/design-review/<módulo>/ com README, prompts.md e plano-implementacao.md; o processo fica em docs/design-review/_comum/."
+    }
+  ],
+  "tasks": [
+    {
+      "task": "Run the real end-to-end tests for the commands and tell me what they cost",
+      "relevant": ["ignored-tests", "ask-tokens"]
+    },
+    {
+      "task": "Corrigir: desconectar o celular deve revogar a sessão e o código do QR só vale uma vez",
+      "relevant": ["mobile-policy", "mobile-http"]
+    },
+    {
+      "task": "Corrigir as execuções por pipe que não são contadas nem encerradas ao fechar o app",
+      "relevant": []
+    },
+    { "task": "Make the atomic file write never follow symlinks", "relevant": ["atomic"] },
+    {
+      "task": "Bound the line reads, resync the SSE at once and use LockExt",
+      "relevant": ["lockext"]
+    },
+    {
+      "task": "Add Codex support for MCP servers granted per execution",
+      "relevant": ["codex-mcp", "announce"]
+    },
+    {
+      "task": "The MCP server shows connected but its tools are missing",
+      "relevant": ["mcp-tools-flag", "mcp-timeout"]
+    },
+    {
+      "task": "Adicionar o Copilot como runtime com a lista de modelos da conta",
+      "relevant": ["p-copilot-models"]
+    },
+    {
+      "task": "Test the sandbox: a write outside the worktree must fail",
+      "relevant": ["sandbox-observe", "p-sandbox", "sandbox-regex"]
+    },
+    {
+      "task": "The live workspace timing tests are failing in CI",
+      "relevant": ["timing", "shared-tree"]
+    },
+    {
+      "task": "Import a workflow configuration file shared by a teammate",
+      "relevant": ["portab", "portab-not"]
+    },
+    {
+      "task": "Registrar a tela do Stitch para o módulo de Configurações",
+      "relevant": ["p-design-process", "stitch", "p-stitch-invents"]
+    },
+    { "task": "Bump the version and commit the release", "relevant": ["commits"] },
+    {
+      "task": "Add a Discord presence status for the current workflow step",
+      "relevant": ["p-presence"]
+    },
+    {
+      "task": "Why did the Claude run fail right away with an authentication error",
+      "relevant": ["claude-loggedout"]
+    },
+    {
+      "task": "Edit the step template so the developer agent runs the tests before finishing",
+      "relevant": ["templates", "rtk-removed"]
+    },
+    { "task": "Translate the settings screen labels into Spanish", "relevant": [] },
+    { "task": "Add a new color token for the warning badge", "relevant": [] }
+  ]
+}

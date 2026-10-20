@@ -164,3 +164,35 @@ O `auto` continua sendo escolha explícita da pessoa, e `propose` continua sendo
 - Padrão do modo por escopo quando a pessoa ligar a Memory pela primeira vez (proposta: `propose` em Workspace e Agent,
   `propose` em User, `auto` só por escolha explícita).
 - Cotas e validades padrão (valores acima são o ponto de partida, a calibrar na M4).
+
+## Emenda de 2026-10-20 — poda de inundação na recuperação
+
+Medida em 240 notas parecidas (`docs/architecture/spikes/ai-memory-analysis.md`): a recuperação pontuava por palavras
+em comum sem peso por raridade, e como "change", "service" e "limit" aparecem em quase tudo, **a partir de ~15 notas
+o orçamento inteiro de 600 tokens era preenchido em todo prompt, com ~9 notas de outro assunto**. A nota certa estava lá,
+no meio do ruído.
+
+- A comparação de palavras é por **radical** (`domain::memory::stem`), nas notas e na tarefa; só corta quando sobram 4
+  letras e guarda o `e` de palavras curtas (`pipe` não é `pip`).
+- **Até 5** notas casando, ou uma memória com **menos de 12** notas (`PRUNE_ABOVE`, `PRUNE_NEEDS_NOTES`): nada muda.
+  Caso contrário ficam as que são sobre a tarefa: o título traz duas palavras dela (ou a única que ela tem), **ou** a
+  nota compartilha uma palavra rara (1 nota em 20, `RARE_ONE_IN`) ou uma palavra incomum do seu título e pontua pelo
+  menos 60% do melhor (`KEEP_PERCENT`); ou compartilha duas palavras incomuns (`TWO_WORDS_MIN`, que não estejam em mais
+  da metade das notas) e pontua pelo menos 40% do melhor (`TWO_WORDS_PERCENT`).
+- A pontuação pesa cada palavra pela raridade (`ln(1 + N/df)` em milésimos, título em dobro) e **ignora as palavras que
+  mais de uma nota em quatro tem** (`GENERIC_ONE_IN`, só com 20 notas ou mais). O que fica é ordenado em décimos do
+  melhor, depois por `tie_bonus` (tipo e origem, como no caminho sem poda), depois por uso e recência. O resto é
+  `NoMatch` no manifesto.
+- Sem configuração nova: os valores são constantes em `recall.rs`, em números inteiros. O contrato desta ADR não muda:
+  sem nota relevante o prompt é idêntico byte a byte, a nota continua não confiável e sem poder de instrução.
+- Efeito medido contra o código original, no mesmo benchmark com ids embaralhados: 586 → 273 tokens por prompt com 240
+  notas, de 374 para 32 notas de outro assunto, a nota certa no prompt em 40 de 40 (antes 39). Em 46 notas reais do
+  projeto e 18 tarefas reais: 375 → 191 tokens por tarefa e 5,7 → 2,2 notas a mais por tarefa, mas **88% → 81% das notas
+  esperadas encontradas** (a poda custa 2 de 26). Com o Claude haiku e a memória cheia, isca tocada 0/3 contra 3/3 sem
+  memória e input -50% (numa execução diferente da do ADR 0040, onde o ganho de um servidor com uma só nota foi de -16% a -58% conforme o lote).
+
+Limites: as constantes foram ajustadas num corpus sintético e, a última regra, no conjunto de 46 notas reais do projeto
+(18 tarefas), sem um conjunto separado para validar; o radical é inglês e cru; entre notas do mesmo assunto a
+ordem só ganha com uso acumulado; uma tarefa dita com outras palavras que a nota recupera pouco (19 de 40) e traz pouco
+ruído; numa memória de 12 a 20 notas concentrada num tema, com uma tarefa que só traz o tema, a poda pode descartar
+notas úteis.

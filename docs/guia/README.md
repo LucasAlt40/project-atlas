@@ -8,17 +8,18 @@ ligam, como o contexto é gravado, como o workflow roda e como o Harness é gera
 
 ## Índice
 
-| #   | Documento                                                                               | Responde a                                                                  |
-| --- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| 1   | [Visão geral e arquitetura](01-visao-geral-e-arquitetura.md)                            | O que é o Atlas, camadas, módulos Rust, conceitos do domínio, frontend      |
-| 2   | [Agentes, runtimes e prompt](02-agentes-runtimes-e-prompt.md)                           | Como um agente é definido, como cada CLI é chamada, como o prompt é montado |
-| 3   | [Harness e contexto](03-harness-e-contexto.md)                                          | Como o `.atlas/` é gerado, o modelo de conhecimento, Task Context           |
-| 4   | [Workflow](04-workflow.md)                                                              | Engine, orquestrador, handoff, contratos, humano no loop, entrega do código |
-| 5   | [Segurança e isolamento](05-seguranca-e-isolamento.md)                                  | Política de permissões, guard, worktrees, PTY e controle de processos       |
-| 6   | [Persistência, eventos e observabilidade](06-persistencia-eventos-e-observabilidade.md) | O que é gravado e onde, uso/custo, eventos, métricas de otimização          |
-| 7   | [Importar e exportar](07-importar-e-exportar.md)                                        | Compartilhar agentes, personalidades e workflows como arquivo               |
-| 8   | [Acesso pelo celular](08-acesso-pelo-celular.md)                                        | Acompanhar e responder execuções pelo navegador do celular, na rede local   |
-| 9   | [Specs (SDD)](09-specs-sdd.md)                                                          | Escrever, validar e aprovar uma especificação antes do workflow (OpenSpec)  |
+| #   | Documento                                                                               | Responde a                                                                                                                                   |
+| --- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | [Visão geral e arquitetura](01-visao-geral-e-arquitetura.md)                            | O que é o Atlas, camadas, módulos Rust, conceitos do domínio, frontend                                                                       |
+| 2   | [Agentes, runtimes e prompt](02-agentes-runtimes-e-prompt.md)                           | Como um agente é definido, como cada CLI é chamada, como o prompt é montado                                                                  |
+| 3   | [Harness e contexto](03-harness-e-contexto.md)                                          | Como o `.atlas/` é gerado, o modelo de conhecimento, Task Context                                                                            |
+| 4   | [Workflow](04-workflow.md)                                                              | Engine, orquestrador, handoff, contratos, humano no loop, entrega do código                                                                  |
+| 5   | [Segurança e isolamento](05-seguranca-e-isolamento.md)                                  | Política de permissões, guard, worktrees, PTY e controle de processos                                                                        |
+| 6   | [Persistência, eventos e observabilidade](06-persistencia-eventos-e-observabilidade.md) | O que é gravado e onde, uso/custo, eventos, métricas de otimização                                                                           |
+| 7   | [Importar e exportar](07-importar-e-exportar.md)                                        | Compartilhar agentes, personalidades e workflows como arquivo                                                                                |
+| 8   | [Acesso pelo celular](08-acesso-pelo-celular.md)                                        | Acompanhar e responder execuções pelo navegador do celular, na rede local                                                                    |
+| 9   | [Specs (SDD)](09-specs-sdd.md)                                                          | Escrever, validar e aprovar uma especificação antes do workflow (OpenSpec)                                                                   |
+| 10  | [Memória e notas](10-memoria-e-notas.md)                                                | Como ligar a memória, escrever notas que funcionam, o que o Atlas faz com elas, o servidor ai-memory opcional e um exemplo para testar local |
 
 ## Ordem de leitura sugerida
 
