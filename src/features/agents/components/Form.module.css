@@ -19,7 +19,7 @@
 .hint {
   margin: 0;
   color: var(--text-dim);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 .textarea {
   min-height: 5rem;
@@ -52,10 +52,10 @@
 }
 .error {
   margin: 0;
-  color: var(--color-danger);
+  color: var(--danger);
 }
 .success {
-  color: var(--color-success);
+  color: var(--success);
 }
 .checkRow {
   display: flex;
@@ -69,7 +69,7 @@
 .warning {
   margin: 0;
   color: var(--color-warning, var(--text-standard));
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 .outcomeRows {
   display: flex;
@@ -176,7 +176,7 @@
 .textarea {
   min-height: 9rem;
   font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   line-height: 1.6;
 }
 .field {

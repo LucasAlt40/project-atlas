@@ -78,7 +78,7 @@
   border-radius: var(--radius-sm);
   background: var(--surface-3);
   color: var(--text-muted);
-  font-size: 0.6875rem;
+  font-size: var(--font-size-2xs);
   text-transform: capitalize;
 }
 .description {
@@ -96,10 +96,10 @@
 }
 .subheading {
   margin: var(--space-2) 0 0;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--color-text-muted);
+  color: var(--text-muted);
 }
 .behavior {
   display: grid;
@@ -117,7 +117,7 @@
   border-radius: var(--radius-md);
   background: var(--surface-void);
   font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   line-height: 1.55;
   white-space: pre-wrap;
 }
@@ -128,15 +128,15 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
 }
 .tags li {
   padding: 2px var(--space-3);
   border-radius: var(--radius-sm);
   background: var(--surface-void);
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-size: var(--font-size-2xs);
 }
 .tags li::before {
   content: '#';
@@ -157,8 +157,8 @@
 
 .note {
   margin: 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
 }
 
 .actions {
@@ -188,10 +188,10 @@
 }
 .danger {
   padding: var(--space-1) var(--space-3);
-  border: 1px solid var(--color-danger);
+  border: 1px solid var(--danger);
   border-radius: var(--radius-md);
   background: transparent;
-  color: var(--color-danger);
+  color: var(--danger);
   font: inherit;
   cursor: pointer;
 }
@@ -199,12 +199,12 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 .error {
   margin: 0;
-  color: var(--color-danger);
-  font-size: var(--font-size-sm);
+  color: var(--danger);
+  font-size: var(--font-size-xs);
 }
 
 .browser {
@@ -223,7 +223,7 @@
   background: var(--surface-2);
   color: var(--text-high);
   font: inherit;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   font-weight: 500;
   cursor: pointer;
 }

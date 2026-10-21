@@ -28,7 +28,7 @@ export function SendAnswersDialog({
 }: Props) {
   const { t } = useI18n();
   return (
-    <Modal label={t('specs.send.title')} onClose={onClose} size="wide">
+    <Modal label={t('specs.send.title')} onClose={onClose} size="lg">
       <form
         className={styles.form}
         onSubmit={(event) => {

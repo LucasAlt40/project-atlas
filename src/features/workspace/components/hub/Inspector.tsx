@@ -245,11 +245,7 @@ export function Inspector({
         <CollapsibleSection
           title={t('hub.guardrails.title')}
           defaultOpen={false}
-          aside={
-            <Badge mono caps={false}>
-              {t('hub.guardrails.badge')}
-            </Badge>
-          }
+          aside={<Badge mono>{t('hub.guardrails.badge')}</Badge>}
         >
           <ul className={styles.plainList}>
             {(['untrusted', 'unauthorized', 'secrets'] as const).map((rule) => (

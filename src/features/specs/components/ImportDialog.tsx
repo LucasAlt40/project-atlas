@@ -77,7 +77,7 @@ export function ImportDialog({ workspace, agents, onClose, onImported }: Props) 
   }
 
   return (
-    <Modal label={t('specs.import')} onClose={onClose} size="wide">
+    <Modal label={t('specs.import')} onClose={onClose} size="lg">
       <div className={styles.form}>
         <h2 className={styles.dialogTitle}>{t('specs.import')}</h2>
         <p className={styles.muted}>{t('specs.import.intro')}</p>

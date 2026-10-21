@@ -6,7 +6,7 @@ export interface Step {
   state: 'done' | 'current' | 'todo';
 }
 
-/** The numbered steps of a flow that runs on one page ("1 Analyze › 2 Review › 3 Initialize"). */
+/** The numbered steps of a flow that runs on one page ("1 Analisar — 2 Análise ao vivo — 3 …"). */
 export function Steps({ label, steps }: { label: string; steps: Step[] }) {
   return (
     <ol className={styles.steps} aria-label={label}>
@@ -18,7 +18,7 @@ export function Steps({ label, steps }: { label: string; steps: Step[] }) {
           aria-current={step.state === 'current' ? 'step' : undefined}
         >
           <span className={styles.number} aria-hidden="true">
-            {step.state === 'done' ? <Icon name="check" size={11} /> : index + 1}
+            {step.state === 'done' ? <Icon name="check" size={12} /> : index + 1}
           </span>
           <span className={styles.text}>{step.label}</span>
         </li>

@@ -16,10 +16,12 @@ interface Props {
   /** A visible name next to the dots: the menu then reads as a button ("⋯ Configuration"). */
   text?: string;
   items: OverflowItem[];
+  /** Which edge of the trigger the menu lines up with. */
+  align?: 'end' | 'start';
 }
 
 /** The "⋯" menu: the secondary and destructive actions of a row, out of the way until asked. */
-export function OverflowMenu({ label, text, items }: Props) {
+export function OverflowMenu({ label, text, items, align = 'end' }: Props) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLSpanElement>(null);
   const menuId = useId();
@@ -58,10 +60,13 @@ export function OverflowMenu({ label, text, items }: Props) {
         {text}
       </button>
       {open && (
-        <div id={menuId} role="menu" className={styles.menu}>
-          {items.map((item) => (
+        <div id={menuId} role="menu" className={styles.menu} data-align={align}>
+          {items.map((item, index) => (
             <button
               key={item.label}
+              data-separated={
+                item.danger && index > 0 && !items[index - 1]?.danger ? true : undefined
+              }
               type="button"
               role="menuitem"
               className={styles.item}

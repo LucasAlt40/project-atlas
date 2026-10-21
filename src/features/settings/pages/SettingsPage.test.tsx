@@ -63,7 +63,7 @@ describe('SettingsPage', () => {
         .getAllByRole('option')
         .map((o) => o.textContent),
     ).toEqual(['Português (Brasil)', 'English']);
-    expect(await screen.findByText('macos')).toBeInTheDocument();
+    expect(await screen.findByText('macOS')).toBeInTheDocument();
   });
 
   it('switches to English at once and remembers the choice', async () => {

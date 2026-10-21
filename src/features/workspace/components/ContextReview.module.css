@@ -13,7 +13,7 @@
   margin: 0;
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.625rem;
+  font-size: var(--font-size-2xs);
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -21,7 +21,7 @@
 .status,
 .line {
   margin: 0;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 .line {
   color: var(--text-dim);
@@ -41,11 +41,11 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 .severity {
   font-family: var(--font-mono);
-  font-size: 0.625rem;
+  font-size: var(--font-size-2xs);
   text-transform: uppercase;
 }
 .severity[data-severity='error'],
@@ -72,12 +72,12 @@
 }
 .mono {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   overflow-wrap: anywhere;
 }
 .table {
   border-collapse: collapse;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 .table th,
 .table td {

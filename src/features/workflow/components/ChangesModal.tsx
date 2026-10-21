@@ -63,7 +63,7 @@ export function ChangesModal({
   }, [run.id, file, key]);
 
   return (
-    <Modal label={t('changes.title')} onClose={onClose} size="wide">
+    <Modal label={t('changes.title')} onClose={onClose} size="lg">
       <h2>{t('changes.title')}</h2>
       {changes && (
         <p className={styles.muted}>

@@ -1,5 +1,6 @@
 import { useI18n } from '@/i18n/I18nProvider';
 import type { AppInfoState } from '../hooks/useAppInfo';
+import { platformName } from '../platform';
 import styles from './AppInfoPanel.module.css';
 
 export function AppInfoPanel({ state }: { state: AppInfoState }) {
@@ -22,7 +23,7 @@ export function AppInfoPanel({ state }: { state: AppInfoState }) {
       <dt>{t('settings.version')}</dt>
       <dd>{version}</dd>
       <dt>{t('settings.platform')}</dt>
-      <dd>{platform}</dd>
+      <dd>{platformName(platform)}</dd>
     </dl>
   );
 }

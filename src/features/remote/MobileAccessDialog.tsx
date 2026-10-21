@@ -70,7 +70,7 @@ export function MobileAccessDialog({ onClose }: { onClose: () => void }) {
   const picked = candidates.find((c) => c.address === chosen);
 
   return (
-    <Modal label={t('remote.title')} onClose={onClose} size="wide">
+    <Modal label={t('remote.title')} onClose={onClose} size="lg">
       <div className={styles.dialog}>
         <h2 className={styles.title}>{t('remote.title')}</h2>
         <p className={styles.muted}>{t('remote.intro')}</p>

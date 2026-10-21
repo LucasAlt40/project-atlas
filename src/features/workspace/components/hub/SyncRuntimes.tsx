@@ -102,7 +102,7 @@ export function SyncRuntimes({
             <Badge
               dot
               mono
-              caps={false}
+
               tone={runtime.error ? 'warning' : runtime.available ? 'success' : 'neutral'}
               {...(runtime.path ? { title: runtime.path } : {})}
             >
@@ -248,7 +248,7 @@ function Cell({
   const text = t(`hub.sync.cell.${state}` as TranslationKey);
   return (
     <td data-state={state} aria-label={`${label}: ${text}`} title={text}>
-      <Badge dot mono caps={false} tone={CELL_TONE[state]}>
+      <Badge dot mono tone={CELL_TONE[state]}>
         {text}
       </Badge>
     </td>

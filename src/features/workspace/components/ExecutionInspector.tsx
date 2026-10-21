@@ -55,11 +55,7 @@ export function ExecutionInspector({
     facts.status === 'completed' ? 'success' : facts.status === 'failed' ? 'danger' : 'warning';
 
   return (
-    <Modal
-      label={t('inspector.title', { id: shortId(execution.id) })}
-      onClose={onClose}
-      size="inspector"
-    >
+    <Modal label={t('inspector.title', { id: shortId(execution.id) })} onClose={onClose} size="xl">
       <header className={styles.inspectorHead}>
         {execution.workflow && (
           <nav className={styles.breadcrumb} aria-label={t('inspector.breadcrumb')}>

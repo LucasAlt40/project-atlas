@@ -106,7 +106,7 @@ export function NewSpecDialog({ workspace, agents, onClose, onCreated }: Props) 
   }
 
   return (
-    <Modal label={t('specs.new')} onClose={onClose} size="wide">
+    <Modal label={t('specs.new')} onClose={onClose} size="lg">
       <form className={styles.form} onSubmit={(event) => void submit(event)}>
         <h2 className={styles.dialogTitle}>{t('specs.new')}</h2>
         <p className={styles.muted}>{t('specs.new.intro')}</p>

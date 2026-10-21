@@ -101,9 +101,7 @@ export function AgentList({
                 <div className={styles.agentCardTitle}>
                   <div className={styles.agentNameRow}>
                     <strong className={styles.agentCardName}>{agent.name}</strong>
-                    <Badge mono caps={false}>
-                      {personality?.name ?? agent.personalityId}
-                    </Badge>
+                    <Badge mono>{personality?.name ?? agent.personalityId}</Badge>
                   </div>
                   <span className={styles.agentRuntime}>
                     {t('agents.card.runtime')}: <b>{runtimeName(agent.runtimeId)}</b>

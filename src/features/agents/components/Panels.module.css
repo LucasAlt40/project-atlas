@@ -5,9 +5,9 @@
   gap: var(--space-2);
   margin: 0;
   padding: var(--space-4);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: var(--surface-1);
   list-style: none;
 }
 .symbol {
@@ -15,30 +15,30 @@
   width: 1.5em;
 }
 .done {
-  color: var(--color-success);
+  color: var(--success);
 }
 .active {
-  color: var(--color-accent);
+  color: var(--accent);
   font-weight: 600;
 }
 .pending {
-  color: var(--color-text-muted);
+  color: var(--text-muted);
 }
 .result {
   padding: var(--space-4);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: var(--surface-1);
 }
 .success {
   margin: 0 0 var(--space-3);
-  color: var(--color-success);
+  color: var(--success);
   font-weight: 600;
 }
 .output {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   white-space: pre-wrap;
 }
 .historyItem {
@@ -48,19 +48,19 @@
 }
 .muted {
   margin: 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
 }
 .error {
   margin: 0;
-  color: var(--color-danger);
+  color: var(--danger);
 }
 .panel {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-4);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
 }
 .agentName {
@@ -70,15 +70,15 @@
 .subheading {
   margin: var(--space-3) 0 0;
   padding-top: var(--space-3);
-  border-top: 1px solid var(--color-border);
-  font-size: 1rem;
+  border-top: 1px solid var(--border-subtle);
+  font-size: var(--font-size-md);
 }
 .task {
   margin: 0;
   white-space: pre-wrap;
 }
 .failed {
-  color: var(--color-danger);
+  color: var(--danger);
 }
 .failure {
   display: flex;
@@ -87,15 +87,15 @@
 }
 .prompt {
   margin-top: var(--space-2);
-  color: var(--color-text-muted);
+  color: var(--text-muted);
 }
 .metadata {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-4);
   margin: var(--space-2) 0 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
 }
 .metadata div {
   display: flex;
@@ -121,9 +121,9 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-3);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: var(--surface-1);
 }
 .agentRow p {
   margin: 0;
@@ -147,10 +147,10 @@
 }
 .danger {
   padding: var(--space-1) var(--space-3);
-  border: 1px solid var(--color-danger);
+  border: 1px solid var(--danger);
   border-radius: var(--radius-md);
   background: transparent;
-  color: var(--color-danger);
+  color: var(--danger);
   font: inherit;
   cursor: pointer;
 }
@@ -159,7 +159,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 
 /* Agent cards */
@@ -223,12 +223,12 @@
   border-radius: var(--radius-sm);
   background: var(--surface-3);
   color: var(--info);
-  font-size: 0.6875rem;
+  font-size: var(--font-size-2xs);
 }
 .agentRuntime {
   color: var(--text-dim);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
 }
 .agentRuntime b {
   color: var(--text-high);
@@ -267,7 +267,7 @@
   margin: 0;
   color: var(--text-high);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   overflow-wrap: anywhere;
 }
 .agentCardFoot {
@@ -295,5 +295,5 @@
   color: var(--text-high);
 }
 .iconDanger:hover {
-  color: var(--color-danger);
+  color: var(--danger);
 }

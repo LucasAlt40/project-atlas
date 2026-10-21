@@ -3,7 +3,7 @@
   grid-template-columns: auto 1fr;
   gap: var(--space-1) var(--space-4);
   margin: 0;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 .list dt {
   color: var(--text-dim);
@@ -15,9 +15,9 @@
 }
 .muted {
   color: var(--text-muted);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 .error {
-  color: var(--color-danger);
-  font-size: var(--font-size-sm);
+  color: var(--danger);
+  font-size: var(--font-size-xs);
 }

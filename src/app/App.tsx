@@ -1,4 +1,5 @@
 import { Suspense, useMemo, useState } from 'react';
+import { BreadcrumbContext } from './BreadcrumbContext';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { AppShell } from '@/components/layout/AppShell';
 import { SidebarFooter } from '@/components/layout/SidebarFooter';
@@ -27,6 +28,8 @@ function Shell() {
     screenId: DEFAULT_SCREEN_ID,
     intent: undefined,
   });
+  // The levels below the screen ("Projetos / Harness"), declared by the view that is shown.
+  const [trail, setTrail] = useState<string[]>([]);
   const screens = SCREENS;
   const active = screens.find((screen) => screen.id === location.screenId) ?? SCREENS[0];
   const ActiveScreen = active.component;
@@ -48,33 +51,40 @@ function Shell() {
 
   return (
     <NavigationContext.Provider value={navigation}>
-      <AppShell
-        items={screens.map(({ id, labelKey, icon }) => ({ id, label: t(labelKey), icon }))}
-        navLabel={t('nav.main')}
-        collapseLabel={t('nav.collapse')}
-        expandLabel={t('nav.expand')}
-        activeId={active.id}
-        onNavigate={(id) => {
-          navigation.navigate(id);
-        }}
-        workspaceSwitcher={<WorkspaceSwitcher />}
-        breadcrumb={{ parent: workspace.active?.name ?? '', current: t(active.labelKey) }}
-        sidebarFooter={<SidebarFooter />}
-        trailing={
-          <>
-            <ActionRequired />
-            <ActiveExecutions />
-            <MobileAccessButton />
-            <LanguageSwitch />
-          </>
-        }
-      >
-        <ErrorBoundary resetKey={active.id}>
-          <Suspense fallback={null}>
-            <ActiveScreen />
-          </Suspense>
-        </ErrorBoundary>
-      </AppShell>
+      <BreadcrumbContext.Provider value={setTrail}>
+        <AppShell
+          items={screens.map(({ id, labelKey, icon }) => ({ id, label: t(labelKey), icon }))}
+          navLabel={t('nav.main')}
+          collapseLabel={t('nav.collapse')}
+          expandLabel={t('nav.expand')}
+          activeId={active.id}
+          onNavigate={(id) => {
+            navigation.navigate(id);
+          }}
+          workspaceSwitcher={<WorkspaceSwitcher />}
+          breadcrumb={[
+            ...(workspace.active ? [workspace.active.name] : []),
+            t(active.labelKey),
+            ...trail,
+          ]}
+          breadcrumbLabel={t('nav.breadcrumb')}
+          sidebarFooter={<SidebarFooter />}
+          trailing={
+            <>
+              <ActionRequired />
+              <ActiveExecutions />
+              <MobileAccessButton />
+              <LanguageSwitch />
+            </>
+          }
+        >
+          <ErrorBoundary resetKey={active.id}>
+            <Suspense fallback={null}>
+              <ActiveScreen />
+            </Suspense>
+          </ErrorBoundary>
+        </AppShell>
+      </BreadcrumbContext.Provider>
     </NavigationContext.Provider>
   );
 }

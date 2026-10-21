@@ -10,6 +10,7 @@ export const enUS = {
   'nav.personalities': 'Personalities',
   'nav.settings': 'Settings',
   'nav.main': 'Main',
+  'nav.breadcrumb': 'Where you are',
   'nav.collapse': 'Collapse menu',
   'nav.expand': 'Expand menu',
   'language.switch': 'Language',

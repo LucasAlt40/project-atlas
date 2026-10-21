@@ -3,7 +3,7 @@
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
   gap: var(--space-2);
   margin: 0;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 .fact {
   display: flex;
@@ -23,20 +23,20 @@
   margin: 0;
   color: var(--text-high);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   text-align: right;
   overflow-wrap: anywhere;
 }
 .task {
   margin: 0 0 var(--space-3);
   color: var(--text-standard);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   overflow-wrap: anywhere;
 }
 .note {
   margin: var(--space-2) 0 0;
   color: var(--text-dim);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 .list {
   display: flex;
@@ -50,7 +50,7 @@
   margin: var(--space-2) 0 var(--space-1);
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.625rem;
+  font-size: var(--font-size-2xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -75,25 +75,25 @@
 }
 .rowTitle {
   overflow: hidden;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .rowMeta {
   grid-column: 2 / 4;
   color: var(--text-muted);
-  font-size: 0.6875rem;
+  font-size: var(--font-size-2xs);
 }
 .rowTime {
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-size: var(--font-size-2xs);
 }
 .symbol[data-status='completed'] {
   color: var(--success);
 }
 .symbol[data-status='failed'] {
-  color: var(--color-danger);
+  color: var(--danger);
 }
 .symbol[data-status='cancelled'] {
   color: var(--warning);
@@ -121,7 +121,7 @@
   background: var(--surface-1);
   color: var(--text-standard);
   font: inherit;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   cursor: pointer;
 }
 .activeButton .dot {
@@ -162,7 +162,7 @@
 }
 .activeMeta {
   color: var(--text-muted);
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
 }
 .gitSection {
   margin-top: var(--space-4);
@@ -173,7 +173,7 @@
   margin: 0 0 var(--space-2);
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.625rem;
+  font-size: var(--font-size-2xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -182,12 +182,12 @@
   padding-left: var(--space-4);
   color: var(--text-standard);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
 }
 .gitError {
   margin: var(--space-2) 0 0;
-  color: var(--color-danger);
-  font-size: var(--font-size-sm);
+  color: var(--danger);
+  font-size: var(--font-size-xs);
 }
 .gitActions {
   margin-top: var(--space-3);
@@ -201,7 +201,7 @@
   padding: 0;
   list-style: none;
   color: var(--text-muted);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 .breadcrumb li + li::before {
   content: '›';
@@ -272,7 +272,7 @@
   background: var(--surface-base);
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-size: var(--font-size-2xs);
   white-space: nowrap;
 }
 .inspectorBody {

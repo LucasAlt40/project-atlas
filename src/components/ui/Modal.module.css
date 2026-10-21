@@ -6,8 +6,8 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-5);
-  background: rgb(0 0 0 / 0.4);
-  backdrop-filter: blur(4px);
+  background: var(--backdrop);
+  backdrop-filter: blur(var(--backdrop-blur));
 }
 .backdrop[data-placement='side'] {
   justify-content: flex-end;
@@ -19,49 +19,103 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  width: min(32rem, 100%);
+  width: min(40rem, 100%);
   /* Of the backdrop (which is the visible window), not of a viewport unit that can be taller. */
   max-height: 100%;
   padding: var(--space-5);
   overflow-y: auto;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  background: rgb(28 33 40 / 0.92);
-  backdrop-filter: blur(12px);
+  background: var(--surface-1);
   box-shadow: var(--shadow-overlay);
 }
-.dialog[data-size='wide'] {
-  width: min(76rem, 100%);
+.dialog[data-size='sm'] {
+  width: min(26.25rem, 100%);
 }
-.dialog[data-size='inspector'] {
+.dialog[data-size='lg'] {
+  width: min(60rem, 100%);
+}
+.dialog[data-size='xl'] {
   width: min(80rem, 100%);
   height: min(100%, 56rem);
   gap: 0;
   padding: 0;
   overflow: hidden;
 }
-.dialog[data-size='analyze'] {
-  width: min(42.5rem, 100%);
-}
 .backdrop[data-placement='side'] .dialog {
-  width: min(26rem, 100%);
+  width: min(32.5rem, 100%);
   border-radius: 0;
   border-width: 0 0 0 1px;
-  background: var(--surface-1);
+  background: var(--surface-2);
 }
-.backdrop[data-placement='side'] .dialog[data-size='drawer'] {
-  width: min(32rem, 100%);
+
+/* A framed dialog: header, a body that scrolls, a fixed footer. */
+.dialog[data-framed] {
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+.header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 0;
+  padding: var(--space-5);
+  overflow-y: auto;
+}
+.footer {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--border-subtle);
 }
 .close {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-height-sm);
+  height: var(--control-height-sm);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.dialog:not([data-framed]) > .close {
   position: absolute;
   top: var(--space-3);
   right: var(--space-3);
-  border: 0;
-  background: transparent;
-  color: var(--text-muted);
-  font: inherit;
-  cursor: pointer;
+  z-index: 1;
 }
 .close:hover {
+  background: var(--surface-3);
   color: var(--text-high);
+}
+.close:focus-visible {
+  outline: 2px solid var(--border-focus);
 }

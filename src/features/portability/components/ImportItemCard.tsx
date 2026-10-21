@@ -66,15 +66,13 @@ export function ImportItemCard({ item, preview, choices, onChange }: Props) {
   return (
     <li className={styles.card} data-skipped={decision === 'skip'} aria-label={item.name}>
       <header className={styles.cardHead}>
-        <Badge mono caps={false}>
-          {t(`portability.kind.${item.kind}`)}
-        </Badge>
+        <Badge mono>{t(`portability.kind.${item.kind}`)}</Badge>
         <h4 className={styles.name}>{item.name}</h4>
-        <Badge mono caps={false} tone={item.root ? 'accent' : 'neutral'}>
+        <Badge mono tone={item.root ? 'accent' : 'neutral'}>
           {t(item.root ? 'portability.item.chosen' : 'portability.item.needed')}
         </Badge>
         {item.existing && (
-          <Badge dot mono caps={false} tone={item.identical ? 'success' : 'warning'}>
+          <Badge dot mono tone={item.identical ? 'success' : 'warning'}>
             {t(item.identical ? 'portability.conflict.identical' : 'portability.conflict.name', {
               name: item.existing.name,
             })}

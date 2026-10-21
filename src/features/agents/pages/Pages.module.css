@@ -15,11 +15,11 @@
 .muted {
   margin: 0;
   color: var(--text-muted);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 .error {
   margin: 0;
-  color: var(--color-danger);
+  color: var(--danger);
 }
 
 .pageHeader {
@@ -47,7 +47,7 @@
   background: var(--surface-3);
   color: var(--info);
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-size: var(--font-size-2xs);
 }
 .subtitle {
   margin: 0;
@@ -94,7 +94,7 @@
 .crumb {
   color: var(--text-dim);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
 }
 
 /* The numbers of the catalogue as one quiet line, not four boxes. */

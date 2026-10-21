@@ -1,58 +1,174 @@
 .section {
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--surface-1);
+  min-width: 0;
 }
 .head {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-3);
-  padding-right: var(--space-4);
-  background: var(--surface-2);
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
-}
-.section:has(.body[hidden]) .head {
-  border-radius: var(--radius-md);
 }
 .title {
-  margin: 0;
+  flex: 1;
   min-width: 0;
-  font-size: var(--font-size-base);
+  margin: 0;
+  font-size: inherit;
   letter-spacing: 0;
 }
 .toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  width: 100%;
+  min-width: 0;
   border: 0;
   background: transparent;
   color: var(--text-high);
   font: inherit;
-  font-weight: 500;
+  text-align: left;
   cursor: pointer;
 }
-.toggle svg {
-  color: var(--text-dim);
-  transition: transform 0.15s ease;
+/* The whole header is the button: its hit area covers the row. */
+.toggle::after {
+  content: '';
+  position: absolute;
+  inset: 0;
 }
-.toggle[aria-expanded='false'] svg {
-  transform: rotate(-90deg);
+.toggle:focus-visible {
+  outline: none;
+}
+.toggle:focus-visible::after {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -2px;
+  border-radius: inherit;
+}
+.titleText {
+  font-weight: 600;
+}
+.summary {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .aside {
+  position: relative;
+  z-index: 1;
+  flex: none;
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-size: var(--font-size-2xs);
   text-align: right;
+}
+.chevron {
+  flex: none;
+  color: var(--text-dim);
+  transition: transform 0.15s ease;
 }
 .body {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-4);
-  border-top: 1px solid var(--border-subtle);
+  gap: var(--space-3);
+  min-width: 0;
 }
 .body[hidden] {
   display: none;
+}
+
+/* Card: a bordered block; closed, it is a single row with a chevron. */
+.section[data-variant='card'] {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+.section[data-variant='card'] .head {
+  min-height: 3.25rem;
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-md);
+}
+.section[data-variant='card'] .head:hover {
+  background: var(--surface-2);
+}
+.section[data-variant='card'] .titleText {
+  font-size: var(--font-size-md);
+  font-weight: 500;
+}
+.section[data-variant='card'] .chevron {
+  transform: rotate(-90deg);
+}
+.section[data-variant='card'][data-open='true'] .chevron {
+  transform: rotate(0deg);
+}
+.section[data-variant='card'] .body {
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Flat: one of several sections of an inspector, split by hairlines. */
+.section[data-variant='flat'] {
+  border-bottom: 1px solid var(--border-subtle);
+}
+.section[data-variant='flat'][data-open='true'] {
+  background: rgb(21 25 30 / 0.4);
+}
+.section[data-variant='flat'] .head {
+  padding: var(--space-3) var(--space-4);
+}
+.section[data-variant='flat'][data-open='false'] .head:hover {
+  background: var(--surface-1);
+}
+.section[data-variant='flat'] .head:hover .titleText {
+  color: var(--accent-soft);
+}
+.section[data-variant='flat'] .titleText {
+  font-size: var(--font-size-base);
+}
+.section[data-variant='flat'] .chevron {
+  transform: rotate(-90deg);
+}
+.section[data-variant='flat'][data-open='true'] .chevron {
+  transform: rotate(180deg);
+}
+.section[data-variant='flat'] .body {
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+/* Disclosure: a quiet link with a chevron, unfolding below. */
+.section[data-variant='disclosure'] .toggle {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+  width: auto;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+.section[data-variant='disclosure'] .toggle::after {
+  display: none;
+}
+.section[data-variant='disclosure'] .toggle:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+.section[data-variant='disclosure'] .titleText {
+  font-weight: 400;
+  text-decoration: underline;
+  text-decoration-color: var(--border-focus);
+  text-underline-offset: 4px;
+}
+.section[data-variant='disclosure'] .toggle:hover {
+  color: var(--text-high);
+}
+.section[data-variant='disclosure'] .chevron {
+  transform: rotate(-90deg);
+}
+.section[data-variant='disclosure'][data-open='true'] .chevron {
+  transform: rotate(0deg);
+}
+.section[data-variant='disclosure'] .body {
+  padding: var(--space-3) 0 0 var(--space-5);
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
 }

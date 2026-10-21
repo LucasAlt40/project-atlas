@@ -91,7 +91,7 @@ function PresetRow({
       <div className={styles.rowBetween}>
         <span className={styles.presetTitle}>
           <strong>{t(`integrations.preset.${preset.id}.name` as TranslationKey)}</strong>
-          <Badge mono caps={false} tone="danger">
+          <Badge mono tone="danger">
             {t('integrations.riskHigh')}
           </Badge>
         </span>

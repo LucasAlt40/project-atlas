@@ -14,7 +14,7 @@ const TONE: Record<Tone, BadgeTone> = {
 
 export function StatusBadge({ tone, children }: { tone: Tone; children: ReactNode }) {
   return (
-    <Badge dot mono caps={false} tone={TONE[tone]}>
+    <Badge dot mono tone={TONE[tone]}>
       {children}
     </Badge>
   );

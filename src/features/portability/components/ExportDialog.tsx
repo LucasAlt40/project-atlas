@@ -72,7 +72,7 @@ export function ExportDialog({ targets, title, onClose }: Props) {
   }
 
   return (
-    <Modal label={title} onClose={onClose} size="analyze">
+    <Modal label={title} onClose={onClose} size="md">
       <div className={styles.dialog}>
         <h2 className={styles.title}>{title}</h2>
         <p className={styles.muted}>{t('portability.export.intro')}</p>

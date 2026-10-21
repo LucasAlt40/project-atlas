@@ -19,19 +19,20 @@ interface Props {
   onNavigate: (id: string) => void;
   /** Shows and switches the current workspace; sits at the top of the sidebar. */
   workspaceSwitcher: ReactNode;
-  /** Shown in the footer of the sidebar (for example the runtime summary). */
+  /** Shown in the footer of the sidebar (the app name and version). */
   sidebarFooter?: ReactNode;
-  /** Shown at the end of the header (for example the language switch). */
+  /** Shown at the end of the header: the indicators, "Celular" and the language switch. */
   trailing?: ReactNode;
-  /** Where the person is: shown at the start of the header. */
-  breadcrumb?: { parent: string; current: string };
+  /** Where the person is, from the workspace down: the last level is the current one. */
+  breadcrumb?: readonly string[];
+  breadcrumbLabel?: string;
   children: ReactNode;
 }
 
 const COLLAPSED_KEY = 'atlas.sidebar.collapsed';
 
 /** Below this width the window has no room for the sidebar, unless the user chose otherwise. */
-const NARROW_QUERY = '(max-width: 899px)';
+const NARROW_QUERY = '(max-width: 1023px)';
 
 /** What the user chose for the sidebar, or `null` when they never did. */
 function readChoice(): boolean | null {
@@ -74,6 +75,7 @@ export function AppShell({
   sidebarFooter,
   trailing,
   breadcrumb,
+  breadcrumbLabel,
   children,
 }: Props) {
   const [choice, setChoice] = useState(readChoice);
@@ -89,17 +91,18 @@ export function AppShell({
       // The preference simply is not remembered.
     }
   }
+  const crumbs = breadcrumb ?? [];
   return (
     <div className={styles.shell} data-collapsed={collapsed}>
       <aside className={styles.rail}>
         <div className={styles.brandBar}>
           <span className={styles.brand}>
-            <AtlasLogo size={28} />
+            <AtlasLogo size={20} />
             <span className={styles.brandName}>Atlas</span>
           </span>
         </div>
         <div className={styles.switcherSlot}>{workspaceSwitcher}</div>
-        <nav aria-label={navLabel}>
+        <nav aria-label={navLabel} className={styles.navArea}>
           <ul className={styles.nav}>
             {items.map(({ id, label, icon }) => (
               <li key={id}>
@@ -113,7 +116,7 @@ export function AppShell({
                     onNavigate(id);
                   }}
                 >
-                  {icon && <Icon name={icon} />}
+                  {icon && <Icon name={icon} size={18} />}
                   <span className={styles.linkLabel}>{label}</span>
                 </button>
               </li>
@@ -134,15 +137,32 @@ export function AppShell({
           >
             <Icon name="panelLeft" size={18} />
           </button>
-          <div className={styles.crumb}>
-            {breadcrumb && (
-              <>
-                <span className={styles.crumbParent}>{breadcrumb.parent}</span>
-                <span className={styles.crumbSep}>/</span>
-                <strong className={styles.crumbCurrent}>{breadcrumb.current}</strong>
-              </>
-            )}
-          </div>
+          <span className={styles.headerRule} aria-hidden="true" />
+          {crumbs.length > 0 && (
+            <nav className={styles.crumb} aria-label={breadcrumbLabel}>
+              <ol className={styles.crumbList}>
+                {crumbs.map((level, index) => {
+                  const last = index === crumbs.length - 1;
+                  return (
+                    <li key={`${String(index)}-${level}`} className={styles.crumbItem}>
+                      {index > 0 && (
+                        <span className={styles.crumbSep} aria-hidden="true">
+                          /
+                        </span>
+                      )}
+                      {last ? (
+                        <strong className={styles.crumbCurrent} aria-current="page">
+                          {level}
+                        </strong>
+                      ) : (
+                        <span className={styles.crumbParent}>{level}</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            </nav>
+          )}
           <div className={styles.trailing}>{trailing}</div>
         </header>
         <main className={styles.main}>{children}</main>

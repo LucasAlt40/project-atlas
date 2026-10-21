@@ -67,15 +67,9 @@ export function PersonalityBrowser({
         <div className={styles.headText}>
           <h1 className={styles.title}>{t('personalities.title')}</h1>
           <div className={styles.chips}>
-            <Badge mono caps={false}>
-              {t('personalities.available', { n: personalities.length })}
-            </Badge>
-            <Badge mono caps={false}>
-              {t('personalities.customCount', { n: count('custom') })}
-            </Badge>
-            <Badge mono caps={false}>
-              {t('personalities.builtinCount', { n: count('builtin') })}
-            </Badge>
+            <Badge mono>{t('personalities.available', { n: personalities.length })}</Badge>
+            <Badge mono>{t('personalities.customCount', { n: count('custom') })}</Badge>
+            <Badge mono>{t('personalities.builtinCount', { n: count('builtin') })}</Badge>
           </div>
           <p className={styles.intro}>{t('personalities.intro')}</p>
         </div>
@@ -161,11 +155,11 @@ export function PersonalityBrowser({
           label={editing ? t('personalities.panel.edit') : t('personalities.form.new')}
           onClose={closePanel}
           placement="side"
-          size="drawer"
+          size="md"
         >
           <h2 className={styles.panelHeading}>
             {editing ? t('personalities.panel.edit') : t('personalities.form.new')}
-            <Badge mono caps={false} dot tone={editing?.source === 'builtin' ? 'info' : 'policy'}>
+            <Badge mono dot tone={editing?.source === 'builtin' ? 'info' : 'policy'}>
               {t(
                 editing?.source === 'builtin'
                   ? 'personalities.source.builtin'

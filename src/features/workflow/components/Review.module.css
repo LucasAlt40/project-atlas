@@ -31,7 +31,7 @@
   background: var(--surface-3);
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.625rem;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   letter-spacing: 0.06em;
 }
@@ -57,7 +57,7 @@
   list-style: none;
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 .stats li[data-alert='true'] {
   color: var(--danger);
@@ -94,7 +94,7 @@
   border: 1px solid var(--warning);
   border-radius: var(--radius-sm);
   color: var(--text-standard);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 
 .section {
@@ -120,7 +120,7 @@
   margin-left: auto;
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 .sectionBody {
   padding: 0 var(--space-4) var(--space-4);
@@ -171,7 +171,7 @@
 .stepMeta {
   margin: var(--space-1) 0;
   color: var(--text-muted);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 .status,
 .outcome,
@@ -180,7 +180,7 @@
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-size: var(--font-size-2xs);
 }
 .status[data-status='completed'],
 .status[data-addressed='true'] {
@@ -194,7 +194,7 @@
 .trailNote {
   margin: var(--space-1) 0 0;
   color: var(--text-muted);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 
 .findings,

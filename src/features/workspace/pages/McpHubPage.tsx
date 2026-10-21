@@ -425,7 +425,7 @@ function Hub({ workspaceId }: { workspaceId: string }) {
           {dialog === 'add' && (
             <Modal
               label={t('hub.add.title')}
-              size="wide"
+              size="lg"
               onClose={() => {
                 setDialog(null);
               }}
@@ -445,7 +445,7 @@ function Hub({ workspaceId }: { workspaceId: string }) {
           {dialog === 'config' && (
             <Modal
               label={t('hub.config.title')}
-              size="analyze"
+              size="md"
               onClose={() => {
                 setDialog(null);
               }}
@@ -462,7 +462,7 @@ function Hub({ workspaceId }: { workspaceId: string }) {
           {dialog === 'sync' && (
             <Modal
               label={t('hub.sync.title')}
-              size="wide"
+              size="lg"
               onClose={() => {
                 setDialog(null);
               }}

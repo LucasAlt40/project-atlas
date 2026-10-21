@@ -26,7 +26,7 @@ export function PanelSection({
       {...(tag
         ? {
             aside: (
-              <Badge dot mono caps={false} tone={tone}>
+              <Badge dot mono tone={tone}>
                 {tag}
               </Badge>
             ),

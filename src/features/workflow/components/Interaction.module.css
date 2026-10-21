@@ -21,7 +21,7 @@
 .reason {
   margin: 0;
   color: var(--text-muted);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 .question {
   margin: 0;
@@ -45,7 +45,7 @@
 }
 .context {
   color: var(--text-muted);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 .context p {
   margin: var(--space-1) 0 0;
@@ -69,7 +69,7 @@
 .note {
   margin: 0;
   color: var(--text-muted);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 .error {
   margin: 0;
@@ -135,7 +135,7 @@
 }
 .indicatorMeta {
   color: var(--text-muted);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 
 /* A plan awaiting approval: the plan is the point, so it gets the room */

@@ -49,7 +49,7 @@ export function SandboxSettings() {
   return (
     <div className={styles.stack}>
       <p className={styles.availability} data-available={status.available}>
-        <Badge dot mono caps={false} tone={status.available ? 'success' : 'warning'}>
+        <Badge dot mono tone={status.available ? 'success' : 'warning'}>
           {t(status.available ? 'settings.sandbox.available' : 'settings.sandbox.unavailable')}
         </Badge>
       </p>

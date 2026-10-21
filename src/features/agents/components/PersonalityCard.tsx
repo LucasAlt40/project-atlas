@@ -82,7 +82,7 @@ export function PersonalityCard({
         <h3 id={headingId} className={styles.name}>
           {personality.name}
         </h3>
-        <Badge mono caps={false} dot tone={personality.source === 'builtin' ? 'info' : 'policy'}>
+        <Badge mono dot tone={personality.source === 'builtin' ? 'info' : 'policy'}>
           {t(`personalities.source.${personality.source}`)}
         </Badge>
         <button

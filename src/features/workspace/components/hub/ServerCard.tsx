@@ -23,7 +23,7 @@ const STATUS_TONE: Record<HubStatus, BadgeTone> = {
 export function StatusPill({ status }: { status: HubStatus }) {
   const { t } = useI18n();
   return (
-    <Badge dot mono caps={false} tone={STATUS_TONE[status]}>
+    <Badge dot mono tone={STATUS_TONE[status]}>
       {t(`hub.status.${status}` as TranslationKey)}
     </Badge>
   );
@@ -117,11 +117,9 @@ export function ServerCard({
           onClick={onSelect}
         >
           <strong className={styles.cardNameText}>{connection.name}</strong>
-          <Badge mono caps={false}>
-            {kind}
-          </Badge>
+          <Badge mono>{kind}</Badge>
           {connection.required && (
-            <Badge mono caps={false} tone="warning">
+            <Badge mono tone="warning">
               {t('integrations.required')}
             </Badge>
           )}

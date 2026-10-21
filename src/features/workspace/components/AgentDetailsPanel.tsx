@@ -62,7 +62,7 @@ export function AgentDetailsPanel({
       label={t('workspace.agentDetails', { name: agent.name })}
       onClose={onClose}
       placement="side"
-      size="drawer"
+      size="md"
     >
       <header className={styles.header}>
         <p className={styles.idLine}>

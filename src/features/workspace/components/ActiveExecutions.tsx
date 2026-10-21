@@ -6,7 +6,7 @@ import { formatDuration } from '@/features/usage/model/format';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useWorkspace } from '../hooks/WorkspaceProvider';
 import { agentStatus } from '../model/agentStatus';
-import styles from './Inspector.module.css';
+import { HeaderChip, headerPopover } from '@/components/layout/HeaderChip';
 
 /**
  * Always in the header while any agent is running, in any workspace. Lists each run with what
@@ -51,30 +51,27 @@ export function ActiveExecutions() {
   if (items.length === 0) return null;
 
   return (
-    <div className={styles.active} ref={root}>
-      <button
-        type="button"
-        className={styles.activeButton}
+    <div className={headerPopover.root} ref={root}>
+      <HeaderChip
+        tone="running"
+        count={items.length}
         aria-haspopup="true"
         aria-expanded={open}
         onClick={() => {
           setOpen((value) => !value);
         }}
       >
-        <span className={styles.dot} aria-hidden="true">
-          ●
-        </span>
         {items.length === 1
           ? t('active.summaryOne')
           : t('active.summaryMany', { count: items.length })}
-      </button>
+      </HeaderChip>
       {open && (
-        <ul className={styles.activePanel} aria-label={t('active.title')}>
+        <ul className={headerPopover.list} aria-label={t('active.title')}>
           {items.map(({ key, run, agent, owner, status }) => (
             <li key={key}>
               <button
                 type="button"
-                className={styles.activeItem}
+                className={headerPopover.item}
                 aria-label={t('active.open', { agent: agent.name, workspace: owner.name })}
                 onClick={() => {
                   setOpen(false);
@@ -87,7 +84,7 @@ export function ActiveExecutions() {
                 }}
               >
                 <span>{agent.name}</span>
-                <span className={styles.activeMeta}>
+                <span className={headerPopover.meta}>
                   {t(`agent.status.${status}`)} · {formatDuration(now - run.startedAt)} ·{' '}
                   {owner.name}
                 </span>

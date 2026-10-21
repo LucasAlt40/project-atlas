@@ -65,14 +65,29 @@ const PATHS = {
   chevronUp: 'm6 15 6-6 6 6',
   arrowRight: 'M5 12h14M13 6l6 6-6 6',
   play: 'M7 4l13 8-13 8z',
+  chat: 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5',
+  history: 'M3 12a9 9 0 1 0 3-6.7M3 4v4h4M12 7v5l3 2',
+  terminal: 'M4 5h16v14H4zM7 9l3 3-3 3M12 15h5',
+  info: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v6M12 7.5h.01',
+  collapseAll: 'm8 4 4 4 4-4M8 20l4-4 4 4M4 12h16',
+  minus: 'M5 12h14',
 } as const;
 
 export type IconName = keyof typeof PATHS;
 
 /** A small stroke icon. Decorative: the label next to it carries the meaning. */
-export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
+export function Icon({
+  name,
+  size = 16,
+  className,
+}: {
+  name: IconName;
+  size?: number;
+  className?: string | undefined;
+}) {
   return (
     <svg
+      {...(className ? { className } : {})}
       width={size}
       height={size}
       viewBox="0 0 24 24"

@@ -145,7 +145,7 @@
 .help {
   margin: 0;
   color: var(--text-dim);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   line-height: 1.5;
 }
 

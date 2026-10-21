@@ -54,7 +54,7 @@ export function FinalReview(props: Props) {
       <section className={styles.panel} aria-label={t('specs.final.readiness')}>
         <header className={styles.readinessHead}>
           <h3>{t('specs.final.readiness')}</h3>
-          <Badge dot mono caps={false} tone={view.readiness.ready ? 'success' : 'warning'}>
+          <Badge dot mono tone={view.readiness.ready ? 'success' : 'warning'}>
             {view.readiness.ready ? t('specs.final.ready') : t('specs.final.notReady')}
           </Badge>
           <Button variant="ghost" disabled={busy} onClick={props.onRevalidate}>

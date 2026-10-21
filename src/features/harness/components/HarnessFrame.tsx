@@ -37,7 +37,7 @@ export function HarnessFrame({
   const t = useT();
   if (presentation === 'modal') {
     return (
-      <Modal label={label} onClose={onClose} size={size}>
+      <Modal label={label} onClose={onClose} size={size === 'wide' ? 'lg' : 'md'}>
         {children}
       </Modal>
     );

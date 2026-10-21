@@ -27,9 +27,8 @@ export function MobileAccessButton() {
           setOpen(true);
         }}
       >
-        <Icon name="phone" size={14} />
-        {t('remote.button')}
-        <span className={styles.dot} data-state={state} aria-hidden="true" />
+        <Icon name="phone" size={15} />
+        <span className={styles.buttonText}>{t('remote.button')}</span>
         <span className={styles.srOnly}>{t(`remote.state.${state}`)}</span>
         {waiting > 0 && <span className={styles.badge}>{waiting}</span>}
       </button>

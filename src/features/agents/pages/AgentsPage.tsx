@@ -92,9 +92,7 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
           <div className={styles.headerText}>
             <div className={styles.titleRow}>
               <h1 className={styles.title}>{t('agents.title')}</h1>
-              <Badge mono caps={false}>
-                {t('agents.count', { n: agents.length })}
-              </Badge>
+              <Badge mono>{t('agents.count', { n: agents.length })}</Badge>
             </div>
             <p className={styles.subtitle}>{t('agents.subtitle')}</p>
           </div>
