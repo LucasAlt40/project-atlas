@@ -39,13 +39,14 @@ Um runtime é o adaptador de uma CLI (`trait ModelRuntime`: `info()`, `detect()`
 Adicionar um runtime = um arquivo em `application/runtimes/` + uma linha em `RuntimeRegistry::with_default_runtimes`;
 nada em agentes, prompt, execuções, comandos ou UI muda. **Nenhum código ramifica pelo nome do runtime.**
 
-| Runtime     | Programa   | Como executa (leitura)                                                                                                | Como habilita edição (`allow_edits`)                 | Modelos                                             |
-| ----------- | ---------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | --------------------------------------------------- |
-| Claude CLI  | `claude`   | `-p --output-format stream-json --verbose --include-partial-messages --tools Read,Grep,Glob --no-session-persistence` | `--tools …,Edit,Write --permission-mode acceptEdits` | sem listagem; usuário informa (alias como `sonnet`) |
-| OpenCode    | `opencode` | `opencode run --agent plan -m <modelo> --format json`                                                                 | `--agent build`                                      | `opencode models`                                   |
-| Gemini CLI  | `gemini`   | `--output-format stream-json --approval-mode default --skip-trust --prompt=…`                                         | `--approval-mode auto_edit`                          | sem listagem                                        |
-| Antigravity | `agy`      | `--output-format stream-json --model <id> --prompt=…`                                                                 | `--mode accept-edits`                                | `agy models`                                        |
-| Codex       | `codex`    | `exec --json --ephemeral --skip-git-repo-check --sandbox read-only --model <id> -- <prompt>`                          | `--sandbox workspace-write`                          | `codex debug models` (só `visibility: "list"`)      |
+| Runtime     | Programa   | Como executa (leitura)                                                                                                   | Como habilita edição (`allow_edits`)                 | Modelos                                             |
+| ----------- | ---------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- | --------------------------------------------------- |
+| Claude CLI  | `claude`   | `-p --output-format stream-json --verbose --include-partial-messages --tools Read,Grep,Glob --no-session-persistence`    | `--tools …,Edit,Write --permission-mode acceptEdits` | sem listagem; usuário informa (alias como `sonnet`) |
+| OpenCode    | `opencode` | `opencode run --agent plan -m <modelo> --format json`                                                                    | `--agent build`                                      | `opencode models`                                   |
+| Gemini CLI  | `gemini`   | `--output-format stream-json --approval-mode default --skip-trust --prompt=…`                                            | `--approval-mode auto_edit`                          | sem listagem                                        |
+| Antigravity | `agy`      | `--output-format stream-json --model <id> --prompt=…`                                                                    | `--mode accept-edits`                                | `agy models`                                        |
+| Codex       | `codex`    | `exec --json --ephemeral --skip-git-repo-check --sandbox read-only --model <id> -- <prompt>`                             | `--sandbox workspace-write`                          | `codex debug models` (só `visibility: "list"`)      |
+| Copilot     | `copilot`  | `--prompt=… --output-format json --no-ask-user --no-auto-update --disable-builtin-mcps --disallow-temp-dir --model <id>` | `--allow-tool=write`                                 | `copilot --acp` (modelos da conta)                  |
 
 Regras comuns:
 
@@ -55,7 +56,8 @@ Regras comuns:
   Em Windows `.cmd` com prompt multilinha cai para pipes (sem terminal ao vivo).
 - Claude: sessão vem de `claude auth status`. Gemini encerrou a CLI para contas individuais (`IneligibleTierError`) →
   reportado como indisponível apontando ao Antigravity. Antigravity não tem flag para restringir ferramentas
-  (`text_only` desligado).
+  (`text_only` desligado). Copilot não tem comando de status de login: a falta de login aparece na execução
+  (`AuthenticationRequired`); shell fica sempre negado ([ADR 0039](../architecture/adr/0039-github-copilot-cli.md)).
 - Erros viram `RuntimeError` normalizado (não instalado, indisponível, autenticação, modelo, timeout, execução falhou,
   pedido inválido, resposta inesperada) → uma execução _failed_ com mensagem ao usuário e detalhe técnico opcional.
 - `RuntimeCapabilities` descreve o que o runtime pode (`fileEdit`, `interactiveTerminal`, `interrupt`, `terminalInput`,

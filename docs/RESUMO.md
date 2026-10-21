@@ -10,14 +10,17 @@ agente escreva muda permissões, rotas, aprovações ou política.
 
 ## Quem usa o quê
 
-| Peça                  | Usa / é                                                                                                                  | Detalhe                                    |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ |
-| Agente                | personalidade + runtime + modelo + instruções + perfil de permissão + isolamento (ligado) + contrato de resultado        | [02](guia/02-agentes-runtimes-e-prompt.md) |
-| Modelo de IA          | Acessado por **CLI local** já logada pelo usuário: `claude`, `opencode`, `codex`, `gemini`, `agy`. **Sem chave de API.** | [02](guia/02-agentes-runtimes-e-prompt.md) |
-| Frontend              | React/TS; só chama **comandos Tauri** com allow-list; nunca toca disco/processo/Git/rede                                 | [01](guia/01-visao-geral-e-arquitetura.md) |
-| Core                  | Rust em camadas `commands → application → domain`; adaptadores nas bordas; wiring só em `lib.rs`                         | [01](guia/01-visao-geral-e-arquitetura.md) |
-| Personalidades        | Architect, Developer, QA, Architecture & Code Validator (somente leitura), Bug Fixer — editáveis; dá para criar outras   | [02](guia/02-agentes-runtimes-e-prompt.md) |
-| Código escrito por IA | Só em **worktree Git isolado**, nunca no checkout; o usuário decide se entra no projeto                                  | [05](guia/05-seguranca-e-isolamento.md)    |
+| Peça                  | Usa / é                                                                                                                                | Detalhe                                     |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| Agente                | personalidade + runtime + modelo + instruções + perfil de permissão + isolamento (ligado) + contrato de resultado                      | [02](guia/02-agentes-runtimes-e-prompt.md)  |
+| Modelo de IA          | Acessado por **CLI local** já logada pelo usuário: `claude`, `opencode`, `codex`, `gemini`, `agy`, `copilot`. **Sem chave de API.**    | [02](guia/02-agentes-runtimes-e-prompt.md)  |
+| Frontend              | React/TS; só chama **comandos Tauri** com allow-list; nunca toca disco/processo/Git/rede                                               | [01](guia/01-visao-geral-e-arquitetura.md)  |
+| Core                  | Rust em camadas `commands → application → domain`; adaptadores nas bordas; wiring só em `lib.rs`                                       | [01](guia/01-visao-geral-e-arquitetura.md)  |
+| Personalidades        | Architect, Spec Architect, Developer, QA, Architecture & Code Validator (somente leitura), Bug Fixer — editáveis; dá para criar outras | [02](guia/02-agentes-runtimes-e-prompt.md)  |
+| Código escrito por IA | Só em **worktree Git isolado**, nunca no checkout; o usuário decide se entra no projeto                                                | [05](guia/05-seguranca-e-isolamento.md)     |
+| Specs (SDD)           | Especificação escrita por agentes e **aprovada pela pessoa** antes do workflow (formato OpenSpec)                                      | [09](guia/09-specs-sdd.md)                  |
+| Memória               | Lições curtas entre sessões, propostas pelo agente e decididas pela pessoa; **desligada por padrão**                                   | [ADR 0037](architecture/adr/0037-memory.md) |
+| Celular               | Acompanhar e responder execuções pelo navegador do celular, na rede local; desligado até a pessoa ligar                                | [08](guia/08-acesso-pelo-celular.md)        |
 
 ## Como o prompt é montado (sempre pelo `PromptBuilder`)
 
@@ -42,9 +45,9 @@ protocolos). O texto exato fica guardado em cada execução. → [02](guia/02-ag
 
 ## Como o contexto do projeto é gerado e usado (Harness)
 
-1. **Escanear** (só leitura; nada executado; `.env` nunca lido) → 2. **Analisar** por regras (fatos com evidência) →
-2. _(opcional)_ **análise semântica** por modelo **sem ferramentas** → 4. **checar contradições** →
-3. **revisão humana obrigatória** → 6. gravar em **`.atlas/`** dentro do projeto (backup antes de substituir).
+**Escanear** (só leitura; nada executado; `.env` nunca lido) → **analisar** por regras (fatos com evidência) →
+_(opcional)_ **análise semântica** por modelo **sem ferramentas** → **checar contradições** → **revisão humana
+obrigatória** → gravar em **`.atlas/`** dentro do projeto (backup antes de substituir).
 
 - Cada afirmação: `fact` / `inference` / `user_*`, com **evidência**, confiança e verificação. Modelo nunca passa de
   confiança média. **Desconhecido > inventado.**
@@ -89,8 +92,9 @@ commit-base, nunca o que o agente "diz"). → [04](guia/04-workflow.md)
 3. Todo processo passa pelo **guard**: sem shell, sem launchers, sem env perigosa, cwd dentro do projeto/worktree.
 4. Aprovação só pelo **usuário** na UI (timeout 5 min = rejeitado).
 5. Editar arquivos exige **runtime capaz + política permite + worktree isolado** — os três.
-6. Agentes **não rodam shell, testes nem rede** (ainda).
-7. Terminal ao vivo (PTY) é controle (Ctrl+C / terminar), não sandbox; **não há sandbox de SO**.
+6. Agentes **não rodam shell nem testes** (ainda); fora do modelo, só alcançam o que a pessoa concede como conexão MCP.
+7. Terminal ao vivo (PTY) é controle (Ctrl+C / terminar), não sandbox. Sandbox de SO só no **macOS**, **desligado por
+   padrão** (ADR 0038).
 8. Nenhum comando Tauri aceita programa, caminho ou aprovação do webview.
 
 → [05](guia/05-seguranca-e-isolamento.md)
@@ -103,7 +107,8 @@ commit-base, nunca o que o agente "diz"). → [04](guia/04-workflow.md)
 | Conhecimento do projeto                          | `<projeto>/.atlas/`                                   | Versionável; arquivos do usuário nunca sobrescritos            |
 | Worktrees                                        | `<app data>/worktrees/<workspace>/exec-NNNNNN`        | Fora do projeto; branch `atlas/exec-NNNNNN`                    |
 | Saída de terminal                                | só memória (512 KiB/sessão)                           | Nunca em disco                                                 |
-| Segredos                                         | em lugar nenhum                                       | Auth = sessão da CLI                                           |
+| Segredos de conexões MCP                         | cofre de credenciais do SO                            | Nunca em `config.json`; auth dos modelos = sessão da CLI       |
+| Memórias                                         | `<app data>/memory/`                                  | Nunca dentro do projeto                                        |
 
 Uso/custo **nunca inventados** (`null` ≠ `0`; fonte sempre marcada). Tokens que o Atlas calcula são **estimativas**
 (`chars/4`). Métricas de prompt/latência (fase 0) são **só observação** e não alteram o prompt. → [06](guia/06-persistencia-eventos-e-observabilidade.md)

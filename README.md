@@ -15,7 +15,7 @@ Tauri 2 · Rust · React · TypeScript · Vite
 - Node.js 22.12 ou superior (veja `.nvmrc`)
 - Rust 1.90 ou superior
 - [Dependências do Tauri](https://v2.tauri.app/start/prerequisites/) para o seu sistema operacional
-- Opcional: CLIs de IA já instaladas na máquina (OpenCode, Claude)
+- Opcional: CLIs de IA já instaladas na máquina (OpenCode, Claude, Codex, Gemini/Antigravity, GitHub Copilot)
 
 ## Como rodar
 
@@ -36,7 +36,7 @@ Linux `.AppImage`/`.deb`). Cada release traz um `SHA256SUMS.txt` para conferir o
 - **Windows:** no aviso do SmartScreen, clique em "Mais informações" → "Executar assim mesmo".
 - **Linux:** `chmod +x Project-Atlas*.AppImage` e execute.
 
-O Atlas procura as CLIs de IA (OpenCode, Claude, Codex, Gemini) no `PATH` e nos diretórios usuais
+O Atlas procura as CLIs de IA (OpenCode, Claude, Codex, Gemini, Antigravity, GitHub Copilot) no `PATH` e nos diretórios usuais
 (`~/.local/bin`, `~/.npm-global/bin`, `~/.cargo/bin`, Homebrew). Instale ao menos uma delas e faça login
 nela antes de criar agentes.
 

@@ -6,7 +6,7 @@
 
 Aplicativo desktop (Tauri 2) que **orquestra agentes de IA em projetos de desenvolvimento**. O Atlas não é um modelo
 nem um agente: é o **controlador** que decide _o que roda, onde roda, com que contexto e com que permissão_. Os
-modelos (Claude, OpenCode, Gemini, Antigravity) são acessados por **CLIs já instaladas na máquina do usuário**; o Atlas
+modelos (Claude, OpenCode, Codex, Gemini, Antigravity, GitHub Copilot) são acessados por **CLIs já instaladas na máquina do usuário**; o Atlas
 nunca pede chave de API (autenticação = a sessão que o usuário já tem na CLI).
 
 Princípio que atravessa tudo:

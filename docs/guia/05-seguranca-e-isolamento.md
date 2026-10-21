@@ -2,14 +2,17 @@
 
 > Parte do [guia do Atlas](README.md). ADRs: [0003](../architecture/adr/0003-command-permissions.md),
 > [0007](../architecture/adr/0007-live-shell-and-process-control.md),
-> [0009](../architecture/adr/0009-git-worktree-isolation.md).
+> [0009](../architecture/adr/0009-git-worktree-isolation.md), [0038](../architecture/adr/0038-macos-sandbox.md) (sandbox do macOS).
 > Nota: vários ADRs citam um "ADR 0006" (modelo de segurança/sandbox) que **não existe** em `docs/architecture/adr/`;
 > o comportamento descrito abaixo vem do código (`application/security/`) e dos demais ADRs.
 
-Princípio: **privilégio mínimo por padrão; texto de modelo nunca é autorização.** O Atlas é uma _fronteira de política_,
-**não um sandbox de SO**: ele controla o que **inicia** e o que a política permite, mas não consegue impedir o que as
-ferramentas internas de uma CLI fazem dentro do próprio processo (ex.: um agente que escreve em caminho absoluto fora do
-worktree não é parado pelo Atlas — o prompt só deixa de revelar o caminho do checkout).
+Princípio: **privilégio mínimo por padrão; texto de modelo nunca é autorização.** O Atlas é uma _fronteira de política_:
+ele controla o que **inicia** e o que a política permite, mas sozinho não consegue impedir o que as ferramentas internas
+de uma CLI fazem dentro do próprio processo (ex.: um agente que escreve em caminho absoluto fora do worktree não é parado
+pelo guard — o prompt só deixa de revelar o caminho do checkout). No macOS, o **sandbox dos runtimes**
+([ADR 0038](../architecture/adr/0038-macos-sandbox.md), **desligado por padrão**) fecha parte disso: o processo inteiro da
+CLI roda sob um perfil do sistema que só deixa escrever no worktree e nas pastas da própria CLI e nega a leitura dos
+cofres de credenciais.
 
 ## 1. Fronteira webview ↔ core
 
@@ -18,7 +21,8 @@ worktree não é parado pelo Atlas — o prompt só deixa de revelar o caminho d
   permissão quebra a CI.
 - **Nenhum comando aceita programa, linha de comando, caminho de pasta de trabalho ou aprovação vindos do webview.**
   Controle de processo nomeia `workspaceId` + `agentId` + `executionId`; o core revalida os três.
-- Segredos nunca vão em `config.json` (futuro: credential store do SO atrás de um port).
+- Segredos nunca vão em `config.json`. Os segredos de conexões MCP ficam no **cofre de credenciais do SO** (Keychain,
+  Credential Manager, Secret Service) atrás da porta `CredentialStore` (`infrastructure/credential_store.rs`).
 - **Toda regravação de arquivo passa por `infrastructure/atomic_file.rs`**: temporário oculto criado com `create_new`
   (um symlink plantado no nome do temporário é removido, nunca seguido), `fsync` antes do `rename`, permissões do
   arquivo anterior preservadas (um script continua executável, um arquivo privado continua privado) e limpeza em caso
@@ -55,7 +59,8 @@ máximo global do Atlas  ∩  política do workspace  ∩  perfil de permissão 
 2. avalia o pedido (`evaluator`);
 3. grava a decisão no **log de auditoria** (por execução);
 4. se "exige aprovação", **estaciona** a execução até o **usuário** responder na UI (ou 5 minutos → rejeitado);
-5. só então repassa programa+argumentos **inalterados** ao runner interno, via hook de sandbox (`NoSandbox` hoje).
+5. só então repassa programa+argumentos **inalterados** ao runner interno, via o provedor de sandbox (`NoSandbox` por padrão e fora do macOS; no macOS com o sandbox ligado, `sandbox-exec` com um
+   perfil gerado — ADR 0038).
 
 Negado/não aprovado = o runner interno **nunca é chamado**. Regras que valem para qualquer processo:
 
@@ -138,12 +143,18 @@ controle, não sandbox**: controla um processo que o guard já autorizou e **nã
   últimas **8** sessões encerradas; **nada é persistido** em `config.json`.
 - **Ao fechar o Atlas**: pergunta se há agentes rodando (cancelar e sair / manter aberto); ao encerrar, os processos
   dos agentes terminam junto (até 4 s). Se o Atlas for morto, o kernel faz hangup nos filhos.
-- Validado em macOS com as CLIs reais (testes opt-in: `cargo test real_ -- --ignored --nocapture --test-threads=1`).
+- Validado em macOS com as CLIs reais (testes opt-in, `#[ignore]`). Rode **um teste por nome exato**
+  (`cargo test <nome> -- --ignored --exact --nocapture`), nunca um filtro amplo como `real_`: ele chama modelos pagos de
+  todas as CLIs.
 
 ## 6. Limites conhecidos (resumo honesto)
 
-- Não há sandbox de SO (`sandbox.rs` é só o ponto de encaixe). As ferramentas internas de uma CLI não são contidas.
-- Agentes ainda **não rodam shell, testes ou rede**; só leem e (se permitido) editam arquivos no worktree.
+- Sandbox de SO só no macOS e **desligado por padrão** (Configurações → "Sandbox dos runtimes": `off`/`auto`/`required`).
+  Com ele desligado, ou no Windows e Linux, as ferramentas internas de uma CLI não são contidas. Mesmo ligado, a rede de
+  saída continua aberta e o worktree inteiro é gravável (ADR 0038, "O que isto não faz").
+- Agentes ainda **não rodam shell nem testes**; leem e (se permitido) editam arquivos no worktree e só usam as conexões
+  MCP que a pessoa concedeu ao workspace ou ao passo ([ADR 0028](../architecture/adr/0028-mcp-foundation.md),
+  [ADR 0029](../architecture/adr/0029-mcp-for-every-runtime.md)).
 - Windows não foi compilado/executado; Linux não foi executado.
 - Submódulos e layouts incomuns de worktree não têm tratamento específico.
 - Um worktree por execução é um checkout completo (chat isolado somente leitura paga esse custo; worktree sem mudanças

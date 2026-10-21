@@ -12,7 +12,8 @@
 | Conhecimento do projeto (Harness)                         | `<projeto>/.atlas/`                              | Versionável no Git do projeto; ver [03](03-harness-e-contexto.md) |
 | Worktrees de execução / de run                            | `<app data>/worktrees/<workspaceId>/exec-NNNNNN` | Fora do projeto; ver [05](05-seguranca-e-isolamento.md)           |
 | Saída bruta de terminal                                   | **Memória** (últimos 512 KiB/sessão, 8 sessões)  | Nunca vai para o disco                                            |
-| Segredos / chaves                                         | **Em lugar nenhum**                              | Auth = sessão da CLI do usuário                                   |
+| Segredos de conexões MCP                                  | **Cofre de credenciais do SO**                   | Nunca em `config.json`; auth dos modelos = sessão da CLI          |
+| Memórias (ADR 0037)                                       | `<app data>/memory/`                             | Nunca dentro do projeto                                           |
 
 ### `config.json` (`UserConfig`)
 
@@ -125,6 +126,4 @@ byte a byte).
 
 ## Dívidas de documentação já identificadas
 
-- `docs/architecture/README.md` ainda diz "Conversations are in memory" e "No streaming yet" — o histórico persiste
-  desde a V0.6 (ADR 0008) e há streaming de progresso/saída.
 - ADR 0006 (segurança/sandbox) é citado por vários ADRs mas não está no repositório.

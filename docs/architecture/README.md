@@ -109,7 +109,7 @@ WorkspacePage → WorkspaceProvider / useCatalog → serviços da funcionalidade
   com uma mensagem para o usuário e detalhes técnicos opcionais.
 - **Resultados**: uma `Execution` registra `runtimeId`, `modelId`, o prompt exato, o resultado ou a falha, e `metadata`
   informada pelo runtime (duração, custo…); a UI lê apenas esse formato normalizado.
-- **Progresso**: veja "Workspace" abaixo. Ainda sem streaming.
+- **Progresso**: veja "Workspace" abaixo (progresso e texto da resposta chegam em streaming).
 - **Persistência**: personalidades personalizadas e agentes vivem em `config.json` no diretório de dados do app
   (gravações atômicas; um arquivo ilegível é posto de lado, não sobrescrito). Agentes salvos antes da V0.3 com um
   `providerId` ainda carregam. Conversas e execuções encerradas também são persistidas (V0.6,
@@ -258,14 +258,15 @@ Global (sobrevive a todo workspace)       Por workspace
   (`features/workspace/model/grid.ts`), não uma regra de domínio.
 - **Persistência.** Workspaces, configurações (`language`, `selectedWorkspaceId`) e o registro de uso ficam no mesmo
   `config.json` das personalidades e agentes (porta `ConfigStore`, gravações atômicas, sem banco de dados). Nenhum
-  segredo é guardado ali (chaves de API usarão o armazenamento de credenciais do SO). As conversas ficam em memória.
+  segredo é guardado ali (os segredos de conexões MCP ficam no cofre de credenciais do SO). As conversas são persistidas
+  desde a V0.6 (ADR 0008).
 - **Pasta do projeto.** Escolhida com o seletor nativo (`tauri-plugin-dialog`, concedido apenas como
   `dialog:allow-open`), revalidada pelo núcleo (`ProjectInspector::is_directory`). Selecionar uma pasta apenas registra
   o seu caminho: nada é lido, indexado ou enviado. `ProjectInspector::technologies` olha os **nomes de arquivo do nível
   superior** (mais os nomes das dependências no `package.json`) e reconhece Git, Node.js, TypeScript, Angular, React,
   Vue, Svelte, Next.js, Rust, Tauri, .NET, Maven, Gradle, Go, Python, Docker, PHP, Ruby, Dart. Nenhum modelo é
   envolvido. O `PromptBuilder` recebe o nome, o caminho e as tecnologias detectadas do projeto como metadados de
-  `ProjectContext`. Ainda não há imposição de permissões nem sandbox.
+  `ProjectContext`. Permissões e sandbox vieram depois (ADR 0003 e ADR 0038).
 - **Conversas e execução são indexadas por workspace e agente** (`Message.workspaceId`, `ExecutionEvent.workspaceId`,
   trava de ocupado por workspace × agente). O mesmo agente em dois workspaces tem conversas separadas e pode rodar nos
   dois ao mesmo tempo. `ChatService::send` registra a mensagem do usuário e retorna de imediato; a execução acontece em
@@ -422,5 +423,8 @@ ou um estado compartilhado precise deles.
 - [0032 — Compartilhar configurações como arquivo](adr/0032-configuration-import-export.md) — JSON versionado; prévia, decisões e uma importação de tudo ou nada
 - [0033 — Workspaces com vários projetos](adr/0033-multi-project-workspaces.md) — Harness local por projeto mais um contexto do workspace; escopo, worktrees, migração
 - [0034 — Acesso pelo celular](adr/0034-mobile-remote-access.md) — um celular na rede local acompanha execuções e responde o que espera; pareamento, níveis de ação, SSE com cursor, limites do HTTP
-- [0036 — Custo do SDD](adr/0036-custo-do-sdd.md) — consumo por spec medido, limite de tokens, alteração por seções, revisão que sabe o que mudou; o que ainda não foi feito
 - [0035 — Specs (SDD)](adr/0035-spec-driven-development.md) — especificação escrita por agentes e aprovada pela pessoa antes do workflow; OpenSpec como primeiro formato, motor interno, validação em duas camadas, publicação segura, CLI opcional
+- [0036 — Custo do SDD](adr/0036-custo-do-sdd.md) — consumo por spec medido, limite de tokens, alteração por seções, revisão que sabe o que mudou; o que ainda não foi feito
+- [0037 — Memória](adr/0037-memory.md) — lições curtas entre sessões, propostas pelo agente e decididas pela pessoa; escopos usuário/workspace/agente, desligada por padrão; M1–M3 feitas, M4 pendente
+- [0038 — Sandbox do macOS para os runtimes](adr/0038-macos-sandbox.md) — o processo inteiro da CLI sob um perfil do sistema; `off`/`auto`/`required`, desligado por padrão; o que não confina
+- [0039 — GitHub Copilot CLI como runtime](adr/0039-github-copilot-cli.md) — sexto runtime: execução, permissões, MCP e modelos medidos com o CLI real; limites conhecidos
