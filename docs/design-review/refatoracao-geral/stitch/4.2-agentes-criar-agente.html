@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atlas — Criar agente</title>
+
+  <!-- Google Fonts: Geist & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Material Symbols Outlined -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            surface: '#0b0d10',
+            'surface-tier-1': '#101317',
+            'surface-tier-2': '#15191e',
+            'surface-tier-3': '#1c2128',
+            'surface-border': '#242c37',
+            'surface-border-subtle': '#1c2128',
+            'primary-indigo': '#6366f1',
+            'semantic-success': '#10b981',
+            'semantic-warning': '#f59e0b',
+            'semantic-error': '#ef4444',
+            'semantic-running': '#60a5fa',
+            'semantic-info': '#38bdf8',
+            'semantic-policy': '#ec4899',
+            'semantic-idle': '#64748b',
+            'text-primary': '#e1e2e8',
+            'text-secondary': '#908fa0',
+            'text-tertiary': '#646376',
+          },
+          fontFamily: {
+            sans: ['Geist', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          borderRadius: {
+            DEFAULT: '4px',
+            'md': '6px',
+            'lg': '8px',
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    .material-symbols-outlined {
+      font-size: 18px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+    body {
+      background-color: #0b0d10;
+      color: #e1e2e8;
+      font-family: 'Geist', sans-serif;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    input[type="text"], select, textarea {
+      background-color: #15191e;
+      border: 1px solid #242c37;
+      color: #e1e2e8;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+    input[type="text"]:focus, select:focus, textarea:focus {
+      border-color: #6366f1;
+      ring: 0;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0d10;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #242c37;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body class="bg-surface text-text-primary antialiased min-h-screen flex flex-col">
+
+  <!-- ========================================================================= -->
+  <!-- BARRA LATERAL (FIXA 216px)                                                -->
+  <!-- ========================================================================= -->
+  <aside class="fixed top-0 left-0 bottom-0 w-[216px] z-30 bg-surface-tier-1 border-r border-surface-border flex flex-col justify-between p-3 select-none">
+    <div class="flex flex-col gap-3">
+      <!-- Topo: Logo Atlas (quadrado de 20px com letra "A" branca + palavra Atlas) -->
+      <div class="flex items-center gap-2 px-1 pt-0.5">
+        <div class="w-[20px] h-[20px] rounded bg-primary-indigo flex items-center justify-center font-bold text-white text-[11px] leading-none">
+          A
+        </div>
+        <span class="text-[15px] font-semibold text-text-primary tracking-tight">Atlas</span>
+      </div>
+
+      <!-- Seletor de Workspace -->
+      <div class="flex flex-col px-2 py-1.5 rounded bg-surface-tier-2 border border-surface-border cursor-pointer hover:border-text-secondary transition-colors">
+        <div class="flex items-center justify-between text-text-primary">
+          <span class="text-[13px] font-medium truncate">Transport ERP</span>
+          <span class="material-symbols-outlined text-text-secondary" style="font-size: 16px;">expand_more</span>
+        </div>
+        <span class="font-mono text-[11px] text-text-secondary truncate mt-0.5">/Users/lucas/dev/transport-erp</span>
+      </div>
+
+      <!-- Navegação (7 itens estritos, Agentes ativo) -->
+      <nav class="flex flex-col gap-0.5 mt-1">
+        <!-- 1. Workspace -->
+        <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-text-secondary text-[13px] hover:text-text-primary hover:bg-surface-tier-2 transition-colors">
+          <span class="material-symbols-outlined">folder_open</span>
+          <span>Workspace</span>
+        </a>
+        <!-- 2. Workflow -->
+        <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-text-secondary text-[13px] hover:text-text-primary hover:bg-surface-tier-2 transition-colors">
+          <span class="material-symbols-outlined">account_tree</span>
+          <span>Workflow</span>
+        </a>
+        <!-- 3. Agentes (ATIVO) -->
+        <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded bg-surface-tier-3 text-text-primary text-[13px] font-medium border border-surface-border">
+          <span class="material-symbols-outlined text-primary-indigo">smart_toy</span>
+          <span>Agentes</span>
+        </a>
+        <!-- 4. Personalidades -->
+        <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-text-secondary text-[13px] hover:text-text-primary hover:bg-surface-tier-2 transition-colors">
+          <span class="material-symbols-outlined">psychology</span>
+          <span>Personalidades</span>
+        </a>
+        <!-- 5. Specs -->
+        <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-text-secondary text-[13px] hover:text-text-primary hover:bg-surface-tier-2 transition-colors">
+          <span class="material-symbols-outlined">description</span>
+          <span>Specs</span>
+        </a>
+        <!-- 6. MCP Hub -->
+        <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-text-secondary text-[13px] hover:text-text-primary hover:bg-surface-tier-2 transition-colors">
+          <span class="material-symbols-outlined">hub</span>
+          <span>MCP Hub</span>
+        </a>
+        <!-- 7. Configurações -->
+        <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-text-secondary text-[13px] hover:text-text-primary hover:bg-surface-tier-2 transition-colors">
+          <span class="material-symbols-outlined">settings</span>
+          <span>Configurações</span>
+        </a>
+      </nav>
+    </div>
+
+    <!-- Rodapé Fixo da Barra Lateral -->
+    <div class="px-1 py-2 border-t border-surface-border flex flex-col gap-0.5 select-none">
+      <span class="text-[12px] font-medium text-text-secondary">Project Atlas</span>
+      <span class="font-mono text-[11px] text-text-tertiary">v0.2.0 · macOS</span>
+    </div>
+  </aside>
+
+  <!-- ========================================================================= -->
+  <!-- BARRA SUPERIOR (FIXA 48px)                                                -->
+  <!-- ========================================================================= -->
+  <header class="fixed top-0 left-[216px] right-0 h-12 z-20 bg-surface border-b border-surface-border flex justify-between items-center px-6 select-none">
+    <!-- Esquerda: botão recolher + breadcrumb -->
+    <div class="flex items-center gap-3">
+      <button type="button" aria-label="Recolher barra lateral" class="p-1 rounded text-text-secondary hover:text-text-primary hover:bg-surface-tier-2 transition-colors">
+        <span class="material-symbols-outlined">dock_to_left</span>
+      </button>
+      <div class="flex items-center gap-1.5 text-[13px]">
+        <span class="text-text-secondary">Transport ERP</span>
+        <span class="text-text-tertiary text-[11px]">/</span>
+        <span class="text-text-secondary">Agentes</span>
+        <span class="text-text-tertiary text-[11px]">/</span>
+        <span class="text-text-primary font-medium">Criar agente</span>
+      </div>
+    </div>
+
+    <!-- Direita: só Celular e PT | EN -->
+    <div class="flex items-center gap-4">
+      <button type="button" class="flex items-center gap-1.5 px-2.5 py-1 rounded border border-surface-border bg-surface-tier-2 text-text-secondary hover:text-text-primary hover:bg-surface-tier-3 transition-colors text-[13px]">
+        <span class="material-symbols-outlined text-[16px]">smartphone</span>
+        <span>Celular</span>
+      </button>
+      <div class="flex items-center gap-1 text-[12px] font-mono">
+        <span class="font-semibold text-primary-indigo cursor-default">PT</span>
+        <span class="text-surface-border font-light">|</span>
+        <span class="text-text-secondary hover:text-text-primary cursor-pointer transition-colors">EN</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- ÁREA DE CONTEÚDO PRINCIPAL (Offset left 216px, top 48px, pb 80px)           -->
+  <!-- ========================================================================= -->
+  <main class="ml-[216px] mt-12 pb-24 min-h-[calc(100vh-48px)] flex justify-center bg-surface">
+    <!-- Formulário em UMA coluna centralizada (max 720px) -->
+    <div class="w-full max-w-[720px] px-6 py-8 flex flex-col gap-6">
+
+      <!-- 1. Cabeçalho -->
+      <section class="flex flex-col gap-2">
+        <a href="#" class="inline-flex items-center gap-1.5 text-[13px] text-text-secondary hover:text-text-primary transition-colors w-fit">
+          <span class="material-symbols-outlined text-[15px]">arrow_back</span>
+          <span>Agentes</span>
+        </a>
+        <h1 class="text-[20px] font-semibold text-text-primary tracking-tight">Criar agente</h1>
+      </section>
+
+      <!-- 2. "Identidade" -->
+      <section class="bg-surface-tier-1 border border-surface-border rounded-lg p-5 flex flex-col gap-4">
+        <h2 class="text-[16px] font-medium text-text-primary">Identidade</h2>
+
+        <!-- Campo Nome -->
+        <div class="flex flex-col gap-1.5">
+          <label for="agent-name" class="text-[13px] text-text-secondary font-normal">Nome</label>
+          <input 
+            type="text" 
+            id="agent-name" 
+            value="Revisor" 
+            class="w-full px-3 py-2 rounded text-[14px] bg-surface-tier-2 border border-surface-border text-text-primary focus:border-primary-indigo"
+          />
+        </div>
+
+        <!-- Seletor Personalidade -->
+        <div class="flex flex-col gap-1.5">
+          <label for="agent-personality" class="text-[13px] text-text-secondary font-normal">Personalidade</label>
+          <div class="relative">
+            <select 
+              id="agent-personality" 
+              class="w-full px-3 py-2 rounded text-[14px] bg-surface-tier-2 border border-surface-border text-text-primary appearance-none cursor-pointer pr-8"
+            >
+              <option value="architecture-code-validator" selected>Architecture & Code Validator</option>
+              <option value="architect">Architect</option>
+              <option value="developer">Developer</option>
+              <option value="qa">QA</option>
+            </select>
+            <span class="material-symbols-outlined text-text-secondary absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[18px]">expand_more</span>
+          </div>
+          <!-- Descrição da personalidade em uma frase -->
+          <p class="text-[13px] text-text-secondary mt-0.5">Valida a integridade arquitetural, padrões de código e conformidade com as regras do projeto.</p>
+        </div>
+
+        <!-- Aviso de informação -->
+        <div class="flex items-center justify-between p-3 rounded bg-surface-tier-2 border border-surface-border mt-1">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-semantic-info text-[18px]">info</span>
+            <span class="text-[13px] text-text-primary">Esta personalidade sugere: contrato Revisão e perfil Somente leitura.</span>
+          </div>
+          <button type="button" class="text-[12px] font-medium text-primary-indigo hover:underline px-1 py-0.5 transition-colors">
+            Aplicar sugestão
+          </button>
+        </div>
+      </section>
+
+      <!-- 3. "Runtime e modelo" -->
+      <section class="bg-surface-tier-1 border border-surface-border rounded-lg p-5 flex flex-col gap-4">
+        <h2 class="text-[16px] font-medium text-text-primary">Runtime e modelo</h2>
+
+        <!-- Seletor Runtime com selo "Pronto · 2.1.285" -->
+        <div class="flex flex-col gap-1.5">
+          <div class="flex items-center justify-between">
+            <label for="agent-runtime" class="text-[13px] text-text-secondary font-normal">Runtime</label>
+            <!-- Selo padrão (pílula fundo 14%, ponto 6px, Geist 12px) -->
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[12px] font-normal" style="background-color: rgba(16, 185, 129, 0.14); border: 1px solid rgba(16, 185, 129, 0.35); color: #10b981;">
+              <span class="w-[6px] h-[6px] rounded-full bg-semantic-success"></span>
+              <span>Pronto · 2.1.285</span>
+            </span>
+          </div>
+          <div class="relative">
+            <select 
+              id="agent-runtime" 
+              class="w-full px-3 py-2 rounded text-[14px] bg-surface-tier-2 border border-surface-border text-text-primary appearance-none cursor-pointer pr-8"
+            >
+              <option value="claude-cli" selected>Claude CLI</option>
+              <option value="opencode">OpenCode</option>
+              <option value="codex">Codex</option>
+              <option value="gemini-cli">Gemini CLI</option>
+            </select>
+            <span class="material-symbols-outlined text-text-secondary absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[18px]">expand_more</span>
+          </div>
+        </div>
+
+        <!-- Campo Modelo -->
+        <div class="flex flex-col gap-1.5">
+          <label for="agent-model" class="text-[13px] text-text-secondary font-normal">Modelo</label>
+          <input 
+            type="text" 
+            id="agent-model" 
+            value="opus" 
+            class="w-full px-3 py-2 rounded font-mono text-[13px] bg-surface-tier-2 border border-surface-border text-text-primary focus:border-primary-indigo"
+          />
+          <p class="text-[12px] text-text-secondary">Claude não lista modelos: digite o id ou o alias (sonnet, opus).</p>
+        </div>
+
+        <!-- Botão fantasma "Detectar runtimes novamente" -->
+        <div class="pt-1">
+          <button type="button" class="inline-flex items-center gap-1.5 text-[13px] text-text-secondary hover:text-text-primary transition-colors py-1">
+            <span class="material-symbols-outlined text-[16px]">refresh</span>
+            <span>Detectar runtimes novamente</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- 4. "Instruções adicionais" -->
+      <section class="bg-surface-tier-1 border border-surface-border rounded-lg p-5 flex flex-col gap-3">
+        <h2 class="text-[16px] font-medium text-text-primary">Instruções adicionais</h2>
+        <textarea 
+          rows="3" 
+          class="w-full px-3 py-2.5 rounded text-[14px] bg-surface-tier-2 border border-surface-border text-text-primary resize-y focus:border-primary-indigo"
+          placeholder="Instruções complementares para o comportamento do agente..."
+        ></textarea>
+      </section>
+
+      <!-- 5. "Contrato de resultado" -->
+      <section class="bg-surface-tier-1 border border-surface-border rounded-lg p-5 flex flex-col gap-4">
+        <h2 class="text-[16px] font-medium text-text-primary">Contrato de resultado</h2>
+
+        <!-- Rádio em cartões compactos numa linha: Geral, Validação, Revisão (selecionado), Implementação, Personalizado -->
+        <div class="grid grid-cols-5 gap-2">
+          <!-- Geral -->
+          <label class="flex items-center justify-center py-2 px-2 rounded border border-surface-border bg-surface-tier-2 hover:bg-surface-tier-3 cursor-pointer transition-colors text-center">
+            <input type="radio" name="result-contract" value="general" class="sr-only" />
+            <span class="text-[13px] text-text-secondary">Geral</span>
+          </label>
+
+          <!-- Validação -->
+          <label class="flex items-center justify-center py-2 px-2 rounded border border-surface-border bg-surface-tier-2 hover:bg-surface-tier-3 cursor-pointer transition-colors text-center">
+            <input type="radio" name="result-contract" value="validation" class="sr-only" />
+            <span class="text-[13px] text-text-secondary">Validação</span>
+          </label>
+
+          <!-- Revisão (selecionado) -->
+          <label class="flex items-center justify-center py-2 px-2 rounded border border-primary-indigo bg-surface-tier-3 cursor-pointer text-center">
+            <input type="radio" name="result-contract" value="review" checked class="sr-only" />
+            <span class="text-[13px] font-medium text-text-primary">Revisão</span>
+          </label>
+
+          <!-- Implementação -->
+          <label class="flex items-center justify-center py-2 px-2 rounded border border-surface-border bg-surface-tier-2 hover:bg-surface-tier-3 cursor-pointer transition-colors text-center">
+            <input type="radio" name="result-contract" value="implementation" class="sr-only" />
+            <span class="text-[13px] text-text-secondary">Implementação</span>
+          </label>
+
+          <!-- Personalizado -->
+          <label class="flex items-center justify-center py-2 px-2 rounded border border-surface-border bg-surface-tier-2 hover:bg-surface-tier-3 cursor-pointer transition-colors text-center">
+            <input type="radio" name="result-contract" value="custom" class="sr-only" />
+            <span class="text-[13px] text-text-secondary">Personalizado</span>
+          </label>
+        </div>
+
+        <!-- Desfechos de Revisão: "approved — Aprovado" e "changes_requested — Alterações pedidas" -->
+        <div class="flex flex-col gap-2 pt-1 border-t border-surface-border">
+          <span class="text-[12px] text-text-secondary">Desfechos possíveis deste contrato:</span>
+          <div class="flex flex-col gap-1.5 pl-1">
+            <div class="flex items-center gap-2 text-[13px] text-text-primary">
+              <span class="w-1.5 h-1.5 rounded-full bg-semantic-success"></span>
+              <span class="font-mono text-[12px] text-text-primary">approved</span>
+              <span class="text-text-tertiary">—</span>
+              <span class="text-text-secondary">Aprovado</span>
+            </div>
+            <div class="flex items-center gap-2 text-[13px] text-text-primary">
+              <span class="w-1.5 h-1.5 rounded-full bg-semantic-warning"></span>
+              <span class="font-mono text-[12px] text-text-primary">changes_requested</span>
+              <span class="text-text-tertiary">—</span>
+              <span class="text-text-secondary">Alterações pedidas</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. "Permissões e isolamento" -->
+      <section class="bg-surface-tier-1 border border-surface-border rounded-lg p-5 flex flex-col gap-4">
+        <h2 class="text-[16px] font-medium text-text-primary">Permissões e isolamento</h2>
+
+        <!-- Opções de Rádio para Permissões -->
+        <div class="flex flex-col gap-2">
+          <!-- Somente leitura (selecionado) -->
+          <label class="flex items-start gap-3 p-3 rounded border border-primary-indigo bg-surface-tier-3 cursor-pointer">
+            <input type="radio" name="agent-permission" value="read-only" checked class="mt-0.5 text-primary-indigo focus:ring-0 focus:ring-offset-0 bg-surface-tier-2 border-surface-border" />
+            <div class="flex flex-col">
+              <span class="text-[13px] font-medium text-text-primary">Somente leitura</span>
+              <span class="text-[12px] text-text-secondary">Lê arquivos; não edita nem executa</span>
+            </div>
+          </label>
+
+          <!-- Desenvolvedor -->
+          <label class="flex items-start gap-3 p-3 rounded border border-surface-border bg-surface-tier-2 hover:bg-surface-tier-3 cursor-pointer transition-colors">
+            <input type="radio" name="agent-permission" value="developer" class="mt-0.5 text-primary-indigo focus:ring-0 focus:ring-offset-0 bg-surface-tier-2 border-surface-border" />
+            <div class="flex flex-col">
+              <span class="text-[13px] font-medium text-text-primary">Desenvolvedor</span>
+              <span class="text-[12px] text-text-secondary">Edita arquivos no worktree isolado</span>
+            </div>
+          </label>
+        </div>
+
+        <!-- Caixa marcada: "Sempre trabalhar em um Git worktree isolado" -->
+        <div class="pt-2 border-t border-surface-border">
+          <label class="flex items-center gap-2.5 cursor-pointer select-none">
+            <input 
+              type="checkbox" 
+              checked 
+              class="rounded text-primary-indigo focus:ring-0 focus:ring-offset-0 bg-surface-tier-2 border-surface-border w-4 h-4"
+            />
+            <span class="text-[13px] text-text-primary">Sempre trabalhar em um Git worktree isolado</span>
+          </label>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- RODAPÉ FIXO (Offset left 216px, h 56px, borda superior)                   -->
+  <!-- ========================================================================= -->
+  <footer class="fixed bottom-0 left-[216px] right-0 h-14 z-20 bg-surface-tier-1 border-t border-surface-border flex items-center justify-end px-8 select-none">
+    <div class="flex items-center gap-3">
+      <button 
+        type="button" 
+        class="px-4 py-2 rounded text-[13px] font-medium text-text-secondary hover:text-text-primary hover:bg-surface-tier-2 transition-colors border border-surface-border"
+      >
+        Cancelar
+      </button>
+      <button 
+        type="button" 
+        class="px-5 py-2 rounded text-[13px] font-medium text-white bg-primary-indigo hover:bg-indigo-500 transition-colors shadow-none"
+      >
+        Criar agente
+      </button>
+    </div>
+  </footer>
+
+</body>
+</html>

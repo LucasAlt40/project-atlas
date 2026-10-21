@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas — MCP Hub / Servidores</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Geist and JetBrains Mono Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#c0c1ff",
+            "primary-container": "#8083ff",
+            "on-primary": "#1000a9",
+            "on-primary-container": "#0d0096",
+            "surface-container-lowest": "#0b0e12",
+            "surface-container-low": "#15191e",
+            "surface-container": "#191c20",
+            "surface-container-high": "#1c2128",
+            "surface-container-highest": "#242c37",
+            "surface-bright": "#36393e",
+            "outline": "#908fa0",
+            "outline-variant": "#242c37",
+            "on-surface": "#e1e2e8",
+            "on-surface-variant": "#94a3b8",
+            "surface": "#101317",
+            "background": "#0b0d10",
+            "accent-indigo": "#6366f1",
+            "accent-indigo-hover": "#4f46e5",
+            "semantic-success": "#10b981",
+            "semantic-warning": "#f59e0b",
+            "semantic-error": "#ef4444",
+            "semantic-running": "#60a5fa",
+            "semantic-info": "#38bdf8"
+          },
+          fontFamily: {
+            "body-sm": ["Geist", "sans-serif"],
+            "body-md": ["Geist", "sans-serif"],
+            "body-lg": ["Geist", "sans-serif"],
+            "label-sm": ["Geist", "sans-serif"],
+            "label-md": ["Geist", "sans-serif"],
+            "headline-sm": ["Geist", "sans-serif"],
+            "headline-md": ["Geist", "sans-serif"],
+            "headline-lg": ["Geist", "sans-serif"],
+            "headline-xl": ["Geist", "sans-serif"],
+            "code-sm": ["JetBrains Mono", "monospace"],
+            "code-md": ["JetBrains Mono", "monospace"],
+            "code-lg": ["JetBrains Mono", "monospace"],
+            "telemetry-pill": ["JetBrains Mono", "monospace"]
+          },
+          fontSize: {
+            "body-sm": ["0.75rem", { lineHeight: "1.125rem", letterSpacing: "0.005em", fontWeight: "400" }],
+            "body-md": ["0.875rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "body-lg": ["1rem", { lineHeight: "1.5rem", letterSpacing: "-0.005em", fontWeight: "400" }],
+            "label-sm": ["0.6875rem", { lineHeight: "0.875rem", letterSpacing: "0.04em", fontWeight: "600" }],
+            "label-md": ["0.8125rem", { lineHeight: "1rem", letterSpacing: "0.01em", fontWeight: "500" }],
+            "headline-sm": ["1.125rem", { lineHeight: "1.5rem", letterSpacing: "-0.01em", fontWeight: "500" }],
+            "headline-md": ["1.25rem", { lineHeight: "1.75rem", letterSpacing: "-0.015em", fontWeight: "500" }],
+            "headline-lg": ["1.5rem", { lineHeight: "2rem", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "headline-xl": ["2rem", { lineHeight: "2.5rem", letterSpacing: "-0.025em", fontWeight: "600" }],
+            "code-sm": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0em", fontWeight: "400" }],
+            "code-md": ["0.8125rem", { lineHeight: "1.25rem", letterSpacing: "-0.01em", fontWeight: "400" }],
+            "code-lg": ["0.875rem", { lineHeight: "1.375rem", letterSpacing: "-0.01em", fontWeight: "500" }],
+            "telemetry-pill": ["0.6875rem", { lineHeight: "0.875rem", letterSpacing: "0.02em", fontWeight: "600" }]
+          },
+          borderRadius: {
+            DEFAULT: "0.125rem",
+            lg: "0.25rem",
+            xl: "0.5rem",
+            full: "0.75rem"
+          },
+          spacing: {
+            "space-2xs": "0.125rem",
+            "space-xs": "0.25rem",
+            "space-sm": "0.5rem",
+            "space-md": "0.75rem",
+            "space-lg": "1rem",
+            "space-xl": "1.5rem",
+            "space-2xl": "2rem"
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 18px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    /* Hide scrollbar for clean avionics density */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0d10;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #242c37;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3b4554;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface font-body-md antialiased overflow-hidden select-none h-screen w-screen flex">
+<!-- ==================== SIDE NAV BAR (FIXA 216px) ==================== -->
+<aside class="w-[216px] h-screen bg-[#101317] border-r border-[#242c37] flex flex-col justify-between shrink-0 z-30">
+<div>
+<!-- Top Brand Anchor -->
+<div class="h-12 flex items-center px-space-md border-b border-[#242c37] gap-space-sm">
+<div class="w-5 h-5 rounded-[3px] bg-accent-indigo flex items-center justify-center text-white font-headline-sm text-headline-sm font-semibold shrink-0">
+          A
+        </div>
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface tracking-tight">Atlas</span>
+</div>
+<!-- Workspace Selector Context -->
+<div class="p-space-sm border-b border-[#242c37]">
+<div class="bg-[#15191e] border border-[#242c37] rounded-lg p-space-xs hover:border-[#3b4554] cursor-pointer transition-colors">
+<div class="flex items-center justify-between text-on-surface">
+<span class="font-label-md text-label-md font-medium truncate">Transport ERP</span>
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">unfold_more</span>
+</div>
+<div class="font-code-sm text-code-sm text-on-surface-variant truncate mt-0.5" title="/Users/lucas/dev/transport-erp">
+            /Users/lucas/dev/transport-erp
+          </div>
+</div>
+</div>
+<!-- Strict 7 Navigation Items -->
+<nav class="p-space-sm space-y-space-2xs">
+<!-- 1. Workspace -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-[#15191e] transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">folder_open</span>
+<span>Workspace</span>
+</a>
+<!-- 2. Workflow -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-[#15191e] transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">account_tree</span>
+<span>Workflow</span>
+</a>
+<!-- 3. Agentes -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-[#15191e] transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- 4. Personalidades -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-[#15191e] transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- 5. Specs -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-[#15191e] transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">description</span>
+<span>Specs</span>
+</a>
+<!-- 6. MCP Hub (ATIVO) -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded bg-[#1c2128] text-white font-label-md text-label-md border border-[#2d3748] shadow-none" href="#">
+<span class="material-symbols-outlined text-[18px] text-accent-indigo">hub</span>
+<span class="font-medium text-on-surface">MCP Hub</span>
+</a>
+<!-- 7. Configurações -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-[#15191e] transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">settings</span>
+<span>Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Sidebar Footer -->
+<div class="p-space-md border-t border-[#242c37] flex flex-col gap-0.5">
+<div class="font-label-sm text-label-sm text-on-surface font-medium">Project Atlas</div>
+<div class="font-code-sm text-code-sm text-on-surface-variant">v0.2.0 · macOS</div>
+</div>
+</aside>
+<!-- ==================== MAIN VIEWPORT SHELL ==================== -->
+<div class="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-background">
+<!-- TopNavBar (48px) -->
+<header class="h-12 border-b border-[#242c37] bg-[#0b0e12] flex items-center justify-between px-space-lg shrink-0 z-20">
+<div class="flex items-center gap-space-md">
+<!-- Collapse Sidebar Icon -->
+<button class="p-1 text-on-surface-variant hover:text-on-surface hover:bg-[#1c2128] rounded cursor-pointer transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">dock_to_right</span>
+</button>
+<!-- Breadcrumb -->
+<div class="flex items-center gap-space-xs font-code-sm text-code-sm text-on-surface-variant">
+<span>Transport ERP</span>
+<span class="text-[#464554]">/</span>
+<span class="text-on-surface font-medium">MCP Hub</span>
+</div>
+</div>
+<!-- Right Actions: Celular + PT|EN -->
+<div class="flex items-center gap-space-md">
+<button class="flex items-center gap-space-xs px-2.5 py-1 rounded bg-[#1c2128] border border-[#242c37] text-on-surface hover:border-[#3b4554] transition-colors text-label-sm font-label-sm">
+<span class="material-symbols-outlined text-[16px]">smartphone</span>
+<span>Celular</span>
+</button>
+<div class="h-4 w-[1px] bg-[#242c37]"></div>
+<div class="flex items-center gap-1 font-label-sm text-label-sm">
+<span class="text-primary font-semibold">PT</span>
+<span class="text-[#464554]">|</span>
+<span class="text-on-surface-variant hover:text-on-surface cursor-pointer">EN</span>
+</div>
+</div>
+</header>
+<!-- Operational Scrollable Canvas -->
+<main class="flex-1 overflow-y-auto px-space-xl py-space-lg flex flex-col gap-space-md">
+<!-- 1. Page Header -->
+<div class="flex items-start justify-between">
+<div>
+<h1 class="font-headline-lg text-headline-lg font-semibold text-on-surface">MCP Hub</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-0.5">
+            Servidores de ferramentas para os agentes. O que uma ferramenta devolve nunca é tratado como instrução.
+          </p>
+</div>
+<div class="flex items-center gap-space-sm shrink-0">
+<button class="flex items-center gap-space-xs px-3 py-1.5 rounded-lg bg-[#1c2128] border border-[#2d3748] text-on-surface hover:bg-[#242c37] hover:border-[#3b4554] transition-colors font-label-md text-label-md">
+<span class="material-symbols-outlined text-[16px]">refresh</span>
+<span>Verificar conexões</span>
+</button>
+<button class="flex items-center gap-space-xs px-3 py-1.5 rounded-lg bg-accent-indigo text-white hover:bg-accent-indigo-hover transition-colors font-label-md text-label-md">
+<span class="material-symbols-outlined text-[16px]">add</span>
+<span>+ Adicionar servidor MCP</span>
+</button>
+<div class="relative group">
+<button class="h-8 w-8 flex items-center justify-center rounded-lg bg-[#1c2128] border border-[#2d3748] text-on-surface-variant hover:text-on-surface hover:border-[#3b4554] transition-colors">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+<!-- Dropdown Menu items -->
+<div class="hidden group-hover:flex flex-col absolute right-0 top-full mt-1 w-60 bg-[#1c2128] border border-[#2d3748] rounded shadow-2xl py-1 z-40">
+<a class="px-3 py-1.5 text-label-md font-label-md text-on-surface hover:bg-[#242c37] flex items-center gap-2" href="#">
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">sync</span>
+<span>Sincronizar CLIs</span>
+</a>
+<a class="px-3 py-1.5 text-label-md font-label-md text-on-surface hover:bg-[#242c37] flex items-center gap-2" href="#">
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">import_export</span>
+<span>Importar ou exportar atlas-mcp.json</span>
+</a>
+</div>
+</div>
+</div>
+</div>
+<!-- 2. Technical Metrics Telemetry Strip -->
+<div class="py-1 px-3 bg-[#15191e] border border-[#242c37] rounded font-code-sm text-code-sm text-on-surface-variant flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-semantic-info"></span>
+<span>3 servidores · 1 conectado · 1 com falha · 1 desligado · 12 ferramentas · 2 concessões</span>
+</div>
+<!-- 3. Control Header: Segment Filters, Search Input & Toggle -->
+<div class="flex items-center justify-between gap-space-md">
+<!-- Segment Filter Pills -->
+<div class="flex items-center p-0.5 bg-[#15191e] border border-[#242c37] rounded-lg">
+<button class="px-3 py-1 rounded bg-[#242c37] text-white font-label-md text-label-md border border-[#3b4554]">
+            Todos (3)
+          </button>
+<button class="px-3 py-1 rounded text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors">
+            Locais (stdio) (3)
+          </button>
+<button class="px-3 py-1 rounded text-[#64748b] font-label-md text-label-md flex items-center gap-1.5 cursor-not-allowed opacity-60" disabled="">
+<span>Remotos (HTTP/SSE)</span>
+<span class="font-code-sm text-[10px] bg-[#1c2128] text-on-surface-variant px-1 rounded border border-[#242c37]">ainda não suportado</span>
+</button>
+</div>
+<div class="flex items-center gap-space-md flex-1 max-w-lg justify-end">
+<!-- Search Input -->
+<div class="relative w-full max-w-md">
+<span class="material-symbols-outlined text-on-surface-variant text-[18px] absolute left-2.5 top-1/2 -translate-y-1/2">search</span>
+<input class="w-full bg-[#15191e] border border-[#242c37] rounded-lg pl-8 pr-12 py-1 text-body-sm font-body-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-accent-indigo focus:ring-0" placeholder="Buscar servidor, ferramenta ou comando" type="text"/>
+<span class="absolute right-2 top-1/2 -translate-y-1/2 font-code-sm text-code-sm text-on-surface-variant bg-[#1c2128] px-1.5 py-0.5 rounded border border-[#242c37]">⌘K</span>
+</div>
+<!-- Connected Filter Switch -->
+<label class="flex items-center gap-2 cursor-pointer shrink-0">
+<span class="font-label-md text-label-md text-on-surface-variant">Apenas conectados</span>
+<div class="relative inline-block w-8 h-4">
+<input class="sr-only peer" type="checkbox"/>
+<div class="w-8 h-4 bg-[#1c2128] border border-[#2d3748] rounded-full peer peer-checked:bg-accent-indigo transition-colors"></div>
+<div class="absolute left-0.5 top-0.5 w-3 h-3 bg-on-surface rounded-full peer-checked:translate-x-4 transition-transform"></div>
+</div>
+</label>
+</div>
+</div>
+<!-- 4. Master-Detail Layout -->
+<div class="grid grid-cols-[420px_1fr] gap-space-md flex-1 items-start min-h-[440px]">
+<!-- Left Column: MCP Server Master List -->
+<div class="flex flex-col gap-space-sm">
+<!-- Item 1: github (SELECIONADO) -->
+<div class="p-space-md bg-[#1c2128] rounded-lg border border-accent-indigo flex flex-col gap-2 cursor-pointer">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-headline-sm font-semibold text-white">github</span>
+<!-- Status Pill -->
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)] font-telemetry-pill text-telemetry-pill text-semantic-success">
+<span class="w-1.5 h-1.5 rounded-full bg-semantic-success"></span>
+                  Conectado
+                </span>
+</div>
+<!-- Toggle switch ligada -->
+<div class="w-8 h-4 bg-accent-indigo rounded-full relative flex items-center px-0.5">
+<div class="w-3 h-3 bg-white rounded-full translate-x-4 transition-transform"></div>
+</div>
+</div>
+<div class="font-code-sm text-code-sm text-on-surface-variant bg-[#15191e] px-2 py-1 rounded border border-[#242c37] truncate">
+              npx -y @modelcontextprotocol/server-github
+            </div>
+<div class="font-body-sm text-body-sm text-[#94a3b8] flex items-center justify-between pt-1 border-t border-[#242c37]">
+<span>5 ferramentas</span>
+<span class="font-medium text-on-surface">Agentes: Desenvolvedor</span>
+</div>
+</div>
+<!-- Item 2: postgres -->
+<div class="p-space-md bg-[#15191e] rounded-lg border border-[#242c37] hover:border-[#3b4554] flex flex-col gap-2 cursor-pointer transition-colors">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface">postgres</span>
+<!-- Status Pill -->
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[rgba(239,68,68,0.14)] border border-[rgba(239,68,68,0.4)] font-telemetry-pill text-telemetry-pill text-semantic-error">
+<span class="w-1.5 h-1.5 rounded-full bg-semantic-error"></span>
+                  Falhou
+                </span>
+</div>
+<!-- Toggle switch ligada -->
+<div class="w-8 h-4 bg-accent-indigo rounded-full relative flex items-center px-0.5">
+<div class="w-3 h-3 bg-white rounded-full translate-x-4 transition-transform"></div>
+</div>
+</div>
+<!-- Warning Notice -->
+<div class="flex items-center gap-2 px-2.5 py-1.5 rounded bg-[rgba(245,158,11,0.1)] border border-[rgba(245,158,11,0.3)] text-semantic-warning font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[16px]">warning</span>
+<span class="font-medium">Segredo faltando: <span class="font-code-sm">DATABASE_URL</span></span>
+</div>
+<div class="font-body-sm text-body-sm text-[#94a3b8] flex items-center justify-between pt-1 border-t border-[#242c37]">
+<span>0 ferramentas</span>
+<span>Agentes: Nenhum</span>
+</div>
+</div>
+<!-- Item 3: chrome-devtools -->
+<div class="p-space-md bg-[#15191e] rounded-lg border border-[#242c37] hover:border-[#3b4554] flex flex-col gap-2 cursor-pointer transition-colors opacity-80">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface">chrome-devtools</span>
+<!-- Status Pill -->
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#1c2128] border border-[#2d3748] font-telemetry-pill text-telemetry-pill text-on-surface-variant">
+<span class="w-1.5 h-1.5 rounded-full bg-[#64748b]"></span>
+                  Desligado
+                </span>
+</div>
+<!-- Toggle switch desligada -->
+<div class="w-8 h-4 bg-[#1c2128] border border-[#2d3748] rounded-full relative flex items-center px-0.5">
+<div class="w-3 h-3 bg-[#64748b] rounded-full transition-transform"></div>
+</div>
+</div>
+<div class="font-body-sm text-body-sm text-[#94a3b8] pt-1 border-t border-[#242c37]">
+              Concedido a ninguém
+            </div>
+</div>
+</div>
+<!-- Right Column: Detail Inspector (github) -->
+<div class="bg-[#15191e] border border-[#242c37] rounded-lg flex flex-col overflow-hidden">
+<!-- Inspector Header -->
+<div class="px-space-lg py-space-md border-b border-[#242c37] flex items-center justify-between bg-[#101317]">
+<div class="flex items-center gap-3">
+<h2 class="font-headline-md text-headline-md font-semibold text-white">github</h2>
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)] font-telemetry-pill text-telemetry-pill text-semantic-success">
+<span class="w-1.5 h-1.5 rounded-full bg-semantic-success"></span>
+                Conectado
+              </span>
+</div>
+<div class="relative group">
+<button class="h-7 w-7 flex items-center justify-center rounded bg-[#1c2128] border border-[#2d3748] text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+<div class="hidden group-hover:flex flex-col absolute right-0 top-full mt-1 w-36 bg-[#1c2128] border border-[#2d3748] rounded shadow-2xl py-1 z-40">
+<a class="px-3 py-1.5 text-label-md font-label-md text-on-surface hover:bg-[#242c37]" href="#">Exportar</a>
+<a class="px-3 py-1.5 text-label-md font-label-md text-semantic-error hover:bg-[#242c37]" href="#">Remover</a>
+</div>
+</div>
+</div>
+<!-- Technical Inspector Tabs -->
+<div class="flex border-b border-[#242c37] bg-[#101317] px-space-lg gap-6">
+<button class="py-2.5 font-label-md text-label-md text-white font-medium border-b-2 border-accent-indigo flex items-center gap-1.5">
+<span>Ferramentas (5)</span>
+</button>
+<button class="py-2.5 font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors">
+              Variáveis e segredos
+            </button>
+<button class="py-2.5 font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors">
+              Manifesto
+            </button>
+<button class="py-2.5 font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors">
+              Atividade
+            </button>
+</div>
+<!-- Inspector Tab Content -->
+<div class="p-space-lg flex flex-col gap-space-lg">
+<!-- Status Card Strip -->
+<div class="flex items-center justify-between p-space-md bg-[#101317] border border-[#242c37] rounded-lg">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-semantic-info text-[18px]">info</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Examinado em 21/10/2026 14:03 via Claude CLI</span>
+</div>
+<button class="px-3 py-1 bg-[#1c2128] border border-[#2d3748] hover:border-[#3b4554] text-on-surface rounded font-label-sm text-label-sm transition-colors">
+                Examinar
+              </button>
+</div>
+<!-- Ferramentas Registradas Section -->
+<div class="flex flex-col gap-space-sm">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-medium">Ferramentas registradas</h3>
+<div class="flex flex-wrap gap-2">
+<span class="px-2.5 py-1 rounded bg-[#101317] border border-[#242c37] font-code-sm text-code-sm text-primary hover:border-[#3b4554] transition-colors">
+                  create_issue
+                </span>
+<span class="px-2.5 py-1 rounded bg-[#101317] border border-[#242c37] font-code-sm text-code-sm text-primary hover:border-[#3b4554] transition-colors">
+                  get_file_contents
+                </span>
+<span class="px-2.5 py-1 rounded bg-[#101317] border border-[#242c37] font-code-sm text-code-sm text-primary hover:border-[#3b4554] transition-colors">
+                  list_commits
+                </span>
+<span class="px-2.5 py-1 rounded bg-[#101317] border border-[#242c37] font-code-sm text-code-sm text-primary hover:border-[#3b4554] transition-colors">
+                  search_code
+                </span>
+<span class="px-2.5 py-1 rounded bg-[#101317] border border-[#242c37] font-code-sm text-code-sm text-primary hover:border-[#3b4554] transition-colors">
+                  create_pull_request
+                </span>
+</div>
+</div>
+<!-- Quem pode usar Section -->
+<div class="flex flex-col gap-space-sm pt-space-sm border-t border-[#242c37]">
+<div class="flex items-center justify-between">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-medium">Quem pode usar</h3>
+<button class="px-3 py-1 bg-[#1c2128] border border-[#2d3748] hover:border-[#3b4554] text-on-surface rounded font-label-sm text-label-sm transition-colors">
+                  Conceder
+                </button>
+</div>
+<!-- Granted Agent Row -->
+<div class="flex items-center justify-between p-space-md bg-[#101317] border border-[#242c37] rounded-lg">
+<div class="flex items-center gap-space-md">
+<div class="w-8 h-8 rounded bg-[#1c2128] border border-[#2d3748] flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[18px]">smart_toy</span>
+</div>
+<div>
+<div class="font-body-md text-body-md text-on-surface font-medium">Desenvolvedor</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant">todas as ferramentas · neste workspace</div>
+</div>
+</div>
+<button class="text-semantic-error hover:text-red-400 font-label-md text-label-md px-2 py-1 rounded hover:bg-[rgba(239,68,68,0.1)] transition-colors">
+                  Revogar
+                </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

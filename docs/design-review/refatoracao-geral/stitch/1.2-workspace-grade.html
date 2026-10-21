@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas — Workspace Grade</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-dim": "#111418",
+            "on-tertiary-container": "#570032",
+            "primary-container": "#8083ff",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-error-container": "#ffdad6",
+            "error": "#ffb4ab",
+            "surface-variant": "#323539",
+            "tertiary": "#ffb0cd",
+            "inverse-surface": "#e1e2e8",
+            "primary-fixed": "#e1e0ff",
+            "on-primary-fixed": "#07006c",
+            "primary": "#c0c1ff",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "on-tertiary": "#640039",
+            "on-secondary-fixed": "#001c39",
+            "on-primary": "#1000a9",
+            "surface-container-low": "#191c20",
+            "surface-container-high": "#272a2e",
+            "surface-bright": "#36393e",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "surface-container-highest": "#323539",
+            "tertiary-container": "#f751a1",
+            "surface": "#111418",
+            "on-error": "#690005",
+            "surface-container-lowest": "#0b0e12",
+            "outline": "#908fa0",
+            "on-secondary-container": "#d6e5ff",
+            "tertiary-fixed": "#ffd9e4",
+            "secondary-container": "#0267b8",
+            "on-background": "#e1e2e8",
+            "on-primary-container": "#0d0096",
+            "on-tertiary-fixed": "#3e0022",
+            "inverse-primary": "#494bd6",
+            "secondary": "#a4c9ff",
+            "on-secondary": "#00315d",
+            "background": "#111418",
+            "surface-tint": "#c0c1ff",
+            "secondary-fixed-dim": "#a4c9ff",
+            "secondary-fixed": "#d4e3ff",
+            "on-surface": "#e1e2e8",
+            "on-surface-variant": "#c7c4d7",
+            "outline-variant": "#464554",
+            "error-container": "#93000a",
+            "inverse-on-surface": "#2e3135",
+            "on-secondary-fixed-variant": "#004883",
+            "surface-container": "#1d2024",
+            /* App specific tonal ladder */
+            "atlas-void": "#0b0d10",
+            "atlas-base": "#101317",
+            "atlas-surface-1": "#15191e",
+            "atlas-surface-2": "#1c2128",
+            "atlas-border": "#242c37",
+            "atlas-border-strong": "#2d3748",
+            "atlas-brand": "#6366f1",
+            "atlas-brand-hover": "#4f46e5"
+          },
+          borderRadius: {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          fontFamily: {
+            "headline-sm": ["Geist", "sans-serif"],
+            "label-md": ["Geist", "sans-serif"],
+            "body-lg": ["Geist", "sans-serif"],
+            "headline-md": ["Geist", "sans-serif"],
+            "body-md": ["Geist", "sans-serif"],
+            "headline-xl": ["Geist", "sans-serif"],
+            "body-sm": ["Geist", "sans-serif"],
+            "telemetry-pill": ["JetBrains Mono", "monospace"],
+            "label-sm": ["Geist", "sans-serif"],
+            "code-sm": ["JetBrains Mono", "monospace"],
+            "code-md": ["JetBrains Mono", "monospace"],
+            "code-lg": ["JetBrains Mono", "monospace"],
+            "headline-lg": ["Geist", "sans-serif"]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .material-symbols-outlined.filled {
+      font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #242c37;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3b4554;
+    }
+  </style>
+</head>
+<body class="bg-[#0b0d10] text-[#f3f4f6] font-['Geist'] h-screen w-screen overflow-hidden flex antialiased select-none">
+<!-- BARRA LATERAL FIXA À ESQUERDA (216px, bg #0b0d10, border-r border-[#242c37]) -->
+<aside class="w-[216px] h-full flex flex-col justify-between shrink-0 bg-[#0b0d10] border-r border-[#242c37]">
+<!-- Topo da Barra Lateral -->
+<div class="flex flex-col p-3 gap-3">
+<!-- Logo Atlas limpo + "Atlas" -->
+<div class="flex items-center gap-2 px-1 pt-0.5">
+<div class="w-5 h-5 rounded bg-[#6366f1] flex items-center justify-center text-white shadow-sm">
+<span class="material-symbols-outlined !text-[14px]">terminal</span>
+</div>
+<span class="font-semibold text-[16px] text-[#f3f4f6] tracking-tight">Atlas</span>
+</div>
+<!-- Seletor de workspace -->
+<div class="bg-[#101317] border border-[#242c37] rounded-[6px] p-2 cursor-pointer hover:border-[#2d3748] transition-colors group">
+<div class="flex items-center justify-between">
+<span class="text-[13px] font-medium text-[#f3f4f6] truncate">Transport ERP</span>
+<span class="material-symbols-outlined !text-[14px] text-[#94a3b8] group-hover:text-[#f3f4f6] transition-colors">expand_more</span>
+</div>
+<div class="font-['JetBrains_Mono'] text-[11px] text-[#94a3b8] truncate mt-0.5">
+          /Users/lucas/dev/transport-erp
+        </div>
+</div>
+<!-- Navegação vertical (estritamente 7 itens nesta ordem) -->
+<nav class="flex flex-col gap-0.5 mt-1">
+<!-- 1. Workspace (DESTACADO como tela atual) -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 bg-[#1c2128] text-[#f3f4f6] border-l-2 border-[#6366f1] text-[13px] font-medium rounded-r" href="#">
+<span class="material-symbols-outlined !text-[16px] text-[#6366f1]">dashboard</span>
+<span>Workspace</span>
+</a>
+<!-- 2. Workflow -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 text-[#94a3b8] hover:text-[#f3f4f6] hover:bg-[#15191e] text-[13px] transition-colors rounded" href="#">
+<span class="material-symbols-outlined !text-[16px]">account_tree</span>
+<span>Workflow</span>
+</a>
+<!-- 3. Agentes -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 text-[#94a3b8] hover:text-[#f3f4f6] hover:bg-[#15191e] text-[13px] transition-colors rounded" href="#">
+<span class="material-symbols-outlined !text-[16px]">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- 4. Personalidades -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 text-[#94a3b8] hover:text-[#f3f4f6] hover:bg-[#15191e] text-[13px] transition-colors rounded" href="#">
+<span class="material-symbols-outlined !text-[16px]">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- 5. Specs -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 text-[#94a3b8] hover:text-[#f3f4f6] hover:bg-[#15191e] text-[13px] transition-colors rounded" href="#">
+<span class="material-symbols-outlined !text-[16px]">description</span>
+<span>Specs</span>
+</a>
+<!-- 6. MCP Hub -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 text-[#94a3b8] hover:text-[#f3f4f6] hover:bg-[#15191e] text-[13px] transition-colors rounded" href="#">
+<span class="material-symbols-outlined !text-[16px]">hub</span>
+<span>MCP Hub</span>
+</a>
+<!-- 7. Configurações -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 text-[#94a3b8] hover:text-[#f3f4f6] hover:bg-[#15191e] text-[13px] transition-colors rounded" href="#">
+<span class="material-symbols-outlined !text-[16px]">settings</span>
+<span>Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Rodapé fixo na base da barra lateral -->
+<div class="p-3 border-t border-[#242c37]/60 flex flex-col gap-0.5">
+<span class="text-[12px] text-[#64748b] leading-tight">Project Atlas</span>
+<span class="font-['JetBrains_Mono'] text-[11px] text-[#64748b] leading-tight">v0.2.0 · macOS</span>
+</div>
+</aside>
+<!-- PAINEL PRINCIPAL (Barra Superior + Canvas de Conteúdo) -->
+<div class="flex-1 flex flex-col h-full min-w-0 bg-[#0b0d10]">
+<!-- BARRA SUPERIOR FIXA (48px, bg #101317, border-b border-[#242c37]) -->
+<header class="h-12 bg-[#101317] border-b border-[#242c37] px-4 flex items-center justify-between shrink-0 z-10">
+<!-- Esquerda: botão recolher sidebar e breadcrumb -->
+<div class="flex items-center gap-3">
+<button aria-label="Recolher barra lateral" class="p-1 rounded text-[#94a3b8] hover:text-[#f3f4f6] hover:bg-[#15191e] transition-colors flex items-center justify-center" type="button">
+<span class="material-symbols-outlined !text-[18px]">view_sidebar</span>
+</button>
+<div class="flex items-center gap-1.5 text-[13px]">
+<span class="text-[#94a3b8]">Transport ERP</span>
+<span class="text-[#64748b]">/</span>
+<span class="text-[#f3f4f6] font-medium">Workspace</span>
+</div>
+</div>
+<!-- Direita: estritamente apenas Celular e PT | EN -->
+<div class="flex items-center gap-3">
+<button class="flex items-center gap-1.5 p-1.5 px-3 bg-[#15191e] border border-[#242c37] rounded text-[13px] text-[#f3f4f6] hover:bg-[#1c2128] transition-colors" type="button">
+<span class="material-symbols-outlined !text-[15px] text-[#94a3b8]">smartphone</span>
+<span>Celular</span>
+</button>
+<div class="text-[12px] flex items-center gap-1">
+<span class="text-[#f3f4f6] font-semibold">PT</span>
+<span class="text-[#64748b]">|</span>
+<span class="text-[#64748b] hover:text-[#94a3b8] cursor-pointer transition-colors">EN</span>
+</div>
+</div>
+</header>
+<!-- ÁREA PRINCIPAL DE CONTEÚDO (flex col h-[calc(100vh-48px)] p-4 gap-3 overflow-hidden) -->
+<main class="flex-1 flex flex-col p-4 gap-3 min-h-0 bg-[#0b0d10] overflow-hidden">
+<!-- 1. CABEÇALHO DA PÁGINA -->
+<div class="flex items-center justify-between shrink-0">
+<!-- Esquerda: Título + Badge de Consumo -->
+<div class="flex items-center gap-3">
+<h1 class="text-[20px] font-bold text-[#f3f4f6] tracking-tight">Transport ERP</h1>
+<div class="font-['JetBrains_Mono'] text-[12px] text-[#94a3b8] bg-[#15191e] px-2.5 py-1 rounded-md border border-[#242c37] flex items-center gap-1.5">
+<span>Hoje US$ 1,24</span>
+<span class="text-[#64748b]">·</span>
+<span>Semana US$ 3,72</span>
+</div>
+</div>
+<!-- Direita: Grupo de Botões -->
+<div class="flex items-center gap-2">
+<button class="text-[13px] bg-[#15191e] hover:bg-[#1c2128] border border-[#242c37] text-[#f3f4f6] px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5" type="button">
+<span class="material-symbols-outlined !text-[15px] text-[#94a3b8]">folder</span>
+<span>Projetos (2)</span>
+</button>
+<button class="text-[13px] bg-[#15191e] hover:bg-[#1c2128] border border-[#242c37] text-[#f3f4f6] px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5" type="button">
+<span class="material-symbols-outlined !text-[15px] text-[#94a3b8]">extension</span>
+<span>Integrações</span>
+</button>
+<button class="text-[13px] font-medium bg-[#6366f1] hover:bg-[#4f46e5] text-white px-3.5 py-1.5 rounded-md shadow-sm transition-colors flex items-center gap-1.5" type="button">
+<span class="material-symbols-outlined !text-[16px]">add</span>
+<span>Adicionar agente</span>
+</button>
+</div>
+</div>
+<!-- 2. BARRA DE CONTROLE / MODO DE EXIBIÇÃO -->
+<div class="flex items-center shrink-0">
+<div class="bg-[#15191e] p-0.5 rounded-md border border-[#242c37] inline-flex items-center">
+<button class="text-[#94a3b8] hover:text-[#f3f4f6] px-3 py-1 text-[13px] transition-colors rounded" type="button">
+            Lista expansível
+          </button>
+<button class="bg-[#1c2128] text-[#f3f4f6] font-medium px-3 py-1 rounded-[2px] text-[13px] shadow-xs" type="button">
+            Grade
+          </button>
+</div>
+</div>
+<!-- 3. GRADE 2x2 -->
+<div class="grid grid-cols-2 grid-rows-2 flex-1 gap-3 min-h-0">
+<!-- CÉLULA 1: Arquiteto -->
+<section class="bg-[#101317] border border-[#242c37] rounded-lg flex flex-col overflow-hidden min-h-0">
+<!-- Cabeçalho compacto em UMA linha -->
+<div class="bg-[#15191e] px-3 py-2 border-b border-[#242c37] flex items-center justify-between shrink-0">
+<div class="flex items-center gap-2">
+<span class="text-[14px] font-semibold text-[#f3f4f6]">Arquiteto</span>
+<div class="flex items-center gap-1 text-[12px] text-[#10b981] font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+<span>Pronto</span>
+</div>
+<span class="font-['JetBrains_Mono'] text-[11px] bg-[#1c2128] text-[#94a3b8] px-1.5 py-0.5 rounded border border-[#242c37]">sonnet</span>
+</div>
+<button aria-label="Mais opções" class="text-[#94a3b8] hover:text-[#f3f4f6] cursor-pointer flex items-center justify-center p-0.5 rounded hover:bg-[#1c2128]" type="button">
+<span class="material-symbols-outlined !text-[16px]">more_horiz</span>
+</button>
+</div>
+<!-- Barra de abas -->
+<div class="bg-[#101317] px-3 border-b border-[#242c37] flex gap-4 text-[12px] shrink-0">
+<button class="text-[#f3f4f6] font-medium border-b-2 border-[#6366f1] py-1.5 -mb-px" type="button">Chat</button>
+<button class="text-[#94a3b8] hover:text-[#f3f4f6] py-1.5 transition-colors" type="button">Atividade</button>
+<button class="text-[#94a3b8] hover:text-[#f3f4f6] py-1.5 transition-colors" type="button">Terminal</button>
+<button class="text-[#94a3b8] hover:text-[#f3f4f6] py-1.5 transition-colors" type="button">Detalhes</button>
+<button class="text-[#94a3b8] hover:text-[#f3f4f6] py-1.5 transition-colors" type="button">Execuções</button>
+</div>
+<!-- Área de Chat -->
+<div class="flex-1 p-3 overflow-y-auto flex flex-col gap-2.5 text-[13px] min-h-0">
+<div class="bg-[#15191e] border border-[#242c37] rounded-md p-2.5 max-w-[92%] leading-relaxed text-[#e2e8f0]">
+              Análise das rotas e contratos de cobrança concluída. O webhook do PagBank foi isolado em <code class="font-['JetBrains_Mono'] text-[11px] bg-[#1c2128] text-[#c0c1ff] px-1 py-0.5 rounded border border-[#242c37]">infra/payment</code> garantindo idempotência via hash de payload.
+            </div>
+</div>
+<!-- Compositor em UMA linha -->
+<div class="p-2.5 bg-[#15191e] border-t border-[#242c37] flex items-center gap-2 shrink-0">
+<div class="flex-1 bg-[#101317] border border-[#242c37] rounded-md px-3 py-1.5 text-[13px] text-[#f3f4f6] flex items-center justify-between focus-within:border-[#6366f1] transition-colors">
+<input class="bg-transparent border-0 outline-none p-0 text-[13px] text-[#f3f4f6] placeholder-[#64748b] w-full focus:ring-0" placeholder="Mensagem para Arquiteto" type="text"/>
+<span class="material-symbols-outlined !text-[15px] text-[#64748b] ml-1 shrink-0 cursor-help" title="Escopo do agente">tune</span>
+</div>
+<button class="bg-[#6366f1] text-white text-[12px] font-medium px-3 py-1.5 rounded-md hover:bg-[#4f46e5] transition-colors shrink-0" type="button">
+              Enviar
+            </button>
+</div>
+</section>
+<!-- CÉLULA 2: Desenvolvedor -->
+<section class="bg-[#101317] border border-[#242c37] rounded-lg flex flex-col overflow-hidden min-h-0">
+<!-- Cabeçalho compacto em UMA linha -->
+<div class="bg-[#15191e] px-3 py-2 border-b border-[#242c37] flex items-center justify-between shrink-0">
+<div class="flex items-center gap-2">
+<span class="text-[14px] font-semibold text-[#f3f4f6]">Desenvolvedor</span>
+<div class="flex items-center gap-1 text-[12px] text-[#10b981] font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+<span>Pronto</span>
+</div>
+<span class="font-['JetBrains_Mono'] text-[11px] bg-[#1c2128] text-[#94a3b8] px-1.5 py-0.5 rounded border border-[#242c37]">sonnet</span>
+</div>
+<button aria-label="Mais opções" class="text-[#94a3b8] hover:text-[#f3f4f6] cursor-pointer flex items-center justify-center p-0.5 rounded hover:bg-[#1c2128]" type="button">
+<span class="material-symbols-outlined !text-[16px]">more_horiz</span>
+</button>
+</div>
+<!-- Barra de abas -->
+<div class="bg-[#101317] px-3 border-b border-[#242c37] flex gap-4 text-[12px] shrink-0">
+<button class="text-[#f3f4f6] font-medium border-b-2 border-[#6366f1] py-1.5 -mb-px" type="button">Chat</button>
+<button class="text-[#94a3b8] hover:text-[#f3f4f6] py-1.5 transition-colors" type="button">Atividade</button>
+<button class="text-[#94a3b8] hover:text-[#f3f4f6] py-1.5 transition-colors" type="button">Terminal</button>
+<button class="text-[#94a3b8] hover:text-[#f3f4f6] py-1.5 transition-colors" type="button">Detalhes</button>
+<button class="text-[#94a3b8] hover:text-[#f3f4f6] py-1.5 transition-colors" type="button">Execuções</button>
+</div>
+<!-- Área de Chat VAZIA com estado simples -->
+<div class="flex-1 p-3 overflow-y-auto flex items-center justify-center min-h-0">
+<span class="text-[13px] text-[#64748b]">Nenhuma mensagem ainda. Pergunte algo a este agente.</span>
+</div>
+<!-- Compositor em UMA linha -->
+<div class="p-2.5 bg-[#15191e] border-t border-[#242c37] flex items-center gap-2 shrink-0">
+<div class="flex-1 bg-[#101317] border border-[#242c37] rounded-md px-3 py-1.5 text-[13px] text-[#f3f4f6] flex items-center justify-between focus-within:border-[#6366f1] transition-colors">
+<input class="bg-transparent border-0 outline-none p-0 text-[13px] text-[#f3f4f6] placeholder-[#64748b] w-full focus:ring-0" placeholder="Mensagem para Desenvolvedor" type="text"/>
+<span class="material-symbols-outlined !text-[15px] text-[#64748b] ml-1 shrink-0 cursor-help" title="Escopo do agente">tune</span>
+</div>
+<button class="bg-[#6366f1] text-white text-[12px] font-medium px-3 py-1.5 rounded-md hover:bg-[#4f46e5] transition-colors shrink-0" type="button">
+              Enviar
+            </button>
+</div>
+</section>
+<!-- CÉLULA 3: QA -->
+<section class="bg-[#101317] border border-[#242c37] rounded-lg flex flex-col overflow-hidden min-h-0">
+<!-- Cabeçalho compacto em UMA linha -->
+<div class="bg-[#15191e] px-3 py-2 border-b border-[#242c37] flex items-center justify-between shrink-0">
+<div class="flex items-center gap-2">
+<span class="text-[14px] font-semibold text-[#f3f4f6]">QA</span>
+<div class="flex items-center gap-1 text-[12px] text-[#10b981] font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+<span>Pronto</span>
+</div>
+<span class="font-['JetBrains_Mono'] text-[11px] bg-[#1c2128] text-[#94a3b8] px-1.5 py-0.5 rounded border border-[#242c37]">sonnet</span>
+</div>
+<button aria-label="Mais opções" class="text-[#94a3b8] hover:text-[#f3f4f6] cursor-pointer flex items-center justify-center p-0.5 rounded hover:bg-[#1c2128]" type="button">
+<span class="material-symbols-outlined !text-[16px]">more_horiz</span>
+</button>
+</div>
+<!-- Barra de abas -->
+<div class="bg-[#101317] px-3 border-b border-[#242c37] flex gap-4 text-[12px] shrink-0">
+<button class="text-[#f3f4f6] font-medium border-b-2 border-[#6366f1] py-1.5 -mb-px" type="button">Chat</button>
+<button class="text-[#94a3b8] hover:text-[#f3f4f6] py-1.5 transition-colors" type="button">Atividade</button>
+<button class="text-[#94a3b8] hover:text-[#f3f4f6] py-1.5 transition-colors" type="button">Terminal</button>
+<button class="text-[#94a3b8] hover:text-[#f3f4f6] py-1.5 transition-colors" type="button">Detalhes</button>
+<button class="text-[#94a3b8] hover:text-[#f3f4f6] py-1.5 transition-colors" type="button">Execuções</button>
+</div>
+<!-- Área de Chat com troca curta -->
+<div class="flex-1 p-3 overflow-y-auto flex flex-col gap-2 text-[13px] min-h-0">
+<!-- Usuário (alinhado à direita) -->
+<div class="flex justify-end">
+<div class="bg-[#1c2128] text-[#f3f4f6] p-2 rounded-md max-w-[85%] leading-relaxed border border-[#242c37]">
+                Qual o status da suíte de regressão de pagamentos?
+              </div>
+</div>
+<!-- QA (alinhado à esquerda) -->
+<div class="flex justify-start">
+<div class="bg-[#15191e] border border-[#242c37] text-[#f3f4f6] p-2 rounded-md max-w-[85%] leading-relaxed">
+                8/8 testes de unidade passaram. Todos os mocks de WebFlux responderam sem falha.
+              </div>
+</div>
+</div>
+<!-- Compositor em UMA linha -->
+<div class="p-2.5 bg-[#15191e] border-t border-[#242c37] flex items-center gap-2 shrink-0">
+<div class="flex-1 bg-[#101317] border border-[#242c37] rounded-md px-3 py-1.5 text-[13px] text-[#f3f4f6] flex items-center justify-between focus-within:border-[#6366f1] transition-colors">
+<input class="bg-transparent border-0 outline-none p-0 text-[13px] text-[#f3f4f6] placeholder-[#64748b] w-full focus:ring-0" placeholder="Mensagem para QA" type="text"/>
+<span class="material-symbols-outlined !text-[15px] text-[#64748b] ml-1 shrink-0 cursor-help" title="Escopo do agente">tune</span>
+</div>
+<button class="bg-[#6366f1] text-white text-[12px] font-medium px-3 py-1.5 rounded-md hover:bg-[#4f46e5] transition-colors shrink-0" type="button">
+              Enviar
+            </button>
+</div>
+</section>
+<!-- CÉLULA 4: LIVRE -->
+<section class="border-2 border-dashed border-[#242c37] hover:border-[#6366f1]/50 bg-[#0b0d10] rounded-lg flex flex-col items-center justify-center p-6 text-center transition-colors group">
+<div class="w-10 h-10 rounded-full bg-[#15191e] border border-[#242c37] flex items-center justify-center text-[#94a3b8] group-hover:text-[#6366f1] group-hover:border-[#6366f1]/40 transition-colors mb-2.5">
+<span class="material-symbols-outlined !text-[20px]">add</span>
+</div>
+<span class="text-[14px] font-medium text-[#94a3b8] mb-3">Espaço livre</span>
+<button class="text-[13px] bg-[#15191e] hover:bg-[#1c2128] border border-[#242c37] text-[#f3f4f6] px-3.5 py-1.5 rounded-md transition-colors flex items-center gap-1.5 shadow-sm" type="button">
+<span class="material-symbols-outlined !text-[15px] text-[#94a3b8]">add</span>
+<span>Adicionar agente aqui</span>
+</button>
+</section>
+</div>
+</main>
+</div>
+</body></html>

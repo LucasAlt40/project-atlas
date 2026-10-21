@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas AI Engineering Workspace — Design System</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Fonts: Geist & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-error": "#690005",
+            "on-background": "#e1e2e8",
+            "on-secondary-fixed": "#001c39",
+            "secondary-fixed-dim": "#a4c9ff",
+            "tertiary": "#ffb0cd",
+            "surface-container-low": "#191c20",
+            "on-error-container": "#ffdad6",
+            "on-primary-container": "#0d0096",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-secondary-container": "#d6e5ff",
+            "inverse-primary": "#494bd6",
+            "surface-container": "#1d2024",
+            "on-secondary": "#00315d",
+            "on-surface-variant": "#c7c4d7",
+            "tertiary-fixed": "#ffd9e4",
+            "secondary-fixed": "#d4e3ff",
+            "background": "#111418",
+            "outline": "#908fa0",
+            "secondary": "#a4c9ff",
+            "surface-bright": "#36393e",
+            "on-primary": "#1000a9",
+            "inverse-on-surface": "#2e3135",
+            "on-secondary-fixed-variant": "#004883",
+            "surface": "#111418",
+            "on-primary-fixed": "#07006c",
+            "surface-tint": "#c0c1ff",
+            "on-surface": "#e1e2e8",
+            "on-tertiary-fixed": "#3e0022",
+            "primary-fixed": "#e1e0ff",
+            "error-container": "#93000a",
+            "tertiary-container": "#f751a1",
+            "on-tertiary-container": "#570032",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "surface-container-lowest": "#0b0e12",
+            "primary": "#c0c1ff",
+            "primary-container": "#8083ff",
+            "inverse-surface": "#e1e2e8",
+            "surface-dim": "#111418",
+            "surface-variant": "#323539",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "secondary-container": "#0267b8",
+            "on-tertiary": "#640039",
+            "outline-variant": "#464554",
+            "surface-container-highest": "#323539",
+            "error": "#ffb4ab",
+            "surface-container-high": "#272a2e"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "margin-window": "0.5rem",
+            "space-xl": "1.5rem",
+            "space-2xs": "0.125rem",
+            "space-xs": "0.25rem",
+            "margin": "0.75rem",
+            "gutter-expanded": "1rem",
+            "gutter": "0.5rem",
+            "space-2xl": "2rem",
+            "space-lg": "1rem",
+            "gutter-compact": "0.25rem",
+            "space-md": "0.75rem",
+            "space-sm": "0.5rem"
+          },
+          "fontFamily": {
+            "code-lg": ["JetBrains Mono", "monospace"],
+            "code-sm": ["JetBrains Mono", "monospace"],
+            "headline-sm": ["Geist", "sans-serif"],
+            "headline-xl": ["Geist", "sans-serif"],
+            "body-sm": ["Geist", "sans-serif"],
+            "body-lg": ["Geist", "sans-serif"],
+            "headline-lg": ["Geist", "sans-serif"],
+            "body-md": ["Geist", "sans-serif"],
+            "code-md": ["JetBrains Mono", "monospace"],
+            "telemetry-pill": ["JetBrains Mono", "monospace"],
+            "label-sm": ["Geist", "sans-serif"],
+            "headline-md": ["Geist", "sans-serif"],
+            "label-md": ["Geist", "sans-serif"]
+          },
+          "fontSize": {
+            "code-lg": ["0.875rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "code-sm": ["0.6875rem", { "lineHeight": "1rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-sm": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "headline-xl": ["2rem", { "lineHeight": "2.5rem", "letterSpacing": "-0.025em", "fontWeight": "600" }],
+            "body-sm": ["0.75rem", { "lineHeight": "1.125rem", "letterSpacing": "0.005em", "fontWeight": "400" }],
+            "body-lg": ["1rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "headline-lg": ["1.5rem", { "lineHeight": "2rem", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "body-md": ["0.875rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "code-md": ["0.8125rem", { "lineHeight": "1.25rem", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+            "telemetry-pill": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.02em", "fontWeight": "600" }],
+            "label-sm": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.04em", "fontWeight": "600" }],
+            "headline-md": ["1.25rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.015em", "fontWeight": "500" }],
+            "label-md": ["0.8125rem", { "lineHeight": "1rem", "letterSpacing": "0.01em", "fontWeight": "500" }]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    /* Custom subtle scrollbar */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0e12;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #272a2e;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #464554;
+    }
+  </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface antialiased overflow-hidden select-none h-screen w-screen flex flex-col font-body-md text-body-md">
+<!-- TOP APP BAR (48px / h-12) strictly docked -->
+<header class="flex justify-between items-center w-full px-space-md h-12 border-b border-outline-variant bg-surface-container-low shrink-0 z-20">
+<div class="flex items-center gap-space-sm">
+<!-- Collapse Sidebar Button -->
+<button class="flex items-center justify-center w-7 h-7 rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface active:bg-surface-container-high transition-colors" title="Recolher barra lateral">
+<span class="material-symbols-outlined" data-icon="left_panel_close">left_panel_close</span>
+</button>
+<div class="h-4 w-px bg-outline-variant mx-space-2xs"></div>
+<!-- Breadcrumb -->
+<nav class="flex items-center gap-space-xs font-body-sm text-body-sm text-on-surface-variant">
+<span class="hover:text-on-surface transition-colors cursor-pointer">Transport ERP</span>
+<span class="text-outline">/</span>
+<span class="font-medium text-on-surface">Design system</span>
+</nav>
+</div>
+<!-- Trailing Actions -->
+<div class="flex items-center gap-space-md">
+<!-- Celular with discrete badge -->
+<button class="flex items-center gap-space-xs px-space-sm py-1 rounded bg-surface-container border border-outline-variant hover:bg-surface-container-high text-on-surface transition-colors">
+<span class="material-symbols-outlined text-outline" data-icon="smartphone">smartphone</span>
+<span class="font-label-sm text-label-sm">Celular</span>
+<span class="px-1 py-0.2 bg-surface-container-highest border border-outline-variant rounded font-code-sm text-code-sm text-on-surface-variant">Sync</span>
+</button>
+<div class="h-4 w-px bg-outline-variant"></div>
+<!-- PT | EN switcher -->
+<div class="flex items-center p-0.5 rounded bg-surface-container-highest border border-outline-variant font-code-sm text-code-sm">
+<button class="px-1.5 py-0.5 rounded-DEFAULT bg-surface-container-low text-primary font-medium">PT</button>
+<span class="text-outline px-0.5">|</span>
+<button class="px-1.5 py-0.5 text-on-surface-variant hover:text-on-surface">EN</button>
+</div>
+</div>
+</header>
+<!-- WORKSPACE BODY (SideNav 216px + Main Content Split) -->
+<div class="flex flex-1 overflow-hidden w-full h-[calc(100vh-48px)]">
+<!-- SIDE NAV BAR (docked left top-0 bottom-0 w-[216px]) -->
+<aside class="flex flex-col justify-between w-[216px] h-full p-space-sm border-r border-outline-variant bg-surface-container-lowest shrink-0">
+<!-- Top Section: Brand & Navigation -->
+<div class="flex flex-col gap-space-md">
+<!-- Logo & Header -->
+<div class="flex items-center justify-between px-space-xs py-1">
+<div class="flex items-center gap-space-sm">
+<div class="w-6 h-6 rounded bg-surface-container-high border border-outline-variant flex items-center justify-center text-primary font-code-sm font-semibold">
+              A
+            </div>
+<div>
+<div class="text-label-md font-headline-md font-bold text-on-surface tracking-tight">Atlas</div>
+<div class="font-code-sm text-code-sm text-on-surface-variant leading-none">v1.2 // Core Tokens</div>
+</div>
+</div>
+<span class="w-2 h-2 rounded-full bg-secondary-container animate-pulse" title="Kernel online"></span>
+</div>
+<!-- Workspace Selector -->
+<div class="px-space-xs py-1.5 rounded bg-surface-container-low border border-outline-variant cursor-pointer hover:bg-surface-container transition-colors">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm font-medium text-on-surface truncate">Transport ERP</span>
+<span class="material-symbols-outlined text-outline" data-icon="unfold_more">unfold_more</span>
+</div>
+<div class="font-code-sm text-code-sm text-outline truncate mt-0.5">/dev/transport-erp</div>
+</div>
+<!-- Navigation Tabs Matrix -->
+<nav class="flex flex-col gap-space-2xs font-label-md text-label-md">
+<!-- Workspace -->
+<a class="flex items-center gap-space-sm px-space-sm py-1.5 text-on-surface-variant rounded-DEFAULT hover:bg-surface-container hover:text-on-surface transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>Workspace</span>
+</a>
+<!-- Workflow -->
+<a class="flex items-center gap-space-sm px-space-sm py-1.5 text-on-surface-variant rounded-DEFAULT hover:bg-surface-container hover:text-on-surface transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="schema">schema</span>
+<span>Workflow</span>
+</a>
+<!-- Agentes -->
+<a class="flex items-center gap-space-sm px-space-sm py-1.5 text-on-surface-variant rounded-DEFAULT hover:bg-surface-container hover:text-on-surface transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="smart_toy">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- Personalidades -->
+<a class="flex items-center gap-space-sm px-space-sm py-1.5 text-on-surface-variant rounded-DEFAULT hover:bg-surface-container hover:text-on-surface transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- Specs -->
+<a class="flex items-center gap-space-sm px-space-sm py-1.5 text-on-surface-variant rounded-DEFAULT hover:bg-surface-container hover:text-on-surface transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span>Specs</span>
+</a>
+<!-- MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-sm py-1.5 text-on-surface-variant rounded-DEFAULT hover:bg-surface-container hover:text-on-surface transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="hub">hub</span>
+<span>MCP Hub</span>
+</a>
+<!-- ACTIVE: Design System / Configurações -->
+<a class="flex items-center gap-space-sm px-space-sm py-1.5 bg-surface-container-high text-primary border-l-2 border-primary font-medium rounded-r-DEFAULT" href="#">
+<span class="material-symbols-outlined" data-icon="palette">palette</span>
+<span>Design system</span>
+</a>
+<!-- Configurações -->
+<a class="flex items-center gap-space-sm px-space-sm py-1.5 text-on-surface-variant rounded-DEFAULT hover:bg-surface-container hover:text-on-surface transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span>Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Bottom Nav Footer -->
+<div class="flex flex-col gap-space-xs border-t border-outline-variant pt-space-sm">
+<a class="flex items-center gap-space-sm px-space-sm py-1 text-on-surface-variant hover:text-on-surface font-code-sm text-code-sm transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="menu_book">menu_book</span>
+<span>Documentação</span>
+</a>
+<a class="flex items-center gap-space-sm px-space-sm py-1 text-on-surface-variant hover:text-on-surface font-code-sm text-code-sm transition-colors" href="#">
+<span class="material-symbols-outlined text-secondary" data-icon="sensors">sensors</span>
+<span>Status do Daemon</span>
+</a>
+<div class="px-space-sm pt-space-xs text-[11px] font-code-sm text-outline border-t border-outline-variant mt-1">
+          Project Atlas v0.2.0 · macOS
+        </div>
+</div>
+</aside>
+<!-- MAIN SCROLLABLE CONTENT CANVAS -->
+<main class="flex-1 h-full overflow-y-auto bg-surface-container-lowest">
+<!-- STICKY HEADER & IN-PAGE ANCHOR TABS -->
+<div class="sticky top-0 z-10 bg-surface-container-lowest/95 backdrop-blur-sm border-b border-outline-variant px-space-xl pt-space-lg pb-0">
+<div class="flex flex-col md:flex-row md:items-end justify-between pb-space-md gap-space-sm">
+<div>
+<h1 class="text-headline-lg font-headline-lg font-semibold text-on-surface tracking-tight">Design system</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-0.5">
+              Tokens de base, superfícies em camadas, tipografia de alta legibilidade e componentes padronizados com seus estados operacionais.
+            </p>
+</div>
+<button class="flex items-center gap-space-xs px-space-md py-1.5 bg-surface-container-high border border-outline-variant hover:bg-surface-container-highest text-primary font-label-md text-label-md rounded transition-colors self-start md:self-auto">
+<span class="material-symbols-outlined" data-icon="data_object">data_object</span>
+<span>Inspecionar Tokens</span>
+</button>
+</div>
+<!-- Section Navigation Anchor Tabs -->
+<div class="flex items-center gap-space-lg overflow-x-auto text-label-sm font-label-sm border-t border-outline-variant pt-space-xs">
+<a class="pb-2 border-b-2 border-primary text-primary font-semibold whitespace-nowrap" href="#superficies">Superfícies &amp; Cores</a>
+<a class="pb-2 border-b-2 border-transparent text-on-surface-variant hover:text-on-surface whitespace-nowrap" href="#tipografia">Tipografia &amp; Escala</a>
+<a class="pb-2 border-b-2 border-transparent text-on-surface-variant hover:text-on-surface whitespace-nowrap" href="#botoes">Botões &amp; Ações</a>
+<a class="pb-2 border-b-2 border-transparent text-on-surface-variant hover:text-on-surface whitespace-nowrap" href="#selos">Selos &amp; Estados</a>
+<a class="pb-2 border-b-2 border-transparent text-on-surface-variant hover:text-on-surface whitespace-nowrap" href="#formularios">Formulários &amp; Campos</a>
+<a class="pb-2 border-b-2 border-transparent text-on-surface-variant hover:text-on-surface whitespace-nowrap" href="#blocos">Blocos Técnicos &amp; Avisos</a>
+</div>
+</div>
+<!-- CONTENT SECTIONS CONTAINER -->
+<div class="p-space-xl flex flex-col gap-space-2xl max-w-7xl mx-auto">
+<!-- 1. SUPERFÍCIES EM CAMADAS & CORES SEMÂNTICAS -->
+<section class="flex flex-col gap-space-lg" id="superficies">
+<div class="flex items-center justify-between border-b border-outline-variant pb-space-xs">
+<div class="flex items-center gap-space-sm">
+<span class="w-1.5 h-4 bg-primary rounded-DEFAULT"></span>
+<h2 class="font-headline-sm text-headline-sm font-medium text-on-surface">1. Superfícies em Camadas &amp; Cores Semânticas</h2>
+</div>
+<span class="font-code-sm text-code-sm text-outline">5 NÍVEIS // FLAT MONOLITHIC</span>
+</div>
+<!-- 5 Surface Tiers Grid -->
+<div class="grid grid-cols-1 md:grid-cols-5 gap-space-sm">
+<!-- Void -->
+<div class="p-space-md rounded bg-surface-container-lowest border border-outline-variant flex flex-col justify-between h-36">
+<div>
+<div class="flex items-center justify-between">
+<span class="font-code-sm text-code-sm text-outline">TIER 0</span>
+<span class="font-code-sm text-code-sm text-primary">#0b0d10</span>
+</div>
+<div class="font-label-md text-label-md font-semibold text-on-surface mt-1">Void</div>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-tight">Fundo mais profundo, terminal e canvas imersivo</p>
+</div>
+<!-- Base -->
+<div class="p-space-md rounded bg-[#101317] border border-outline-variant flex flex-col justify-between h-36">
+<div>
+<div class="flex items-center justify-between">
+<span class="font-code-sm text-code-sm text-outline">TIER 1</span>
+<span class="font-code-sm text-code-sm text-primary">#101317</span>
+</div>
+<div class="font-label-md text-label-md font-semibold text-on-surface mt-1">Base</div>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-tight">Superfície de fundo da aplicação e moldura</p>
+</div>
+<!-- Nível 1 -->
+<div class="p-space-md rounded bg-[#15191e] border border-outline-variant flex flex-col justify-between h-36">
+<div>
+<div class="flex items-center justify-between">
+<span class="font-code-sm text-code-sm text-outline">TIER 2</span>
+<span class="font-code-sm text-code-sm text-primary">#15191e</span>
+</div>
+<div class="font-label-md text-label-md font-semibold text-on-surface mt-1">Nível 1</div>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-tight">Painéis principais, cartões primários e gavetas</p>
+</div>
+<!-- Nível 2 -->
+<div class="p-space-md rounded bg-[#1c2128] border border-outline-variant flex flex-col justify-between h-36">
+<div>
+<div class="flex items-center justify-between">
+<span class="font-code-sm text-code-sm text-outline">TIER 3</span>
+<span class="font-code-sm text-code-sm text-primary">#1c2128</span>
+</div>
+<div class="font-label-md text-label-md font-semibold text-on-surface mt-1">Nível 2</div>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-tight">Caixas internas de seleção, inputs inativos e cabeçalhos</p>
+</div>
+<!-- Nível 3 -->
+<div class="p-space-md rounded bg-[#242c37] border border-outline-variant flex flex-col justify-between h-36">
+<div>
+<div class="flex items-center justify-between">
+<span class="font-code-sm text-code-sm text-outline">TIER 4</span>
+<span class="font-code-sm text-code-sm text-primary">#242c37</span>
+</div>
+<div class="font-label-md text-label-md font-semibold text-on-surface mt-1">Nível 3</div>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-tight">Estados hover de superfície, controles e bordas sutis</p>
+</div>
+</div>
+<!-- Semantic Color Tokens & Primary Indigo Matrix -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md mt-space-xs">
+<!-- Semantics -->
+<div class="p-space-md rounded bg-surface-container-low border border-outline-variant flex flex-col gap-space-sm">
+<span class="font-label-sm text-label-sm font-semibold uppercase text-outline">Cores Semânticas com Significado Fixo</span>
+<div class="grid grid-cols-2 sm:grid-cols-3 gap-space-sm">
+<div class="p-2 rounded bg-surface-container border border-outline-variant flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-[#10b981]"></span>
+<span class="font-label-sm text-label-sm font-medium text-on-surface">Sucesso</span>
+</div>
+<span class="font-code-sm text-code-sm text-[#10b981] mt-1">#10b981</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Pronto / Concluído</span>
+</div>
+<div class="p-2 rounded bg-surface-container border border-outline-variant flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-[#f59e0b]"></span>
+<span class="font-label-sm text-label-sm font-medium text-on-surface">Aviso</span>
+</div>
+<span class="font-code-sm text-code-sm text-[#f59e0b] mt-1">#f59e0b</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Aguardando / Pausa</span>
+</div>
+<div class="p-2 rounded bg-surface-container border border-outline-variant flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-[#ef4444]"></span>
+<span class="font-label-sm text-label-sm font-medium text-on-surface">Erro / Destrutivo</span>
+</div>
+<span class="font-code-sm text-code-sm text-[#ef4444] mt-1">#ef4444</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Falhou / Bloqueado</span>
+</div>
+<div class="p-2 rounded bg-surface-container border border-outline-variant flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-[#60a5fa]"></span>
+<span class="font-label-sm text-label-sm font-medium text-on-surface">Executando</span>
+</div>
+<span class="font-code-sm text-code-sm text-[#60a5fa] mt-1">#60a5fa</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Em execução viva</span>
+</div>
+<div class="p-2 rounded bg-surface-container border border-outline-variant flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-[#38bdf8]"></span>
+<span class="font-label-sm text-label-sm font-medium text-on-surface">Info</span>
+</div>
+<span class="font-code-sm text-code-sm text-[#38bdf8] mt-1">#38bdf8</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Informação técnica</span>
+</div>
+<div class="p-2 rounded bg-surface-container border border-outline-variant flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-[#ec4899]"></span>
+<span class="font-label-sm text-label-sm font-medium text-on-surface">Política</span>
+</div>
+<span class="font-code-sm text-code-sm text-[#ec4899] mt-1">#ec4899</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Guardrails &amp; Kernel</span>
+</div>
+</div>
+</div>
+<!-- Primary Accent & Hairline Borders -->
+<div class="p-space-md rounded bg-surface-container-low border border-outline-variant flex flex-col justify-between">
+<div>
+<span class="font-label-sm text-label-sm font-semibold uppercase text-outline">Acento Primário (Índigo) &amp; Bordas</span>
+<div class="grid grid-cols-2 gap-space-sm mt-space-sm">
+<div class="p-2 rounded bg-[#6366f1]/15 border border-[#6366f1]/40 flex flex-col">
+<span class="font-label-sm text-label-sm font-semibold text-primary">Primário Base</span>
+<span class="font-code-sm text-code-sm text-[#c0c1ff]">#6366f1</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant mt-1">Botões, foco &amp; 14% tint</span>
+</div>
+<div class="p-2 rounded bg-surface-container border border-outline-variant flex flex-col">
+<span class="font-label-sm text-label-sm font-semibold text-on-surface">Hover Primário</span>
+<span class="font-code-sm text-code-sm text-secondary">#4f46e5</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant mt-1">Micro-interações rápidas</span>
+</div>
+</div>
+</div>
+<!-- Boundaries -->
+<div class="border-t border-outline-variant pt-space-xs mt-space-sm flex items-center justify-between text-body-sm font-code-sm text-on-surface-variant">
+<span>Borda Sutil: <code class="text-on-surface">#242c37</code></span>
+<span>Borda Forte: <code class="text-on-surface">#2d3748</code></span>
+<span>Anel Foco: <code class="text-primary">#3b4554</code></span>
+</div>
+</div>
+</div>
+</section>
+<!-- 2. TIPOGRAFIA & HIERARQUIA -->
+<section class="flex flex-col gap-space-lg" id="tipografia">
+<div class="flex items-center justify-between border-b border-outline-variant pb-space-xs">
+<div class="flex items-center gap-space-sm">
+<span class="w-1.5 h-4 bg-primary rounded-DEFAULT"></span>
+<h2 class="font-headline-sm text-headline-sm font-medium text-on-surface">2. Tipografia &amp; Hierarquia de Alta Legibilidade</h2>
+</div>
+<span class="font-code-sm text-code-sm text-outline">GEIST SANS + JETBRAINS MONO</span>
+</div>
+<div class="rounded border border-outline-variant bg-surface-container-low overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-outline-variant bg-surface-container font-label-sm text-label-sm text-outline uppercase tracking-wider">
+<th class="p-3 w-40">Nível / Token</th>
+<th class="p-3 w-36">Especificação</th>
+<th class="p-3">Exemplo Renderizado no Tema</th>
+<th class="p-3 w-28 text-right">Contraste</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant font-body-md text-body-md">
+<!-- Título Página -->
+<tr class="hover:bg-surface-container/50 transition-colors">
+<td class="p-3 font-code-sm text-code-sm text-primary font-medium">Título Página</td>
+<td class="p-3 font-code-sm text-code-sm text-on-surface-variant">22px · Semibold · Geist</td>
+<td class="p-3 text-[22px] font-semibold text-on-surface tracking-tight">Deploy Orchestrator spec: production-eu</td>
+<td class="p-3 text-right font-code-sm text-code-sm text-[#10b981]">14.2:1 (AAA)</td>
+</tr>
+<!-- Título Seção -->
+<tr class="hover:bg-surface-container/50 transition-colors">
+<td class="p-3 font-code-sm text-code-sm text-primary font-medium">Título Seção</td>
+<td class="p-3 font-code-sm text-code-sm text-on-surface-variant">16px · Medium · Geist</td>
+<td class="p-3 text-[16px] font-medium text-on-surface">Variáveis de Ambiente &amp; Limites do Kernel</td>
+<td class="p-3 text-right font-code-sm text-code-sm text-[#10b981]">12.8:1 (AAA)</td>
+</tr>
+<!-- Corpo Legível -->
+<tr class="hover:bg-surface-container/50 transition-colors">
+<td class="p-3 font-code-sm text-code-sm text-primary font-medium">Corpo Legível</td>
+<td class="p-3 font-code-sm text-code-sm text-on-surface-variant">14px · Regular · 1.5 leading</td>
+<td class="p-3 text-body-md text-on-surface leading-relaxed">
+                    Instâncias do daemon executam em isolamento de namespace com checagens determinísticas a cada 250ms.
+                  </td>
+<td class="p-3 text-right font-code-sm text-code-sm text-[#10b981]">11.5:1 (AAA)</td>
+</tr>
+<!-- Texto de Apoio -->
+<tr class="hover:bg-surface-container/50 transition-colors">
+<td class="p-3 font-code-sm text-code-sm text-primary font-medium">Texto de Apoio</td>
+<td class="p-3 font-code-sm text-code-sm text-on-surface-variant">13px · Regular · #94a3b8</td>
+<td class="p-3 text-[13px] text-on-surface-variant">
+                    Última sincronização validada via hash SHA-256 no bloco #49208
+                  </td>
+<td class="p-3 text-right font-code-sm text-code-sm text-[#10b981]">7.6:1 (AA)</td>
+</tr>
+<!-- Mínimo / Badges -->
+<tr class="hover:bg-surface-container/50 transition-colors">
+<td class="p-3 font-code-sm text-code-sm text-primary font-medium">Mínimo / Meta</td>
+<td class="p-3 font-code-sm text-code-sm text-on-surface-variant">12px · Semibold · Geist</td>
+<td class="p-3 text-[12px] font-semibold text-outline tracking-wider uppercase">RAM LIMIT EXCEEDED · 1.2 GB / 2.0 GB</td>
+<td class="p-3 text-right font-code-sm text-code-sm text-[#10b981]">5.1:1 (AA)</td>
+</tr>
+<!-- Monospace Engine -->
+<tr class="hover:bg-surface-container/50 transition-colors">
+<td class="p-3 font-code-sm text-code-sm text-primary font-medium">Monospace Engine</td>
+<td class="p-3 font-code-sm text-code-sm text-on-surface-variant">12px / 13px · JetBrains</td>
+<td class="p-3 font-code-md text-code-md text-secondary">
+                    const daemon = await Atlas.Kernel.spawnSync({ flags: ["--detach", "-v"] });
+                  </td>
+<td class="p-3 text-right font-code-sm text-code-sm text-[#10b981]">9.8:1 (AAA)</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- 3. MATRIZ DE BOTÕES & ESTADOS -->
+<section class="flex flex-col gap-space-lg" id="botoes">
+<div class="flex items-center justify-between border-b border-outline-variant pb-space-xs">
+<div class="flex items-center gap-space-sm">
+<span class="w-1.5 h-4 bg-primary rounded-DEFAULT"></span>
+<h2 class="font-headline-sm text-headline-sm font-medium text-on-surface">3. Matriz de Botões &amp; Estados Operacionais</h2>
+</div>
+<span class="font-code-sm text-code-sm text-outline">TAMANHOS M (32px) &amp; P (28px)</span>
+</div>
+<div class="rounded border border-outline-variant bg-surface-container-low overflow-x-auto">
+<table class="w-full text-left border-collapse min-w-[760px]">
+<thead>
+<tr class="border-b border-outline-variant bg-surface-container font-label-sm text-label-sm text-outline uppercase tracking-wider">
+<th class="p-3">Variante</th>
+<th class="p-3">Normal</th>
+<th class="p-3">Hover</th>
+<th class="p-3">Foco Visível</th>
+<th class="p-3">Ativo / Pressionado</th>
+<th class="p-3">Desabilitado</th>
+<th class="p-3">Carregando</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant font-label-md text-label-md">
+<!-- PRIMÁRIO (ÍNDIGO) -->
+<tr>
+<td class="p-3 font-semibold text-on-surface">
+                    Primário
+                    <div class="font-code-sm text-code-sm text-outline font-normal">#6366f1</div>
+</td>
+<!-- Normal -->
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-primary-container text-on-primary-container font-medium hover:bg-inverse-primary transition-colors">
+                      Deploy
+                    </button>
+</td>
+<!-- Hover Mock -->
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-[#4f46e5] text-white font-medium">
+                      Deploy
+                    </button>
+</td>
+<!-- Focus Ring Mock -->
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-primary-container text-on-primary-container font-medium ring-2 ring-[#3b4554] ring-offset-1 ring-offset-surface-container-lowest">
+                      Deploy
+                    </button>
+</td>
+<!-- Active Mock -->
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-[#4338ca] text-white font-medium scale-[0.98]">
+                      Deploy
+                    </button>
+</td>
+<!-- Disabled -->
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-primary-container/40 text-on-primary-container/40 font-medium cursor-not-allowed" disabled="">
+                      Deploy
+                    </button>
+</td>
+<!-- Loading -->
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-primary-container text-on-primary-container font-medium flex items-center gap-1.5 cursor-wait">
+<svg class="animate-spin h-3.5 w-3.5 text-on-primary-container" fill="none" viewbox="0 0 24 24">
+<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+<path class="opacity-75" d="M4 12a8 8 0 018-8v8H4z" fill="currentColor"></path>
+</svg>
+<span>Gerando...</span>
+</button>
+</td>
+</tr>
+<!-- SECUNDÁRIO (CONTORNO) -->
+<tr>
+<td class="p-3 font-semibold text-on-surface">
+                    Secundário
+                    <div class="font-code-sm text-code-sm text-outline font-normal">Contorno #2d3748</div>
+</td>
+<!-- Normal -->
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-surface-container border border-outline-variant text-on-surface font-medium hover:bg-surface-container-high transition-colors">
+                      Exportar
+                    </button>
+</td>
+<!-- Hover Mock -->
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-surface-container-high border border-outline text-on-surface font-medium">
+                      Exportar
+                    </button>
+</td>
+<!-- Focus Ring Mock -->
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-surface-container border border-outline-variant text-on-surface font-medium ring-2 ring-[#3b4554]">
+                      Exportar
+                    </button>
+</td>
+<!-- Active Mock -->
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-surface-container-highest border border-outline-variant text-on-surface font-medium scale-[0.98]">
+                      Exportar
+                    </button>
+</td>
+<!-- Disabled -->
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-surface-container/40 border border-outline-variant/40 text-on-surface/40 font-medium cursor-not-allowed" disabled="">
+                      Exportar
+                    </button>
+</td>
+<!-- Loading -->
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-surface-container border border-outline-variant text-on-surface font-medium flex items-center gap-1.5 cursor-wait">
+<svg class="animate-spin h-3.5 w-3.5 text-outline" fill="none" viewbox="0 0 24 24">
+<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+<path class="opacity-75" d="M4 12a8 8 0 018-8v8H4z" fill="currentColor"></path>
+</svg>
+<span>Validando</span>
+</button>
+</td>
+</tr>
+<!-- FANTASMA (GHOST) -->
+<tr>
+<td class="p-3 font-semibold text-on-surface">
+                    Fantasma
+                    <div class="font-code-sm text-code-sm text-outline font-normal">Ghost / Sem borda</div>
+</td>
+<!-- Normal -->
+<td class="p-3">
+<button class="h-8 px-3 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors">
+                      Cancelar
+                    </button>
+</td>
+<!-- Hover Mock -->
+<td class="p-3">
+<button class="h-8 px-3 rounded text-primary bg-primary-container/15 font-medium">
+                      Cancelar
+                    </button>
+</td>
+<!-- Focus Ring Mock -->
+<td class="p-3">
+<button class="h-8 px-3 rounded text-on-surface ring-2 ring-[#3b4554]">
+                      Cancelar
+                    </button>
+</td>
+<!-- Active Mock -->
+<td class="p-3">
+<button class="h-8 px-3 rounded text-on-surface bg-surface-container-high scale-[0.98]">
+                      Cancelar
+                    </button>
+</td>
+<!-- Disabled -->
+<td class="p-3">
+<button class="h-8 px-3 rounded text-on-surface-variant/40 cursor-not-allowed" disabled="">
+                      Cancelar
+                    </button>
+</td>
+<!-- Loading -->
+<td class="p-3">
+<button class="h-8 px-3 rounded text-on-surface-variant flex items-center gap-1.5 cursor-wait">
+<svg class="animate-spin h-3.5 w-3.5 text-outline" fill="none" viewbox="0 0 24 24">
+<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+<path class="opacity-75" d="M4 12a8 8 0 018-8v8H4z" fill="currentColor"></path>
+</svg>
+<span>Aguarde</span>
+</button>
+</td>
+</tr>
+<!-- DESTRUTIVO (VERMELHO) -->
+<tr>
+<td class="p-3 font-semibold text-[#ef4444]">
+                    Destrutivo
+                    <div class="font-code-sm text-code-sm text-outline font-normal">Perigo #ef4444</div>
+</td>
+<!-- Normal -->
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-surface-container border border-[#ef4444]/60 text-[#ef4444] font-medium hover:bg-[#ef4444] hover:text-white transition-colors">
+                      Terminar
+                    </button>
+</td>
+<!-- Hover Mock -->
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-[#ef4444] text-white font-medium">
+                      Terminar
+                    </button>
+</td>
+<!-- Focus Ring Mock -->
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-surface-container border border-[#ef4444] text-[#ef4444] font-medium ring-2 ring-[#ef4444]/40">
+                      Terminar
+                    </button>
+</td>
+<!-- Active Mock -->
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-[#b91c1c] text-white font-medium scale-[0.98]">
+                      Terminar
+                    </button>
+</td>
+<!-- Disabled -->
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-surface-container/40 border border-[#ef4444]/30 text-[#ef4444]/40 font-medium cursor-not-allowed" disabled="">
+                      Terminar
+                    </button>
+</td>
+<!-- Loading -->
+<td class="p-3">
+<button class="h-8 px-3 rounded bg-surface-container border border-[#ef4444]/60 text-[#ef4444] font-medium flex items-center gap-1.5 cursor-wait">
+<svg class="animate-spin h-3.5 w-3.5 text-[#ef4444]" fill="none" viewbox="0 0 24 24">
+<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+<path class="opacity-75" d="M4 12a8 8 0 018-8v8H4z" fill="currentColor"></path>
+</svg>
+<span>Purgando</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Tamanho P (28px) & Overflow Menu Dropdown Demo -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+<!-- Compact size P (28px) -->
+<div class="p-space-md rounded bg-surface-container-low border border-outline-variant flex flex-col justify-between">
+<div>
+<span class="font-label-sm text-label-sm font-semibold uppercase text-outline">Tamanho Compacto P (28px / h-7)</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Usado em rails de ferramentas e cabeçalhos de células densas.</p>
+<div class="flex items-center gap-space-sm mt-space-md">
+<button class="h-7 px-2.5 rounded bg-primary-container text-on-primary-container text-label-sm font-medium">Primário P</button>
+<button class="h-7 px-2.5 rounded bg-surface-container border border-outline-variant text-on-surface text-label-sm font-medium">Secundário P</button>
+<button class="h-7 px-2 rounded text-on-surface-variant hover:text-on-surface text-label-sm font-medium">Ghost P</button>
+<button class="h-7 px-2.5 rounded border border-[#ef4444]/60 text-[#ef4444] text-label-sm font-medium">Destrutivo P</button>
+</div>
+</div>
+</div>
+<!-- Overflow Menu ⋯ with Separator -->
+<div class="p-space-md rounded bg-surface-container-low border border-outline-variant flex items-center justify-between">
+<div>
+<span class="font-label-sm text-label-sm font-semibold uppercase text-outline">Menu de Overflow '⋯' (Ações Raras)</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Ação perigosa separada por 1px hairline divider.</p>
+</div>
+<!-- Open Dropdown Demonstration -->
+<div class="relative">
+<div class="w-48 p-1 rounded bg-[#1c2128] border border-outline-variant shadow-2xl flex flex-col font-label-md text-label-md">
+<button class="flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-surface-container text-on-surface text-left">
+<span class="material-symbols-outlined text-outline" data-icon="edit">edit</span>
+<span>Editar Metadados</span>
+</button>
+<button class="flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-surface-container text-on-surface text-left">
+<span class="material-symbols-outlined text-outline" data-icon="content_copy">content_copy</span>
+<span>Clonar Workspace</span>
+</button>
+<!-- Hairline Divider -->
+<div class="h-px bg-outline-variant my-1"></div>
+<button class="flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-[#ef4444]/15 text-[#ef4444] text-left">
+<span class="material-symbols-outlined text-[#ef4444]" data-icon="delete">delete</span>
+<span>Destruir Workspace</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 4. SISTEMA UNIFICADO DE SELOS (BADGES) -->
+<section class="flex flex-col gap-space-lg" id="selos">
+<div class="flex items-center justify-between border-b border-outline-variant pb-space-xs">
+<div class="flex items-center gap-space-sm">
+<span class="w-1.5 h-4 bg-primary rounded-DEFAULT"></span>
+<h2 class="font-headline-sm text-headline-sm font-medium text-on-surface">4. Vocabulário Padronizado de Selos (Badges) &amp; Estados</h2>
+</div>
+<span class="font-code-sm text-code-sm text-outline">PONTO SEMÂNTICO + TEXTO LEGÍVEL</span>
+</div>
+<div class="p-space-md rounded border border-outline-variant bg-surface-container-low flex flex-col gap-space-md">
+<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-space-sm">
+<!-- Pronto -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container border border-outline-variant">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-DEFAULT bg-[#10b981]/15 border border-[#10b981]/40 text-[#10b981] font-telemetry-pill text-telemetry-pill">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+                  Pronto
+                </span>
+<span class="font-code-sm text-code-sm text-outline">Sucesso</span>
+</div>
+<!-- Executando -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container border border-outline-variant">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-DEFAULT bg-[#60a5fa]/15 border border-[#60a5fa]/40 text-[#60a5fa] font-telemetry-pill text-telemetry-pill">
+<span class="w-1.5 h-1.5 rounded-full bg-[#60a5fa] animate-pulse"></span>
+                  Executando
+                </span>
+<span class="font-code-sm text-code-sm text-outline">Azul Ativo</span>
+</div>
+<!-- Aguardando você -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container border border-outline-variant">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-DEFAULT bg-[#f59e0b]/15 border border-[#f59e0b]/40 text-[#f59e0b] font-telemetry-pill text-telemetry-pill">
+<span class="w-1.5 h-1.5 rounded-full bg-[#f59e0b]"></span>
+                  Aguardando você
+                </span>
+<span class="font-code-sm text-code-sm text-outline">Aviso Âmbar</span>
+</div>
+<!-- Pausado -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container border border-outline-variant">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-DEFAULT bg-[#64748b]/15 border border-[#64748b]/40 text-[#94a3b8] font-telemetry-pill text-telemetry-pill">
+<span class="w-1.5 h-1.5 rounded-full bg-[#64748b]"></span>
+                  Pausado
+                </span>
+<span class="font-code-sm text-code-sm text-outline">Ocioso</span>
+</div>
+<!-- Interrompido -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container border border-outline-variant">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-DEFAULT bg-[#f59e0b]/15 border border-[#f59e0b]/40 text-[#f59e0b] font-telemetry-pill text-telemetry-pill">
+<span class="w-1.5 h-1.5 rounded-full bg-[#f59e0b]"></span>
+                  Interrompido
+                </span>
+<span class="font-code-sm text-code-sm text-outline">Aviso</span>
+</div>
+<!-- Concluído -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container border border-outline-variant">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-DEFAULT bg-[#10b981]/15 border border-[#10b981]/40 text-[#10b981] font-telemetry-pill text-telemetry-pill">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+                  Concluído
+                </span>
+<span class="font-code-sm text-code-sm text-outline">Sucesso</span>
+</div>
+<!-- Falhou -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container border border-outline-variant">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-DEFAULT bg-[#ef4444]/15 border border-[#ef4444]/40 text-[#ef4444] font-telemetry-pill text-telemetry-pill">
+<span class="w-1.5 h-1.5 rounded-full bg-[#ef4444]"></span>
+                  Falhou
+                </span>
+<span class="font-code-sm text-code-sm text-outline">Erro</span>
+</div>
+<!-- Cancelado -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container border border-outline-variant">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-DEFAULT bg-[#64748b]/15 border border-[#64748b]/40 text-[#94a3b8] font-telemetry-pill text-telemetry-pill">
+<span class="w-1.5 h-1.5 rounded-full bg-[#64748b]"></span>
+                  Cancelado
+                </span>
+<span class="font-code-sm text-code-sm text-outline">Ocioso</span>
+</div>
+<!-- Pendente / Não iniciado -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container border border-outline-variant">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-DEFAULT bg-[#64748b]/15 border border-[#64748b]/40 text-[#94a3b8] font-telemetry-pill text-telemetry-pill">
+<span class="w-1.5 h-1.5 rounded-full bg-[#64748b]"></span>
+                  Pendente
+                </span>
+<span class="font-code-sm text-code-sm text-outline">Não iniciado</span>
+</div>
+<!-- Indisponível -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container border border-outline-variant">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-DEFAULT bg-[#f59e0b]/15 border border-[#f59e0b]/40 text-[#f59e0b] font-telemetry-pill text-telemetry-pill">
+<span class="w-1.5 h-1.5 rounded-full bg-[#f59e0b]"></span>
+                  Indisponível
+                </span>
+<span class="font-code-sm text-code-sm text-outline">Aviso</span>
+</div>
+<!-- Desligado -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container border border-outline-variant">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-DEFAULT bg-[#64748b]/15 border border-[#64748b]/40 text-[#94a3b8] font-telemetry-pill text-telemetry-pill">
+<span class="w-1.5 h-1.5 rounded-full bg-[#64748b]"></span>
+                  Desligado
+                </span>
+<span class="font-code-sm text-code-sm text-outline">Ocioso</span>
+</div>
+<!-- Bloqueado -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container border border-outline-variant">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-DEFAULT bg-[#ef4444]/15 border border-[#ef4444]/40 text-[#ef4444] font-telemetry-pill text-telemetry-pill">
+<span class="w-1.5 h-1.5 rounded-full bg-[#ef4444]"></span>
+                  Bloqueado
+                </span>
+<span class="font-code-sm text-code-sm text-outline">Erro</span>
+</div>
+</div>
+<!-- Variantes adicionais: Sem ponto (Categoria) & Numérico -->
+<div class="border-t border-outline-variant pt-space-md flex flex-wrap items-center gap-space-lg">
+<div class="flex items-center gap-space-sm">
+<span class="font-label-sm text-label-sm text-outline">Variante Neutra (Categoria):</span>
+<span class="px-2 py-0.5 rounded-DEFAULT bg-surface-container-high border border-outline-variant text-on-surface-variant font-code-sm text-code-sm">
+                  INFRA_DOCKER
+                </span>
+<span class="px-2 py-0.5 rounded-DEFAULT bg-surface-container-high border border-outline-variant text-on-surface-variant font-code-sm text-code-sm">
+                  KERNEL_SANDBOX
+                </span>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-label-sm text-label-sm text-outline">Variante Numérica:</span>
+<span class="px-1.5 py-0.2 rounded-full bg-primary-container text-on-primary-container font-code-sm text-code-sm font-semibold">
+                  +14
+                </span>
+<span class="px-1.5 py-0.2 rounded-full bg-surface-container-high border border-outline-variant text-outline font-code-sm text-code-sm">
+                  0/3
+                </span>
+</div>
+</div>
+</div>
+</section>
+<!-- 5. FORMULÁRIOS & CAMPOS COM ESTADOS -->
+<section class="flex flex-col gap-space-lg" id="formularios">
+<div class="flex items-center justify-between border-b border-outline-variant pb-space-xs">
+<div class="flex items-center gap-space-sm">
+<span class="w-1.5 h-4 bg-primary rounded-DEFAULT"></span>
+<h2 class="font-headline-sm text-headline-sm font-medium text-on-surface">5. Formulários, Entradas de Dados &amp; Controles</h2>
+</div>
+<span class="font-code-sm text-code-sm text-outline">CANVAS LEVEL 1 + ZERO GLOW</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+<!-- Inputs Column -->
+<div class="p-space-md rounded bg-surface-container-low border border-outline-variant flex flex-col gap-space-md">
+<span class="font-label-sm text-label-sm font-semibold uppercase text-outline">Campos de Texto e Validações</span>
+<!-- Normal State -->
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface">Identificador da Spec (Normal)</label>
+<input class="h-8 px-2.5 rounded bg-[#15191e] border border-outline-variant text-on-surface font-body-md text-body-md placeholder:text-outline focus:border-primary focus:ring-0 outline-none transition-colors" placeholder="ex: worker-eu-central" type="text"/>
+</div>
+<!-- Focus State Representation -->
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-primary font-medium">Parâmetro de Conexão (Foco Ativo)</label>
+<div class="relative">
+<span class="absolute left-2.5 top-2 font-code-sm text-code-sm text-outline">grpc://</span>
+<input class="h-8 pl-16 pr-2.5 w-full rounded bg-[#15191e] border border-primary text-on-surface font-code-sm text-code-sm outline-none ring-0" type="text" value="cluster.atlas.internal:50051"/>
+</div>
+</div>
+<!-- Error State -->
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-[#ef4444]">Limite de Memória (Inválido)</label>
+<input class="h-8 px-2.5 rounded bg-[#15191e] border border-[#ef4444] text-[#ef4444] font-code-sm text-code-sm outline-none" type="text" value="99999999MB"/>
+<span class="font-code-sm text-code-sm text-[#ef4444] flex items-center gap-1 mt-0.5">
+<span class="material-symbols-outlined text-xs" data-icon="error">error</span>
+                  Valor excede o limite máximo configurado no nó local (8192MB).
+                </span>
+</div>
+<!-- Textarea with counter -->
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<label class="font-label-sm text-label-sm text-on-surface">Prompt de Inicialização</label>
+<span class="font-code-sm text-code-sm text-outline">142 / 480</span>
+</div>
+<textarea class="p-2.5 rounded bg-[#15191e] border border-outline-variant text-on-surface font-code-sm text-code-sm placeholder:text-outline focus:border-primary focus:ring-0 outline-none resize-none" rows="3">Você é o agente orquestrador do repositório Transport ERP. Verifique permissões de leitura antes de modificar esquemas de banco de dados.</textarea>
+</div>
+</div>
+<!-- Controls Column (Switches, Radios, Checkbox, Search) -->
+<div class="p-space-md rounded bg-surface-container-low border border-outline-variant flex flex-col gap-space-md">
+<span class="font-label-sm text-label-sm font-semibold uppercase text-outline">Controles de Seleção &amp; Filtros</span>
+<!-- Search Bar with Shortcut -->
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface">Busca com Atalho</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-2.5 text-outline" data-icon="search">search</span>
+<input class="h-8 pl-8 pr-12 w-full rounded bg-[#15191e] border border-outline-variant text-on-surface font-body-md text-body-md placeholder:text-outline focus:border-primary focus:ring-0 outline-none" placeholder="Filtrar por nome de spec ou tag..." type="text"/>
+<span class="absolute right-2 px-1 py-0.5 rounded bg-surface-container-high border border-outline-variant font-code-sm text-code-sm text-outline">⌘K</span>
+</div>
+</div>
+<!-- Dropdown Select -->
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface">Seletor Nativo de Runtime</label>
+<div class="relative">
+<select class="h-8 px-2.5 pr-8 w-full rounded bg-[#15191e] border border-outline-variant text-on-surface font-label-md text-label-md appearance-none focus:border-primary focus:ring-0 outline-none cursor-pointer">
+<option>Node.js v20.12 LTS (Isolated Container)</option>
+<option>Rust 1.78 Stable (Native Host)</option>
+<option>Python 3.11 (Virtualenv Poetry)</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-2 pointer-events-none text-outline" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+<!-- Toggles / Switches -->
+<div class="flex flex-col gap-2 pt-1">
+<label class="font-label-sm text-label-sm text-on-surface">Alternâncias de Estado (Toggle Switches)</label>
+<div class="flex items-center justify-between p-2 rounded bg-surface-container border border-outline-variant">
+<span class="font-body-sm text-body-sm text-on-surface">Isolamento estrito de sandbox</span>
+<!-- Active Toggle Switch -->
+<div class="w-8 h-4 bg-primary-container rounded-full relative cursor-pointer">
+<div class="w-3 h-3 bg-white rounded-full absolute right-0.5 top-0.5"></div>
+</div>
+</div>
+<div class="flex items-center justify-between p-2 rounded bg-surface-container border border-outline-variant">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Log detalhado de tracing</span>
+<!-- Inactive Toggle Switch -->
+<div class="w-8 h-4 bg-surface-container-highest rounded-full relative cursor-pointer">
+<div class="w-3 h-3 bg-outline rounded-full absolute left-0.5 top-0.5"></div>
+</div>
+</div>
+</div>
+<!-- Checkbox Matrix & Card Radios -->
+<div class="flex flex-col gap-2 pt-1">
+<label class="font-label-sm text-label-sm text-on-surface">Checkboxes (14x14px rígido) &amp; Rádios em Cartão</label>
+<div class="flex items-center gap-space-lg">
+<!-- Checked -->
+<label class="flex items-center gap-2 cursor-pointer">
+<div class="w-3.5 h-3.5 rounded-DEFAULT bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-[11px]" data-icon="check">check</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface">Ativo</span>
+</label>
+<!-- Unchecked -->
+<label class="flex items-center gap-2 cursor-pointer">
+<div class="w-3.5 h-3.5 rounded-DEFAULT bg-[#15191e] border border-outline-variant"></div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Inativo</span>
+</label>
+<!-- Indeterminate -->
+<label class="flex items-center gap-2 cursor-pointer">
+<div class="w-3.5 h-3.5 rounded-DEFAULT bg-[#64748b] flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-[10px]" data-icon="remove">remove</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface">Misto</span>
+</label>
+</div>
+<!-- Radio Cards -->
+<div class="grid grid-cols-2 gap-space-xs mt-1">
+<div class="p-2 rounded bg-[#6366f1]/10 border border-primary flex items-center gap-2 cursor-pointer">
+<div class="w-3.5 h-3.5 rounded-full border border-primary flex items-center justify-center">
+<div class="w-1.5 h-1.5 rounded-full bg-primary"></div>
+</div>
+<span class="font-label-sm text-label-sm font-medium text-primary">Modo Automático</span>
+</div>
+<div class="p-2 rounded bg-surface-container border border-outline-variant flex items-center gap-2 cursor-pointer hover:bg-surface-container-high transition-colors">
+<div class="w-3.5 h-3.5 rounded-full border border-outline-variant"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Modo Manual</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 6. BLOCOS TÉCNICOS & AVISOS (CALLOUTS) -->
+<section class="flex flex-col gap-space-lg mb-space-2xl" id="blocos">
+<div class="flex items-center justify-between border-b border-outline-variant pb-space-xs">
+<div class="flex items-center gap-space-sm">
+<span class="w-1.5 h-4 bg-primary rounded-DEFAULT"></span>
+<h2 class="font-headline-sm text-headline-sm font-medium text-on-surface">6. Avisos (Callouts), Código &amp; Blocos de Engenharia</h2>
+</div>
+<span class="font-code-sm text-code-sm text-outline">DIFFS // CODE // LOGSTREAM</span>
+</div>
+<!-- Callouts Grid (Info, Warning, Error, Policy) -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-sm">
+<!-- Info Callout -->
+<div class="p-3 rounded bg-surface-container-low border-l-2 border-l-[#38bdf8] border border-outline-variant flex items-start justify-between">
+<div class="flex items-start gap-2.5">
+<span class="material-symbols-outlined text-[#38bdf8] mt-0.5" data-icon="info">info</span>
+<div>
+<div class="font-label-md text-label-md font-medium text-on-surface">Informação Técnica de Cache</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Os artefatos de build foram salvos no SSD NVMe local para reduzir tempo de ciclo.</div>
+</div>
+</div>
+<button class="text-outline hover:text-on-surface">
+<span class="material-symbols-outlined text-sm" data-icon="close">close</span>
+</button>
+</div>
+<!-- Warning Callout -->
+<div class="p-3 rounded bg-surface-container-low border-l-2 border-l-[#f59e0b] border border-outline-variant flex items-start justify-between">
+<div class="flex items-start gap-2.5">
+<span class="material-symbols-outlined text-[#f59e0b] mt-0.5" data-icon="warning">warning</span>
+<div>
+<div class="font-label-md text-label-md font-medium text-on-surface">Aviso de Limite Operacional</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">O cluster local atingiu 82% da capacidade de memória alocada aos workers.</div>
+</div>
+</div>
+<button class="text-outline hover:text-on-surface">
+<span class="material-symbols-outlined text-sm" data-icon="close">close</span>
+</button>
+</div>
+<!-- Error Callout -->
+<div class="p-3 rounded bg-surface-container-low border-l-2 border-l-[#ef4444] border border-outline-variant flex items-start justify-between">
+<div class="flex items-start gap-2.5">
+<span class="material-symbols-outlined text-[#ef4444] mt-0.5" data-icon="error">error</span>
+<div>
+<div class="font-label-md text-label-md font-medium text-on-surface">Falha de Integridade da Chave</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">A assinatura GPG do commit não coincide com o registro em vault corporativo.</div>
+</div>
+</div>
+<button class="text-outline hover:text-on-surface">
+<span class="material-symbols-outlined text-sm" data-icon="close">close</span>
+</button>
+</div>
+<!-- Policy / Kernel Callout -->
+<div class="p-3 rounded bg-surface-container-low border-l-2 border-l-[#ec4899] border border-outline-variant flex items-start justify-between">
+<div class="flex items-start gap-2.5">
+<span class="material-symbols-outlined text-[#ec4899] mt-0.5" data-icon="gavel">gavel</span>
+<div>
+<div class="font-label-md text-label-md font-medium text-on-surface">Política de Guardrails &amp; Kernel</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Execuções com privilégio elevado exigem aprovação explícita do arquiteto responsável.</div>
+</div>
+</div>
+<button class="text-outline hover:text-on-surface">
+<span class="material-symbols-outlined text-sm" data-icon="close">close</span>
+</button>
+</div>
+</div>
+<!-- Code Block with Line Numbers & Copy Button -->
+<div class="rounded border border-outline-variant bg-[#0b0e12] overflow-hidden">
+<div class="flex items-center justify-between px-space-md py-1.5 bg-surface-container-low border-b border-outline-variant">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-outline" data-icon="code">code</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant">src/kernel/spec-runner.ts</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container border border-outline-variant font-code-sm text-code-sm text-outline">TypeScript</span>
+</div>
+<button class="flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container hover:bg-surface-container-high border border-outline-variant font-code-sm text-code-sm text-on-surface transition-colors">
+<span class="material-symbols-outlined text-xs" data-icon="content_copy">content_copy</span>
+<span>Copiar</span>
+</button>
+</div>
+<div class="p-space-md font-code-md text-code-md overflow-x-auto">
+<div class="flex">
+<div class="text-outline select-none pr-4 text-right font-code-sm text-code-sm leading-6 opacity-60">
+<div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div>
+</div>
+<div class="text-on-surface leading-6 flex-1">
+<div><span class="text-primary font-medium">import</span> { AgentRuntime, SpecNode } <span class="text-primary font-medium">from</span> <span class="text-[#a4c9ff]">"@atlas/core-daemon"</span>;</div>
+<div></div>
+<div><span class="text-outline italic">// Dispara a verificação determinística de superfícies</span></div>
+<div><span class="text-primary font-medium">export async function</span> <span class="text-[#60a5fa]">validateSpecCluster</span>(spec: <span class="text-[#f751a1]">SpecNode</span>): <span class="text-primary font-medium">Promise</span>&lt;<span class="text-[#10b981]">boolean</span>&gt; {</div>
+<div class="pl-4"> <span class="text-primary font-medium">const</span> runtime = <span class="text-primary font-medium">await</span> AgentRuntime.<span class="text-[#60a5fa]">connect</span>({ port: <span class="text-[#f59e0b]">9042</span>, deterministic: <span class="text-[#10b981]">true</span> });</div>
+<div> <span class="text-primary font-medium">return</span> runtime.<span class="text-[#60a5fa]">verifyHairlineAlignment</span>(spec.id);</div>
+<div>}</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Grid: Git Diff Viewer + Event Timeline -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+<!-- Git Diff Viewer -->
+<div class="p-space-md rounded bg-surface-container-low border border-outline-variant flex flex-col gap-space-sm">
+<div class="flex items-center justify-between border-b border-outline-variant pb-2">
+<span class="font-label-sm text-label-sm font-semibold uppercase text-outline">Visualizador de Diff (Git Tree)</span>
+<span class="font-code-sm text-code-sm text-outline">branch: main (staged)</span>
+</div>
+<div class="flex flex-col gap-1.5 font-code-sm text-code-sm">
+<!-- File 1: Modified -->
+<div class="flex items-center justify-between p-1.5 rounded bg-surface-container border border-outline-variant">
+<div class="flex items-center gap-2">
+<span class="px-1 py-0.2 rounded bg-[#f59e0b]/20 text-[#f59e0b] font-bold">[M]</span>
+<span class="text-on-surface truncate">packages/theme/tokens.json</span>
+</div>
+<div class="flex items-center gap-1.5 shrink-0">
+<span class="text-[#10b981] font-medium">+24</span>
+<span class="text-outline">/</span>
+<span class="text-[#ef4444] font-medium">-2</span>
+</div>
+</div>
+<!-- File 2: Added -->
+<div class="flex items-center justify-between p-1.5 rounded bg-surface-container border border-outline-variant">
+<div class="flex items-center gap-2">
+<span class="px-1 py-0.2 rounded bg-[#10b981]/20 text-[#10b981] font-bold">[A]</span>
+<span class="text-on-surface truncate">src/components/button-matrix.tsx</span>
+</div>
+<div class="flex items-center gap-1.5 shrink-0">
+<span class="text-[#10b981] font-medium">+188</span>
+<span class="text-outline">/</span>
+<span class="text-outline">0</span>
+</div>
+</div>
+<!-- File 3: Deleted -->
+<div class="flex items-center justify-between p-1.5 rounded bg-surface-container border border-outline-variant">
+<div class="flex items-center gap-2">
+<span class="px-1 py-0.2 rounded bg-[#ef4444]/20 text-[#ef4444] font-bold">[D]</span>
+<span class="text-on-surface truncate">legacy/v1/floating-panels.css</span>
+</div>
+<div class="flex items-center gap-1.5 shrink-0">
+<span class="text-outline">0</span>
+<span class="text-outline">/</span>
+<span class="text-[#ef4444] font-medium">-94</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Event Timeline with JetBrains Mono Timestamps -->
+<div class="p-space-md rounded bg-surface-container-low border border-outline-variant flex flex-col gap-space-sm">
+<div class="flex items-center justify-between border-b border-outline-variant pb-2">
+<span class="font-label-sm text-label-sm font-semibold uppercase text-outline">Linha do Tempo de Eventos do Daemon</span>
+<span class="font-code-sm text-code-sm text-[#10b981] flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-ping"></span>
+                  Stream Ativo
+                </span>
+</div>
+<div class="flex flex-col gap-2 font-code-sm text-code-sm">
+<!-- Row 1 -->
+<div class="flex items-center justify-between p-1.5 rounded hover:bg-surface-container transition-colors">
+<div class="flex items-center gap-2">
+<span class="text-outline">16:42:01.028</span>
+<span class="px-1 py-0.2 rounded bg-[#10b981]/15 text-[#10b981] text-[10px]">SYNC_OK</span>
+<span class="text-on-surface truncate">Tokens compilados em 12ms</span>
+</div>
+<span class="text-outline text-xs">ipc://unix</span>
+</div>
+<!-- Row 2 -->
+<div class="flex items-center justify-between p-1.5 rounded hover:bg-surface-container transition-colors">
+<div class="flex items-center gap-2">
+<span class="text-outline">16:41:58.840</span>
+<span class="px-1 py-0.2 rounded bg-[#60a5fa]/15 text-[#60a5fa] text-[10px]">DAEMON</span>
+<span class="text-on-surface truncate">Handshake estabelecido com Tauri host</span>
+</div>
+<span class="text-outline text-xs">pid:4819</span>
+</div>
+<!-- Row 3 -->
+<div class="flex items-center justify-between p-1.5 rounded hover:bg-surface-container transition-colors">
+<div class="flex items-center gap-2">
+<span class="text-outline">16:40:12.115</span>
+<span class="px-1 py-0.2 rounded bg-[#f59e0b]/15 text-[#f59e0b] text-[10px]">GC_RUN</span>
+<span class="text-on-surface truncate">Coletor de lixo liberou 48MB de memória</span>
+</div>
+<span class="text-outline text-xs">v8:core</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+</div>
+</body></html>

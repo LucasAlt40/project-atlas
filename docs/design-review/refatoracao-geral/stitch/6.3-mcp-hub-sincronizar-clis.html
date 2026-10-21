@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas — MCP Hub / Sincronizar CLIs</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration verbatim -->
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "error": "#ffb4ab",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "tertiary": "#ffb0cd",
+            "surface-container-highest": "#323539",
+            "on-secondary-fixed": "#001c39",
+            "on-surface": "#e1e2e8",
+            "surface-tint": "#c0c1ff",
+            "primary": "#c0c1ff",
+            "on-secondary-fixed-variant": "#004883",
+            "on-primary-container": "#0d0096",
+            "inverse-primary": "#494bd6",
+            "error-container": "#93000a",
+            "tertiary-fixed": "#ffd9e4",
+            "on-error": "#690005",
+            "tertiary-container": "#f751a1",
+            "surface-container": "#1d2024",
+            "surface-container-lowest": "#0b0e12",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-error-container": "#ffdad6",
+            "on-tertiary": "#640039",
+            "outline": "#908fa0",
+            "on-tertiary-fixed": "#3e0022",
+            "background": "#111418",
+            "primary-fixed": "#e1e0ff",
+            "on-tertiary-container": "#570032",
+            "secondary": "#a4c9ff",
+            "surface-bright": "#36393e",
+            "outline-variant": "#464554",
+            "on-background": "#e1e2e8",
+            "surface": "#111418",
+            "inverse-surface": "#e1e2e8",
+            "secondary-fixed-dim": "#a4c9ff",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "inverse-on-surface": "#2e3135",
+            "surface-container-high": "#272a2e",
+            "secondary-container": "#0267b8",
+            "surface-variant": "#323539",
+            "secondary-fixed": "#d4e3ff",
+            "on-secondary": "#00315d",
+            "on-secondary-container": "#d6e5ff",
+            "on-primary-fixed": "#07006c",
+            "surface-container-low": "#191c20",
+            "primary-container": "#8083ff",
+            "surface-dim": "#111418",
+            "on-surface-variant": "#c7c4d7",
+            "on-primary": "#1000a9"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "margin": "0.75rem",
+            "space-2xs": "0.125rem",
+            "space-lg": "1rem",
+            "space-xs": "0.25rem",
+            "space-sm": "0.5rem",
+            "gutter-compact": "0.25rem",
+            "space-xl": "1.5rem",
+            "space-2xl": "2rem",
+            "margin-window": "0.5rem",
+            "gutter-expanded": "1rem",
+            "space-md": "0.75rem",
+            "gutter": "0.5rem"
+          },
+          "fontFamily": {
+            "body-lg": ["Geist"],
+            "headline-md": ["Geist"],
+            "body-md": ["Geist"],
+            "label-md": ["Geist"],
+            "label-sm": ["Geist"],
+            "body-sm": ["Geist"],
+            "headline-xl": ["Geist"],
+            "headline-sm": ["Geist"],
+            "code-sm": ["JetBrains Mono"],
+            "telemetry-pill": ["JetBrains Mono"],
+            "headline-lg": ["Geist"],
+            "code-lg": ["JetBrains Mono"],
+            "code-md": ["JetBrains Mono"]
+          },
+          "fontSize": {
+            "body-lg": ["1rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "headline-md": ["1.25rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.015em", "fontWeight": "500" }],
+            "body-md": ["0.875rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "label-md": ["0.8125rem", { "lineHeight": "1rem", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "label-sm": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.04em", "fontWeight": "600" }],
+            "body-sm": ["0.75rem", { "lineHeight": "1.125rem", "letterSpacing": "0.005em", "fontWeight": "400" }],
+            "headline-xl": ["2rem", { "lineHeight": "2.5rem", "letterSpacing": "-0.025em", "fontWeight": "600" }],
+            "headline-sm": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "code-sm": ["0.6875rem", { "lineHeight": "1rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "telemetry-pill": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.02em", "fontWeight": "600" }],
+            "headline-lg": ["1.5rem", { "lineHeight": "2rem", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "code-lg": ["0.875rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "code-md": ["0.8125rem", { "lineHeight": "1.25rem", "letterSpacing": "-0.01em", "fontWeight": "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    /* Technical baseline resets */
+    * {
+      box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
+    }
+    body {
+      background-color: #0b0d10;
+      color: #e1e2e8;
+      overflow: hidden;
+      user-select: none;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 18px;
+      line-height: 1;
+    }
+    /* Modal shadow spec from design system */
+    .shadow-technical-modal {
+      box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.65), 0 0 0 1px #2d3748;
+    }
+  </style>
+</head>
+<body class="w-[1440px] h-[900px] flex relative bg-[#0b0d10] font-body-md text-body-md overflow-hidden">
+<!-- 1. BARRA LATERAL (216px de largura fixa, altura total) -->
+<aside class="docked fixed top-0 left-0 h-screen w-[216px] z-30 bg-[#101317] border-r border-[#242c37] flex flex-col justify-between p-space-sm">
+<!-- Bloco Superior -->
+<div class="flex flex-col gap-3">
+<!-- Topo: Logo índigo 20px com letra 'A' + Atlas -->
+<div class="flex items-center gap-2 px-1 pt-1">
+<div class="w-5 h-5 rounded-[0.25rem] bg-[#6366f1] flex items-center justify-center text-white font-semibold text-[11px] leading-none select-none">
+          A
+        </div>
+<span class="font-headline-sm text-[16px] font-semibold text-on-surface tracking-tight">Atlas</span>
+</div>
+<!-- Seletor de workspace -->
+<div class="bg-[#15191e] border border-[#242c37] hover:border-[#2d3748] rounded-[0.25rem] p-2 flex flex-col gap-0.5 cursor-pointer transition-colors duration-150">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md font-medium text-on-surface truncate">Transport ERP</span>
+<span class="material-symbols-outlined text-outline text-[16px]">unfold_more</span>
+</div>
+<span class="font-code-sm text-[10px] text-outline truncate" title="/Users/lucas/dev/transport-erp">/Users/lucas/dev/transport-erp</span>
+</div>
+<!-- Navegação exatamente com estes 7 itens: Workspace, Workflow, Agentes, Personalidades, Specs, MCP Hub (ativo), Configurações -->
+<nav class="flex flex-col gap-0.5 mt-1">
+<!-- Workspace -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">folder_open</span>
+<span>Workspace</span>
+</a>
+<!-- Workflow -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">account_tree</span>
+<span>Workflow</span>
+</a>
+<!-- Agentes -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- Personalidades -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- Specs -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">description</span>
+<span>Specs</span>
+</a>
+<!-- MCP Hub (DESTACADO como item ativo) -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded bg-[#1c2128] text-primary font-label-md text-label-md border border-[#2d3748] transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px] text-[#6366f1]">hub</span>
+<span class="text-white font-medium">MCP Hub</span>
+</a>
+<!-- Configurações -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">settings</span>
+<span>Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Rodapé da barra lateral: "Project Atlas" e "v0.2.0 · macOS" -->
+<div class="pt-3 border-t border-[#242c37] flex flex-col gap-0.5 px-1.5 pb-1">
+<span class="font-label-sm text-label-sm text-on-surface font-medium">Project Atlas</span>
+<span class="font-code-sm text-[10px] text-outline">v0.2.0 · macOS</span>
+</div>
+</aside>
+<!-- ÁREA PRINCIPAL (à direita da sidebar, 1224px de largura) -->
+<div class="ml-[216px] w-[1224px] h-[900px] flex flex-col relative bg-[#101317]">
+<!-- 2. BARRA SUPERIOR (48px de altura) -->
+<header class="h-12 w-full bg-[#0b0e12] border-b border-[#242c37] flex justify-between items-center px-4 shrink-0 z-20">
+<!-- Esquerda: botão de recolher barra lateral + breadcrumb -->
+<div class="flex items-center gap-3">
+<button class="text-on-surface-variant hover:text-on-surface p-1 rounded hover:bg-[#1c2128] transition-colors" title="Recolher barra lateral">
+<span class="material-symbols-outlined text-[18px]">dock_to_right</span>
+</button>
+<div class="h-4 w-[1px] bg-[#242c37]"></div>
+<div class="font-code-sm text-code-sm text-on-surface-variant flex items-center gap-1.5">
+<span>Transport ERP</span>
+<span class="text-[#464554]">/</span>
+<span class="text-on-surface font-medium">MCP Hub</span>
+</div>
+</div>
+<!-- À direita: somente o botão "Celular" e a alternância "PT | EN" -->
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-1.5 px-2.5 py-1 rounded-[0.25rem] bg-[#15191e] border border-[#242c37] hover:border-[#2d3748] hover:bg-[#1c2128] text-on-surface font-label-sm text-label-sm transition-colors">
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">smartphone</span>
+<span>Celular</span>
+</button>
+<div class="h-3.5 w-[1px] bg-[#242c37]"></div>
+<div class="flex items-center gap-1 text-[11px] font-label-sm">
+<span class="text-primary font-semibold cursor-pointer">PT</span>
+<span class="text-[#464554]">|</span>
+<span class="text-on-surface-variant hover:text-on-surface cursor-pointer">EN</span>
+</div>
+</div>
+</header>
+<!-- FUNDO DA TELA: MCP Hub — Servidores (fundo operacional visualizado sob a camada blur) -->
+<main class="flex-1 p-6 overflow-hidden flex flex-col gap-5 select-none opacity-85">
+<!-- Cabeçalho da página de fundo -->
+<div class="flex items-start justify-between">
+<div class="flex flex-col gap-1">
+<h1 class="font-headline-md text-headline-md font-semibold text-white">MCP Hub e protocolos de contexto</h1>
+<p class="font-code-sm text-code-sm text-on-surface-variant">
+            3 Servidores · 1 Conectado (50% dos ligados) · 1 Falha / login · 1 Desligado · 8 Ferramentas listadas · 3 Concessões
+          </p>
+</div>
+<div class="flex items-center gap-2">
+<button class="px-3 py-1.5 rounded-[0.25rem] bg-[#15191e] border border-[#242c37] text-on-surface font-label-md text-label-md">
+            Adicionar Servidor
+          </button>
+<button class="px-3 py-1.5 rounded-[0.25rem] bg-[#6366f1] text-white font-label-md text-label-md">
+            Sincronizar CLIs
+          </button>
+</div>
+</div>
+<!-- Fundo Mock de cartões MCP -->
+<div class="grid grid-cols-3 gap-4">
+<div class="bg-[#15191e] border border-[#242c37] rounded-[0.25rem] p-4 flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<span class="font-code-md text-code-md font-semibold text-white">github</span>
+<span class="inline-flex items-center gap-1.5 text-[10px] font-telemetry-pill px-2 py-0.5 rounded bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)] text-[#10b981]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span> Conectado
+            </span>
+</div>
+<p class="font-body-sm text-body-sm text-outline">Transporte stdio executando @modelcontextprotocol/server-github</p>
+<div class="font-code-sm text-[11px] text-[#64748b] bg-[#101317] p-2 rounded border border-[#242c37]">
+            cmd: npx -y @modelcontextprotocol/server-github
+          </div>
+</div>
+<div class="bg-[#15191e] border border-[#242c37] rounded-[0.25rem] p-4 flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<span class="font-code-md text-code-md font-semibold text-white">postgres</span>
+<span class="inline-flex items-center gap-1.5 text-[10px] font-telemetry-pill px-2 py-0.5 rounded bg-[rgba(239,68,68,0.14)] border border-[rgba(239,68,68,0.4)] text-[#ef4444]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#ef4444]"></span> Falha / login
+            </span>
+</div>
+<p class="font-body-sm text-body-sm text-outline">Acesso contextual direto ao banco relacional do Transport ERP</p>
+<div class="font-code-sm text-[11px] text-[#64748b] bg-[#101317] p-2 rounded border border-[#242c37]">
+            cmd: npx -y @modelcontextprotocol/server-postgres
+          </div>
+</div>
+<div class="bg-[#15191e] border border-[#242c37] rounded-[0.25rem] p-4 flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<span class="font-code-md text-code-md font-semibold text-white">linear</span>
+<span class="inline-flex items-center gap-1.5 text-[10px] font-telemetry-pill px-2 py-0.5 rounded bg-[#1c2128] border border-[#2d3748] text-[#94a3b8]">
+              Desligado
+            </span>
+</div>
+<p class="font-body-sm text-body-sm text-outline">Leitura e atualização de tickets e roadmap</p>
+<div class="font-code-sm text-[11px] text-[#64748b] bg-[#101317] p-2 rounded border border-[#242c37]">
+            cmd: npx -y @modelcontextprotocol/server-linear
+          </div>
+</div>
+</div>
+</main>
+</div>
+<!-- CAMADA ESCURA COM BACKDROP BLUR (bg-black/70 backdrop-blur-sm) -->
+<div class="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm flex items-center justify-center">
+<!-- MODAL G (LARGURA FIXA 960px, CENTRALIZADO) -->
+<div class="w-[960px] bg-[#15191e] border border-[#2d3748] rounded-[0.25rem] shadow-technical-modal flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+<!-- 1. Cabeçalho do modal -->
+<div class="px-6 pt-5 pb-4 border-b border-[#242c37] flex items-start justify-between">
+<div class="flex flex-col gap-1">
+<h2 class="text-[18px] leading-6 font-semibold text-white font-headline-sm">
+            Sincronizar servidores MCP entre suas CLIs
+          </h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+            Compara os servidores do Atlas com os arquivos de configuração de cada CLI. Nada é mudado até você confirmar.
+          </p>
+</div>
+<button class="text-on-surface-variant hover:text-white p-1 rounded hover:bg-[#1c2128] transition-colors -mr-1 -mt-1 cursor-pointer" title="Fechar">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<!-- 2. Corpo do Modal / Tabela de Sincronização entre CLIs e Atlas -->
+<div class="p-6 flex flex-col gap-5">
+<div class="border border-[#242c37] rounded-[0.25rem] overflow-hidden bg-[#101317]">
+<table class="w-full border-collapse text-left">
+<!-- Cabeçalho das 7 Colunas -->
+<thead>
+<tr class="bg-[#15191e] border-b border-[#242c37] text-[11px] font-label-sm text-[#94a3b8] uppercase tracking-wider">
+<th class="py-2.5 px-3.5 font-medium border-r border-[#242c37] w-[150px]">Servidor</th>
+<th class="py-2.5 px-3 font-medium border-r border-[#242c37] w-[130px]">Atlas</th>
+<th class="py-2.5 px-3 font-medium border-r border-[#242c37] w-[135px]">Claude Code</th>
+<th class="py-2.5 px-3 font-medium border-r border-[#242c37] w-[130px]">Gemini CLI</th>
+<th class="py-2.5 px-3 font-medium border-r border-[#242c37] w-[135px]">OpenCode</th>
+<th class="py-2.5 px-3 font-medium border-r border-[#242c37] w-[135px]">Codex</th>
+<th class="py-2.5 px-3 font-medium w-[145px]">GitHub Copilot CLI</th>
+</tr>
+<!-- Linha especial de status do arquivo logo abaixo do cabeçalho da tabela -->
+<tr class="bg-[#13171c] border-b border-[#242c37] text-[11px]">
+<!-- Servidor (vazio/rótulo de metadado) -->
+<td class="py-2 px-3.5 border-r border-[#242c37] text-[10px] font-code-sm text-[#64748b] uppercase tracking-tight">
+                  Status do arquivo
+                </td>
+<!-- Atlas -->
+<td class="py-2 px-3 border-r border-[#242c37]">
+<span class="font-code-sm text-[11px] text-outline font-normal">
+                    (gerenciado)
+                  </span>
+</td>
+<!-- Claude Code -->
+<td class="py-2 px-3 border-r border-[#242c37]">
+<span class="inline-flex items-center gap-1.5 font-code-sm text-[10.5px] text-[#10b981]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+<span>arquivo encontrado</span>
+</span>
+</td>
+<!-- Gemini CLI -->
+<td class="py-2 px-3 border-r border-[#242c37]">
+<span class="inline-flex items-center gap-1 font-code-sm text-[10.5px] text-[#64748b]">
+<span>sem arquivo</span>
+</span>
+</td>
+<!-- OpenCode -->
+<td class="py-2 px-3 border-r border-[#242c37]">
+<span class="inline-flex items-center gap-1.5 font-code-sm text-[10.5px] text-[#10b981]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+<span>arquivo encontrado</span>
+</span>
+</td>
+<!-- Codex -->
+<td class="py-2 px-3 border-r border-[#242c37]">
+<span class="inline-flex items-center gap-1 font-code-sm text-[10px] px-1.5 py-0.5 rounded bg-[rgba(245,158,11,0.12)] border border-[rgba(245,158,11,0.35)] text-[#f59e0b] leading-tight" title="Formato inválido ou corrompido">
+<span class="w-1 h-1 rounded-full bg-[#f59e0b]"></span>
+<span>ilegível (não mexemos)</span>
+</span>
+</td>
+<!-- GitHub Copilot CLI -->
+<td class="py-2 px-3">
+<span class="inline-flex items-center gap-1 font-code-sm text-[10.5px] text-[#64748b]">
+<span>sem arquivo</span>
+</span>
+</td>
+</tr>
+</thead>
+<!-- Linhas de servidores (nomes estritamente em JetBrains Mono) -->
+<tbody class="divide-y divide-[#242c37] font-code-sm text-[11px]">
+<!-- 1. Linha: github (stdio) -->
+<tr class="hover:bg-[#181d24] transition-colors duration-100">
+<td class="py-3 px-3.5 border-r border-[#242c37]">
+<div class="flex flex-col">
+<span class="font-code-sm font-semibold text-white text-[12px]">github</span>
+<span class="text-[10px] text-[#64748b] font-code-sm">stdio</span>
+</div>
+</td>
+<!-- Atlas -->
+<td class="py-3 px-3 border-r border-[#242c37]">
+<span class="inline-flex items-center px-2 py-0.5 rounded-[0.25rem] bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)] text-[#10b981] font-telemetry-pill text-[10.5px]">
+                    tem
+                  </span>
+</td>
+<!-- Claude Code -->
+<td class="py-3 px-3 border-r border-[#242c37]">
+<span class="inline-flex items-center px-2 py-0.5 rounded-[0.25rem] bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)] text-[#10b981] font-telemetry-pill text-[10.5px]">
+                    tem
+                  </span>
+</td>
+<!-- Gemini CLI -->
+<td class="py-3 px-3 border-r border-[#242c37]">
+<span class="inline-flex items-center px-2 py-0.5 rounded-[0.25rem] bg-[#1c2128] border border-[#2d3748] text-[#94a3b8] font-telemetry-pill text-[10.5px]">
+                    sem arquivo
+                  </span>
+</td>
+<!-- OpenCode: será adicionado -->
+<td class="py-3 px-3 border-r border-[#242c37]">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-[0.25rem] bg-[rgba(99,102,241,0.14)] border border-[rgba(99,102,241,0.45)] text-[#a5b4fc] font-telemetry-pill text-[10.5px] font-medium">
+<span class="text-[11px] leading-none text-[#818cf8]">+</span>
+<span>será adicionado</span>
+</span>
+</td>
+<!-- Codex -->
+<td class="py-3 px-3 border-r border-[#242c37]">
+<span class="inline-flex items-center px-2 py-0.5 rounded-[0.25rem] bg-[#1c2128] border border-[#2d3748] text-[#94a3b8] font-telemetry-pill text-[10.5px]">
+                    indisponível
+                  </span>
+</td>
+<!-- GitHub Copilot CLI -->
+<td class="py-3 px-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded-[0.25rem] bg-[#1c2128] border border-[#2d3748] text-[#94a3b8] font-telemetry-pill text-[10.5px]">
+                    sem arquivo
+                  </span>
+</td>
+</tr>
+<!-- 2. Linha: postgres (stdio) -->
+<tr class="hover:bg-[#181d24] transition-colors duration-100">
+<td class="py-3 px-3.5 border-r border-[#242c37]">
+<div class="flex flex-col">
+<span class="font-code-sm font-semibold text-white text-[12px]">postgres</span>
+<span class="text-[10px] text-[#64748b] font-code-sm">stdio</span>
+</div>
+</td>
+<!-- Atlas: será trazido para o Atlas (azul #60a5fa com fundo a 14%) -->
+<td class="py-3 px-3 border-r border-[#242c37]">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-[0.25rem] bg-[rgba(96,165,250,0.14)] border border-[rgba(96,165,250,0.4)] text-[#60a5fa] font-telemetry-pill text-[10px] font-medium">
+<span class="text-[10px] leading-none text-[#60a5fa]">↓</span>
+<span>será trazido para o Atlas</span>
+</span>
+</td>
+<!-- Claude Code -->
+<td class="py-3 px-3 border-r border-[#242c37]">
+<span class="inline-flex items-center px-2 py-0.5 rounded-[0.25rem] bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)] text-[#10b981] font-telemetry-pill text-[10.5px]">
+                    tem
+                  </span>
+</td>
+<!-- Gemini CLI -->
+<td class="py-3 px-3 border-r border-[#242c37]">
+<span class="inline-flex items-center px-2 py-0.5 rounded-[0.25rem] bg-[#1c2128] border border-[#2d3748] text-[#94a3b8] font-telemetry-pill text-[10.5px]">
+                    sem arquivo
+                  </span>
+</td>
+<!-- OpenCode: será adicionado -->
+<td class="py-3 px-3 border-r border-[#242c37]">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-[0.25rem] bg-[rgba(99,102,241,0.14)] border border-[rgba(99,102,241,0.45)] text-[#a5b4fc] font-telemetry-pill text-[10.5px] font-medium">
+<span class="text-[11px] leading-none text-[#818cf8]">+</span>
+<span>será adicionado</span>
+</span>
+</td>
+<!-- Codex -->
+<td class="py-3 px-3 border-r border-[#242c37]">
+<span class="inline-flex items-center px-2 py-0.5 rounded-[0.25rem] bg-[#1c2128] border border-[#2d3748] text-[#94a3b8] font-telemetry-pill text-[10.5px]">
+                    indisponível
+                  </span>
+</td>
+<!-- GitHub Copilot CLI -->
+<td class="py-3 px-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded-[0.25rem] bg-[#1c2128] border border-[#2d3748] text-[#94a3b8] font-telemetry-pill text-[10.5px]">
+                    sem arquivo
+                  </span>
+</td>
+</tr>
+<!-- 3. Linha: linear (stdio) -->
+<tr class="hover:bg-[#181d24] transition-colors duration-100">
+<td class="py-3 px-3.5 border-r border-[#242c37]">
+<div class="flex flex-col">
+<span class="font-code-sm font-semibold text-white text-[12px]">linear</span>
+<span class="text-[10px] text-[#64748b] font-code-sm">stdio</span>
+</div>
+</td>
+<!-- Atlas -->
+<td class="py-3 px-3 border-r border-[#242c37]">
+<span class="inline-flex items-center px-2 py-0.5 rounded-[0.25rem] bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)] text-[#10b981] font-telemetry-pill text-[10.5px]">
+                    tem
+                  </span>
+</td>
+<!-- Claude Code: será adicionado -->
+<td class="py-3 px-3 border-r border-[#242c37]">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-[0.25rem] bg-[rgba(99,102,241,0.14)] border border-[rgba(99,102,241,0.45)] text-[#a5b4fc] font-telemetry-pill text-[10.5px] font-medium">
+<span class="text-[11px] leading-none text-[#818cf8]">+</span>
+<span>será adicionado</span>
+</span>
+</td>
+<!-- Gemini CLI -->
+<td class="py-3 px-3 border-r border-[#242c37]">
+<span class="inline-flex items-center px-2 py-0.5 rounded-[0.25rem] bg-[#1c2128] border border-[#2d3748] text-[#94a3b8] font-telemetry-pill text-[10.5px]">
+                    sem arquivo
+                  </span>
+</td>
+<!-- OpenCode -->
+<td class="py-3 px-3 border-r border-[#242c37]">
+<span class="inline-flex items-center px-2 py-0.5 rounded-[0.25rem] bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)] text-[#10b981] font-telemetry-pill text-[10.5px]">
+                    tem
+                  </span>
+</td>
+<!-- Codex -->
+<td class="py-3 px-3 border-r border-[#242c37]">
+<span class="inline-flex items-center px-2 py-0.5 rounded-[0.25rem] bg-[#1c2128] border border-[#2d3748] text-[#94a3b8] font-telemetry-pill text-[10.5px]">
+                    indisponível
+                  </span>
+</td>
+<!-- GitHub Copilot CLI -->
+<td class="py-3 px-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded-[0.25rem] bg-[#1c2128] border border-[#2d3748] text-[#94a3b8] font-telemetry-pill text-[10.5px]">
+                    sem arquivo
+                  </span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- 3. Caixa de aviso âmbar -->
+<div class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-[0.25rem] bg-[rgba(245,158,11,0.08)] border border-[rgba(245,158,11,0.3)]">
+<span class="material-symbols-outlined text-[#f59e0b] text-[18px] shrink-0">warning</span>
+<p class="font-body-sm text-body-sm text-[#f59e0b] leading-tight">
+            Segredos nunca são copiados entre arquivos; cada CLI guarda os seus.
+          </p>
+</div>
+</div>
+<!-- 4. Rodapé fixo do modal -->
+<div class="px-6 py-3.5 bg-[#101317] border-t border-[#242c37] flex items-center justify-between">
+<!-- Esquerda / Info de apoio operacional -->
+<span class="font-code-sm text-[11px] text-[#64748b]">
+          3 operações estruturais planejadas
+        </span>
+<!-- Botões de ação alinhados à direita -->
+<div class="flex items-center gap-2.5">
+<button class="px-3.5 py-1.5 rounded-[0.25rem] bg-[#1c2128] border border-[#2d3748] text-on-surface hover:bg-[#242c37] hover:border-[#3b4554] font-label-md text-label-md transition-colors cursor-pointer active:scale-[0.99]">
+            Cancelar
+          </button>
+<button class="flex items-center gap-2 px-4 py-1.5 rounded-[0.25rem] bg-[#6366f1] hover:bg-[#4f46e5] active:bg-[#4338ca] text-white font-label-md text-label-md font-medium transition-colors cursor-pointer shadow-sm active:scale-[0.99]">
+<span class="material-symbols-outlined text-[16px] leading-none">sync</span>
+<span>Sincronizar: adicionar 3 a 2 arquivos, trazer 1</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</body></html>

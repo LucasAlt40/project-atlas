@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas — Harness: Revisar contexto</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "inverse-on-surface": "#2e3135",
+            "on-secondary-fixed-variant": "#004883",
+            "secondary-fixed-dim": "#a4c9ff",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "tertiary-fixed": "#ffd9e4",
+            "on-background": "#e1e2e8",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-surface-variant": "#c7c4d7",
+            "error-container": "#93000a",
+            "on-primary-container": "#0d0096",
+            "inverse-surface": "#e1e2e8",
+            "tertiary-container": "#f751a1",
+            "error": "#ffb4ab",
+            "on-error-container": "#ffdad6",
+            "secondary-container": "#0267b8",
+            "secondary": "#a4c9ff",
+            "background": "#111418",
+            "surface-container-low": "#191c20",
+            "secondary-fixed": "#d4e3ff",
+            "surface-dim": "#111418",
+            "primary-container": "#8083ff",
+            "tertiary": "#ffb0cd",
+            "on-primary": "#1000a9",
+            "on-secondary": "#00315d",
+            "on-tertiary-fixed": "#3e0022",
+            "on-surface": "#e1e2e8",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "on-secondary-fixed": "#001c39",
+            "on-error": "#690005",
+            "surface-tint": "#c0c1ff",
+            "primary": "#c0c1ff",
+            "on-primary-fixed": "#07006c",
+            "surface": "#111418",
+            "on-tertiary": "#640039",
+            "surface-container-high": "#272a2e",
+            "on-tertiary-container": "#570032",
+            "inverse-primary": "#494bd6",
+            "surface-container": "#1d2024",
+            "surface-bright": "#36393e",
+            "surface-variant": "#323539",
+            "surface-container-lowest": "#0b0e12",
+            "primary-fixed": "#e1e0ff",
+            "outline-variant": "#464554",
+            "surface-container-highest": "#323539",
+            "on-secondary-container": "#d6e5ff",
+            "outline": "#908fa0"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-xs": "0.25rem",
+            "space-xl": "1.5rem",
+            "space-md": "0.75rem",
+            "margin-window": "0.5rem",
+            "space-2xs": "0.125rem",
+            "margin": "0.75rem",
+            "gutter-expanded": "1rem",
+            "space-lg": "1rem",
+            "gutter-compact": "0.25rem",
+            "space-sm": "0.5rem",
+            "space-2xl": "2rem",
+            "gutter": "0.5rem"
+          },
+          "fontFamily": {
+            "code-sm": ["JetBrains Mono"],
+            "body-lg": ["Geist"],
+            "body-sm": ["Geist"],
+            "label-md": ["Geist"],
+            "headline-lg": ["Geist"],
+            "headline-md": ["Geist"],
+            "headline-xl": ["Geist"],
+            "headline-sm": ["Geist"],
+            "label-sm": ["Geist"],
+            "body-md": ["Geist"],
+            "code-md": ["JetBrains Mono"],
+            "telemetry-pill": ["JetBrains Mono"],
+            "code-lg": ["JetBrains Mono"]
+          },
+          "fontSize": {
+            "code-sm": ["0.6875rem", { "lineHeight": "1rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "body-lg": ["1rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "body-sm": ["0.75rem", { "lineHeight": "1.125rem", "letterSpacing": "0.005em", "fontWeight": "400" }],
+            "label-md": ["0.8125rem", { "lineHeight": "1rem", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "headline-lg": ["1.5rem", { "lineHeight": "2rem", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "headline-md": ["1.25rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.015em", "fontWeight": "500" }],
+            "headline-xl": ["2rem", { "lineHeight": "2.5rem", "letterSpacing": "-0.025em", "fontWeight": "600" }],
+            "headline-sm": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "label-sm": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.04em", "fontWeight": "600" }],
+            "body-md": ["0.875rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "code-md": ["0.8125rem", { "lineHeight": "1.25rem", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+            "telemetry-pill": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.02em", "fontWeight": "600" }],
+            "code-lg": ["0.875rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.01em", "fontWeight": "500" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    body {
+      background-color: #0b0d10;
+      color: #e1e2e8;
+      font-family: 'Geist', sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: #101317;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #242c37;
+      border-radius: 3px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: #3b4554;
+    }
+  </style>
+</head>
+<body class="w-[1440px] h-[900px] flex overflow-hidden bg-[#0b0d10]">
+<!-- SIDEBAR FIXA ESQUERDA -->
+<aside class="fixed top-0 left-0 h-screen w-[216px] z-30 bg-[#0b0d10] border-r border-[#1c2128] flex flex-col justify-between p-3 select-none">
+<div class="flex flex-col gap-4">
+<!-- Topo: Marca Atlas -->
+<div class="flex items-center gap-2.5 px-2 pt-1 pb-1">
+<div class="w-5 h-5 bg-[#6366f1] rounded flex items-center justify-center shadow-none flex-shrink-0">
+<span class="text-white text-[11px] font-bold font-['Geist'] leading-none">A</span>
+</div>
+<span class="font-['Geist'] text-[14px] font-medium text-white tracking-tight">Atlas</span>
+</div>
+<!-- Seletor de Workspace -->
+<div class="bg-[#15191e] border border-[#1c2128] rounded p-2.5 flex flex-col gap-1 cursor-pointer hover:border-[#2d3748] transition-colors">
+<div class="flex items-center justify-between">
+<span class="font-['Geist'] text-[13px] font-semibold text-slate-200 truncate">Transport ERP</span>
+<span class="material-symbols-outlined text-[16px] text-slate-400">expand_more</span>
+</div>
+<span class="font-['JetBrains_Mono'] text-[11px] text-slate-400 truncate tracking-tight">/Users/lucas/dev/transport-erp</span>
+</div>
+<!-- 7 Itens Canônicos de Navegação -->
+<nav class="flex flex-col gap-1 mt-1">
+<!-- Item 1: Workspace -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-[#15191e] transition-colors font-['Geist'] text-[13px]" href="#">
+<span class="material-symbols-outlined text-[18px]">folder_open</span>
+<span>Workspace</span>
+</a>
+<!-- Item 2: Workflow (ATIVO) -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded bg-[#191c20] text-white border border-[#6366f1]/40 font-['Geist'] text-[13px] font-medium relative transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px] text-[#6366f1]">account_tree</span>
+<span>Workflow</span>
+<span class="absolute right-2 w-1.5 h-1.5 rounded-full bg-[#6366f1]"></span>
+</a>
+<!-- Item 3: Agentes -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-[#15191e] transition-colors font-['Geist'] text-[13px]" href="#">
+<span class="material-symbols-outlined text-[18px]">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- Item 4: Personalidades -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-[#15191e] transition-colors font-['Geist'] text-[13px]" href="#">
+<span class="material-symbols-outlined text-[18px]">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- Item 5: Specs -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-[#15191e] transition-colors font-['Geist'] text-[13px]" href="#">
+<span class="material-symbols-outlined text-[18px]">description</span>
+<span>Specs</span>
+</a>
+<!-- Item 6: MCP Hub -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-[#15191e] transition-colors font-['Geist'] text-[13px]" href="#">
+<span class="material-symbols-outlined text-[18px]">hub</span>
+<span>MCP Hub</span>
+</a>
+<!-- Item 7: Configurações -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-[#15191e] transition-colors font-['Geist'] text-[13px]" href="#">
+<span class="material-symbols-outlined text-[18px]">settings</span>
+<span>Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Rodapé Estrito da Sidebar -->
+<div class="px-2 pt-3 border-t border-[#1c2128] flex flex-col gap-0.5">
+<span class="font-['Geist'] text-[12px] text-slate-400 font-normal">Project Atlas</span>
+<span class="font-['JetBrains_Mono'] text-[11px] text-slate-500">v0.2.0 · macOS</span>
+</div>
+</aside>
+<!-- CONTAINER DE JANELA DIREITA -->
+<div class="ml-[216px] w-[calc(1440px-216px)] h-screen flex flex-col bg-[#101317]">
+<!-- BARRA SUPERIOR FIXA 48PX -->
+<header class="h-12 bg-[#0b0d10] border-b border-[#1c2128] pl-4 pr-6 flex items-center justify-between select-none z-20 flex-shrink-0">
+<!-- Esquerda: Toggle + Breadcrumb -->
+<div class="flex items-center gap-3">
+<button class="text-slate-400 hover:text-slate-200 p-1 rounded hover:bg-[#15191e] transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">dock_to_left</span>
+</button>
+<div class="flex items-center gap-2 font-['Geist'] text-[13px] text-slate-400">
+<span>Transport ERP</span>
+<span class="text-slate-600">/</span>
+<span>Projetos</span>
+<span class="text-slate-600">/</span>
+<span class="text-slate-200 font-medium">Harness</span>
+</div>
+</div>
+<!-- Direita: Ações autorizadas -->
+<div class="flex items-center gap-4">
+<!-- Celular -->
+<button class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#15191e] border border-[#1c2128] text-slate-300 hover:text-white hover:border-[#2d3748] transition-colors font-['Geist'] text-[12px]">
+<span class="material-symbols-outlined text-[15px] text-slate-400">phone_iphone</span>
+<span>Celular</span>
+</button>
+<!-- Idioma PT | EN -->
+<div class="flex items-center gap-1.5 font-['Geist'] text-[12px] text-slate-400">
+<span class="text-white font-semibold cursor-pointer">PT</span>
+<span class="text-slate-600">|</span>
+<span class="text-slate-400 hover:text-slate-200 cursor-pointer">EN</span>
+</div>
+</div>
+</header>
+<!-- ÁREA PRINCIPAL DE CONTEÚDO (SCROLLÁVEL) -->
+<main class="flex-1 overflow-y-auto p-8 text-slate-200 flex flex-col gap-6 custom-scroll">
+<!-- 1. Cabeçalho da Página -->
+<div class="flex flex-col gap-2">
+<a class="text-[13px] text-slate-400 hover:text-white flex items-center gap-1 w-fit transition-colors" href="#">
+<span>←</span>
+<span>Voltar</span>
+</a>
+<div class="flex items-center justify-between mt-1">
+<div class="flex items-center gap-3">
+<h1 class="font-['Geist'] text-[20px] font-semibold text-white tracking-tight">Revisar contexto de transport-web</h1>
+<span class="font-['JetBrains_Mono'] text-[12px] bg-[#191c20] text-slate-300 px-2.5 py-0.5 rounded border border-[#242c37]">.atlas/</span>
+</div>
+<button class="bg-[#6366f1] hover:bg-[#4f46e5] text-white px-4 py-2 rounded text-[14px] font-medium shadow-none transition-colors">
+            Gravar no projeto
+          </button>
+</div>
+</div>
+<!-- 2. Stepper de 3 Etapas -->
+<div class="flex items-center gap-4 py-1 border-b border-[#1c2128] pb-4">
+<!-- Etapa 1 -->
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-['JetBrains_Mono'] text-[11px] font-semibold">✓</span>
+<span class="text-[13px] text-slate-400 font-['Geist']">1 Analisar</span>
+</div>
+<div class="w-12 h-[1px] bg-[#242c37]"></div>
+<!-- Etapa 2 -->
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-['JetBrains_Mono'] text-[11px] font-semibold">✓</span>
+<span class="text-[13px] text-slate-400 font-['Geist']">2 Análise ao vivo</span>
+</div>
+<div class="w-12 h-[1px] bg-[#242c37]"></div>
+<!-- Etapa 3 (Atual) -->
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-[#6366f1] text-white flex items-center justify-center font-['JetBrains_Mono'] text-[11px] font-semibold">3</span>
+<span class="text-[13px] font-semibold text-white font-['Geist']">Revisar contexto</span>
+</div>
+</div>
+<!-- 3. Aviso Âmbar Recolhível -->
+<div class="border border-amber-500/30 bg-amber-500/10 rounded-md p-3 px-4 flex items-center justify-between text-[13px] text-amber-200">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-[18px] text-amber-400">warning</span>
+<span>2 achados estão desatualizados: a evidência mudou desde a última análise.</span>
+</div>
+<button class="text-amber-300 hover:text-amber-100 p-1 flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-[18px]">keyboard_arrow_up</span>
+</button>
+</div>
+<!-- 4. Linha de Métricas Compactas -->
+<div class="text-[13px] text-slate-400 flex items-center gap-3 font-['Geist']">
+<span>Total <strong class="font-['JetBrains_Mono'] font-medium text-slate-200">24</strong></span>
+<span class="text-slate-600">·</span>
+<span>Verificados <strong class="font-['JetBrains_Mono'] font-medium text-slate-200">15</strong></span>
+<span class="text-slate-600">·</span>
+<span>Inferidos <strong class="font-['JetBrains_Mono'] font-medium text-slate-200">7</strong></span>
+<span class="text-slate-600">·</span>
+<span>Pendentes <strong class="font-['JetBrains_Mono'] font-medium text-slate-200">2</strong></span>
+</div>
+<!-- 5. Abas por Área com Contagem -->
+<div class="flex items-center gap-6 border-b border-[#1c2128]">
+<button class="pb-2.5 border-b-2 border-[#6366f1] text-white font-medium text-[13px] font-['Geist'] flex items-center gap-1.5">
+<span>Stack</span>
+<span class="font-['JetBrains_Mono'] text-[11px] px-1.5 py-0.5 rounded bg-[#191c20] text-slate-300">(8)</span>
+</button>
+<button class="pb-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-200 font-normal text-[13px] font-['Geist'] flex items-center gap-1.5 transition-colors">
+<span>Testes e comandos</span>
+<span class="font-['JetBrains_Mono'] text-[11px] px-1.5 py-0.5 rounded bg-[#15191e] text-slate-400">(5)</span>
+</button>
+<button class="pb-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-200 font-normal text-[13px] font-['Geist'] flex items-center gap-1.5 transition-colors">
+<span>Arquitetura e módulos</span>
+<span class="font-['JetBrains_Mono'] text-[11px] px-1.5 py-0.5 rounded bg-[#15191e] text-slate-400">(7)</span>
+</button>
+<button class="pb-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-200 font-normal text-[13px] font-['Geist'] flex items-center gap-1.5 transition-colors">
+<span>Contexto de negócio</span>
+<span class="font-['JetBrains_Mono'] text-[11px] px-1.5 py-0.5 rounded bg-[#15191e] text-slate-400">(4)</span>
+</button>
+</div>
+<!-- 6. Mestre-Detalhe (2 Colunas) -->
+<div class="grid grid-cols-12 gap-5 items-start">
+<!-- Coluna Esquerda: Achados (60% aprox -> 7 colunas) -->
+<div class="col-span-7 bg-[#15191e] border border-[#1c2128] rounded-lg p-5 flex flex-col gap-6">
+<!-- Grupo: Linguagem -->
+<div class="flex flex-col gap-3">
+<h2 class="font-['Geist'] text-[16px] font-semibold text-slate-200">Linguagem</h2>
+<!-- Linha 1 (SELECIONADA) -->
+<div class="flex items-center justify-between p-2.5 rounded bg-[#1c2128] border border-[#6366f1]/50 transition-colors">
+<div class="flex items-center gap-3">
+<input checked="" class="w-3.5 h-3.5 rounded-[2px] bg-[#101317] border border-[#2d3748] text-[#6366f1] focus:ring-0 focus:ring-offset-0 cursor-pointer" type="checkbox"/>
+<input class="bg-[#101317] border border-[#242c37] focus:border-[#6366f1] rounded text-[13px] text-white px-2.5 py-1 w-44 font-['Geist'] focus:outline-none" type="text" value="TypeScript 6"/>
+</div>
+<div class="flex items-center gap-3">
+<!-- Selo Fato (Verde 14%) -->
+<div class="px-2 py-0.5 rounded flex items-center gap-1.5 bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+<span class="font-['Geist'] text-[12px] text-[#10b981] font-normal leading-none">Fato</span>
+</div>
+<span class="text-[12px] text-slate-400 font-['Geist']">alta</span>
+<span class="font-['JetBrains_Mono'] text-[12px] text-slate-400">package.json</span>
+</div>
+</div>
+</div>
+<!-- Grupo: Framework -->
+<div class="flex flex-col gap-3">
+<h2 class="font-['Geist'] text-[16px] font-semibold text-slate-200">Framework</h2>
+<!-- Linha 2 -->
+<div class="flex items-center justify-between p-2.5 rounded bg-[#15191e] border border-transparent hover:bg-[#1a1f26] transition-colors">
+<div class="flex items-center gap-3">
+<input checked="" class="w-3.5 h-3.5 rounded-[2px] bg-[#101317] border border-[#2d3748] text-[#6366f1] focus:ring-0 focus:ring-offset-0 cursor-pointer" type="checkbox"/>
+<input class="bg-[#101317] border border-[#242c37] focus:border-[#6366f1] rounded text-[13px] text-white px-2.5 py-1 w-44 font-['Geist'] focus:outline-none" type="text" value="React 19"/>
+</div>
+<div class="flex items-center gap-3">
+<div class="px-2 py-0.5 rounded flex items-center gap-1.5 bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+<span class="font-['Geist'] text-[12px] text-[#10b981] font-normal leading-none">Fato</span>
+</div>
+<span class="text-[12px] text-slate-400 font-['Geist']">alta</span>
+<span class="font-['JetBrains_Mono'] text-[12px] text-slate-400">package.json</span>
+</div>
+</div>
+<!-- Linha 3 -->
+<div class="flex items-center justify-between p-2.5 rounded bg-[#15191e] border border-transparent hover:bg-[#1a1f26] transition-colors">
+<div class="flex items-center gap-3">
+<input checked="" class="w-3.5 h-3.5 rounded-[2px] bg-[#101317] border border-[#2d3748] text-[#6366f1] focus:ring-0 focus:ring-offset-0 cursor-pointer" type="checkbox"/>
+<input class="bg-[#101317] border border-[#242c37] focus:border-[#6366f1] rounded text-[13px] text-white px-2.5 py-1 w-44 font-['Geist'] focus:outline-none" type="text" value="Vite 8"/>
+</div>
+<div class="flex items-center gap-3">
+<div class="px-2 py-0.5 rounded flex items-center gap-1.5 bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+<span class="font-['Geist'] text-[12px] text-[#10b981] font-normal leading-none">Fato</span>
+</div>
+<span class="text-[12px] text-slate-400 font-['Geist']">alta</span>
+<span class="font-['JetBrains_Mono'] text-[12px] text-slate-400">package.json</span>
+</div>
+</div>
+</div>
+<!-- Grupo: Infraestrutura -->
+<div class="flex flex-col gap-3">
+<h2 class="font-['Geist'] text-[16px] font-semibold text-slate-200">Infraestrutura</h2>
+<!-- Linha 4 (Vitest - Inferência) -->
+<div class="flex items-center justify-between p-2.5 rounded bg-[#15191e] border border-transparent hover:bg-[#1a1f26] transition-colors">
+<div class="flex items-center gap-3">
+<input checked="" class="w-3.5 h-3.5 rounded-[2px] bg-[#101317] border border-[#2d3748] text-[#6366f1] focus:ring-0 focus:ring-offset-0 cursor-pointer" type="checkbox"/>
+<input class="bg-[#101317] border border-[#242c37] focus:border-[#6366f1] rounded text-[13px] text-white px-2.5 py-1 w-44 font-['Geist'] focus:outline-none" type="text" value="Vitest"/>
+</div>
+<div class="flex items-center gap-3">
+<!-- Selo Inferência (Azul 14%) -->
+<div class="px-2 py-0.5 rounded flex items-center gap-1.5 bg-[rgba(96,165,250,0.14)] border border-[rgba(96,165,250,0.4)]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#60a5fa]"></span>
+<span class="font-['Geist'] text-[12px] text-[#60a5fa] font-normal leading-none">Inferência</span>
+</div>
+<span class="text-[12px] text-slate-400 font-['Geist']">média</span>
+<span class="font-['JetBrains_Mono'] text-[12px] text-slate-400">vite.config.ts</span>
+</div>
+</div>
+<!-- Linha 5 (Docker - Seu) -->
+<div class="flex items-center justify-between p-2.5 rounded bg-[#15191e] border border-transparent hover:bg-[#1a1f26] transition-colors">
+<div class="flex items-center gap-3">
+<input checked="" class="w-3.5 h-3.5 rounded-[2px] bg-[#101317] border border-[#2d3748] text-[#6366f1] focus:ring-0 focus:ring-offset-0 cursor-pointer" type="checkbox"/>
+<input class="bg-[#101317] border border-[#242c37] focus:border-[#6366f1] rounded text-[13px] text-white px-2.5 py-1 w-44 font-['Geist'] focus:outline-none" type="text" value="Docker"/>
+</div>
+<div class="flex items-center gap-3">
+<!-- Selo Seu (Índigo 14%) -->
+<div class="px-2 py-0.5 rounded flex items-center gap-1.5 bg-[rgba(99,102,241,0.14)] border border-[rgba(99,102,241,0.4)]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#6366f1]"></span>
+<span class="font-['Geist'] text-[12px] text-[#818cf8] font-normal leading-none">Seu</span>
+</div>
+<span class="text-[12px] text-slate-400 font-['Geist']">alta</span>
+<span class="font-['JetBrains_Mono'] text-[12px] text-slate-400">Dockerfile</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Coluna Direita: Evidência (40% aprox -> 5 colunas) -->
+<div class="col-span-5 bg-[#15191e] border border-[#1c2128] rounded-lg p-5 flex flex-col gap-4">
+<h2 class="font-['Geist'] text-[16px] font-semibold text-slate-200">Evidência</h2>
+<div>
+<span class="font-['JetBrains_Mono'] text-[13px] text-slate-300 bg-[#0b0d10] px-3 py-1.5 rounded border border-[#242c37] inline-block">package.json</span>
+</div>
+<!-- Bloco de Código de 6 Linhas -->
+<div class="bg-[#0b0d10] border border-[#1c2128] rounded p-3 font-['JetBrains_Mono'] text-[12px] leading-relaxed text-slate-400">
+<div class="flex items-center">
+<span class="w-6 text-slate-600 select-none">1:</span>
+<span class="text-slate-300 pl-2">  "devDependencies": {</span>
+</div>
+<div class="flex items-center">
+<span class="w-6 text-slate-600 select-none">2:</span>
+<span class="text-slate-400 pl-2">    "@types/react": "^19.0.0",</span>
+</div>
+<!-- Linha 3 Destacada -->
+<div class="flex items-center bg-[#6366f1]/20 border-l-2 border-[#6366f1] text-white font-medium my-0.5 py-0.5">
+<span class="w-6 text-indigo-300 select-none pl-1">3:</span>
+<span class="pl-2">    "typescript": "^6.0.0",</span>
+</div>
+<div class="flex items-center">
+<span class="w-6 text-slate-600 select-none">4:</span>
+<span class="text-slate-400 pl-2">    "vite": "^8.0.0",</span>
+</div>
+<div class="flex items-center">
+<span class="w-6 text-slate-600 select-none">5:</span>
+<span class="text-slate-400 pl-2">    "vitest": "^3.0.0"</span>
+</div>
+<div class="flex items-center">
+<span class="w-6 text-slate-600 select-none">6:</span>
+<span class="text-slate-300 pl-2">  }</span>
+</div>
+</div>
+<!-- Estado de Confiança -->
+<div class="flex items-center gap-2 mt-1 text-[13px] text-emerald-400 font-['Geist']">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+<span>Confiança alta · Fato verificado</span>
+</div>
+</div>
+</div>
+<!-- 7. Rodapé do Formulário -->
+<div class="mt-2 pt-4 border-t border-[#1c2128] flex items-center justify-between">
+<div class="flex items-center gap-3">
+<!-- Switch Toggle Moderno -->
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-9 h-5 bg-[#1c2128] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#6366f1]"></div>
+</label>
+<div class="flex flex-col">
+<span class="font-['Geist'] text-[13px] font-medium text-slate-200">Não enviar o .atlas/ ao Git</span>
+<span class="font-['Geist'] text-[13px] text-slate-400">Adiciona .atlas/ ao .gitignore deste projeto.</span>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

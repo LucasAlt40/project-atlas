@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas AI Engineering Workspace</title>
+<!-- Fontes Oficiais do Sistema -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS Engine -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary-container": "#8083ff",
+            "on-secondary": "#00315d",
+            "primary": "#c0c1ff",
+            "on-secondary-fixed-variant": "#004883",
+            "secondary-fixed-dim": "#a4c9ff",
+            "secondary-fixed": "#d4e3ff",
+            "background": "#0b0d10",
+            "secondary": "#a4c9ff",
+            "primary-fixed": "#e1e0ff",
+            "on-tertiary-fixed": "#3e0022",
+            "on-surface": "#e1e2e8",
+            "on-error": "#690005",
+            "error-container": "#93000a",
+            "surface-container-lowest": "#0b0e12",
+            "secondary-container": "#0267b8",
+            "on-primary": "#1000a9",
+            "on-tertiary-container": "#570032",
+            "outline": "#908fa0",
+            "inverse-primary": "#494bd6",
+            "surface-container-highest": "#323539",
+            "on-secondary-fixed": "#001c39",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "on-error-container": "#ffdad6",
+            "tertiary-container": "#f751a1",
+            "primary-fixed-dim": "#c0c1ff",
+            "surface-tint": "#c0c1ff",
+            "surface": "#111418",
+            "on-surface-variant": "#c7c4d7",
+            "on-primary-container": "#0d0096",
+            "on-background": "#e1e2e8",
+            "surface-variant": "#323539",
+            "surface-container-high": "#272a2e",
+            "on-tertiary": "#640039",
+            "error": "#ffb4ab",
+            "inverse-surface": "#e1e2e8",
+            "surface-bright": "#36393e",
+            "tertiary": "#ffb0cd",
+            "on-primary-fixed": "#07006c",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "surface-container": "#1d2024",
+            "inverse-on-surface": "#2e3135",
+            "on-secondary-container": "#d6e5ff",
+            "surface-dim": "#111418",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "tertiary-fixed": "#ffd9e4",
+            "surface-container-low": "#191c20",
+            "outline-variant": "#242c37"
+          },
+          borderRadius: {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          spacing: {
+            "space-2xl": "2rem",
+            "gutter-compact": "0.25rem",
+            "space-md": "0.75rem",
+            "space-xl": "1.5rem",
+            "space-sm": "0.5rem",
+            "space-lg": "1rem",
+            "gutter": "0.5rem",
+            "space-xs": "0.25rem",
+            "margin-window": "0.5rem",
+            "margin": "0.75rem",
+            "gutter-expanded": "1rem",
+            "space-2xs": "0.125rem"
+          },
+          fontFamily: {
+            "label-md": ["Geist"],
+            "headline-xl": ["Geist"],
+            "telemetry-pill": ["JetBrains Mono"],
+            "headline-lg": ["Geist"],
+            "code-lg": ["JetBrains Mono"],
+            "code-md": ["JetBrains Mono"],
+            "headline-md": ["Geist"],
+            "code-sm": ["JetBrains Mono"],
+            "label-sm": ["Geist"],
+            "body-lg": ["Geist"],
+            "body-sm": ["Geist"],
+            "body-md": ["Geist"],
+            "headline-sm": ["Geist"]
+          },
+          fontSize: {
+            "label-md": ["0.8125rem", { lineHeight: "1rem", letterSpacing: "0.01em", fontWeight: "500" }],
+            "headline-xl": ["2rem", { lineHeight: "2.5rem", letterSpacing: "-0.025em", fontWeight: "600" }],
+            "telemetry-pill": ["0.6875rem", { lineHeight: "0.875rem", letterSpacing: "0.02em", fontWeight: "600" }],
+            "headline-lg": ["1.5rem", { lineHeight: "2rem", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "code-lg": ["0.875rem", { lineHeight: "1.375rem", letterSpacing: "-0.01em", fontWeight: "500" }],
+            "code-md": ["0.8125rem", { lineHeight: "1.25rem", letterSpacing: "-0.01em", fontWeight: "400" }],
+            "headline-md": ["1.25rem", { lineHeight: "1.75rem", letterSpacing: "-0.015em", fontWeight: "500" }],
+            "code-sm": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0em", fontWeight: "400" }],
+            "label-sm": ["0.6875rem", { lineHeight: "0.875rem", letterSpacing: "0.04em", fontWeight: "600" }],
+            "body-lg": ["1rem", { lineHeight: "1.5rem", letterSpacing: "-0.005em", fontWeight: "400" }],
+            "body-sm": ["0.75rem", { lineHeight: "1.125rem", letterSpacing: "0.005em", fontWeight: "400" }],
+            "body-md": ["0.875rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "headline-sm": ["1.125rem", { lineHeight: "1.5rem", letterSpacing: "-0.01em", fontWeight: "500" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    body {
+      background-color: #0b0d10;
+      color: #e1e2e8;
+      font-family: 'Geist', sans-serif;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+    .material-symbols-outlined {
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    /* Sombra profunda rigorosa de 60% apenas para elementos modais/gavetas */
+    .drawer-deep-shadow {
+      box-shadow: -16px 0 36px 0 rgba(0, 0, 0, 0.60), 0 0 0 1px #242c37;
+    }
+    /* Hairlines sem sombra */
+    .hairline-r { border-right: 1px solid #242c37; }
+    .hairline-b { border-bottom: 1px solid #242c37; }
+    .hairline-t { border-top: 1px solid #242c37; }
+    .hairline-l { border-left: 1px solid #242c37; }
+    .hairline-all { border: 1px solid #242c37; }
+  </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col bg-[#0b0d10] text-on-surface">
+<!-- APLICAÇÃO GERAL COM DIVISÃO E MOLDURA NATIVA -->
+<div class="flex h-screen w-full relative overflow-hidden">
+<!-- 1. BARRA LATERAL FIXA DE 216PX (#101317) -->
+<aside class="w-[216px] min-w-[216px] max-w-[216px] h-full bg-[#101317] hairline-r flex flex-col justify-between z-10 select-none">
+<!-- Topo: Marca e Seletor de Workspace -->
+<div class="flex flex-col">
+<!-- Logo Atlas (Ícone e Palavra 16px semitransparente/branco) -->
+<div class="h-12 px-space-md flex items-center gap-2 hairline-b">
+<div class="w-5 h-5 rounded-[2px] bg-[#6366f1] flex items-center justify-center text-white font-bold text-xs">
+<span class="material-symbols-outlined text-[13px]" data-icon="polyline">polyline</span>
+</div>
+<span class="text-[16px] font-semibold text-white/90 tracking-tight">Atlas</span>
+</div>
+<!-- Seletor de Workspace: "Transport ERP" e caminho -->
+<div class="px-space-md py-3 hairline-b hover:bg-[#15191e] transition-colors cursor-pointer group">
+<div class="flex items-center justify-between">
+<span class="text-label-md font-label-md font-medium text-white truncate">Transport ERP</span>
+<span class="material-symbols-outlined text-[#908fa0] group-hover:text-white text-[14px]" data-icon="unfold_more">unfold_more</span>
+</div>
+<div class="font-code-sm text-code-sm text-[#908fa0] truncate mt-0.5" title="/Users/lucas/dev/transport-erp">
+            /Users/lucas/dev/transport-erp
+          </div>
+</div>
+<!-- 7 Itens de Navegação Rigorosos -->
+<nav class="p-2 space-y-0.5">
+<!-- 1. Workspace (Ativo) -->
+<a class="flex items-center gap-2 px-2.5 py-1.5 rounded-[2px] bg-[#1c2128] text-white border-l-2 border-[#6366f1] font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-[#c0c1ff]" data-icon="space_dashboard">space_dashboard</span>
+<span>Workspace</span>
+</a>
+<!-- 2. Workflow -->
+<a class="flex items-center gap-2 px-2.5 py-1.5 rounded-[2px] text-[#908fa0] hover:text-white hover:bg-[#15191e] transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+<span>Workflow</span>
+</a>
+<!-- 3. Agentes -->
+<a class="flex items-center gap-2 px-2.5 py-1.5 rounded-[2px] text-[#908fa0] hover:text-white hover:bg-[#15191e] transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="smart_toy">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- 4. Personalidades -->
+<a class="flex items-center gap-2 px-2.5 py-1.5 rounded-[2px] text-[#908fa0] hover:text-white hover:bg-[#15191e] transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- 5. Specs -->
+<a class="flex items-center gap-2 px-2.5 py-1.5 rounded-[2px] text-[#908fa0] hover:text-white hover:bg-[#15191e] transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span>Specs</span>
+</a>
+<!-- 6. MCP Hub -->
+<a class="flex items-center gap-2 px-2.5 py-1.5 rounded-[2px] text-[#908fa0] hover:text-white hover:bg-[#15191e] transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="hub">hub</span>
+<span>MCP Hub</span>
+</a>
+<!-- 7. Configurações -->
+<a class="flex items-center gap-2 px-2.5 py-1.5 rounded-[2px] text-[#908fa0] hover:text-white hover:bg-[#15191e] transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span>Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Rodapé da Barra Lateral: "Project Atlas" e versão -->
+<div class="px-space-md py-3 hairline-t">
+<div class="font-code-sm text-code-sm text-[#908fa0] leading-tight">Project Atlas</div>
+<div class="font-code-sm text-[11px] text-[#64748b] leading-tight mt-0.5">v0.2.0 · macOS</div>
+</div>
+</aside>
+<!-- 2. CORPO PRINCIPAL: BARRA SUPERIOR + WORKSPACE CANVAS -->
+<div class="flex-1 flex flex-col h-full overflow-hidden bg-[#0b0d10] relative">
+<!-- BARRA SUPERIOR RIGOROSA DE 48PX (#101317) -->
+<header class="h-12 min-h-[48px] bg-[#101317] hairline-b px-4 flex items-center justify-between select-none z-10">
+<!-- Lado Esquerdo: Recolher Barra + Breadcrumb -->
+<div class="flex items-center gap-3">
+<button class="p-1 rounded text-[#908fa0] hover:text-white hover:bg-[#1c2128] transition-colors" title="Recolher barra lateral">
+<span class="material-symbols-outlined text-[18px]" data-icon="dock_to_left">dock_to_left</span>
+</button>
+<div class="h-3 w-[1px] bg-[#242c37]"></div>
+<div class="flex items-center gap-1.5 font-label-md text-label-md">
+<span class="text-[#908fa0]">Transport ERP</span>
+<span class="text-[#64748b]">/</span>
+<span class="text-[#908fa0]">Workspace</span>
+<span class="text-[#64748b]">/</span>
+<span class="text-white font-medium">Arquiteto</span>
+</div>
+</div>
+<!-- Lado Direito: Estritamente botão Celular e PT | EN -->
+<div class="flex items-center gap-3">
+<button class="flex items-center gap-1.5 px-2.5 py-1 rounded-[2px] bg-[#15191e] border border-[#242c37] hover:border-[#3b4554] text-[#e1e2e8] text-body-sm font-label-md transition-colors">
+<span class="material-symbols-outlined text-[15px]" data-icon="smartphone">smartphone</span>
+<span>Celular</span>
+</button>
+<div class="h-3 w-[1px] bg-[#242c37]"></div>
+<div class="flex items-center text-body-sm font-label-md text-[#908fa0]">
+<span class="text-white font-semibold cursor-pointer">PT</span>
+<span class="mx-1 text-[#464554]">|</span>
+<span class="hover:text-white cursor-pointer transition-colors">EN</span>
+</div>
+</div>
+</header>
+<!-- ÁREA DE FUNDO: TELA DE FUNDO (VISÃO LISTA DO WORKSPACE) -->
+<main class="flex-1 overflow-y-auto p-6 bg-[#0b0d10] relative">
+<!-- Cabeçalho de Conteúdo: Título, Custo Discreto e Ações -->
+<div class="flex items-start justify-between pb-5 mb-5 hairline-b">
+<div>
+<div class="flex items-baseline gap-3">
+<h1 class="font-headline-lg text-headline-lg text-white font-semibold tracking-tight">Transport ERP</h1>
+<span class="font-telemetry-pill text-telemetry-pill text-[#908fa0] px-2 py-0.5 rounded-[2px] bg-[#15191e] hairline-all">
+                Hoje US$ 1,24 · Semana US$ 3,72
+              </span>
+</div>
+<p class="font-body-sm text-body-sm text-[#908fa0] mt-1">Workspace de orquestração técnica e governança de agentes autônomos.</p>
+</div>
+<!-- Ações do cabeçalho -->
+<div class="flex items-center gap-2">
+<button class="px-3 py-1.5 rounded-[4px] bg-[#15191e] hairline-all hover:bg-[#1c2128] text-white text-body-sm font-medium transition-colors">
+              Projetos (2)
+            </button>
+<button class="px-3 py-1.5 rounded-[4px] bg-[#15191e] hairline-all hover:bg-[#1c2128] text-white text-body-sm font-medium transition-colors">
+              Integrações
+            </button>
+<button class="px-3 py-1.5 rounded-[4px] bg-[#6366f1] hover:bg-[#4f46e5] text-white text-body-sm font-medium flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[16px]" data-icon="add">add</span>
+<span>Adicionar agente</span>
+</button>
+</div>
+</div>
+<!-- Barra de Controles da Lista: Segmented Control + Link Recolher -->
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center bg-[#15191e] hairline-all p-0.5 rounded-[3px]">
+<button class="px-3 py-1 rounded-[2px] bg-[#1c2128] text-white text-body-sm font-medium shadow-none">
+              Lista expansível
+            </button>
+<button class="px-3 py-1 rounded-[2px] text-[#908fa0] hover:text-white text-body-sm transition-colors">
+              Grade
+            </button>
+</div>
+<button class="text-body-sm font-label-md text-[#908fa0] hover:text-white transition-colors">
+            Recolher todos
+          </button>
+</div>
+<!-- Lista de Agentes / Item Arquiteto Expandido -->
+<div class="space-y-3">
+<!-- Card Expandido: Arquiteto -->
+<div class="rounded-[4px] bg-[#15191e] hairline-all overflow-hidden border-[#3b4554]">
+<!-- Linha do Item Principal -->
+<div class="px-4 py-3 bg-[#1c2128]/70 flex items-center justify-between hairline-b cursor-pointer">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#908fa0] text-[18px]" data-icon="expand_more">expand_more</span>
+<span class="font-headline-sm text-headline-sm text-white font-medium">Arquiteto</span>
+<span class="px-1.5 py-0.5 rounded-[2px] text-telemetry-pill font-telemetry-pill bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/40">
+                  ● Pronto
+                </span>
+<span class="text-body-sm text-[#908fa0]">Revisor estrutural de sistemas e design specs</span>
+</div>
+<div class="font-code-sm text-code-sm text-[#908fa0]">
+                sonnet · Claude CLI
+              </div>
+</div>
+<!-- Abas Internas do Card Expandido -->
+<div class="px-4 bg-[#15191e] hairline-b flex items-center gap-6">
+<button class="py-2.5 text-body-sm font-medium text-[#908fa0] hover:text-white transition-colors">Chat</button>
+<button class="py-2.5 text-body-sm font-medium text-[#908fa0] hover:text-white transition-colors">Atividade</button>
+<button class="py-2.5 text-body-sm font-medium text-[#908fa0] hover:text-white transition-colors">Terminal</button>
+<button class="py-2.5 text-body-sm font-medium text-[#6366f1] border-b-2 border-[#6366f1]">Detalhes</button>
+<button class="py-2.5 text-body-sm font-medium text-[#908fa0] hover:text-white transition-colors">Execuções (3)</button>
+</div>
+<!-- Conteúdo da Aba Ativa (Detalhes) no Fundo -->
+<div class="p-4 bg-[#101317]/50 grid grid-cols-3 gap-4">
+<div class="p-3 bg-[#15191e] rounded-[3px] hairline-all">
+<span class="text-label-sm font-label-sm text-[#908fa0] block">MODELO EM OPERAÇÃO</span>
+<span class="font-code-md text-code-md text-white mt-1 block">anthropic/claude-3-7-sonnet</span>
+</div>
+<div class="p-3 bg-[#15191e] rounded-[3px] hairline-all">
+<span class="text-label-sm font-label-sm text-[#908fa0] block">BRANCH WORKTREE</span>
+<span class="font-code-md text-code-md text-white mt-1 block">worktree-agent-arch-01</span>
+</div>
+<div class="p-3 bg-[#15191e] rounded-[3px] hairline-all">
+<span class="text-label-sm font-label-sm text-[#908fa0] block">PERFIL DE EXECUÇÃO</span>
+<span class="font-code-md text-code-md text-[#c0c1ff] mt-1 block">read_only_isolated</span>
+</div>
+</div>
+</div>
+<!-- Outros Itens Minimistas na Lista (Mock de Contexto) -->
+<div class="px-4 py-3 bg-[#15191e] rounded-[4px] hairline-all flex items-center justify-between opacity-60">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#908fa0] text-[18px]" data-icon="chevron_right">chevron_right</span>
+<span class="font-label-md text-label-md text-white font-medium">Dev Front-end</span>
+<span class="px-1.5 py-0.5 rounded-[2px] text-telemetry-pill font-telemetry-pill bg-[#908fa0]/20 text-[#908fa0] border border-[#908fa0]/30">
+                Ocioso
+              </span>
+</div>
+<span class="font-code-sm text-code-sm text-[#908fa0]">codestral · Local CLI</span>
+</div>
+<div class="px-4 py-3 bg-[#15191e] rounded-[4px] hairline-all flex items-center justify-between opacity-60">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#908fa0] text-[18px]" data-icon="chevron_right">chevron_right</span>
+<span class="font-label-md text-label-md text-white font-medium">Auditor de Segurança</span>
+<span class="px-1.5 py-0.5 rounded-[2px] text-telemetry-pill font-telemetry-pill bg-[#908fa0]/20 text-[#908fa0] border border-[#908fa0]/30">
+                Ocioso
+              </span>
+</div>
+<span class="font-code-sm text-code-sm text-[#908fa0]">gpt-4o · OpenAI API</span>
+</div>
+</div>
+</main>
+<!-- BACKDROP OVERLAY COM BLUR E ESCURECIMENTO (POIS A GAVETA ESTÁ ABERTA) -->
+<div class="absolute inset-0 bg-black/50 backdrop-blur-[2px] z-20 pointer-events-auto"></div>
+<!-- 3. GAVETA LATERAL DIREITA SOBREPOSTA (520px) -->
+<aside class="absolute top-0 right-0 w-[520px] h-full bg-[#1c2128] hairline-l drawer-deep-shadow z-30 flex flex-col justify-between select-none">
+<!-- Conteúdo Rolável da Gaveta -->
+<div class="flex-1 flex flex-col overflow-y-auto">
+<!-- 1. Cabeçalho da Gaveta -->
+<div class="p-5 hairline-b bg-[#1c2128]">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<h2 class="text-[18px] font-semibold text-white tracking-tight leading-none">Arquiteto</h2>
+<span class="px-2 py-0.5 rounded-[2px] text-telemetry-pill font-telemetry-pill bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/40 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+                  Pronto
+                </span>
+</div>
+<!-- Botão Fechar '×' -->
+<button class="w-7 h-7 flex items-center justify-center rounded-[2px] text-[#908fa0] hover:text-white hover:bg-[#242c37] transition-colors" title="Fechar gaveta">
+<span class="material-symbols-outlined text-[20px]" data-icon="close">close</span>
+</button>
+</div>
+<!-- Subtítulo em linha única com sonnet em mono -->
+<div class="mt-2 text-body-sm text-[#908fa0] flex items-center gap-1.5">
+<span>Architect</span>
+<span class="text-[#464554]">·</span>
+<span>Claude CLI</span>
+<span class="text-[#464554]">·</span>
+<span>Anthropic</span>
+<span class="text-[#464554]">·</span>
+<span class="font-code-sm text-code-sm text-[#c0c1ff] bg-[#15191e] px-1 rounded-[2px] border border-[#242c37]">sonnet</span>
+</div>
+</div>
+<!-- 2. Abas da Gaveta (4 Abas Horizontais) -->
+<div class="px-5 hairline-b flex items-center gap-7 bg-[#1c2128]">
+<button class="py-3 text-body-sm font-medium text-white border-b-2 border-[#6366f1] cursor-pointer">
+              Resumo
+            </button>
+<button class="py-3 text-body-sm font-medium text-[#908fa0] hover:text-white transition-colors cursor-pointer">
+              Permissões
+            </button>
+<button class="py-3 text-body-sm font-medium text-[#908fa0] hover:text-white transition-colors cursor-pointer">
+              Contexto
+            </button>
+<button class="py-3 text-body-sm font-medium text-[#908fa0] hover:text-white transition-colors cursor-pointer">
+              Consumo
+            </button>
+</div>
+<!-- 3. Conteúdo da Aba Resumo -->
+<div class="p-5 space-y-6">
+<!-- Grupo: Última execução -->
+<div>
+<h3 class="text-[16px] font-medium text-white mb-2.5">Última execução</h3>
+<div class="p-3.5 rounded-[4px] bg-[#15191e] hairline-all">
+<div class="flex items-start justify-between gap-3">
+<div class="space-y-1.5 flex-1">
+<p class="text-body-sm text-white font-normal leading-relaxed">
+                      Revise a camada de autenticação…
+                    </p>
+<div class="flex items-center gap-2">
+<span class="px-1.5 py-0.2 rounded-[2px] text-telemetry-pill font-telemetry-pill bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/40 flex items-center gap-1">
+<span class="w-1 h-1 rounded-full bg-[#10b981]"></span>
+                        Concluído
+                      </span>
+<span class="text-[#464554]">·</span>
+<span class="font-code-sm text-code-sm text-[#908fa0]">
+                        hoje 14:32 · 2m 41s
+                      </span>
+</div>
+</div>
+<a class="text-body-sm font-medium text-[#c0c1ff] hover:text-white transition-colors whitespace-nowrap pt-0.5" href="#">
+                    Abrir execução
+                  </a>
+</div>
+</div>
+</div>
+<!-- Grupo: Consumo de hoje -->
+<div>
+<h3 class="text-[16px] font-medium text-white mb-2.5">Consumo de hoje</h3>
+<div class="grid grid-cols-3 gap-2.5">
+<!-- Métrica 1 -->
+<div class="p-3 rounded-[4px] bg-[#15191e] hairline-all">
+<span class="text-body-sm text-[#908fa0] block text-xs">Custo</span>
+<span class="font-code-lg text-[18px] text-white font-medium block mt-1">US$ 0,42</span>
+</div>
+<!-- Métrica 2 -->
+<div class="p-3 rounded-[4px] bg-[#15191e] hairline-all">
+<span class="text-body-sm text-[#908fa0] block text-xs">Volume</span>
+<span class="font-code-lg text-[18px] text-white font-medium block mt-1 truncate" title="38.120 tokens">38.120 tok</span>
+</div>
+<!-- Métrica 3 -->
+<div class="p-3 rounded-[4px] bg-[#15191e] hairline-all">
+<span class="text-body-sm text-[#908fa0] block text-xs">Sessões</span>
+<span class="font-code-lg text-[18px] text-white font-medium block mt-1">3 execuções</span>
+</div>
+</div>
+<p class="text-[12px] text-[#908fa0] mt-2">
+                Valores informados pelo runtime.
+              </p>
+</div>
+<!-- Grupo: Agente -->
+<div>
+<h3 class="text-[16px] font-medium text-white mb-2.5">Agente</h3>
+<div class="p-3.5 rounded-[4px] bg-[#15191e] hairline-all space-y-2.5">
+<!-- Par 1: Runtime -->
+<div class="flex items-center justify-between text-body-sm">
+<span class="text-[#908fa0]">Runtime</span>
+<span class="font-code-sm text-code-sm text-white">Claude CLI 2.1.285</span>
+</div>
+<!-- Par 2: Modelo -->
+<div class="flex items-center justify-between text-body-sm">
+<span class="text-[#908fa0]">Modelo</span>
+<span class="font-code-sm text-code-sm text-[#c0c1ff] bg-[#1c2128] px-1.5 py-0.5 rounded-[2px] hairline-all">
+                    sonnet
+                  </span>
+</div>
+<!-- Par 3: Perfil de permissão -->
+<div class="flex items-center justify-between text-body-sm">
+<span class="text-[#908fa0]">Perfil de permissão</span>
+<span class="text-white">Somente leitura</span>
+</div>
+<!-- Par 4: Isolamento -->
+<div class="flex items-center justify-between text-body-sm">
+<span class="text-[#908fa0]">Isolamento</span>
+<span class="text-white">Git worktree isolado</span>
+</div>
+<!-- Par 5: Contrato de resultado -->
+<div class="flex items-center justify-between text-body-sm">
+<span class="text-[#908fa0]">Contrato de resultado</span>
+<span class="text-white">Revisão (approved / changes_requested)</span>
+</div>
+</div>
+</div>
+<!-- Grupo: Contexto do projeto -->
+<div>
+<h3 class="text-[16px] font-medium text-white mb-2.5">Contexto do projeto</h3>
+<div class="p-3 rounded-[4px] bg-[#15191e] hairline-all flex items-center gap-3">
+<span class="px-2 py-0.5 rounded-[2px] text-telemetry-pill font-telemetry-pill bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/40 flex items-center gap-1 whitespace-nowrap">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+                  Analisado
+                </span>
+<span class="text-body-sm text-[#c7c4d7]">
+                  O Harness é contexto, nunca permissão.
+                </span>
+</div>
+</div>
+</div>
+</div>
+<!-- 4. Rodapé Fixo da Gaveta -->
+<div class="p-4 bg-[#1c2128] hairline-t flex items-center justify-end">
+<button class="px-4 py-2 rounded-[4px] bg-[#15191e] hairline-all hover:bg-[#242c37] hover:border-[#3b4554] text-white text-body-sm font-medium transition-colors">
+            Editar agente
+          </button>
+</div>
+</aside>
+</div>
+</div>
+</body></html>

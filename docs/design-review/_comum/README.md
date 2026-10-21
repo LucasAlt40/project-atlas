@@ -27,6 +27,7 @@ a sua pasta ao lado (`docs/design-review/<módulo>/`).
 | 5   | Specs                            | `specs/`                  | 8 telas geradas; falta implementar           |
 | 6   | App móvel (celular)              | `celular/`                | 6 telas geradas; falta implementar           |
 | 7   | Workflow (por último, é o maior) | `workflow/`               | plano pronto, prompts por enviar             |
+| —   | Refatoração geral (app inteiro)  | `refatoracao-geral/`      | prompt único pronto, por enviar              |
 
 ## Layout de cada pasta de módulo
 

@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Personalidades — Biblioteca</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-container": "#1d2024",
+            "primary-fixed": "#e1e0ff",
+            "secondary-fixed-dim": "#a4c9ff",
+            "primary": "#c0c1ff",
+            "inverse-on-surface": "#2e3135",
+            "on-error": "#690005",
+            "on-background": "#e1e2e8",
+            "tertiary-fixed": "#ffd9e4",
+            "secondary": "#a4c9ff",
+            "on-tertiary-fixed": "#3e0022",
+            "surface-tint": "#c0c1ff",
+            "surface-container-lowest": "#0b0e12",
+            "surface-dim": "#111418",
+            "tertiary-container": "#f751a1",
+            "on-primary": "#1000a9",
+            "secondary-container": "#0267b8",
+            "on-secondary-fixed-variant": "#004883",
+            "outline": "#908fa0",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "on-secondary": "#00315d",
+            "error-container": "#93000a",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-primary-container": "#0d0096",
+            "primary-container": "#8083ff",
+            "tertiary": "#ffb0cd",
+            "surface-container-high": "#272a2e",
+            "on-error-container": "#ffdad6",
+            "surface-container-highest": "#323539",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "surface-bright": "#36393e",
+            "inverse-primary": "#494bd6",
+            "surface-container-low": "#191c20",
+            "surface": "#111418",
+            "background": "#111418",
+            "on-secondary-container": "#d6e5ff",
+            "outline-variant": "#464554",
+            "on-tertiary-container": "#570032",
+            "on-surface-variant": "#c7c4d7",
+            "on-surface": "#e1e2e8",
+            "secondary-fixed": "#d4e3ff",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "surface-variant": "#323539",
+            "on-primary-fixed": "#07006c",
+            "on-secondary-fixed": "#001c39",
+            "on-tertiary": "#640039",
+            "inverse-surface": "#e1e2e8",
+            "error": "#ffb4ab",
+            // Direct Style Guidance Surface Anchors
+            "atlas-void": "#0b0d10",
+            "atlas-base": "#101317",
+            "atlas-lvl1": "#15191e",
+            "atlas-lvl2": "#1c2128",
+            "atlas-lvl3": "#242c37",
+            "atlas-border": "#242c37",
+            "atlas-border-interactive": "#2d3748",
+            "atlas-indigo": "#6366f1",
+            "atlas-indigo-hover": "#4f46e5"
+          },
+          borderRadius: {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          spacing: {
+            "space-md": "0.75rem",
+            "gutter-expanded": "1rem",
+            "margin": "0.75rem",
+            "space-xs": "0.25rem",
+            "space-xl": "1.5rem",
+            "space-sm": "0.5rem",
+            "space-2xs": "0.125rem",
+            "space-2xl": "2rem",
+            "margin-window": "0.5rem",
+            "space-lg": "1rem",
+            "gutter-compact": "0.25rem",
+            "gutter": "0.5rem"
+          },
+          fontFamily: {
+            "headline-lg": ["Geist", "sans-serif"],
+            "code-lg": ["JetBrains Mono", "monospace"],
+            "headline-sm": ["Geist", "sans-serif"],
+            "headline-xl": ["Geist", "sans-serif"],
+            "body-lg": ["Geist", "sans-serif"],
+            "code-sm": ["JetBrains Mono", "monospace"],
+            "label-md": ["Geist", "sans-serif"],
+            "body-md": ["Geist", "sans-serif"],
+            "code-md": ["JetBrains Mono", "monospace"],
+            "headline-md": ["Geist", "sans-serif"],
+            "label-sm": ["Geist", "sans-serif"],
+            "telemetry-pill": ["JetBrains Mono", "monospace"],
+            "body-sm": ["Geist", "sans-serif"]
+          },
+          fontSize: {
+            "headline-lg": ["1.5rem", { lineHeight: "2rem", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "code-lg": ["0.875rem", { lineHeight: "1.375rem", letterSpacing: "-0.01em", fontWeight: "500" }],
+            "headline-sm": ["1.125rem", { lineHeight: "1.5rem", letterSpacing: "-0.01em", fontWeight: "500" }],
+            "headline-xl": ["2rem", { lineHeight: "2.5rem", letterSpacing: "-0.025em", fontWeight: "600" }],
+            "body-lg": ["1rem", { lineHeight: "1.5rem", letterSpacing: "-0.005em", fontWeight: "400" }],
+            "code-sm": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0em", fontWeight: "400" }],
+            "label-md": ["0.8125rem", { lineHeight: "1rem", letterSpacing: "0.01em", fontWeight: "500" }],
+            "body-md": ["0.875rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "code-md": ["0.8125rem", { lineHeight: "1.25rem", letterSpacing: "-0.01em", fontWeight: "400" }],
+            "headline-md": ["1.25rem", { lineHeight: "1.75rem", letterSpacing: "-0.015em", fontWeight: "500" }],
+            "label-sm": ["0.6875rem", { lineHeight: "0.875rem", letterSpacing: "0.04em", fontWeight: "600" }],
+            "telemetry-pill": ["0.6875rem", { lineHeight: "0.875rem", letterSpacing: "0.02em", fontWeight: "600" }],
+            "body-sm": ["0.75rem", { lineHeight: "1.125rem", letterSpacing: "0.005em", fontWeight: "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 18px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    /* Custom scrollbar to match terminal instrument styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0d10;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #242c37;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #2d3748;
+    }
+  </style>
+</head>
+<body class="bg-atlas-void text-on-surface antialiased overflow-hidden select-none font-body-md text-body-md h-screen w-screen flex">
+<!-- ==================== SIDEBAR ==================== -->
+<aside class="docked fixed top-0 left-0 h-screen w-[216px] z-30 bg-atlas-base border-r border-atlas-border flex flex-col justify-between p-space-sm">
+<!-- Top Brand & Navigation Section -->
+<div class="flex flex-col gap-space-sm w-full">
+<!-- Logo Bar -->
+<div class="flex items-center gap-2 px-space-xs py-1.5 h-8">
+<div class="w-5 h-5 rounded-[3px] bg-atlas-indigo flex items-center justify-center font-bold text-white text-[11px] leading-none select-none">
+          A
+        </div>
+<span class="font-headline-sm text-[15px] font-semibold text-slate-100 tracking-tight">Atlas</span>
+</div>
+<!-- Workspace Selector -->
+<button class="w-full text-left bg-atlas-lvl1 hover:bg-atlas-lvl2 border border-atlas-border hover:border-atlas-border-interactive rounded-md p-2 transition-colors duration-150 group">
+<div class="flex items-center justify-between text-slate-200">
+<span class="font-label-md text-label-md font-semibold truncate text-slate-200">Transport ERP</span>
+<span class="material-symbols-outlined text-[16px] text-slate-400 group-hover:text-slate-200 transition-colors">expand_more</span>
+</div>
+<div class="font-code-sm text-[10px] text-slate-400 truncate mt-0.5 tracking-tight">/Users/lucas/dev/transport-erp</div>
+</button>
+<!-- Main Navigation -->
+<nav class="flex flex-col gap-1 mt-2 w-full">
+<!-- 1. Workspace -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-slate-400 font-label-md text-label-md hover:text-slate-200 hover:bg-atlas-lvl2 transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">folder_open</span>
+<span>Workspace</span>
+</a>
+<!-- 2. Workflow -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-slate-400 font-label-md text-label-md hover:text-slate-200 hover:bg-atlas-lvl2 transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span>Workflow</span>
+</a>
+<!-- 3. Agentes -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-slate-400 font-label-md text-label-md hover:text-slate-200 hover:bg-atlas-lvl2 transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- 4. Personalidades (DESTACADO como tela atual) -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded bg-surface-container-highest text-primary font-label-md text-label-md border border-outline-variant" href="#">
+<span class="material-symbols-outlined text-primary">psychology</span>
+<span class="font-medium text-slate-100">Personalidades</span>
+</a>
+<!-- 5. Specs -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-slate-400 font-label-md text-label-md hover:text-slate-200 hover:bg-atlas-lvl2 transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">description</span>
+<span>Specs</span>
+</a>
+<!-- 6. MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-slate-400 font-label-md text-label-md hover:text-slate-200 hover:bg-atlas-lvl2 transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">hub</span>
+<span>MCP Hub</span>
+</a>
+<!-- 7. Configurações -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-slate-400 font-label-md text-label-md hover:text-slate-200 hover:bg-atlas-lvl2 transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Bottom Sidebar Footer -->
+<div class="px-space-md py-2 border-t border-atlas-border flex flex-col gap-0.5">
+<div class="font-code-sm text-[11px] text-slate-300 font-medium">Project Atlas</div>
+<div class="font-code-sm text-[10px] text-slate-500">v0.2.0 · macOS</div>
+</div>
+</aside>
+<!-- ==================== TOP NAVIGATION BAR ==================== -->
+<header class="docked fixed top-0 left-[216px] right-0 h-12 z-20 bg-atlas-base border-b border-atlas-border flex justify-between items-center px-4">
+<!-- Left: Collapse toggle + Breadcrumb -->
+<div class="flex items-center gap-3">
+<button class="p-1 text-slate-400 hover:text-slate-200 hover:bg-atlas-lvl2 rounded transition-colors duration-150" title="Recolher barra lateral">
+<span class="material-symbols-outlined text-[19px]">dock_to_right</span>
+</button>
+<div class="h-4 w-[1px] bg-atlas-border"></div>
+<nav aria-label="Breadcrumb" class="flex items-center gap-1.5 font-code-sm text-code-sm">
+<span class="text-slate-400">Transport ERP</span>
+<span class="text-slate-600">/</span>
+<span class="text-slate-200 font-medium">Personalidades</span>
+</nav>
+</div>
+<!-- Right: Celular button + Language Switcher ONLY -->
+<div class="flex items-center gap-4">
+<!-- Celular button (Icon + text only, no indicators/numbers) -->
+<button class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-atlas-lvl1 border border-atlas-border hover:border-atlas-border-interactive hover:bg-atlas-lvl2 text-slate-300 hover:text-slate-100 text-xs font-label-md transition-colors duration-150">
+<span class="material-symbols-outlined text-[15px]">smartphone</span>
+<span>Celular</span>
+</button>
+<div class="h-3.5 w-[1px] bg-atlas-border"></div>
+<!-- Language selector: PT | EN -->
+<div class="flex items-center gap-1 font-label-sm text-[11px]">
+<span class="text-slate-100 font-semibold cursor-default">PT</span>
+<span class="text-slate-600">|</span>
+<button class="text-slate-400 hover:text-slate-200 transition-colors">EN</button>
+</div>
+</div>
+</header>
+<!-- ==================== MAIN WORKSPACE CANVAS ==================== -->
+<main class="ml-[216px] mt-12 flex-1 h-[calc(100vh-48px)] overflow-y-auto bg-atlas-void p-6">
+<div class="max-w-[1240px] mx-auto flex flex-col gap-5 pb-12">
+<!-- 1. Page Header -->
+<section class="flex items-start justify-between">
+<div>
+<h1 class="font-headline-lg text-2xl font-semibold text-slate-100 tracking-tight">Personalidades</h1>
+<div class="font-code-sm text-xs text-slate-500 mt-1 flex items-center gap-2">
+<span>6 nativas · 1 sua</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<!-- Botão Primário Índigo -->
+<button class="flex items-center gap-1.5 px-3.5 py-1.5 rounded bg-atlas-indigo hover:bg-atlas-indigo-hover active:bg-[#4338ca] text-white text-xs font-medium tracking-tight transition-colors duration-150 shadow-none border border-transparent">
+<span class="material-symbols-outlined text-[16px]">add</span>
+<span>Nova personalidade</span>
+</button>
+<!-- Menu de Ações (⋯) -->
+<div class="relative group">
+<button class="w-8 h-8 flex items-center justify-center rounded bg-atlas-lvl1 border border-atlas-border hover:border-atlas-border-interactive hover:bg-atlas-lvl2 text-slate-400 hover:text-slate-200 transition-colors">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+<!-- Dropdown Menu on hover/focus -->
+<div class="hidden group-hover:flex group-focus-within:flex flex-col absolute right-0 top-9 w-52 bg-atlas-lvl2 border border-atlas-border rounded shadow-[0_12px_32px_-4px_rgba(0,0,0,0.65),0_0_0_1px_#2d3748] py-1 z-40">
+<button class="w-full text-left px-3 py-1.5 text-xs text-slate-300 hover:bg-atlas-lvl3 hover:text-slate-100 flex items-center gap-2">
+<span class="material-symbols-outlined text-[15px]">file_upload</span>
+<span>Importar</span>
+</button>
+<button class="w-full text-left px-3 py-1.5 text-xs text-slate-300 hover:bg-atlas-lvl3 hover:text-slate-100 flex items-center gap-2">
+<span class="material-symbols-outlined text-[15px]">restart_alt</span>
+<span>Restaurar personalidades padrão</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- 2. Aviso de Informação Recolhível -->
+<section class="flex items-center justify-between bg-atlas-lvl1 border border-atlas-border px-4 py-2.5 rounded">
+<div class="flex items-center gap-2.5 text-xs text-slate-400">
+<span class="material-symbols-outlined text-slate-400 text-[17px]">info</span>
+<span>Toda personalidade recebe o protocolo do Atlas (narração ao vivo e formato de resultado).</span>
+</div>
+<button class="text-xs text-atlas-indigo hover:text-primary font-medium tracking-tight transition-colors">
+          Ver mais
+        </button>
+</section>
+<!-- 3. Barra de Controles: Busca & Filtros -->
+<section class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+<!-- Campo de busca -->
+<div class="relative w-full md:w-96">
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-[17px]">search</span>
+<input class="w-full pl-8 pr-3 py-1.5 bg-atlas-lvl1 border border-atlas-border rounded text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-atlas-indigo transition-colors" placeholder="Buscar por nome, tag ou instrução" type="text"/>
+</div>
+<!-- Filtros em Segmento -->
+<div class="flex items-center bg-atlas-lvl1 p-0.5 rounded border border-atlas-border text-xs font-medium">
+<button class="px-2.5 py-1 rounded-[2px] bg-atlas-lvl2 text-slate-100 border border-atlas-border-interactive">
+            Todas (7)
+          </button>
+<button class="px-2.5 py-1 text-slate-400 hover:text-slate-200 transition-colors">
+            Padrão do sistema (6)
+          </button>
+<button class="px-2.5 py-1 text-slate-400 hover:text-slate-200 transition-colors">
+            Customizadas (1)
+          </button>
+</div>
+</section>
+<!-- 4. Grade de Cartões (3 colunas, Layout Minimalist Instrument) -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 items-start">
+<!-- CARD 1: Architect (Padrão) -->
+<article class="bg-atlas-lvl1 border border-atlas-border rounded hover:border-atlas-border-interactive transition-colors flex flex-col justify-between p-4 min-h-[220px]">
+<div class="flex flex-col gap-2">
+<!-- Header do Cartão -->
+<div class="flex items-center justify-between">
+<h2 class="font-headline-sm text-[15px] font-semibold text-slate-100">Architect</h2>
+<span class="px-1.5 py-0.5 rounded bg-atlas-lvl2 text-[10px] font-medium text-slate-400 border border-atlas-border">Padrão</span>
+</div>
+<!-- Descrição em 2 linhas -->
+<p class="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+              Define o que deve ser construído e como, fronteiras e contratos técnicos antes de qualquer código.
+            </p>
+<!-- Tags Técnicas (Mono) -->
+<div class="flex flex-wrap gap-1.5 mt-1 font-code-sm text-[11px] text-slate-400">
+<span class="bg-atlas-lvl2 px-1.5 py-0.5 rounded border border-atlas-border">#arquitetura</span>
+<span class="bg-atlas-lvl2 px-1.5 py-0.5 rounded border border-atlas-border">#contratos</span>
+<span class="bg-atlas-lvl2 px-1.5 py-0.5 rounded border border-atlas-border">#design</span>
+</div>
+</div>
+<!-- Rodapé do Cartão -->
+<div class="flex items-center justify-between pt-3 mt-4 border-t border-atlas-border">
+<div class="flex items-center gap-2">
+<button class="px-2.5 py-1 rounded bg-atlas-lvl2 border border-atlas-border hover:border-atlas-border-interactive hover:bg-atlas-lvl3 text-slate-200 text-xs font-medium transition-colors">
+                Usar
+              </button>
+<button class="px-2 py-1 text-slate-400 hover:text-slate-200 text-xs transition-colors">
+                Editar
+              </button>
+</div>
+<div class="relative group">
+<button class="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-slate-300 transition-colors">
+<span class="material-symbols-outlined text-[16px]">more_horiz</span>
+</button>
+<div class="hidden group-hover:flex flex-col absolute right-0 bottom-7 w-28 bg-atlas-lvl2 border border-atlas-border rounded py-1 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.65),0_0_0_1px_#2d3748] z-30">
+<button class="px-2.5 py-1 text-left text-xs text-slate-300 hover:bg-atlas-lvl3">Exportar</button>
+<button class="px-2.5 py-1 text-left text-xs text-rose-400 hover:bg-atlas-lvl3">Excluir</button>
+</div>
+</div>
+</div>
+</article>
+<!-- CARD 2: Spec Architect (Padrão) -->
+<article class="bg-atlas-lvl1 border border-atlas-border rounded hover:border-atlas-border-interactive transition-colors flex flex-col justify-between p-4 min-h-[220px]">
+<div class="flex flex-col gap-2">
+<!-- Header do Cartão -->
+<div class="flex items-center justify-between">
+<h2 class="font-headline-sm text-[15px] font-semibold text-slate-100">Spec Architect</h2>
+<span class="px-1.5 py-0.5 rounded bg-atlas-lvl2 text-[10px] font-medium text-slate-400 border border-atlas-border">Padrão</span>
+</div>
+<!-- Descrição em 2 linhas -->
+<p class="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+              Estrutura especificações funcionais e técnicas orientadas a spec-driven development.
+            </p>
+<!-- Tags Técnicas (Mono) -->
+<div class="flex flex-wrap gap-1.5 mt-1 font-code-sm text-[11px] text-slate-400">
+<span class="bg-atlas-lvl2 px-1.5 py-0.5 rounded border border-atlas-border">#specs</span>
+<span class="bg-atlas-lvl2 px-1.5 py-0.5 rounded border border-atlas-border">#openspec</span>
+<span class="bg-atlas-lvl2 px-1.5 py-0.5 rounded border border-atlas-border">#requisitos</span>
+</div>
+</div>
+<!-- Rodapé do Cartão -->
+<div class="flex items-center justify-between pt-3 mt-4 border-t border-atlas-border">
+<div class="flex items-center gap-2">
+<button class="px-2.5 py-1 rounded bg-atlas-lvl2 border border-atlas-border hover:border-atlas-border-interactive hover:bg-atlas-lvl3 text-slate-200 text-xs font-medium transition-colors">
+                Usar
+              </button>
+<button class="px-2 py-1 text-slate-400 hover:text-slate-200 text-xs transition-colors">
+                Editar
+              </button>
+</div>
+<div class="relative group">
+<button class="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-slate-300 transition-colors">
+<span class="material-symbols-outlined text-[16px]">more_horiz</span>
+</button>
+<div class="hidden group-hover:flex flex-col absolute right-0 bottom-7 w-28 bg-atlas-lvl2 border border-atlas-border rounded py-1 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.65),0_0_0_1px_#2d3748] z-30">
+<button class="px-2.5 py-1 text-left text-xs text-slate-300 hover:bg-atlas-lvl3">Exportar</button>
+<button class="px-2.5 py-1 text-left text-xs text-rose-400 hover:bg-atlas-lvl3">Excluir</button>
+</div>
+</div>
+</div>
+</article>
+<!-- CARD 3: Developer (EXPANDIDO) -->
+<article class="bg-atlas-lvl1 border border-atlas-border-interactive rounded flex flex-col justify-between p-4 lg:col-span-1 ring-1 ring-atlas-indigo/30">
+<div class="flex flex-col gap-3">
+<!-- Header do Cartão -->
+<div class="flex items-center justify-between">
+<h2 class="font-headline-sm text-[15px] font-semibold text-slate-100 flex items-center gap-1.5">
+<span>Developer</span>
+</h2>
+<span class="px-1.5 py-0.5 rounded bg-atlas-lvl2 text-[10px] font-medium text-slate-400 border border-atlas-border">Padrão</span>
+</div>
+<!-- Descrição -->
+<p class="text-xs text-slate-300 leading-relaxed">
+              Implementa funcionalidades e altera código existente seguindo as convenções e padrões do projeto.
+            </p>
+<!-- Tags Técnicas -->
+<div class="flex flex-wrap gap-1.5 font-code-sm text-[11px] text-slate-400">
+<span class="bg-atlas-lvl2 px-1.5 py-0.5 rounded border border-atlas-border">#desenvolvimento</span>
+<span class="bg-atlas-lvl2 px-1.5 py-0.5 rounded border border-atlas-border">#codigo</span>
+<span class="bg-atlas-lvl2 px-1.5 py-0.5 rounded border border-atlas-border">#implementacao</span>
+</div>
+<!-- Seção Comportamento -->
+<div class="mt-1 flex flex-col gap-1.5">
+<span class="font-code-sm text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Comportamento</span>
+<ul class="text-xs text-slate-300 space-y-1">
+<li class="flex items-start gap-1.5">
+<span class="text-slate-500 select-none">•</span>
+<span>Implementa soluções diretas sem complexidade desnecessária</span>
+</li>
+<li class="flex items-start gap-1.5">
+<span class="text-slate-500 select-none">•</span>
+<span>Escreve testes de unidade e integração para o código alterado</span>
+</li>
+<li class="flex items-start gap-1.5">
+<span class="text-slate-500 select-none">•</span>
+<span>Segue as convenções estabelecidas no repositório</span>
+</li>
+</ul>
+</div>
+<!-- Seção Instruções do Sistema (Bloco Mono 5 linhas visíveis) -->
+<div class="mt-1 flex flex-col gap-1.5">
+<span class="font-code-sm text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Instruções do sistema</span>
+<div class="font-code-sm text-[11px] leading-relaxed bg-atlas-base border border-atlas-lvl2 rounded p-2.5 text-slate-300 whitespace-pre-wrap select-text">Você é um desenvolvedor de software pragmático e sênior.
+Implemente recursos e modifique código existente respeitando
+as convenções já utilizadas no projeto. Prefira soluções simples
+e de fácil manutenção. Escreva testes para todo comportamento
+novo ou alterado.</div>
+</div>
+<div class="flex justify-end">
+<button class="text-[11px] text-slate-400 hover:text-slate-200 transition-colors">
+                Mostrar menos
+              </button>
+</div>
+</div>
+<!-- Rodapé do Cartão Expandido -->
+<div class="flex items-center justify-between pt-3 mt-3 border-t border-atlas-border">
+<div class="flex items-center gap-2">
+<button class="px-2.5 py-1 rounded bg-atlas-lvl2 border border-atlas-border hover:border-atlas-border-interactive hover:bg-atlas-lvl3 text-slate-200 text-xs font-medium transition-colors">
+                Usar
+              </button>
+<button class="px-2 py-1 text-slate-400 hover:text-slate-200 text-xs transition-colors">
+                Editar
+              </button>
+</div>
+<div class="relative group">
+<button class="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-slate-300 transition-colors">
+<span class="material-symbols-outlined text-[16px]">more_horiz</span>
+</button>
+<div class="hidden group-hover:flex flex-col absolute right-0 bottom-7 w-28 bg-atlas-lvl2 border border-atlas-border rounded py-1 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.65),0_0_0_1px_#2d3748] z-30">
+<button class="px-2.5 py-1 text-left text-xs text-slate-300 hover:bg-atlas-lvl3">Exportar</button>
+<button class="px-2.5 py-1 text-left text-xs text-rose-400 hover:bg-atlas-lvl3">Excluir</button>
+</div>
+</div>
+</div>
+</article>
+<!-- CARD 4: QA (Padrão) -->
+<article class="bg-atlas-lvl1 border border-atlas-border rounded hover:border-atlas-border-interactive transition-colors flex flex-col justify-between p-4 min-h-[220px]">
+<div class="flex flex-col gap-2">
+<!-- Header do Cartão -->
+<div class="flex items-center justify-between">
+<h2 class="font-headline-sm text-[15px] font-semibold text-slate-100">QA</h2>
+<span class="px-1.5 py-0.5 rounded bg-atlas-lvl2 text-[10px] font-medium text-slate-400 border border-atlas-border">Padrão</span>
+</div>
+<!-- Descrição em 2 linhas -->
+<p class="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+              Exercita comportamento, casos de borda e testes automatizados, relatando falhas com evidências.
+            </p>
+<!-- Tags Técnicas (Mono) -->
+<div class="flex flex-wrap gap-1.5 mt-1 font-code-sm text-[11px] text-slate-400">
+<span class="bg-atlas-lvl2 px-1.5 py-0.5 rounded border border-atlas-border">#testes</span>
+<span class="bg-atlas-lvl2 px-1.5 py-0.5 rounded border border-atlas-border">#qa</span>
+<span class="bg-atlas-lvl2 px-1.5 py-0.5 rounded border border-atlas-border">#regressao</span>
+</div>
+</div>
+<!-- Rodapé do Cartão -->
+<div class="flex items-center justify-between pt-3 mt-4 border-t border-atlas-border">
+<div class="flex items-center gap-2">
+<button class="px-2.5 py-1 rounded bg-atlas-lvl2 border border-atlas-border hover:border-atlas-border-interactive hover:bg-atlas-lvl3 text-slate-200 text-xs font-medium transition-colors">
+                Usar
+              </button>
+<button class="px-2 py-1 text-slate-400 hover:text-slate-200 text-xs transition-colors">
+                Editar
+              </button>
+</div>
+<div class="relative group">
+<button class="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-slate-300 transition-colors">
+<span class="material-symbols-outlined text-[16px]">more_horiz</span>
+</button>
+<div class="hidden group-hover:flex flex-col absolute right-0 bottom-7 w-28 bg-atlas-lvl2 border border-atlas-border rounded py-1 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.65),0_0_0_1px_#2d3748] z-30">
+<button class="px-2.5 py-1 text-left text-xs text-slate-300 hover:bg-atlas-lvl3">Exportar</button>
+<button class="px-2.5 py-1 text-left text-xs text-rose-400 hover:bg-atlas-lvl3">Excluir</button>
+</div>
+</div>
+</div>
+</article>
+<!-- CARD 5: Architecture & Code Validator (Padrão) -->
+<article class="bg-atlas-lvl1 border border-atlas-border rounded hover:border-atlas-border-interactive transition-colors flex flex-col justify-between p-4 min-h-[220px]">
+<div class="flex flex-col gap-2">
+<!-- Header do Cartão -->
+<div class="flex items-center justify-between">
+<h2 class="font-headline-sm text-[15px] font-semibold text-slate-100 truncate pr-2">Architecture &amp; Code Validator</h2>
+<span class="px-1.5 py-0.5 rounded bg-atlas-lvl2 text-[10px] font-medium text-slate-400 border border-atlas-border shrink-0">Padrão</span>
+</div>
+<!-- Descrição em 2 linhas -->
+<p class="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+              Valida conformidade com regras arquiteturais, acoplamento e governança sem alterar código.
+            </p>
+<!-- Tags Técnicas (Mono) -->
+<div class="flex flex-wrap gap-1.5 mt-1 font-code-sm text-[11px] text-slate-400">
+<span class="bg-atlas-lvl2 px-1.5 py-0.5 rounded border border-atlas-border">#validacao</span>
+<span class="bg-atlas-lvl2 px-1.5 py-0.5 rounded border border-atlas-border">#governanca</span>
+<span class="bg-atlas-lvl2 px-1.5 py-0.5 rounded border border-atlas-border">#revisao</span>
+</div>
+</div>
+<!-- Rodapé do Cartão -->
+<div class="flex items-center justify-between pt-3 mt-4 border-t border-atlas-border">
+<div class="flex items-center gap-2">
+<button class="px-2.5 py-1 rounded bg-atlas-lvl2 border border-atlas-border hover:border-atlas-border-interactive hover:bg-atlas-lvl3 text-slate-200 text-xs font-medium transition-colors">
+                Usar
+              </button>
+<button class="px-2 py-1 text-slate-400 hover:text-slate-200 text-xs transition-colors">
+                Editar
+              </button>
+</div>
+<div class="relative group">
+<button class="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-slate-300 transition-colors">
+<span class="material-symbols-outlined text-[16px]">more_horiz</span>
+</button>
+<div class="hidden group-hover:flex flex-col absolute right-0 bottom-7 w-28 bg-atlas-lvl2 border border-atlas-border rounded py-1 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.65),0_0_0_1px_#2d3748] z-30">
+<button class="px-2.5 py-1 text-left text-xs text-slate-300 hover:bg-atlas-lvl3">Exportar</button>
+<button class="px-2.5 py-1 text-left text-xs text-rose-400 hover:bg-atlas-lvl3">Excluir</button>
+</div>
+</div>
+</div>
+</article>
+<!-- CARD 6: Bug Fixer (Padrão) -->
+<article class="bg-atlas-lvl1 border border-atlas-border rounded hover:border-atlas-border-interactive transition-colors flex flex-col justify-between p-4 min-h-[220px]">
+<div class="flex flex-col gap-2">
+<!-- Header do Cartão -->
+<div class="flex items-center justify-between">
+<h2 class="font-headline-sm text-[15px] font-semibold text-slate-100">Bug Fixer</h2>
+<span class="px-1.5 py-0.5 rounded bg-atlas-lvl2 text-[10px] font-medium text-slate-400 border border-atlas-border">Padrão</span>
+</div>
+<!-- Descrição em 2 linhas -->
+<p class="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+              Diagnostica causas-raiz de falhas em testes ou bugs relatados e aplica correções cirúrgicas.
+            </p>
+<!-- Tags Técnicas (Mono) -->
+<div class="flex flex-wrap gap-1.5 mt-1 font-code-sm text-[11px] text-slate-400">
+<span class="bg-atlas-lvl2 px-1.5 py-0.5 rounded border border-atlas-border">#debug</span>
+<span class="bg-atlas-lvl2 px-1.5 py-0.5 rounded border border-atlas-border">#correcao</span>
+<span class="bg-atlas-lvl2 px-1.5 py-0.5 rounded border border-atlas-border">#hotfix</span>
+</div>
+</div>
+<!-- Rodapé do Cartão -->
+<div class="flex items-center justify-between pt-3 mt-4 border-t border-atlas-border">
+<div class="flex items-center gap-2">
+<button class="px-2.5 py-1 rounded bg-atlas-lvl2 border border-atlas-border hover:border-atlas-border-interactive hover:bg-atlas-lvl3 text-slate-200 text-xs font-medium transition-colors">
+                Usar
+              </button>
+<button class="px-2 py-1 text-slate-400 hover:text-slate-200 text-xs transition-colors">
+                Editar
+              </button>
+</div>
+<div class="relative group">
+<button class="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-slate-300 transition-colors">
+<span class="material-symbols-outlined text-[16px]">more_horiz</span>
+</button>
+<div class="hidden group-hover:flex flex-col absolute right-0 bottom-7 w-28 bg-atlas-lvl2 border border-atlas-border rounded py-1 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.65),0_0_0_1px_#2d3748] z-30">
+<button class="px-2.5 py-1 text-left text-xs text-slate-300 hover:bg-atlas-lvl3">Exportar</button>
+<button class="px-2.5 py-1 text-left text-xs text-rose-400 hover:bg-atlas-lvl3">Excluir</button>
+</div>
+</div>
+</div>
+</article>
+<!-- CARD 7: Revisor de segurança (Personalizada) -->
+<article class="bg-atlas-lvl1 border border-atlas-border rounded hover:border-atlas-border-interactive transition-colors flex flex-col justify-between p-4 min-h-[220px]">
+<div class="flex flex-col gap-2">
+<!-- Header do Cartão -->
+<div class="flex items-center justify-between">
+<h2 class="font-headline-sm text-[15px] font-semibold text-slate-100">Revisor de segurança</h2>
+<span class="px-1.5 py-0.5 rounded bg-atlas-lvl2 text-[10px] font-medium text-slate-400 border border-atlas-border">Personalizada</span>
+</div>
+<!-- Descrição em 2 linhas -->
+<p class="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+              Analisa vulnerabilidades, vazamento de segredos e conformidade com políticas de segurança locais.
+            </p>
+<!-- Tags Técnicas (Mono) -->
+<div class="flex flex-wrap gap-1.5 mt-1 font-code-sm text-[11px] text-slate-400">
+<span class="bg-atlas-lvl2 px-1.5 py-0.5 rounded border border-atlas-border">#seguranca</span>
+<span class="bg-atlas-lvl2 px-1.5 py-0.5 rounded border border-atlas-border">#auditoria</span>
+<span class="bg-atlas-lvl2 px-1.5 py-0.5 rounded border border-atlas-border">#owasp</span>
+</div>
+</div>
+<!-- Rodapé do Cartão -->
+<div class="flex items-center justify-between pt-3 mt-4 border-t border-atlas-border">
+<div class="flex items-center gap-2">
+<button class="px-2.5 py-1 rounded bg-atlas-lvl2 border border-atlas-border hover:border-atlas-border-interactive hover:bg-atlas-lvl3 text-slate-200 text-xs font-medium transition-colors">
+                Usar
+              </button>
+<button class="px-2 py-1 text-slate-400 hover:text-slate-200 text-xs transition-colors">
+                Editar
+              </button>
+</div>
+<div class="relative group">
+<button class="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-slate-300 transition-colors">
+<span class="material-symbols-outlined text-[16px]">more_horiz</span>
+</button>
+<div class="hidden group-hover:flex flex-col absolute right-0 bottom-7 w-28 bg-atlas-lvl2 border border-atlas-border rounded py-1 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.65),0_0_0_1px_#2d3748] z-30">
+<button class="px-2.5 py-1 text-left text-xs text-slate-300 hover:bg-atlas-lvl3">Exportar</button>
+<button class="px-2.5 py-1 text-left text-xs text-rose-400 hover:bg-atlas-lvl3">Excluir</button>
+</div>
+</div>
+</div>
+</article>
+</section>
+</div>
+</main>
+</body></html>

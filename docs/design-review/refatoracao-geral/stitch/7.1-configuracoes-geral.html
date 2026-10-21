@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas — Configurações / Geral</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Fonts: Geist & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS with configuration -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "background": "#111418",
+            "tertiary": "#ffb0cd",
+            "surface-bright": "#36393e",
+            "on-tertiary-container": "#570032",
+            "error-container": "#93000a",
+            "primary-fixed-dim": "#c0c1ff",
+            "secondary": "#a4c9ff",
+            "surface-dim": "#111418",
+            "on-primary": "#1000a9",
+            "on-error-container": "#ffdad6",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "surface": "#111418",
+            "primary-fixed": "#e1e0ff",
+            "on-error": "#690005",
+            "error": "#ffb4ab",
+            "secondary-fixed": "#d4e3ff",
+            "inverse-on-surface": "#2e3135",
+            "secondary-fixed-dim": "#a4c9ff",
+            "on-background": "#e1e2e8",
+            "on-surface-variant": "#c7c4d7",
+            "on-secondary-fixed": "#001c39",
+            "on-surface": "#e1e2e8",
+            "secondary-container": "#0267b8",
+            "on-secondary-fixed-variant": "#004883",
+            "on-primary-fixed": "#07006c",
+            "primary": "#c0c1ff",
+            "on-secondary": "#00315d",
+            "surface-container-high": "#272a2e",
+            "surface-tint": "#c0c1ff",
+            "on-tertiary": "#640039",
+            "surface-container-lowest": "#0b0e12",
+            "surface-container-low": "#191c20",
+            "surface-variant": "#323539",
+            "outline": "#908fa0",
+            "tertiary-fixed": "#ffd9e4",
+            "tertiary-container": "#f751a1",
+            "surface-container": "#1d2024",
+            "outline-variant": "#464554",
+            "on-tertiary-fixed": "#3e0022",
+            "inverse-primary": "#494bd6",
+            "on-secondary-container": "#d6e5ff",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "surface-container-highest": "#323539",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "primary-container": "#8083ff",
+            "on-primary-container": "#0d0096",
+            "inverse-surface": "#e1e2e8"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "gutter-compact": "0.25rem",
+            "margin": "0.75rem",
+            "gutter": "0.5rem",
+            "space-xl": "1.5rem",
+            "space-2xl": "2rem",
+            "gutter-expanded": "1rem",
+            "space-xs": "0.25rem",
+            "space-sm": "0.5rem",
+            "space-lg": "1rem",
+            "space-md": "0.75rem",
+            "margin-window": "0.5rem",
+            "space-2xs": "0.125rem"
+          },
+          "fontFamily": {
+            "body-md": ["Geist"],
+            "label-sm": ["Geist"],
+            "label-md": ["Geist"],
+            "telemetry-pill": ["JetBrains Mono"],
+            "body-lg": ["Geist"],
+            "code-md": ["JetBrains Mono"],
+            "body-sm": ["Geist"],
+            "code-lg": ["JetBrains Mono"],
+            "headline-md": ["Geist"],
+            "code-sm": ["JetBrains Mono"],
+            "headline-sm": ["Geist"],
+            "headline-xl": ["Geist"],
+            "headline-lg": ["Geist"]
+          },
+          "fontSize": {
+            "body-md": ["0.875rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "label-sm": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.04em", "fontWeight": "600" }],
+            "label-md": ["0.8125rem", { "lineHeight": "1rem", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "telemetry-pill": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.02em", "fontWeight": "600" }],
+            "body-lg": ["1rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "code-md": ["0.8125rem", { "lineHeight": "1.25rem", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+            "body-sm": ["0.75rem", { "lineHeight": "1.125rem", "letterSpacing": "0.005em", "fontWeight": "400" }],
+            "code-lg": ["0.875rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "headline-md": ["1.25rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.015em", "fontWeight": "500" }],
+            "code-sm": ["0.6875rem", { "lineHeight": "1rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-sm": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "headline-xl": ["2rem", { "lineHeight": "2.5rem", "letterSpacing": "-0.025em", "fontWeight": "600" }],
+            "headline-lg": ["1.5rem", { "lineHeight": "2rem", "letterSpacing": "-0.02em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #0b0d10;
+      color: #e1e2e8;
+      font-family: 'Geist', sans-serif;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+    .material-symbols-outlined {
+      font-family: 'Material Symbols Outlined';
+      font-weight: normal;
+      font-style: normal;
+      font-size: 18px;
+      line-height: 1;
+      letter-spacing: normal;
+      text-transform: none;
+      display: inline-block;
+      white-space: nowrap;
+      word-wrap: normal;
+      direction: ltr;
+      -webkit-font-feature-settings: 'liga';
+      -webkit-font-smoothing: antialiased;
+    }
+    /* Hairline boundaries matching specification */
+    .border-hairline {
+      border-color: #1c2128;
+    }
+    .border-input {
+      border-color: #242c37;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #242c37;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3b4554;
+    }
+  </style>
+</head>
+<body class="w-[1440px] h-[900px] overflow-hidden bg-[#0b0d10] flex select-none">
+<!-- 1. BARRA LATERAL ESQUERDA (216px, h-screen fixa, bg-[#101317], borda direita 1px #1c2128) -->
+<aside class="w-[216px] h-screen bg-[#101317] border-r border-hairline flex flex-col justify-between shrink-0 z-30 select-none">
+<div class="flex flex-col">
+<!-- Topo: Logo Atlas -->
+<div class="h-12 px-space-md flex items-center gap-space-sm border-b border-hairline">
+<div class="w-5 h-5 rounded-[4px] bg-[#6366f1] flex items-center justify-center font-headline-sm text-headline-sm font-semibold text-white leading-none">
+          A
+        </div>
+<span class="font-headline-sm text-[16px] font-semibold text-on-surface tracking-tight">Atlas</span>
+</div>
+<!-- Seletor de workspace -->
+<div class="p-space-sm">
+<button class="w-full text-left bg-[#15191e] border border-input rounded p-space-sm hover:bg-[#1c2128] transition-colors duration-150 group">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-[14px] font-semibold text-white tracking-tight leading-snug">Transport ERP</span>
+<span class="material-symbols-outlined text-outline group-hover:text-on-surface text-[16px] transition-colors">expand_more</span>
+</div>
+<div class="font-code-sm text-[12px] text-[#94a3b8] truncate mt-0.5" title="/Users/lucas/dev/transport-erp">
+            /Users/lucas/dev/transport-erp
+          </div>
+</button>
+</div>
+<!-- Navegação vertical (Ordem exata: Workspace, Workflow, Agentes, Personalidades, Specs, MCP Hub, Configurações) -->
+<nav class="flex flex-col gap-0.5 px-space-sm mt-1">
+<!-- Workspace -->
+<a class="flex items-center gap-space-sm px-space-md py-1.5 rounded text-[#94a3b8] font-label-md text-label-md hover:text-on-surface hover:bg-[#15191e] transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">folder_open</span>
+<span>Workspace</span>
+</a>
+<!-- Workflow -->
+<a class="flex items-center gap-space-sm px-space-md py-1.5 rounded text-[#94a3b8] font-label-md text-label-md hover:text-on-surface hover:bg-[#15191e] transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">account_tree</span>
+<span>Workflow</span>
+</a>
+<!-- Agentes -->
+<a class="flex items-center gap-space-sm px-space-md py-1.5 rounded text-[#94a3b8] font-label-md text-label-md hover:text-on-surface hover:bg-[#15191e] transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- Personalidades -->
+<a class="flex items-center gap-space-sm px-space-md py-1.5 rounded text-[#94a3b8] font-label-md text-label-md hover:text-on-surface hover:bg-[#15191e] transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- Specs -->
+<a class="flex items-center gap-space-sm px-space-md py-1.5 rounded text-[#94a3b8] font-label-md text-label-md hover:text-on-surface hover:bg-[#15191e] transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">description</span>
+<span>Specs</span>
+</a>
+<!-- MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-md py-1.5 rounded text-[#94a3b8] font-label-md text-label-md hover:text-on-surface hover:bg-[#15191e] transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">hub</span>
+<span>MCP Hub</span>
+</a>
+<!-- Configurações (ATIVO/DESTACADO: fundo #1c2128, texto text-white, ícone settings) -->
+<a class="flex items-center gap-space-sm px-space-md py-1.5 rounded bg-[#1c2128] text-white font-label-md text-label-md border border-input shadow-sm" href="#">
+<span class="material-symbols-outlined text-[18px] text-white">settings</span>
+<span class="font-medium text-white">Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Rodapé da barra lateral: Project Atlas / v0.2.0 · macOS -->
+<div class="px-space-md py-space-md border-t border-hairline">
+<div class="font-code-sm text-[12px] font-medium text-[#94a3b8]">Project Atlas</div>
+<div class="font-code-sm text-[12px] text-[#64748b] mt-0.5">v0.2.0 · macOS</div>
+</div>
+</aside>
+<!-- PAINEL CENTRAL E ÁREA DE CONTEÚDO (Flex Column) -->
+<div class="flex-1 flex flex-col h-screen overflow-hidden bg-[#0b0d10]">
+<!-- 2. BARRA SUPERIOR (48px, fixa, bg-[#0b0d10], borda inferior 1px #1c2128) -->
+<header class="h-12 bg-[#0b0d10] border-b border-hairline px-space-lg flex items-center justify-between shrink-0 z-20">
+<!-- Esquerda: botão recolher barra lateral + breadcrumb -->
+<div class="flex items-center gap-space-md">
+<button class="w-7 h-7 flex items-center justify-center rounded text-[#94a3b8] hover:text-white hover:bg-[#15191e] transition-colors" title="Recolher barra lateral">
+<span class="material-symbols-outlined text-[18px]">dock_to_right</span>
+</button>
+<div class="flex items-center gap-1.5 font-body-sm text-[14px] text-[#94a3b8]">
+<span class="hover:text-on-surface cursor-pointer">Transport ERP</span>
+<span class="text-[#464554] text-[12px]">/</span>
+<span class="text-white font-medium">Configurações</span>
+</div>
+</div>
+<!-- Direita: apenas o botão "Celular" e o seletor "PT | EN" -->
+<div class="flex items-center gap-space-md">
+<!-- Botão Celular -->
+<button class="flex items-center gap-1.5 px-space-md py-1 rounded bg-[#15191e] border border-input hover:bg-[#1c2128] text-white font-body-sm text-[13px] transition-colors">
+<span class="material-symbols-outlined text-[16px] text-[#94a3b8]">smartphone</span>
+<span>Celular</span>
+</button>
+<div class="h-4 w-[1px] bg-hairline"></div>
+<!-- Seletor PT | EN -->
+<div class="flex items-center gap-1 font-code-sm text-[12px]">
+<button class="px-1.5 py-0.5 rounded text-white font-semibold bg-[#1c2128]">PT</button>
+<span class="text-[#464554]">|</span>
+<button class="px-1.5 py-0.5 rounded text-[#94a3b8] hover:text-white transition-colors">EN</button>
+</div>
+</div>
+</header>
+<!-- ÁREA PRINCIPAL: DIVIDIDA EM DUAS COLUNAS -->
+<div class="flex-1 flex overflow-hidden">
+<!-- SUB-NAVEGAÇÃO INTERNA (200px, borda direita 1px #1c2128, padding p-6) -->
+<aside class="w-[200px] border-r border-hairline p-6 shrink-0 flex flex-col gap-1">
+<!-- Geral (Ativa) -->
+<a class="flex items-center px-3 py-2 rounded bg-[#15191e] text-white font-body-sm text-[13px] font-semibold border-l-2 border-[#6366f1] transition-colors" href="#">
+          Geral
+        </a>
+<!-- Memória -->
+<a class="flex items-center px-3 py-2 rounded text-[#94a3b8] hover:text-white hover:bg-[#15191e] font-body-sm text-[13px] transition-colors" href="#">
+          Memória
+        </a>
+<!-- Importar e exportar -->
+<a class="flex items-center px-3 py-2 rounded text-[#94a3b8] hover:text-white hover:bg-[#15191e] font-body-sm text-[13px] transition-colors" href="#">
+          Importar e exportar
+        </a>
+<!-- Sobre e atualizações -->
+<a class="flex items-center px-3 py-2 rounded text-[#94a3b8] hover:text-white hover:bg-[#15191e] font-body-sm text-[13px] transition-colors" href="#">
+          Sobre e atualizações
+        </a>
+</aside>
+<!-- COLUNA DE CONTEÚDO (max-w-[720px], p-8, espaço generoso e legibilidade impecável) -->
+<main class="flex-1 overflow-y-auto p-8">
+<div class="max-w-[720px] flex flex-col">
+<!-- Título da seção -->
+<div class="pb-6 border-b border-hairline">
+<h1 class="font-headline-md text-[20px] font-semibold text-white tracking-tight">Geral</h1>
+</div>
+<!-- GRUPO 1: IDIOMA -->
+<section class="py-6 border-b border-hairline flex flex-col gap-3">
+<h2 class="font-body-md text-[16px] font-semibold text-white">Idioma</h2>
+<div class="relative w-full max-w-sm">
+<select class="w-full bg-[#15191e] border border-input rounded-md px-3 py-2.5 text-white font-body-sm text-[13px] appearance-none focus:outline-none focus:border-[#6366f1] cursor-pointer">
+<option selected="">Português (Brasil)</option>
+<option>English (United States)</option>
+</select>
+<div class="absolute inset-y-0 right-0 flex items-center px-2.5 pointer-events-none text-[#94a3b8]">
+<span class="material-symbols-outlined text-[18px]">unfold_more</span>
+</div>
+</div>
+<p class="font-body-sm text-[13px] text-zinc-400">A saída dos modelos e o seu conteúdo não são traduzidos.</p>
+</section>
+<!-- GRUPO 2: LIMITE DE TOKENS POR ESPECIFICAÇÃO -->
+<section class="py-6 border-b border-hairline flex flex-col gap-3">
+<h2 class="font-body-md text-[16px] font-semibold text-white">Limite de tokens por especificação</h2>
+<div class="flex items-center gap-2 max-w-sm">
+<div class="relative flex-1">
+<input class="w-full bg-[#15191e] border border-input rounded-md px-3 py-2 font-code-sm text-[13px] text-white placeholder-[#64748b] focus:outline-none focus:border-[#6366f1]" placeholder="Sem limite" type="text"/>
+</div>
+<button class="bg-[#242c37] hover:bg-[#323b49] text-white font-body-sm text-[13px] font-medium px-4 py-2 rounded-md border border-input transition-colors duration-150">
+                Salvar
+              </button>
+</div>
+<p class="font-body-sm text-[13px] text-zinc-400">Ao chegar no limite, nenhuma execução nova começa até você decidir continuar.</p>
+</section>
+<!-- GRUPO 3: SANDBOX DOS RUNTIMES -->
+<section class="py-6 border-b border-hairline flex flex-col gap-4">
+<div class="flex items-center gap-3">
+<h2 class="font-body-md text-[16px] font-semibold text-white">Sandbox dos runtimes</h2>
+<!-- Selo de estado padronizado: pílula verde com fundo verde a 14%, ponto verde de 6px e texto verde Geist 12px -->
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)] text-[#10b981] font-body-sm text-[12px] font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+                Disponível neste sistema
+              </span>
+</div>
+<!-- Controle segmentado: Desligado | Quando possível | Obrigatório -->
+<div class="inline-flex max-w-fit p-0.5 bg-[#15191e] border border-input rounded-md">
+<button class="px-3 py-1.5 rounded font-body-sm text-[13px] font-medium bg-[#242c37] text-white shadow-sm">
+                Desligado
+              </button>
+<button class="px-3 py-1.5 rounded font-body-sm text-[13px] font-medium text-[#94a3b8] hover:text-white transition-colors">
+                Quando possível
+              </button>
+<button class="px-3 py-1.5 rounded font-body-sm text-[13px] font-medium text-[#94a3b8] hover:text-white transition-colors">
+                Obrigatório
+              </button>
+</div>
+<!-- Caixa de seleção: Deixar escrever nos caches de ferramentas -->
+<label class="flex items-center gap-2.5 cursor-pointer select-none">
+<input class="w-[14px] h-[14px] rounded-[2px] bg-[#15191e] border-[#2d3748] text-[#6366f1] focus:ring-0 focus:ring-offset-0 cursor-pointer" type="checkbox"/>
+<span class="font-body-sm text-[14px] text-on-surface">Deixar escrever nos caches de ferramentas (npm, cargo, pip…)</span>
+</label>
+<!-- Accordion recolhido: O que o sandbox protege -->
+<div class="pt-1">
+<button class="flex items-center gap-1.5 text-[#94a3b8] hover:text-white font-body-sm text-[13px] transition-colors group">
+<span class="material-symbols-outlined text-[16px] transition-transform">chevron_right</span>
+<span class="underline underline-offset-4 decoration-hairline group-hover:decoration-[#94a3b8]">O que o sandbox protege</span>
+</button>
+</div>
+</section>
+<!-- GRUPO 4: PRESENÇA NO DISCORD -->
+<section class="py-6 flex flex-col gap-4">
+<h2 class="font-body-md text-[16px] font-semibold text-white">Presença no Discord</h2>
+<!-- Linha com chave liga/desliga (toggle switch desligado) -->
+<div class="flex items-center justify-between">
+<span class="font-body-sm text-[14px] text-on-surface">Mostrar o que o Atlas está fazendo no Discord</span>
+<!-- Toggle Switch Desligado -->
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox"/>
+<div class="w-9 h-5 bg-[#242c37] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#94a3b8] peer-checked:after:bg-white after:border-transparent after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#6366f1]"></div>
+</label>
+</div>
+<!-- Caixa de seleção desabilitada/opaca -->
+<label class="flex items-center gap-2.5 opacity-50 cursor-not-allowed select-none">
+<input class="w-[14px] h-[14px] rounded-[2px] bg-[#15191e] border-[#2d3748] text-[#6366f1] focus:ring-0 focus:ring-offset-0" disabled="" type="checkbox"/>
+<span class="font-body-sm text-[14px] text-[#94a3b8]">Mostrar nomes do workspace, do workflow e da etapa</span>
+</label>
+<!-- Texto de ajuda -->
+<p class="font-body-sm text-[13px] text-zinc-400">Prompts, arquivos e respostas nunca são enviados.</p>
+</section>
+<!-- Espaço vazio abaixo do conteúdo mantido limpo -->
+<div class="h-16"></div>
+</div>
+</main>
+</div>
+</div>
+</body></html>

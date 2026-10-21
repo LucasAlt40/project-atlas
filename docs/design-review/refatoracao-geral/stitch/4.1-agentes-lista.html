@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas — Agentes</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Fonts: Geist and JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "outline": "#908fa0",
+            "tertiary-fixed": "#ffd9e4",
+            "primary": "#c0c1ff",
+            "inverse-surface": "#e1e2e8",
+            "surface-bright": "#36393e",
+            "primary-container": "#8083ff",
+            "surface-variant": "#323539",
+            "background": "#111418",
+            "tertiary": "#ffb0cd",
+            "surface-container-high": "#272a2e",
+            "secondary-fixed-dim": "#a4c9ff",
+            "on-primary": "#1000a9",
+            "surface-container-lowest": "#0b0e12",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "on-secondary-fixed": "#001c39",
+            "on-tertiary-fixed": "#3e0022",
+            "surface-tint": "#c0c1ff",
+            "surface-container-highest": "#323539",
+            "on-background": "#e1e2e8",
+            "surface-container": "#1d2024",
+            "surface": "#111418",
+            "inverse-primary": "#494bd6",
+            "secondary": "#a4c9ff",
+            "on-error-container": "#ffdad6",
+            "on-surface-variant": "#c7c4d7",
+            "on-secondary-container": "#d6e5ff",
+            "secondary-fixed": "#d4e3ff",
+            "secondary-container": "#0267b8",
+            "surface-dim": "#111418",
+            "primary-fixed": "#e1e0ff",
+            "outline-variant": "#464554",
+            "on-error": "#690005",
+            "error": "#ffb4ab",
+            "on-tertiary": "#640039",
+            "inverse-on-surface": "#2e3135",
+            "on-primary-container": "#0d0096",
+            "on-surface": "#e1e2e8",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "error-container": "#93000a",
+            "on-secondary": "#00315d",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "on-secondary-fixed-variant": "#004883",
+            "on-primary-fixed": "#07006c",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-tertiary-container": "#570032",
+            "tertiary-container": "#f751a1",
+            "surface-container-low": "#191c20"
+          },
+          borderRadius: {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          spacing: {
+            "gutter-expanded": "1rem",
+            "gutter-compact": "0.25rem",
+            "space-md": "0.75rem",
+            "space-2xl": "2rem",
+            "space-xs": "0.25rem",
+            "margin-window": "0.5rem",
+            "space-xl": "1.5rem",
+            "space-2xs": "0.125rem",
+            "margin": "0.75rem",
+            "space-sm": "0.5rem",
+            "space-lg": "1rem",
+            "gutter": "0.5rem"
+          },
+          fontFamily: {
+            "body-sm": ["Geist", "sans-serif"],
+            "headline-xl": ["Geist", "sans-serif"],
+            "code-lg": ["JetBrains Mono", "monospace"],
+            "headline-md": ["Geist", "sans-serif"],
+            "code-md": ["JetBrains Mono", "monospace"],
+            "body-lg": ["Geist", "sans-serif"],
+            "headline-lg": ["Geist", "sans-serif"],
+            "label-sm": ["Geist", "sans-serif"],
+            "headline-sm": ["Geist", "sans-serif"],
+            "body-md": ["Geist", "sans-serif"],
+            "label-md": ["Geist", "sans-serif"],
+            "telemetry-pill": ["JetBrains Mono", "monospace"],
+            "code-sm": ["JetBrains Mono", "monospace"]
+          },
+          fontSize: {
+            "body-sm": ["0.75rem", { lineHeight: "1.125rem", letterSpacing: "0.005em", fontWeight: "400" }],
+            "headline-xl": ["2rem", { lineHeight: "2.5rem", letterSpacing: "-0.025em", fontWeight: "600" }],
+            "code-lg": ["0.875rem", { lineHeight: "1.375rem", letterSpacing: "-0.01em", fontWeight: "500" }],
+            "headline-md": ["1.25rem", { lineHeight: "1.75rem", letterSpacing: "-0.015em", fontWeight: "500" }],
+            "code-md": ["0.8125rem", { lineHeight: "1.25rem", letterSpacing: "-0.01em", fontWeight: "400" }],
+            "body-lg": ["1rem", { lineHeight: "1.5rem", letterSpacing: "-0.005em", fontWeight: "400" }],
+            "headline-lg": ["1.5rem", { lineHeight: "2rem", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "label-sm": ["0.6875rem", { lineHeight: "0.875rem", letterSpacing: "0.04em", fontWeight: "600" }],
+            "headline-sm": ["1.125rem", { lineHeight: "1.5rem", letterSpacing: "-0.01em", fontWeight: "500" }],
+            "body-md": ["0.875rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "label-md": ["0.8125rem", { lineHeight: "1rem", letterSpacing: "0.01em", fontWeight: "500" }],
+            "telemetry-pill": ["0.6875rem", { lineHeight: "0.875rem", letterSpacing: "0.02em", fontWeight: "600" }],
+            "code-sm": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0em", fontWeight: "400" }]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-size: 18px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+    body {
+      background-color: #0b0d10;
+      color: #e1e2e8;
+      overflow-x: hidden;
+    }
+  </style>
+</head>
+<body class="bg-surface-container-lowest font-body-md text-on-surface antialiased select-none min-h-screen">
+<!-- ========================================================================= -->
+<!-- BARRA LATERAL (FIXA 216px)                                                -->
+<!-- ========================================================================= -->
+<aside class="docked fixed top-0 left-0 h-screen w-[216px] z-30 bg-surface-container-low border-r border-outline-variant flex flex-col justify-between p-space-sm" style="background-color: #101317; border-color: #242c37;">
+<div class="flex flex-col gap-space-md">
+<!-- Topo: Logo Atlas -->
+<div class="flex items-center gap-2 px-space-xs pt-1">
+<div class="w-[20px] h-[20px] rounded flex items-center justify-center font-bold text-white text-[11px]" style="background-color: #6366f1;">
+          A
+        </div>
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface tracking-tight">Atlas</span>
+</div>
+<!-- Seletor de Workspace -->
+<div class="flex flex-col px-space-xs py-1.5 rounded cursor-pointer transition-colors" style="background-color: #15191e; border: 1px solid #242c37;">
+<div class="flex items-center justify-between text-on-surface">
+<span class="font-label-md text-label-md font-medium text-on-surface truncate">Transport ERP</span>
+<span class="material-symbols-outlined text-outline" style="font-size: 16px;">expand_more</span>
+</div>
+<span class="font-code-sm text-[10px] text-outline truncate mt-0.5 tracking-tight font-normal">/Users/lucas/dev/transport-erp</span>
+</div>
+<!-- Navegação Vertical (7 itens estritos) -->
+<nav class="flex flex-col gap-0.5 mt-1">
+<!-- 1. Workspace -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">folder_open</span>
+<span>Workspace</span>
+</a>
+<!-- 2. Workflow -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span>Workflow</span>
+</a>
+<!-- 3. Agentes (ATIVO) -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded bg-surface-container-highest text-primary font-label-md text-label-md border border-outline-variant font-medium" href="#" style="background-color: #1c2128; border-color: #3b4554; color: #c0c1ff;">
+<span class="material-symbols-outlined" style="color: #c0c1ff;">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- 4. Personalidades -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- 5. Specs -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">description</span>
+<span>Specs</span>
+</a>
+<!-- 6. MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">hub</span>
+<span>MCP Hub</span>
+</a>
+<!-- 7. Configurações -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Rodapé Fixo da Barra Lateral -->
+<div class="px-space-xs py-2 border-t flex flex-col gap-0.5" style="border-color: #242c37;">
+<span class="font-label-md text-[12px] font-medium text-on-surface-variant">Project Atlas</span>
+<span class="font-code-sm text-[12px] text-outline font-normal">v0.2.0 · macOS</span>
+</div>
+</aside>
+<!-- ========================================================================= -->
+<!-- BARRA SUPERIOR (FIXA 48px)                                                -->
+<!-- ========================================================================= -->
+<header class="docked fixed top-0 left-[216px] right-0 h-12 z-20 bg-surface-container-lowest border-b flex justify-between items-center px-6" style="background-color: #0b0d10; border-color: #242c37;">
+<!-- Esquerda: recolher sidebar + breadcrumb -->
+<div class="flex items-center gap-3">
+<button aria-label="Recolher barra lateral" class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined">dock_to_left</span>
+</button>
+<div class="flex items-center gap-1.5 font-label-md text-label-md">
+<span class="text-on-surface-variant">Transport ERP</span>
+<span class="text-outline text-xs">/</span>
+<span class="text-on-surface font-medium">Agentes</span>
+</div>
+</div>
+<!-- Direita: Celular e PT | EN -->
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-1.5 px-2.5 py-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors font-label-md text-label-md" style="border: 1px solid #242c37;" type="button">
+<span class="material-symbols-outlined text-[16px]">smartphone</span>
+<span>Celular</span>
+</button>
+<div class="flex items-center gap-1 text-[12px] font-code-sm">
+<span class="font-semibold text-primary cursor-default" style="color: #c0c1ff;">PT</span>
+<span class="text-outline-variant font-light">|</span>
+<span class="text-outline hover:text-on-surface cursor-pointer transition-colors">EN</span>
+</div>
+</div>
+</header>
+<!-- ========================================================================= -->
+<!-- ÁREA PRINCIPAL DE CONTEÚDO (Offset left 216px, top 48px, padding 32px)     -->
+<!-- ========================================================================= -->
+<main class="ml-[216px] pt-12 min-h-screen" style="background-color: #0b0d10;">
+<div class="p-8 max-w-[1224px] mx-auto flex flex-col gap-6">
+<!-- 1. Cabeçalho da Página -->
+<section class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<h1 class="font-headline-lg text-headline-lg font-semibold text-on-surface tracking-tight">Agentes</h1>
+<span class="inline-flex items-center justify-center px-2 py-0.5 rounded font-code-sm text-[12px] font-medium text-on-surface-variant" style="background-color: #15191e; border: 1px solid #242c37;">
+            3
+          </span>
+</div>
+<div class="flex items-center gap-2">
+<button class="flex items-center gap-1.5 px-3.5 py-1.5 rounded font-label-md text-label-md font-medium text-white transition-colors duration-150 shadow-none" style="background-color: #6366f1;" type="button">
+<span class="text-[15px] font-semibold">+</span>
+<span>Criar agente</span>
+</button>
+<!-- Dropdown container para Importar -->
+<div class="relative group">
+<button aria-label="Mais opções" class="p-1.5 rounded flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors" style="background-color: #15191e; border: 1px solid #242c37;" type="button">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+<div class="absolute right-0 top-full mt-1 w-32 rounded py-1 hidden group-hover:block z-30 transition-all" style="background-color: #1c2128; border: 1px solid #2d3748; box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.65), 0 0 0 1px #2d3748;">
+<button class="w-full text-left px-3 py-1.5 font-label-md text-[13px] text-on-surface hover:bg-surface-container transition-colors flex items-center gap-2" type="button">
+<span class="material-symbols-outlined text-[15px] text-outline">file_upload</span>
+<span>Importar</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- 2. Linha de Controles e Filtros -->
+<section class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+<!-- Campo de Busca -->
+<div class="relative w-full max-w-sm">
+<div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-outline">
+<span class="material-symbols-outlined text-[17px]">search</span>
+</div>
+<input class="w-full pl-8 pr-3 py-1.5 rounded font-body-sm text-[13px] text-on-surface placeholder:text-outline bg-transparent transition-colors focus:outline-none" placeholder="Buscar agente ou modelo" style="background-color: #15191e; border: 1px solid #242c37;" type="text"/>
+</div>
+<!-- Filtros em Linha -->
+<div class="flex items-center gap-2 text-[13px] font-label-md">
+<button class="px-2.5 py-1 rounded font-medium text-on-surface transition-colors" style="background-color: #1c2128; border: 1px solid #3b4554;" type="button">
+            Todos (3)
+          </button>
+<span class="text-outline-variant select-none">·</span>
+<button class="px-2 py-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" type="button">
+            Prontos (2)
+          </button>
+<span class="text-outline-variant select-none">·</span>
+<button class="px-2 py-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" type="button">
+            Indisponíveis (1)
+          </button>
+</div>
+</section>
+<!-- 3. Lista em Linhas (Tabela Técnica Estrita) -->
+<section class="rounded overflow-hidden" style="background-color: #101317; border: 1px solid #242c37;">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr style="border-bottom: 1px solid #242c37; background-color: #15191e;">
+<th class="py-3 px-4 font-label-md text-[13px] font-normal text-on-surface-variant" scope="col">Agente</th>
+<th class="py-3 px-4 font-label-md text-[13px] font-normal text-on-surface-variant" scope="col">Runtime</th>
+<th class="py-3 px-4 font-label-md text-[13px] font-normal text-on-surface-variant" scope="col">Modelo</th>
+<th class="py-3 px-4 font-label-md text-[13px] font-normal text-on-surface-variant" scope="col">Permissões</th>
+<th class="py-3 px-4 font-label-md text-[13px] font-normal text-on-surface-variant" scope="col">Resultado</th>
+<th class="py-3 px-4 font-label-md text-[13px] font-normal text-on-surface-variant" scope="col">Isolamento</th>
+<th class="py-3 px-4 font-label-md text-[13px] font-normal text-on-surface-variant text-right" scope="col">Ações</th>
+</tr>
+</thead>
+<tbody class="divide-y font-body-sm text-[13px]" style="divide-color: #242c37;">
+<!-- LINHA 1: Arquiteto -->
+<tr class="transition-colors hover:bg-surface-container-high" style="border-color: #242c37;">
+<!-- Agente -->
+<td class="py-3 px-4 align-top">
+<div class="font-medium text-[14px] text-on-surface leading-tight">Arquiteto</div>
+<div class="text-[13px] text-on-surface-variant mt-0.5">Architect</div>
+</td>
+<!-- Runtime + Selo -->
+<td class="py-3 px-4 align-top">
+<div class="flex items-center gap-2">
+<span class="text-on-surface">Claude CLI</span>
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[12px] font-medium" style="background-color: rgba(16, 185, 129, 0.14); border: 1px solid rgba(16, 185, 129, 0.4); color: #10b981;">
+<span class="w-[6px] h-[6px] rounded-full" style="background-color: #10b981;"></span>
+<span>Pronto</span>
+</span>
+</div>
+</td>
+<!-- Modelo -->
+<td class="py-3 px-4 align-top">
+<span class="font-code-sm text-[13px] text-on-surface">sonnet</span>
+</td>
+<!-- Permissões -->
+<td class="py-3 px-4 align-top text-on-surface">
+                Somente leitura
+              </td>
+<!-- Resultado -->
+<td class="py-3 px-4 align-top text-on-surface">
+                Revisão
+              </td>
+<!-- Isolamento -->
+<td class="py-3 px-4 align-top text-on-surface-variant font-code-sm text-[12px]">
+                Worktree
+              </td>
+<!-- Ações -->
+<td class="py-3 px-4 align-top text-right">
+<div class="flex items-center justify-end gap-1.5">
+<button class="px-2.5 py-1 rounded text-[12px] font-label-md text-on-surface hover:bg-surface-container transition-colors" style="border: 1px solid #242c37; background-color: #15191e;" type="button">
+                    Editar
+                  </button>
+<div class="relative group inline-block">
+<button aria-label="Mais opções" class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors flex items-center justify-center" type="button">
+<span class="material-symbols-outlined text-[17px]">more_horiz</span>
+</button>
+<!-- Menu dropdown -->
+<div class="absolute right-0 top-full mt-1 w-28 rounded py-1 hidden group-hover:block z-40 text-left" style="background-color: #1c2128; border: 1px solid #2d3748; box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.65), 0 0 0 1px #2d3748;">
+<button class="w-full text-left px-3 py-1 font-label-md text-[12px] text-on-surface hover:bg-surface-container transition-colors" type="button">
+                        Exportar
+                      </button>
+<button class="w-full text-left px-3 py-1 font-label-md text-[12px] text-error hover:bg-surface-container transition-colors" style="color: #ef4444;" type="button">
+                        Excluir
+                      </button>
+</div>
+</div>
+</div>
+</td>
+</tr>
+<!-- LINHA 2: Desenvolvedor -->
+<tr class="transition-colors hover:bg-surface-container-high" style="border-color: #242c37;">
+<!-- Agente -->
+<td class="py-3 px-4 align-top">
+<div class="font-medium text-[14px] text-on-surface leading-tight">Desenvolvedor</div>
+<div class="text-[13px] text-on-surface-variant mt-0.5">Developer</div>
+</td>
+<!-- Runtime + Selo -->
+<td class="py-3 px-4 align-top">
+<div class="flex items-center gap-2">
+<span class="text-on-surface">Codex</span>
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[12px] font-medium" style="background-color: rgba(16, 185, 129, 0.14); border: 1px solid rgba(16, 185, 129, 0.4); color: #10b981;">
+<span class="w-[6px] h-[6px] rounded-full" style="background-color: #10b981;"></span>
+<span>Pronto</span>
+</span>
+</div>
+</td>
+<!-- Modelo -->
+<td class="py-3 px-4 align-top">
+<span class="font-code-sm text-[13px] text-on-surface">gpt-5-codex</span>
+</td>
+<!-- Permissões -->
+<td class="py-3 px-4 align-top text-on-surface">
+                Desenvolvedor
+              </td>
+<!-- Resultado -->
+<td class="py-3 px-4 align-top text-on-surface">
+                Implementação
+              </td>
+<!-- Isolamento -->
+<td class="py-3 px-4 align-top text-on-surface-variant font-code-sm text-[12px]">
+                Worktree
+              </td>
+<!-- Ações -->
+<td class="py-3 px-4 align-top text-right">
+<div class="flex items-center justify-end gap-1.5">
+<button class="px-2.5 py-1 rounded text-[12px] font-label-md text-on-surface hover:bg-surface-container transition-colors" style="border: 1px solid #242c37; background-color: #15191e;" type="button">
+                    Editar
+                  </button>
+<div class="relative group inline-block">
+<button aria-label="Mais opções" class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors flex items-center justify-center" type="button">
+<span class="material-symbols-outlined text-[17px]">more_horiz</span>
+</button>
+<!-- Menu dropdown -->
+<div class="absolute right-0 top-full mt-1 w-28 rounded py-1 hidden group-hover:block z-40 text-left" style="background-color: #1c2128; border: 1px solid #2d3748; box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.65), 0 0 0 1px #2d3748;">
+<button class="w-full text-left px-3 py-1 font-label-md text-[12px] text-on-surface hover:bg-surface-container transition-colors" type="button">
+                        Exportar
+                      </button>
+<button class="w-full text-left px-3 py-1 font-label-md text-[12px] text-error hover:bg-surface-container transition-colors" style="color: #ef4444;" type="button">
+                        Excluir
+                      </button>
+</div>
+</div>
+</div>
+</td>
+</tr>
+<!-- LINHA 3: QA -->
+<tr class="transition-colors hover:bg-surface-container-high" style="border-color: #242c37;">
+<!-- Agente -->
+<td class="py-3 px-4 align-top">
+<div class="font-medium text-[14px] text-on-surface leading-tight">QA</div>
+<div class="text-[13px] text-on-surface-variant mt-0.5">QA</div>
+</td>
+<!-- Runtime + Selo + Motivo -->
+<td class="py-3 px-4 align-top">
+<div class="flex flex-col items-start gap-1">
+<div class="flex items-center gap-2">
+<span class="text-on-surface">Gemini CLI</span>
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[12px] font-medium" style="background-color: rgba(245, 158, 11, 0.14); border: 1px solid rgba(245, 158, 11, 0.4); color: #f59e0b;">
+<span class="w-[6px] h-[6px] rounded-full" style="background-color: #f59e0b;"></span>
+<span>Indisponível</span>
+</span>
+</div>
+<span class="text-[12px] text-outline font-normal">Sem login</span>
+</div>
+</td>
+<!-- Modelo -->
+<td class="py-3 px-4 align-top">
+<span class="font-code-sm text-[13px] text-on-surface">gemini-3-pro</span>
+</td>
+<!-- Permissões -->
+<td class="py-3 px-4 align-top text-on-surface">
+                Somente leitura
+              </td>
+<!-- Resultado -->
+<td class="py-3 px-4 align-top text-on-surface">
+                Validação
+              </td>
+<!-- Isolamento -->
+<td class="py-3 px-4 align-top text-on-surface-variant font-code-sm text-[12px]">
+                Worktree
+              </td>
+<!-- Ações -->
+<td class="py-3 px-4 align-top text-right">
+<div class="flex items-center justify-end gap-1.5">
+<button class="px-2.5 py-1 rounded text-[12px] font-label-md text-on-surface hover:bg-surface-container transition-colors" style="border: 1px solid #242c37; background-color: #15191e;" type="button">
+                    Editar
+                  </button>
+<div class="relative group inline-block">
+<button aria-label="Mais opções" class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors flex items-center justify-center" type="button">
+<span class="material-symbols-outlined text-[17px]">more_horiz</span>
+</button>
+<!-- Menu dropdown -->
+<div class="absolute right-0 top-full mt-1 w-28 rounded py-1 hidden group-hover:block z-40 text-left" style="background-color: #1c2128; border: 1px solid #2d3748; box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.65), 0 0 0 1px #2d3748;">
+<button class="w-full text-left px-3 py-1 font-label-md text-[12px] text-on-surface hover:bg-surface-container transition-colors" type="button">
+                        Exportar
+                      </button>
+<button class="w-full text-left px-3 py-1 font-label-md text-[12px] text-error hover:bg-surface-container transition-colors" style="color: #ef4444;" type="button">
+                        Excluir
+                      </button>
+</div>
+</div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+</div>
+</main>
+</body></html>

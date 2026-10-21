@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas — Workflow — Execução em andamento</title>
+<!-- Fonts: Geist & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "tertiary-fixed": "#ffd9e4",
+            "secondary": "#a4c9ff",
+            "on-error-container": "#ffdad6",
+            "tertiary-container": "#f751a1",
+            "primary-fixed-dim": "#c0c1ff",
+            "outline-variant": "#464554",
+            "outline": "#908fa0",
+            "secondary-fixed-dim": "#a4c9ff",
+            "error-container": "#93000a",
+            "background": "#111418",
+            "inverse-surface": "#e1e2e8",
+            "on-secondary-fixed": "#001c39",
+            "on-secondary-container": "#d6e5ff",
+            "primary-fixed": "#e1e0ff",
+            "on-secondary": "#00315d",
+            "surface-bright": "#36393e",
+            "on-secondary-fixed-variant": "#004883",
+            "surface-dim": "#111418",
+            "inverse-primary": "#494bd6",
+            "surface-tint": "#c0c1ff",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "tertiary": "#ffb0cd",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "on-background": "#e1e2e8",
+            "secondary-container": "#0267b8",
+            "on-surface-variant": "#c7c4d7",
+            "surface-container-high": "#272a2e",
+            "inverse-on-surface": "#2e3135",
+            "surface-variant": "#323539",
+            "on-tertiary-fixed": "#3e0022",
+            "on-error": "#690005",
+            "primary": "#c0c1ff",
+            "surface-container-lowest": "#0b0e12",
+            "error": "#ffb4ab",
+            "secondary-fixed": "#d4e3ff",
+            "on-primary-fixed": "#07006c",
+            "on-primary-container": "#0d0096",
+            "surface": "#111418",
+            "on-tertiary": "#640039",
+            "on-surface": "#e1e2e8",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "on-tertiary-container": "#570032",
+            "primary-container": "#8083ff",
+            "surface-container": "#1d2024",
+            "on-primary": "#1000a9",
+            "surface-container-highest": "#323539",
+            "surface-container-low": "#191c20"
+          },
+          borderRadius: {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          spacing: {
+            "space-xs": "0.25rem",
+            "space-lg": "1rem",
+            "space-2xl": "2rem",
+            "margin-window": "0.5rem",
+            "space-2xs": "0.125rem",
+            "space-xl": "1.5rem",
+            "gutter": "0.5rem",
+            "gutter-expanded": "1rem",
+            "gutter-compact": "0.25rem",
+            "space-sm": "0.5rem",
+            "space-md": "0.75rem",
+            "margin": "0.75rem"
+          },
+          fontFamily: {
+            "body-md": ["Geist", "sans-serif"],
+            "label-sm": ["Geist", "sans-serif"],
+            "body-sm": ["Geist", "sans-serif"],
+            "code-sm": ["JetBrains Mono", "monospace"],
+            "code-md": ["JetBrains Mono", "monospace"],
+            "headline-md": ["Geist", "sans-serif"],
+            "label-md": ["Geist", "sans-serif"],
+            "headline-xl": ["Geist", "sans-serif"],
+            "code-lg": ["JetBrains Mono", "monospace"],
+            "telemetry-pill": ["JetBrains Mono", "monospace"],
+            "headline-sm": ["Geist", "sans-serif"],
+            "headline-lg": ["Geist", "sans-serif"],
+            "body-lg": ["Geist", "sans-serif"]
+          },
+          fontSize: {
+            "body-md": ["0.875rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "label-sm": ["0.6875rem", { lineHeight: "0.875rem", letterSpacing: "0.04em", fontWeight: "600" }],
+            "body-sm": ["0.75rem", { lineHeight: "1.125rem", letterSpacing: "0.005em", fontWeight: "400" }],
+            "code-sm": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0em", fontWeight: "400" }],
+            "code-md": ["0.8125rem", { lineHeight: "1.25rem", letterSpacing: "-0.01em", fontWeight: "400" }],
+            "headline-md": ["1.25rem", { lineHeight: "1.75rem", letterSpacing: "-0.015em", fontWeight: "500" }],
+            "label-md": ["0.8125rem", { lineHeight: "1rem", letterSpacing: "0.01em", fontWeight: "500" }],
+            "headline-xl": ["2rem", { lineHeight: "2.5rem", letterSpacing: "-0.025em", fontWeight: "600" }],
+            "code-lg": ["0.875rem", { lineHeight: "1.375rem", letterSpacing: "-0.01em", fontWeight: "500" }],
+            "telemetry-pill": ["0.6875rem", { lineHeight: "0.875rem", letterSpacing: "0.02em", fontWeight: "600" }],
+            "headline-sm": ["1.125rem", { lineHeight: "1.5rem", letterSpacing: "-0.01em", fontWeight: "500" }],
+            "headline-lg": ["1.5rem", { lineHeight: "2rem", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "body-lg": ["1rem", { lineHeight: "1.5rem", letterSpacing: "-0.005em", fontWeight: "400" }]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    /* Technical Grid Canvas Dots */
+    .tech-canvas-grid {
+      background-color: #0b0d10;
+      background-image: radial-gradient(circle, #1c2128 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+    
+    /* Scrollbar minimal styling */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #111418;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #272a2e;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #464554;
+    }
+  </style>
+</head>
+<body class="bg-[#0b0d10] text-[#e1e2e8] font-body-md text-body-md select-none overflow-hidden h-screen w-screen flex antialiased">
+<!-- ======================================================== -->
+<!-- BARRA LATERAL FIXA DE 216px                             -->
+<!-- ======================================================== -->
+<aside class="fixed top-0 left-0 h-screen w-[216px] z-30 bg-[#111418] border-r border-[#1c2128] flex flex-col justify-between p-space-sm select-none">
+<!-- Top Area: Logo e Workspace Selector -->
+<div class="flex flex-col gap-space-sm">
+<!-- Logo Atlas: Quadrado 20px índigo #6366f1 com "A" branco e texto "Atlas" em 16px -->
+<div class="flex items-center gap-2 px-space-xs pt-1 pb-1">
+<div class="w-5 h-5 rounded-[3px] bg-[#6366f1] flex items-center justify-center font-bold text-white text-[12px] leading-none shrink-0 shadow-sm">
+          A
+        </div>
+<span class="text-[16px] font-semibold text-[#e1e2e8] tracking-tight leading-none font-headline-sm">Atlas</span>
+</div>
+<!-- Seletor de workspace: Transport ERP e caminho com chevron -->
+<div class="flex items-center justify-between px-2 py-1.5 rounded bg-[#15191e] border border-[#1c2128] hover:border-[#272a2e] cursor-pointer transition-colors group">
+<div class="flex flex-col min-w-0 pr-1">
+<span class="text-[12px] font-medium text-[#e1e2e8] truncate leading-tight font-label-md">Transport ERP</span>
+<span class="text-[10px] text-[#64748b] truncate leading-tight font-code-sm">/Users/lucas/dev/transport-erp</span>
+</div>
+<span class="material-symbols-outlined text-[14px] text-[#64748b] group-hover:text-[#c7c4d7] shrink-0" data-icon="unfold_more">unfold_more</span>
+</div>
+<!-- Navegação Estrita (7 itens na ordem especificada) -->
+<nav aria-label="Navegação Principal" class="flex flex-col gap-[2px] mt-1.5">
+<!-- 1. Workspace -->
+<a class="flex items-center gap-space-sm px-space-md py-1.5 rounded text-[#c7c4d7] font-label-md text-label-md hover:text-[#e1e2e8] hover:bg-[#15191e] transition-colors" href="#workspace">
+<span class="material-symbols-outlined text-[18px]" data-icon="folder_open">folder_open</span>
+<span>Workspace</span>
+</a>
+<!-- 2. Workflow (ATIVO E DESTACADO) -->
+<a aria-current="page" class="flex items-center gap-space-sm px-space-md py-1.5 rounded bg-[#272a2e] text-[#c0c1ff] font-label-md text-label-md border border-[#3b4554] shadow-xs" href="#workflow">
+<span class="material-symbols-outlined text-[18px] text-[#8083ff]" data-icon="account_tree">account_tree</span>
+<span class="font-semibold text-white">Workflow</span>
+<span class="ml-auto w-1.5 h-1.5 rounded-full bg-[#6366f1]"></span>
+</a>
+<!-- 3. Agentes -->
+<a class="flex items-center gap-space-sm px-space-md py-1.5 rounded text-[#c7c4d7] font-label-md text-label-md hover:text-[#e1e2e8] hover:bg-[#15191e] transition-colors" href="#agentes">
+<span class="material-symbols-outlined text-[18px]" data-icon="smart_toy">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- 4. Personalidades -->
+<a class="flex items-center gap-space-sm px-space-md py-1.5 rounded text-[#c7c4d7] font-label-md text-label-md hover:text-[#e1e2e8] hover:bg-[#15191e] transition-colors" href="#personalidades">
+<span class="material-symbols-outlined text-[18px]" data-icon="psychology">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- 5. Specs -->
+<a class="flex items-center gap-space-sm px-space-md py-1.5 rounded text-[#c7c4d7] font-label-md text-label-md hover:text-[#e1e2e8] hover:bg-[#15191e] transition-colors" href="#specs">
+<span class="material-symbols-outlined text-[18px]" data-icon="description">description</span>
+<span>Specs</span>
+</a>
+<!-- 6. MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-md py-1.5 rounded text-[#c7c4d7] font-label-md text-label-md hover:text-[#e1e2e8] hover:bg-[#15191e] transition-colors" href="#mcphub">
+<span class="material-symbols-outlined text-[18px]" data-icon="hub">hub</span>
+<span>MCP Hub</span>
+</a>
+<!-- 7. Configurações -->
+<a class="flex items-center gap-space-sm px-space-md py-1.5 rounded text-[#c7c4d7] font-label-md text-label-md hover:text-[#e1e2e8] hover:bg-[#15191e] transition-colors" href="#configuracoes">
+<span class="material-symbols-outlined text-[18px]" data-icon="settings">settings</span>
+<span>Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Rodapé da barra lateral: Project Atlas e v0.2.0 · macOS -->
+<div class="px-space-md py-2 border-t border-[#1c2128] flex flex-col gap-0.5">
+<span class="text-[12px] font-medium text-[#64748b] leading-tight">Project Atlas</span>
+<span class="text-[12px] text-[#64748b] leading-tight font-code-sm">v0.2.0 · macOS</span>
+</div>
+</aside>
+<!-- ======================================================== -->
+<!-- BARRA SUPERIOR FIXA DE 48px                             -->
+<!-- ======================================================== -->
+<header class="fixed top-0 left-[216px] right-0 h-12 z-20 bg-[#0b0d10] border-b border-[#1c2128] flex items-center justify-between px-space-lg select-none">
+<!-- Esquerda: Botão recolher/expandir + Breadcrumb -->
+<div class="flex items-center gap-space-md min-w-0">
+<button aria-label="Recolher ou expandir painel" class="text-[#94a3b8] hover:text-[#e1e2e8] p-1 rounded hover:bg-[#15191e] transition-colors flex items-center justify-center" type="button">
+<span class="material-symbols-outlined text-[18px]" data-icon="dock_to_right">dock_to_right</span>
+</button>
+<nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-body-sm font-body-sm text-[#94a3b8] truncate">
+<span class="hover:text-[#e1e2e8] cursor-pointer">Transport ERP</span>
+<span class="text-[#464554]">/</span>
+<span class="hover:text-[#e1e2e8] cursor-pointer">Workflow</span>
+<span class="text-[#464554]">/</span>
+<span class="text-[#e1e2e8] font-medium truncate">Recuperação de senha</span>
+</nav>
+</div>
+<!-- Direita estritamente apenas: Chip de status, Botão Celular, PT | EN -->
+<div class="flex items-center gap-3">
+<!-- Chip de status: "2 agentes em execução" (pílula azul com ponto azul #60a5fa) -->
+<div class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[rgba(96,165,250,0.14)] border border-[rgba(96,165,250,0.4)] text-[#60a5fa] font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-[#60a5fa] animate-pulse"></span>
+<span class="font-medium tracking-wide">2 agentes em execução</span>
+</div>
+<!-- Botão "Celular" -->
+<button class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#15191e] border border-[#242c37] text-[#e1e2e8] font-label-sm text-label-sm hover:bg-[#1c2128] hover:border-[#3b4554] transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px] text-[#94a3b8]" data-icon="smartphone">smartphone</span>
+<span>Celular</span>
+</button>
+<div class="h-3.5 w-[1px] bg-[#242c37]"></div>
+<!-- Alternância de idioma PT | EN -->
+<div class="flex items-center gap-1 text-[11px] font-label-sm">
+<span class="text-[#c0c1ff] font-semibold cursor-pointer">PT</span>
+<span class="text-[#464554]">|</span>
+<span class="text-[#64748b] hover:text-[#c7c4d7] cursor-pointer transition-colors">EN</span>
+</div>
+</div>
+</header>
+<!-- ======================================================== -->
+<!-- CORPO PRINCIPAL DO SISTEMA                               -->
+<!-- ======================================================== -->
+<main class="ml-[216px] mt-12 w-[calc(100vw-216px)] h-[calc(100vh-48px)] flex flex-col bg-[#0b0d10] overflow-hidden">
+<!-- 1. Barra da execução no topo do conteúdo (52px, border-b) -->
+<section class="h-[52px] shrink-0 border-b border-[#1c2128] bg-[#111418] flex items-center justify-between px-space-lg select-none z-10">
+<!-- Esquerda: Voltar ao editor, Seletor suspenso de execuções, Selo azul, Toggle aprovação -->
+<div class="flex items-center gap-3">
+<!-- Botão/link Voltar ao editor -->
+<button class="flex items-center gap-1 px-2 py-1 text-body-sm font-body-sm text-[#94a3b8] hover:text-[#e1e2e8] hover:bg-[#15191e] rounded transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]" data-icon="arrow_back">arrow_back</span>
+<span>Voltar ao editor</span>
+</button>
+<div class="h-4 w-[1px] bg-[#1c2128]"></div>
+<!-- Seletor suspenso de execuções -->
+<button class="flex items-center gap-2 px-2.5 py-1 rounded bg-[#15191e] border border-[#242c37] hover:border-[#3b4554] text-body-sm font-body-sm text-[#e1e2e8] transition-colors" type="button">
+<span class="font-code-sm text-code-sm">21/10/2026 14:52 · Executando</span>
+<span class="material-symbols-outlined text-[14px] text-[#94a3b8]" data-icon="keyboard_arrow_down">keyboard_arrow_down</span>
+</button>
+<!-- Selo de estado azul padrão: fundo 14%, ponto #60a5fa 6px e texto Geist 12px "Executando" -->
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[rgba(96,165,250,0.14)] border border-[rgba(96,165,250,0.4)] text-[#60a5fa]">
+<span class="w-[6px] h-[6px] rounded-full bg-[#60a5fa]"></span>
+<span class="font-body-md text-[12px] leading-tight font-medium">Executando</span>
+</div>
+<div class="h-4 w-[1px] bg-[#1c2128]"></div>
+<!-- Chave toggle "Aprovar planos automaticamente" (estado ligada) -->
+<label class="flex items-center gap-2 cursor-pointer group">
+<div class="relative w-8 h-4 bg-[#6366f1] rounded-full transition-colors flex items-center p-0.5">
+<div class="w-3 h-3 bg-white rounded-full shadow-sm transform translate-x-4 transition-transform"></div>
+</div>
+<span class="text-[12px] text-[#c7c4d7] group-hover:text-[#e1e2e8] transition-colors font-body-sm">
+            Aprovar planos automaticamente
+          </span>
+</label>
+</div>
+<!-- Direita: Botão secundário "Pausar" e Botão "⋯" com menu popup de Cancelar execução -->
+<div class="flex items-center gap-2 relative">
+<button class="flex items-center gap-1 px-3 py-1 rounded bg-[#15191e] border border-[#242c37] hover:bg-[#1c2128] hover:border-[#3b4554] text-[#e2e8f0] font-label-md text-[12px] transition-colors" type="button">
+<span class="material-symbols-outlined text-[15px] text-[#94a3b8]" data-icon="pause">pause</span>
+<span>Pausar</span>
+</button>
+<!-- Menu "⋯" com dropdown aberto sutilmente para demonstrar o botão Cancelar execução -->
+<div class="relative">
+<button aria-label="Mais opções de execução" class="w-7 h-7 flex items-center justify-center rounded bg-[#15191e] border border-[#242c37] hover:bg-[#1c2128] text-[#94a3b8] hover:text-[#e1e2e8] transition-colors" id="more-actions-btn" type="button">
+<span class="material-symbols-outlined text-[16px]" data-icon="more_horiz">more_horiz</span>
+</button>
+<!-- Dropdown com sobra nítida e destaque de perigo -->
+<div class="absolute right-0 top-full mt-1.5 w-44 rounded bg-[#15191e] border border-[#2d3748] shadow-[0_12px_32px_-4px_rgba(0,0,0,0.65),0_0_0_1px_#2d3748] py-1 z-50">
+<button class="w-full text-left px-3 py-1.5 text-[12px] font-label-md text-[#ef4444] hover:bg-[rgba(239,68,68,0.12)] flex items-center gap-2 transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]" data-icon="cancel">cancel</span>
+<span>Cancelar execução</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- 2. Área dividida em duas colunas (Canvas 60% / Painel 40%) -->
+<div class="flex-1 flex overflow-hidden">
+<!-- ====================================================== -->
+<!-- COLUNA ESQUERDA (60%): Canvas Interativo do Workflow   -->
+<!-- ====================================================== -->
+<section class="w-[60%] h-full tech-canvas-grid relative overflow-auto flex flex-col items-center justify-start py-8 px-6">
+<!-- Contêiner do Grafo com nós verticais e SVG nítido -->
+<div class="relative w-[380px] flex flex-col items-center gap-8 py-2">
+<!-- 1. Nó Arquiteto -->
+<div class="w-full bg-[#15191e] border border-[#242c37] rounded p-3 flex items-center justify-between shadow-none relative z-10 hover:border-[#3b4554] transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-[#1c2128] border border-[#242c37] flex items-center justify-center text-[#a4c9ff]">
+<span class="material-symbols-outlined text-[18px]" data-icon="architecture">architecture</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[13px] font-semibold text-[#e1e2e8] leading-snug">Arquiteto</span>
+<span class="text-[11px] text-[#64748b] font-code-sm">Architect · Claude CLI</span>
+</div>
+</div>
+<!-- Selo verde Concluído: fundo verde 14%, ponto verde #10b981 6px, texto Concluído -->
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)] text-[#10b981]">
+<span class="w-[6px] h-[6px] rounded-full bg-[#10b981]"></span>
+<span class="text-[11px] font-label-sm font-medium">Concluído</span>
+</div>
+</div>
+<!-- Linha Conectora 1 -> 2 (SVG Concluído) -->
+<div class="absolute top-[52px] left-[190px] w-[2px] h-[32px] bg-[#10b981] z-0"></div>
+<!-- 2. Nó Desenvolvedor -->
+<div class="w-full bg-[#15191e] border border-[#242c37] rounded p-3 flex items-center justify-between shadow-none relative z-10 hover:border-[#3b4554] transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-[#1c2128] border border-[#242c37] flex items-center justify-center text-[#a4c9ff]">
+<span class="material-symbols-outlined text-[18px]" data-icon="code">code</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[13px] font-semibold text-[#e1e2e8] leading-snug">Desenvolvedor</span>
+<span class="text-[11px] text-[#64748b] font-code-sm">Developer · Codex</span>
+</div>
+</div>
+<!-- Selo verde Concluído -->
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)] text-[#10b981]">
+<span class="w-[6px] h-[6px] rounded-full bg-[#10b981]"></span>
+<span class="text-[11px] font-label-sm font-medium">Concluído</span>
+</div>
+</div>
+<!-- Linha Conectora 2 -> 3 (SVG Concluído) -->
+<div class="absolute top-[138px] left-[190px] w-[2px] h-[32px] bg-[#10b981] z-0"></div>
+<!-- 3. Nó QA (ATIVO: Borda azul #60a5fa 2px e anel/brilho técnico sutil) -->
+<div class="w-full bg-[#15191e] border-2 border-[#60a5fa] rounded p-3 flex items-center justify-between shadow-[0_0_12px_rgba(96,165,250,0.15)] relative z-10 bg-opacity-95">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-[rgba(96,165,250,0.14)] border border-[rgba(96,165,250,0.4)] flex items-center justify-center text-[#60a5fa]">
+<span class="material-symbols-outlined text-[18px]" data-icon="bug_report">bug_report</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-2">
+<span class="text-[13px] font-semibold text-[#e1e2e8] leading-snug">QA</span>
+<span class="w-1.5 h-1.5 rounded-full bg-[#60a5fa] animate-ping"></span>
+</div>
+<span class="text-[11px] text-[#64748b] font-code-sm">QA · OpenCode</span>
+</div>
+</div>
+<!-- Selo azul Executando -->
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[rgba(96,165,250,0.14)] border border-[rgba(96,165,250,0.4)] text-[#60a5fa]">
+<span class="w-[6px] h-[6px] rounded-full bg-[#60a5fa]"></span>
+<span class="text-[11px] font-label-sm font-medium">Executando</span>
+</div>
+</div>
+<!-- Linha Conectora 3 -> 4 (Azul em progresso) -->
+<div class="absolute top-[224px] left-[190px] w-[2px] h-[32px] bg-[#60a5fa] z-0"></div>
+<!-- 4. Nó Condição "QA passou?" (Cartão de decisão elegante) -->
+<div class="relative z-10 flex items-center justify-center w-[220px]">
+<div class="w-full bg-[#15191e] border border-[#242c37] rounded px-4 py-2 flex items-center justify-between hover:border-[#3b4554] transition-colors">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-[#a4c9ff]" data-icon="help">help</span>
+<span class="text-[12px] font-medium text-[#e1e2e8] font-headline-sm">QA passou?</span>
+</div>
+<span class="text-[10px] text-[#64748b] font-code-sm">decisão</span>
+</div>
+<!-- Rótulo de saída Pass (Verde descendo) -->
+<div class="absolute -bottom-6 left-[110px] transform -translate-x-1/2 flex flex-col items-center">
+<span class="text-[9px] font-code-sm font-semibold text-[#10b981] bg-[#111418] px-1 border border-[#10b981]/30 rounded">pass</span>
+</div>
+</div>
+<!-- SVG Overlay de rotas de decisão (pass descendo e fail retornando) -->
+<svg class="absolute top-[280px] left-0 w-full h-[120px] pointer-events-none z-0" xmlns="http://www.w3.org/2000/svg">
+<!-- Linha Pass: do fundo da condição (190, 32) até o topo do Fim (190, 80) -->
+<line stroke="#242c37" stroke-width="2" x1="190" x2="190" y1="32" y2="82"></line>
+<!-- Linha Tracejada Fail (Retorno lateral âmbar/vermelho caso reprovado) -->
+<path d="M 300 16 H 360 V -120 H 340" fill="none" opacity="0.65" stroke="#f59e0b" stroke-dasharray="3,3" stroke-width="1.5"></path>
+<text fill="#f59e0b" font-family="JetBrains Mono" font-size="9" opacity="0.75" x="363" y="-50">fail (reabrir)</text>
+</svg>
+<!-- 5. Nó Fim -->
+<div class="w-[200px] bg-[#15191e] border border-[#242c37] rounded p-2.5 flex items-center justify-between shadow-none relative z-10 opacity-75 mt-4">
+<div class="flex items-center gap-2.5">
+<div class="w-6 h-6 rounded bg-[#1c2128] border border-[#242c37] flex items-center justify-center text-[#64748b]">
+<span class="material-symbols-outlined text-[14px]" data-icon="flag">flag</span>
+</div>
+<span class="text-[12px] font-medium text-[#c7c4d7]">Fim</span>
+</div>
+<!-- Selo cinza Pendente -->
+<span class="text-[11px] font-code-sm text-[#64748b] bg-[#1c2128] px-2 py-0.5 rounded border border-[#242c37]">Pendente</span>
+</div>
+</div>
+<!-- Controles de Zoom no canto inferior esquerdo -->
+<div class="absolute bottom-4 left-4 flex items-center gap-1 bg-[#15191e] border border-[#242c37] rounded p-1 text-[#94a3b8] shadow-sm select-none z-20">
+<button aria-label="Diminuir zoom" class="w-6 h-6 flex items-center justify-center hover:bg-[#1c2128] hover:text-[#e1e2e8] rounded transition-colors" type="button">
+<span class="material-symbols-outlined text-[15px]" data-icon="remove">remove</span>
+</button>
+<span class="font-code-sm text-[11px] px-1.5 text-[#e1e2e8]">100%</span>
+<button aria-label="Aumentar zoom" class="w-6 h-6 flex items-center justify-center hover:bg-[#1c2128] hover:text-[#e1e2e8] rounded transition-colors" type="button">
+<span class="material-symbols-outlined text-[15px]" data-icon="add">add</span>
+</button>
+<div class="h-3.5 w-[1px] bg-[#242c37] mx-0.5"></div>
+<button aria-label="Ajustar à tela" class="px-1.5 h-6 flex items-center justify-center hover:bg-[#1c2128] hover:text-[#e1e2e8] rounded text-[11px] font-body-sm transition-colors" title="Ajustar visualização" type="button">
+            Ajustar
+          </button>
+</div>
+</section>
+<!-- Divisor Estrutural 1px -->
+<div class="w-[1px] bg-[#1c2128] h-full shrink-0"></div>
+<!-- ====================================================== -->
+<!-- COLUNA DIREITA (40%): Painel Lateral de Execução       -->
+<!-- ====================================================== -->
+<aside class="w-[40%] h-full bg-[#111418] flex flex-col overflow-hidden">
+<!-- Abas no Cabeçalho do Painel -->
+<div class="h-10 border-b border-[#1c2128] bg-[#111418] flex items-center px-4 gap-6 select-none shrink-0">
+<!-- Visão geral: ABA ATIVA com linha indicadora índigo #6366f1 -->
+<button aria-selected="true" class="relative h-full flex items-center text-[13px] font-medium text-white transition-colors" type="button">
+<span>Visão geral</span>
+<div class="absolute bottom-0 left-0 right-0 h-[2px] bg-[#6366f1]"></div>
+</button>
+<!-- Passagens (2) -->
+<button class="h-full flex items-center text-[13px] font-normal text-[#94a3b8] hover:text-[#e1e2e8] transition-colors" type="button">
+<span>Passagens (2)</span>
+</button>
+<!-- Alterações (3) -->
+<button class="h-full flex items-center text-[13px] font-normal text-[#94a3b8] hover:text-[#e1e2e8] transition-colors" type="button">
+<span>Alterações (3)</span>
+</button>
+<!-- Ao vivo -->
+<button class="h-full flex items-center text-[13px] font-normal text-[#94a3b8] hover:text-[#e1e2e8] transition-colors" type="button">
+<span>Ao vivo</span>
+</button>
+</div>
+<!-- Conteúdo da Aba "Visão geral" -->
+<div class="flex-1 overflow-y-auto p-4 flex flex-col gap-5">
+<!-- Barra de progresso com rótulo "2 / 4 etapas concluídas · 50%" -->
+<div class="flex flex-col gap-1.5 bg-[#15191e] border border-[#1c2128] p-3 rounded">
+<div class="flex items-center justify-between text-body-sm">
+<span class="text-[12px] font-medium text-[#e1e2e8]">Progresso da execução</span>
+<span class="text-[11px] font-code-sm text-[#a4c9ff]">2 / 4 etapas concluídas · 50%</span>
+</div>
+<div class="w-full h-1.5 bg-[#1c2128] rounded-full overflow-hidden">
+<div class="h-full bg-gradient-to-r from-[#6366f1] to-[#10b981] w-1/2 rounded-full"></div>
+</div>
+</div>
+<!-- Lista de Etapas (cartões/linhas limpas) -->
+<div class="flex flex-col gap-1.5">
+<span class="text-[11px] font-label-sm text-[#64748b] tracking-wider uppercase">Etapas do Workflow</span>
+<div class="flex flex-col rounded border border-[#1c2128] bg-[#15191e] divide-y divide-[#1c2128]">
+<!-- 1. Arquiteto: checkmark verde ✓, texto "Arquiteto", tempo "3m 12s" JetBrains Mono -->
+<div class="flex items-center justify-between px-3 py-2 text-body-sm">
+<div class="flex items-center gap-2.5">
+<span class="w-4 h-4 rounded-full bg-[rgba(16,185,129,0.14)] text-[#10b981] flex items-center justify-center text-[11px] font-bold">✓</span>
+<span class="text-[#e2e8f0] text-[13px]">Arquiteto</span>
+</div>
+<span class="font-code-sm text-[11px] text-[#64748b]">3m 12s</span>
+</div>
+<!-- 2. Desenvolvedor: checkmark verde ✓, texto "Desenvolvedor", tempo "11m 40s" JetBrains Mono -->
+<div class="flex items-center justify-between px-3 py-2 text-body-sm">
+<div class="flex items-center gap-2.5">
+<span class="w-4 h-4 rounded-full bg-[rgba(16,185,129,0.14)] text-[#10b981] flex items-center justify-center text-[11px] font-bold">✓</span>
+<span class="text-[#e2e8f0] text-[13px]">Desenvolvedor</span>
+</div>
+<span class="font-code-sm text-[11px] text-[#64748b]">11m 40s</span>
+</div>
+<!-- 3. QA: ponto azul ● em execução, texto "QA", texto auxiliar "executando há 1m 05s" -->
+<div class="flex items-center justify-between px-3 py-2 text-body-sm bg-[#1c2128]/50">
+<div class="flex items-center gap-2.5">
+<span class="w-4 h-4 flex items-center justify-center text-[#60a5fa] text-[10px]">●</span>
+<span class="text-[#e2e8f0] font-medium text-[13px]">QA</span>
+</div>
+<span class="font-code-sm text-[11px] text-[#60a5fa]">executando há 1m 05s</span>
+</div>
+<!-- 4. Fim: círculo cinza vazado ○, texto "Fim", selo/texto "Pendente" -->
+<div class="flex items-center justify-between px-3 py-2 text-body-sm opacity-60">
+<div class="flex items-center gap-2.5">
+<span class="w-4 h-4 flex items-center justify-center text-[#64748b] text-[12px]">○</span>
+<span class="text-[#c7c4d7] text-[13px]">Fim</span>
+</div>
+<span class="font-code-sm text-[11px] text-[#64748b]">Pendente</span>
+</div>
+</div>
+</div>
+<!-- Linha de contadores técnicos em JetBrains Mono -->
+<div class="flex items-center justify-between px-3 py-2 rounded bg-[#15191e] border border-[#1c2128] font-code-sm text-[11px]">
+<div class="flex items-center gap-1.5">
+<span class="text-[#94a3b8]">Executando</span>
+<span class="text-[#60a5fa] font-semibold">1</span>
+</div>
+<span class="text-[#242c37]">·</span>
+<div class="flex items-center gap-1.5">
+<span class="text-[#94a3b8]">Pendentes</span>
+<span class="text-[#e1e2e8] font-semibold">1</span>
+</div>
+<span class="text-[#242c37]">·</span>
+<div class="flex items-center gap-1.5">
+<span class="text-[#94a3b8]">Falharam</span>
+<span class="text-[#64748b] font-semibold">0</span>
+</div>
+<span class="text-[#242c37]">·</span>
+<div class="flex items-center gap-1.5">
+<span class="text-[#94a3b8]">Bloqueados</span>
+<span class="text-[#64748b] font-semibold">0</span>
+</div>
+</div>
+<!-- Seção "Tarefa" (16px normal, sem caixa alta mono) -->
+<div class="flex flex-col gap-2">
+<h3 class="text-[16px] font-normal text-[#e1e2e8]">Tarefa</h3>
+<div class="p-3 rounded bg-[#15191e] border border-[#1c2128] text-[13px] text-[#e2e8f0] leading-relaxed">
+              Implementar recuperação de senha por e-mail
+            </div>
+</div>
+<!-- Seção "Ferramentas (MCP)" (16px normal, sem caixa alta mono) -->
+<div class="flex flex-col gap-2">
+<h3 class="text-[16px] font-normal text-[#e1e2e8]">Ferramentas (MCP)</h3>
+<div class="flex items-center justify-between p-3 rounded bg-[#15191e] border border-[#1c2128]">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-[18px] text-[#94a3b8]" data-icon="terminal">terminal</span>
+<span class="text-[13px] text-[#e2e8f0] font-medium font-code-sm">github</span>
+<span class="text-[10px] font-code-sm text-[#a4c9ff] bg-[#1c2128] px-1.5 py-0.5 rounded border border-[#242c37]">stdio</span>
+</div>
+<div class="flex items-center gap-1.5 text-[12px] text-[#10b981] font-label-sm">
+<span class="w-[6px] h-[6px] rounded-full bg-[#10b981]"></span>
+<span>Conectado</span>
+</div>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</main>
+<script>
+    // Microinterações leves e Determinismo de Estado Desktop
+    document.addEventListener('DOMContentLoaded', () => {
+      const moreBtn = document.getElementById('more-actions-btn');
+      const menu = moreBtn?.nextElementSibling;
+
+      if (moreBtn && menu) {
+        // Alternância do menu suspenso de ações
+        moreBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          menu.classList.toggle('hidden');
+        });
+
+        document.addEventListener('click', () => {
+          if (!menu.classList.contains('hidden')) {
+            menu.classList.add('hidden');
+          }
+        });
+      }
+    });
+  </script>
+</body></html>

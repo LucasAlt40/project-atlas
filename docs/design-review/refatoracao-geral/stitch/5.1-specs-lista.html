@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas — Specs</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-container": "#1d2024",
+            "on-primary-container": "#0d0096",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "secondary-container": "#0267b8",
+            "outline-variant": "#464554",
+            "on-secondary": "#00315d",
+            "secondary": "#a4c9ff",
+            "error-container": "#93000a",
+            "on-tertiary-fixed": "#3e0022",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-secondary-fixed": "#001c39",
+            "on-primary-fixed": "#07006c",
+            "secondary-fixed-dim": "#a4c9ff",
+            "on-surface": "#e1e2e8",
+            "on-secondary-container": "#d6e5ff",
+            "inverse-on-surface": "#2e3135",
+            "surface-bright": "#36393e",
+            "outline": "#908fa0",
+            "on-tertiary": "#640039",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "tertiary": "#ffb0cd",
+            "surface-container-high": "#272a2e",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "inverse-surface": "#e1e2e8",
+            "on-secondary-fixed-variant": "#004883",
+            "surface": "#111418",
+            "secondary-fixed": "#d4e3ff",
+            "tertiary-fixed": "#ffd9e4",
+            "on-background": "#e1e2e8",
+            "on-tertiary-container": "#570032",
+            "surface-container-low": "#191c20",
+            "on-primary": "#1000a9",
+            "error": "#ffb4ab",
+            "on-error-container": "#ffdad6",
+            "primary-fixed": "#e1e0ff",
+            "background": "#111418",
+            "tertiary-container": "#f751a1",
+            "inverse-primary": "#494bd6",
+            "surface-dim": "#111418",
+            "on-error": "#690005",
+            "surface-tint": "#c0c1ff",
+            "primary-container": "#8083ff",
+            "on-surface-variant": "#c7c4d7",
+            "primary": "#c0c1ff",
+            "surface-container-highest": "#323539",
+            "surface-variant": "#323539",
+            "surface-container-lowest": "#0b0e12"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-xs": "0.25rem",
+            "space-sm": "0.5rem",
+            "gutter-expanded": "1rem",
+            "space-lg": "1rem",
+            "space-2xs": "0.125rem",
+            "margin": "0.75rem",
+            "space-xl": "1.5rem",
+            "gutter-compact": "0.25rem",
+            "space-md": "0.75rem",
+            "margin-window": "0.5rem",
+            "gutter": "0.5rem",
+            "space-2xl": "2rem"
+          },
+          "fontFamily": {
+            "label-sm": ["Geist", "sans-serif"],
+            "headline-md": ["Geist", "sans-serif"],
+            "code-md": ["JetBrains Mono", "monospace"],
+            "headline-sm": ["Geist", "sans-serif"],
+            "body-lg": ["Geist", "sans-serif"],
+            "label-md": ["Geist", "sans-serif"],
+            "body-md": ["Geist", "sans-serif"],
+            "headline-xl": ["Geist", "sans-serif"],
+            "code-sm": ["JetBrains Mono", "monospace"],
+            "body-sm": ["Geist", "sans-serif"],
+            "code-lg": ["JetBrains Mono", "monospace"],
+            "telemetry-pill": ["JetBrains Mono", "monospace"],
+            "headline-lg": ["Geist", "sans-serif"]
+          },
+          "fontSize": {
+            "label-sm": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.04em", "fontWeight": "600" }],
+            "headline-md": ["1.25rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.015em", "fontWeight": "500" }],
+            "code-md": ["0.8125rem", { "lineHeight": "1.25rem", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+            "headline-sm": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "body-lg": ["1rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "label-md": ["0.8125rem", { "lineHeight": "1rem", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "body-md": ["0.875rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-xl": ["2rem", { "lineHeight": "2.5rem", "letterSpacing": "-0.025em", "fontWeight": "600" }],
+            "code-sm": ["0.6875rem", { "lineHeight": "1rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "body-sm": ["0.75rem", { "lineHeight": "1.125rem", "letterSpacing": "0.005em", "fontWeight": "400" }],
+            "code-lg": ["0.875rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "telemetry-pill": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.02em", "fontWeight": "600" }],
+            "headline-lg": ["1.5rem", { "lineHeight": "2rem", "letterSpacing": "-0.02em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    body {
+      background-color: #0b0d10;
+      color: #e1e2e8;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+    .material-symbols-outlined {
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body class="bg-[#0b0d10] text-on-surface antialiased flex items-center justify-center min-h-screen">
+<!-- Desktop Tauri Window Frame 1440x900 -->
+<div class="w-[1440px] h-[900px] relative bg-[#0b0d10] flex overflow-hidden border border-[#242c37] rounded-none shadow-none">
+<!-- BARRA LATERAL (216px fixa à esquerda) -->
+<aside class="w-[216px] h-full flex flex-col justify-between p-space-sm bg-surface-container-low border-r border-outline-variant flex-shrink-0 z-30">
+<!-- Top Section -->
+<div class="flex flex-col gap-space-md">
+<!-- Atlas Brand Header -->
+<div class="flex items-center gap-space-sm px-space-xs pt-space-xs">
+<div class="w-5 h-5 bg-[#6366f1] rounded flex items-center justify-center flex-shrink-0">
+<span class="font-headline-sm text-white font-bold leading-none text-xs">A</span>
+</div>
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface tracking-tight">Atlas</span>
+</div>
+<!-- Workspace Selector -->
+<div class="flex flex-col px-space-xs py-1.5 rounded bg-[#15191e] border border-[#242c37] cursor-pointer hover:border-[#2d3748] transition-colors">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md font-medium text-on-surface truncate">Transport ERP</span>
+<span class="material-symbols-outlined text-outline text-xs" data-icon="unfold_more">unfold_more</span>
+</div>
+<span class="font-code-sm text-[10px] text-outline truncate mt-0.5 tracking-tight">/Users/lucas/dev/transport-erp</span>
+</div>
+<!-- Navigation List (7 itens) -->
+<nav class="flex flex-col gap-0.5">
+<!-- 1. Workspace -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-outline" data-icon="folder_open">folder_open</span>
+<span>Workspace</span>
+</a>
+<!-- 2. Workflow -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-outline" data-icon="account_tree">account_tree</span>
+<span>Workflow</span>
+</a>
+<!-- 3. Agentes -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-outline" data-icon="smart_toy">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- 4. Personalidades -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-outline" data-icon="psychology">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- 5. Specs (ATIVO) -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded bg-surface-container-highest text-primary font-label-md text-label-md border border-outline-variant" href="#">
+<span class="material-symbols-outlined text-primary" data-icon="description">description</span>
+<span class="font-medium text-white">Specs</span>
+</a>
+<!-- 6. MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-outline" data-icon="hub">hub</span>
+<span>MCP Hub</span>
+</a>
+<!-- 7. Configurações -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-outline" data-icon="settings">settings</span>
+<span>Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Rodapé da Barra Lateral -->
+<div class="px-space-xs py-space-sm border-t border-[#242c37] flex flex-col gap-0.5">
+<span class="font-label-sm text-label-sm text-on-surface-variant font-medium">Project Atlas</span>
+<span class="font-code-sm text-code-sm text-outline">v0.2.0 · macOS</span>
+</div>
+</aside>
+<!-- ÁREA DIREITA (Topo + Conteúdo) -->
+<div class="flex-1 flex flex-col h-full overflow-hidden bg-[#0b0d10]">
+<!-- BARRA SUPERIOR (48px) -->
+<header class="h-12 w-full flex items-center justify-between px-space-lg bg-[#0b0e12] border-b border-[#242c37] flex-shrink-0 z-20">
+<!-- Esquerda: Toggle Sidebar & Breadcrumb -->
+<div class="flex items-center gap-space-md">
+<button class="text-outline hover:text-on-surface transition-colors p-1 rounded hover:bg-surface-container" title="Recolher barra lateral" type="button">
+<span class="material-symbols-outlined" data-icon="dock_to_left">dock_to_left</span>
+</button>
+<div class="flex items-center gap-1.5 font-label-md text-label-md text-outline">
+<span>Transport ERP</span>
+<span class="text-outline-variant">/</span>
+<span class="text-on-surface font-medium">Specs</span>
+</div>
+</div>
+<!-- Direita: Chip âmbar, Celular, Idioma -->
+<div class="flex items-center gap-space-md">
+<!-- Chip Âmbar -->
+<div class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[rgba(245,158,11,0.14)] border border-[rgba(245,158,11,0.4)] text-[#f59e0b] font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-[#f59e0b] animate-pulse"></span>
+<span>1 agente aguardando você</span>
+</div>
+<!-- Divisor sutil -->
+<div class="w-[1px] h-4 bg-[#242c37]"></div>
+<!-- Botão Celular -->
+<button class="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface transition-colors font-label-md text-label-md" type="button">
+<span class="material-symbols-outlined text-outline" data-icon="smartphone">smartphone</span>
+<span>Celular</span>
+<span class="w-4 h-4 rounded-full bg-[#f59e0b] text-[#0b0d10] font-code-sm text-[10px] font-bold flex items-center justify-center leading-none">1</span>
+</button>
+<!-- Divisor sutil -->
+<div class="w-[1px] h-4 bg-[#242c37]"></div>
+<!-- Alternância de idioma PT | EN -->
+<div class="flex items-center gap-1 font-label-sm text-label-sm">
+<span class="text-primary font-semibold cursor-pointer">PT</span>
+<span class="text-outline-variant">|</span>
+<span class="text-on-surface-variant hover:text-on-surface cursor-pointer">EN</span>
+</div>
+</div>
+</header>
+<!-- CONTEÚDO PRINCIPAL (Specs — Lista) -->
+<main class="flex-1 overflow-y-auto p-space-xl flex flex-col gap-space-lg bg-[#0b0d10]">
+<!-- 1. Cabeçalho da Página -->
+<div class="flex items-start justify-between pb-1">
+<div class="flex flex-col gap-1">
+<h1 class="font-headline-sm text-[22px] font-semibold text-on-surface leading-tight tracking-tight">Specs</h1>
+<p class="font-body-md text-body-md text-[#94a3b8]">Especifique antes de implementar: agentes escrevem, você aprova.</p>
+<div class="font-code-sm text-code-sm text-[#64748b] mt-0.5 tracking-tight">
+              2 em andamento · 1 aguardando você · 1 pronta para implementar
+            </div>
+</div>
+<!-- Ações do Cabeçalho -->
+<div class="flex items-center gap-space-sm pt-0.5">
+<button class="h-8 px-space-md bg-[#6366f1] hover:bg-[#4f46e5] text-white rounded font-label-md text-label-md font-medium flex items-center gap-1.5 transition-colors shadow-none" type="button">
+<span class="material-symbols-outlined text-sm" data-icon="add">add</span>
+<span>Nova especificação</span>
+</button>
+<button class="h-8 w-8 rounded bg-[#1c2128] border border-[#2d3748] hover:bg-[#242c37] hover:border-[#3b4554] text-[#e2e8f0] flex items-center justify-center transition-colors" title="Importar specs" type="button">
+<span class="material-symbols-outlined text-sm" data-icon="more_horiz">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- 2. Controles e Filtros -->
+<div class="flex flex-col gap-space-md">
+<div class="flex items-center justify-between gap-space-lg">
+<!-- Campo de Busca -->
+<div class="relative w-80">
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-outline pointer-events-none" data-icon="search">search</span>
+<input class="w-full h-8 pl-8 pr-space-md bg-[#15191e] border border-[#242c37] focus:border-[#6366f1] focus:ring-0 rounded font-body-sm text-body-sm text-on-surface placeholder:text-outline outline-none transition-colors" placeholder="Buscar por título, id ou pedido" type="text"/>
+</div>
+<!-- Filtros em Segmento / Pílulas -->
+<div class="flex items-center gap-1 bg-[#101317] p-0.5 rounded border border-[#242c37]">
+<!-- Todas (Ativo) -->
+<button class="px-2.5 py-1 rounded bg-[#1c2128] text-white font-label-sm text-label-sm font-medium border border-[#3b4554]" type="button">
+                Todas (4)
+              </button>
+<button class="px-2.5 py-1 rounded text-outline hover:text-on-surface hover:bg-[#15191e] font-label-sm text-label-sm transition-colors" type="button">
+                Em andamento (2)
+              </button>
+<button class="px-2.5 py-1 rounded text-outline hover:text-on-surface hover:bg-[#15191e] font-label-sm text-label-sm transition-colors" type="button">
+                Aguardando você (1)
+              </button>
+<button class="px-2.5 py-1 rounded text-outline hover:text-on-surface hover:bg-[#15191e] font-label-sm text-label-sm transition-colors" type="button">
+                Bloqueadas (0)
+              </button>
+<button class="px-2.5 py-1 rounded text-outline hover:text-on-surface hover:bg-[#15191e] font-label-sm text-label-sm transition-colors" type="button">
+                Prontas (1)
+              </button>
+<button class="px-2.5 py-1 rounded text-outline hover:text-on-surface hover:bg-[#15191e] font-label-sm text-label-sm transition-colors" type="button">
+                Arquivadas (0)
+              </button>
+</div>
+</div>
+</div>
+<!-- 3. Lista em LINHAS (Estrutura Horizontal Linear Rigorosa) -->
+<div class="flex flex-col gap-2">
+<!-- LINHA 1: Recuperação de senha -->
+<div class="w-full bg-[#15191e] border border-[#242c37] hover:border-[#3b4554] rounded p-3 transition-colors flex items-center justify-between gap-4">
+<!-- Bloco Esquerda: Título, ID, Resumo e Agente -->
+<div class="flex flex-col gap-1.5 min-w-0 flex-1">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="font-headline-sm text-sm font-semibold text-on-surface">Recuperação de senha</span>
+<span class="font-code-sm text-[11px] text-outline px-1.5 py-0.5 rounded bg-[#101317] border border-[#242c37]">password-reset</span>
+<!-- Selo de estado: Aguardando você -->
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[rgba(245,158,11,0.14)] border border-[rgba(245,158,11,0.4)] text-[#f59e0b] font-label-sm text-[11px]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#f59e0b]"></span>
+                  Aguardando você
+                </span>
+<!-- Alerta âmbar destacado -->
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[rgba(245,158,11,0.2)] border border-[rgba(245,158,11,0.6)] text-[#fbbf24] font-label-sm text-[11px] font-semibold">
+<span class="material-symbols-outlined text-xs" data-icon="help_center">help_center</span>
+                  2 perguntas para você
+                </span>
+</div>
+<!-- Resumo & Autor -->
+<div class="flex items-center gap-3 text-body-sm font-body-sm text-[#94a3b8] truncate">
+<span class="truncate">Implementar fluxo de redefinição de senha com token assinado e expiração de 15 minutos...</span>
+<span class="text-[#464554] flex-shrink-0">·</span>
+<span class="text-on-surface-variant flex-shrink-0 text-xs">Arquiteto</span>
+</div>
+</div>
+<!-- Bloco Direita: Progresso, Tempo e Menu -->
+<div class="flex items-center gap-6 flex-shrink-0">
+<!-- Progresso -->
+<div class="flex flex-col items-end gap-1 w-28">
+<span class="font-code-sm text-xs text-on-surface-variant">2/4 aprovados</span>
+<div class="w-full h-1.5 bg-[#101317] rounded-full overflow-hidden border border-[#242c37]">
+<div class="h-full bg-[#f59e0b] rounded-full w-1/2"></div>
+</div>
+</div>
+<!-- Tempo Relativo -->
+<span class="font-code-sm text-xs text-[#64748b] w-14 text-right">há 4 min</span>
+<!-- Ação de detalhes / menu -->
+<button class="text-outline hover:text-on-surface transition-colors p-1 rounded hover:bg-[#1c2128]" type="button">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</div>
+<!-- LINHA 2: Modo escuro -->
+<div class="w-full bg-[#15191e] border border-[#242c37] hover:border-[#3b4554] rounded p-3 transition-colors flex items-center justify-between gap-4">
+<!-- Bloco Esquerda -->
+<div class="flex flex-col gap-1.5 min-w-0 flex-1">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="font-headline-sm text-sm font-semibold text-on-surface">Modo escuro</span>
+<span class="font-code-sm text-[11px] text-outline px-1.5 py-0.5 rounded bg-[#101317] border border-[#242c37]">dark-mode</span>
+<!-- Selo de estado: Executando -->
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[rgba(96,165,250,0.14)] border border-[rgba(96,165,250,0.4)] text-[#60a5fa] font-label-sm text-[11px]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#60a5fa] animate-pulse"></span>
+                  Agente escrevendo: Design
+                </span>
+</div>
+<!-- Resumo & Autor -->
+<div class="flex items-center gap-3 text-body-sm font-body-sm text-[#94a3b8] truncate">
+<span class="truncate">Suporte completo ao tema escuro sincronizado com preferências do sistema operacional...</span>
+<span class="text-[#464554] flex-shrink-0">·</span>
+<span class="text-on-surface-variant flex-shrink-0 text-xs">Arquiteto Backend</span>
+</div>
+</div>
+<!-- Bloco Direita: Progresso, Tempo e Menu -->
+<div class="flex items-center gap-6 flex-shrink-0">
+<!-- Progresso -->
+<div class="flex flex-col items-end gap-1 w-28">
+<span class="font-code-sm text-xs text-on-surface-variant">2/4</span>
+<div class="w-full h-1.5 bg-[#101317] rounded-full overflow-hidden border border-[#242c37]">
+<div class="h-full bg-[#6366f1] rounded-full w-1/2"></div>
+</div>
+</div>
+<!-- Tempo Relativo -->
+<span class="font-code-sm text-xs text-[#64748b] w-14 text-right">há 1 min</span>
+<!-- Ação de detalhes / menu -->
+<button class="text-outline hover:text-on-surface transition-colors p-1 rounded hover:bg-[#1c2128]" type="button">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</div>
+<!-- LINHA 3: Exportar relatório em PDF -->
+<div class="w-full bg-[#15191e] border border-[#242c37] hover:border-[#3b4554] rounded p-3 transition-colors flex items-center justify-between gap-4">
+<!-- Bloco Esquerda -->
+<div class="flex flex-col gap-1.5 min-w-0 flex-1">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="font-headline-sm text-sm font-semibold text-on-surface">Exportar relatório em PDF</span>
+<span class="font-code-sm text-[11px] text-outline px-1.5 py-0.5 rounded bg-[#101317] border border-[#242c37]">pdf-export</span>
+<!-- Selo de estado: Pronto para implementação -->
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)] text-[#10b981] font-label-sm text-[11px]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+                  Pronto para implementação
+                </span>
+</div>
+<!-- Resumo -->
+<div class="flex items-center gap-3 text-body-sm font-body-sm text-[#94a3b8] truncate">
+<span class="truncate">Geração sob demanda de relatórios fiscais consolidados em PDF com assinatura digital...</span>
+</div>
+</div>
+<!-- Bloco Direita: Progresso, Tempo e Menu -->
+<div class="flex items-center gap-6 flex-shrink-0">
+<!-- Progresso -->
+<div class="flex flex-col items-end gap-1 w-28">
+<span class="font-code-sm text-xs text-[#10b981]">4/4</span>
+<div class="w-full h-1.5 bg-[#101317] rounded-full overflow-hidden border border-[#242c37]">
+<div class="h-full bg-[#10b981] rounded-full w-full"></div>
+</div>
+</div>
+<!-- Tempo Relativo -->
+<span class="font-code-sm text-xs text-[#64748b] w-14 text-right">ontem</span>
+<!-- Ação de detalhes / menu -->
+<button class="text-outline hover:text-on-surface transition-colors p-1 rounded hover:bg-[#1c2128]" type="button">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</div>
+<!-- LINHA 4: Auditoria de login -->
+<div class="w-full bg-[#15191e] border border-[#242c37] hover:border-[#3b4554] rounded p-3 transition-colors flex items-center justify-between gap-4">
+<!-- Bloco Esquerda -->
+<div class="flex flex-col gap-1.5 min-w-0 flex-1">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="font-headline-sm text-sm font-semibold text-on-surface">Auditoria de login</span>
+<span class="font-code-sm text-[11px] text-outline px-1.5 py-0.5 rounded bg-[#101317] border border-[#242c37]">login-audit</span>
+<!-- Selo de estado: Rascunho -->
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#1c2128] border border-[#2d3748] text-outline font-label-sm text-[11px]">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+                  Rascunho
+                </span>
+</div>
+<!-- Resumo -->
+<div class="flex items-center gap-3 text-body-sm font-body-sm text-[#94a3b8] truncate">
+<span class="truncate">Registro estruturado de tentativas de autenticação e mitigação de força bruta...</span>
+</div>
+</div>
+<!-- Bloco Direita: Progresso, Tempo e Menu -->
+<div class="flex items-center gap-6 flex-shrink-0">
+<!-- Progresso -->
+<div class="flex flex-col items-end gap-1 w-28">
+<span class="font-code-sm text-xs text-outline">0/4</span>
+<div class="w-full h-1.5 bg-[#101317] rounded-full overflow-hidden border border-[#242c37]">
+<div class="h-full bg-transparent rounded-full w-0"></div>
+</div>
+</div>
+<!-- Tempo Relativo -->
+<span class="font-code-sm text-xs text-[#64748b] w-14 text-right">há 3 dias</span>
+<!-- Ação de detalhes / menu -->
+<button class="text-outline hover:text-on-surface transition-colors p-1 rounded hover:bg-[#1c2128]" type="button">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Telemetria Inferior Sutil -->
+<div class="mt-auto pt-4 border-t border-[#1c2128] flex items-center justify-between text-code-sm font-code-sm text-[#464554]">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+<span>Daemon local sincronizado com spec-tree v2</span>
+</div>
+<span>4 especificações indexadas</span>
+</div>
+</main>
+</div>
+</div>
+</body></html>
