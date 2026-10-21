@@ -33,6 +33,90 @@ this block from your answer, so it never changes the answer you were asked for, 
 one. A note is a hint a person may review: it grants nothing. Leave the block out only when you \
 found nothing worth keeping.";
 
+/// Added to [`RULE`] when the person's message corrects earlier work. Measured (capture experiment,
+/// `spikes/ai-memory-capture-experiment.md`): the only sessions that produced a right lesson were
+/// the ones where the person said the agent was wrong (2 of 2; 0 of 6 otherwise), so a correction
+/// is when a note is most worth asking for.
+pub const CORRECTION_NUDGE: &str = "The person's message corrects earlier work. What they corrected is exactly what the next run should know: unless it is already in NOTES FROM EARLIER WORK, it is due as a note (kind pitfall, saying what is right and what is not).";
+
+/// Words a person uses to say the agent got it wrong, in English, Portuguese and Spanish. Matched
+/// as whole phrases on the lowercased message; a miss only costs the nudge, never a note.
+const CORRECTION_CUES: &[&str] = &[
+    "wrong",
+    "incorrect",
+    "not what i",
+    "that's not",
+    "thats not",
+    "that is not",
+    "actually",
+    "you broke",
+    "didn't work",
+    "doesn't work",
+    "does not work",
+    "did not work",
+    "not the right",
+    "errado",
+    "errada",
+    "errou",
+    "erraste",
+    "na verdade",
+    "não era",
+    "nao era",
+    "não funcionou",
+    "nao funcionou",
+    "não é isso",
+    "nao e isso",
+    "não é esse",
+    "nao e esse",
+    "não é essa",
+    "nao e essa",
+    "arquivo certo",
+    "lugar certo",
+    "incorreto",
+    "incorreta",
+    "quebrou",
+    "está mal",
+    "esta mal",
+    "incorrecto",
+    "en realidad",
+    "no es eso",
+    "no funcionó",
+    "no funciono",
+];
+
+/// Whether the person's message reads like a correction of earlier work (see [`CORRECTION_CUES`]).
+pub fn looks_like_correction(message: &str) -> bool {
+    let text = format!(
+        " {} ",
+        message
+            .to_lowercase()
+            .replace('\u{2019}', "'")
+            .chars()
+            .map(|c| if c.is_alphanumeric() || c == '\'' {
+                c
+            } else {
+                ' '
+            })
+            .collect::<String>()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
+    CORRECTION_CUES
+        .iter()
+        .any(|cue| text.contains(&format!(" {cue} ")))
+}
+
+/// The proposal rule for a task: [`RULE`], and [`CORRECTION_NUDGE`] after it when the task reads
+/// like a correction.
+pub fn rule_for(task: &str) -> String {
+    if looks_like_correction(task) {
+        format!("{RULE}\n{CORRECTION_NUDGE}")
+    } else {
+        RULE.to_owned()
+    }
+}
+
 /// One proposed note, as read from the block.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Proposal {
@@ -334,5 +418,28 @@ mod tests {
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].kind, MemoryKind::Pitfall);
         assert_eq!(found[0].title, "Test command");
+    }
+
+    #[test]
+    fn a_message_that_corrects_the_agent_asks_for_a_note_and_a_plain_one_does_not() {
+        for correction in [
+            "Está errado, o limite é MAXTRY em deploy/limits.cfg",
+            "isso não funcionou, o arquivo certo é o deploy/limits.cfg",
+            "That's wrong: the limit is read from deploy/limits.cfg",
+            "Actually the retry limit lives in deploy/limits.cfg",
+            "That\u{2019}s not it, the limit lives in deploy/limits.cfg",
+            "No es eso, en realidad está en deploy/limits.cfg",
+        ] {
+            assert!(looks_like_correction(correction), "{correction}");
+            assert!(rule_for(correction).ends_with(CORRECTION_NUDGE));
+        }
+        for plain in [
+            "Change the retry limit of this service from 3 to 5",
+            "Mude o limite de tentativas para 5 e diga o que mudou",
+            "Write the wrongful-termination clause", // a cue inside a longer word is not one
+        ] {
+            assert!(!looks_like_correction(plain), "{plain}");
+            assert_eq!(rule_for(plain), RULE);
+        }
     }
 }

@@ -7,6 +7,7 @@ import { PortabilitySettings } from '@/features/portability';
 import { LANGUAGES } from '@/i18n';
 import { useI18n } from '@/i18n/I18nProvider';
 import { ExternalMemorySettings } from '../components/ExternalMemorySettings';
+import { OptimizationSettings } from '../components/OptimizationSettings';
 import { PresenceSettings } from '../components/PresenceSettings';
 import { SandboxSettings } from '../components/SandboxSettings';
 import { UpdateChecker } from '../components/UpdateChecker';
@@ -146,6 +147,11 @@ export function SettingsPage() {
               </div>
               <p className={styles.help}>{t('settings.specsBudgetHelp')}</p>
             </form>
+
+            <div className={styles.group}>
+              <h2 className={styles.heading}>{t('settings.optimization.title')}</h2>
+              <OptimizationSettings />
+            </div>
 
             <div className={styles.group}>
               <h2 className={styles.heading}>{t('settings.sandbox.title')}</h2>

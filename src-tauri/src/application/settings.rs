@@ -3,6 +3,17 @@ use std::sync::Arc;
 use super::config::{AppSettings, ConfigRepository};
 use super::errors::{AppError, ErrorCode};
 
+/// The on/off parts of the Optimization Layer, as the settings page sets them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(clippy::struct_excessive_bools)] // independent switches
+pub struct OptimizationSwitches {
+    pub metrics_enabled: bool,
+    pub context_enabled: bool,
+    pub skills_enabled: bool,
+    pub guardrails_enabled: bool,
+}
+
 /// Languages the UI is translated into.
 pub const SUPPORTED_LANGUAGES: [&str; 2] = ["pt-BR", "en-US"];
 
@@ -46,8 +57,28 @@ impl SettingsService {
         })
     }
 
+    /// The switches of the Optimization Layer the person may turn off (ADR 0042). All on by
+    /// default; what is saved here is never turned on again by Atlas.
+    ///
+    /// # Errors
+    ///
+    /// Fails if saving fails.
+    pub fn set_optimization_switches(
+        &self,
+        switches: OptimizationSwitches,
+    ) -> Result<AppSettings, AppError> {
+        self.config.modify(|config| {
+            let optimization = &mut config.settings.optimization;
+            optimization.metrics_enabled = switches.metrics_enabled;
+            optimization.context_enabled = switches.context_enabled;
+            optimization.skills_enabled = switches.skills_enabled;
+            optimization.guardrails_enabled = switches.guardrails_enabled;
+            Ok(config.settings.clone())
+        })
+    }
+
     /// Which scopes of the Memory are recovered and proposed to, and how much a prompt may spend
-    /// on them. All off is the default: it adds text to prompts.
+    /// on them. Saved as the person's choice: loading never replaces it with the recommended modes.
     ///
     /// # Errors
     ///
@@ -57,7 +88,10 @@ impl SettingsService {
         memory: crate::domain::memory::MemorySettings,
     ) -> Result<AppSettings, AppError> {
         self.config.modify(|config| {
-            config.settings.optimization.memory = memory;
+            config.settings.optimization.memory = crate::domain::memory::MemorySettings {
+                chosen: true,
+                ..memory
+            };
             Ok(config.settings.clone())
         })
     }
@@ -194,6 +228,7 @@ mod tests {
                 sandbox: crate::domain::security::SandboxSettings::default(),
                 presence: crate::domain::presence::PresenceSettings::default(),
                 external_memory: crate::domain::memory::ExternalMemorySettings::default(),
+                defaults_version: crate::application::config::DEFAULTS_VERSION,
             }
         );
     }
@@ -247,5 +282,45 @@ mod tests {
         assert_eq!(service.get().selected_workspace_id.as_deref(), Some("w1"));
         service.clear_selection_if("w1").unwrap();
         assert_eq!(service.get().selected_workspace_id, None);
+    }
+
+    #[test]
+    fn modes_the_person_saves_are_marked_as_their_choice() {
+        use crate::domain::memory::{MemoryMode, MemorySettings};
+        let (service, _) = service_with_workspace();
+
+        let saved = service
+            .set_memory_settings(MemorySettings {
+                workspace: MemoryMode::Off,
+                user: MemoryMode::Off,
+                agent: MemoryMode::Off,
+                ..MemorySettings::recommended()
+            })
+            .unwrap();
+
+        assert!(saved.optimization.memory.chosen);
+        assert!(!saved.optimization.memory.any_on());
+    }
+
+    #[test]
+    fn the_optimization_switches_the_person_turns_off_are_saved_and_the_rest_kept() {
+        let (service, _) = service_with_workspace();
+        let before = service.get().optimization;
+        assert!(before.context_enabled && before.skills_enabled);
+
+        let saved = service
+            .set_optimization_switches(OptimizationSwitches {
+                metrics_enabled: true,
+                context_enabled: false,
+                skills_enabled: false,
+                guardrails_enabled: true,
+            })
+            .unwrap()
+            .optimization;
+
+        assert!(!saved.context_enabled && !saved.skills_enabled);
+        assert!(saved.metrics_enabled && saved.guardrails_enabled);
+        assert_eq!(saved.memory, before.memory);
+        assert_eq!(saved.specs_max_tokens, before.specs_max_tokens);
     }
 }

@@ -174,9 +174,17 @@ impl MacosSandbox {
         args.push(program.to_string_lossy().into_owned());
         args.append(&mut spec.args);
 
-        spec.env.retain(|(name, _)| name != "TMPDIR");
+        // Temporary files go to the execution's own folder: `TMPDIR` for most tools, and
+        // `TMPPREFIX` for zsh (the macOS default shell), whose here-documents otherwise go to
+        // `/tmp/zsh`, which the profile denies.
+        spec.env
+            .retain(|(name, _)| name != "TMPDIR" && name != "TMPPREFIX");
         spec.env
             .push(("TMPDIR".to_owned(), tmp.to_string_lossy().into_owned()));
+        spec.env.push((
+            "TMPPREFIX".to_owned(),
+            tmp.join("zsh").to_string_lossy().into_owned(),
+        ));
         spec.program = self.tool.to_string_lossy().into_owned();
         spec.args = args;
         let mut notes = vec!["sandbox:confined".to_owned()];
@@ -529,6 +537,12 @@ touch "$H/.claude.json.tmp.7"; echo file_sibling=$?
 touch "$H/.claudeXjson"; echo file_not_a_sibling=$?
 cat "$H/.ssh/id_test" >/dev/null 2>&1; echo read_ssh=$?
 touch "$TMPDIR/t"; echo own_tmp=$?
+/bin/zsh -fc 'cat <<END >/dev/null
+x
+END' 2>/dev/null; echo zsh_heredoc=$?
+/bin/bash -c 'cat <<END >/dev/null
+x
+END' 2>/dev/null; echo bash_heredoc=$?
 touch /private/tmp/atlas_sbx_probe; echo global_tmp=$?
 mkdir -p "$H/.npm" 2>/dev/null; touch "$H/.npm/c" 2>/dev/null; echo dev_cache=$?
 touch "$H/.aws/x" 2>/dev/null; echo aws_write=$?
@@ -582,6 +596,11 @@ touch "$H/.aws/x" 2>/dev/null; echo aws_write=$?
             assert_eq!(r["cli_dir"], "0");
             assert_eq!(r["file_sibling"], "0");
             assert_eq!(r["own_tmp"], "0");
+            // A shell's here-document is a temporary file too: zsh, the macOS default, writes it
+            // under `TMPPREFIX` (`/tmp/zsh`), not `TMPDIR`. Found when the sandbox became the default
+            // (ADR 0042): a Codex run noted that "heredoc-based checks fail".
+            assert_eq!(r["zsh_heredoc"], "0");
+            assert_eq!(r["bash_heredoc"], "0");
             assert_eq!(r["dev_cache"], "0");
             // Everything else is refused, including what only differs by a character.
             assert_eq!(r["outside"], "1");

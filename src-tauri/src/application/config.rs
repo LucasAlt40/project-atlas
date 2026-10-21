@@ -33,10 +33,19 @@ pub struct AppSettings {
     /// Discord Rich Presence: what the person shares about what Atlas is doing. Off by default.
     #[serde(default)]
     pub presence: crate::domain::presence::PresenceSettings,
-    /// A memory server on this machine that is not Atlas (ADR 0040). Off by default.
+    /// A memory server on this machine that is not Atlas (ADR 0040). Off by default: it needs a
+    /// server the person installs and runs; on without one it would do nothing.
     #[serde(default)]
     pub external_memory: crate::domain::memory::ExternalMemorySettings,
+    /// Which set of defaults these settings were last brought up to (ADR 0042). Absent is `0`:
+    /// settings saved before what improves the work was on by default.
+    #[serde(default)]
+    pub defaults_version: u32,
 }
+
+/// The defaults of this version of Atlas (ADR 0042): what makes the work cheaper, safer or better
+/// is on, and the person turns it off in the settings if they want.
+pub const DEFAULTS_VERSION: u32 = 1;
 
 /// Which parts of the Optimization Layer are on. Phase 0 has only the metrics, and they only
 /// measure: on or off, the prompt, the runtime and the permissions are the same.
@@ -49,8 +58,8 @@ pub struct OptimizationSettings {
     #[serde(default = "default_metrics_enabled")]
     pub metrics_enabled: bool,
     /// `optimization.context.enabled`: the Context Engine removes what a prompt says twice (and
-    /// keeps a budget, if one is set). Off by default: unlike the metrics it changes the prompt,
-    /// so it is switched on on purpose and compared with the benchmark first.
+    /// keeps a budget, if one is set). On by default (ADR 0042): it loses no word of the prompt
+    /// and measured 4.5% off a real workflow brief, 9-22% off repetitive ones.
     #[serde(default)]
     pub context_enabled: bool,
     /// `optimization.context.maxTokens`: an estimated-token budget for the prompt. Only items that
@@ -59,8 +68,9 @@ pub struct OptimizationSettings {
     #[serde(default)]
     pub context_max_tokens: Option<u64>,
     /// `optimization.skills.enabled`: Atlas looks for skills (`<project>/.atlas/skills`, the
-    /// user's `skills` folder) and sends the ones a task calls for. Off by default: it adds text
-    /// to prompts.
+    /// user's `skills` folder) and sends the ones a task calls for. On by default (ADR 0042):
+    /// without skills nothing changes, and with them only the relevant one is sent (808 tokens
+    /// instead of 8,160 for ten skills).
     #[serde(default)]
     pub skills_enabled: bool,
     /// `optimization.guardrails.enabled`: before an agent starts, Atlas reviews the context it is
@@ -75,7 +85,8 @@ pub struct OptimizationSettings {
     #[serde(default)]
     pub specs_max_tokens: Option<u64>,
     /// `optimization.memory`: which scopes of the Memory are recovered and proposed to (ADR 0037).
-    /// All off by default: it adds text to prompts.
+    /// Absent reads as all off; loading turns that into the recommended modes until the person
+    /// chooses (`adopt_recommended_memory`, ADR 0041).
     #[serde(default)]
     pub memory: crate::domain::memory::MemorySettings,
 }
@@ -92,12 +103,12 @@ impl Default for OptimizationSettings {
     fn default() -> Self {
         Self {
             metrics_enabled: true,
-            context_enabled: false,
+            context_enabled: true,
             context_max_tokens: None,
-            skills_enabled: false,
+            skills_enabled: true,
             guardrails_enabled: true,
             specs_max_tokens: None,
-            memory: crate::domain::memory::MemorySettings::default(),
+            memory: crate::domain::memory::MemorySettings::recommended(),
         }
     }
 }
@@ -111,6 +122,7 @@ impl Default for AppSettings {
             sandbox: crate::domain::security::SandboxSettings::default(),
             presence: crate::domain::presence::PresenceSettings::default(),
             external_memory: crate::domain::memory::ExternalMemorySettings::default(),
+            defaults_version: DEFAULTS_VERSION,
         }
     }
 }
@@ -270,6 +282,41 @@ fn route_edges_on_declared_outcomes(config: &mut UserConfig) -> bool {
     changed
 }
 
+/// A person who never saved the Memory's modes gets the recommended ones (ADR 0041): memory was off
+/// by default until it was measured, and an install from then has every scope written down as
+/// `off` without anyone having chosen it. A choice the person saved (`chosen`) is never touched,
+/// nor a mode that is not `off`. Returns whether anything changed.
+fn adopt_recommended_memory(config: &mut UserConfig) -> bool {
+    let memory = &mut config.settings.optimization.memory;
+    if memory.chosen || memory.any_on() {
+        return false;
+    }
+    *memory = crate::domain::memory::MemorySettings {
+        max_tokens: memory.max_tokens,
+        ..crate::domain::memory::MemorySettings::recommended()
+    };
+    true
+}
+
+/// Settings saved under older defaults get what improves the work turned on, once (ADR 0042): the
+/// Context Engine, Skills and the sandbox in `auto`. What was already on stays as it was, and
+/// afterwards the person's choice is never touched again (the version is written down). A switch
+/// someone turned off before this version cannot be told from one nobody touched; it comes on, and
+/// turning it off again is kept. Returns whether anything changed.
+fn adopt_current_defaults(config: &mut UserConfig) -> bool {
+    let settings = &mut config.settings;
+    if settings.defaults_version >= DEFAULTS_VERSION {
+        return false;
+    }
+    settings.optimization.context_enabled = true;
+    settings.optimization.skills_enabled = true;
+    if settings.sandbox.mode == crate::domain::security::SandboxMode::Off {
+        settings.sandbox.mode = crate::domain::security::SandboxMode::Auto;
+    }
+    settings.defaults_version = DEFAULTS_VERSION;
+    true
+}
+
 impl ConfigRepository {
     pub fn load(store: Box<dyn ConfigStore>) -> Self {
         let mut config = store.load().unwrap_or_else(|error| {
@@ -278,7 +325,14 @@ impl ConfigRepository {
         });
         let outcomes_routed = route_edges_on_declared_outcomes(&mut config);
         let projects_registered = register_the_project_of_each_workspace(&mut config);
-        if grant_developer_to_unset_agents(&mut config) || outcomes_routed || projects_registered {
+        let memory_adopted = adopt_recommended_memory(&mut config);
+        let defaults_adopted = adopt_current_defaults(&mut config);
+        if grant_developer_to_unset_agents(&mut config)
+            || outcomes_routed
+            || projects_registered
+            || memory_adopted
+            || defaults_adopted
+        {
             if let Err(error) = store.save(&config) {
                 eprintln!("could not save the migrated agent permissions: {error}");
             }
@@ -481,6 +535,57 @@ mod tests {
     }
 
     #[test]
+    fn memory_nobody_chose_gets_the_recommended_modes_and_a_saved_choice_is_kept() {
+        use crate::domain::memory::{MemoryMode, MemorySettings};
+
+        // An install from before the default changed: every scope written down as off, by nobody.
+        let store = MemoryStore::default();
+        let mut stored = UserConfig::default();
+        stored.settings.optimization.memory = MemorySettings {
+            max_tokens: 300,
+            ..MemorySettings::default()
+        };
+        store.save(&stored).unwrap();
+        let memory = ConfigRepository::load(Box::new(store))
+            .snapshot()
+            .settings
+            .optimization
+            .memory;
+        assert_eq!(
+            memory,
+            MemorySettings {
+                max_tokens: 300,
+                ..MemorySettings::recommended()
+            }
+        );
+        assert_eq!(memory.workspace, MemoryMode::Propose);
+
+        // The person turned it off on purpose: it stays off.
+        let store = MemoryStore::default();
+        let mut stored = UserConfig::default();
+        stored.settings.optimization.memory = MemorySettings {
+            chosen: true,
+            ..MemorySettings::default()
+        };
+        store.save(&stored).unwrap();
+        let memory = ConfigRepository::load(Box::new(store))
+            .snapshot()
+            .settings
+            .optimization
+            .memory;
+        assert!(!memory.any_on());
+
+        // A mode someone set (before `chosen` existed) is a choice too, never reset.
+        let mut config = UserConfig::default();
+        config.settings.optimization.memory = MemorySettings {
+            workspace: MemoryMode::Auto,
+            ..MemorySettings::default()
+        };
+        assert!(!adopt_recommended_memory(&mut config));
+        assert_eq!(config.settings.optimization.memory.user, MemoryMode::Off);
+    }
+
+    #[test]
     fn the_migration_is_written_to_disk_and_a_second_load_changes_nothing() {
         let store = MemoryStore::default();
         let stored = UserConfig {
@@ -577,7 +682,7 @@ mod tests {
     }
 
     #[test]
-    fn settings_saved_before_memory_and_the_sandbox_existed_load_with_both_off() {
+    fn settings_saved_before_memory_and_the_sandbox_existed_are_brought_to_the_current_defaults() {
         let old = r#"{"language":"pt-BR","selectedWorkspaceId":"w1",
             "optimization":{"metricsEnabled":true,"contextEnabled":false,"skillsEnabled":false,
             "guardrailsEnabled":true,"specsMaxTokens":1000}}"#;
@@ -589,13 +694,53 @@ mod tests {
             crate::domain::memory::MemorySettings::default()
         );
         assert!(!settings.optimization.memory.any_on());
+        assert_eq!(settings.defaults_version, 0);
+
+        // Loading them is what brings them up to date (ADR 0041, ADR 0042).
+        let store = MemoryStore::default();
+        store
+            .save(&UserConfig {
+                settings,
+                ..UserConfig::default()
+            })
+            .unwrap();
+        let settings = ConfigRepository::load(Box::new(store)).snapshot().settings;
+        assert!(settings.optimization.memory.any_on());
+        assert!(settings.optimization.context_enabled && settings.optimization.skills_enabled);
         assert_eq!(
             settings.sandbox.mode,
-            crate::domain::security::SandboxMode::Off
+            crate::domain::security::SandboxMode::Auto
         );
+        assert_eq!(settings.defaults_version, DEFAULTS_VERSION);
         // What was there is untouched.
         assert_eq!(settings.selected_workspace_id.as_deref(), Some("w1"));
         assert_eq!(settings.optimization.specs_max_tokens, Some(1000));
+        assert!(settings.optimization.guardrails_enabled);
+    }
+
+    #[test]
+    fn what_the_person_turns_off_under_the_current_defaults_stays_off() {
+        let mut config = UserConfig::default();
+        config.settings.optimization.context_enabled = false;
+        config.settings.optimization.skills_enabled = false;
+        config.settings.sandbox.mode = crate::domain::security::SandboxMode::Off;
+
+        assert!(!adopt_current_defaults(&mut config));
+        assert!(!config.settings.optimization.context_enabled);
+        assert_eq!(
+            config.settings.sandbox.mode,
+            crate::domain::security::SandboxMode::Off
+        );
+
+        // A stricter sandbox chosen under the old defaults is kept, not lowered to `auto`.
+        let mut old = UserConfig::default();
+        old.settings.defaults_version = 0;
+        old.settings.sandbox.mode = crate::domain::security::SandboxMode::Required;
+        assert!(adopt_current_defaults(&mut old));
+        assert_eq!(
+            old.settings.sandbox.mode,
+            crate::domain::security::SandboxMode::Required
+        );
     }
 
     #[test]

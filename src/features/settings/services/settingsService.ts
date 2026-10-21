@@ -5,6 +5,7 @@ import {
   type ExternalMemorySettingsDto,
   type ExternalSyncDto,
   type MemorySettingsDto,
+  type OptimizationSwitchesDto,
   type PresenceSettingsDto,
   type SandboxSettingsDto,
   type SandboxStatusDto,
@@ -32,6 +33,13 @@ export function getSandboxStatus(): Promise<SandboxStatusDto> {
 
 export function setSandboxSettings(sandbox: SandboxSettingsDto): Promise<AppSettingsDto> {
   return invokeCommand('set_sandbox_settings', { sandbox });
+}
+
+/** Turns parts of the Optimization Layer on or off (ADR 0042). */
+export function setOptimizationSwitches(
+  switches: OptimizationSwitchesDto,
+): Promise<AppSettingsDto> {
+  return invokeCommand('set_optimization_switches', { switches });
 }
 
 /** Which scopes of the Memory are recalled and proposed to, and the most a prompt may spend. */

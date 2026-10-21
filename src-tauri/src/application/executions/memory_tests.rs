@@ -47,6 +47,7 @@ pub(super) fn on() -> MemorySettings {
         workspace: MemoryMode::Propose,
         agent: MemoryMode::Propose,
         max_tokens: 600,
+        chosen: false,
     }
 }
 
@@ -386,6 +387,7 @@ fn settings_with(mode: MemoryMode) -> MemorySettings {
         workspace: mode,
         agent: MemoryMode::Off,
         max_tokens: 600,
+        chosen: false,
     }
 }
 
@@ -424,6 +426,36 @@ fn the_proposal_rule_is_in_the_prompt_only_when_a_scope_that_takes_proposals_is_
         .sections
         .iter()
         .any(|s| s.section == SectionKind::Memory));
+}
+
+#[test]
+fn a_turned_down_lesson_is_not_asked_about_again_and_a_correction_asks_for_one() {
+    // ADR 0041, end to end on a fake runtime: the agent proposes a lesson, the person turns it down,
+    // the next run proposes it again and the person is not asked a second time.
+    let answer = answer_with_note(Some(r#"{"status":"pass"}"#));
+    let world = world(flags(settings_with(MemoryMode::Propose)), true, Ok(&answer));
+
+    run(&world, TASK);
+    let proposed = world.memory.list().remove(0);
+    world.memory.reject(&proposed.id, 9).unwrap();
+    let again = run(&world, TASK);
+
+    assert_eq!(again.execution.metadata["memoryDiscarded"], "1");
+    assert_eq!(again.execution.metadata["memoryProposed"], "0");
+    let waiting = world
+        .memory
+        .list()
+        .iter()
+        .filter(|m| m.status == MemoryStatus::Candidate)
+        .count();
+    assert_eq!(waiting, 0);
+    assert!(!again.execution.prompt.contains("round half even"));
+
+    // The person corrects the agent: this prompt says the correction is due as a note.
+    let nudge = crate::application::memory::proposal::CORRECTION_NUDGE;
+    assert!(!again.execution.prompt.contains(nudge));
+    let corrected = run(&world, "That's wrong: totals round half even, fix it again");
+    assert!(corrected.execution.prompt.trim_end().ends_with(nudge));
 }
 
 #[test]

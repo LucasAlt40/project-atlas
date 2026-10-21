@@ -52,6 +52,8 @@ pub(super) struct Setup<'a> {
     pub memory: MemorySettings,
     /// The `ai-memory` server on this machine that notes may be read from (ADR 0040).
     pub external: crate::domain::memory::ExternalMemorySettings,
+    /// The Context Engine and Skills on, as Atlas ships them (ADR 0042).
+    pub defaults: bool,
 }
 
 pub(super) struct RealWorld {
@@ -189,6 +191,8 @@ impl RealWorld {
                 FixedFlags {
                     metrics: true,
                     guardrails: true,
+                    context: setup.defaults,
+                    skills: setup.defaults,
                     ..FixedFlags::default()
                 }
                 .with_memory(setup.memory)

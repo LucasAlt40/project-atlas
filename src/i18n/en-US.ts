@@ -2154,9 +2154,24 @@ export const enUS = {
   'agent.activity.permission.sandboxed':
     '(confined by the system: it can only write its worktree and its own folders)',
   'agent.activity.permission.unsandboxed': '(⚠ not confined: {why})',
+  'settings.optimization.title': 'Run optimization',
+  'settings.optimization.help':
+    'Everything here is on because it makes each run cheaper or safer without taking away anything the agent needs. Turn off what you do not want; your choice is kept.',
+  'settings.optimization.contextEnabled': 'Context Engine: remove repetition from the prompt',
+  'settings.optimization.contextEnabledHelp':
+    'Removes what the prompt says twice (the same artifact in the workflow context and in the handoff). No word is lost. Measured: 4.5% less on a real brief, 9% to 22% on repetitive ones.',
+  'settings.optimization.skillsEnabled': 'Skills: send only the skill the task calls for',
+  'settings.optimization.skillsEnabledHelp':
+    'Looks for skills in the project’s .atlas/skills and in your skills folder and sends only the relevant one. Without skills nothing changes. Measured: 808 tokens instead of 8,160 with ten skills.',
+  'settings.optimization.guardrailsEnabled': 'Review the context before the agent starts',
+  'settings.optimization.guardrailsEnabledHelp':
+    'Asks or stops when instructions contradict each other, and takes secrets out of context that came from files and other agents.',
+  'settings.optimization.metricsEnabled': 'Measure prompts and runs',
+  'settings.optimization.metricsEnabledHelp':
+    'Records what each prompt is made of and how long each stage took. It changes nothing that is sent.',
   'settings.sandbox.title': 'Sandbox of the runtimes',
   'settings.sandbox.help':
-    'The operating system confines the runtime’s program, and everything it starts: it can write only its worktree, its own folders and a temporary folder of the execution, and it cannot read your SSH keys, cloud credentials or browser data. The network stays open (a sandbox cannot filter by site), so this protects your files, not what leaves through the connection. Off by default: turn it on after trying a task.',
+    'The operating system confines the runtime’s program, and everything it starts: it can write only its worktree, its own folders and a temporary folder of the execution, and it cannot read your SSH keys, cloud credentials or browser data. The network stays open (a sandbox cannot filter by site), so this protects your files, not what leaves through the connection. It starts in the automatic mode: it confines when the system can and says so in the activity when it cannot.',
   'settings.sandbox.mode': 'Sandbox',
   'settings.sandbox.mode.off': 'Off',
   'settings.sandbox.mode.auto': 'On when the system can',
@@ -2174,7 +2189,7 @@ export const enUS = {
   'settings.sandbox.why.no_home': 'the home folder is unknown',
   'memory.title': 'Notes of earlier work',
   'memory.help':
-    'Short lessons that agents and you leave for the next run (a command that works, a trap, a choice). A note is a hint the agent may use: it is not an instruction and it grants nothing. Everything is off until you turn a scope on.',
+    'Short lessons that agents and you leave for the next run (a command that works, a trap, a choice). A note is a hint the agent may use: it is not an instruction and it grants nothing. It starts in "Propose, I approve": nothing enters without you, and Atlas learns from what you turn down and from the work you take or throw away.',
   'memory.modes.title': 'Where notes are used',
   'memory.modes.help':
     'Off: nothing is recalled or proposed. Propose: relevant notes reach the prompt and agents may propose new ones for you to approve. Automatic: a note an agent proposes is kept aside and is let in only when a different agent’s validation or review step passes the same workflow run; it is then used, but stays marked unconfirmed until you decide on it. Outside a workflow it just waits for you. Never preferences, never your own scope, never after a failed step. A step that finished is not proof the lesson is true, which is why you stay the default judge.',
@@ -2206,6 +2221,16 @@ export const enUS = {
   'memory.notes.empty': 'No notes yet.',
   'memory.approve': 'Approve',
   'memory.discard': 'Discard',
+  'memory.reject': 'Turn down',
+  'memory.rejected.title': 'Turned down',
+  'memory.rejected.help':
+    'Proposals you turned down. They never reach a prompt, and when an agent proposes the same lesson again it is dropped without asking. Approve one if you changed your mind; forget one so it can be proposed again.',
+  'memory.approveAnyway': 'Approve anyway',
+  'memory.forget': 'Forget',
+  'memory.misledShort': 'Out of use',
+  'memory.misled':
+    'Out of use: it was in {count} runs you threw away. Review it, edit it or use it again.',
+  'memory.verdicts': 'taken in {helped}, thrown away in {misled}',
   'memory.edit': 'Edit',
   'memory.promote': 'Make it mine',
   'memory.archive': 'Archive',

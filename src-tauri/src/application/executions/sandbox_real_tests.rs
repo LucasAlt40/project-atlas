@@ -86,6 +86,7 @@ fn run_confined(runtime_id: &str, model: &str, prompt: &dyn Fn(&Path) -> String)
         sandbox: SandboxMode::Required,
         memory: MemorySettings::default(),
         external: crate::domain::memory::ExternalMemorySettings::default(),
+        defaults: false,
     });
     let record = world.run(&prompt(&world.project));
     Outcome {

@@ -93,6 +93,16 @@ enum Arm {
     F,
     G,
     H,
+    /// The learning loop of ADR 0041: K corrects the agent, N says the same without a correction's
+    /// words (so the nudge is the only difference), R turns a proposal down.
+    K1,
+    K2,
+    K3,
+    N1,
+    N2,
+    N3,
+    R1,
+    R2,
 }
 
 impl Arm {
@@ -107,11 +117,20 @@ impl Arm {
             Self::F => "F captured",
             Self::G => "G captured, no title check",
             Self::H => "H native, 240 notes",
+            Self::K1 => "K run 1 (task)",
+            Self::K2 => "K run 2 (correction)",
+            Self::K3 => "K run 3 (task, approved notes)",
+            Self::N1 => "N run 1 (task)",
+            Self::N2 => "N run 2 (same facts, no correction words)",
+            Self::N3 => "N run 3 (task, approved notes)",
+            Self::R1 => "R run 1 (task, proposals turned down)",
+            Self::R2 => "R run 2 (same task)",
         }
     }
 }
 
 #[derive(Debug, Clone)]
+#[allow(clippy::struct_excessive_bools)] // independent observations of one run
 struct Trial {
     arm: Arm,
     status: ExecutionStatus,
@@ -130,8 +149,12 @@ struct Trial {
     proposed: u64,
     /// Notes held for an independent validator (automatic mode).
     accepted: u64,
+    /// Proposals dropped (a turned-down lesson again, a duplicate, a secret…).
+    discarded: u64,
     execution_id: String,
     prompt_has_notes: bool,
+    /// The prompt asked for a note because the person's message reads as a correction.
+    nudged: bool,
 }
 
 fn counter(record: &ExecutionRecord, key: &str) -> u64 {
@@ -182,7 +205,11 @@ fn measure(arm: Arm, world: &RealWorld, started: Instant, record: &ExecutionReco
         }),
         proposed: counter(record, "memoryProposed"),
         accepted: counter(record, "memoryHeld"),
+        discarded: counter(record, "memoryDiscarded"),
         prompt_has_notes: execution.prompt.contains("NOTES FROM EARLIER WORK"),
+        nudged: execution
+            .prompt
+            .contains(crate::application::memory::proposal::CORRECTION_NUDGE),
         execution_id: execution.id.clone(),
     }
 }
@@ -195,6 +222,17 @@ fn setup<'a>(runtime: &'a str, model: &'a str, memory: MemorySettings) -> Setup<
         sandbox: SandboxMode::Off,
         memory,
         external: crate::domain::memory::ExternalMemorySettings::default(),
+        defaults: false,
+    }
+}
+
+/// A world as Atlas now ships (ADR 0041, ADR 0042): Memory in `Propose` everywhere, the Context
+/// Engine and Skills on, the sandbox in `auto`.
+fn shipped<'a>(runtime: &'a str, model: &'a str) -> Setup<'a> {
+    Setup {
+        sandbox: SandboxMode::Auto,
+        defaults: true,
+        ..setup(runtime, model, MemorySettings::recommended())
     }
 }
 
@@ -206,8 +244,12 @@ fn workspace_only(mode: MemoryMode) -> MemorySettings {
 }
 
 fn timed(world: &RealWorld, arm: Arm) -> Trial {
+    timed_with(world, arm, task())
+}
+
+fn timed_with(world: &RealWorld, arm: Arm, prompt: &str) -> Trial {
     let started = Instant::now();
-    let record = world.run(task());
+    let record = world.run(prompt);
     let trial = measure(arm, world, started, &record);
     eprintln!("{trial:?}");
     if record.execution.status != ExecutionStatus::Completed {
@@ -482,6 +524,100 @@ fn trial_c(runtime: &str, model: &str) -> (Trial, Trial) {
     (first, second)
 }
 
+/// What the person says after run 1 in arm K: a correction, with a correction's words.
+const CORRECTION: &str = "That's wrong: the retries key in config/app.toml is not read by anything. The retry limit the service uses is MAXTRY in deploy/limits.cfg. Fix it so the limit is 5, and tell me briefly what you changed.";
+/// The same facts in arm N, with none of the words that read as a correction.
+const NEUTRAL: &str = "Please look at the retry limit once more: the retries key in config/app.toml is read by nothing, and the limit the service uses is MAXTRY in deploy/limits.cfg. Make the limit 5 there, and tell me briefly what you changed.";
+
+/// What a person who knows the project would approve: the note says the limit is `MAXTRY` in
+/// `deploy/limits.cfg` and that `config/app.toml` is not read, and does not tell anyone to change
+/// the decoy too. Everything else is turned down, as that person would.
+fn a_person_would_approve(content: &str) -> bool {
+    let text = content.to_lowercase();
+    let unused = [
+        "not read",
+        "unused",
+        "nothing reads",
+        "read by nothing",
+        "not referenced",
+        "no runtime effect",
+        "ignores",
+        "not used",
+        "is not read",
+    ];
+    text.contains("limits.cfg")
+        && text.contains("maxtry")
+        && unused.iter().any(|w| text.contains(w))
+        && ![
+            "change all",
+            "synchron",
+            "in sync",
+            "already 5",
+            "all three",
+        ]
+        .iter()
+        .any(|w| text.contains(w))
+}
+
+fn agent_candidates(world: &RealWorld) -> Vec<String> {
+    world
+        .memory
+        .list()
+        .into_iter()
+        .filter(|m| m.status == crate::domain::memory::MemoryStatus::Candidate)
+        .map(|m| m.id)
+        .collect()
+}
+
+/// Arms K and N: run 1 does the task; run 2 is the person's follow-up (a correction in K, the same
+/// facts without a correction's words in N); a person then approves the notes that are right and
+/// turns down the others ([`a_person_would_approve`], each printed); run 3 does the task again from
+/// the start.
+fn trial_follow_up(runtime: &str, model: &str, correction: bool) -> [Trial; 3] {
+    let (a1, a2, a3, text) = if correction {
+        (Arm::K1, Arm::K2, Arm::K3, CORRECTION)
+    } else {
+        (Arm::N1, Arm::N2, Arm::N3, NEUTRAL)
+    };
+    let world = RealWorld::build(&shipped(runtime, model));
+    let first = timed_with(&world, a1, TASK_REALISTIC);
+    let second = timed_with(&world, a2, text);
+    let now = crate::application::support::now_ms();
+    for id in agent_candidates(&world) {
+        let note = world.memory.get(&id).unwrap();
+        let right = a_person_would_approve(&note.content);
+        eprintln!(
+            "PERSON {} after {}: {} :: {}",
+            if right { "approves" } else { "turns down" },
+            a2.label(),
+            note.title,
+            note.content
+        );
+        if right {
+            world.memory.approve(&id, now).unwrap();
+        } else {
+            world.memory.reject(&id, now).unwrap();
+        }
+    }
+    world.reset_project();
+    let third = timed_with(&world, a3, TASK_REALISTIC);
+    [first, second, third]
+}
+
+/// Arm R: whatever run 1 proposes is turned down; run 2 does the same task. What run 2 proposes is
+/// either asked again (a candidate) or dropped as a lesson already turned down.
+fn trial_rejected(runtime: &str, model: &str) -> [Trial; 2] {
+    let world = RealWorld::build(&shipped(runtime, model));
+    let first = timed_with(&world, Arm::R1, TASK_REALISTIC);
+    let now = crate::application::support::now_ms();
+    for id in agent_candidates(&world) {
+        world.memory.reject(&id, now).unwrap();
+    }
+    world.reset_project();
+    let second = timed_with(&world, Arm::R2, TASK_REALISTIC);
+    [first, second]
+}
+
 fn median(mut values: Vec<f64>) -> f64 {
     values.sort_by(f64::total_cmp);
     match values.len() {
@@ -492,6 +628,7 @@ fn median(mut values: Vec<f64>) -> f64 {
 }
 
 #[allow(clippy::cast_precision_loss)] // counts of tens of thousands: exact as a float
+#[allow(clippy::too_many_lines)] // one table and one summary per kind of arm, read top to bottom
 /// The table, one row per arm. Medians, because three runs are too few for a mean to mean much.
 fn report(runtime: &str, model: &str, trials: &[Trial]) -> String {
     let mut out = format!(
@@ -507,6 +644,14 @@ fn report(runtime: &str, model: &str, trials: &[Trial]) -> String {
         Arm::F,
         Arm::G,
         Arm::H,
+        Arm::K1,
+        Arm::K2,
+        Arm::K3,
+        Arm::N1,
+        Arm::N2,
+        Arm::N3,
+        Arm::R1,
+        Arm::R2,
     ] {
         let of: Vec<&Trial> = trials.iter().filter(|t| t.arm == arm).collect();
         if of.is_empty() {
@@ -546,6 +691,47 @@ fn report(runtime: &str, model: &str, trials: &[Trial]) -> String {
                 .filter(|t| t.arm == Arm::C2)
                 .map(|t| t.notes_sent)
                 .sum::<usize>(),
+        );
+    }
+    let sum = |arm: Arm, f: fn(&Trial) -> u64| -> u64 {
+        trials.iter().filter(|t| t.arm == arm).map(f).sum()
+    };
+    let runs = |arm: Arm| trials.iter().filter(|t| t.arm == arm).count();
+    let proposing = |arm: Arm| {
+        trials
+            .iter()
+            .filter(|t| t.arm == arm && t.proposed + t.discarded > 0)
+            .count()
+    };
+    for (follow, first, last, name) in [
+        (Arm::K2, Arm::K1, Arm::K3, "Correction (K)"),
+        (
+            Arm::N2,
+            Arm::N1,
+            Arm::N3,
+            "Same facts, no correction words (N)",
+        ),
+    ] {
+        if runs(follow) > 0 {
+            let _ = writeln!(
+                out,
+                "\n{name}: run 1 proposed in {}/{} runs; the follow-up proposed in {}/{} runs ({} note(s) for a person); run 3 got {} note(s) in total.",
+                proposing(first),
+                runs(first),
+                proposing(follow),
+                runs(follow),
+                sum(follow, |t| t.proposed),
+                sum(last, |t| t.notes_sent as u64),
+            );
+        }
+    }
+    if runs(Arm::R1) > 0 {
+        let _ = writeln!(
+            out,
+            "\nTurned down (R): run 1 proposed {} note(s), all turned down; run 2 proposed {} again for a person and {} were dropped without asking.",
+            sum(Arm::R1, |t| t.proposed),
+            sum(Arm::R2, |t| t.proposed),
+            sum(Arm::R2, |t| t.discarded),
         );
     }
     out
@@ -604,6 +790,27 @@ fn experiment(runtime: &str, model: &str) {
                 "the note of the server did not reach the prompt"
             );
             trials.push(d);
+        }
+    }
+    for _ in 0..n {
+        if arms.contains('K') {
+            let k = trial_follow_up(runtime, model, true);
+            assert!(
+                k[1].nudged && !k[0].nudged,
+                "the correction did not ask for a note"
+            );
+            trials.extend(k);
+        }
+        if arms.contains('N') {
+            let n = trial_follow_up(runtime, model, false);
+            assert!(
+                !n[1].nudged,
+                "the neutral follow-up was read as a correction"
+            );
+            trials.extend(n);
+        }
+        if arms.contains('R') {
+            trials.extend(trial_rejected(runtime, model));
         }
     }
     if arms.contains('C') && std::env::var("ATLAS_M4_C1_ONLY").is_ok() {
@@ -691,8 +898,27 @@ mod tests {
             notes_sent: 0,
             proposed: 1,
             accepted: 1,
+            discarded: 0,
             execution_id: "e".to_owned(),
             prompt_has_notes: false,
+            nudged: false,
+        }
+    }
+
+    #[test]
+    fn the_simulated_person_approves_the_notes_real_runs_got_right_and_only_those() {
+        for right in [
+            "The retry limit is MAXTRY in deploy/limits.cfg, read from the environment by src/client.py (default 3). The retries key in config/app.toml is not read by anything.",
+            "The service reads MAXTRY from deploy/limits.cfg; config/app.toml's retries key is unused.",
+        ] {
+            assert!(a_person_would_approve(right), "{right}");
+        }
+        for wrong in [
+            "The service retry limit is the `retries` key in config/app.toml; a grep for retry/attempts across the repo finds no other setting.",
+            "The retry count lives in config/app.toml (retries, unused by code), deploy/limits.cfg (MAXTRY, which overrides the default at start), and src/client.py (MAXTRY env fallback default). Change all three together.",
+            "Repository guidance requires prefixing shell commands with `rtk`.",
+        ] {
+            assert!(!a_person_would_approve(wrong), "{wrong}");
         }
     }
 

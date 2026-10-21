@@ -39,6 +39,7 @@ pub(super) fn app_window(
             super::memory::create_memory,
             super::memory::edit_memory,
             super::memory::approve_memory,
+            super::memory::reject_memory,
             super::memory::set_memory_status,
             super::memory::delete_memory,
             super::memory::promote_memory,
@@ -75,6 +76,7 @@ pub(super) fn app_window(
             super::settings::get_settings,
             super::settings::set_language,
             super::settings::set_specs_max_tokens,
+            super::settings::set_optimization_switches,
             super::specs::raise_spec_budget,
             super::specs::set_spec_integrations,
             super::settings::select_workspace,
@@ -552,16 +554,17 @@ fn settings_default_to_portuguese_and_persist_language_and_selected_workspace() 
             "selectedWorkspaceId": null,
             "optimization": {
                 "metricsEnabled": true,
-                "contextEnabled": false,
+                "contextEnabled": true,
                 "contextMaxTokens": null,
-                "skillsEnabled": false,
+                "skillsEnabled": true,
                 "guardrailsEnabled": true,
                 "specsMaxTokens": null,
-                "memory": { "user": "off", "workspace": "off", "agent": "off", "maxTokens": 600 }
+                "memory": { "user": "propose", "workspace": "propose", "agent": "propose", "maxTokens": 600, "chosen": false }
             },
-            "sandbox": { "mode": "off", "devCaches": true },
+            "sandbox": { "mode": "auto", "devCaches": true },
             "presence": { "enabled": false, "showNames": true },
             "externalMemory": { "enabled": false, "serverUrl": "http://127.0.0.1:49374", "dataDir": "", "maxHits": 3, "maxTokens": 400, "workspace": "default", "share": false, "precise": true },
+            "defaultsVersion": 1,
         })
     );
     invoke(&window, "set_language", json!({ "language": "en-US" })).unwrap();

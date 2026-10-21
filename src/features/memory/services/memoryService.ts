@@ -39,6 +39,11 @@ export function approveMemory(id: string): Promise<MemoryDto> {
   return invokeCommand('approve_memory', { id });
 }
 
+/** Turns a proposal down; it is kept as rejected so the same lesson is not proposed again. */
+export function rejectMemory(id: string): Promise<MemoryDto> {
+  return invokeCommand('reject_memory', { id });
+}
+
 export function promoteMemory(id: string): Promise<MemoryDto> {
   return invokeCommand('promote_memory', { id });
 }

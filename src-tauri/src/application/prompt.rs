@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-use crate::application::memory::proposal::RULE as MEMORY_RULE;
+use crate::application::memory::proposal::rule_for as memory_rule_for;
 use crate::domain::agent::Agent;
 use crate::domain::optimization::{BriefLayout, PromptBreakdown, SectionKind, TextSize};
 use crate::domain::personality::PersonalityProfile;
@@ -361,11 +361,11 @@ impl PromptBuilder<'_> {
         // Only when the person turned proposals on: otherwise the prompt is the one there was. It
         // goes after the task, not in the system part: a model that was told in the task to reply
         // with one word ignored a rule that sat far from it (measured, `spikes/memory-m4-results.md`).
-        let memory_rule = if memory_proposals {
-            TextSize::of(MEMORY_RULE)
-        } else {
-            TextSize::default()
-        };
+        // A correction from the person also says that now is when a note is due.
+        let memory_rule_text = memory_proposals.then(|| memory_rule_for(&task.description));
+        let memory_rule = memory_rule_text
+            .as_deref()
+            .map_or_else(TextSize::default, TextSize::of);
 
         let mut context = format!("Project: {}\nPath: {}", project.name, project.path);
         if !project.technologies.is_empty() {
@@ -414,7 +414,7 @@ impl PromptBuilder<'_> {
             task_aware,
             skills: skills.map(str::to_owned),
             memories: memories.map(str::to_owned),
-            memory_rule: memory_proposals.then(|| MEMORY_RULE.to_owned()),
+            memory_rule: memory_rule_text,
             rules: rules.map(str::to_owned),
             context,
             instruction,

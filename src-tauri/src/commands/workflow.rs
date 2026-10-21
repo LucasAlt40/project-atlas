@@ -14,7 +14,8 @@ use crate::application::workflow::templates::{Role, TemplateInfo};
 use crate::application::workflow::validation::ValidationReport;
 use crate::domain::interaction::{InteractionAnswer, PendingInteraction};
 use crate::domain::workflow::{
-    RecoveryPlan, Workflow, WorkflowExecution, WorkflowExecutionStatus, WorkflowMode,
+    IntegrationStatus, RecoveryPlan, Workflow, WorkflowExecution, WorkflowExecutionStatus,
+    WorkflowMode,
 };
 use crate::domain::worktree::ChangeSet;
 use crate::state::AppState;
@@ -445,7 +446,29 @@ pub fn apply_workflow_changes<R: Runtime>(
     state: State<'_, AppState>,
     execution_id: String,
 ) -> Result<WorkflowExecution, AppError> {
-    Ok(announce(&app, state.integration.apply(&execution_id)?))
+    let run = state.integration.apply(&execution_id)?;
+    if run.integration.status == IntegrationStatus::Integrated {
+        judge_steps(&state, &run, true);
+    }
+    Ok(announce(&app, run))
+}
+
+/// The person's verdict on a workflow run counts for the notes its steps' prompts carried
+/// (ADR 0041): applying the changes is taking the work, discarding them is throwing it away.
+fn judge_steps(state: &AppState, run: &WorkflowExecution, helped: bool) {
+    let steps: Vec<_> = state
+        .chat
+        .executions(Some(&run.workspace_id), None)
+        .into_iter()
+        .filter(|e| {
+            e.workflow
+                .as_ref()
+                .is_some_and(|w| w.workflow_execution_id == run.id)
+        })
+        .collect();
+    state
+        .memory
+        .judge_runs(&steps, helped, crate::application::support::now_ms());
 }
 
 /// The user's decision to leave the changes in the worktree.
@@ -467,7 +490,11 @@ pub fn discard_workflow_changes<R: Runtime>(
     state: State<'_, AppState>,
     execution_id: String,
 ) -> Result<WorkflowExecution, AppError> {
-    Ok(announce(&app, state.integration.discard(&execution_id)?))
+    let run = state.integration.discard(&execution_id)?;
+    if run.integration.status == IntegrationStatus::Discarded {
+        judge_steps(&state, &run, false);
+    }
+    Ok(announce(&app, run))
 }
 
 /// The editors Atlas can open a worktree in, found on this machine.

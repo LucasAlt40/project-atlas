@@ -48,7 +48,8 @@ export function MemorySettings() {
 
   const memories = state.status === 'ready' ? state.memories : [];
   const pending = memories.filter((m) => m.status === 'candidate');
-  const kept = memories.filter((m) => m.status !== 'candidate');
+  const rejected = memories.filter((m) => m.status === 'rejected');
+  const kept = memories.filter((m) => m.status !== 'candidate' && m.status !== 'rejected');
   const automatic = memories.filter((m) => m.provenance.automatic).length;
   // What waits for the person comes first when there is anything; else the settings.
   // The section that opens is decided once, when the notes arrive; after that only the person moves.
@@ -57,11 +58,21 @@ export function MemorySettings() {
   if (firstTab === null && state.status === 'ready') {
     setFirstTab(pending.length > 0 ? 'pending' : 'usage');
   }
-  const tab: Tab = chosen ?? firstTab ?? 'usage';
+  const picked: Tab = chosen ?? firstTab ?? 'usage';
+  // The last turned-down note was approved or forgotten: its tab is gone, so is the person.
+  const tab: Tab = picked === 'rejected' && rejected.length === 0 ? 'kept' : picked;
   const tabs: { id: Tab; label: string }[] = [
     { id: 'usage', label: t('memory.modes.title') },
     { id: 'pending', label: `${t('memory.pending.title')} (${String(pending.length)})` },
     { id: 'kept', label: `${t('memory.notes.title')} (${String(kept.length)})` },
+    ...(rejected.length > 0
+      ? [
+          {
+            id: 'rejected' as const,
+            label: `${t('memory.rejected.title')} (${String(rejected.length)})`,
+          },
+        ]
+      : []),
     { id: 'add', label: t('memory.form.add') },
   ];
 
@@ -150,9 +161,9 @@ export function MemorySettings() {
                     </Button>
                     <Button
                       variant="ghost"
-                      onClick={() => void attempt(() => actions.remove(note.id))}
+                      onClick={() => void attempt(() => actions.reject(note.id))}
                     >
-                      {t('memory.discard')}
+                      {t('memory.reject')}
                     </Button>
                   </>
                 }
@@ -225,12 +236,47 @@ export function MemorySettings() {
         </section>
       )}
 
+      {tab === 'rejected' && (
+        <section aria-label={t('memory.rejected.title')}>
+          <p className={styles.help}>{t('memory.rejected.help')}</p>
+          <ul className={styles.list}>
+            {rejected.map((note) => (
+              <NoteCard
+                key={note.id}
+                note={note}
+                onEdit={(title, content) =>
+                  attempt(() => actions.edit(note.id, title, content, note.topic ?? null))
+                }
+                actions={
+                  <Button
+                    variant="secondary"
+                    onClick={() => void attempt(() => actions.approve(note.id))}
+                  >
+                    {t('memory.approveAnyway')}
+                  </Button>
+                }
+                menu={[
+                  {
+                    label: t('memory.forget'),
+                    icon: 'trash' as const,
+                    danger: true,
+                    onSelect: () => {
+                      void attempt(() => actions.remove(note.id));
+                    },
+                  },
+                ]}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
+
       {tab === 'add' && <AddNote onAdd={(input) => attempt(() => actions.create(input))} />}
     </div>
   );
 }
 
-type Tab = 'usage' | 'pending' | 'kept' | 'add';
+type Tab = 'usage' | 'pending' | 'kept' | 'rejected' | 'add';
 
 function MaxTokens({
   memory,
@@ -378,7 +424,22 @@ function NoteCard({
       short: t('memory.proposedByAgent'),
       full: t('memory.proposedByAgent'),
     });
-  if (note.status === 'stale' || note.status === 'archived')
+  // Put away because the runs it was in kept being thrown away (ADR 0041), not because a file left.
+  const misled = note.misled ?? 0;
+  const helped = note.helped ?? 0;
+  if (
+    note.status === 'stale' &&
+    note.provenance.origin !== 'user' &&
+    misled >= 2 &&
+    misled > helped
+  )
+    badges.push({
+      key: 'misled',
+      tone: 'warning',
+      short: t('memory.misledShort'),
+      full: t('memory.misled', { count: misled }),
+    });
+  else if (note.status === 'stale' || note.status === 'archived')
     badges.push({
       key: 'status',
       tone: 'warning',
@@ -404,7 +465,10 @@ function NoteCard({
             </Badge>
           ))}
         </div>
-        <span className={styles.uses}>{t('memory.uses', { count: note.uses })}</span>
+        <span className={styles.uses}>
+          {t('memory.uses', { count: note.uses })}
+          {helped + misled > 0 ? ` · ${t('memory.verdicts', { helped, misled })}` : ''}
+        </span>
       </div>
       <span className={styles.meta}>
         {t(`memory.kind.${note.kind}` as TranslationKey)} · {scope}

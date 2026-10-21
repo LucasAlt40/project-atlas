@@ -27,7 +27,7 @@ interface Settings {
   changeLanguage: (language: Language) => Promise<void>;
   rememberWorkspace: (workspaceId: string | null) => Promise<void>;
   changeSpecsMaxTokens: (max: number | null) => Promise<void>;
-  /** Which scopes of the Memory are recalled and proposed to (all off by default). */
+  /** Which scopes of the Memory are recalled and proposed to (the recommended modes until the person chooses, ADR 0041). */
   memory: MemorySettingsDto;
   changeMemorySettings: (memory: MemorySettingsDto) => Promise<void>;
 }

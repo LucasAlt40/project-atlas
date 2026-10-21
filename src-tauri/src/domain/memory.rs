@@ -11,8 +11,8 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
-/// Whether Atlas recovers memories and lets agents add to them. Off by default: it changes
-/// prompts, so it is switched on on purpose, per scope.
+/// Whether Atlas recovers memories and lets agents add to them. `Off` is what an absent setting
+/// reads as; a person who never chose gets [`MemorySettings::recommended`] instead.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MemoryMode {
@@ -41,6 +41,10 @@ pub struct MemorySettings {
     /// The most the memories of a prompt may add, in estimated tokens.
     #[serde(default = "default_max_tokens")]
     pub max_tokens: u32,
+    /// The person saved these modes in the settings. Until they do, Atlas uses
+    /// [`MemorySettings::recommended`] (see `ConfigRepository::load`).
+    #[serde(default)]
+    pub chosen: bool,
 }
 
 fn default_max_tokens() -> u32 {
@@ -54,11 +58,27 @@ impl Default for MemorySettings {
             workspace: MemoryMode::Off,
             agent: MemoryMode::Off,
             max_tokens: DEFAULT_MAX_TOKENS,
+            chosen: false,
         }
     }
 }
 
 impl MemorySettings {
+    /// What Atlas uses until the person chooses (ADR 0041): every scope recalls, agents may propose
+    /// notes, and nothing enters without the person. Measured (M4, ADR 0040): a note the person
+    /// approved stopped four runtimes from editing a decoy file (0/3 against 3/3) and cut Claude's
+    /// input by about half; with no matching note the prompt only gains the proposal rule. `Auto`
+    /// is never a default: agents wrote false lessons that passed every check.
+    pub const fn recommended() -> Self {
+        Self {
+            user: MemoryMode::Propose,
+            workspace: MemoryMode::Propose,
+            agent: MemoryMode::Propose,
+            max_tokens: DEFAULT_MAX_TOKENS,
+            chosen: false,
+        }
+    }
+
     pub const fn mode(self, scope: MemoryScope) -> MemoryMode {
         match scope {
             MemoryScope::User => self.user,
@@ -170,6 +190,32 @@ impl ExternalMemorySettings {
     }
 }
 
+/// How many thrown-away runs make an agent's note one to review (see [`Memory::misleads`]).
+pub const MISLED_TO_REVIEW: u32 = 2;
+/// The share of words, in percent, two lessons must have in common to be the same one: of their
+/// contents, or of title and content together. Tried on the notes real runs proposed (ADR 0041).
+const RESEMBLES_CONTENT_PERCENT: usize = 60;
+const RESEMBLES_ALL_PERCENT: usize = 66;
+/// Fewer distinct words than this between two texts is too little to call them the same.
+const RESEMBLES_MIN_WORDS: usize = 3;
+
+/// Words that turn a statement into its opposite, in English, Portuguese and Spanish. They are
+/// short or common, so [`terms`] drops most of them; [`Memory::resembles`] looks at them apart.
+const NEGATIONS: &[&str] = &[
+    "not", "no", "never", "nothing", "none", "nobody", "neither", "nor", "without", "cannot",
+    "don't", "doesn't", "didn't", "isn't", "aren't", "wasn't", "weren't", "won't", "can't",
+    "unused", "ignored", "ignores", "dead", "não", "nao", "nunca", "nada", "nenhum", "nenhuma",
+    "sem", "jamais", "nem", "sin", "ningún", "ninguna", "tampoco",
+];
+
+/// Whether a text says that something is not so (see [`NEGATIONS`]).
+fn negated(text: &str) -> bool {
+    text.to_lowercase()
+        .replace('\u{2019}', "'")
+        .split(|c: char| !c.is_alphanumeric() && c != '\'')
+        .any(|word| NEGATIONS.contains(&word))
+}
+
 /// The longest a lesson may be. A lesson that does not fit is a fact about the project and belongs
 /// in the Harness.
 pub const MAX_CONTENT_CHARS: usize = 480;
@@ -261,7 +307,13 @@ pub enum MemoryStatus {
     Stale,
     /// Retired by age, quota or the person. Kept for a while, never recovered.
     Archived,
+    /// A person turned this proposal down. Never recovered; kept (up to [`MAX_REJECTED`] per
+    /// owner) so that an agent proposing the same lesson again is not asked about twice.
+    Rejected,
 }
+
+/// The most turned-down proposals kept per scope and owner; the oldest go first.
+pub const MAX_REJECTED: usize = 100;
 
 /// How a memory is checked against the project before it is recovered, when that needs no model.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -304,6 +356,12 @@ pub struct Memory {
     pub updated_at: u64,
     #[serde(default)]
     pub last_used_at: Option<u64>,
+    /// Runs that carried it and that the person then took (merged, or kept applied).
+    #[serde(default)]
+    pub helped: u32,
+    /// Runs that carried it and that the person then threw away (discarded, or took back).
+    #[serde(default)]
+    pub misled: u32,
 }
 
 /// Why a memory may not be stored as written.
@@ -388,6 +446,51 @@ impl Memory {
     /// shown as unconfirmed and read with less trust.
     pub fn is_unconfirmed(&self) -> bool {
         self.provenance.automatic
+    }
+
+    /// What the person's verdicts on the runs that carried it say, kept small: a run they took
+    /// counts one, a run they threw away counts two (being wrong costs more than being right
+    /// earns). Decides between notes as relevant as each other, before use and recency.
+    pub fn trust(&self) -> i64 {
+        i64::from(self.helped) - 2 * i64::from(self.misled)
+    }
+
+    /// An agent's note that was in runs the person threw away at least [`MISLED_TO_REVIEW`] times
+    /// and in more of those than of runs they took: likely wrong, so it stops being used until the
+    /// person looks at it. A note a person wrote is only ranked lower, never moved by this.
+    pub fn misleads(&self) -> bool {
+        self.provenance.origin != MemoryOrigin::User
+            && self.misled >= MISLED_TO_REVIEW
+            && self.misled > self.helped
+    }
+
+    /// Whether `title` and `content` say the lesson this one says: most of the words of the content
+    /// (stems, see [`stems`]) are the same, or most of the words of title and content together.
+    /// A title alone never decides, since "Use pnpm" and "Use npm" under one title are opposite
+    /// lessons a person must see; and a text of fewer than [`RESEMBLES_MIN_WORDS`] words is judged
+    /// on nothing. Recognises a lesson already turned down or kept; not a judge of meaning.
+    pub fn resembles(&self, title: &str, content: &str) -> bool {
+        let share = |a: &BTreeSet<String>, b: &BTreeSet<String>, percent: usize| {
+            let all = a.union(b).count();
+            all >= RESEMBLES_MIN_WORDS && a.intersection(b).count() * 100 >= percent * all
+        };
+        let (mine, theirs) = (stems(&self.content), stems(content));
+        let whole = |t: &str, c: &BTreeSet<String>| -> BTreeSet<String> {
+            stems(t).union(c).cloned().collect()
+        };
+        // "is read" and "is not read" share every word but the one the matching leaves out: a
+        // lesson and its negation are never the same one.
+        if negated(&format!("{} {}", self.title, self.content))
+            != negated(&format!("{title} {content}"))
+        {
+            return false;
+        }
+        share(&mine, &theirs, RESEMBLES_CONTENT_PERCENT)
+            || share(
+                &whole(&self.title, &mine),
+                &whole(title, &theirs),
+                RESEMBLES_ALL_PERCENT,
+            )
     }
 
     /// Whether this memory applies to an execution of `workspace` by `agent`.
@@ -523,16 +626,19 @@ pub fn fit(memory: &Memory, task_stems: &BTreeSet<String>) -> Option<Fit> {
 /// What [`rank`] sorts by.
 pub type RankKey = (
     std::cmp::Reverse<u32>,
+    std::cmp::Reverse<i64>,
     std::cmp::Reverse<u32>,
     std::cmp::Reverse<u64>,
     String,
 );
 
-/// The sort key of a recovered memory: relevance first, then use, then recency, then id so the
-/// order is total and the same on every run.
+/// The sort key of a recovered memory: relevance first, then what the person's verdicts on past
+/// runs say ([`Memory::trust`]), then use, then recency, then id so the order is total and the
+/// same on every run.
 pub fn rank(memory: &Memory, relevance: u32) -> RankKey {
     (
         std::cmp::Reverse(relevance),
+        std::cmp::Reverse(memory.trust()),
         std::cmp::Reverse(memory.uses),
         std::cmp::Reverse(memory.last_used_at.unwrap_or(memory.updated_at)),
         memory.id.clone(),
@@ -570,6 +676,8 @@ pub(crate) mod tests {
             created_at: 1,
             updated_at: 1,
             last_used_at: None,
+            helped: 0,
+            misled: 0,
         }
     }
 
@@ -737,5 +845,82 @@ pub(crate) mod tests {
         assert!(tie_bonus(&pitfall) > tie_bonus(&decision));
         assert!(tie_bonus(&pitfall) > tie_bonus(&proposed));
         assert!(tie_bonus(&pitfall) < 10);
+    }
+
+    #[test]
+    fn a_lesson_resembles_one_with_the_same_title_words_or_most_of_the_same_words() {
+        let mut rejected = memory(
+            "r",
+            MemoryScope::User,
+            None,
+            "Change retries in config/app.toml.",
+        );
+        rejected.title = "Retry limit lives in config/app.toml".to_owned();
+
+        assert!(rejected.resembles("retry limits live in config/app.toml", "anything"));
+        assert!(rejected.resembles(
+            "Where the retry limit is",
+            "Change retries in config/app.toml to change the retry limit."
+        ));
+        assert!(!rejected.resembles(
+            "Retry limit lives in deploy/limits.cfg",
+            "MAXTRY in deploy/limits.cfg is the limit; app.toml is not read."
+        ));
+        assert!(!rejected.resembles("Log level", "LOG_LEVEL in deploy/logging.env"));
+
+        // One title, opposite lessons: not the same one.
+        let mut pnpm = memory("p", MemoryScope::User, None, "Use pnpm for installs");
+        pnpm.title = "Package manager".to_owned();
+        assert!(!pnpm.resembles("Package manager", "Use npm for installs"));
+        // A lesson and its negation share every word the matching keeps.
+        let mut read = memory(
+            "r2",
+            MemoryScope::User,
+            None,
+            "The retries key in config/app.toml is read by the service",
+        );
+        read.title = "Retries key".to_owned();
+        assert!(!read.resembles(
+            "Retries key",
+            "The retries key in config/app.toml is not read by the service"
+        ));
+        assert!(!read.resembles(
+            "Retries key",
+            "The retries key in config/app.toml isn\u{2019}t read by the service"
+        ));
+        assert!(read.resembles(
+            "Retries key",
+            "The service reads the retries key in config/app.toml"
+        ));
+        // Two words in common out of two is too little to judge.
+        let short = memory("s", MemoryScope::User, None, "lesson number 1");
+        assert!(!short.resembles("x", "lesson number 2"));
+    }
+
+    #[test]
+    fn being_wrong_weighs_more_than_being_right_and_only_an_agents_note_is_put_away() {
+        let mut note = memory("n", MemoryScope::User, None, "x");
+        note.provenance.origin = MemoryOrigin::Agent;
+        note.helped = 3;
+        note.misled = 1;
+        assert_eq!(note.trust(), 1);
+        assert!(!note.misleads());
+        note.helped = 1;
+        note.misled = MISLED_TO_REVIEW;
+        assert!(note.misleads());
+        note.provenance.origin = MemoryOrigin::User;
+        assert!(!note.misleads());
+
+        // Between two notes as relevant as each other, the one runs were kept with goes first.
+        let mut kept = memory("b", MemoryScope::User, None, "x");
+        kept.helped = 2;
+        let mut thrown = memory("a", MemoryScope::User, None, "x");
+        thrown.misled = 1;
+        thrown.uses = 9;
+        assert!(rank(&kept, 50) < rank(&thrown, 50));
+        assert!(
+            rank(&thrown, 60) < rank(&kept, 50),
+            "relevance still comes first"
+        );
     }
 }

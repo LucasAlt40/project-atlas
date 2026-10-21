@@ -390,12 +390,11 @@ mod tests {
             .unwrap_err();
         assert_eq!(err, ExternalError::Refused);
 
-        // nothing listens on this port any more
-        let free = TcpListener::bind("127.0.0.1:0").unwrap();
-        let port = free.local_addr().unwrap().port();
-        drop(free);
+        // Nothing listens on port 1: it is privileged, so no other test can take it in the meantime
+        // (a port freed by the test itself was sometimes taken by a parallel test, which then left
+        // the connection waiting: `Timeout` instead of `NotRunning`).
         let err = AiMemoryHttp
-            .search(&settings(port, dir.path()), &scope(), "q", 3)
+            .search(&settings(1, dir.path()), &scope(), "q", 3)
             .unwrap_err();
         assert_eq!(err, ExternalError::NotRunning);
     }

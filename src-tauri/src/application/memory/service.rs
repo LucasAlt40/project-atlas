@@ -10,7 +10,7 @@ use crate::application::optimization::review::claims_authority;
 use crate::application::support::{new_id, LockExt};
 use crate::domain::memory::{
     Memory, MemoryError, MemoryKind, MemoryMode, MemoryOrigin, MemoryProvenance, MemoryScope,
-    MemorySettings, MemoryStatus, MemoryValidity,
+    MemorySettings, MemoryStatus, MemoryValidity, MAX_REJECTED,
 };
 
 /// The most automatic notes one workspace or one agent keeps; past it, a note waits for a person.
@@ -48,10 +48,13 @@ pub enum Discarded {
     ScopeOff,
     /// It looks like a secret; it is not even offered to a person.
     Secret,
-    /// A note with the same words is already kept (or waiting).
+    /// A note that says the same is already kept (or waiting): the same words, or most of them
+    /// (`Memory::resembles`).
     Duplicate,
     /// Too many proposals already wait for a person.
     TooManyPending,
+    /// The person already turned down a proposal that says the same (see `Memory::resembles`).
+    Rejected,
     Invalid(MemoryError),
     Storage(String),
 }
@@ -161,7 +164,6 @@ impl MemoryService {
         self.items.lock_or_recover().clone()
     }
 
-    #[cfg(test)]
     pub fn get(&self, id: &str) -> Option<Memory> {
         self.items
             .lock_or_recover()
@@ -202,6 +204,8 @@ impl MemoryService {
             created_at: now,
             updated_at: now,
             last_used_at: None,
+            helped: 0,
+            misled: 0,
         };
         let stored = self.insert(memory)?;
         self.changed(&stored);
@@ -261,6 +265,10 @@ impl MemoryService {
         now: u64,
     ) -> Result<Memory, MemoryServiceError> {
         let moved = self.change(id, |m| {
+            // The person put it back in use: the runs thrown away before no longer count against it.
+            if status == MemoryStatus::Active && m.status != MemoryStatus::Active {
+                m.misled = 0;
+            }
             m.status = status;
             m.updated_at = now;
         })?;
@@ -268,14 +276,15 @@ impl MemoryService {
         Ok(moved)
     }
 
-    /// A person accepts a candidate; it becomes active and counts as theirs.
+    /// A person accepts a candidate (or changes their mind about one they turned down); it becomes
+    /// active and counts as theirs.
     ///
     /// # Errors
     ///
     /// When it does not exist or the write fails.
     pub fn approve(&self, id: &str, now: u64) -> Result<Memory, MemoryServiceError> {
         let approved = self.change(id, |m| {
-            if m.status == MemoryStatus::Candidate {
+            if matches!(m.status, MemoryStatus::Candidate | MemoryStatus::Rejected) {
                 m.status = MemoryStatus::Active;
                 m.provenance.automatic = false;
                 m.updated_at = now;
@@ -283,6 +292,89 @@ impl MemoryService {
         })?;
         self.changed(&approved);
         Ok(approved)
+    }
+
+    /// A person turns a candidate down. It is kept as `Rejected`, never recovered, so that the
+    /// same lesson proposed again is dropped instead of asked about again; past [`MAX_REJECTED`]
+    /// for its owner the oldest turned-down one is forgotten. A note that is not a candidate is
+    /// left as it is.
+    ///
+    /// # Errors
+    ///
+    /// When it does not exist or the write fails.
+    pub fn reject(&self, id: &str, now: u64) -> Result<Memory, MemoryServiceError> {
+        let rejected = self.change(id, |m| {
+            if m.status == MemoryStatus::Candidate {
+                m.status = MemoryStatus::Rejected;
+                m.updated_at = now;
+            }
+        })?;
+        let mut items = self.items.lock_or_recover();
+        let mut theirs: Vec<(u64, String)> = items
+            .iter()
+            .filter(|m| {
+                m.status == MemoryStatus::Rejected
+                    && m.scope == rejected.scope
+                    && m.owner == rejected.owner
+            })
+            .map(|m| (m.updated_at, m.id.clone()))
+            .collect();
+        theirs.sort();
+        let over = theirs.len().saturating_sub(MAX_REJECTED);
+        for (_, old) in theirs.into_iter().take(over) {
+            if self.store.remove(&old).is_ok() {
+                items.retain(|m| m.id != old);
+            }
+        }
+        Ok(rejected)
+    }
+
+    /// The person's verdict on a run: they took its work (`helped`) or threw it away. Every note
+    /// of this install that reached its prompt counts it; an agent's note that keeps being in runs
+    /// thrown away goes `Stale` until the person looks at it (`Memory::misleads`). Returns the ids
+    /// of the notes moved out of use.
+    pub fn record_verdict(&self, ids: &[String], helped: bool, now: u64) -> Vec<String> {
+        let mut moved = Vec::new();
+        for id in ids {
+            let was_active = self
+                .get(id)
+                .is_some_and(|m| m.status == MemoryStatus::Active);
+            let Ok(changed) = self.change(id, |m| {
+                if helped {
+                    m.helped = m.helped.saturating_add(1);
+                } else {
+                    m.misled = m.misled.saturating_add(1);
+                }
+                if m.status == MemoryStatus::Active && m.misleads() {
+                    m.status = MemoryStatus::Stale;
+                    m.updated_at = now;
+                }
+            }) else {
+                continue;
+            };
+            if was_active && changed.status == MemoryStatus::Stale {
+                self.changed(&changed);
+                moved.push(changed.id);
+            }
+        }
+        moved
+    }
+
+    /// [`Self::record_verdict`] for the notes that reached the prompt of any of `runs` (only the
+    /// ones in the prompt, not those left out, and never a memory server's `ext:` note, which is
+    /// not this install's). A note in several of the runs counts once.
+    pub fn judge_runs(
+        &self,
+        runs: &[crate::domain::execution::StoredExecution],
+        helped: bool,
+        now: u64,
+    ) -> Vec<String> {
+        let sent = notes_sent(
+            runs.iter()
+                .filter_map(|run| run.manifest.as_ref())
+                .flat_map(|manifest| &manifest.memories),
+        );
+        self.record_verdict(&sent, helped, now)
     }
 
     /// # Errors
@@ -392,6 +484,8 @@ impl MemoryService {
             created_at: ctx.now,
             updated_at: ctx.now,
             last_used_at: None,
+            helped: 0,
+            misled: 0,
         };
         if let Err(error) = memory.validate() {
             return Decision::Discarded(Discarded::Invalid(error));
@@ -403,11 +497,21 @@ impl MemoryService {
         let same_owner = |m: &&Memory| {
             m.scope == memory.scope && m.owner == memory.owner && m.status != MemoryStatus::Archived
         };
+        if items
+            .iter()
+            .filter(same_owner)
+            .filter(|m| m.status == MemoryStatus::Rejected)
+            .any(|m| m.resembles(&memory.title, &memory.content))
+        {
+            return Decision::Discarded(Discarded::Rejected);
+        }
+        // The same lesson in other words is a duplicate too: in a real run (Codex, ADR 0041) the run
+        // after a correction proposed again, reworded, a note the person had just approved.
         let words = normalized(&memory.content);
         if items
             .iter()
             .filter(same_owner)
-            .any(|m| normalized(&m.content) == words)
+            .any(|m| normalized(&m.content) == words || m.resembles(&memory.title, &memory.content))
         {
             return Decision::Discarded(Discarded::Duplicate);
         }
@@ -586,6 +690,20 @@ impl MemoryService {
             });
         }
     }
+}
+
+/// The notes of this install that were in a prompt, out of a manifest's records: not the ones left
+/// out, and never a memory server's `ext:` note. Each once, in a stable order.
+fn notes_sent<'a>(
+    records: impl IntoIterator<Item = &'a crate::domain::context::ManifestMemory>,
+) -> Vec<String> {
+    use crate::domain::context::MemoryStatusInPrompt;
+    let sent: std::collections::BTreeSet<String> = records
+        .into_iter()
+        .filter(|m| m.status == MemoryStatusInPrompt::Sent && !m.id.starts_with("ext:"))
+        .map(|m| m.id.clone())
+        .collect();
+    sent.into_iter().collect()
 }
 
 /// The words of a text, lowercased with the spacing collapsed: two notes that say the same thing
@@ -1182,5 +1300,271 @@ mod tests {
         assert_eq!(service.delete_automatic().unwrap(), 1);
         let left: Vec<_> = service.list().iter().map(|m| m.id.clone()).collect();
         assert_eq!(left, [first, mine.id]);
+    }
+
+    // --- learning from the person (ADR 0041) ---
+
+    #[test]
+    fn a_turned_down_proposal_is_kept_out_of_use_and_the_same_lesson_is_not_asked_about_again() {
+        let (service, store) = service();
+        let first = proposal(
+            MemoryKind::Pitfall,
+            "Retry limit lives in config/app.toml",
+            "Change retries in config/app.toml.",
+        );
+        assert_eq!(
+            decide(&service, first, &ctx(MemoryMode::Propose, true)),
+            Decision::Proposed
+        );
+        let id = service.list()[0].id.clone();
+
+        let rejected = service.reject(&id, 200).unwrap();
+        assert_eq!(rejected.status, MemoryStatus::Rejected);
+        assert_eq!(store.stored(&id).unwrap().status, MemoryStatus::Rejected);
+
+        // The same lesson, worded a little differently, by another run: dropped, not asked again.
+        let again = proposal(
+            MemoryKind::HowTo,
+            "Retry limit lives in config/app.toml",
+            "The retries key of config/app.toml sets the limit.",
+        );
+        assert_eq!(
+            decide(&service, again, &ctx(MemoryMode::Propose, true)),
+            Decision::Discarded(Discarded::Rejected)
+        );
+        // Mostly the same words, under another title: also the same lesson.
+        let reworded = proposal(
+            MemoryKind::Pitfall,
+            "Where the retry limit is",
+            "Change retries in config/app.toml to change the retry limit.",
+        );
+        assert_eq!(
+            decide(&service, reworded, &ctx(MemoryMode::Propose, true)),
+            Decision::Discarded(Discarded::Rejected)
+        );
+        // Another lesson about the same file is still proposed.
+        let other = proposal(
+            MemoryKind::Pitfall,
+            "Timeout is read from deploy/net.cfg",
+            "REQ_TIMEOUT in deploy/net.cfg is the timeout; app.toml is not read.",
+        );
+        assert_eq!(
+            decide(&service, other, &ctx(MemoryMode::Propose, true)),
+            Decision::Proposed
+        );
+        // Never recovered, even for the task it is about.
+        let req = RecallRequest {
+            workspace: "w1",
+            agent: "a1",
+            task: "change the retry limit in config app toml",
+            project_root: "/p",
+            settings: ctx(MemoryMode::Propose, true).settings,
+            budget_tokens: None,
+            now: 300,
+        };
+        assert!(service.recall(&req).selected.iter().all(|m| m.id != id));
+        // The person may change their mind.
+        assert_eq!(
+            service.approve(&id, 400).unwrap().status,
+            MemoryStatus::Active
+        );
+    }
+
+    #[test]
+    fn only_a_candidate_can_be_turned_down_and_the_oldest_rejections_are_forgotten() {
+        let (service, store) = service();
+        let mine = service.create(new("run the check"), 1).unwrap();
+        assert_eq!(
+            service.reject(&mine.id, 2).unwrap().status,
+            MemoryStatus::Active
+        );
+
+        let mut ids = Vec::new();
+        for i in 0..=MAX_REJECTED {
+            let mut p = new(&format!("lesson number {i} about thing{i}"));
+            p.title = format!("Lesson {i}");
+            p.origin = MemoryOrigin::Agent;
+            let made = service.create(p, 10).unwrap();
+            service.reject(&made.id, 100 + i as u64).unwrap();
+            ids.push(made.id);
+        }
+        let rejected = service
+            .list()
+            .iter()
+            .filter(|m| m.status == MemoryStatus::Rejected)
+            .count();
+        assert_eq!(rejected, MAX_REJECTED);
+        assert!(store.stored(&ids[0]).is_none(), "the oldest went first");
+        assert!(store.stored(ids.last().unwrap()).is_some());
+    }
+
+    #[test]
+    fn runs_the_person_throws_away_put_an_agents_note_out_of_use_but_never_one_they_wrote() {
+        let (service, _) = service();
+        let mine = service.create(new("run the check"), 1).unwrap();
+        let mut theirs = new("run the build");
+        theirs.origin = MemoryOrigin::Agent;
+        let agent_note = service.create(theirs, 1).unwrap();
+        service.approve(&agent_note.id, 2).unwrap();
+        // `approve` keeps the origin: the person accepted an agent's note.
+        assert_eq!(
+            service.get(&agent_note.id).unwrap().provenance.origin,
+            MemoryOrigin::Agent
+        );
+        let both = [mine.id.clone(), agent_note.id.clone()];
+
+        assert_eq!(
+            service.record_verdict(&both, false, 3),
+            Vec::<String>::new()
+        );
+        let moved = service.record_verdict(&both, false, 4);
+
+        assert_eq!(moved, std::slice::from_ref(&agent_note.id));
+        let note = service.get(&agent_note.id).unwrap();
+        assert_eq!((note.status, note.misled), (MemoryStatus::Stale, 2));
+        let kept = service.get(&mine.id).unwrap();
+        assert_eq!((kept.status, kept.misled), (MemoryStatus::Active, 2));
+        // Counting again does not report it as moved again.
+        assert_eq!(
+            service.record_verdict(&both, false, 5),
+            Vec::<String>::new()
+        );
+
+        // The person puts it back: what was held against it is forgotten.
+        let renewed = service
+            .set_status(&agent_note.id, MemoryStatus::Active, 6)
+            .unwrap();
+        assert_eq!(renewed.misled, 0);
+    }
+
+    #[test]
+    fn a_note_in_runs_the_person_took_as_often_as_not_stays_in_use() {
+        let (service, _) = service();
+        let mut theirs = new("run the build");
+        theirs.origin = MemoryOrigin::Agent;
+        let note = service.create(theirs, 1).unwrap();
+        service.approve(&note.id, 2).unwrap();
+        let id = [note.id.clone()];
+
+        service.record_verdict(&id, true, 3);
+        service.record_verdict(&id, true, 4);
+        service.record_verdict(&id, false, 5);
+        service.record_verdict(&id, false, 6);
+
+        let note = service.get(&note.id).unwrap();
+        assert_eq!((note.helped, note.misled), (2, 2));
+        assert_eq!(note.status, MemoryStatus::Active);
+        assert_eq!(note.trust(), -2);
+    }
+
+    #[test]
+    fn only_notes_that_were_in_the_prompt_count_a_verdict_and_each_once() {
+        use crate::domain::context::{ManifestMemory, MemoryStatusInPrompt};
+        let record = |id: &str, status| ManifestMemory {
+            id: id.to_owned(),
+            title: String::new(),
+            status,
+            reason: None,
+            automatic: false,
+        };
+        let records = [
+            record("memory-b", MemoryStatusInPrompt::Sent),
+            record("memory-a", MemoryStatusInPrompt::Sent),
+            record("memory-c", MemoryStatusInPrompt::OverBudget),
+            record("ext:atlas/x.md", MemoryStatusInPrompt::Sent),
+            record("memory-b", MemoryStatusInPrompt::Sent),
+        ];
+
+        assert_eq!(notes_sent(&records), ["memory-a", "memory-b"]);
+    }
+
+    #[test]
+    fn the_same_lesson_reworded_is_a_duplicate_of_a_kept_note_and_a_different_one_is_not() {
+        let (service, _) = service();
+        let kept = proposal(
+            MemoryKind::Pitfall,
+            "Retry limit location",
+            "The service reads MAXTRY from deploy/limits.cfg; config/app.toml's retries key is unused.",
+        );
+        assert_eq!(
+            decide(&service, kept, &ctx(MemoryMode::Propose, true)),
+            Decision::Proposed
+        );
+        let id = service.list()[0].id.clone();
+        service.approve(&id, 101).unwrap();
+
+        // Proposed by Codex in the next run, after the person approved the one above.
+        let reworded = proposal(
+            MemoryKind::Pitfall,
+            "Retry setting source",
+            "The service retry limit comes from deploy/limits.cfg via MAXTRY; config/app.toml's retries key is not read.",
+        );
+        assert_eq!(
+            decide(&service, reworded, &ctx(MemoryMode::Propose, true)),
+            Decision::Discarded(Discarded::Duplicate)
+        );
+        // A lesson that contradicts it is shown to the person, not hidden as a duplicate.
+        let contrary = proposal(
+            MemoryKind::Pitfall,
+            "Retry setting is duplicated",
+            "Keep src/client.py, config/app.toml, and deploy/limits.cfg retry values synchronized.",
+        );
+        assert_eq!(
+            decide(&service, contrary, &ctx(MemoryMode::Propose, true)),
+            Decision::Proposed
+        );
+    }
+
+    #[test]
+    fn a_turned_down_lesson_the_model_rewords_in_the_next_run_is_dropped() {
+        // The exact texts Claude haiku proposed in two runs of arm R (ADR 0041).
+        let (service, _) = service();
+        let first = proposal(
+            MemoryKind::HowTo,
+            "Retry limit location",
+            "The service retry limit is the `retries` key in config/app.toml; a case-insensitive search for retr(y|ies) finds it in one hit.",
+        );
+        assert_eq!(
+            decide(&service, first, &ctx(MemoryMode::Propose, true)),
+            Decision::Proposed
+        );
+        let id = service.list()[0].id.clone();
+        service.reject(&id, 101).unwrap();
+
+        let again = proposal(
+            MemoryKind::HowTo,
+            "Retry limit location",
+            "The service's retry limit is the `retries` key in config/app.toml; a case-insensitive search for \"retr\" across the worktree finds it in one place.",
+        );
+        assert_eq!(
+            decide(&service, again, &ctx(MemoryMode::Propose, true)),
+            Decision::Discarded(Discarded::Rejected)
+        );
+    }
+
+    #[test]
+    fn turning_down_a_wrong_lesson_never_hides_the_right_one_that_says_the_opposite() {
+        let (service, _) = service();
+        let wrong = proposal(
+            MemoryKind::Pitfall,
+            "Retries key",
+            "The retries key in config/app.toml is read by the service; change it there.",
+        );
+        assert_eq!(
+            decide(&service, wrong, &ctx(MemoryMode::Propose, true)),
+            Decision::Proposed
+        );
+        let id = service.list()[0].id.clone();
+        service.reject(&id, 101).unwrap();
+
+        let right = proposal(
+            MemoryKind::Pitfall,
+            "Retries key",
+            "The retries key in config/app.toml is not read by the service; change it there.",
+        );
+        assert_eq!(
+            decide(&service, right, &ctx(MemoryMode::Propose, true)),
+            Decision::Proposed
+        );
     }
 }

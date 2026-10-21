@@ -408,6 +408,7 @@ mod tests {
             workspace: MemoryMode::Propose,
             agent: MemoryMode::Propose,
             max_tokens: 600,
+            chosen: false,
         }
     }
 

@@ -491,10 +491,12 @@ const fn dev_caches_default() -> bool {
     true
 }
 
+/// `auto` by default (ADR 0042): the normal work of four CLIs was verified confined, and where the
+/// system cannot confine it the run goes on and says so. The person turns it off in the settings.
 impl Default for SandboxSettings {
     fn default() -> Self {
         Self {
-            mode: SandboxMode::Off,
+            mode: SandboxMode::Auto,
             dev_caches: true,
         }
     }

@@ -74,6 +74,10 @@ export interface CommandMap {
   set_specs_max_tokens: { args: { max: number | null }; result: AppSettingsDto };
   get_sandbox_status: { args: undefined; result: SandboxStatusDto };
   set_sandbox_settings: { args: { sandbox: SandboxSettingsDto }; result: AppSettingsDto };
+  set_optimization_switches: {
+    args: { switches: OptimizationSwitchesDto };
+    result: AppSettingsDto;
+  };
   set_presence_settings: { args: { presence: PresenceSettingsDto }; result: AppSettingsDto };
   set_external_memory: { args: { external: ExternalMemorySettingsDto }; result: AppSettingsDto };
   check_external_memory: { args: undefined; result: ExternalCheckDto };
@@ -96,6 +100,7 @@ export interface CommandMap {
     result: MemoryDto;
   };
   approve_memory: { args: { id: string }; result: MemoryDto };
+  reject_memory: { args: { id: string }; result: MemoryDto };
   set_memory_status: { args: { id: string; status: MemoryStatusDto }; result: MemoryDto };
   delete_memory: { args: { id: string }; result: null };
   /** Makes an automatic note the person's own. */
@@ -1226,6 +1231,14 @@ export interface ProjectContextDto {
 }
 
 /** Mirrors `application::config::AppSettings`: settings of the whole application. */
+/** The parts of the Optimization Layer the person may turn off; all on by default (ADR 0042). */
+export interface OptimizationSwitchesDto {
+  metricsEnabled: boolean;
+  contextEnabled: boolean;
+  skillsEnabled: boolean;
+  guardrailsEnabled: boolean;
+}
+
 export interface AppSettingsDto {
   language: string;
   selectedWorkspaceId: string | null;
@@ -1318,11 +1331,14 @@ export interface MemorySettingsDto {
   agent: MemoryModeDto;
   /** The most the memories of one prompt may add, in estimated tokens. */
   maxTokens: number;
+  /** The person saved these modes; until then Atlas uses the recommended ones (ADR 0041). */
+  chosen?: boolean;
 }
 
 export type MemoryScopeDto = 'user' | 'workspace' | 'agent';
 export type MemoryKindDto = 'how_to' | 'pitfall' | 'preference' | 'decision';
-export type MemoryStatusDto = 'candidate' | 'active' | 'stale' | 'archived';
+/** `rejected`: a proposal the person turned down, kept so it is not proposed again (ADR 0041). */
+export type MemoryStatusDto = 'candidate' | 'active' | 'stale' | 'archived' | 'rejected';
 
 export interface MemoryValidityDto {
   paths: string[];
@@ -1353,6 +1369,10 @@ export interface MemoryDto {
   status: MemoryStatusDto;
   validity: MemoryValidityDto;
   uses: number;
+  /** Runs that carried it and that the person then took. */
+  helped?: number;
+  /** Runs that carried it and that the person then threw away. */
+  misled?: number;
   createdAt: number;
   updatedAt: number;
   lastUsedAt?: number | null;

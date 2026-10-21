@@ -10,6 +10,7 @@ import {
   deleteMemory,
   listMemories,
   promoteMemory,
+  rejectMemory,
   setMemoryStatus,
 } from '../services/memoryService';
 import { MemorySettings } from './MemorySettings';
@@ -123,20 +124,57 @@ describe('MemorySettings', () => {
     expect(screen.getByText('Run the check')).toBeInTheDocument();
   });
 
-  it('discarding a proposal deletes it', async () => {
+  it('turning a proposal down keeps it apart, where it can be approved anyway or forgotten', async () => {
     const person = userEvent.setup();
-    vi.mocked(listMemories).mockResolvedValue([
-      note({ id: 'c1', status: 'candidate', provenance: { origin: 'agent', automatic: false } }),
-    ]);
+    const candidate = note({
+      id: 'c1',
+      status: 'candidate',
+      provenance: { origin: 'agent', automatic: false },
+    });
+    vi.mocked(listMemories).mockResolvedValue([candidate]);
+    vi.mocked(rejectMemory).mockResolvedValue({ ...candidate, status: 'rejected' });
+    vi.mocked(approveMemory).mockResolvedValue({ ...candidate, status: 'active' });
     vi.mocked(deleteMemory).mockResolvedValue(null);
     renderWithProviders(<MemorySettings />);
 
-    await person.click(await screen.findByRole('button', { name: 'Discard' }));
+    await person.click(await screen.findByRole('button', { name: 'Turn down' }));
 
-    expect(deleteMemory).toHaveBeenCalledWith('c1');
+    expect(rejectMemory).toHaveBeenCalledWith('c1');
+    expect(deleteMemory).not.toHaveBeenCalled();
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Discard' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Turn down' })).not.toBeInTheDocument();
     });
+    // Not among the kept notes: in its own tab.
+    await openTab(person, /^Kept notes/);
+    expect(screen.queryByText('Invoice rounding')).not.toBeInTheDocument();
+    await openTab(person, /^Turned down \(1\)/);
+    await person.click(screen.getByRole('button', { name: 'Approve anyway' }));
+    expect(approveMemory).toHaveBeenCalledWith('c1');
+    // The last turned-down note is gone from that tab, and so is the tab: the kept notes show.
+    expect(await screen.findByText('Invoice rounding')).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /^Turned down/ })).not.toBeInTheDocument();
+  });
+
+  it('says why an agent note went out of use and what the runs it was in became', async () => {
+    const person = userEvent.setup();
+    vi.mocked(listMemories).mockResolvedValue([
+      note({
+        status: 'stale',
+        provenance: { origin: 'agent', automatic: false },
+        helped: 1,
+        misled: 2,
+      }),
+    ]);
+    renderWithProviders(<MemorySettings />);
+
+    await openTab(person, /^Kept notes/);
+
+    expect(
+      screen.getByText(
+        'Out of use: it was in 2 runs you threw away. Review it, edit it or use it again.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/taken in 1, thrown away in 2/)).toBeInTheDocument();
   });
 
   it('marks an automatic note, lets the person make it theirs and clear all of them', async () => {

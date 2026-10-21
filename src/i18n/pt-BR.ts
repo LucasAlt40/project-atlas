@@ -2180,9 +2180,24 @@ export const ptBR: Record<TranslationKey, string> = {
   'agent.activity.permission.sandboxed':
     '(confinado pelo sistema: só escreve no worktree e nas próprias pastas)',
   'agent.activity.permission.unsandboxed': '(⚠ sem confinamento: {why})',
+  'settings.optimization.title': 'Otimização das execuções',
+  'settings.optimization.help':
+    'Tudo aqui vem ligado porque deixa cada execução mais barata ou mais segura sem tirar nada que o agente precise. Desligue o que não quiser; sua escolha é mantida.',
+  'settings.optimization.contextEnabled': 'Context Engine: tirar repetições do prompt',
+  'settings.optimization.contextEnabledHelp':
+    'Remove o que o prompt diz duas vezes (o mesmo artefato no contexto do fluxo e no handoff). Nenhuma palavra se perde. Medido: 4,5% a menos num brief real, de 9% a 22% em briefs repetitivos.',
+  'settings.optimization.skillsEnabled': 'Skills: enviar só a skill que a tarefa pede',
+  'settings.optimization.skillsEnabledHelp':
+    'Procura skills em .atlas/skills do projeto e na sua pasta de skills e envia apenas a relevante. Sem skills, nada muda. Medido: 808 tokens em vez de 8.160 com dez skills.',
+  'settings.optimization.guardrailsEnabled': 'Revisar o contexto antes de o agente começar',
+  'settings.optimization.guardrailsEnabledHelp':
+    'Pergunta ou para quando instruções se contradizem e tira segredos do contexto que veio de arquivos e de outros agentes.',
+  'settings.optimization.metricsEnabled': 'Medir prompts e execuções',
+  'settings.optimization.metricsEnabledHelp':
+    'Registra do que cada prompt é feito e quanto cada etapa levou. Não muda nada do que é enviado.',
   'settings.sandbox.title': 'Sandbox dos runtimes',
   'settings.sandbox.help':
-    'O sistema operacional confina o programa do runtime e tudo o que ele inicia: só escreve no worktree, nas próprias pastas e numa pasta temporária da execução, e não lê suas chaves SSH, credenciais de nuvem nem dados do navegador. A rede continua aberta (um sandbox não filtra por site), então isto protege seus arquivos, não o que sai pela conexão. Desligado por padrão: ligue depois de testar uma tarefa.',
+    'O sistema operacional confina o programa do runtime e tudo o que ele inicia: só escreve no worktree, nas próprias pastas e numa pasta temporária da execução, e não lê suas chaves SSH, credenciais de nuvem nem dados do navegador. A rede continua aberta (um sandbox não filtra por site), então isto protege seus arquivos, não o que sai pela conexão. Vem em "Ligado quando o sistema puder": confina quando o sistema consegue e avisa na atividade quando não consegue.',
   'settings.sandbox.mode': 'Sandbox',
   'settings.sandbox.mode.off': 'Desligado',
   'settings.sandbox.mode.auto': 'Ligado quando o sistema puder',
@@ -2200,7 +2215,7 @@ export const ptBR: Record<TranslationKey, string> = {
   'settings.sandbox.why.no_home': 'a pasta pessoal é desconhecida',
   'memory.title': 'Notas de trabalhos anteriores',
   'memory.help':
-    'Lições curtas que os agentes e você deixam para a próxima execução (um comando que funciona, uma armadilha, uma escolha). Uma nota é uma dica que o agente pode usar: não é instrução e não concede nada. Tudo fica desligado até você ligar um escopo.',
+    'Lições curtas que os agentes e você deixam para a próxima execução (um comando que funciona, uma armadilha, uma escolha). Uma nota é uma dica que o agente pode usar: não é instrução e não concede nada. Vem em "Propor, eu aprovo": nada entra sem você, e o Atlas aprende com o que você recusa e com o trabalho que você aceita ou descarta.',
   'memory.modes.title': 'Onde as notas são usadas',
   'memory.modes.help':
     'Desligado: nada é recuperado nem proposto. Propor: notas relevantes entram no prompt e os agentes podem propor novas para você aprovar. Automático: uma nota proposta por um agente fica de lado e só entra quando a validação ou a revisão de um agente diferente aprova o mesmo fluxo; aí ela é usada, mas continua marcada como não confirmada até você decidir. Fora de um fluxo de trabalho ela só espera por você. Nunca preferências, nunca o seu escopo, nunca depois de um passo que falhou. Um passo que terminou não prova que a lição é verdadeira, por isso você continua sendo o juiz padrão.',
@@ -2232,6 +2247,16 @@ export const ptBR: Record<TranslationKey, string> = {
   'memory.notes.empty': 'Ainda não há notas.',
   'memory.approve': 'Aprovar',
   'memory.discard': 'Descartar',
+  'memory.reject': 'Recusar',
+  'memory.rejected.title': 'Recusadas',
+  'memory.rejected.help':
+    'Propostas que você recusou. Nunca vão para um prompt, e quando um agente propõe a mesma lição de novo ela é descartada sem perguntar. Aprove uma se mudou de ideia; esqueça uma para que possa ser proposta outra vez.',
+  'memory.approveAnyway': 'Aprovar mesmo assim',
+  'memory.forget': 'Esquecer',
+  'memory.misledShort': 'Fora de uso',
+  'memory.misled':
+    'Fora de uso: estava em {count} execuções que você descartou. Revise, edite ou use de novo.',
+  'memory.verdicts': 'aceita em {helped}, descartada em {misled}',
   'memory.edit': 'Editar',
   'memory.promote': 'Tornar minha',
   'memory.archive': 'Arquivar',

@@ -33,7 +33,7 @@ pub async fn merge_execution(
 ) -> Result<ExecutionWorktree, AppError> {
     let worktrees = state.worktrees.clone();
     // Git can take a while on a big repository: not on the thread that serves the window.
-    tauri::async_runtime::spawn_blocking(move || {
+    let merged = tauri::async_runtime::spawn_blocking(move || {
         let known = worktrees
             .get(&execution_id)
             .filter(|w| w.workspace_id == workspace_id && w.agent_id == agent_id)
@@ -43,5 +43,22 @@ pub async fn merge_execution(
             .map_err(|error| AppError::from(&error))
     })
     .await
-    .map_err(|error| AppError::new(ErrorCode::WorktreeFailed).with_detail(error.to_string()))?
+    .map_err(|error| AppError::new(ErrorCode::WorktreeFailed).with_detail(error.to_string()))??;
+    // The person took the work: the notes its prompt carried count it (ADR 0041).
+    if matches!(
+        merged.merge_status,
+        crate::domain::worktree::MergeStatus::Merged
+            | crate::domain::worktree::MergeStatus::Applied
+    ) {
+        let run: Vec<_> = state
+            .chat
+            .executions(Some(&merged.workspace_id), Some(&merged.agent_id))
+            .into_iter()
+            .filter(|e| e.id == merged.execution_id)
+            .collect();
+        state
+            .memory
+            .judge_runs(&run, true, crate::application::support::now_ms());
+    }
+    Ok(merged)
 }

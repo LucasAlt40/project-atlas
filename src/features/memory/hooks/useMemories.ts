@@ -8,6 +8,7 @@ import {
   editMemory,
   listMemories,
   promoteMemory,
+  rejectMemory,
   setMemoryStatus,
   type NewMemoryInput,
 } from '../services/memoryService';
@@ -80,6 +81,13 @@ export function useMemories() {
     [replace],
   );
 
+  const reject = useCallback(
+    async (id: string) => {
+      replace(await rejectMemory(id));
+    },
+    [replace],
+  );
+
   const promote = useCallback(
     async (id: string) => {
       replace(await promoteMemory(id));
@@ -108,5 +116,5 @@ export function useMemories() {
     await load();
   }, [load]);
 
-  return { state, create, edit, approve, promote, setStatus, remove, clearAutomatic };
+  return { state, create, edit, approve, reject, promote, setStatus, remove, clearAutomatic };
 }

@@ -70,8 +70,16 @@ pub fn approve_memory(state: State<'_, AppState>, id: String) -> Result<Memory, 
     Ok(state.memory.approve(&id, now_ms())?)
 }
 
+/// Turns down a candidate an agent proposed. It is kept as rejected (never sent to a model) so the
+/// same lesson is not proposed to the person again.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+pub fn reject_memory(state: State<'_, AppState>, id: String) -> Result<Memory, AppError> {
+    Ok(state.memory.reject(&id, now_ms())?)
+}
+
 /// Moves a memory between active, stale and archived. A candidate is decided on with
-/// `approve_memory` or `delete_memory`, never moved here.
+/// `approve_memory`, `reject_memory` or `delete_memory`, never moved here.
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command(async)]
 pub fn set_memory_status(
@@ -79,7 +87,7 @@ pub fn set_memory_status(
     id: String,
     status: MemoryStatus,
 ) -> Result<Memory, AppError> {
-    if status == MemoryStatus::Candidate {
+    if matches!(status, MemoryStatus::Candidate | MemoryStatus::Rejected) {
         return Err(AppError::new(ErrorCode::MemoryInvalid).with("reason", "bad_status"));
     }
     Ok(state.memory.set_status(&id, status, now_ms())?)
