@@ -3,25 +3,17 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  max-width: 77.5rem;
   height: 100%;
   min-height: 36rem;
+  margin: 0 auto;
 }
 .page[data-view='list'] {
   height: auto;
 }
-/* The workspace's identity: name, usage, project and harness in one panel. */
-.banner {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-.header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3) var(--space-4);
+/* At the ultra-wide sizes the grid uses the room; the list keeps a readable width. */
+.page[data-view='grid'] {
+  max-width: none;
 }
 /* View controls above the agents. */
 .viewBar {
@@ -31,43 +23,13 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--border-subtle);
-}
-.segmented {
-  display: inline-flex;
-  gap: 2px;
-  padding: 2px;
-  border-radius: var(--radius-md);
-  background: var(--surface-void);
-}
-.segment {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  height: 1.75rem;
-  padding: 0 var(--space-3);
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-muted);
-  font: inherit;
-  font-weight: 500;
-  cursor: pointer;
-}
-.segment:hover {
-  color: var(--text-high);
-}
-.segment[aria-pressed='true'] {
-  border-color: var(--border-strong);
-  background: var(--surface-2);
-  color: var(--text-high);
 }
 .agentList {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -88,11 +50,19 @@
   margin: 0;
   color: var(--text-muted);
 }
+.empty {
+  margin: 0;
+  padding: var(--space-6) var(--space-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text-muted);
+  text-align: center;
+}
 .grid {
   display: grid;
   flex: 1;
   grid-template-columns: repeat(var(--columns, 2), minmax(0, 1fr));
-  grid-template-rows: repeat(var(--rows, 2), minmax(26rem, 1fr));
+  grid-template-rows: repeat(var(--rows, 2), minmax(24rem, 1fr));
   min-height: 0;
   gap: var(--space-4);
 }
@@ -101,13 +71,14 @@
   .grid {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: none;
-    grid-auto-rows: minmax(26rem, auto);
+    grid-auto-rows: minmax(24rem, auto);
   }
 }
 .cell {
   min-width: 0;
   min-height: 0;
 }
+/* A free cell invites an agent in. */
 .slot {
   display: flex;
   flex-direction: column;
@@ -115,47 +86,67 @@
   justify-content: center;
   gap: var(--space-3);
   border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface-void);
-  color: var(--text-dim);
-  font-size: var(--font-size-xs);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--text-muted);
 }
-.panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid var(--border-subtle);
+.slotTile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--surface-1);
+  color: var(--text-muted);
+}
+.slotText {
+  color: var(--text-muted);
+  font-size: var(--font-size-base);
+  font-weight: 500;
+}
+.available {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+.available li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+}
+.available li + li {
+  border-top: 1px solid var(--border-subtle);
+}
+.availableName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-high);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.availableModel {
+  color: var(--accent-soft);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
 }
 .panelTitle {
   margin: 0;
   font-size: var(--font-size-lg);
 }
-.available {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.available li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.panelActions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
 .linkButton {
   padding: 0;
   border: 0;
   background: none;
-  color: var(--info);
+  color: var(--accent-soft);
   font: inherit;
   cursor: pointer;
 }
@@ -400,25 +391,27 @@
   align-items: center;
   gap: var(--space-3);
 }
+/* The workspace's spending, one mono line under its name; opening it shows the month too. */
 .usageChip {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-1) var(--space-4);
-  min-height: 2rem;
-  padding: var(--space-1) var(--space-4);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--surface-void);
-  color: var(--text-standard);
+  gap: var(--space-1) var(--space-2);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
   font: inherit;
   font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   cursor: pointer;
 }
 .usageChip:hover {
-  border-color: var(--border-strong);
-  background: var(--surface-2);
+  color: var(--text-high);
+}
+.usageChip:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
 }
 .usageList {
   display: flex;
@@ -602,82 +595,78 @@
   color: var(--text-dim);
 }
 
-/* First run: what a workspace is and the three steps that follow. */
+/* First run: what a workspace is and the three steps that follow (1.6). */
+
 .welcome {
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
-  width: min(100%, 60rem);
-  text-align: left;
-  padding: var(--space-5);
-  border: 1px solid var(--border-strong);
+  width: min(100%, 35rem);
+  padding: var(--space-6) 2.25rem;
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   background: var(--surface-1);
 }
 .welcomeHead {
   display: flex;
-  align-items: center;
-  gap: var(--space-4);
+  flex-direction: column;
+  gap: var(--space-2);
   padding-bottom: var(--space-5);
   border-bottom: 1px solid var(--border-subtle);
-}
-.welcomeTile {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 3rem;
-  height: 3rem;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface-2);
-  color: var(--accent-soft);
 }
 .welcomeHead h1 {
   margin: 0;
   font-size: var(--font-size-xl);
+  letter-spacing: -0.02em;
 }
 .welcomeHead p {
   margin: 0;
   color: var(--text-muted);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-reading);
 }
 .steps {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 .step {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-4);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--surface-base);
+  align-items: flex-start;
+  gap: var(--space-4);
 }
 .step h2 {
   margin: 0;
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-md);
+  font-weight: 500;
 }
 .step p {
-  margin: 0;
+  margin: var(--space-1) 0 0;
   color: var(--text-muted);
+  font-size: var(--font-size-base);
 }
-.stepHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: var(--text-dim);
+.step code {
+  padding: 0.05em 0.35em;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  color: var(--text-standard);
+  font-size: 0.9em;
 }
 .stepNumber {
-  padding: 1px var(--space-3);
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.625rem;
+  height: 1.625rem;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  background: var(--accent-tint);
-  color: var(--accent-soft);
+  background: var(--surface-base);
+  color: var(--text-high);
   font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
 }

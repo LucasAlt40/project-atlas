@@ -45,7 +45,7 @@ export function PageHeader({
           {titleAside}
         </div>
         {description !== undefined && <p className={styles.description}>{description}</p>}
-        {meta !== undefined && <p className={styles.meta}>{meta}</p>}
+        {meta !== undefined && <div className={styles.meta}>{meta}</div>}
       </div>
       {actions !== undefined && <div className={styles.actions}>{actions}</div>}
     </header>

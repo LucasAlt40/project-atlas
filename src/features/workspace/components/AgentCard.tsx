@@ -1,8 +1,10 @@
-import { useEffect, useState, type KeyboardEvent } from 'react';
+import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/Button';
+import type { IconName } from '@/components/ui/Icon';
+import { Tabs } from '@/components/ui/Tabs';
 import type { Agent, Personality, RuntimeStatus } from '@/features/agents/types';
 import { errorMessage } from '@/i18n/messages';
 import { useT } from '@/i18n/I18nProvider';
-import type { TranslationKey } from '@/i18n';
 import type { WorkflowLinkDto } from '@/lib/tauri/commands';
 import type { AgentRun, ProcessState } from '../model/agentRuns';
 import { agentStatus } from '../model/agentStatus';
@@ -16,14 +18,20 @@ import { AgentHeader } from './AgentHeader';
 import { AgentMessageList } from './AgentMessageList';
 import { ExecutionDetails, type ExecutionContext } from './ExecutionDetails';
 import { ExecutionHistory } from './ExecutionHistory';
-import { ExecutionInspector } from './ExecutionInspector';
+import { ExecutionView } from './ExecutionView';
 import { RunControls } from './RunControls';
 import { TerminalPanel } from './TerminalPanel';
 import inspectorStyles from './Inspector.module.css';
-import terminalStyles from './Terminal.module.css';
 
 type Tab = 'chat' | 'activity' | 'terminal' | 'details' | 'executions';
 const TABS: readonly Tab[] = ['chat', 'activity', 'terminal', 'details', 'executions'];
+const TAB_ICON: Record<Tab, IconName> = {
+  chat: 'chat',
+  activity: 'history',
+  terminal: 'terminal',
+  details: 'info',
+  executions: 'play',
+};
 
 interface Props {
   workspaceId: string;
@@ -95,7 +103,8 @@ export function AgentCard({
 }: Props) {
   const t = useT();
   const [tab, setTab] = useState<Tab>('chat');
-  const [inspected, setInspected] = useState<StoredExecution | null>(null);
+  // The execution shown beside the list in the Executions tab (the latest by default).
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   // A request from outside is applied once, then acknowledged so it does not repeat.
   const [shownFocus, setShownFocus] = useState<Tab | undefined>(undefined);
   if (focusTab !== shownFocus) {
@@ -128,15 +137,14 @@ export function AgentCard({
     : run
       ? factsFromRun(run, process, agent, lastTask?.content ?? null)
       : null;
-  const tabId = (name: Tab) => `${agent.id}-tab-${name}`;
+  const idPrefix = `agent-${agent.id}`;
+  const selected = history.find((e) => e.id === selectedId) ?? history[0];
+  const ended = run && run.status !== 'running' && stored ? stored : null;
 
-  function onTabKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
-    const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
-    if (step === 0) return;
-    event.preventDefault();
-    const next = TABS[(TABS.indexOf(tab) + step + TABS.length) % TABS.length] ?? 'chat';
+  function chooseTab(next: Tab) {
     setTab(next);
-    document.getElementById(tabId(next))?.focus();
+    // The agent's details are a drawer over the screen; the tab keeps the facts of its run.
+    if (next === 'details') onOpenDetails();
   }
 
   return (
@@ -155,6 +163,7 @@ export function AgentCard({
         modelId={agent.modelId}
         gitIsolation={agent.worktreeIsolation}
         status={status}
+        variant={variant}
         {...(variant === 'list' && onToggle
           ? {
               expanded,
@@ -171,28 +180,35 @@ export function AgentCard({
       />
       {(variant === 'grid' || expanded) && (
         <div className={styles.body}>
-          <div className={terminalStyles.tabs} role="tablist" aria-label={t('agent.tabs')}>
-            {TABS.map((name) => (
-              <button
-                key={name}
-                id={tabId(name)}
-                type="button"
-                role="tab"
-                className={terminalStyles.tab}
-                aria-selected={tab === name}
-                aria-controls={`${tabId(name)}-panel`}
-                tabIndex={tab === name ? 0 : -1}
-                onClick={() => {
-                  setTab(name);
-                }}
-                onKeyDown={onTabKeyDown}
-              >
-                {t(`agent.tab.${name}` as TranslationKey)}
-                {name === 'executions' && history.length > 0 && (
-                  <span aria-hidden="true"> ({history.length})</span>
-                )}
-              </button>
-            ))}
+          <div className={styles.tabStrip}>
+            <Tabs
+              label={t('agent.tabs')}
+              idPrefix={idPrefix}
+              active={tab}
+              onChange={chooseTab}
+              items={TABS.map((name) => ({
+                id: name,
+                label: t(`agent.tab.${name}`),
+                ...(variant === 'list' ? { icon: TAB_ICON[name] } : {}),
+                ...(name === 'executions' && history.length > 0 ? { count: history.length } : {}),
+              }))}
+              {...(ended && tab !== 'executions'
+                ? {
+                    trailing: (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedId(ended.id);
+                          setTab('executions');
+                        }}
+                      >
+                        {t('agent.viewExecution')}
+                      </Button>
+                    ),
+                  }
+                : {})}
+            />
           </div>
           {tab !== 'terminal' &&
             run?.status === 'running' &&
@@ -209,24 +225,12 @@ export function AgentCard({
                 }}
               />
             )}
-          {run && run.status !== 'running' && stored && (
-            <div className={inspectorStyles.viewBar}>
-              <button
-                type="button"
-                className={terminalStyles.tool}
-                onClick={() => {
-                  setInspected(stored);
-                }}
-              >
-                {t('agent.viewExecution')}
-              </button>
-            </div>
-          )}
           <div
-            id={`${tabId(tab)}-panel`}
+            id={`${idPrefix}-panel-${tab}`}
             role="tabpanel"
-            aria-labelledby={tabId(tab)}
-            className={terminalStyles.tabPanel}
+            aria-labelledby={`${idPrefix}-tab-${tab}`}
+            className={styles.panel}
+            data-tab={tab}
           >
             {tab === 'chat' && (
               <AgentMessageList messages={messages} liveText={liveText} agentName={agent.name} />
@@ -250,25 +254,35 @@ export function AgentCard({
               ) : (
                 <p className={styles.empty}>{t('inspector.noExecution')}</p>
               ))}
-            {tab === 'executions' && (
-              <ExecutionHistory
-                executions={history}
-                runtimeName={runtimeNameOf}
-                onOpen={setInspected}
-              />
-            )}
+            {tab === 'executions' &&
+              (history.length === 0 ? (
+                <p className={styles.empty}>{t('executions.empty')}</p>
+              ) : (
+                <div className={inspectorStyles.masterDetail}>
+                  <nav className={inspectorStyles.master} aria-label={t('executions.list')}>
+                    <ExecutionHistory
+                      executions={history}
+                      runtimeName={runtimeNameOf}
+                      selectedId={selected?.id ?? null}
+                      onOpen={(execution) => {
+                        setSelectedId(execution.id);
+                      }}
+                    />
+                  </nav>
+                  <div className={inspectorStyles.detail}>
+                    {selected && (
+                      <ExecutionView
+                        key={selected.id}
+                        execution={selected}
+                        messages={messages}
+                        context={context}
+                        {...(onOpenWorkflow ? { onOpenWorkflow } : {})}
+                      />
+                    )}
+                  </div>
+                </div>
+              ))}
           </div>
-          {inspected && (
-            <ExecutionInspector
-              execution={inspected}
-              messages={messages}
-              context={context}
-              onClose={() => {
-                setInspected(null);
-              }}
-              {...(onOpenWorkflow ? { onOpenWorkflow } : {})}
-            />
-          )}
           {sendError !== undefined && (
             <p role="alert" className={styles.error}>
               {errorMessage(t, sendError)}
@@ -280,6 +294,7 @@ export function AgentCard({
             agentName={agent.name}
             disabled={run?.status === 'running'}
             onSend={onSend}
+            compact={variant === 'grid'}
             {...(scope ? { scope } : {})}
           />
         </div>

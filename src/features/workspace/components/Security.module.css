@@ -42,11 +42,11 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 2px var(--space-3);
+  gap: var(--space-1) var(--space-3);
   padding: var(--space-3);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--surface-base);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
 }
 .area dt {
   grid-column: 1;
@@ -60,9 +60,10 @@
   grid-column: 2;
   grid-row: 1;
   justify-self: end;
-  padding: 1px var(--space-3);
+  padding: var(--space-half) var(--space-2);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  background: var(--surface-void);
+  background: var(--surface-2);
   color: var(--text-high);
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
@@ -74,8 +75,7 @@
 .detail {
   grid-column: 1 / -1;
   color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
 }
 .warning {
   grid-column: 1 / -1;
@@ -89,7 +89,7 @@
 }
 .note {
   margin: var(--space-3) 0 0;
-  color: var(--text-dim);
+  color: var(--text-muted);
   font-size: var(--font-size-xs);
 }
 .profileRow {

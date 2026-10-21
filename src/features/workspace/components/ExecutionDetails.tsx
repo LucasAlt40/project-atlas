@@ -21,9 +21,25 @@ export interface ExecutionContext {
   worktreeIsolation: boolean;
 }
 
-function Fact({ label, children }: { label: string; children: ReactNode }) {
+function Fact({
+  label,
+  mono = false,
+  wide = false,
+  children,
+}: {
+  label: string;
+  /** A technical value (a time, a model, a number): set in mono. */
+  mono?: boolean;
+  /** Takes the whole row (a long explanation). */
+  wide?: boolean;
+  children: ReactNode;
+}) {
   return (
-    <div className={styles.fact}>
+    <div
+      className={styles.fact}
+      data-mono={mono ? true : undefined}
+      data-wide={wide ? true : undefined}
+    >
       <dt>{label}</dt>
       <dd>{children}</dd>
     </div>
@@ -82,7 +98,10 @@ export function ExecutionDetails({
         : t(`agent.status.${facts.status === 'running' ? 'running' : facts.status}`);
 
   return (
-    <div aria-label={t('inspector.title', { id: shortId(facts.executionId) })}>
+    <div
+      className={styles.details}
+      aria-label={t('inspector.title', { id: shortId(facts.executionId) })}
+    >
       {showTask && facts.task && (
         <p className={styles.task}>
           <strong>{t('inspector.task')}: </strong>
@@ -91,25 +110,29 @@ export function ExecutionDetails({
       )}
       {facts.status === 'waiting_for_input' && facts.interaction && (
         <section className={styles.waiting} aria-label={t('interaction.inspector.waiting')}>
-          <h3>{t('interaction.inspector.waiting').toUpperCase()}</h3>
+          <h4 className={styles.groupTitle}>{t('interaction.inspector.waiting')}</h4>
           <dl className={styles.facts}>
             <Fact label={t('interaction.inspector.reason')}>
               {facts.interaction.kind
                 ? t(`interaction.kind.${facts.interaction.kind}` as TranslationKey)
                 : '—'}
             </Fact>
-            <Fact label={t('interaction.inspector.question')}>{facts.interaction.question}</Fact>
+            <Fact label={t('interaction.inspector.question')} wide>
+              {facts.interaction.question}
+            </Fact>
             {facts.interaction.context && (
-              <Fact label={t('interaction.context')}>{facts.interaction.context}</Fact>
+              <Fact label={t('interaction.context')} wide>
+                {facts.interaction.context}
+              </Fact>
             )}
-            <Fact label={t('interaction.inspector.when')}>
+            <Fact label={t('interaction.inspector.when')} mono>
               {time(facts.endedAt ?? facts.startedAt)}
             </Fact>
             <Fact label={t('interaction.inspector.how')}>
               {t(`interaction.source.${facts.interaction.source}` as TranslationKey)}
             </Fact>
             {asked?.status === 'answered' && (
-              <Fact label={t('interaction.inspector.answer')}>
+              <Fact label={t('interaction.inspector.answer')} wide>
                 {asked.answer ?? asked.choice ?? '—'}
                 {asked.answeredAt !== null && ` (${time(asked.answeredAt)})`}
               </Fact>
@@ -120,52 +143,86 @@ export function ExecutionDetails({
           </dl>
         </section>
       )}
-      <dl className={styles.facts}>
-        <Fact label={t('inspector.status')}>{status}</Fact>
-        <Fact label={t('inspector.workspace')}>{context.workspaceName}</Fact>
-        <Fact label={t('inspector.agent')}>{context.agentName}</Fact>
-        <Fact label={t('inspector.personality')}>{context.personalityName}</Fact>
-        <Fact label={t('inspector.runtime')}>{context.runtimeName}</Fact>
-        <Fact label={t('inspector.model')}>{facts.modelId || t('details.notReported')}</Fact>
-        <Fact label={t('inspector.started')}>{time(facts.startedAt)}</Fact>
-        {facts.endedAt !== null && (
-          <Fact label={t('inspector.finished')}>{time(facts.endedAt)}</Fact>
-        )}
-        {end !== null && (
-          <Fact label={t('inspector.duration')}>{formatDuration(end - facts.startedAt)}</Fact>
-        )}
-        <Fact label={t('inspector.process')}>{processText}</Fact>
-        {facts.context && (
-          <Fact label={t('details.context')}>
-            <span>
-              {facts.context.mode === 'fallback'
-                ? t('details.context.fallback', { reason: facts.context.fallbackReason ?? '—' })
-                : t('details.context.task_aware')}
-            </span>
-            <br />
-            <span>
-              {t('details.context.summary', {
-                selected: facts.context.selectedContextCharacters.toLocaleString(language),
-                total: facts.context.totalHarnessCharacters.toLocaleString(language),
-                items: facts.context.selectedItems,
-                omitted: facts.context.omittedItems,
-              })}
-            </span>
+      <section className={styles.group} aria-label={t('inspector.group.execution')}>
+        <h4 className={styles.groupTitle}>{t('inspector.group.execution')}</h4>
+        <dl className={styles.facts}>
+          {showTask && <Fact label={t('inspector.status')}>{status}</Fact>}
+          <Fact label={t('inspector.workspace')}>{context.workspaceName}</Fact>
+          <Fact label={t('inspector.agent')}>{context.agentName}</Fact>
+          <Fact label={t('inspector.personality')}>{context.personalityName}</Fact>
+          <Fact label={t('inspector.runtime')}>{context.runtimeName}</Fact>
+          <Fact label={t('inspector.model')}>
+            {facts.modelId ? (
+              <span className={styles.chip}>{facts.modelId}</span>
+            ) : (
+              t('details.notReported')
+            )}
           </Fact>
+          <Fact label={t('inspector.process')}>
+            <span className={styles.chip}>{processText}</span>
+          </Fact>
+          <Fact label={t('inspector.started')} mono>
+            {time(facts.startedAt)}
+          </Fact>
+          {facts.endedAt !== null && (
+            <Fact label={t('inspector.finished')} mono>
+              {time(facts.endedAt)}
+            </Fact>
+          )}
+          {end !== null && (
+            <Fact label={t('inspector.duration')} mono>
+              {formatDuration(end - facts.startedAt)}
+            </Fact>
+          )}
+          {!showTask && facts.status !== 'completed' && (
+            <Fact label={t('inspector.status')} wide>
+              {status}
+            </Fact>
+          )}
+          {facts.stoppedBy && (
+            <Fact label={t('inspector.status')}>{t(`inspector.stoppedBy.${facts.stoppedBy}`)}</Fact>
+          )}
+          {facts.context && (
+            <Fact label={t('details.context')} wide>
+              <span>
+                {facts.context.mode === 'fallback'
+                  ? t('details.context.fallback', { reason: facts.context.fallbackReason ?? '—' })
+                  : t('details.context.task_aware')}
+              </span>
+              <br />
+              <span className={styles.factNote}>
+                {t('details.context.summary', {
+                  selected: facts.context.selectedContextCharacters.toLocaleString(language),
+                  total: facts.context.totalHarnessCharacters.toLocaleString(language),
+                  items: facts.context.selectedItems,
+                  omitted: facts.context.omittedItems,
+                })}
+              </span>
+            </Fact>
+          )}
+        </dl>
+      </section>
+      <section className={styles.group} aria-label={t('details.usage')}>
+        <h4 className={styles.groupTitle}>{t('details.usage')}</h4>
+        {facts.usagePending ? (
+          <p className={styles.note}>{t('inspector.usagePending')}</p>
+        ) : (
+          <dl className={styles.facts} data-columns="4">
+            <Fact label={t('details.input')} mono>
+              {tokens(facts.usage?.inputTokens)}
+            </Fact>
+            <Fact label={t('details.output')} mono>
+              {tokens(facts.usage?.outputTokens)}
+            </Fact>
+            <Fact label={t('details.total')} mono>
+              {tokens(facts.usage?.totalTokens)}
+            </Fact>
+            <Fact label={t('details.cost')} mono>
+              <span className={styles.cost}>{cost}</span>
+            </Fact>
+          </dl>
         )}
-        {facts.stoppedBy && (
-          <Fact label={t('inspector.status')}>{t(`inspector.stoppedBy.${facts.stoppedBy}`)}</Fact>
-        )}
-        {!facts.usagePending && (
-          <>
-            <Fact label={t('details.input')}>{tokens(facts.usage?.inputTokens)}</Fact>
-            <Fact label={t('details.output')}>{tokens(facts.usage?.outputTokens)}</Fact>
-            <Fact label={t('details.total')}>{tokens(facts.usage?.totalTokens)}</Fact>
-            <Fact label={t('details.cost')}>{cost}</Fact>
-          </>
-        )}
-      </dl>
-      {facts.usagePending && <p className={styles.note}>{t('inspector.usagePending')}</p>}
+      </section>
       {facts.contextReview && (
         <ContextReviewPanel review={facts.contextReview} guardrails={facts.guardrails} />
       )}

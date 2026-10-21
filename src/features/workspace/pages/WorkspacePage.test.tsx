@@ -63,7 +63,7 @@ describe('WorkspacePage', () => {
     expect(within(architectCard).getByText('sonnet')).toBeInTheDocument();
     expect(statusOf('Architect')).toHaveTextContent('Ready');
     expect(card('Developer')).toHaveTextContent(/Runtime: OpenCode CLI\s*Provider: OpenCode/);
-    expect(screen.getAllByText('Available')).toHaveLength(2);
+    expect(screen.getAllByText('Free space')).toHaveLength(2);
     expect(screen.getByRole('heading', { name: 'Atlas' })).toBeInTheDocument();
   });
 
@@ -73,7 +73,7 @@ describe('WorkspacePage', () => {
     show(['a1', 'a2']);
 
     await screen.findByRole('article', { name: 'Architect' });
-    expect(screen.queryByText('Available')).not.toBeInTheDocument();
+    expect(screen.queryByText('Free space')).not.toBeInTheDocument();
     expect(within(card('Architect')).getByRole('tablist')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Collapse Architect' }));
@@ -103,19 +103,19 @@ describe('WorkspacePage', () => {
       workspace(W1, 'Atlas', '/dev/atlas', ['a1', 'a2']),
     );
 
-    await user.click(await screen.findByRole('button', { name: '+ Add Agent' }));
+    await user.click(await screen.findByRole('button', { name: 'Add agent' }));
     await user.click(screen.getByRole('button', { name: 'Add Developer' }));
 
     expect(addAgentToWorkspace).toHaveBeenCalledWith(W1, 'a2');
     expect(await screen.findByRole('article', { name: 'Developer' })).toBeInTheDocument();
-    expect(screen.getAllByText('Available')).toHaveLength(2);
+    expect(screen.getAllByText('Free space')).toHaveLength(2);
   });
 
   it('sends "Create new agent" to the agent creation flow', async () => {
     const user = userEvent.setup();
     show(['a1']);
 
-    await user.click(await screen.findByRole('button', { name: '+ Add Agent' }));
+    await user.click(await screen.findByRole('button', { name: 'Add agent' }));
     await user.click(screen.getByRole('button', { name: 'Create new agent' }));
 
     expect(navigate).toHaveBeenCalledWith('agents', { type: 'create-agent' });
@@ -135,8 +135,8 @@ describe('WorkspacePage', () => {
     await waitFor(() => {
       expect(screen.queryByRole('article', { name: 'Architect' })).not.toBeInTheDocument();
     });
-    expect(screen.getAllByText('Available')).toHaveLength(3);
-    await user.click(screen.getByRole('button', { name: '+ Add Agent' }));
+    expect(screen.getAllByText('Free space')).toHaveLength(3);
+    await user.click(screen.getByRole('button', { name: 'Add agent' }));
     expect(screen.getByRole('button', { name: 'Add Architect' })).toBeInTheDocument();
   });
 
@@ -147,11 +147,11 @@ describe('WorkspacePage', () => {
       workspace(W1, 'Atlas', '/dev/atlas', ['a1', 'a2', 'a3', 'a4']),
     );
 
-    await user.click(await screen.findByRole('button', { name: '+ Add Agent' }));
+    await user.click(await screen.findByRole('button', { name: 'Add agent' }));
     await user.click(screen.getByRole('button', { name: 'Add Reviewer' }));
     expect(await screen.findByRole('article', { name: 'Reviewer' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '+ Add Agent' }));
+    await user.click(screen.getByRole('button', { name: 'Add agent' }));
 
     expect(screen.getByRole('alert')).toHaveTextContent('up to 4 agents');
     expect(screen.queryByRole('region', { name: 'Add agent' })).not.toBeInTheDocument();

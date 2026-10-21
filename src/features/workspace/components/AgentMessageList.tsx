@@ -17,18 +17,13 @@ interface Props {
 const time = (timestamp: number) =>
   new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-function Avatar() {
-  return (
-    <span className={styles.avatar} aria-hidden="true">
-      <Icon name="agents" size={18} />
-    </span>
-  );
-}
-
 function Byline({ name, at }: { name: string | undefined; at?: number }) {
   if (!name) return null;
   return (
     <span className={styles.byline}>
+      <span className={styles.avatar} aria-hidden="true">
+        <Icon name="agents" size={12} />
+      </span>
       <strong>{name}</strong>
       {at !== undefined && <span className={styles.time}>{time(at)}</span>}
     </span>
@@ -62,26 +57,26 @@ export function AgentMessageList({ messages, liveText, agentName }: Props) {
           data-failed={message.failed && message.failureKind !== 'cancelled'}
         >
           {message.role === 'user' ? (
-            <p className={styles.userText}>{message.content}</p>
+            <>
+              <p className={styles.userText}>{message.content}</p>
+              <span className={styles.time}>{time(message.timestamp)}</span>
+            </>
           ) : (
             <>
-              <Avatar />
-              <div className={styles.answerColumn}>
-                <Byline name={agentName} at={message.timestamp} />
-                <div className={styles.answer}>
-                  {message.failureKind === 'cancelled' ? (
-                    // Stopped by the user: not a failure, so no "failed" wording.
-                    <p>{t('chat.cancelled')}</p>
-                  ) : message.failed ? (
-                    // The core sends a failure code; the words are ours, in the user's language.
-                    <p>
-                      {t('chat.failedPrefix')} {failureMessage(t, message.failureKind)}
-                      {failureReason(message.content) && <> {failureReason(message.content)}</>}
-                    </p>
-                  ) : (
-                    <Markdown>{message.content}</Markdown>
-                  )}
-                </div>
+              <Byline name={agentName} at={message.timestamp} />
+              <div className={styles.answer}>
+                {message.failureKind === 'cancelled' ? (
+                  // Stopped by the user: not a failure, so no "failed" wording.
+                  <p>{t('chat.cancelled')}</p>
+                ) : message.failed ? (
+                  // The core sends a failure code; the words are ours, in the user's language.
+                  <p>
+                    {t('chat.failedPrefix')} {failureMessage(t, message.failureKind)}
+                    {failureReason(message.content) && <> {failureReason(message.content)}</>}
+                  </p>
+                ) : (
+                  <Markdown>{message.content}</Markdown>
+                )}
               </div>
             </>
           )}
@@ -89,15 +84,12 @@ export function AgentMessageList({ messages, liveText, agentName }: Props) {
       ))}
       {liveText && (
         <li className={styles.message} data-role="assistant" data-streaming="true">
-          <Avatar />
-          <div className={styles.answerColumn}>
-            <Byline name={agentName} />
-            <div className={styles.answer} aria-live="polite">
-              <Markdown>{liveText}</Markdown>
-              <span aria-hidden="true" className={styles.cursor}>
-                ▍
-              </span>
-            </div>
+          <Byline name={agentName} />
+          <div className={styles.answer} aria-live="polite">
+            <Markdown>{liveText}</Markdown>
+            <span aria-hidden="true" className={styles.cursor}>
+              ▍
+            </span>
           </div>
         </li>
       )}

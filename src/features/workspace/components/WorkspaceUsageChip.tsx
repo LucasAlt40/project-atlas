@@ -31,20 +31,22 @@ export function WorkspaceUsageChip({ workspaceId, usageVersion }: Props) {
       >
         <span className={styles.srOnly}>{t('usage.thisWorkspace')}</span>
         <span>
-          {t('usage.today')}: <TotalsView totals={today} showTokens={false} />
+          {t('usage.today')} <TotalsView totals={today} showTokens={false} />
         </span>
+        <span aria-hidden="true">·</span>
         <span>
-          {t('usage.week')}: <TotalsView totals={week} showTokens={false} />
+          {t('usage.week')} <TotalsView totals={week} showTokens={false} />
         </span>
       </button>
       {open && (
         <Modal
           label={t('usage.title')}
+          title={t('usage.title')}
+          size="sm"
           onClose={() => {
             setOpen(false);
           }}
         >
-          <h2 className={styles.panelTitle}>{t('usage.title')}</h2>
           <dl className={styles.usageList}>
             {(
               [

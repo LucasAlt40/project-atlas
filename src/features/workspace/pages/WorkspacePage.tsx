@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { useNavigation } from '@/app/NavigationContext';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
+import { Callout } from '@/components/ui/Callout';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { useCatalog } from '@/features/agents/hooks/useCatalog';
 import { errorMessage } from '@/i18n/messages';
 import { useT } from '@/i18n/I18nProvider';
@@ -227,22 +230,11 @@ export function WorkspacePage() {
 
   return (
     <section className={styles.page} data-view={view}>
-      <div className={styles.banner}>
-        <header className={styles.header}>
-          <div className={styles.headerLeft}>
-            <h1 className={styles.title}>{active.name}</h1>
-            <WorkspaceUsageChip workspaceId={active.id} usageVersion={workspace.usageVersion} />
-          </div>
-          <div className={styles.headerRight}>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                navigate('mcp');
-              }}
-            >
-              {t('integrations.open')}
-              <Icon name="externalLink" size={12} />
-            </Button>
+      <PageHeader
+        title={active.name}
+        meta={<WorkspaceUsageChip workspaceId={active.id} usageVersion={workspace.usageVersion} />}
+        actions={
+          <>
             <Button
               variant="secondary"
               aria-label={t('projects.openLabel', { name: active.name })}
@@ -250,18 +242,28 @@ export function WorkspacePage() {
                 setManagingProjects(true);
               }}
             >
-              <Icon name="stack" size={14} />
               {t('projects.open', { count: active.projects.length })}
             </Button>
-            <Button onClick={openAdd}>{t('workspace.addAgent')}</Button>
-          </div>
-        </header>
-      </div>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                navigate('mcp');
+              }}
+            >
+              {t('integrations.open')}
+            </Button>
+            <Button onClick={openAdd}>
+              <Icon name="plus" size={16} />
+              {t('workspace.addAgent')}
+            </Button>
+          </>
+        }
+      />
 
       {notice && (
-        <p role="alert" className={styles.notice}>
+        <Callout tone="danger" role="alert">
           {notice}
-        </p>
+        </Callout>
       )}
       {editing && (
         <EditAgentPanel
@@ -292,39 +294,31 @@ export function WorkspacePage() {
         />
       )}
       {active.layout.agentPlacements.length === 0 && !adding && (
-        <p className={styles.muted}>{t('workspace.noAgents')}</p>
+        <p className={styles.empty}>{t('workspace.noAgents')}</p>
       )}
 
       {placedAgentIds.length > 0 && (
         <div className={styles.viewBar}>
-          <div className={styles.segmented} role="group" aria-label={t('workspace.view.label')}>
-            {(['list', 'grid'] as const).map((name) => (
-              <button
-                key={name}
-                type="button"
-                className={styles.segment}
-                aria-pressed={view === name}
-                aria-label={t(`workspace.view.${name}`)}
-                title={t(`workspace.view.${name}`)}
-                onClick={() => {
-                  chooseView(name);
-                }}
-              >
-                <Icon name={name === 'list' ? 'viewList' : 'viewGrid'} size={16} />
-                {t(`workspace.view.${name}`)}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            label={t('workspace.view.label')}
+            value={view}
+            onChange={chooseView}
+            segments={[
+              { value: 'list', label: t('workspace.view.list'), icon: 'viewList' },
+              { value: 'grid', label: t('workspace.view.grid'), icon: 'viewGrid' },
+            ]}
+          />
           {view === 'list' && (
-            <button
-              type="button"
-              className={styles.linkButton}
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 setFolded(allFolded ? new Set() : new Set(placedAgentIds));
               }}
             >
+              <Icon name={allFolded ? 'unfold' : 'collapseAll'} size={16} />
               {allFolded ? t('workspace.expandAll') : t('workspace.collapseAll')}
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -356,6 +350,27 @@ export function WorkspacePage() {
             processOf(conversations, runKey(active.id, details.id)),
           )}
           usageVersion={workspace.usageVersion}
+          latest={workspace.history.find(
+            (e) => e.workspaceId === active.id && e.agentId === details.id,
+          )}
+          onOpenExecution={() => {
+            setDetailsId(null);
+            setFolded((current) => {
+              const next = new Set(current);
+              next.delete(details.id);
+              return next;
+            });
+            void workspace.focusAgent({
+              workspaceId: active.id,
+              agentId: details.id,
+              tab: 'executions',
+            });
+          }}
+          onEdit={() => {
+            setDetailsId(null);
+            setAdding(false);
+            setEditingId(details.id);
+          }}
           onClose={() => {
             setDetailsId(null);
           }}

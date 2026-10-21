@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/Modal';
 import type { Agent } from '@/features/agents/types';
 import { useT } from '@/i18n/I18nProvider';
 import styles from './Workspace.module.css';
@@ -11,18 +12,33 @@ interface Props {
   onClose: () => void;
 }
 
+/** Adding an agent: one of those already created, or a new one (the Agents form). */
 export function AddAgentPanel({ available, onAdd, onCreateNew, onClose }: Props) {
   const t = useT();
   return (
-    <section className={styles.panel} aria-label={t('workspace.addPanel.title')}>
-      <h2 className={styles.panelTitle}>{t('workspace.addPanel.title')}</h2>
+    <Modal
+      label={t('workspace.addPanel.title')}
+      title={t('workspace.addPanel.title')}
+      size="sm"
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button onClick={onCreateNew}>{t('workspace.addPanel.createNew')}</Button>
+        </>
+      }
+    >
       {available.length > 0 && (
         <ul className={styles.available}>
           {available.map((agent) => (
             <li key={agent.id}>
-              <span>{agent.name}</span>
+              <span className={styles.availableName}>{agent.name}</span>
+              <span className={styles.availableModel}>{agent.modelId}</span>
               <Button
                 variant="secondary"
+                size="sm"
                 onClick={() => {
                   onAdd(agent.id);
                 }}
@@ -33,12 +49,6 @@ export function AddAgentPanel({ available, onAdd, onCreateNew, onClose }: Props)
           ))}
         </ul>
       )}
-      <div className={styles.panelActions}>
-        <Button onClick={onCreateNew}>{t('workspace.addPanel.createNew')}</Button>
-        <button type="button" className={styles.linkButton} onClick={onClose}>
-          {t('common.cancel')}
-        </button>
-      </div>
-    </section>
+    </Modal>
   );
 }

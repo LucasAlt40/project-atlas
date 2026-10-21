@@ -43,9 +43,10 @@ export function WorkspaceGrid({ workspace, renderAgent, onAdd }: Props) {
               <span className={styles.slotTile} aria-hidden="true">
                 <Icon name="plus" size={20} />
               </span>
-              <span>{t('workspace.available')}</span>
+              <span className={styles.slotText}>{t('workspace.available')}</span>
               {onAdd && (
                 <Button variant="secondary" onClick={onAdd}>
+                  <Icon name="plus" size={16} />
                   {t('workspace.slot.cta')}
                 </Button>
               )}

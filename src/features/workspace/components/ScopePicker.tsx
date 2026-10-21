@@ -10,6 +10,8 @@ interface Props {
   choice: ScopeChoice;
   onChange: (choice: ScopeChoice) => void;
   disabled?: boolean;
+  /** Only an icon (the summary in its tooltip), for the one-line composer of the grid. */
+  compact?: boolean;
 }
 
 /**
@@ -17,7 +19,13 @@ interface Props {
  * changes (in its isolated worktree); the others are consulted. Shown only for a workspace that
  * has more than one project: with one there is nothing to choose.
  */
-export function ScopePicker({ projects, choice, onChange, disabled = false }: Props) {
+export function ScopePicker({
+  projects,
+  choice,
+  onChange,
+  disabled = false,
+  compact = false,
+}: Props) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const bodyId = useId();
@@ -39,13 +47,22 @@ export function ScopePicker({ projects, choice, onChange, disabled = false }: Pr
         data-multi={multi}
         aria-expanded={open}
         aria-controls={bodyId}
+        data-compact={compact ? true : undefined}
         aria-label={`${t('scope.label')}: ${summary}`}
+        title={summary}
         onClick={() => {
           setOpen((o) => !o);
         }}
       >
-        <Icon name="stack" size={14} />
-        {multi ? t('scope.badge', { working, count: choice.readProjectIds.length }) : working}
+        <Icon name="folder" size={15} />
+        {!compact && (
+          <>
+            <span className={styles.scopeName}>
+              {multi ? t('scope.badge', { working, count: choice.readProjectIds.length }) : working}
+            </span>
+            <Icon name="chevronDown" size={14} />
+          </>
+        )}
       </button>
       {open && (
         <fieldset id={bodyId} className={styles.scopeBody} disabled={disabled}>

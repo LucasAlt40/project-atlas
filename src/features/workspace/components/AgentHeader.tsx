@@ -18,17 +18,18 @@ interface Props {
   /** In the expandable list: whether the body is open, and how to toggle it. */
   expanded?: boolean;
   onToggle?: () => void;
-  /** Folded in the list: reach the terminal without unfolding by hand. */
+  /** Folded in the list: reach the terminal without unfolding by hand (from "⋯"). */
   onOpenTerminal?: () => void;
+  /** `grid`: one compact line (name, state, model, ⋯); `list`: the full header. */
+  variant?: 'grid' | 'list';
   onOpenDetails: () => void;
   onEdit: () => void;
   onRemove: () => void;
 }
 
 /**
- * Identity first: who the agent is and what it is doing right now, then a strip with what it
- * runs on. Clicking the identity opens the agent's details and usage; the "⋯" menu keeps the
- * secondary and destructive actions.
+ * Identity first: who the agent is and what it is doing right now, then what it runs on in one
+ * quiet line. Clicking the name opens the agent's details; "⋯" keeps the rare actions.
  */
 export function AgentHeader({
   name,
@@ -41,17 +42,17 @@ export function AgentHeader({
   expanded,
   onToggle,
   onOpenTerminal,
+  variant = 'list',
   onOpenDetails,
   onEdit,
   onRemove,
 }: Props) {
   const t = useT();
+  const compact = variant === 'grid';
+  const lineage = [personalityName, runtimeName, providerName].filter(Boolean).join(' · ');
   return (
-    <header className={styles.header}>
-      <div className={styles.headerTop}>
-        <span className={styles.avatar} aria-hidden="true">
-          <Icon name="agents" size={18} />
-        </span>
+    <header className={styles.header} data-compact={compact ? true : undefined}>
+      <div className={styles.identityRow}>
         <button
           type="button"
           className={styles.identity}
@@ -59,74 +60,82 @@ export function AgentHeader({
           onClick={onOpenDetails}
         >
           <h3 className={styles.title}>{name}</h3>
-          <StatusBadge status={status} />
         </button>
-        <span className={styles.headerActions}>
-          {onToggle && expanded === false && onOpenTerminal && (
-            <Button variant="ghost" onClick={onOpenTerminal}>
-              {t('agent.tab.terminal')}
-            </Button>
-          )}
+        <StatusBadge status={status} />
+        {!compact && (
+          <>
+            <span className={styles.rule} aria-hidden="true" />
+            <span className={styles.lineage} title={lineage}>
+              {lineage}
+            </span>
+          </>
+        )}
+        <span className={styles.model} title={modelId}>
+          {modelId}
+        </span>
+        {!compact && (
+          <span
+            className={styles.isolation}
+            data-on={gitIsolation}
+            title={t(gitIsolation ? 'agent.gitIsolation.onHint' : 'agent.gitIsolation.offHint')}
+          >
+            {gitIsolation && <Icon name="lock" size={12} />}
+            {t(gitIsolation ? 'agent.gitIsolation.badgeOn' : 'agent.gitIsolation.badgeOff')}
+          </span>
+        )}
+      </div>
+      <span className={styles.headerActions}>
+        {!compact && (
           <Button
             variant="secondary"
+            size="sm"
             aria-label={t('workspace.editAgent', { name })}
             onClick={onEdit}
           >
             {t('common.edit')}
           </Button>
-          <OverflowMenu
-            label={t('agent.moreActions', { name })}
-            items={[
-              {
-                label: t('workspace.openDetails'),
-                icon: 'shield',
-                onSelect: onOpenDetails,
-              },
-              {
-                label: t('workspace.removeAgent', { name }),
-                icon: 'trash',
-                danger: true,
-                onSelect: onRemove,
-              },
-            ]}
-          />
-          {onToggle && (
-            <Button
-              variant="secondary"
-              aria-expanded={expanded}
-              aria-label={t(expanded ? 'agent.collapse' : 'agent.expand', { name })}
-              onClick={onToggle}
-            >
-              <Icon name={expanded ? 'chevronUp' : 'chevronDown'} size={14} />
-              {t(expanded ? 'agent.collapseShort' : 'agent.expandShort')}
-            </Button>
-          )}
-        </span>
-      </div>
-      <p className={styles.metaStrip}>
-        <span>
-          {t('agent.meta.personality')}: <b>{personalityName}</b>
-        </span>
-        <span>
-          {t('agent.meta.runtime')}: <b>{runtimeName}</b>
-        </span>
-        {providerName && (
-          <span>
-            {t('agent.meta.provider')}: <b>{providerName}</b>
-          </span>
         )}
-        <span>
-          {t('agent.meta.model')}: <b className={styles.metaModel}>{modelId}</b>
-        </span>
-        <span
-          className={styles.metaGit}
-          data-on={gitIsolation}
-          title={t(gitIsolation ? 'agent.gitIsolation.onHint' : 'agent.gitIsolation.offHint')}
-        >
-          <span aria-hidden="true">●</span> {t('agent.gitIsolation')}:{' '}
-          <b>{t(gitIsolation ? 'agent.gitIsolation.on' : 'agent.gitIsolation.off')}</b>
-        </span>
-      </p>
+        <OverflowMenu
+          label={t('agent.moreActions', { name })}
+          items={[
+            ...(compact
+              ? [{ label: t('common.edit'), icon: 'edit' as const, onSelect: onEdit }]
+              : []),
+            ...(onOpenTerminal && expanded === false
+              ? [
+                  {
+                    label: t('agent.tab.terminal'),
+                    icon: 'terminal' as const,
+                    onSelect: onOpenTerminal,
+                  },
+                ]
+              : []),
+            {
+              label: t('workspace.openDetails'),
+              icon: 'info',
+              onSelect: onOpenDetails,
+            },
+            {
+              label: t('workspace.removeAgent', { name }),
+              icon: 'trash',
+              danger: true,
+              onSelect: onRemove,
+            },
+          ]}
+        />
+        {onToggle && (
+          <button
+            type="button"
+            className={styles.toggle}
+            aria-expanded={expanded}
+            aria-label={t(expanded ? 'agent.collapse' : 'agent.expand', { name })}
+            title={t(expanded ? 'agent.collapse' : 'agent.expand', { name })}
+            onClick={onToggle}
+          >
+            <Icon name={expanded ? 'chevronUp' : 'chevronDown'} size={18} />
+          </button>
+        )}
+      </span>
     </header>
   );
 }
