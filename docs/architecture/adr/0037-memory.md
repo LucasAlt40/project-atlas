@@ -161,7 +161,8 @@ O `auto` continua sendo escolha explícita da pessoa, e `propose` continua sendo
 
 ## Decisões pendentes (a pessoa decide antes da M2)
 
-- Padrão do modo por escopo quando a pessoa ligar a Memory pela primeira vez (proposta: `propose` em Workspace e Agent,
+- **Resolvida na [ADR 0041](0041-memoria-que-aprende.md):** `propose` em todos os escopos até a pessoa escolher, `auto`
+  nunca por padrão. Texto original: padrão do modo por escopo quando a pessoa ligar a Memory pela primeira vez (proposta: `propose` em Workspace e Agent,
   `propose` em User, `auto` só por escolha explícita).
 - Cotas e validades padrão (valores acima são o ponto de partida, a calibrar na M4).
 

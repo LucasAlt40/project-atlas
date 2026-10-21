@@ -142,7 +142,10 @@ controle, não sandbox**: controla um processo que o guard já autorizou e **nã
 
 ## 6. Limites conhecidos (resumo honesto)
 
-- Não há sandbox de SO (`sandbox.rs` é só o ponto de encaixe). As ferramentas internas de uma CLI não são contidas.
+- No macOS há sandbox de SO ([ADR 0038](../architecture/adr/0038-macos-sandbox.md)), em **`auto` por padrão** desde a
+  [ADR 0042](../architecture/adr/0042-padroes-ligados.md): confina o processo do runtime quando o sistema permite e avisa
+  na atividade quando não permite. Desligue em **Configurações → Geral → Sandbox dos runtimes**. Em outros sistemas, as
+  ferramentas internas de uma CLI não são contidas.
 - Agentes ainda **não rodam shell, testes ou rede**; só leem e (se permitido) editam arquivos no worktree.
 - Windows não foi compilado/executado; Linux não foi executado.
 - Submódulos e layouts incomuns de worktree não têm tratamento específico.

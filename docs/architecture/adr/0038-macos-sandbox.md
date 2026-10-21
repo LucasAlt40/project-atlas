@@ -1,6 +1,6 @@
 # ADR 0038 — Sandbox do macOS para o processo dos runtimes
 
-Status: aceito e implementado, **desligado por padrão**. Verificado com modelo real em quatro CLIs (o trabalho normal
+Status: aceito e implementado; **`auto` por padrão desde a [ADR 0042](0042-padroes-ligados.md)** (era desligado). Verificado com modelo real em quatro CLIs (o trabalho normal
 funciona dentro do perfil); a tentativa de fuga pela CLI real não pôde ser exercitada: veja "Verificação com modelo real". Baseia-se no spike
 [macos-sandbox.md](../spikes/macos-sandbox.md), na [ADR 0003](0003-command-permissions.md) (permissões de comandos), na
 [ADR 0009](0009-git-worktree-isolation.md) (worktrees) e na [ADR 0025](0025-guardrails-and-context-review.md), que registra

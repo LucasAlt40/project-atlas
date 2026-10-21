@@ -3,12 +3,15 @@
 A memória do Atlas guarda **lições curtas** de trabalhos anteriores ("o limite de tentativas está em `deploy/limits.cfg`,
 não em `config/app.toml`") e as entrega ao agente no começo de uma execução, **como dica e nunca como instrução**.
 Decisões: [ADR 0037](../architecture/adr/0037-memory.md) (memória nativa, com a emenda de poda de 2026-10-20) e
-[ADR 0040](../architecture/adr/0040-memoria-externa-ai-memory.md) (servidor ai-memory opcional). Números e limites:
+[ADR 0040](../architecture/adr/0040-memoria-externa-ai-memory.md) (servidor ai-memory opcional) e
+[ADR 0041](../architecture/adr/0041-memoria-que-aprende.md) (ligada por padrão, aprende com você). Números e limites:
 [análise](../architecture/spikes/ai-memory-analysis.md).
 
 ## Como ligar
 
-**Configurações → Memória → "Onde as notas são usadas"**. Cada escopo tem três modos:
+**Ela já vem ligada** em **Propor, eu aprovo** nos três escopos: nada entra num prompt sem você ter escrito ou aprovado.
+Para mudar, vá em **Configurações → Memória → "Onde as notas são usadas"**; o que você salvar ali é respeitado e nunca
+volta ao padrão. Cada escopo tem três modos:
 
 | Modo                  | O que faz                                                                             |
 | --------------------- | ------------------------------------------------------------------------------------- |
@@ -16,9 +19,24 @@ Decisões: [ADR 0037](../architecture/adr/0037-memory.md) (memória nativa, com 
 | **Propor, eu aprovo** | As notas ativas entram nos prompts; agentes podem **propor** notas, que esperam você. |
 | **Automático**        | Como o anterior, mas propostas que passam em todas as checagens entram sozinhas.      |
 
-Os escopos são **Minhas** (todos os projetos), **Workspace** e **Agente**. Para começar, ligue só **Workspace** em
-**Propor, eu aprovo**. O modo automático só vale a pena com um validador independente (ADR 0037) e **nunca** vale para
-notas de preferência nem para as suas.
+Os escopos são **Minhas** (todos os projetos), **Workspace** e **Agente**. O modo automático só vale a pena com um
+validador independente (ADR 0037) e **nunca** vale para notas de preferência nem para as suas. Com propostas ligadas,
+todo prompt leva a regra de proposta no fim (~200 tokens), mesmo quando nenhuma nota combina.
+
+## Como o Atlas aprende com você
+
+Sem modelo extra e sem nada escondido, o workspace aprende com três decisões que você já toma:
+
+| O que você faz                                                       | O que o Atlas aprende                                                                                                                                                                      |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Recusa** uma proposta                                              | Guarda a recusa (aba **Recusadas**). Quando um agente propõe a mesma lição de novo, ela é descartada sem perguntar.                                                                        |
+| **Aceita** o trabalho de uma execução (mesclar, ou aplicar um fluxo) | As notas que foram no prompt dela ganham um ponto e passam na frente das outras igualmente relevantes.                                                                                     |
+| **Descarta** as mudanças de um fluxo                                 | As notas que foram no prompt perdem dois pontos. Uma nota **de agente** que esteve em 2 trabalhos descartados (e em menos aceitos) sai de uso com o selo **Fora de uso** até você revê-la. |
+| **Corrige** o agente no chat ("está errado", "na verdade…", "wrong") | O prompt pede ao agente que registre o que você corrigiu como nota, para você aprovar.                                                                                                     |
+
+Cada nota mostra quantas vezes foi aceita e descartada. Uma nota que **você** escreveu nunca sai de uso por isso: só
+cai na ordem. Mudou de ideia sobre uma recusa? **Aprovar mesmo assim**. Quer que a lição possa voltar a ser proposta?
+**Esquecer**.
 
 ## Como escrever uma nota que funciona
 
@@ -110,4 +128,11 @@ o pedido, e quando o agente editar a isca diga no chat que está errado. Depois 
   ajudaram nos testes.
 - As constantes da poda foram ajustadas em conjuntos de teste pequenos (um sintético e 46 notas do próprio projeto). Se
   você usar a memória de verdade, vale repetir a medição com as suas notas (`real_notes_tests`).
+- Medido com modelos reais (Claude haiku e Codex): depois que você corrige o agente e aprova a nota certa, a execução
+  seguinte deixou de cair na isca (0 de 9 vezes, contra 6 de 9 sem a correção). Mas **metade das notas que um agente
+  propõe por conta própria é falsa**: leia antes de aprovar. Detalhes em
+  [memory-learning-results.md](../architecture/spikes/memory-learning-results.md).
+- O efeito de aceitar ou descartar o trabalho na ordem das notas só foi provado com testes, sem modelo real. Descartar
+  é um sinal fraco; por isso só nota de agente sai de uso, e só depois de duas vezes. Mesclagem automática e execuções
+  sem worktree não contam.
 - O servidor ai-memory só foi exercitado no macOS. A captura automática por hooks dele **não** é recomendada (ver análise).
