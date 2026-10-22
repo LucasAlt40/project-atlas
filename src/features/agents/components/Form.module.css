@@ -68,7 +68,7 @@
 }
 .warning {
   margin: 0;
-  color: var(--color-warning, var(--text-standard));
+  color: var(--warning);
   font-size: var(--font-size-xs);
 }
 .outcomeRows {
@@ -99,28 +99,14 @@
   outline: 0;
 }
 
-/* The agent editor: sections in two columns and an action bar that stays in view. */
+/* The agent editor: one centred column of titled sections, the footer fixed at the bottom. */
 .agentForm {
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
-}
-.columns {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-  gap: var(--space-5);
-  align-items: start;
-}
-@media (max-width: 1100px) {
-  .columns {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-.column {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  min-width: 0;
+  width: 100%;
+  max-width: var(--measure-form);
+  margin-inline: auto;
 }
 .section {
   display: flex;
@@ -131,56 +117,157 @@
   border-radius: var(--radius-md);
   background: var(--surface-1);
 }
-/* A group inside a section (the contract, the isolation): an inset well, like the code blocks. */
-.group {
-  padding: var(--space-4);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--surface-void);
-}
-.group > legend {
-  padding: 0 var(--space-2);
-}
 .sectionTitle {
   margin: 0;
-  font-size: var(--font-size-lg);
-}
-.sectionHead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2) var(--space-3);
-}
-.pair {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: var(--space-4);
-}
-.stickyBar {
-  position: sticky;
-  bottom: calc(var(--space-5) * -1);
-  z-index: 5;
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface-void);
+  color: var(--text-high);
+  font-size: var(--font-size-md);
+  font-weight: 600;
 }
 .control,
 .textarea {
   background: var(--surface-void);
 }
+.control {
+  height: var(--control-height);
+}
 .textarea {
-  min-height: 9rem;
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  line-height: 1.6;
+  min-height: 5rem;
+  line-height: var(--line-height-reading);
 }
 .field {
   gap: var(--space-2);
+}
+.labelRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+/* Result contract: the kinds as compact cards in one row, then what each one may conclude. */
+.contract {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.kinds {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: var(--space-2);
+}
+.kind {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-height);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-void);
+  color: var(--text-muted);
+  text-align: center;
+  cursor: pointer;
+}
+.kind input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.kind:hover {
+  color: var(--text-high);
+}
+.kind:has(input:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-void));
+  color: var(--text-high);
+  font-weight: 500;
+}
+.kind:has(input:focus-visible) {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
+}
+.outcomes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+.outcomeId {
+  color: var(--text-high);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+.outcomeLabel {
+  color: var(--text-muted);
+}
+
+/* Permission profiles: radio cards, one per line. */
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-void);
+  cursor: pointer;
+}
+.choice input {
+  margin-top: 0.2rem;
+}
+.choice:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+.choiceText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-half);
+  min-width: 0;
+}
+.choiceTitle {
+  color: var(--text-high);
+  font-weight: 500;
+}
+.isolation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* On the agents screen the footer spans the whole content area and stays at its bottom. */
+.agentForm[data-variant='page'] .footer {
+  position: sticky;
+  bottom: calc(var(--space-5) * -1);
+  z-index: 5;
+  margin-inline: calc((100% - 100cqw) / 2 - var(--space-5));
+  margin-bottom: calc(var(--space-5) * -1);
+}
+.agentForm[data-variant='page'] .footer > * {
+  position: static;
+  padding-inline: var(--space-5);
+}
+@media (max-width: 1023px) {
+  .agentForm[data-variant='page'] .footer {
+    bottom: calc(var(--space-4) * -1);
+    margin-inline: calc((100% - 100cqw) / 2 - var(--space-4));
+    margin-bottom: calc(var(--space-4) * -1);
+  }
+  .agentForm[data-variant='page'] .footer > * {
+    padding-inline: var(--space-4);
+  }
 }
 
 /* The personality form inside the side panel: the instructions take the height that is left. */

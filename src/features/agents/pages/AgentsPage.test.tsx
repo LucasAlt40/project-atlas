@@ -114,7 +114,7 @@ describe('AgentsPage', () => {
     await user.selectOptions(within(form).getByLabelText('Personality'), 'architect');
     await user.selectOptions(await within(form).findByLabelText('AI Provider'), 'opencode');
     expect(within(form).getByLabelText('Connection')).toHaveValue('opencode');
-    expect(within(form).getByText(/✓ Ready · 1\.18\.34/)).toBeInTheDocument();
+    expect(within(form).getByText('Ready · 1.18.34')).toBeInTheDocument();
     await user.selectOptions(within(form).getByLabelText('Model'), 'opencode/big-pickle');
     await user.type(within(form).getByLabelText('Additional instructions'), 'Be brief.');
     await user.click(within(form).getByRole('button', { name: 'Create Agent' }));
@@ -185,7 +185,8 @@ describe('AgentsPage', () => {
       await within(form).findByRole('option', { name: 'OpenCode (not installed)' }),
     ).toBeDisabled();
     await user.selectOptions(within(form).getByLabelText('AI Provider'), 'anthropic');
-    expect(within(form).getByText(/⚠ Authentication required/)).toHaveTextContent('Not signed in');
+    expect(within(form).getByText(/^Authentication required/)).toBeInTheDocument();
+    expect(within(form).getByText(/Not signed in/)).toBeInTheDocument();
   });
 
   it('edits an agent and shows the saved version', async () => {
@@ -249,7 +250,7 @@ describe('AgentsPage', () => {
       const user = userEvent.setup();
       const form = await fillAndOpen(user, 'qa');
 
-      expect(within(form).getByLabelText('Result contract')).toHaveValue('validation');
+      expect(within(form).getByRole('radio', { name: 'Validation' })).toBeChecked();
       const allowed = within(form).getByRole('group', { name: 'Allowed outcomes' });
       expect(within(allowed).getByRole('checkbox', { name: /pass/ })).toBeChecked();
       expect(within(allowed).getByRole('checkbox', { name: /fail/ })).toBeChecked();
@@ -265,14 +266,39 @@ describe('AgentsPage', () => {
       const form = await fillAndOpen(user, 'qa');
 
       // The QA personality suggests read only.
-      expect(within(form).getByLabelText('Permissions')).toHaveValue('read_only');
-      expect(within(form).getByText(/Suggested by the QA personality/)).toBeInTheDocument();
+      const permissions = within(form).getByRole('radiogroup', { name: 'Permissions' });
+      expect(within(permissions).getByRole('radio', { name: 'Read Only' })).toBeChecked();
+      expect(
+        within(form).getByText(
+          'This personality suggests: Validation contract and Read Only profile.',
+        ),
+      ).toBeInTheDocument();
+      // Following the suggestion, there is nothing to apply.
+      expect(
+        within(form).queryByRole('button', { name: 'Apply suggestion' }),
+      ).not.toBeInTheDocument();
 
-      await user.selectOptions(within(form).getByLabelText('Permissions'), 'developer');
-      expect(within(form).queryByText(/Suggested by the QA personality/)).not.toBeInTheDocument();
+      await user.click(within(permissions).getByRole('radio', { name: 'Developer' }));
+      expect(within(form).getByRole('button', { name: 'Apply suggestion' })).toBeInTheDocument();
       await user.click(within(form).getByRole('button', { name: 'Create Agent' }));
 
       expect(vi.mocked(createAgent).mock.calls[0]?.[0].permissionProfileId).toBe('developer');
+    });
+
+    it('applies the suggestion again after the user moved away from it', async () => {
+      const user = userEvent.setup();
+      const form = await fillAndOpen(user, 'qa');
+      await user.click(within(form).getByRole('radio', { name: 'Developer' }));
+      await user.click(within(form).getByRole('radio', { name: 'Custom' }));
+
+      await user.click(within(form).getByRole('button', { name: 'Apply suggestion' }));
+      expect(within(form).getByRole('radio', { name: 'Read Only' })).toBeChecked();
+      expect(within(form).getByRole('radio', { name: 'Validation' })).toBeChecked();
+      await user.click(within(form).getByRole('button', { name: 'Create Agent' }));
+
+      const sent = vi.mocked(createAgent).mock.calls[0]?.[0];
+      expect(sent?.permissionProfileId).toBe('read_only');
+      expect(sent?.resultContract?.kind).toBe('validation');
     });
 
     it('sends the suggested profile when the user does not touch it', async () => {
@@ -300,7 +326,7 @@ describe('AgentsPage', () => {
     it('defines custom outcomes with stable ids and refuses duplicates', async () => {
       const user = userEvent.setup();
       const form = await fillAndOpen(user, 'qa');
-      await user.selectOptions(within(form).getByLabelText('Result contract'), 'custom');
+      await user.click(within(form).getByRole('radio', { name: 'Custom' }));
 
       const custom = within(form).getByRole('group', { name: 'Custom outcomes' });
       // Turning a preset into a custom contract keeps what it had.
@@ -329,7 +355,7 @@ describe('AgentsPage', () => {
     it('rejects an id that is not stable-looking', async () => {
       const user = userEvent.setup();
       const form = await fillAndOpen(user, 'qa');
-      await user.selectOptions(within(form).getByLabelText('Result contract'), 'custom');
+      await user.click(within(form).getByRole('radio', { name: 'Custom' }));
       const custom = within(form).getByRole('group', { name: 'Custom outcomes' });
       await user.clear(at(within(custom).getAllByLabelText('ID'), 0));
       await user.type(at(within(custom).getAllByLabelText('ID'), 0), 'Not Valid');
@@ -352,10 +378,10 @@ describe('AgentsPage', () => {
 
       await user.click(await screen.findByRole('button', { name: 'Edit Validator' }));
       const panel = screen.getByRole('form', { name: 'Edit Validator' });
-      expect(within(panel).getByLabelText('Result contract')).toHaveValue('validation');
+      expect(within(panel).getByRole('radio', { name: 'Validation' })).toBeChecked();
       // Changing the personality does not overwrite the agent's own contract.
       await user.selectOptions(within(panel).getByLabelText('Personality'), 'architect');
-      expect(within(panel).getByLabelText('Result contract')).toHaveValue('validation');
+      expect(within(panel).getByRole('radio', { name: 'Validation' })).toBeChecked();
       await user.click(within(panel).getByRole('button', { name: 'Save agent' }));
 
       expect(vi.mocked(updateAgent).mock.calls[0]?.[1].resultContract?.outcomes).toHaveLength(1);
@@ -374,13 +400,13 @@ describe('AgentsPage', () => {
       await user.click(await screen.findByRole('button', { name: 'Edit Validator' }));
       const panel = screen.getByRole('form', { name: 'Edit Validator' });
       // Its own profile, not what the QA personality suggests.
-      expect(within(panel).getByLabelText('Permissions')).toHaveValue('developer');
+      expect(within(panel).getByRole('radio', { name: 'Developer' })).toBeChecked();
       await user.click(within(panel).getByRole('button', { name: 'Save agent' }));
       expect(vi.mocked(updateAgent).mock.calls[0]?.[1]).not.toHaveProperty('permissionProfileId');
 
       await user.click(await screen.findByRole('button', { name: 'Edit Validator' }));
       const again = screen.getByRole('form', { name: 'Edit Validator' });
-      await user.selectOptions(within(again).getByLabelText('Permissions'), 'read_only');
+      await user.click(within(again).getByRole('radio', { name: 'Read Only' }));
       await user.click(within(again).getByRole('button', { name: 'Save agent' }));
       expect(vi.mocked(updateAgent).mock.calls[1]?.[1].permissionProfileId).toBe('read_only');
     });

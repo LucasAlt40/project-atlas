@@ -621,11 +621,11 @@ export const enUS = {
   'agents.card.result': 'Result',
   'agents.card.isolation': 'Git isolation',
   'agents.card.noResult': 'General',
-  'agents.form.section.identity': 'Identity & role',
-  'agents.form.section.runtime': 'AI provider & runtime',
+  'agents.form.section.identity': 'Identity',
+  'agents.form.section.runtime': 'Runtime and model',
   'agents.form.section.instructions': 'Additional instructions',
-  'agents.form.section.contract': 'Output contract',
-  'agents.form.section.security': 'Permissions & isolation',
+  'agents.form.section.contract': 'Result contract',
+  'agents.form.section.security': 'Permissions and isolation',
   'personalities.available': '{n} available',
   'personalities.customCount': '{n} custom',
   'personalities.builtinCount': '{n} built-in',
@@ -658,7 +658,6 @@ export const enUS = {
   'agents.form.namePlaceholder': 'Architecture Expert',
   'agents.form.personality': 'Personality',
   'agents.form.selectPersonality': 'Select a personality…',
-  'agents.form.instructions': 'Additional instructions',
   'agents.form.instructionsPlaceholder':
     'Analyze the current project and identify architectural improvements.',
   'agents.form.save': 'Save agent',
@@ -681,10 +680,10 @@ export const enUS = {
   'runtime.reason.notInstalled': 'not installed',
   'runtime.reason.unavailable': 'unavailable',
   'runtime.reason.notSupported': 'not supported yet',
-  'runtime.availability.ready': '✓ Ready',
-  'runtime.availability.authentication_required': '⚠ Authentication required',
-  'runtime.availability.unavailable': '⚠ Unavailable',
-  'runtime.availability.not_installed': '✕ Not installed',
+  'runtime.availability.ready': 'Ready',
+  'runtime.availability.authentication_required': 'Authentication required',
+  'runtime.availability.unavailable': 'Unavailable',
+  'runtime.availability.not_installed': 'Not installed',
   'runtime.notice.sign_in_required':
     'Not signed in. Sign in with the runtime’s own tool, then re-detect.',
   'runtime.notice.execution_not_supported': 'Detected, but Atlas cannot run tasks with it yet.',
@@ -966,21 +965,19 @@ export const enUS = {
   'failure.git_repository_required':
     'This execution requires Git worktree isolation, but the selected project is not a Git repository. Add Git to the project, or turn off Git isolation for this agent.',
   'failure.worktree_failed': 'The isolated Git worktree for this execution could not be created.',
+  'agents.form.suggestion': 'This personality suggests: {contract} contract and {profile} profile.',
+  'agents.form.applySuggestion': 'Apply suggestion',
   'agents.form.permissions': 'Permissions',
   'agents.form.permissionDeveloperHint':
     'May edit files and run development commands, in its isolated worktree. The workspace policy still limits it.',
   'agents.form.permissionReadOnlyHint':
     'Reads and analyzes only: it cannot edit files or run commands.',
-  'agents.form.permissionSuggested':
-    'Suggested by the {personality} personality. You can change it.',
-  'agents.form.isolation': 'Execution isolation',
   'agents.form.isolationLabel': 'Always work in an isolated Git worktree',
   'agents.form.isolationOn':
     'Each execution works in its own worktree and does not modify the project’s main checkout directly.',
   'agents.form.isolationOff': 'With this off, the agent may work directly in the project folder.',
   'agents.form.noFileEdit': 'This runtime does not support file editing.',
-  'contract.title': 'Output / Result',
-  'contract.type': 'Result contract',
+  'contract.type': 'Contract type',
   'contract.kind.general': 'General',
   'contract.kind.general.hint':
     "No outcome is required: workflows cannot route on this agent's result.",

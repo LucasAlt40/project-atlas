@@ -183,3 +183,10 @@
 .muted {
   font-size: var(--font-size-sm);
 }
+
+/* Creating or editing an agent: the header sits on the form's centred column. */
+.formHead {
+  width: 100%;
+  max-width: var(--measure-form);
+  margin-inline: auto;
+}

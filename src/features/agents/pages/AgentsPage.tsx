@@ -6,6 +6,7 @@ import { errorMessage } from '@/i18n/messages';
 import { useT } from '@/i18n/I18nProvider';
 import { ImportDialog } from '@/features/portability';
 import { OverflowMenu } from '@/components/ui/OverflowMenu';
+import { useBreadcrumb } from '@/app/BreadcrumbContext';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { AgentForm } from '../components/AgentForm';
@@ -33,6 +34,12 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'ready' | 'unavailable'>('all');
   const [importing, setImporting] = useState(false);
+  const editingName =
+    catalog.status === 'ready' ? catalog.agents.find((a) => a.id === editingId)?.name : undefined;
+  useBreadcrumb([
+    creating && t('agents.create'),
+    editingName !== undefined && t('agents.form.edit', { name: editingName }),
+  ]);
 
   if (catalog.status === 'loading') {
     return <p className={styles.muted}>{t('common.loadingCore')}</p>;
@@ -139,22 +146,18 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
       )}
 
       {(creating || editing) && (
-        <header className={styles.headerText}>
-          <Button
-            variant="ghost"
-            className={styles.back}
-            onClick={() => {
-              setCreating(false);
-              setEditingId(null);
+        <div className={styles.formHead}>
+          <PageHeader
+            title={editing ? t('agents.form.edit', { name: editing.name }) : t('agents.create')}
+            back={{
+              label: t('agents.title'),
+              onClick: () => {
+                setCreating(false);
+                setEditingId(null);
+              },
             }}
-          >
-            <Icon name="arrowLeft" size={14} />
-            {t('agents.title')}
-          </Button>
-          <h1 className={styles.title}>
-            {editing ? t('agents.form.edit', { name: editing.name }) : t('agents.create')}
-          </h1>
-        </header>
+          />
+        </div>
       )}
 
       {creating && (
