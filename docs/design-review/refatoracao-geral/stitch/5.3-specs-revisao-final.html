@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas Transport ERP - Specs</title>
+<!-- Google Fonts: Geist & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS with custom configuration -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-background": "#e1e2e8",
+            "error-container": "#93000a",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-secondary": "#00315d",
+            "primary-container": "#8083ff",
+            "error": "#ffb4ab",
+            "on-secondary-fixed-variant": "#004883",
+            "tertiary": "#ffb0cd",
+            "inverse-on-surface": "#2e3135",
+            "outline": "#908fa0",
+            "secondary-container": "#0267b8",
+            "surface-container-lowest": "#0b0d10",
+            "primary-fixed": "#e1e0ff",
+            "on-primary-fixed": "#07006c",
+            "on-tertiary": "#640039",
+            "surface-bright": "#36393e",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "surface-tint": "#c0c1ff",
+            "surface-container-highest": "#242c37",
+            "tertiary-container": "#f751a1",
+            "on-primary-container": "#0d0096",
+            "primary": "#6366f1",
+            "secondary-fixed-dim": "#a4c9ff",
+            "on-primary": "#ffffff",
+            "surface-container": "#1c2128",
+            "secondary": "#a4c9ff",
+            "inverse-surface": "#e1e2e8",
+            "surface-dim": "#0b0d10",
+            "on-tertiary-container": "#570032",
+            "background": "#101317",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "secondary-fixed": "#d4e3ff",
+            "surface-variant": "#242c37",
+            "on-error-container": "#ffdad6",
+            "on-error": "#690005",
+            "surface-container-high": "#1c2128",
+            "outline-variant": "#242c37",
+            "on-tertiary-fixed": "#3e0022",
+            "tertiary-fixed": "#ffd9e4",
+            "surface": "#15191e",
+            "inverse-primary": "#494bd6",
+            "on-secondary-container": "#d6e5ff",
+            "on-secondary-fixed": "#001c39",
+            "on-surface": "#e1e2e8",
+            "on-surface-variant": "#94a3b8",
+            "surface-container-low": "#15191e"
+          },
+          borderRadius: {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          spacing: {
+            "space-md": "0.75rem",
+            "space-xs": "0.25rem",
+            "space-xl": "1.5rem",
+            "gutter": "0.5rem",
+            "space-sm": "0.5rem",
+            "margin-window": "0.5rem",
+            "margin": "0.75rem",
+            "space-lg": "1rem",
+            "gutter-expanded": "1rem",
+            "space-2xs": "0.125rem",
+            "space-2xl": "2rem",
+            "gutter-compact": "0.25rem"
+          },
+          fontFamily: {
+            "code-lg": ["JetBrains Mono"],
+            "label-sm": ["Geist"],
+            "headline-md": ["Geist"],
+            "body-lg": ["Geist"],
+            "label-md": ["Geist"],
+            "code-sm": ["JetBrains Mono"],
+            "headline-xl": ["Geist"],
+            "code-md": ["JetBrains Mono"],
+            "body-md": ["Geist"],
+            "headline-sm": ["Geist"],
+            "telemetry-pill": ["JetBrains Mono"],
+            "body-sm": ["Geist"],
+            "headline-lg": ["Geist"]
+          },
+          fontSize: {
+            "code-lg": ["0.875rem", { lineHeight: "1.375rem", letterSpacing: "-0.01em", fontWeight: "500" }],
+            "label-sm": ["0.6875rem", { lineHeight: "0.875rem", letterSpacing: "0.04em", fontWeight: "600" }],
+            "headline-md": ["1.25rem", { lineHeight: "1.75rem", letterSpacing: "-0.015em", fontWeight: "500" }],
+            "body-lg": ["1rem", { lineHeight: "1.5rem", letterSpacing: "-0.005em", fontWeight: "400" }],
+            "label-md": ["0.8125rem", { lineHeight: "1rem", letterSpacing: "0.01em", fontWeight: "500" }],
+            "code-sm": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0em", fontWeight: "400" }],
+            "headline-xl": ["2rem", { lineHeight: "2.5rem", letterSpacing: "-0.025em", fontWeight: "600" }],
+            "code-md": ["0.8125rem", { lineHeight: "1.25rem", letterSpacing: "-0.01em", fontWeight: "400" }],
+            "body-md": ["0.875rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "headline-sm": ["1.125rem", { lineHeight: "1.5rem", letterSpacing: "-0.01em", fontWeight: "500" }],
+            "telemetry-pill": ["0.6875rem", { lineHeight: "0.875rem", letterSpacing: "0.02em", fontWeight: "600" }],
+            "body-sm": ["0.75rem", { lineHeight: "1.125rem", letterSpacing: "0.005em", fontWeight: "400" }],
+            "headline-lg": ["1.5rem", { lineHeight: "2rem", letterSpacing: "-0.02em", fontWeight: "600" }]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    body {
+      background-color: #101317;
+      color: #e1e2e8;
+      font-family: 'Geist', sans-serif;
+      margin: 0;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: #101317;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #242c37;
+      border-radius: 3px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: #3b4554;
+    }
+  </style>
+</head>
+<body class="h-screen w-screen flex bg-background text-on-surface antialiased select-none">
+<!-- MOLDURA FIXA: BARRA LATERAL ESQUERDA (216px) -->
+<aside class="fixed top-0 left-0 h-screen w-[216px] z-30 bg-surface-container-low border-r border-outline-variant flex flex-col justify-between p-space-sm box-border">
+<!-- Top Area: Logo + Workspace Selector + Navigation -->
+<div class="flex flex-col gap-space-sm w-full">
+<!-- App Brand Logo -->
+<div class="flex items-center gap-2 px-space-xs py-1">
+<div class="w-5 h-5 rounded-[4px] bg-[#6366f1] flex items-center justify-center text-white font-headline-sm text-xs font-bold leading-none tracking-tight">
+          A
+        </div>
+<span class="font-headline-sm text-sm font-semibold text-white tracking-tight">Atlas</span>
+</div>
+<!-- Workspace Selector -->
+<div class="w-full bg-[#1c2128] border border-outline-variant rounded p-2 flex flex-col gap-0.5 cursor-pointer hover:border-[#3b4554] transition-colors">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-xs font-semibold text-white truncate">Transport ERP</span>
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant leading-none" data-icon="expand_more">expand_more</span>
+</div>
+<span class="font-code-sm text-[11px] text-[#94a3b8] truncate">/Users/lucas/dev/transport-erp</span>
+</div>
+<!-- Vertical Navigation (Strict 7 items from JSON) -->
+<nav class="flex flex-col gap-1 mt-1 w-full">
+<!-- 1. Workspace -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="folder_open">folder_open</span>
+<span>Workspace</span>
+</a>
+<!-- 2. Workflow -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="account_tree">account_tree</span>
+<span>Workflow</span>
+</a>
+<!-- 3. Agentes -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="smart_toy">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- 4. Personalidades -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="psychology">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- 5. Specs (ACTIVE ITEM) -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded bg-[#1c2128] text-white font-label-md text-label-md border border-[#2d3748] transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px] text-[#6366f1]" data-icon="description">description</span>
+<span class="font-medium text-white">Specs</span>
+</a>
+<!-- 6. MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="hub">hub</span>
+<span>MCP Hub</span>
+</a>
+<!-- 7. Configurações -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="settings">settings</span>
+<span>Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Fixed Footer of Sidebar -->
+<div class="px-space-md py-space-sm border-t border-outline-variant flex flex-col gap-0.5">
+<div class="font-label-md text-xs font-medium text-slate-300">Project Atlas</div>
+<div class="font-code-sm text-[11px] text-slate-500">v0.2.0 · macOS</div>
+</div>
+</aside>
+<!-- MOLDURA FIXA: BARRA SUPERIOR (48px) -->
+<header class="fixed top-0 left-[216px] right-0 h-12 z-20 bg-surface-container-lowest border-b border-outline-variant flex items-center justify-between px-space-lg">
+<!-- Left: Collapse toggle + Breadcrumb -->
+<div class="flex items-center gap-3">
+<button class="p-1 rounded text-on-surface-variant hover:text-white hover:bg-surface-container transition-colors flex items-center justify-center" title="Recolher barra lateral">
+<span class="material-symbols-outlined text-[18px]" data-icon="dock_to_right">dock_to_right</span>
+</button>
+<div class="flex items-center gap-2 font-label-sm text-xs">
+<span class="text-on-surface-variant">Transport ERP</span>
+<span class="text-outline-variant">/</span>
+<span class="text-on-surface-variant">Specs</span>
+<span class="text-outline-variant">/</span>
+<span class="text-white font-medium">Exportar relatório em PDF</span>
+</div>
+</div>
+<!-- Right: Celular + PT | EN -->
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#1c2128] border border-outline-variant text-slate-200 hover:text-white hover:border-[#3b4554] transition-colors text-xs font-label-md font-medium">
+<span class="material-symbols-outlined text-[15px] text-slate-400" data-icon="smartphone">smartphone</span>
+<span>Celular</span>
+</button>
+<div class="flex items-center gap-1.5 font-label-sm text-xs text-on-surface-variant">
+<span class="text-white font-semibold cursor-pointer">PT</span>
+<span class="text-outline-variant">|</span>
+<span class="text-on-surface-variant hover:text-white cursor-pointer transition-colors">EN</span>
+</div>
+</div>
+</header>
+<!-- CONTEÚDO PRINCIPAL (Specs — Revisão final) -->
+<main class="ml-[216px] mt-12 w-[calc(100vw-216px)] h-[calc(100vh-48px)] overflow-y-auto custom-scroll p-8 bg-[#101317]">
+<div class="max-w-[1040px] mx-auto flex flex-col gap-6 pb-12">
+<!-- 1. Cabeçalho da Spec -->
+<section class="flex flex-col gap-2.5">
+<!-- Link de topo -->
+<a class="inline-flex items-center gap-1 font-label-md text-[13px] text-slate-400 hover:text-white transition-colors cursor-pointer w-fit" href="#">
+<span class="material-symbols-outlined text-[16px]" data-icon="arrow_back">arrow_back</span>
+<span>Todas as specs</span>
+</a>
+<!-- Linha do Título e Ações -->
+<div class="flex items-center justify-between gap-4 mt-0.5">
+<div class="flex items-center gap-3 flex-wrap">
+<h1 class="font-headline-md text-[22px] font-semibold text-white tracking-tight">Exportar relatório em PDF</h1>
+<!-- Selo verde "Pronto para implementação" -->
+<div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-[4px] bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+<span class="font-label-sm text-[12px] font-medium text-[#10b981]">Pronto para implementação</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="px-3 py-1.5 rounded-[4px] bg-[#1c2128] border border-outline-variant text-slate-200 hover:text-white hover:border-[#3b4554] text-xs font-label-md font-medium transition-colors">
+              Agentes e ferramentas
+            </button>
+<button class="p-1.5 rounded-[4px] bg-[#1c2128] border border-outline-variant text-slate-400 hover:text-white hover:border-[#3b4554] transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]" data-icon="more_horiz">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- Sub-linha de metadados técnicos -->
+<div class="font-code-sm text-[12px] text-slate-400">
+          pdf-export · spec-driven/1 · transport-erp
+        </div>
+</section>
+<!-- 2. Barra de Passos / Stepper horizontal -->
+<section class="w-full bg-[#15191e] border border-outline-variant rounded-[6px] p-3">
+<div class="grid grid-cols-5 gap-2">
+<!-- Step 1: Proposta ✓ -->
+<div class="flex items-center gap-2 px-3 py-2 rounded bg-[#101317] border border-outline-variant">
+<span class="material-symbols-outlined text-[#10b981] text-[16px] leading-none" data-icon="check">check</span>
+<span class="font-label-md text-xs font-medium text-slate-200">1. Proposta</span>
+</div>
+<!-- Step 2: Requisitos ✓ -->
+<div class="flex items-center gap-2 px-3 py-2 rounded bg-[#101317] border border-outline-variant">
+<span class="material-symbols-outlined text-[#10b981] text-[16px] leading-none" data-icon="check">check</span>
+<span class="font-label-md text-xs font-medium text-slate-200">2. Requisitos</span>
+</div>
+<!-- Step 3: Design ✓ -->
+<div class="flex items-center gap-2 px-3 py-2 rounded bg-[#101317] border border-outline-variant">
+<span class="material-symbols-outlined text-[#10b981] text-[16px] leading-none" data-icon="check">check</span>
+<span class="font-label-md text-xs font-medium text-slate-200">3. Design</span>
+</div>
+<!-- Step 4: Tarefas ✓ -->
+<div class="flex items-center gap-2 px-3 py-2 rounded bg-[#101317] border border-outline-variant">
+<span class="material-symbols-outlined text-[#10b981] text-[16px] leading-none" data-icon="check">check</span>
+<span class="font-label-md text-xs font-medium text-slate-200">4. Tarefas</span>
+</div>
+<!-- Step 5: Revisão final (Ativo) -->
+<div class="flex items-center gap-2 px-3 py-2 rounded bg-[#1c2128] border border-[#6366f1]">
+<span class="w-2 h-2 rounded-full bg-[#6366f1]"></span>
+<span class="font-label-md text-xs font-semibold text-white">5. Revisão final</span>
+</div>
+</div>
+</section>
+<!-- 3. Seção "O que falta para ficar pronta" -->
+<section class="flex flex-col gap-2.5">
+<div class="flex items-center justify-between">
+<h2 class="font-headline-sm text-base font-semibold text-white">O que falta para ficar pronta</h2>
+<!-- Selo Pronta -->
+<div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-[4px] bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+<span class="font-label-sm text-[12px] font-medium text-[#10b981]">Pronta</span>
+</div>
+</div>
+<!-- Checklist Container (7 itens) -->
+<div class="bg-[#15191e] border border-outline-variant rounded-[6px] flex flex-col divide-y divide-outline-variant">
+<!-- Linha 1 -->
+<div class="flex items-center justify-between px-4 py-3 hover:bg-[#1c2128] transition-colors">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#10b981] text-[18px]" data-icon="check">check</span>
+<span class="font-body-md text-sm text-slate-200">Os quatro documentos aprovados</span>
+</div>
+<a class="font-label-md text-[13px] text-slate-400 hover:text-indigo-400 transition-colors" href="#">Abrir</a>
+</div>
+<!-- Linha 2 -->
+<div class="flex items-center justify-between px-4 py-3 hover:bg-[#1c2128] transition-colors">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#10b981] text-[18px]" data-icon="check">check</span>
+<span class="font-body-md text-sm text-slate-200">Estrutura validada</span>
+</div>
+<a class="font-label-md text-[13px] text-slate-400 hover:text-indigo-400 transition-colors" href="#">Abrir</a>
+</div>
+<!-- Linha 3 -->
+<div class="flex items-center justify-between px-4 py-3 hover:bg-[#1c2128] transition-colors">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#10b981] text-[18px]" data-icon="check">check</span>
+<span class="font-body-md text-sm text-slate-200">Documentos coerentes entre si</span>
+</div>
+<a class="font-label-md text-[13px] text-slate-400 hover:text-indigo-400 transition-colors" href="#">Abrir</a>
+</div>
+<!-- Linha 4 -->
+<div class="flex items-center justify-between px-4 py-3 hover:bg-[#1c2128] transition-colors">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#10b981] text-[18px]" data-icon="check">check</span>
+<span class="font-body-md text-sm text-slate-200">Nenhuma pergunta em aberto</span>
+</div>
+<a class="font-label-md text-[13px] text-slate-400 hover:text-indigo-400 transition-colors" href="#">Abrir</a>
+</div>
+<!-- Linha 5 -->
+<div class="flex items-center justify-between px-4 py-3 hover:bg-[#1c2128] transition-colors">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#10b981] text-[18px]" data-icon="check">check</span>
+<span class="font-body-md text-sm text-slate-200">Revisada pelo agente revisor</span>
+</div>
+<a class="font-label-md text-[13px] text-slate-400 hover:text-indigo-400 transition-colors" href="#">Abrir</a>
+</div>
+<!-- Linha 6 -->
+<div class="flex items-center justify-between px-4 py-3 hover:bg-[#1c2128] transition-colors">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#10b981] text-[18px]" data-icon="check">check</span>
+<span class="font-body-md text-sm text-slate-200">Achados decididos</span>
+</div>
+<a class="font-label-md text-[13px] text-slate-400 hover:text-indigo-400 transition-colors" href="#">Abrir</a>
+</div>
+<!-- Linha 7 -->
+<div class="flex items-center justify-between px-4 py-3 hover:bg-[#1c2128] transition-colors">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#10b981] text-[18px]" data-icon="check">check</span>
+<span class="font-body-md text-sm text-slate-200">Sua aprovação final</span>
+</div>
+<a class="font-label-md text-[13px] text-slate-400 hover:text-indigo-400 transition-colors" href="#">Abrir</a>
+</div>
+</div>
+</section>
+<!-- 4. Seção "Revisão pelo agente revisor" -->
+<section class="flex flex-col gap-2.5">
+<div class="flex items-center justify-between">
+<h2 class="font-headline-sm text-base font-semibold text-white">Revisão pelo agente revisor</h2>
+<div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-[4px] bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+<span class="font-label-sm text-[12px] font-medium text-[#10b981]">Concluído</span>
+</div>
+</div>
+<div class="bg-[#15191e] border border-outline-variant rounded-[6px] p-4 flex flex-col gap-3">
+<div class="flex items-center justify-between flex-wrap gap-3">
+<div class="flex items-center gap-2 flex-wrap">
+<!-- Selo categoria "Risco" (neutro cinza) -->
+<span class="px-2 py-0.5 rounded-[4px] bg-[#242c37] border border-[#3b4554] font-label-sm text-[11px] font-medium text-slate-300">
+                Risco
+              </span>
+<!-- Severidade "Média" (âmbar suave) -->
+<span class="px-2 py-0.5 rounded-[4px] bg-[rgba(245,158,11,0.14)] border border-[rgba(245,158,11,0.4)] font-label-sm text-[11px] font-medium text-[#f59e0b]">
+                Média
+              </span>
+<!-- Estado "Resolvido" (verde suave) -->
+<span class="px-2 py-0.5 rounded-[4px] bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)] font-label-sm text-[11px] font-medium text-[#10b981]">
+                Resolvido
+              </span>
+</div>
+<div class="flex items-center gap-3">
+<button class="font-label-md text-[13px] text-slate-300 hover:text-white transition-colors">
+                Ver no documento
+              </button>
+<button class="font-label-md text-[13px] text-slate-400 hover:text-amber-400 transition-colors">
+                Reabrir
+              </button>
+</div>
+</div>
+<div class="font-body-md text-sm text-slate-200">
+            O PDF pode expor dados de outro cliente
+          </div>
+</div>
+</section>
+<!-- 5. Seção "Publicar no projeto" -->
+<section class="flex flex-col gap-2.5">
+<h2 class="font-headline-sm text-base font-semibold text-white">Publicar no projeto</h2>
+<div class="bg-[#15191e] border border-outline-variant rounded-[6px] p-4 flex items-center justify-between flex-wrap gap-4">
+<div class="flex items-center gap-4 flex-wrap">
+<div class="flex flex-col gap-1">
+<span class="font-label-sm text-xs text-slate-400">Pasta da mudança</span>
+<span class="font-code-sm text-xs text-slate-200 bg-[#1c2128] px-2.5 py-1 rounded border border-outline-variant select-all">
+                openspec/changes/pdf-export
+              </span>
+</div>
+<div class="flex items-center gap-2 mt-4 sm:mt-0">
+<div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-[4px] bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+<span class="font-label-sm text-[12px] font-medium text-[#10b981]">Publicada</span>
+</div>
+<span class="font-label-md text-[13px] text-slate-400">4 arquivos gravados</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="px-3 py-1.5 rounded-[4px] bg-[#1c2128] border border-outline-variant text-slate-200 hover:text-white hover:border-[#3b4554] text-xs font-label-md font-medium transition-colors">
+              Publicar de novo
+            </button>
+<button class="p-1.5 rounded-[4px] bg-[#1c2128] border border-outline-variant text-slate-400 hover:text-white hover:border-[#3b4554] transition-colors flex items-center justify-center" title="Opções">
+<span class="material-symbols-outlined text-[16px]" data-icon="more_horiz">more_horiz</span>
+</button>
+</div>
+</div>
+</section>
+<!-- 6. Seção "Implementar" -->
+<section class="bg-[#15191e] border border-outline-variant rounded-[6px] p-5 flex items-center justify-between flex-wrap gap-4">
+<div class="flex flex-col gap-0.5">
+<span class="font-headline-sm text-sm font-semibold text-white">Pronto para execução</span>
+<span class="font-body-sm text-xs text-slate-400">A spec cumpre todos os critérios técnicos para orquestração automática.</span>
+</div>
+<button class="bg-[#6366f1] hover:bg-indigo-600 active:bg-indigo-700 text-white font-label-md font-medium text-sm px-5 py-2.5 rounded-[4px] transition-colors flex items-center gap-2 shadow-none">
+<span class="material-symbols-outlined text-[18px]" data-icon="play_arrow">play_arrow</span>
+<span>Iniciar um workflow a partir desta spec</span>
+</button>
+</section>
+</div>
+</main>
+</body></html>

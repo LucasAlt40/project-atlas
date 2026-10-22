@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas — Harness</title>
+<!-- Google Fonts: Geist & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined (Exact Spec Requirement) -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 with configuration -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-variant": "#323539",
+            "inverse-primary": "#494bd6",
+            "secondary-fixed": "#d4e3ff",
+            "on-error": "#690005",
+            "on-primary": "#1000a9",
+            "error": "#ffb4ab",
+            "outline-variant": "#242c37",
+            "on-secondary-fixed": "#001c39",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "surface-container-high": "#242c37",
+            "on-background": "#e1e2e8",
+            "surface-container-highest": "#323539",
+            "surface-container": "#1c2128",
+            "secondary": "#a4c9ff",
+            "on-surface-variant": "#94a3b8",
+            "surface-tint": "#c0c1ff",
+            "on-tertiary-container": "#570032",
+            "on-primary-container": "#0d0096",
+            "primary-container": "#6366f1",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "tertiary-container": "#f751a1",
+            "tertiary": "#ffb0cd",
+            "surface-dim": "#111418",
+            "primary-fixed-dim": "#c0c1ff",
+            "error-container": "#93000a",
+            "background": "#0b0d10",
+            "tertiary-fixed": "#ffd9e4",
+            "inverse-on-surface": "#2e3135",
+            "on-tertiary": "#640039",
+            "secondary-fixed-dim": "#a4c9ff",
+            "on-secondary": "#00315d",
+            "primary": "#6366f1",
+            "primary-fixed": "#e1e0ff",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "on-primary-fixed": "#07006c",
+            "outline": "#2d3748",
+            "on-tertiary-fixed": "#3e0022",
+            "surface": "#101317",
+            "secondary-container": "#0267b8",
+            "on-secondary-fixed-variant": "#004883",
+            "surface-bright": "#36393e",
+            "surface-container-lowest": "#0b0d10",
+            "inverse-surface": "#e1e2e8",
+            "surface-container-low": "#15191e",
+            "on-surface": "#e2e8f0",
+            "on-secondary-container": "#d6e5ff",
+            "on-error-container": "#ffdad6"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-sm": "0.5rem",
+            "space-lg": "1rem",
+            "space-2xs": "0.125rem",
+            "margin-window": "0.5rem",
+            "space-md": "0.75rem",
+            "space-xl": "1.5rem",
+            "gutter-compact": "0.25rem",
+            "gutter": "0.5rem",
+            "space-2xl": "2rem",
+            "margin": "0.75rem",
+            "gutter-expanded": "1rem",
+            "space-xs": "0.25rem"
+          },
+          "fontFamily": {
+            "code-sm": ["JetBrains Mono"],
+            "label-sm": ["Geist"],
+            "headline-sm": ["Geist"],
+            "body-sm": ["Geist"],
+            "telemetry-pill": ["JetBrains Mono"],
+            "headline-lg": ["Geist"],
+            "code-md": ["JetBrains Mono"],
+            "headline-md": ["Geist"],
+            "body-md": ["Geist"],
+            "body-lg": ["Geist"],
+            "label-md": ["Geist"],
+            "code-lg": ["JetBrains Mono"],
+            "headline-xl": ["Geist"]
+          },
+          "fontSize": {
+            "code-sm": ["0.6875rem", { "lineHeight": "1rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "label-sm": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.04em", "fontWeight": "600" }],
+            "headline-sm": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "body-sm": ["0.75rem", { "lineHeight": "1.125rem", "letterSpacing": "0.005em", "fontWeight": "400" }],
+            "telemetry-pill": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.02em", "fontWeight": "600" }],
+            "headline-lg": ["1.5rem", { "lineHeight": "2rem", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "code-md": ["0.8125rem", { "lineHeight": "1.25rem", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+            "headline-md": ["1.25rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.015em", "fontWeight": "500" }],
+            "body-md": ["0.875rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "body-lg": ["1rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "label-md": ["0.8125rem", { "lineHeight": "1rem", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "code-lg": ["0.875rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "headline-xl": ["2rem", { "lineHeight": "2.5rem", "letterSpacing": "-0.025em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.35; transform: scale(0.9); }
+    }
+    .animate-pulse-subtle {
+      animation: pulse-subtle 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes blink-caret {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+    .animate-caret {
+      animation: blink-caret 1s infinite;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface font-body-md antialiased overflow-hidden select-none m-0 p-0 h-screen w-screen flex">
+<!-- MOLDURA FIXA: BARRA LATERAL (216px) -->
+<aside class="w-[216px] min-w-[216px] h-full flex flex-col justify-between border-r border-outline-variant bg-surface-container-lowest">
+<!-- Topo + Workspace + Navegação -->
+<div class="flex flex-col">
+<!-- Topo: quadrado índigo 20px com 'A' branco e texto Atlas -->
+<div class="h-12 px-space-md flex items-center gap-space-xs border-b border-outline-variant">
+<div class="w-5 h-5 rounded-DEFAULT bg-primary flex items-center justify-center text-white font-label-md font-bold text-xs leading-none">
+          A
+        </div>
+<span class="text-on-surface font-headline-md font-semibold text-sm tracking-tight ml-1">Atlas</span>
+</div>
+<!-- Seletor de workspace -->
+<div class="p-space-sm border-b border-outline-variant">
+<button class="w-full text-left p-1.5 rounded-DEFAULT hover:bg-surface-container transition-colors group flex items-center justify-between" type="button">
+<div class="flex flex-col min-w-0 pr-1">
+<span class="text-on-surface font-label-md text-xs font-medium truncate">Transport ERP</span>
+<span class="text-on-surface-variant font-code-sm text-[10px] text-opacity-70 truncate font-mono">/Users/lucas/dev/transport-erp</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-on-surface text-[15px] transition-colors">unfold_more</span>
+</button>
+</div>
+<!-- Navegação estrita (7 itens na ordem especificada) -->
+<nav class="flex flex-col gap-0.5 p-space-sm">
+<!-- 1. Workspace -->
+<a class="flex items-center gap-space-sm px-space-sm py-1.5 text-on-surface-variant hover:bg-surface-container hover:text-on-surface rounded-DEFAULT transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">grid_view</span>
+<span class="font-label-md text-xs">Workspace</span>
+</a>
+<!-- 2. Workflow (ATIVO) -->
+<a class="flex items-center gap-space-sm px-space-sm py-1.5 bg-surface-container-low text-on-surface border-l-2 border-primary font-medium rounded-r-DEFAULT transition-all" href="#">
+<span class="material-symbols-outlined text-[16px] text-primary">account_tree</span>
+<span class="font-label-md text-xs text-on-surface">Workflow</span>
+</a>
+<!-- 3. Agentes -->
+<a class="flex items-center gap-space-sm px-space-sm py-1.5 text-on-surface-variant hover:bg-surface-container hover:text-on-surface rounded-DEFAULT transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">smart_toy</span>
+<span class="font-label-md text-xs">Agentes</span>
+</a>
+<!-- 4. Personalidades -->
+<a class="flex items-center gap-space-sm px-space-sm py-1.5 text-on-surface-variant hover:bg-surface-container hover:text-on-surface rounded-DEFAULT transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">psychology</span>
+<span class="font-label-md text-xs">Personalidades</span>
+</a>
+<!-- 5. Specs -->
+<a class="flex items-center gap-space-sm px-space-sm py-1.5 text-on-surface-variant hover:bg-surface-container hover:text-on-surface rounded-DEFAULT transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">description</span>
+<span class="font-label-md text-xs">Specs</span>
+</a>
+<!-- 6. MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-sm py-1.5 text-on-surface-variant hover:bg-surface-container hover:text-on-surface rounded-DEFAULT transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">hub</span>
+<span class="font-label-md text-xs">MCP Hub</span>
+</a>
+<!-- 7. Configurações -->
+<a class="flex items-center gap-space-sm px-space-sm py-1.5 text-on-surface-variant hover:bg-surface-container hover:text-on-surface rounded-DEFAULT transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">settings</span>
+<span class="font-label-md text-xs">Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Rodapé: Project Atlas / v0.2.0 · macOS -->
+<div class="p-space-sm border-t border-outline-variant flex flex-col gap-0.5">
+<span class="text-on-surface font-label-md text-xs font-medium">Project Atlas</span>
+<span class="text-on-surface-variant font-code-sm text-[11px] font-mono">v0.2.0 · macOS</span>
+</div>
+</aside>
+<!-- ÁREA DE OPERAÇÃO CENTRAL COM MOLDURA FIXA SUPERIOR (48px) -->
+<div class="flex-1 flex flex-col h-full min-w-0 bg-background overflow-hidden">
+<!-- MOLDURA FIXA: BARRA SUPERIOR (48px) -->
+<header class="h-12 min-h-[48px] px-space-md border-b border-outline-variant bg-surface-container-low flex items-center justify-between">
+<!-- Esquerda: Recolher barra + Breadcrumb -->
+<div class="flex items-center gap-space-md min-w-0">
+<button class="w-7 h-7 flex items-center justify-center rounded-DEFAULT text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" title="Recolher barra lateral" type="button">
+<span class="material-symbols-outlined text-[17px]">dock_to_left</span>
+</button>
+<div class="h-3.5 w-px bg-outline-variant"></div>
+<!-- Breadcrumb: Transport ERP / Projetos / Harness -->
+<nav class="flex items-center gap-1.5 text-xs font-label-md min-w-0">
+<span class="text-on-surface-variant truncate">Transport ERP</span>
+<span class="text-outline-variant">/</span>
+<span class="text-on-surface-variant truncate">Projetos</span>
+<span class="text-outline-variant">/</span>
+<span class="text-on-surface font-medium truncate">Harness</span>
+</nav>
+</div>
+<!-- Direita: Status chip + Celular + Alternância PT | EN -->
+<div class="flex items-center gap-space-md">
+<!-- Chip de status: 1 agente em execução (ponto azul pulsante + fundo azul 14%) -->
+<div class="flex items-center gap-2 px-2.5 py-1 rounded-DEFAULT bg-[rgba(96,165,250,0.14)] border border-[rgba(96,165,250,0.3)]">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#60a5fa] opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-[#60a5fa]"></span>
+</span>
+<span class="font-label-md text-xs text-[#60a5fa] font-medium tracking-tight">1 agente em execução</span>
+</div>
+<!-- Botão Celular -->
+<button class="flex items-center gap-1.5 px-2 py-1 rounded-DEFAULT text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors text-xs font-label-md" type="button">
+<span class="material-symbols-outlined text-[15px]">smartphone</span>
+<span>Celular</span>
+</button>
+<!-- Alternância PT | EN (PT Ativo) -->
+<div class="flex items-center text-xs font-label-md border border-outline-variant rounded-DEFAULT overflow-hidden bg-surface-container-lowest">
+<span class="px-2 py-0.5 bg-surface-container text-on-surface font-semibold">PT</span>
+<span class="w-px h-3 bg-outline-variant"></span>
+<span class="px-2 py-0.5 text-on-surface-variant hover:text-on-surface cursor-pointer transition-colors">EN</span>
+</div>
+</div>
+</header>
+<!-- CONTEÚDO PRINCIPAL: "Harness — Análise ao vivo" -->
+<main class="flex-1 flex flex-col p-space-md gap-space-md min-h-0 overflow-y-auto">
+<!-- 1. Cabeçalho da página -->
+<div class="flex items-center justify-between pb-1">
+<div class="flex items-center gap-3">
+<h1 class="text-on-surface font-headline-md text-[20px] font-semibold tracking-tight">
+            Arquiteto está analisando transport-web
+          </h1>
+<!-- Selo de estado ao lado do título: pílula azul 14% com ponto de 6px e texto Executando -->
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-DEFAULT bg-[rgba(96,165,250,0.14)] border border-[rgba(96,165,250,0.35)]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#60a5fa] animate-pulse-subtle"></span>
+<span class="font-label-md text-[12px] text-[#60a5fa]">Executando</span>
+</div>
+</div>
+<!-- Botão secundário: Interromper (sem competir com botões primários) -->
+<button class="px-3 py-1.5 rounded-DEFAULT bg-surface-container border border-outline hover:bg-surface-container-high hover:border-on-surface-variant text-on-surface text-xs font-label-md transition-colors flex items-center gap-1.5" type="button">
+<span class="material-symbols-outlined text-[14px] text-error">stop</span>
+<span>Interromper</span>
+</button>
+</div>
+<!-- 2. Linha de Passos (Stepper de 3 etapas no topo) -->
+<div class="flex items-center w-full px-space-md py-2.5 bg-surface-container-low border border-outline-variant rounded-DEFAULT">
+<!-- Etapa 1: Analisar (Concluído) -->
+<div class="flex items-center gap-2">
+<div class="w-4 h-4 rounded-full bg-[rgba(16,185,129,0.15)] border border-[#10b981] flex items-center justify-center text-[#10b981]">
+<span class="material-symbols-outlined text-[11px] font-bold">check</span>
+</div>
+<span class="font-label-md text-xs font-medium text-on-surface">1 Analisar</span>
+</div>
+<!-- Linha de conexão 1-2 (ativa/verde para indicar fluxo superado) -->
+<div class="flex-1 mx-3 h-px bg-outline-variant"></div>
+<!-- Etapa 2: Análise ao vivo (Atual / Destacado) -->
+<div class="flex items-center gap-2">
+<div class="w-4 h-4 rounded-full bg-[rgba(96,165,250,0.2)] border border-[#60a5fa] flex items-center justify-center">
+<span class="w-1.5 h-1.5 rounded-full bg-[#60a5fa] animate-pulse-subtle"></span>
+</div>
+<span class="font-label-md text-xs font-semibold text-[#60a5fa]">2 Análise ao vivo</span>
+</div>
+<!-- Linha de conexão 2-3 (pendente) -->
+<div class="flex-1 mx-3 h-px bg-outline-variant opacity-60"></div>
+<!-- Etapa 3: Revisar contexto (Pendente) -->
+<div class="flex items-center gap-2 opacity-50">
+<div class="w-4 h-4 rounded-full border border-outline-variant flex items-center justify-center text-on-surface-variant text-[10px] font-mono">
+            3
+          </div>
+<span class="font-label-md text-xs text-on-surface-variant">3 Revisar contexto</span>
+</div>
+</div>
+<!-- 3. Área principal dividida em duas colunas (altura confortável preenchendo o espaço) -->
+<div class="flex-1 grid grid-cols-12 gap-space-md min-h-0">
+<!-- Coluna esquerda: "Ferramentas usadas" (43% / aprox. 5 colunas) -->
+<section class="col-span-5 flex flex-col min-h-0">
+<div class="flex items-center justify-between pb-2">
+<h2 class="font-headline-sm text-on-surface text-[16px] font-medium tracking-tight">Ferramentas usadas</h2>
+<span class="font-code-sm text-[11px] text-on-surface-variant font-mono">4 operações</span>
+</div>
+<div class="flex-1 flex flex-col bg-surface-container-low border border-outline-variant rounded-md overflow-hidden">
+<!-- Header do painel de ferramentas -->
+<div class="px-space-md py-2 border-b border-outline-variant bg-surface-container flex items-center justify-between text-on-surface-variant font-label-md text-[11px]">
+<span>OPERAÇÃO FS / AST</span>
+<span class="font-mono">LATÊNCIA</span>
+</div>
+<!-- Lista técnica de chamadas de ferramentas em JetBrains Mono 13px -->
+<div class="flex-1 p-space-sm flex flex-col gap-1 overflow-y-auto font-mono text-[13px]">
+<!-- Item 1: Read package.json 120ms -->
+<div class="flex items-center justify-between px-2.5 py-2 rounded-DEFAULT bg-surface-container-lowest border border-outline-variant hover:border-outline transition-colors">
+<div class="flex items-center gap-2 truncate pr-2">
+<span class="material-symbols-outlined text-[14px] text-[#10b981]">check_circle</span>
+<span class="text-on-surface font-code-md truncate">Read <span class="text-[#60a5fa]">package.json</span></span>
+</div>
+<span class="text-on-surface-variant font-code-sm text-[11px] shrink-0 font-mono">120ms</span>
+</div>
+<!-- Item 2: Read vite.config.ts 84ms -->
+<div class="flex items-center justify-between px-2.5 py-2 rounded-DEFAULT bg-surface-container-lowest border border-outline-variant hover:border-outline transition-colors">
+<div class="flex items-center gap-2 truncate pr-2">
+<span class="material-symbols-outlined text-[14px] text-[#10b981]">check_circle</span>
+<span class="text-on-surface font-code-md truncate">Read <span class="text-[#60a5fa]">vite.config.ts</span></span>
+</div>
+<span class="text-on-surface-variant font-code-sm text-[11px] shrink-0 font-mono">84ms</span>
+</div>
+<!-- Item 3: Glob src/**/*.tsx 210ms -->
+<div class="flex items-center justify-between px-2.5 py-2 rounded-DEFAULT bg-surface-container-lowest border border-outline-variant hover:border-outline transition-colors">
+<div class="flex items-center gap-2 truncate pr-2">
+<span class="material-symbols-outlined text-[14px] text-[#10b981]">check_circle</span>
+<span class="text-on-surface font-code-md truncate">Glob <span class="text-[#c0c1ff]">src/**/*.tsx</span></span>
+</div>
+<span class="text-on-surface-variant font-code-sm text-[11px] shrink-0 font-mono">210ms</span>
+</div>
+<!-- Item 4: Read src/main.tsx 66ms com ponto azul rodando/pulsando -->
+<div class="flex items-center justify-between px-2.5 py-2 rounded-DEFAULT bg-surface-container border border-[rgba(96,165,250,0.4)] transition-colors">
+<div class="flex items-center gap-2 truncate pr-2">
+<span class="relative flex h-2 w-2 ml-0.5 mr-0.5">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#60a5fa] opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-[#60a5fa]"></span>
+</span>
+<span class="text-on-surface font-code-md font-medium truncate">Read <span class="text-[#60a5fa]">src/main.tsx</span></span>
+</div>
+<div class="flex items-center gap-1.5 shrink-0">
+<span class="text-[#60a5fa] font-code-sm text-[11px] font-mono font-medium">66ms</span>
+<span class="text-[10px] text-[#60a5fa] opacity-80 uppercase tracking-widest font-mono">[ativo]</span>
+</div>
+</div>
+</div>
+<!-- Rodapé técnico do card de ferramentas -->
+<div class="px-space-md py-1.5 border-t border-outline-variant bg-surface-container-lowest flex items-center justify-between text-[11px] text-on-surface-variant font-mono">
+<span>Pipeline: AST Walk</span>
+<span class="text-[#10b981]">Conexão local ativa</span>
+</div>
+</div>
+</section>
+<!-- Coluna direita: "Saída do agente" (57% / aprox. 7 colunas) -->
+<section class="col-span-7 flex flex-col min-h-0">
+<div class="flex items-center justify-between pb-2">
+<h2 class="font-headline-sm text-on-surface text-[16px] font-medium tracking-tight">Saída do agente</h2>
+<div class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#60a5fa] animate-pulse-subtle"></span>
+<span class="font-code-sm text-[11px] text-on-surface-variant font-mono">Stream stdout</span>
+</div>
+</div>
+<div class="flex-1 flex flex-col bg-surface-container-lowest border border-outline-variant rounded-md overflow-hidden relative">
+<!-- Barra superior sutil da janela de raciocínio -->
+<div class="px-space-md py-2 border-b border-outline-variant bg-surface-container flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[14px] text-primary">terminal</span>
+<span class="font-label-md text-xs text-on-surface font-medium">Raciocínio contínuo — transport-web</span>
+</div>
+<span class="font-code-sm text-[10px] text-on-surface-variant font-mono uppercase tracking-wider">Token batch #14</span>
+</div>
+<!-- Corpo de texto corrido em fluxo contínuo com tipografia precisa -->
+<div class="flex-1 p-space-lg overflow-y-auto text-on-surface font-body-md text-[13.5px] leading-[1.75] font-normal">
+<p class="text-on-surface opacity-95">
+                Detectado projeto frontend SPA construído sobre Vite 5 e React 18 com TypeScript estrito.<br/>
+                O manifesto package.json expõe scripts de build, dev e lint sem framework fullstack acoplado.<br/>
+                Estrutura de diretórios segue organização sob src/components, src/hooks e src/services.<br/>
+                Roteamento identificado via React Router v6 com rotas dinâmicas sob /frotas e /operacao.<br/>
+                Ponto de entrada src/main.tsx instancia a árvore de contexto e cliente de API com Axios.<br/>
+                Examinando dependências de estado global e contratos de integração com transport-erp...<span class="inline-block w-2 h-4 ml-1 bg-[#60a5fa] translate-y-0.5 animate-caret"></span>
+</p>
+</div>
+<!-- Status de telemetria estrito no rodapé da janela -->
+<div class="px-space-md py-1.5 border-t border-outline-variant bg-surface-container flex items-center justify-between text-on-surface-variant font-code-sm text-[11px] font-mono">
+<span>Agente: Arquiteto de Software</span>
+<span class="text-on-surface">taxa de geração: 42 tokens/s</span>
+</div>
+</div>
+</section>
+</div>
+</main>
+</div>
+</body></html>

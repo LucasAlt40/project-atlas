@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useDismiss } from '@/hooks/useDismiss';
+import { useRef, useState } from 'react';
 import { useNavigation } from '@/app/NavigationContext';
 import { useNow } from '@/features/agents/hooks/useNow';
 import { useCatalog } from '@/features/agents/hooks/useCatalog';
@@ -6,7 +7,7 @@ import { formatDuration } from '@/features/usage/model/format';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useWorkspace } from '../hooks/WorkspaceProvider';
 import { agentStatus } from '../model/agentStatus';
-import styles from './Inspector.module.css';
+import { HeaderChip, headerPopover } from '@/components/layout/HeaderChip';
 
 /**
  * Always in the header while any agent is running, in any workspace. Lists each run with what
@@ -22,16 +23,9 @@ export function ActiveExecutions() {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return undefined;
-    function onPointerDown(event: MouseEvent) {
-      if (root.current && !root.current.contains(event.target as Node)) setOpen(false);
-    }
-    document.addEventListener('mousedown', onPointerDown);
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-    };
-  }, [open]);
+  useDismiss(open, root, () => {
+    setOpen(false);
+  });
 
   if (catalog.status !== 'ready') return null;
   const items = Object.entries(workspace.conversations.runs)
@@ -51,30 +45,27 @@ export function ActiveExecutions() {
   if (items.length === 0) return null;
 
   return (
-    <div className={styles.active} ref={root}>
-      <button
-        type="button"
-        className={styles.activeButton}
+    <div className={headerPopover.root} ref={root}>
+      <HeaderChip
+        tone="running"
+        count={items.length}
         aria-haspopup="true"
         aria-expanded={open}
         onClick={() => {
           setOpen((value) => !value);
         }}
       >
-        <span className={styles.dot} aria-hidden="true">
-          ●
-        </span>
         {items.length === 1
           ? t('active.summaryOne')
           : t('active.summaryMany', { count: items.length })}
-      </button>
+      </HeaderChip>
       {open && (
-        <ul className={styles.activePanel} aria-label={t('active.title')}>
+        <ul className={headerPopover.list} aria-label={t('active.title')}>
           {items.map(({ key, run, agent, owner, status }) => (
             <li key={key}>
               <button
                 type="button"
-                className={styles.activeItem}
+                className={headerPopover.item}
                 aria-label={t('active.open', { agent: agent.name, workspace: owner.name })}
                 onClick={() => {
                   setOpen(false);
@@ -87,7 +78,7 @@ export function ActiveExecutions() {
                 }}
               >
                 <span>{agent.name}</span>
-                <span className={styles.activeMeta}>
+                <span className={headerPopover.meta}>
                   {t(`agent.status.${status}`)} · {formatDuration(now - run.startedAt)} ·{' '}
                   {owner.name}
                 </span>

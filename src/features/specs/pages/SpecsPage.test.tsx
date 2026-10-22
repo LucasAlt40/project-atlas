@@ -7,6 +7,8 @@ import type { spec as specDto } from '@/test/specFixtures';
 import { allApproved, artifact, file, issue, summary, view } from '@/test/specFixtures';
 import {
   answerFindings,
+  archiveSpec,
+  deleteSpec,
   answerQuestion,
   approveSpec,
   archiveWithCli,
@@ -139,8 +141,8 @@ describe('the Specs overview', () => {
     expect(within(dark).getByText('Now: Requirements')).toBeInTheDocument();
     expect(within(dark).getByText('1 question(s) for you')).toBeInTheDocument();
     // The counters are the counts of the group tabs.
-    expect(screen.getByRole('button', { name: /^Waiting for you\s*1$/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Ready\s*1$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Waiting for you (1)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ready (1)' })).toBeInTheDocument();
     // An archived spec is out of the way until asked for.
     expect(screen.queryByRole('button', { name: 'Old idea' })).not.toBeInTheDocument();
 
@@ -158,6 +160,32 @@ describe('the Specs overview', () => {
     await user.clear(screen.getByRole('searchbox'));
     await user.type(screen.getByRole('searchbox'), 'zzz');
     expect(screen.getByText('No spec matches this filter.')).toBeInTheDocument();
+  });
+
+  it('archives a published spec and deletes one that built nothing, from the row menu', async () => {
+    backend();
+    vi.mocked(listSpecs).mockResolvedValue([
+      summary({ id: 's1', title: 'Published one', status: 'published', implementations: 2 }),
+      summary({ id: 's2', title: 'Draft one', changeId: 'draft-one', status: 'draft' }),
+    ]);
+    vi.mocked(archiveSpec).mockResolvedValue(view('published'));
+    vi.mocked(deleteSpec).mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    renderWithProviders(<SpecsPage />);
+
+    // A spec that was implemented cannot be deleted, but can be archived.
+    await user.click(await screen.findByRole('button', { name: 'More actions for Published one' }));
+    expect(screen.queryByRole('menuitem', { name: 'Delete' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('menuitem', { name: 'Archive spec' }));
+    expect(archiveSpec).toHaveBeenCalledWith('s1');
+
+    // A draft cannot be archived, only deleted, and only after confirming.
+    await user.click(screen.getByRole('button', { name: 'More actions for Draft one' }));
+    expect(screen.queryByRole('menuitem', { name: 'Archive spec' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('menuitem', { name: 'Delete' }));
+    expect(deleteSpec).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Confirm delete' }));
+    expect(deleteSpec).toHaveBeenCalledWith('s2');
   });
 
   it('says the core could not be read instead of showing an empty list', async () => {

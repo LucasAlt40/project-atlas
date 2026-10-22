@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { ActionBar } from '@/components/ui/ActionBar';
 import { Button } from '@/components/ui/Button';
+import { Steps } from '@/components/ui/Steps';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { TranslationKey } from '@/i18n';
 import type { ToolPlanItemDto, WorkflowModeDto } from '@/lib/tauri/commands';
@@ -153,6 +155,8 @@ export function NewWorkflowPanel({
   const [recommended, setRecommended] = useState<string | null>(null);
   const [applyTools, setApplyTools] = useState(true);
   const [plan, setPlan] = useState<{ templateId: string; items: ToolPlanItemDto[] } | null>(null);
+  /** 1 the task and how to start, 2 the workflow to start from, 3 its name. */
+  const [step, setStep] = useState<1 | 2 | 3>(1);
 
   useEffect(() => {
     if (mode !== 'automatic') return;
@@ -197,12 +201,39 @@ export function NewWorkflowPanel({
     };
   }, [chosen, planTools]);
 
+  const startLabel =
+    startFrom?.kind === 'spec' ? t('specs.startFrom.spec') : t('specs.startFrom.vibe');
+  const summary = (
+    <p className={styles.newSummary}>
+      <span>
+        {t('workflow.new.summary', {
+          task: task.trim() || t('workflow.new.noTask'),
+          start: startLabel,
+          mode: t(`workflow.mode.${mode}` as TranslationKey),
+        })}
+      </span>
+      <button
+        type="button"
+        className={styles.link}
+        onClick={() => {
+          setStep(1);
+        }}
+      >
+        {t('workflow.new.change')}
+      </button>
+    </p>
+  );
+
   return (
     <form
       className={styles.newPanel}
       aria-label={t('workflow.new.title')}
       onSubmit={(event) => {
         event.preventDefault();
+        if (step < 3) {
+          setStep(step === 1 ? 2 : 3);
+          return;
+        }
         onCreate({
           templateId: chosen,
           mode,
@@ -212,54 +243,73 @@ export function NewWorkflowPanel({
         });
       }}
     >
-      <h2>{t('workflow.new.title')}</h2>
-      {specs && startFrom && onStartFrom && onNewSpec && (
-        <StartChoice
-          name="start-from-new"
-          specs={specs}
-          value={startFrom}
-          onChange={onStartFrom}
-          onNewSpec={onNewSpec}
-        />
-      )}
-      <fieldset className={styles.modes}>
-        <legend>{t('workflow.new.mode')}</legend>
-        {(['automatic', 'custom'] as const).map((value) => (
-          <label key={value} className={styles.mode}>
-            <input
-              type="radio"
-              name="workflow-mode"
-              value={value}
-              checked={mode === value}
-              onChange={() => {
-                setMode(value);
-              }}
-            />
-            <span>
-              <strong>{t(`workflow.mode.${value}` as TranslationKey)}</strong>
-              <span className={styles.muted}>
-                {' '}
-                — {t(`workflow.mode.${value}.help` as TranslationKey)}
-              </span>
-            </span>
-          </label>
-        ))}
-      </fieldset>
+      <Steps
+        label={t('workflow.new.steps')}
+        steps={[
+          { label: t('workflow.new.step.task'), state: step === 1 ? 'current' : 'done' },
+          {
+            label: t('workflow.new.step.template'),
+            state: step === 2 ? 'current' : step > 2 ? 'done' : 'todo',
+          },
+          { label: t('workflow.new.step.name'), state: step === 3 ? 'current' : 'todo' },
+        ]}
+      />
 
-      {mode === 'automatic' ? (
-        <>
-          <label className={styles.field}>
-            <span className={styles.fieldLabel}>{t('workflow.new.task')}</span>
-            <textarea
-              className={styles.textarea}
-              value={task}
-              placeholder={t('workflow.new.taskPlaceholder')}
-              onChange={(e) => {
-                setTask(e.target.value);
-              }}
+      {step === 1 && (
+        <div className={styles.newStep}>
+          {specs && startFrom && onStartFrom && onNewSpec && (
+            <StartChoice
+              name="start-from-new"
+              specs={specs}
+              value={startFrom}
+              onChange={onStartFrom}
+              onNewSpec={onNewSpec}
             />
-          </label>
-          {proposal && (
+          )}
+          <fieldset className={styles.modes}>
+            <legend>{t('workflow.new.mode')}</legend>
+            {(['automatic', 'custom'] as const).map((value) => (
+              <label key={value} className={styles.mode}>
+                <input
+                  type="radio"
+                  name="workflow-mode"
+                  value={value}
+                  checked={mode === value}
+                  onChange={() => {
+                    setMode(value);
+                  }}
+                />
+                <span>
+                  <strong>{t(`workflow.mode.${value}` as TranslationKey)}</strong>
+                  <span className={styles.muted}>
+                    {' '}
+                    — {t(`workflow.mode.${value}.help` as TranslationKey)}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+
+          {mode === 'automatic' && (
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>{t('workflow.new.task')}</span>
+              <textarea
+                className={styles.textarea}
+                value={task}
+                placeholder={t('workflow.new.taskPlaceholder')}
+                onChange={(e) => {
+                  setTask(e.target.value);
+                }}
+              />
+            </label>
+          )}
+        </div>
+      )}
+
+      {step === 2 && (
+        <>
+          {summary}
+          {mode === 'automatic' && proposal && (
             <p className={styles.recommendation} role="status">
               {override === null
                 ? t('workflow.new.recommended', { name: label(proposal) })
@@ -270,77 +320,108 @@ export function NewWorkflowPanel({
               </span>
             </p>
           )}
-          <fieldset className={styles.templateGroup}>
-            <legend className={styles.fieldLabel}>{t('workflow.new.chooseOther')}</legend>
-            <TemplateCards
-              templates={templates}
-              selected={chosen ?? ''}
-              recommended={recommended}
-              label={label}
-              onSelect={(id) => {
-                setOverride(id === recommended ? null : id);
+          <div className={styles.newGrid}>
+            <div className={styles.newCards}>
+              {mode === 'automatic' ? (
+                <fieldset className={styles.templateGroup}>
+                  <legend className={styles.fieldLabel}>{t('workflow.new.chooseOther')}</legend>
+                  <TemplateCards
+                    templates={templates}
+                    selected={chosen ?? ''}
+                    recommended={recommended}
+                    label={label}
+                    onSelect={(id) => {
+                      setOverride(id === recommended ? null : id);
+                    }}
+                  />
+                </fieldset>
+              ) : (
+                <fieldset className={styles.templateGroup}>
+                  <legend className={styles.fieldLabel}>{t('workflow.new.template')}</legend>
+                  <TemplateCards
+                    templates={templates}
+                    selected={templateId}
+                    blank
+                    label={label}
+                    onSelect={setTemplateId}
+                  />
+                </fieldset>
+              )}
+            </div>
+            <div className={styles.newPreview}>
+              {shown && (
+                <TemplatePreview
+                  template={shown}
+                  plan={plan?.templateId === shown.id ? plan.items : null}
+                  agentName={agentName}
+                  applyTools={applyTools}
+                  onApplyTools={setApplyTools}
+                  {...(shown.kind === 'custom'
+                    ? {
+                        onDelete: () => {
+                          setTemplateId('');
+                          setOverride(null);
+                          onDeleteTemplate(shown.id);
+                        },
+                      }
+                    : {})}
+                />
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {step === 3 && (
+        <>
+          {summary}
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>{t('workflow.name')}</span>
+            <input
+              className={styles.control}
+              value={name}
+              placeholder={t('workflow.new.namePlaceholder')}
+              onChange={(e) => {
+                setName(e.target.value);
               }}
             />
-          </fieldset>
+          </label>
         </>
-      ) : (
-        <fieldset className={styles.templateGroup}>
-          <legend className={styles.fieldLabel}>{t('workflow.new.template')}</legend>
-          <TemplateCards
-            templates={templates}
-            selected={templateId}
-            blank
-            label={label}
-            onSelect={setTemplateId}
-          />
-        </fieldset>
       )}
 
-      {shown && (
-        <TemplatePreview
-          template={shown}
-          plan={plan?.templateId === shown.id ? plan.items : null}
-          agentName={agentName}
-          applyTools={applyTools}
-          onApplyTools={setApplyTools}
-          {...(shown.kind === 'custom'
-            ? {
-                onDelete: () => {
-                  setTemplateId('');
-                  setOverride(null);
-                  onDeleteTemplate(shown.id);
-                },
-              }
-            : {})}
-        />
-      )}
-
-      <label className={styles.field}>
-        <span className={styles.fieldLabel}>{t('workflow.name')}</span>
-        <input
-          className={styles.control}
-          value={name}
-          placeholder={t('workflow.new.namePlaceholder')}
-          onChange={(e) => {
-            setName(e.target.value);
-          }}
-        />
-      </label>
       {error && (
         <p role="alert" className={styles.failure}>
           {error}
         </p>
       )}
-      <div className={styles.actions}>
-        {onCancel && (
-          <Button type="button" variant="secondary" onClick={onCancel}>
-            {t('common.cancel')}
-          </Button>
-        )}
-        <Button type="submit" disabled={mode === 'automatic' && chosen === null}>
-          {t('workflow.new.create')}
-        </Button>
-      </div>
+      <ActionBar
+        label={t('workflow.new.title')}
+        start={
+          onCancel ? (
+            <Button type="button" variant="ghost" onClick={onCancel}>
+              {t('common.cancel')}
+            </Button>
+          ) : undefined
+        }
+        end={
+          <>
+            {step > 1 && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setStep(step === 3 ? 2 : 1);
+                }}
+              >
+                {t('workflow.new.back')}
+              </Button>
+            )}
+            <Button type="submit" disabled={step >= 2 && mode === 'automatic' && chosen === null}>
+              {step < 3 ? t('workflow.new.continue') : t('workflow.new.create')}
+            </Button>
+          </>
+        }
+      />
     </form>
   );
 }

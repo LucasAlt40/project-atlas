@@ -39,29 +39,28 @@ export function ResultContractEditor({ contract, onChange }: Props) {
   };
 
   return (
-    <fieldset className={[styles.field, styles.group].join(' ')} aria-label={t('contract.title')}>
-      <legend className={styles.label}>{t('contract.title')}</legend>
-      <label htmlFor={`${id}-kind`} className={styles.hint}>
-        {t('contract.type')}
-      </label>
-      <select
-        id={`${id}-kind`}
-        className={styles.control}
-        value={contract.kind}
-        onChange={(e) => {
-          setKind(e.target.value as ContractKind);
-        }}
-      >
+    <div className={styles.contract}>
+      <div className={styles.kinds} role="radiogroup" aria-label={t('contract.type')}>
         {CONTRACT_KINDS.map((kind) => (
-          <option key={kind} value={kind}>
-            {t(`contract.kind.${kind}` as TranslationKey)}
-          </option>
+          <label key={kind} className={styles.kind}>
+            <input
+              type="radio"
+              name={`${id}-kind`}
+              value={kind}
+              checked={contract.kind === kind}
+              onChange={() => {
+                setKind(kind);
+              }}
+            />
+            <span>{t(`contract.kind.${kind}` as TranslationKey)}</span>
+          </label>
         ))}
-      </select>
+      </div>
       <p className={styles.hint}>{t(`contract.kind.${contract.kind}.hint` as TranslationKey)}</p>
 
       {preset && (
-        <div role="group" aria-label={t('contract.allowed')}>
+        <div className={styles.outcomes} role="group" aria-label={t('contract.allowed')}>
+          <p className={styles.hint}>{t('contract.allowed')}</p>
           {offered.map((outcome) => (
             <label key={outcome.id} className={styles.checkRow}>
               <input
@@ -77,7 +76,8 @@ export function ResultContractEditor({ contract, onChange }: Props) {
                 }}
               />
               <span>
-                <code>{outcome.id}</code> — {outcome.label}
+                <code className={styles.outcomeId}>{outcome.id}</code>
+                <span className={styles.outcomeLabel}> — {outcome.label}</span>
               </span>
             </label>
           ))}
@@ -152,6 +152,6 @@ export function ResultContractEditor({ contract, onChange }: Props) {
           {t(`contract.problem.${problem}` as TranslationKey)}
         </p>
       )}
-    </fieldset>
+    </div>
   );
 }

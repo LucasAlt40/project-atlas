@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas — Specs — Nova especificação</title>
+<!-- Fonts & Material Symbols -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-primary-fixed": "#07006c",
+            "surface-bright": "#36393e",
+            "background": "#101317",
+            "on-surface": "#e1e2e8",
+            "surface-dim": "#111418",
+            "surface": "#111418",
+            "on-primary": "#ffffff",
+            "on-background": "#e1e2e8",
+            "on-primary-container": "#0d0096",
+            "surface-container-highest": "#323539",
+            "surface-container": "#1d2024",
+            "on-tertiary-container": "#570032",
+            "secondary-container": "#0267b8",
+            "inverse-surface": "#e1e2e8",
+            "surface-container-high": "#272a2e",
+            "outline-variant": "#242c37",
+            "on-secondary-fixed": "#001c39",
+            "surface-container-low": "#0b0d10",
+            "surface-container-lowest": "#0b0e12",
+            "surface-tint": "#c0c1ff",
+            "on-error": "#690005",
+            "tertiary-container": "#f751a1",
+            "error": "#ffb4ab",
+            "primary": "#6366f1",
+            "primary-hover": "#4f46e5",
+            "primary-container": "#8083ff",
+            "outline": "#464554",
+            "on-surface-variant": "#94a3b8"
+          },
+          fontFamily: {
+            "headline-xl": ["Geist", "sans-serif"],
+            "headline-lg": ["Geist", "sans-serif"],
+            "headline-md": ["Geist", "sans-serif"],
+            "headline-sm": ["Geist", "sans-serif"],
+            "body-lg": ["Geist", "sans-serif"],
+            "body-md": ["Geist", "sans-serif"],
+            "body-sm": ["Geist", "sans-serif"],
+            "label-md": ["Geist", "sans-serif"],
+            "label-sm": ["Geist", "sans-serif"],
+            "code-lg": ["JetBrains Mono", "monospace"],
+            "code-md": ["JetBrains Mono", "monospace"],
+            "code-sm": ["JetBrains Mono", "monospace"],
+            "telemetry-pill": ["JetBrains Mono", "monospace"]
+          },
+          fontSize: {
+            "headline-xl": ["2rem", { lineHeight: "2.5rem", letterSpacing: "-0.025em", fontWeight: "600" }],
+            "headline-lg": ["1.5rem", { lineHeight: "2rem", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "headline-md": ["1.25rem", { lineHeight: "1.75rem", letterSpacing: "-0.015em", fontWeight: "500" }],
+            "headline-sm": ["1.125rem", { lineHeight: "1.5rem", letterSpacing: "-0.01em", fontWeight: "500" }],
+            "body-lg": ["1rem", { lineHeight: "1.5rem", letterSpacing: "-0.005em", fontWeight: "400" }],
+            "body-md": ["0.875rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "body-sm": ["0.75rem", { lineHeight: "1.125rem", letterSpacing: "0.005em", fontWeight: "400" }],
+            "label-md": ["0.8125rem", { lineHeight: "1rem", letterSpacing: "0.01em", fontWeight: "500" }],
+            "label-sm": ["0.6875rem", { lineHeight: "0.875rem", letterSpacing: "0.04em", fontWeight: "600" }],
+            "code-lg": ["0.875rem", { lineHeight: "1.375rem", letterSpacing: "-0.01em", fontWeight: "500" }],
+            "code-md": ["0.8125rem", { lineHeight: "1.25rem", letterSpacing: "-0.01em", fontWeight: "400" }],
+            "code-sm": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0em", fontWeight: "400" }],
+            "telemetry-pill": ["0.6875rem", { lineHeight: "0.875rem", letterSpacing: "0.02em", fontWeight: "600" }]
+          },
+          borderRadius: {
+            DEFAULT: "0.125rem",
+            lg: "0.25rem",
+            xl: "0.5rem",
+            full: "0.75rem"
+          },
+          spacing: {
+            "space-2xs": "0.125rem",
+            "space-xs": "0.25rem",
+            "space-sm": "0.5rem",
+            "space-md": "0.75rem",
+            "space-lg": "1rem",
+            "space-xl": "1.5rem",
+            "space-2xl": "2rem"
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-family: 'Material Symbols Outlined';
+      font-weight: normal;
+      font-style: normal;
+      font-size: 18px;
+      line-height: 1;
+      display: inline-block;
+      white-space: nowrap;
+      word-wrap: normal;
+      direction: ltr;
+      -webkit-font-smoothing: antialiased;
+    }
+    /* Native desktop scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #15191e;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #242c37;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3b4554;
+    }
+  </style>
+</head>
+<body class="bg-[#101317] text-on-surface select-none overflow-hidden h-screen w-screen font-body-md antialiased flex">
+<!-- LEFT PERSISTENT SIDEBAR (216px wide) -->
+<aside class="docked fixed top-0 left-0 h-screen w-[216px] z-30 bg-surface-container-low border-r border-outline-variant flex flex-col justify-between p-space-sm">
+<div class="flex flex-col gap-space-sm">
+<!-- App Brand Anchor -->
+<div class="flex items-center gap-2 px-space-xs py-1">
+<div class="w-5 h-5 rounded-[4px] bg-[#6366f1] flex items-center justify-center font-headline-sm font-semibold text-white text-xs leading-none">
+          A
+        </div>
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface tracking-tight">Atlas</span>
+</div>
+<!-- Workspace Selector -->
+<div class="mt-1 p-2 rounded bg-[#15191e] border border-outline-variant hover:border-[#2d3748] cursor-pointer transition-colors duration-150 flex items-center justify-between">
+<div class="overflow-hidden">
+<div class="font-label-md text-label-md text-on-surface font-medium truncate leading-tight">Transport ERP</div>
+<div class="font-code-sm text-code-sm text-on-surface-variant truncate leading-none mt-0.5">/Users/lucas/dev/transport-erp</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant text-[16px] flex-shrink-0">unfold_more</span>
+</div>
+<!-- Primary Navigation Links -->
+<nav class="flex flex-col gap-0.5 mt-2">
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">folder_open</span>
+<span>Workspace</span>
+</a>
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span>Workflow</span>
+</a>
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span>Agentes</span>
+</a>
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- ACTIVE: Specs -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded bg-surface-container-highest text-[#6366f1] font-label-md text-label-md border border-outline-variant" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">description</span>
+<span class="font-semibold text-white">Specs</span>
+</a>
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">hub</span>
+<span>MCP Hub</span>
+</a>
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Sidebar Footer -->
+<div class="px-space-md py-space-xs border-t border-outline-variant">
+<div class="font-label-md text-label-md text-on-surface-variant font-medium">Project Atlas</div>
+<div class="font-code-sm text-code-sm text-[#64748b] mt-0.5">v0.2.0 · macOS</div>
+</div>
+</aside>
+<!-- APP SHELL CONTAINER (offset for sidebar) -->
+<div class="pl-[216px] w-full h-full flex flex-col relative">
+<!-- TOP BAR (48px height) -->
+<header class="docked fixed top-0 left-[216px] right-0 h-12 z-20 bg-surface-container-lowest border-b border-outline-variant flex justify-between items-center px-4">
+<div class="flex items-center gap-3">
+<button class="text-on-surface-variant hover:text-on-surface p-1 rounded hover:bg-[#1c2128] transition-colors" title="Toggle sidebar">
+<span class="material-symbols-outlined text-[18px]">menu</span>
+</button>
+<span class="font-body-md text-[13px] text-on-surface-variant flex items-center gap-1.5">
+<span>Transport ERP</span>
+<span class="text-[#464554]">/</span>
+<span class="text-on-surface font-medium">Specs</span>
+</span>
+</div>
+<!-- Right Action Clusters -->
+<div class="flex items-center gap-3">
+<button class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#1c2128] border border-outline-variant text-[13px] text-on-surface hover:bg-[#242c37] transition-colors">
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">phone_iphone</span>
+<span>Celular</span>
+</button>
+<div class="h-3.5 w-px bg-outline-variant"></div>
+<div class="flex items-center gap-1 font-label-sm text-label-sm">
+<button class="text-[#6366f1] font-semibold">PT</button>
+<span class="text-[#464554]">|</span>
+<button class="text-on-surface-variant hover:text-on-surface">EN</button>
+</div>
+</div>
+</header>
+<!-- BACKGROUND OBSCORED CONTENT (Specs Page Underlay) -->
+<main class="mt-12 flex-1 p-6 overflow-y-auto bg-[#101317]">
+<div class="max-w-6xl mx-auto flex flex-col gap-6">
+<!-- Specs Header Section -->
+<div class="flex justify-between items-start">
+<div>
+<h1 class="text-xl font-headline-md font-semibold text-on-surface">Specs</h1>
+<p class="font-body-md text-sm text-on-surface-variant mt-1">Defina, valide e aprove uma especificação antes de os agentes escreverem código.</p>
+</div>
+<div class="flex gap-2">
+<button class="px-3 py-1.5 rounded bg-[#1c2128] border border-outline-variant text-sm text-on-surface">Importar specs</button>
+<button class="px-3 py-1.5 rounded bg-[#6366f1] text-white text-sm font-medium">Nova especificação</button>
+</div>
+</div>
+<!-- Filter tabs -->
+<div class="flex gap-4 border-b border-outline-variant pb-2 text-sm">
+<span class="text-[#6366f1] border-b-2 border-[#6366f1] pb-2 font-medium">Todas (5)</span>
+<span class="text-on-surface-variant">Em rascunho (2)</span>
+<span class="text-on-surface-variant">Aprovadas (2)</span>
+<span class="text-on-surface-variant">Em execução (1)</span>
+</div>
+<!-- Spec Cards List -->
+<div class="grid grid-cols-1 gap-3">
+<div class="p-4 rounded-md bg-[#15191e] border border-outline-variant flex justify-between items-center">
+<div>
+<div class="text-sm font-medium text-on-surface">Modo escuro</div>
+<div class="text-xs text-on-surface-variant font-code-sm mt-1">SPEC-001 · Arquiteto / QA · 4 tarefas concluídas</div>
+</div>
+<span class="text-xs px-2 py-0.5 rounded bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/30">Aprovada</span>
+</div>
+<div class="p-4 rounded-md bg-[#15191e] border border-outline-variant flex justify-between items-center">
+<div>
+<div class="text-sm font-medium text-on-surface">Exportar faturas em CSV</div>
+<div class="text-xs text-on-surface-variant font-code-sm mt-1">SPEC-002 · Analista / Tech Lead · 2 tarefas pendentes</div>
+</div>
+<span class="text-xs px-2 py-0.5 rounded bg-[#60a5fa]/10 text-[#60a5fa] border border-[#60a5fa]/30">Em execução</span>
+</div>
+<div class="p-4 rounded-md bg-[#15191e] border border-outline-variant flex justify-between items-center">
+<div>
+<div class="text-sm font-medium text-on-surface">Recuperação de senha</div>
+<div class="text-xs text-on-surface-variant font-code-sm mt-1">SPEC-003 · Arquiteto / QA · Aguardando validação de escopo</div>
+</div>
+<span class="text-xs px-2 py-0.5 rounded bg-[#94a3b8]/10 text-on-surface-variant border border-outline-variant">Rascunho</span>
+</div>
+</div>
+</div>
+</main>
+<!-- MODAL OVERLAY & BACKDROP -->
+<div class="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px] flex items-center justify-center p-4">
+<!-- MODAL CONTAINER (max-w-[640px], max-h-[820px], bg-[#15191e], border-[#242c37]) -->
+<div class="w-full max-w-[640px] max-h-[820px] bg-[#15191e] border border-[#242c37] rounded-lg flex flex-col overflow-hidden shadow-[0_16px_48px_-8px_rgba(0,0,0,0.85),0_0_0_1px_#242c37]">
+<!-- Header of Modal -->
+<div class="px-6 py-4 border-b border-[#242c37] flex items-center justify-between flex-shrink-0 bg-[#15191e]">
+<h2 class="text-[16px] font-semibold text-white tracking-tight">Nova especificação</h2>
+<button class="text-on-surface-variant hover:text-white p-1 rounded hover:bg-[#1c2128] transition-colors" title="Fechar">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- Modal Scrollable Body -->
+<div class="p-6 overflow-y-auto flex flex-col gap-5 flex-1">
+<!-- 1. Selector Projeto -->
+<div class="flex flex-col gap-1.5">
+<label class="text-[13px] font-medium text-neutral-400">Projeto</label>
+<div class="flex items-center gap-2 px-3 py-2 bg-[#1c2128] border border-[#242c37] rounded-md text-neutral-200">
+<span class="material-symbols-outlined text-neutral-400 text-[18px]">folder</span>
+<span class="font-code-sm text-sm text-neutral-200 font-medium">transport-erp</span>
+<span class="ml-auto material-symbols-outlined text-neutral-500 text-[16px]">lock</span>
+</div>
+</div>
+<!-- 2. Textarea O que você quer construir? -->
+<div class="flex flex-col gap-1.5">
+<label class="text-[13px] font-medium text-neutral-400">O que você quer construir?</label>
+<textarea class="w-full bg-[#101317] border border-[#242c37] focus:border-[#6366f1] focus:ring-0 rounded-md text-sm text-neutral-200 p-3 resize-none font-body-md transition-colors leading-relaxed" rows="3">Permitir que o cliente recupere a senha por e-mail</textarea>
+</div>
+<!-- 3. Block Ajude o agente a não adivinhar -->
+<div class="p-4 rounded-md bg-[#101317] border border-[#242c37] flex flex-col gap-4">
+<div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#6366f1] text-[18px]">psychology</span>
+<h3 class="text-sm font-medium text-neutral-200">Ajude o agente a não adivinhar</h3>
+</div>
+<p class="text-[13px] text-neutral-400 mt-1">Perguntas geradas a partir do seu pedido para evitar suposições dos agentes.</p>
+</div>
+<!-- Question 1 -->
+<div class="flex flex-col gap-1.5">
+<label class="text-sm text-neutral-200">Que dados pessoais são tratados?</label>
+<input class="w-full bg-[#15191e] border border-[#242c37] focus:border-[#6366f1] focus:ring-0 rounded text-sm text-neutral-200 px-3 py-2 placeholder-neutral-500 font-body-md transition-colors" placeholder="Ex: E-mail cadastrado, IP da requisição" type="text"/>
+<p class="text-[13px] text-neutral-400">porque o agente precisa aplicar regras de privacidade e retenção de tokens.</p>
+</div>
+<!-- Question 2 -->
+<div class="flex flex-col gap-1.5">
+<label class="text-sm text-neutral-200">Quem pode fazer isso?</label>
+<input class="w-full bg-[#15191e] border border-[#242c37] focus:border-[#6366f1] focus:ring-0 rounded text-sm text-neutral-200 px-3 py-2 placeholder-neutral-500 font-body-md transition-colors" placeholder="Ex: Qualquer usuário não autenticado ou operador da frota" type="text"/>
+<p class="text-[13px] text-neutral-400">porque define se o endpoint exige sessão prévia ou se fica público na API.</p>
+</div>
+<!-- Question 3 -->
+<div class="flex flex-col gap-1.5">
+<label class="text-sm text-neutral-200">Há integrações envolvidas?</label>
+<input class="w-full bg-[#15191e] border border-[#242c37] focus:border-[#6366f1] focus:ring-0 rounded text-sm text-neutral-200 px-3 py-2 placeholder-neutral-500 font-body-md transition-colors" placeholder="Ex: Serviço SMTP / microserviço de mensageria e Redis" type="text"/>
+<p class="text-[13px] text-neutral-400">porque o agente precisa mapear conectores e contratos de mensageria existentes.</p>
+</div>
+</div>
+<!-- 4. Field Mais alguma coisa que o agente deve saber -->
+<div class="flex flex-col gap-1.5">
+<label class="text-[13px] font-medium text-neutral-400">Mais alguma coisa que o agente deve saber</label>
+<textarea class="w-full bg-[#101317] border border-[#242c37] focus:border-[#6366f1] focus:ring-0 rounded-md text-sm text-neutral-200 p-2.5 resize-none font-body-md transition-colors placeholder-neutral-500" placeholder="Opcional: restrições de arquitetura, referências ou dependências..." rows="2"></textarea>
+</div>
+<!-- 5. Two selectors side-by-side -->
+<div class="grid grid-cols-2 gap-3">
+<div class="flex flex-col gap-1.5">
+<label class="text-[13px] font-medium text-neutral-400">Agente que escreve</label>
+<div class="flex items-center justify-between px-3 py-2 bg-[#1c2128] border border-[#242c37] hover:border-[#3b4554] cursor-pointer rounded-md text-sm transition-colors">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#6366f1] text-[18px]">smart_toy</span>
+<span class="text-neutral-200 font-medium">Arquiteto</span>
+</div>
+<span class="material-symbols-outlined text-neutral-500 text-[16px]">expand_more</span>
+</div>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="text-[13px] font-medium text-neutral-400">Agente que revisa</label>
+<div class="flex items-center justify-between px-3 py-2 bg-[#1c2128] border border-[#242c37] hover:border-[#3b4554] cursor-pointer rounded-md text-sm transition-colors">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#10b981] text-[18px]">verified_user</span>
+<span class="text-neutral-200 font-medium">QA</span>
+</div>
+<span class="material-symbols-outlined text-neutral-500 text-[16px]">expand_more</span>
+</div>
+</div>
+</div>
+<!-- 6. Guardrail Note -->
+<div class="flex items-center gap-2 text-[13px] text-neutral-400 mt-1">
+<span class="material-symbols-outlined text-neutral-500 text-[16px]">info</span>
+<span>Criar apenas guarda o pedido. Nenhum agente roda até você iniciar.</span>
+</div>
+</div>
+<!-- Footer of Modal -->
+<div class="border-t border-[#242c37] bg-[#15191e] px-6 py-4 flex justify-between items-center flex-shrink-0">
+<div class="text-xs text-neutral-500 font-code-sm">
+            ESC para fechar
+          </div>
+<div class="flex items-center gap-3">
+<button class="px-4 py-2 text-neutral-300 hover:text-white text-sm font-medium transition-colors">
+              Cancelar
+            </button>
+<button class="px-5 py-2 bg-[#6366f1] hover:bg-[#4f46e5] text-white rounded-md text-sm font-medium transition-colors shadow-sm">
+              Criar
+            </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body></html>

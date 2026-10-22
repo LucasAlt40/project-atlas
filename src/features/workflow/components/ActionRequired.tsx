@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useDismiss } from '@/hooks/useDismiss';
+import { useRef, useState } from 'react';
 import { useNavigation } from '@/app/NavigationContext';
 import { useWorkspace } from '@/features/workspace/hooks/WorkspaceProvider';
 import { useI18n } from '@/i18n/I18nProvider';
 import { usePendingInteractions } from '../hooks/usePendingInteractions';
-import styles from './Interaction.module.css';
+import { HeaderChip, headerPopover } from '@/components/layout/HeaderChip';
 
 /**
  * In the header of every screen while an agent of the workspace is waiting for the person.
@@ -17,18 +18,14 @@ export function ActionRequired() {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return undefined;
-    const onPointerDown = (event: MouseEvent) => {
-      if (root.current && !root.current.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', onPointerDown);
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-    };
-  }, [open]);
+  useDismiss(open, root, () => {
+    setOpen(false);
+  });
 
-  if (pending.length === 0) return null;
+  const approvals = workspace.conversations.approvals.filter(
+    (request) => request.workspaceId === workspace.active?.id,
+  ).length;
+  if (pending.length === 0 && approvals === 0) return null;
   const go = (index: number) => {
     const target = pending[index];
     if (!target) return;
@@ -41,40 +38,56 @@ export function ActionRequired() {
   };
 
   return (
-    <div className={styles.indicator} ref={root}>
-      <button
-        type="button"
-        className={styles.indicatorButton}
-        aria-haspopup={pending.length > 1 ? 'true' : undefined}
-        aria-expanded={pending.length > 1 ? open : undefined}
-        onClick={() => {
-          if (pending.length === 1) go(0);
-          else setOpen((value) => !value);
-        }}
-      >
-        <span aria-hidden="true">⚠</span>
-        {pending.length === 1
-          ? t('interaction.indicatorOne')
-          : t('interaction.indicatorMany', { count: pending.length })}
-      </button>
-      {open && pending.length > 1 && (
-        <ul className={styles.indicatorList} aria-label={t('interaction.indicatorList')}>
-          {pending.map((item, index) => (
-            <li key={item.id}>
-              <button
-                type="button"
-                className={styles.indicatorItem}
-                onClick={() => {
-                  go(index);
-                }}
-              >
-                <span>{t('interaction.waiting', { step: item.stepLabel })}</span>
-                <span className={styles.indicatorMeta}>{item.question}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+    <>
+      {approvals > 0 && (
+        <HeaderChip
+          tone="warning"
+          count={approvals}
+          onClick={() => {
+            navigate('workspace');
+          }}
+        >
+          {t(approvals === 1 ? 'approval.indicatorOne' : 'approval.indicatorMany', {
+            count: approvals,
+          })}
+        </HeaderChip>
       )}
-    </div>
+      {pending.length > 0 && (
+        <div className={headerPopover.root} ref={root}>
+          <HeaderChip
+            tone="warning"
+            count={pending.length}
+            aria-haspopup={pending.length > 1 ? 'true' : undefined}
+            aria-expanded={pending.length > 1 ? open : undefined}
+            onClick={() => {
+              if (pending.length === 1) go(0);
+              else setOpen((value) => !value);
+            }}
+          >
+            {pending.length === 1
+              ? t('interaction.indicatorOne')
+              : t('interaction.indicatorMany', { count: pending.length })}
+          </HeaderChip>
+          {open && pending.length > 1 && (
+            <ul className={headerPopover.list} aria-label={t('interaction.indicatorList')}>
+              {pending.map((item, index) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    className={headerPopover.item}
+                    onClick={() => {
+                      go(index);
+                    }}
+                  >
+                    <span>{t('interaction.waiting', { step: item.stepLabel })}</span>
+                    <span className={headerPopover.meta}>{item.question}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </>
   );
 }

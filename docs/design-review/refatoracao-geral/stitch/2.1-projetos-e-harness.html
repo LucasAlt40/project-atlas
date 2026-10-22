@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas - Projetos e Harness</title>
+<!-- Typography & Material Symbols -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-secondary-fixed": "#001c39",
+            "on-surface-variant": "#c7c4d7",
+            "surface-variant": "#323539",
+            "surface": "#111418",
+            "background": "#111418",
+            "surface-dim": "#111418",
+            "on-tertiary-fixed": "#3e0022",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "on-primary-fixed": "#07006c",
+            "on-error-container": "#ffdad6",
+            "inverse-surface": "#e1e2e8",
+            "tertiary-container": "#f751a1",
+            "primary-fixed-dim": "#c0c1ff",
+            "primary": "#c0c1ff",
+            "outline": "#908fa0",
+            "surface-bright": "#36393e",
+            "on-background": "#e1e2e8",
+            "error-container": "#93000a",
+            "surface-tint": "#c0c1ff",
+            "on-secondary-fixed-variant": "#004883",
+            "inverse-primary": "#494bd6",
+            "surface-container-low": "#191c20",
+            "surface-container-highest": "#323539",
+            "surface-container-high": "#272a2e",
+            "secondary": "#a4c9ff",
+            "on-tertiary": "#640039",
+            "surface-container": "#1d2024",
+            "tertiary-fixed": "#ffd9e4",
+            "on-tertiary-container": "#570032",
+            "outline-variant": "#464554",
+            "error": "#ffb4ab",
+            "on-surface": "#e1e2e8",
+            "secondary-container": "#0267b8",
+            "primary-fixed": "#e1e0ff",
+            "tertiary": "#ffb0cd",
+            "inverse-on-surface": "#2e3135",
+            "on-secondary-container": "#d6e5ff",
+            "primary-container": "#8083ff",
+            "on-secondary": "#00315d",
+            "surface-container-lowest": "#0b0e12",
+            "on-primary-container": "#0d0096",
+            "secondary-fixed-dim": "#a4c9ff",
+            "secondary-fixed": "#d4e3ff",
+            "on-error": "#690005",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "on-primary": "#1000a9"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "gutter": "0.5rem",
+            "space-md": "0.75rem",
+            "gutter-expanded": "1rem",
+            "space-xl": "1.5rem",
+            "margin": "0.75rem",
+            "space-lg": "1rem",
+            "gutter-compact": "0.25rem",
+            "space-sm": "0.5rem",
+            "margin-window": "0.5rem",
+            "space-2xs": "0.125rem",
+            "space-xs": "0.25rem",
+            "space-2xl": "2rem"
+          },
+          "fontFamily": {
+            "label-md": ["Geist"],
+            "headline-lg": ["Geist"],
+            "telemetry-pill": ["JetBrains Mono"],
+            "code-md": ["JetBrains Mono"],
+            "code-sm": ["JetBrains Mono"],
+            "headline-md": ["Geist"],
+            "label-sm": ["Geist"],
+            "body-md": ["Geist"],
+            "body-sm": ["Geist"],
+            "headline-sm": ["Geist"],
+            "code-lg": ["JetBrains Mono"],
+            "body-lg": ["Geist"],
+            "headline-xl": ["Geist"]
+          },
+          "fontSize": {
+            "label-md": ["0.8125rem", { "lineHeight": "1rem", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "headline-lg": ["1.5rem", { "lineHeight": "2rem", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "telemetry-pill": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.02em", "fontWeight": "600" }],
+            "code-md": ["0.8125rem", { "lineHeight": "1.25rem", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+            "code-sm": ["0.6875rem", { "lineHeight": "1rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-md": ["1.25rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.015em", "fontWeight": "500" }],
+            "label-sm": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.04em", "fontWeight": "600" }],
+            "body-md": ["0.875rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "body-sm": ["0.75rem", { "lineHeight": "1.125rem", "letterSpacing": "0.005em", "fontWeight": "400" }],
+            "headline-sm": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "code-lg": ["0.875rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "body-lg": ["1rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "headline-xl": ["2rem", { "lineHeight": "2.5rem", "letterSpacing": "-0.025em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 18px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    /* Hairline borders matching Instrument Minimalist spec */
+    .border-hairline {
+      border-color: #242c37;
+    }
+    .border-interactive {
+      border-color: #2d3748;
+    }
+    /* Specific palette mappings */
+    .bg-void { background-color: #0b0d10; }
+    .bg-base { background-color: #101317; }
+    .bg-level-1 { background-color: #15191e; }
+    .bg-level-2 { background-color: #1c2128; }
+    .bg-level-3 { background-color: #242c37; }
+  </style>
+</head>
+<body class="bg-base text-on-surface antialiased select-none font-body-sm h-screen overflow-hidden flex">
+<!-- 1. BARRA LATERAL (216px fixo) -->
+<aside class="w-[216px] min-w-[216px] h-screen bg-surface-container-low border-r border-outline-variant flex flex-col justify-between p-space-sm z-30 select-none">
+<div class="flex flex-col gap-space-sm">
+<!-- Topo: Logo Índigo de 20px com 'A' branco e palavra 'Atlas' -->
+<div class="flex items-center gap-2 px-space-xs py-1">
+<div class="w-5 h-5 rounded-[4px] bg-[#6366f1] flex items-center justify-center text-white font-headline-sm font-semibold text-[11px] leading-none shrink-0 shadow-none">
+          A
+        </div>
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface tracking-tight">Atlas</span>
+</div>
+<!-- Seletor de workspace -->
+<div class="mt-1 p-space-xs rounded bg-surface-container border border-outline-variant/60 hover:border-outline-variant cursor-pointer transition-colors group">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md font-medium text-on-surface truncate">Transport ERP</span>
+<span class="material-symbols-outlined text-outline text-[16px] group-hover:text-on-surface transition-colors" data-icon="expand_more">expand_more</span>
+</div>
+<div class="font-code-sm text-code-sm text-outline truncate mt-0.5" title="/Users/lucas/dev/transport-erp">
+          /Users/lucas/dev/transport-erp
+        </div>
+</div>
+<!-- Navegação exatamente nesta ordem com os 7 itens -->
+<nav class="flex flex-col gap-[2px] mt-2">
+<!-- 1. Workspace (Ativo) -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded bg-surface-container-highest text-primary font-label-md text-label-md border border-outline-variant border-l-2 border-l-[#6366f1] transition-colors" href="#">
+<span class="material-symbols-outlined text-primary text-[17px]" data-icon="folder_open">folder_open</span>
+<span>Workspace</span>
+</a>
+<!-- 2. Workflow -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-outline text-[17px]" data-icon="account_tree">account_tree</span>
+<span>Workflow</span>
+</a>
+<!-- 3. Agentes -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-outline text-[17px]" data-icon="smart_toy">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- 4. Personalidades -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-outline text-[17px]" data-icon="psychology">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- 5. Specs -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-outline text-[17px]" data-icon="description">description</span>
+<span>Specs</span>
+</a>
+<!-- 6. MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-outline text-[17px]" data-icon="hub">hub</span>
+<span>MCP Hub</span>
+</a>
+<!-- 7. Configurações -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-outline text-[17px]" data-icon="settings">settings</span>
+<span>Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Rodapé: 'Project Atlas' e 'v0.2.0 · macOS' estritamente -->
+<div class="pt-space-sm border-t border-outline-variant/60 flex flex-col gap-0.5 px-space-xs">
+<div class="font-label-sm text-label-sm font-medium text-on-surface">Project Atlas</div>
+<div class="font-code-sm text-code-sm text-outline">v0.2.0 · macOS</div>
+</div>
+</aside>
+<!-- ÁREA DIREITA: BARRA SUPERIOR + CANVAS -->
+<div class="flex-1 flex flex-col h-screen overflow-hidden bg-base">
+<!-- 2. BARRA SUPERIOR (48px fixo) -->
+<header class="h-12 min-h-[48px] bg-surface-container-lowest border-b border-outline-variant flex items-center justify-between px-space-lg select-none z-20">
+<div class="flex items-center gap-3">
+<!-- Botão recolher/expandir barra lateral -->
+<button class="text-outline hover:text-on-surface p-1 rounded hover:bg-surface-container transition-colors" title="Alternar barra lateral" type="button">
+<span class="material-symbols-outlined text-[18px]" data-icon="dock_to_right">dock_to_right</span>
+</button>
+<!-- Breadcrumb fixo -->
+<div class="font-code-sm text-code-sm text-on-surface-variant flex items-center gap-1.5 font-normal">
+<span>Transport ERP</span>
+<span class="text-outline">/</span>
+<span>Workspace</span>
+<span class="text-outline">/</span>
+<span class="text-on-surface font-medium">Projetos</span>
+</div>
+</div>
+<!-- À direita exclusivamente: Celular e PT | EN -->
+<div class="flex items-center gap-4">
+<!-- Botão Celular -->
+<button class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high border border-outline-variant font-label-md text-label-md transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]" data-icon="smartphone">smartphone</span>
+<span>Celular</span>
+</button>
+<!-- Alternância PT | EN -->
+<div class="flex items-center gap-1 font-label-sm text-label-sm">
+<span class="text-primary font-semibold cursor-pointer">PT</span>
+<span class="text-outline">|</span>
+<span class="text-on-surface-variant hover:text-on-surface cursor-pointer">EN</span>
+</div>
+</div>
+</header>
+<!-- 3. ÁREA DE CONTEÚDO PRINCIPAL (Projetos e Harness) -->
+<main class="flex-1 overflow-y-auto p-6 lg:p-8 space-y-7 max-w-5xl">
+<!-- Cabeçalho da Página -->
+<div class="flex items-start justify-between">
+<div class="flex flex-col gap-1.5">
+<!-- Link / Retorno rápido -->
+<a class="inline-flex items-center gap-1 font-label-md text-label-md text-outline hover:text-primary transition-colors" href="#">
+<span>← Workspace</span>
+</a>
+<!-- Título principal -->
+<h1 class="font-headline-md text-[22px] leading-7 font-semibold text-on-surface tracking-tight">
+            Projetos de Transport ERP
+          </h1>
+</div>
+<!-- Botão Primário: + Adicionar pasta de projeto -->
+<button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] bg-[#6366f1] hover:bg-[#4f46e5] active:bg-[#4338ca] text-white font-label-md text-label-md font-medium transition-colors focus:outline-none focus:ring-1 focus:ring-primary" type="button">
+<span class="material-symbols-outlined text-[16px]" data-icon="add">add</span>
+<span>+ Adicionar pasta de projeto</span>
+</button>
+</div>
+<!-- 1. LISTA DE PROJETOS (Cartões em Coluna) -->
+<section class="flex flex-col gap-3">
+<!-- Cartão 1: 'transport-erp' -->
+<div class="bg-level-1 border border-hairline rounded-[4px] p-4 flex flex-col gap-3 hover:border-interactive transition-colors">
+<div class="flex items-start justify-between gap-4">
+<div class="flex flex-col gap-1.5">
+<!-- Linha Superior com Nome e Selos -->
+<div class="flex items-center gap-2 flex-wrap">
+<span class="font-headline-sm text-[16px] leading-5 font-bold text-on-surface">transport-erp</span>
+<!-- Selos neutros (pílula cinza sem ponto) -->
+<span class="px-2 py-0.5 rounded-[3px] bg-surface-container-high border border-outline-variant font-label-sm text-[11px] text-on-surface-variant">
+                  Principal
+                </span>
+<span class="px-2 py-0.5 rounded-[3px] bg-surface-container-high border border-outline-variant font-label-sm text-[11px] text-on-surface-variant">
+                  Backend
+                </span>
+<!-- Selo de estado padronizado 'Analisado' (fundo verde 14%, ponto verde 6px #10b981, texto Geist 12px verde) -->
+<div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[3px] bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)]">
+<span class="w-[6px] h-[6px] rounded-full bg-[#10b981] inline-block"></span>
+<span class="font-label-md text-[12px] leading-none text-[#10b981] font-medium">Analisado</span>
+</div>
+</div>
+<!-- Caminho técnico em JetBrains Mono -->
+<div class="font-code-sm text-code-sm text-outline font-normal">
+                /Users/lucas/dev/transport-erp
+              </div>
+<!-- Linha de informação -->
+<div class="font-body-sm text-body-sm text-on-surface-variant">
+                Saudável · Rust, Tauri, PostgreSQL
+              </div>
+<!-- Linha de métricas e auditoria em mono -->
+<div class="font-code-sm text-code-sm text-on-surface-variant">
+                42 achados · 31 verificados · 9 inferidos · 2 seus · 0 desconhecidos
+              </div>
+<!-- Data em texto de apoio -->
+<div class="font-body-sm text-[11px] text-outline mt-0.5">
+                Analisado em 20/10/2026 18:04
+              </div>
+</div>
+<!-- Ações à direita -->
+<div class="flex items-center gap-2 shrink-0">
+<button class="px-2.5 py-1 rounded-[4px] bg-level-2 border border-interactive hover:bg-level-3 text-on-surface font-label-md text-label-md transition-colors" type="button">
+                Atualizar
+              </button>
+<button class="px-2.5 py-1 rounded-[4px] bg-transparent hover:bg-[rgba(99,102,241,0.14)] hover:text-primary text-outline font-label-md text-label-md transition-colors" type="button">
+                Editar
+              </button>
+<!-- Dropdown Menu trigger & container -->
+<div class="relative group">
+<button class="w-7 h-7 flex items-center justify-center rounded-[4px] bg-transparent hover:bg-level-2 text-outline hover:text-on-surface transition-colors" title="Mais opções" type="button">
+<span class="font-mono text-base leading-none">⋯</span>
+</button>
+<!-- Context Menu flutuante -->
+<div class="hidden group-hover:block absolute right-0 top-full mt-1 w-44 bg-surface-container-high border border-outline-variant rounded-[4px] py-1 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.65),0_0_0_1px_#2d3748] z-40">
+<button class="w-full text-left px-3 py-1.5 font-label-md text-label-md text-on-surface hover:bg-surface-container-highest transition-colors" type="button">
+                    Recarregar
+                  </button>
+<div class="h-px bg-outline-variant/60 my-1"></div>
+<button class="w-full text-left px-3 py-1.5 font-label-md text-label-md text-error hover:bg-error-container/20 transition-colors" type="button">
+                    Resetar Harness
+                  </button>
+<button class="w-full text-left px-3 py-1.5 font-label-md text-label-md text-error hover:bg-error-container/20 transition-colors" type="button">
+                    Remover do workspace
+                  </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Cartão 2: 'transport-web' -->
+<div class="bg-level-1 border border-hairline rounded-[4px] p-4 flex flex-col gap-3 hover:border-interactive transition-colors">
+<div class="flex items-start justify-between gap-4">
+<div class="flex flex-col gap-1.5">
+<!-- Linha Superior com Nome e Selos -->
+<div class="flex items-center gap-2 flex-wrap">
+<span class="font-headline-sm text-[16px] leading-5 font-bold text-on-surface">transport-web</span>
+<!-- Selo neutro -->
+<span class="px-2 py-0.5 rounded-[3px] bg-surface-container-high border border-outline-variant font-label-sm text-[11px] text-on-surface-variant">
+                  Frontend
+                </span>
+<!-- Selo de estado padronizado 'Desatualizado' (fundo âmbar 14%, ponto âmbar 6px #f59e0b, texto Geist 12px âmbar) -->
+<div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[3px] bg-[rgba(245,158,11,0.14)] border border-[rgba(245,158,11,0.4)]">
+<span class="w-[6px] h-[6px] rounded-full bg-[#f59e0b] inline-block"></span>
+<span class="font-label-md text-[12px] leading-none text-[#f59e0b] font-medium">Desatualizado</span>
+</div>
+</div>
+<!-- Caminho técnico em JetBrains Mono -->
+<div class="font-code-sm text-code-sm text-outline font-normal">
+                /Users/lucas/dev/transport-web
+              </div>
+<!-- Linha de informação -->
+<div class="font-body-sm text-body-sm text-on-surface-variant">
+                React, TypeScript, Vite
+              </div>
+<!-- Linha de relação -->
+<div class="font-body-sm text-body-sm text-outline">
+                Usa: <span class="text-on-surface-variant">transport-erp</span>
+</div>
+</div>
+<!-- Ações à direita -->
+<div class="flex items-center gap-2 shrink-0">
+<button class="px-2.5 py-1 rounded-[4px] bg-level-2 border border-interactive hover:bg-level-3 text-on-surface font-label-md text-label-md transition-colors" type="button">
+                Atualizar
+              </button>
+<button class="px-2.5 py-1 rounded-[4px] bg-transparent hover:bg-[rgba(99,102,241,0.14)] hover:text-primary text-outline font-label-md text-label-md transition-colors" type="button">
+                Editar
+              </button>
+<!-- Menu ⋯ -->
+<div class="relative group">
+<button class="w-7 h-7 flex items-center justify-center rounded-[4px] bg-transparent hover:bg-level-2 text-outline hover:text-on-surface transition-colors" title="Mais opções" type="button">
+<span class="font-mono text-base leading-none">⋯</span>
+</button>
+<div class="hidden group-hover:block absolute right-0 top-full mt-1 w-44 bg-surface-container-high border border-outline-variant rounded-[4px] py-1 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.65),0_0_0_1px_#2d3748] z-40">
+<button class="w-full text-left px-3 py-1.5 font-label-md text-label-md text-on-surface hover:bg-surface-container-highest transition-colors" type="button">
+                    Recarregar
+                  </button>
+<div class="h-px bg-outline-variant/60 my-1"></div>
+<button class="w-full text-left px-3 py-1.5 font-label-md text-label-md text-error hover:bg-error-container/20 transition-colors" type="button">
+                    Resetar Harness
+                  </button>
+<button class="w-full text-left px-3 py-1.5 font-label-md text-label-md text-error hover:bg-error-container/20 transition-colors" type="button">
+                    Remover do workspace
+                  </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 2. SEÇÃO 'Harness' -->
+<section class="bg-level-1 border border-hairline rounded-[4px] p-4 flex flex-col gap-3">
+<h2 class="font-headline-sm text-[16px] leading-5 font-semibold text-on-surface">
+          Harness
+        </h2>
+<div class="flex items-center justify-between gap-4 flex-wrap">
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+            O Harness grava o contexto de cada projeto em .atlas/ para os agentes.
+          </p>
+<button class="px-3 py-1.5 rounded-[4px] bg-level-2 border border-interactive hover:bg-level-3 text-on-surface font-label-md text-label-md transition-colors shrink-0" type="button">
+            Resetar todos os Harnesses
+          </button>
+</div>
+</section>
+<!-- 3. SEÇÃO 'Contexto do workspace' -->
+<section class="bg-level-1 border border-hairline rounded-[4px] p-4 flex flex-col gap-3">
+<h2 class="font-headline-sm text-[16px] leading-5 font-semibold text-on-surface">
+          Contexto do workspace
+        </h2>
+<div class="flex items-center justify-between gap-4">
+<!-- Selo de estado padronizado 'Atualizado' (verde #10b981) -->
+<div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[3px] bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)]">
+<span class="w-[6px] h-[6px] rounded-full bg-[#10b981] inline-block"></span>
+<span class="font-label-md text-[12px] leading-none text-[#10b981] font-medium">Atualizado</span>
+</div>
+<!-- Botão secundário 'Refazer contexto' -->
+<button class="px-3 py-1.5 rounded-[4px] bg-level-2 border border-interactive hover:bg-level-3 text-on-surface font-label-md text-label-md transition-colors shrink-0" type="button">
+            Refazer contexto
+          </button>
+</div>
+</section>
+<!-- 4. SEÇÃO 'Notas do workspace' -->
+<section class="bg-level-1 border border-hairline rounded-[4px] p-4 flex flex-col gap-3">
+<h2 class="font-headline-sm text-[16px] leading-5 font-semibold text-on-surface">
+          Notas do workspace
+        </h2>
+<div class="flex flex-col gap-3">
+<!-- Textarea técnica com 3 linhas solicitadas -->
+<textarea class="w-full bg-level-2 border border-hairline focus:border-primary rounded-[4px] p-2.5 font-code-sm text-[13px] leading-5 text-on-surface focus:outline-none resize-none transition-colors" rows="3" spellcheck="false">// Diretrizes globais do workspace Transport ERP
+- Priorizar sempre contratos de sessão seguros e validações de concorrência.
+- Manter worktree isolado para execuções simultâneas de QA e Arquiteto.</textarea>
+<div class="flex justify-end">
+<button class="px-3 py-1.5 rounded-[4px] bg-level-2 border border-interactive hover:bg-level-3 text-on-surface font-label-md text-label-md transition-colors" type="button">
+              Salvar notas
+            </button>
+</div>
+</div>
+</section>
+</main>
+</div>
+</body></html>

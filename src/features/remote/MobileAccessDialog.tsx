@@ -1,11 +1,22 @@
 import { useState } from 'react';
+import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Callout } from '@/components/ui/Callout';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
+import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { RemoteStatusDto } from '@/lib/tauri/commands';
 import { newPairingCode, revokeAllDevices, revokeDevice, setRemoteEnabled } from './remoteService';
 import { useRemoteAccess } from './useRemoteAccess';
 import styles from './Remote.module.css';
+
+const STATE_TONE: Record<RemoteStatusDto['state'], BadgeTone> = {
+  disabled: 'neutral',
+  starting: 'running',
+  active: 'success',
+  error: 'danger',
+};
 
 function countdown(ms: number): string {
   const total = Math.max(0, Math.ceil(ms / 1000));
@@ -70,16 +81,24 @@ export function MobileAccessDialog({ onClose }: { onClose: () => void }) {
   const picked = candidates.find((c) => c.address === chosen);
 
   return (
-    <Modal label={t('remote.title')} onClose={onClose} size="wide">
+    <Modal
+      label={t('remote.title')}
+      onClose={onClose}
+      size="md"
+      title={t('remote.title')}
+      footer={
+        <Button variant="secondary" onClick={onClose}>
+          {t('common.close')}
+        </Button>
+      }
+    >
       <div className={styles.dialog}>
-        <h2 className={styles.title}>{t('remote.title')}</h2>
         <p className={styles.muted}>{t('remote.intro')}</p>
 
         <div className={styles.stateRow}>
-          <span className={styles.state} data-state={state}>
-            <span className={styles.dot} data-state={state} aria-hidden="true" />
+          <Badge dot tone={STATE_TONE[state]}>
             {t(`remote.state.${state}`)}
-          </span>
+          </Badge>
           <Button
             variant={on ? 'secondary' : 'primary'}
             disabled={busy || state === 'starting' || (!on && !chosen)}
@@ -92,9 +111,9 @@ export function MobileAccessDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         {status?.error && (
-          <p className={styles.error} role="alert">
+          <Callout tone="danger" role="alert">
             {t(`remote.error.${status.error}`)}
-          </p>
+          </Callout>
         )}
 
         {!on && (
@@ -130,47 +149,64 @@ export function MobileAccessDialog({ onClose }: { onClose: () => void }) {
         )}
 
         {on && status?.addressLost && (
-          <p className={styles.warning} role="alert">
+          <Callout tone="warning" role="alert">
             {t('remote.address.lost')}
-          </p>
+          </Callout>
         )}
 
         {on && status && (
           <>
             {status.waiting > 0 && (
-              <p className={styles.attention} role="status">
+              <Callout tone="warning" role="status">
                 {status.waiting === 1
                   ? t('remote.waitingOne')
                   : t('remote.waitingMany', { count: status.waiting })}
-              </p>
+              </Callout>
             )}
 
-            <div className={styles.columns}>
-              <div className={styles.column}>
-                {status.pairing && remaining > 0 ? (
-                  <div className={styles.pairing}>
-                    <img
-                      className={styles.qr}
-                      src={qrSource(status.pairing.qrSvg)}
-                      alt={t('remote.qr.alt')}
-                      width={224}
-                      height={224}
-                    />
-                    <div className={styles.pairingText}>
-                      <p className={styles.muted}>{t('remote.scan')}</p>
-                      <p className={styles.codeLabel}>{t('remote.code')}</p>
-                      <p className={styles.code}>{status.pairing.code}</p>
-                      <p className={styles.help}>
-                        {t('remote.codeHelp', { url: status.url ?? '' })}
-                      </p>
-                      <p className={styles.help}>
-                        {t('remote.expiresIn', { time: countdown(remaining) })}
-                      </p>
-                    </div>
+            {status.pairing && remaining > 0 ? (
+              <div className={styles.pairing}>
+                <img
+                  className={styles.qr}
+                  src={qrSource(status.pairing.qrSvg)}
+                  alt={t('remote.qr.alt')}
+                  width={160}
+                  height={160}
+                />
+                <div className={styles.pairingText}>
+                  <p className={styles.muted}>{t('remote.scan')}</p>
+                  <p className={styles.codeLabel}>{t('remote.code')}</p>
+                  <p className={styles.code}>{status.pairing.code}</p>
+                  <div className={styles.rowBetween}>
+                    <span className={styles.help}>
+                      {t('remote.expiresIn', { time: countdown(remaining) })}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => {
+                        void act(newPairingCode);
+                      }}
+                    >
+                      <Icon name="refresh" size={14} />
+                      {t('remote.newCode')}
+                    </Button>
                   </div>
-                ) : (
-                  <p className={styles.muted}>{t('remote.noCode')}</p>
-                )}
+                  <p className={styles.help}>{t('remote.codeHelp', { url: status.url ?? '' })}</p>
+                  {status.url && (
+                    <div className={styles.urlRow}>
+                      <code className={styles.url} aria-label={t('remote.url')}>
+                        {status.url}
+                      </code>
+                      <CopyButton text={status.url} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className={styles.stack}>
+                <p className={styles.muted}>{t('remote.noCode')}</p>
                 <div className={styles.row}>
                   <Button
                     variant="secondary"
@@ -191,62 +227,65 @@ export function MobileAccessDialog({ onClose }: { onClose: () => void }) {
                   )}
                 </div>
               </div>
-              <div className={styles.column}>
-                <div className={styles.field}>
-                  <div className={styles.rowBetween}>
-                    <h3 className={styles.heading}>{t('remote.devices')}</h3>
-                    {status.devices.length > 1 && (
+            )}
+
+            <div className={styles.field}>
+              <div className={styles.rowBetween}>
+                <h3 className={styles.heading}>
+                  {t('remote.devices')}
+                  {status.devices.length > 0 ? ` (${String(status.devices.length)})` : ''}
+                </h3>
+                {status.devices.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => {
+                      void act(revokeAllDevices);
+                    }}
+                  >
+                    {t('remote.revokeAll')}
+                  </Button>
+                )}
+              </div>
+              {status.devices.length === 0 ? (
+                <p className={styles.muted}>{t('remote.devices.none')}</p>
+              ) : (
+                <ul className={styles.devices}>
+                  {status.devices.map((device) => (
+                    <li key={device.id} className={styles.device}>
+                      <div>
+                        <strong>{device.name}</strong>
+                        <div className={styles.help}>
+                          {t('remote.devices.meta', {
+                            address: device.address,
+                            time: new Date(device.lastSeen).toLocaleTimeString(language, {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            }),
+                          })}
+                        </div>
+                      </div>
                       <Button
-                        variant="ghost"
+                        variant="secondary"
+                        size="sm"
                         disabled={busy}
                         onClick={() => {
-                          void act(revokeAllDevices);
+                          void act(() => revokeDevice(device.id));
                         }}
                       >
-                        {t('remote.revokeAll')}
+                        {t('remote.revoke')}
                       </Button>
-                    )}
-                  </div>
-                  {status.devices.length === 0 ? (
-                    <p className={styles.muted}>{t('remote.devices.none')}</p>
-                  ) : (
-                    <ul className={styles.devices}>
-                      {status.devices.map((device) => (
-                        <li key={device.id} className={styles.device}>
-                          <div>
-                            <strong>{device.name}</strong>
-                            <div className={styles.help}>
-                              {t('remote.devices.meta', {
-                                address: device.address,
-                                time: new Date(device.lastSeen).toLocaleTimeString(language, {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                }),
-                              })}
-                            </div>
-                          </div>
-                          <Button
-                            variant="danger"
-                            disabled={busy}
-                            onClick={() => {
-                              void act(() => revokeDevice(device.id));
-                            }}
-                          >
-                            {t('remote.revoke')}
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </>
         )}
 
-        <section className={styles.know} aria-label={t('remote.know.title')}>
-          <h3 className={styles.heading}>{t('remote.know.title')}</h3>
-          <ul>
+        <CollapsibleSection title={t('remote.know.title')} defaultOpen>
+          <ul className={styles.knowList}>
             <li>{t('remote.know.computer')}</li>
             <li>{t('remote.know.http')}</li>
             <li>{t('remote.know.can')}</li>
@@ -254,7 +293,7 @@ export function MobileAccessDialog({ onClose }: { onClose: () => void }) {
             <li>{t('remote.know.never')}</li>
             <li>{t('remote.know.off')}</li>
           </ul>
-        </section>
+        </CollapsibleSection>
       </div>
     </Modal>
   );

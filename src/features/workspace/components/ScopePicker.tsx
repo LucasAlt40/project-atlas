@@ -1,4 +1,5 @@
-import { useId, useState } from 'react';
+import { useDismiss } from '@/hooks/useDismiss';
+import { useId, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { useT } from '@/i18n/I18nProvider';
 import type { WorkspaceProjectDto } from '@/lib/tauri/commands';
@@ -10,6 +11,8 @@ interface Props {
   choice: ScopeChoice;
   onChange: (choice: ScopeChoice) => void;
   disabled?: boolean;
+  /** Only an icon (the summary in its tooltip), for the one-line composer of the grid. */
+  compact?: boolean;
 }
 
 /**
@@ -17,10 +20,20 @@ interface Props {
  * changes (in its isolated worktree); the others are consulted. Shown only for a workspace that
  * has more than one project: with one there is nothing to choose.
  */
-export function ScopePicker({ projects, choice, onChange, disabled = false }: Props) {
+export function ScopePicker({
+  projects,
+  choice,
+  onChange,
+  disabled = false,
+  compact = false,
+}: Props) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const bodyId = useId();
+  const root = useRef<HTMLDivElement>(null);
+  useDismiss(open, root, () => {
+    setOpen(false);
+  });
   if (projects.length < 2) return null;
 
   const name = (id: string) => projects.find((p) => p.id === id)?.name ?? id;
@@ -32,20 +45,29 @@ export function ScopePicker({ projects, choice, onChange, disabled = false }: Pr
     : t('scope.only', { working });
 
   return (
-    <div className={styles.scope}>
+    <div className={styles.scope} ref={root}>
       <button
         type="button"
         className={styles.scopeToggle}
         data-multi={multi}
         aria-expanded={open}
         aria-controls={bodyId}
+        data-compact={compact ? true : undefined}
         aria-label={`${t('scope.label')}: ${summary}`}
+        title={summary}
         onClick={() => {
           setOpen((o) => !o);
         }}
       >
-        <Icon name="stack" size={14} />
-        {multi ? t('scope.badge', { working, count: choice.readProjectIds.length }) : working}
+        <Icon name="folder" size={15} />
+        {!compact && (
+          <>
+            <span className={styles.scopeName}>
+              {multi ? t('scope.badge', { working, count: choice.readProjectIds.length }) : working}
+            </span>
+            <Icon name="chevronDown" size={14} />
+          </>
+        )}
       </button>
       {open && (
         <fieldset id={bodyId} className={styles.scopeBody} disabled={disabled}>

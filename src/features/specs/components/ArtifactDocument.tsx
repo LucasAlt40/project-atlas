@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Markdown } from '@/components/ui/Markdown';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { useI18n } from '@/i18n/I18nProvider';
 import { agoText } from '@/features/workflow/model/time';
 import { stageName } from '../model/messages';
@@ -81,20 +82,15 @@ export function ArtifactDocument({ view, artifact, focus }: Props) {
             </label>
           )}
           {canRender && (
-            <div className={styles.segmented} role="group" aria-label={t('specs.doc.view')}>
-              {(['rendered', 'source'] as const).map((name) => (
-                <button
-                  key={name}
-                  type="button"
-                  aria-pressed={mode === name}
-                  onClick={() => {
-                    setMode(name);
-                  }}
-                >
-                  {t(`specs.doc.${name}`)}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              label={t('specs.doc.view')}
+              value={mode}
+              onChange={setMode}
+              segments={(['rendered', 'source'] as const).map((name) => ({
+                value: name,
+                label: t(`specs.doc.${name}`),
+              }))}
+            />
           )}
         </div>
       </header>

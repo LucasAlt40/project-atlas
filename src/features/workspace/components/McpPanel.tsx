@@ -30,7 +30,7 @@ export function McpPanel({ record }: { record: McpRecordDto }) {
 
   return (
     <section className={styles.panel} aria-label={t('context.mcp.title')}>
-      <h3>{t('context.mcp.title').toUpperCase()}</h3>
+      <h3>{t('context.mcp.title')}</h3>
       <p className={styles.line}>{t('context.mcp.note')}</p>
       {record.unauthorized.length > 0 && (
         <p className={styles.status} data-health="invalid" role="alert">

@@ -67,6 +67,6 @@ describe('Execution Inspector breadcrumb', () => {
     show(undefined);
 
     expect(screen.queryByRole('navigation', { name: 'Where this execution sits' })).toBeNull();
-    expect(screen.getByRole('heading', { name: 'Execution #42' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Execution #42' })).toBeInTheDocument();
   });
 });

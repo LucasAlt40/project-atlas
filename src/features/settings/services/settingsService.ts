@@ -2,6 +2,7 @@ import {
   invokeCommand,
   type AppSettingsDto,
   type MemorySettingsDto,
+  type PresenceScreenDto,
   type PresenceSettingsDto,
   type SandboxSettingsDto,
   type SandboxStatusDto,
@@ -44,4 +45,9 @@ export function setSpecsMaxTokens(max: number | null): Promise<AppSettingsDto> {
 /** What Atlas shares on the person's Discord profile (Rich Presence; off by default). */
 export function setPresenceSettings(presence: PresenceSettingsDto): Promise<AppSettingsDto> {
   return invokeCommand('set_presence_settings', { presence });
+}
+
+/** Tells the core which screen is open; it picks a line of the Discord profile when idle. */
+export function setPresenceScreen(screen: PresenceScreenDto): Promise<null> {
+  return invokeCommand('set_presence_screen', { screen });
 }

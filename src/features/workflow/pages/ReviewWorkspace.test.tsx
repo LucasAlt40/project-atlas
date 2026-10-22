@@ -171,8 +171,18 @@ const open = async (user: ReturnType<typeof userEvent.setup>) => {
   return screen.findByRole('region', { name: 'Review workspace' });
 };
 
-const section = (review: HTMLElement, name: RegExp) =>
-  within(review).getByRole('button', { name }).closest('div') as HTMLElement;
+function section(review: HTMLElement, name: RegExp): HTMLElement {
+  const found = within(review).getByRole('button', { name }).closest('section');
+  if (!found) throw new Error(`no section ${String(name)}`);
+  return found;
+}
+
+/** The secondary sections start folded: opens one (if it is not open yet) and returns it. */
+async function opened(user: ReturnType<typeof userEvent.setup>, review: HTMLElement, name: RegExp) {
+  const toggle = within(review).getByRole('button', { name });
+  if (toggle.getAttribute('aria-expanded') === 'false') await user.click(toggle);
+  return section(review, name);
+}
 
 describe('the review workspace', () => {
   beforeEach(() => {
@@ -192,7 +202,9 @@ describe('the review workspace', () => {
       const review = await open(user);
 
       expect(within(review).getAllByText(headline).length).toBeGreaterThan(0);
-      expect(within(review).getByText('REVIEW')).toBeInTheDocument();
+      expect(
+        within(review).getByRole('heading', { name: /^Review workspace/ }),
+      ).toBeInTheDocument();
     });
 
     it('is not there while the run still works: that is the live workspace', async () => {
@@ -426,7 +438,7 @@ describe('the review workspace', () => {
       );
 
       const review = await open(user);
-      const set = section(review, /Change set/);
+      const set = await opened(user, review, /Change set/);
 
       for (const letter of ['A', 'M', 'D', 'R']) {
         expect(within(set).getAllByText(letter).length).toBeGreaterThan(0);
@@ -449,7 +461,7 @@ describe('the review workspace', () => {
 
       const review = await open(user);
 
-      expect(section(review, /Change set/)).toHaveTextContent('changed by Developer');
+      expect(await opened(user, review, /Change set/)).toHaveTextContent('changed by Developer');
     });
 
     it('opens the diff of the file that was picked, and of all of them', async () => {
@@ -458,7 +470,7 @@ describe('the review workspace', () => {
       const review = await open(user);
 
       await user.click(
-        within(section(review, /Change set/)).getByRole('button', {
+        within(await opened(user, review, /Change set/)).getByRole('button', {
           name: 'Show the diff of src/auth/auth.controller.ts',
         }),
       );
@@ -522,6 +534,7 @@ describe('the review workspace', () => {
       show(withCode(finished(), 'changes_available'));
 
       const review = await open(user);
+      await opened(user, review, /Change set/);
 
       expect(review).toHaveTextContent('in the workflow’s isolated worktree');
       expect(review).toHaveTextContent(
@@ -644,7 +657,9 @@ describe('the review workspace', () => {
       expect(within(result).queryByRole('button', { name: 'Keep isolated' })).toBeNull();
       expect(within(result).getByRole('button', { name: 'Review diff' })).toBeEnabled();
       // The saved change set is still there.
-      expect(section(review, /Change set/)).toHaveTextContent('src/auth/auth.controller.ts');
+      expect(await opened(user, review, /Change set/)).toHaveTextContent(
+        'src/auth/auth.controller.ts',
+      );
     });
   });
 });

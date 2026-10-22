@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { fetchAppInfo } from '@/features/home/services/appInfoService';
-import { setLanguage } from '@/features/settings/services/settingsService';
+import { setLanguage, setPresenceScreen } from '@/features/settings/services/settingsService';
 import { createAgent } from '@/features/agents/services/catalogService';
 import {
   addAgentToWorkspace,
@@ -56,8 +56,30 @@ describe('App', () => {
       'page',
     );
     expect(await screen.findByRole('button', { name: /^Workspace: Acme ERP/ })).toBeInTheDocument();
-    expect(await screen.findByRole('button', { name: '+ Adicionar agente' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Adicionar agente' })).toBeInTheDocument();
     expect(screen.getByRole('complementary')).toHaveTextContent('Atlas');
+  });
+
+  it('tells the core which screen is open, for the Discord profile', async () => {
+    const user = userEvent.setup();
+    mockBackend({
+      language: 'en-US',
+      workspaces: [workspace('w1', 'Acme ERP', '/dev/acme')],
+      selectedWorkspaceId: 'w1',
+    });
+    render(<App />);
+
+    await waitFor(() => {
+      expect(setPresenceScreen).toHaveBeenCalledWith('workspace');
+    });
+    await user.click(await screen.findByRole('button', { name: 'Specs' }));
+    await waitFor(() => {
+      expect(setPresenceScreen).toHaveBeenLastCalledWith('specs');
+    });
+    await user.click(screen.getByRole('button', { name: 'MCP Hub' }));
+    await waitFor(() => {
+      expect(setPresenceScreen).toHaveBeenLastCalledWith('mcp_hub');
+    });
   });
 
   it('has the Specs screen in the menu', async () => {
@@ -92,12 +114,12 @@ describe('App', () => {
       selectedWorkspaceId: 'w1',
     });
     render(<App />);
-    await screen.findByRole('button', { name: '+ Adicionar agente' });
+    await screen.findByRole('button', { name: 'Adicionar agente' });
 
     await user.click(screen.getByRole('button', { name: 'EN' }));
 
     expect(setLanguage).toHaveBeenCalledWith('en-US');
-    expect(await screen.findByRole('button', { name: '+ Add Agent' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Add agent' })).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Manage the projects of/ })).toBeInTheDocument();
     // Names the user chose are not translated.
@@ -127,7 +149,11 @@ describe('App', () => {
       ),
     ).toBeInTheDocument();
     // The behavior list shows when the card is opened.
-    await user.click(screen.getByRole('button', { name: 'Expandir Architect' }));
+    await user.click(
+      within(screen.getByRole('article', { name: 'Architect' })).getByRole('button', {
+        name: 'Mostrar mais',
+      }),
+    );
     expect(screen.getByText('Identifica fronteiras')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Configurações' }));
@@ -142,8 +168,8 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: 'Welcome to Atlas' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Create Workspace' }));
-    const dialog = screen.getByRole('dialog', { name: 'Create Workspace' });
+    await user.click(screen.getByRole('button', { name: 'Create workspace' }));
+    const dialog = screen.getByRole('dialog', { name: 'Create workspace' });
     await user.click(within(dialog).getByRole('button', { name: 'Select folder' }));
     await user.click(within(dialog).getByRole('button', { name: 'Create' }));
 
@@ -171,7 +197,7 @@ describe('App', () => {
     render(<App />);
 
     // "+ Add Agent" → "Create new agent" opens the creation flow directly.
-    await user.click(await screen.findByRole('button', { name: '+ Add Agent' }));
+    await user.click(await screen.findByRole('button', { name: 'Add agent' }));
     await user.click(screen.getByRole('button', { name: 'Create new agent' }));
     const form = await screen.findByRole('form', { name: 'Create agent' });
     await user.type(within(form).getByLabelText('Name'), 'Architecture Expert');
@@ -205,7 +231,7 @@ describe('App', () => {
     await user.click(await screen.findByRole('button', { name: 'Personalities' }));
     await user.click(
       within(await screen.findByRole('article', { name: 'QA' })).getByRole('button', {
-        name: 'Use this personality',
+        name: 'Use QA',
       }),
     );
 

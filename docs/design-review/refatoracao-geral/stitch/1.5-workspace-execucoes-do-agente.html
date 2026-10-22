@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas - Transport ERP</title>
+<!-- Typography & Icons -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-container-high": "#272a2e",
+            "surface-tint": "#c0c1ff",
+            "on-primary-container": "#0d0096",
+            "inverse-on-surface": "#2e3135",
+            "tertiary-container": "#f751a1",
+            "surface-container-highest": "#323539",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "on-error-container": "#ffdad6",
+            "surface-container-lowest": "#0b0d10",
+            "surface-container-low": "#101317",
+            "surface-bright": "#36393e",
+            "primary": "#c0c1ff",
+            "on-tertiary-fixed": "#3e0022",
+            "surface-dim": "#111418",
+            "tertiary-fixed": "#ffd9e4",
+            "secondary-fixed": "#d4e3ff",
+            "outline": "#908fa0",
+            "error-container": "#93000a",
+            "on-secondary": "#00315d",
+            "background": "#101317",
+            "secondary-fixed-dim": "#a4c9ff",
+            "secondary-container": "#0267b8",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "surface": "#101317",
+            "surface-container": "#15191e",
+            "on-tertiary-container": "#570032",
+            "on-surface-variant": "#c7c4d7",
+            "inverse-primary": "#494bd6",
+            "on-background": "#e1e2e8",
+            "on-tertiary": "#640039",
+            "on-secondary-fixed-variant": "#004883",
+            "on-primary": "#1000a9",
+            "primary-fixed": "#e1e0ff",
+            "on-primary-fixed": "#07006c",
+            "on-surface": "#e1e2e8",
+            "inverse-surface": "#e1e2e8",
+            "primary-container": "#8083ff",
+            "outline-variant": "#1c2128",
+            "on-secondary-container": "#d6e5ff",
+            "surface-variant": "#1c2128",
+            "on-secondary-fixed": "#001c39",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "on-error": "#690005",
+            "primary-fixed-dim": "#c0c1ff",
+            "secondary": "#a4c9ff",
+            "tertiary": "#ffb0cd",
+            "error": "#ffb4ab"
+          },
+          borderRadius: {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.375rem",
+            "full": "0.75rem"
+          },
+          spacing: {
+            "margin": "0.75rem",
+            "gutter-compact": "0.25rem",
+            "space-xs": "0.25rem",
+            "space-2xl": "2rem",
+            "gutter-expanded": "1rem",
+            "margin-window": "0.5rem",
+            "space-lg": "1rem",
+            "space-sm": "0.5rem",
+            "space-2xs": "0.125rem",
+            "gutter": "0.5rem",
+            "space-xl": "1.5rem",
+            "space-md": "0.75rem"
+          },
+          fontFamily: {
+            "headline-xl": ["Geist", "sans-serif"],
+            "headline-lg": ["Geist", "sans-serif"],
+            "headline-md": ["Geist", "sans-serif"],
+            "headline-sm": ["Geist", "sans-serif"],
+            "body-lg": ["Geist", "sans-serif"],
+            "body-md": ["Geist", "sans-serif"],
+            "body-sm": ["Geist", "sans-serif"],
+            "label-md": ["Geist", "sans-serif"],
+            "label-sm": ["Geist", "sans-serif"],
+            "code-lg": ["JetBrains Mono", "monospace"],
+            "code-md": ["JetBrains Mono", "monospace"],
+            "code-sm": ["JetBrains Mono", "monospace"],
+            "telemetry-pill": ["JetBrains Mono", "monospace"]
+          },
+          fontSize: {
+            "headline-xl": ["2rem", { lineHeight: "2.5rem", letterSpacing: "-0.025em", fontWeight: "600" }],
+            "headline-lg": ["1.5rem", { lineHeight: "2rem", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "headline-md": ["1.25rem", { lineHeight: "1.75rem", letterSpacing: "-0.015em", fontWeight: "500" }],
+            "headline-sm": ["1.125rem", { lineHeight: "1.5rem", letterSpacing: "-0.01em", fontWeight: "500" }],
+            "body-lg": ["1rem", { lineHeight: "1.5rem", letterSpacing: "-0.005em", fontWeight: "400" }],
+            "body-md": ["0.875rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "body-sm": ["0.75rem", { lineHeight: "1.125rem", letterSpacing: "0.005em", fontWeight: "400" }],
+            "label-md": ["0.8125rem", { lineHeight: "1rem", letterSpacing: "0.01em", fontWeight: "500" }],
+            "label-sm": ["0.6875rem", { lineHeight: "0.875rem", letterSpacing: "0.04em", fontWeight: "600" }],
+            "code-lg": ["0.875rem", { lineHeight: "1.375rem", letterSpacing: "-0.01em", fontWeight: "500" }],
+            "code-md": ["0.8125rem", { lineHeight: "1.25rem", letterSpacing: "-0.01em", fontWeight: "400" }],
+            "code-sm": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0em", fontWeight: "400" }],
+            "telemetry-pill": ["0.6875rem", { lineHeight: "0.875rem", letterSpacing: "0.02em", fontWeight: "600" }]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    /* Hairline boundaries and strict scrollbars */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0d10;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1c2128;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #272a2e;
+    }
+  </style>
+</head>
+<body class="bg-surface-container-low text-on-surface font-body-md antialiased selection:bg-surface-container-high selection:text-primary overflow-hidden w-screen h-screen flex">
+<!-- ========================================================================= -->
+<!-- BARRA LATERAL ESQUERDA (216px fixa, bg #0b0d10, border-r #1c2128)        -->
+<!-- ========================================================================= -->
+<aside class="w-[216px] min-w-[216px] max-w-[216px] h-full bg-surface-container-lowest border-r border-outline-variant flex flex-col justify-between select-none shrink-0 z-20">
+<div class="flex flex-col">
+<!-- Topo: Marca Atlas -->
+<div class="h-12 px-space-md border-b border-outline-variant flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-primary text-[18px]">deployed_code</span>
+<span class="font-headline-sm text-headline-sm font-semibold tracking-tight text-on-surface">Atlas</span>
+</div>
+<!-- Seletor de Workspace -->
+<div class="p-space-sm border-b border-outline-variant">
+<button class="w-full text-left p-space-xs rounded-lg hover:bg-surface-container transition-colors duration-150 group">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md font-medium text-on-surface truncate">Transport ERP</span>
+<span class="material-symbols-outlined text-on-surface-variant text-[16px] group-hover:text-on-surface">expand_more</span>
+</div>
+<div class="font-code-sm text-code-sm text-outline truncate mt-space-2xs">/Users/lucas/dev/transport-erp</div>
+</button>
+</div>
+<!-- Navegação Vertical (Exatamente 7 itens) -->
+<nav class="p-space-xs flex flex-col gap-space-2xs mt-space-xs">
+<!-- 1. Workspace (Ativo) -->
+<a class="flex items-center gap-space-sm px-space-sm py-1.5 bg-surface-variant text-primary border-l-2 border-primary font-medium rounded-r-DEFAULT transition-all" href="#">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="font-label-md text-label-md">Workspace</span>
+</a>
+<!-- 2. Workflow -->
+<a class="flex items-center gap-space-sm px-space-sm py-1.5 text-on-surface-variant hover:bg-surface-container hover:text-on-surface rounded-DEFAULT transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">account_tree</span>
+<span class="font-label-md text-label-md">Workflow</span>
+</a>
+<!-- 3. Agentes -->
+<a class="flex items-center gap-space-sm px-space-sm py-1.5 text-on-surface-variant hover:bg-surface-container hover:text-on-surface rounded-DEFAULT transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">smart_toy</span>
+<span class="font-label-md text-label-md">Agentes</span>
+</a>
+<!-- 4. Personalidades -->
+<a class="flex items-center gap-space-sm px-space-sm py-1.5 text-on-surface-variant hover:bg-surface-container hover:text-on-surface rounded-DEFAULT transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">psychology</span>
+<span class="font-label-md text-label-md">Personalidades</span>
+</a>
+<!-- 5. Specs -->
+<a class="flex items-center gap-space-sm px-space-sm py-1.5 text-on-surface-variant hover:bg-surface-container hover:text-on-surface rounded-DEFAULT transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">terminal</span>
+<span class="font-label-md text-label-md">Specs</span>
+</a>
+<!-- 6. MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-sm py-1.5 text-on-surface-variant hover:bg-surface-container hover:text-on-surface rounded-DEFAULT transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">hub</span>
+<span class="font-label-md text-label-md">MCP Hub</span>
+</a>
+<!-- 7. Configurações -->
+<a class="flex items-center gap-space-sm px-space-sm py-1.5 text-on-surface-variant hover:bg-surface-container hover:text-on-surface rounded-DEFAULT transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">settings</span>
+<span class="font-label-md text-label-md">Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Rodapé Fixo da Barra Lateral -->
+<div class="p-space-md border-t border-outline-variant">
+<div class="font-label-md text-label-md font-medium text-on-surface">Project Atlas</div>
+<div class="font-code-sm text-code-sm text-outline mt-0.5">v0.2.0 · macOS</div>
+</div>
+</aside>
+<!-- ========================================================================= -->
+<!-- PAINEL CENTRAL / CANVAS OPERACIONAL                                       -->
+<!-- ========================================================================= -->
+<div class="flex-1 flex flex-col h-full overflow-hidden bg-surface-container-low min-w-0">
+<!-- BARRA SUPERIOR (48px, border-b #1c2128) -->
+<header class="h-12 min-h-[48px] px-space-md border-b border-outline-variant bg-surface-container-lowest flex items-center justify-between select-none shrink-0 z-10">
+<!-- Esquerda: Toggle minimalista + Breadcrumb -->
+<div class="flex items-center gap-space-sm text-on-surface-variant">
+<button aria-label="Recolher barra lateral" class="p-1 rounded-DEFAULT hover:bg-surface-container hover:text-on-surface transition-colors flex items-center">
+<span class="material-symbols-outlined text-[18px]">menu_open</span>
+</button>
+<span class="text-outline-variant">|</span>
+<nav class="flex items-center gap-1.5 font-label-md text-label-md">
+<span class="text-on-surface-variant">Transport ERP</span>
+<span class="text-outline">/</span>
+<span class="text-on-surface-variant">Workspace</span>
+<span class="text-outline">/</span>
+<span class="text-on-surface-variant">Arquiteto</span>
+<span class="text-outline">/</span>
+<span class="text-on-surface font-medium">Execuções</span>
+</nav>
+</div>
+<!-- Direita: Apenas botão Celular e Idioma PT | EN -->
+<div class="flex items-center gap-space-md">
+<button class="flex items-center gap-1.5 px-space-sm py-1 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container text-label-md font-label-md transition-colors">
+<span class="material-symbols-outlined text-[16px]">smartphone</span>
+<span>Celular</span>
+</button>
+<div class="flex items-center gap-1 font-code-sm text-code-sm text-on-surface-variant border border-outline-variant px-2 py-0.5 rounded-lg bg-surface-container-lowest">
+<span class="text-primary font-semibold">PT</span>
+<span class="text-outline-variant">|</span>
+<span class="hover:text-on-surface cursor-pointer transition-colors">EN</span>
+</div>
+</div>
+</header>
+<!-- ÁREA DE ROLAGEM PRINCIPAL -->
+<main class="flex-1 overflow-y-auto p-space-md flex flex-col gap-space-md">
+<!-- CABEÇALHO DO WORKSPACE -->
+<section class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-baseline gap-space-md">
+<h1 class="font-headline-lg text-headline-lg text-on-surface font-semibold tracking-tight">Transport ERP</h1>
+<span class="font-code-sm text-code-sm text-outline tracking-tight">
+              Hoje <span class="text-on-surface font-medium">US$ 1,24</span> · Semana <span class="text-on-surface font-medium">US$ 3,72</span>
+</span>
+</div>
+<!-- Ações Primárias / Secundárias -->
+<div class="flex items-center gap-space-sm">
+<button class="px-space-md py-1.5 rounded-lg bg-surface-variant border border-outline-variant text-on-surface hover:bg-surface-container-high text-label-md font-label-md transition-all flex items-center gap-1.5">
+<span>Projetos (2)</span>
+</button>
+<button class="px-space-md py-1.5 rounded-lg bg-surface-variant border border-outline-variant text-on-surface hover:bg-surface-container-high text-label-md font-label-md transition-all flex items-center gap-1.5">
+<span>Integrações</span>
+</button>
+<button class="px-space-md py-1.5 rounded-lg bg-primary text-on-primary font-medium hover:bg-primary-container hover:text-on-primary-container text-label-md font-label-md transition-all flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[16px]">add</span>
+<span>Adicionar agente</span>
+</button>
+</div>
+</div>
+<!-- Barra de Visualização / Filtro de Lista -->
+<div class="flex items-center justify-between border-b border-outline-variant pb-space-sm">
+<div class="flex items-center bg-surface-container-lowest p-0.5 rounded-lg border border-outline-variant">
+<button class="px-space-sm py-1 rounded bg-surface-variant text-primary text-label-md font-label-md font-medium transition-colors">
+              Lista expansível
+            </button>
+<button class="px-space-sm py-1 rounded text-on-surface-variant hover:text-on-surface text-label-md font-label-md transition-colors">
+              Grade
+            </button>
+</div>
+<button class="text-label-sm font-label-sm text-outline hover:text-on-surface transition-colors">
+            Recolher todos
+          </button>
+</div>
+</section>
+<!-- ===================================================================== -->
+<!-- CARTÃO DO AGENTE EXPANDIDO ("Arquiteto")                              -->
+<!-- ===================================================================== -->
+<article class="bg-surface-container border border-outline-variant rounded-xl flex flex-col overflow-hidden">
+<!-- Cabeçalho do Cartão -->
+<div class="px-space-md py-space-sm border-b border-outline-variant flex items-center justify-between bg-surface-container">
+<div class="flex items-center gap-space-md flex-wrap">
+<div class="flex items-center gap-space-sm">
+<div class="w-7 h-7 rounded-lg bg-surface-variant border border-outline-variant flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[18px]">code_blocks</span>
+</div>
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface">Arquiteto</span>
+</div>
+<!-- Selo Semântico de Estado -->
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-telemetry-pill text-telemetry-pill">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+<span>Pronto</span>
+</div>
+<!-- Metadados Técnicos -->
+<span class="font-body-sm text-body-sm text-on-surface-variant">Architect · Claude CLI · Anthropic</span>
+<!-- Chips Técnicos -->
+<div class="flex items-center gap-1.5">
+<span class="font-code-sm text-code-sm px-2 py-0.5 rounded-DEFAULT bg-surface-variant border border-outline-variant text-on-surface-variant">sonnet</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-DEFAULT bg-surface-variant border border-outline-variant text-on-surface-variant">Isolamento Git ligado</span>
+</div>
+</div>
+<!-- Ações do Cartão -->
+<div class="flex items-center gap-1">
+<button class="px-space-sm py-1 rounded-DEFAULT text-on-surface-variant hover:text-on-surface hover:bg-surface-variant text-label-md font-label-md transition-colors">
+              Editar
+            </button>
+<button aria-label="Mais opções" class="p-1 rounded-DEFAULT text-on-surface-variant hover:text-on-surface hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- Barra de Abas do Agente -->
+<div class="px-space-md bg-surface-container-lowest border-b border-outline-variant flex items-center gap-space-md">
+<button class="py-2 text-label-md font-label-md text-on-surface-variant hover:text-on-surface transition-colors">Chat</button>
+<button class="py-2 text-label-md font-label-md text-on-surface-variant hover:text-on-surface transition-colors">Atividade</button>
+<button class="py-2 text-label-md font-label-md text-on-surface-variant hover:text-on-surface transition-colors">Terminal</button>
+<button class="py-2 text-label-md font-label-md text-on-surface-variant hover:text-on-surface transition-colors">Detalhes</button>
+<button class="py-2 text-label-md font-label-md text-primary font-medium border-b-2 border-primary -mb-px">Execuções (3)</button>
+</div>
+<!-- CONTEÚDO MESTRE-DETALHE ("Execuções (3)") -->
+<div class="flex min-h-[460px] divide-x divide-outline-variant">
+<!-- COLUNA ESQUERDA: LISTA DE EXECUÇÕES (320px fixa, bg #101317) -->
+<div class="w-[320px] min-w-[320px] max-w-[320px] bg-surface-container-low flex flex-col select-none">
+<!-- Cabeçalho Temporal -->
+<div class="px-space-md py-2 border-b border-outline-variant font-label-sm text-label-sm text-outline uppercase tracking-wider font-semibold">
+              Hoje
+            </div>
+<!-- Lista de Itens -->
+<div class="flex flex-col divide-y divide-outline-variant">
+<!-- Item 1 (SELECIONADO) -->
+<div class="p-space-sm bg-surface-variant border-l-2 border-primary cursor-pointer flex flex-col gap-1 transition-colors">
+<div class="flex items-center justify-between gap-space-xs">
+<div class="flex items-center gap-1.5 min-w-0">
+<span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+<span class="font-body-md text-body-md font-medium text-on-surface truncate">Revise a camada de autenticação do transpo...</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant shrink-0">2m 41s</span>
+</div>
+<div class="font-code-sm text-code-sm text-outline pl-3.5">
+                  Claude CLI · sonnet · 14:32
+                </div>
+</div>
+<!-- Item 2 -->
+<div class="p-space-sm hover:bg-surface-variant/50 cursor-pointer flex flex-col gap-1 transition-colors">
+<div class="flex items-center justify-between gap-space-xs">
+<div class="flex items-center gap-1.5 min-w-0">
+<span class="w-2 h-2 rounded-full bg-red-400 shrink-0"></span>
+<span class="font-body-md text-body-md text-on-surface truncate">Executar testes de estresse em /auth/refre...</span>
+</div>
+<span class="font-code-sm text-code-sm text-outline shrink-0">48s</span>
+</div>
+<div class="font-code-sm text-code-sm text-outline pl-3.5">
+                  Claude CLI · sonnet · 12:15
+                </div>
+</div>
+<!-- Item 3 -->
+<div class="p-space-sm hover:bg-surface-variant/50 cursor-pointer flex flex-col gap-1 transition-colors">
+<div class="flex items-center justify-between gap-space-xs">
+<div class="flex items-center gap-1.5 min-w-0">
+<span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+<span class="font-body-md text-body-md text-on-surface truncate">Mapear contratos de sessão e tokens JWT em...</span>
+</div>
+<span class="font-code-sm text-code-sm text-outline shrink-0">1m 05s</span>
+</div>
+<div class="font-code-sm text-code-sm text-outline pl-3.5">
+                  Claude CLI · sonnet · 09:40
+                </div>
+</div>
+</div>
+</div>
+<!-- COLUNA DIREITA: DETALHE DA EXECUÇÃO SELECIONADA (bg #15191e, padding 24px) -->
+<div class="flex-1 bg-surface-container p-6 flex flex-col gap-space-lg overflow-y-auto">
+<!-- Cabeçalho da Execução -->
+<div class="flex flex-col gap-2">
+<div class="flex items-start justify-between gap-space-md">
+<h2 class="font-headline-sm text-headline-sm font-semibold text-on-surface leading-snug">
+                  Revise a camada de autenticação do transport-erp e proponha melhorias.
+                </h2>
+<!-- Selo Concluído -->
+<div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-telemetry-pill text-telemetry-pill shrink-0">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+<span>Concluído</span>
+</div>
+</div>
+</div>
+<!-- Abas Internas de Inspeção -->
+<div class="border-b border-outline-variant flex items-center gap-space-md">
+<button class="pb-2 text-label-md font-label-md text-primary font-medium border-b-2 border-primary -mb-px">Detalhes</button>
+<button class="pb-2 text-label-md font-label-md text-on-surface-variant hover:text-on-surface transition-colors">Contexto</button>
+<button class="pb-2 text-label-md font-label-md text-on-surface-variant hover:text-on-surface transition-colors">Atividade</button>
+<button class="pb-2 text-label-md font-label-md text-on-surface-variant hover:text-on-surface transition-colors">Chat</button>
+<button class="pb-2 text-label-md font-label-md text-on-surface-variant hover:text-on-surface transition-colors">Terminal</button>
+</div>
+<!-- Conteúdo da Aba Detalhes: Grupo 1 e Grupo 2 -->
+<div class="flex flex-col gap-space-lg">
+<!-- GRUPO 1: EXECUÇÃO -->
+<section class="flex flex-col gap-space-sm">
+<h3 class="font-headline-sm text-headline-sm font-medium text-on-surface">Execução</h3>
+<div class="grid grid-cols-2 md:grid-cols-3 gap-y-space-md gap-x-space-lg pt-space-xs">
+<!-- Par: Workspace -->
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline">Workspace</span>
+<span class="font-body-md text-body-md text-on-surface mt-0.5">Transport ERP</span>
+</div>
+<!-- Par: Agente -->
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline">Agente</span>
+<span class="font-body-md text-body-md text-on-surface mt-0.5">Arquiteto</span>
+</div>
+<!-- Par: Personalidade -->
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline">Personalidade</span>
+<span class="font-body-md text-body-md text-on-surface mt-0.5">Architect</span>
+</div>
+<!-- Par: Runtime -->
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline">Runtime</span>
+<span class="font-body-md text-body-md text-on-surface mt-0.5">Claude CLI</span>
+</div>
+<!-- Par: Modelo -->
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline">Modelo</span>
+<span class="mt-0.5">
+<span class="font-code-sm text-code-sm px-2 py-0.5 rounded-DEFAULT bg-surface-variant border border-outline-variant text-primary">sonnet</span>
+</span>
+</div>
+<!-- Par: Processo -->
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline">Processo</span>
+<span class="mt-0.5">
+<span class="font-code-sm text-code-sm px-2 py-0.5 rounded-DEFAULT bg-surface-variant border border-outline-variant text-on-surface-variant">pid 48213</span>
+</span>
+</div>
+<!-- Par: Início -->
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline">Início</span>
+<span class="font-code-md text-code-md text-on-surface mt-0.5">14:29:51</span>
+</div>
+<!-- Par: Fim -->
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline">Fim</span>
+<span class="font-code-md text-code-md text-on-surface mt-0.5">14:32:32</span>
+</div>
+<!-- Par: Duração -->
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline">Duração</span>
+<span class="font-code-md text-code-md text-on-surface font-medium mt-0.5">2m 41s</span>
+</div>
+</div>
+</section>
+<!-- Linha divisória sutil 1px #1c2128 -->
+<div class="w-full h-px bg-outline-variant"></div>
+<!-- GRUPO 2: CONSUMO -->
+<section class="flex flex-col gap-space-sm">
+<h3 class="font-headline-sm text-headline-sm font-medium text-on-surface">Consumo</h3>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-y-space-md gap-x-space-lg pt-space-xs">
+<!-- Entrada -->
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline">Entrada</span>
+<span class="font-code-md text-code-md text-on-surface mt-0.5">31.402 tokens</span>
+</div>
+<!-- Saída -->
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline">Saída</span>
+<span class="font-code-md text-code-md text-on-surface mt-0.5">6.718 tokens</span>
+</div>
+<!-- Total -->
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline">Total</span>
+<span class="font-code-md text-code-md text-on-surface mt-0.5 font-medium">38.120 tokens</span>
+</div>
+<!-- Custo -->
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline">Custo</span>
+<span class="font-code-md text-code-md text-primary font-semibold mt-0.5">US$ 0,42</span>
+</div>
+</div>
+</section>
+</div>
+</div>
+</div>
+</article>
+<!-- ===================================================================== -->
+<!-- OUTROS AGENTES NA LISTA (RECOLHIDOS EMBAIXO)                          -->
+<!-- ===================================================================== -->
+<div class="flex flex-col gap-space-sm">
+<!-- Cartão Recolhido: Desenvolvedor -->
+<article class="bg-surface-container border border-outline-variant rounded-xl px-space-md py-space-sm flex items-center justify-between hover:border-outline-variant/80 transition-colors">
+<div class="flex items-center gap-space-md flex-wrap">
+<div class="flex items-center gap-space-sm">
+<div class="w-6 h-6 rounded-lg bg-surface-variant border border-outline-variant flex items-center justify-center text-outline">
+<span class="material-symbols-outlined text-[16px]">terminal</span>
+</div>
+<span class="font-label-md text-label-md font-semibold text-on-surface">Desenvolvedor</span>
+</div>
+<!-- Selo Semântico -->
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-telemetry-pill text-telemetry-pill">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+<span>Pronto</span>
+</div>
+<span class="font-body-sm text-body-sm text-outline">Developer · Codex · OpenAI</span>
+<span class="font-code-sm text-code-sm px-2 py-0.5 rounded-DEFAULT bg-surface-variant border border-outline-variant text-on-surface-variant">
+              gpt-5-codex
+            </span>
+</div>
+<button aria-label="Expandir Desenvolvedor" class="p-1 rounded-DEFAULT text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-[18px]">expand_more</span>
+</button>
+</article>
+<!-- Cartão Recolhido: QA -->
+<article class="bg-surface-container border border-outline-variant rounded-xl px-space-md py-space-sm flex items-center justify-between hover:border-outline-variant/80 transition-colors">
+<div class="flex items-center gap-space-md flex-wrap">
+<div class="flex items-center gap-space-sm">
+<div class="w-6 h-6 rounded-lg bg-surface-variant border border-outline-variant flex items-center justify-center text-outline">
+<span class="material-symbols-outlined text-[16px]">verified</span>
+</div>
+<span class="font-label-md text-label-md font-semibold text-on-surface">QA</span>
+</div>
+<!-- Selo Semântico -->
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-telemetry-pill text-telemetry-pill">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+<span>Pronto</span>
+</div>
+<span class="font-body-sm text-body-sm text-outline">QA · OpenCode</span>
+<span class="font-code-sm text-code-sm px-2 py-0.5 rounded-DEFAULT bg-surface-variant border border-outline-variant text-on-surface-variant">
+              opencode/qwen3-coder
+            </span>
+</div>
+<button aria-label="Expandir QA" class="p-1 rounded-DEFAULT text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-[18px]">expand_more</span>
+</button>
+</article>
+</div>
+</main>
+</div>
+</body></html>

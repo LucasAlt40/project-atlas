@@ -22,9 +22,19 @@ interface Props {
   disabled: boolean;
   onSend: (content: string) => void;
   scope?: AgentScope;
+  /** In the grid: one line, the scope folded into an icon inside the field. */
+  compact?: boolean;
 }
 
-export function AgentComposer({ workspaceId, agentId, agentName, disabled, onSend, scope }: Props) {
+export function AgentComposer({
+  workspaceId,
+  agentId,
+  agentName,
+  disabled,
+  onSend,
+  scope,
+  compact = false,
+}: Props) {
   const t = useT();
   const [draft, setDraft] = useState('');
 
@@ -43,7 +53,11 @@ export function AgentComposer({ workspaceId, agentId, agentName, disabled, onSen
   return (
     <>
       <TaskContextPreview workspaceId={workspaceId} agentId={agentId} task={draft} />
-      <form className={styles.composerPanel} onSubmit={submit}>
+      <form
+        className={styles.composerPanel}
+        data-compact={compact ? true : undefined}
+        onSubmit={submit}
+      >
         <div className={styles.composer}>
           {scope && scope.projects.length > 1 && (
             <ScopePicker
@@ -51,13 +65,18 @@ export function AgentComposer({ workspaceId, agentId, agentName, disabled, onSen
               choice={scope.choice}
               onChange={scope.onChange}
               disabled={disabled}
+              compact={compact}
             />
           )}
           <textarea
             aria-label={t('agent.composer.label', { name: agentName })}
             className={styles.input}
             rows={1}
-            placeholder={t('agent.composer.hint', { name: agentName })}
+            placeholder={
+              compact
+                ? t('agent.composer.label', { name: agentName })
+                : t('agent.composer.hint', { name: agentName })
+            }
             value={draft}
             onChange={(e) => {
               setDraft(e.target.value);
@@ -66,7 +85,7 @@ export function AgentComposer({ workspaceId, agentId, agentName, disabled, onSen
           />
           <Button type="submit" disabled={disabled || draft.trim() === ''}>
             {t('agent.composer.send')}
-            <Icon name="send" size={14} />
+            {!compact && <Icon name="send" size={14} />}
           </Button>
         </div>
       </form>

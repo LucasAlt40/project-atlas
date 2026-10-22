@@ -8,11 +8,14 @@ export function HarnessStats({
   stats,
   analyzedAt,
   showDate = true,
+  bar = true,
 }: {
   stats: KnowledgeStatsDto;
   analyzedAt: number | null;
   /** Off where the date of the analysis is already shown beside the counts. */
   showDate?: boolean;
+  /** The proportion bar above the counts. */
+  bar?: boolean;
 }) {
   const { t, language } = useI18n();
   const parts = [
@@ -32,7 +35,7 @@ export function HarnessStats({
   ] as const;
   return (
     <span className={styles.statsBlock}>
-      {stats.findings > 0 && (
+      {bar && stats.findings > 0 && (
         <span className={styles.statsBar} aria-hidden="true">
           {segments.map(([kind, count]) =>
             count > 0 ? (

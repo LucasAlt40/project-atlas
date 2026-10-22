@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import type { TranslationKey } from '@/i18n';
 import { useT } from '@/i18n/I18nProvider';
 import type { RuntimeStatus } from '../types';
@@ -31,6 +32,13 @@ const CLAUDE_ALIASES: { id: string; name: string }[] = [
   { id: 'sonnet[1m]', name: 'Sonnet (1M)' },
 ];
 const OTHER_MODEL = '__other__';
+
+const AVAILABILITY_TONE: Record<RuntimeStatus['availability'], BadgeTone> = {
+  ready: 'success',
+  authentication_required: 'warning',
+  unavailable: 'warning',
+  not_installed: 'neutral',
+};
 
 type UnselectableReason = 'notInstalled' | 'unavailable' | 'notSupported';
 
@@ -218,9 +226,17 @@ export function RuntimePicker({
 
       {group && (
         <div className={styles.field}>
-          <label htmlFor="runtime-select" className={styles.label}>
-            {t('runtime.connection')}
-          </label>
+          <div className={styles.labelRow}>
+            <label htmlFor="runtime-select" className={styles.label}>
+              {t('runtime.connection')}
+            </label>
+            {selected && (
+              <Badge dot tone={AVAILABILITY_TONE[selected.availability]}>
+                {t(`runtime.availability.${selected.availability}`)}
+                {selected.version ? ` · ${selected.version}` : ''}
+              </Badge>
+            )}
+          </div>
           <select
             id="runtime-select"
             className={styles.control}
@@ -244,12 +260,8 @@ export function RuntimePicker({
               );
             })}
           </select>
-          {selected && (
-            <p className={styles.hint} data-availability={selected.availability}>
-              {t(`runtime.availability.${selected.availability}`)}
-              {selected.version ? ` · ${selected.version}` : ''}
-              {selected.notice ? ` · ${t(`runtime.notice.${selected.notice}`)}` : ''}
-            </p>
+          {selected?.notice && (
+            <p className={styles.hint}>{t(`runtime.notice.${selected.notice}`)}</p>
           )}
         </div>
       )}

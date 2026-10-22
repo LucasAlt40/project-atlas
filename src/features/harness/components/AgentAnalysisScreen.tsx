@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StateBadge } from '@/components/ui/status';
+import { Tabs } from '@/components/ui/Tabs';
 import { useNow } from '@/features/agents/hooks/useNow';
 import { formatDuration } from '@/features/usage/model/format';
 import {
@@ -10,6 +14,7 @@ import { useT } from '@/i18n/I18nProvider';
 import type { HarnessProgressDto } from '@/lib/tauri/commands';
 import type { TranslationKey } from '@/i18n';
 import { readNarration } from '../model/narration';
+import { HarnessSteps } from './HarnessFrame';
 import styles from './Review.module.css';
 
 interface Props {
@@ -18,6 +23,10 @@ interface Props {
   agentName: string;
   /** Project folder -> name, when several projects are analysed at once: one tab for each. */
   projects?: Record<string, string>;
+  /** `page`: step 2 of the Harness page; `overlay` (default): over everything. */
+  presentation?: 'overlay' | 'page';
+  /** The project being read, for the page's title. */
+  projectName?: string;
 }
 
 interface Tool {
@@ -50,7 +59,14 @@ const MAX_NARRATION = 60_000;
  * it says. It cannot be dismissed: the only way out is to wait or to stop the agent, so nobody
  * edits a half-analysed project's Harness by accident.
  */
-export function AgentAnalysisScreen({ workspaceId, agentId, agentName, projects }: Props) {
+export function AgentAnalysisScreen({
+  workspaceId,
+  agentId,
+  agentName,
+  projects,
+  presentation = 'overlay',
+  projectName,
+}: Props) {
   const t = useT();
   const [startedAt] = useState(() => Date.now());
   const now = useNow(1000);
@@ -112,6 +128,88 @@ export function AgentAnalysisScreen({ workspaceId, agentId, agentName, projects 
 
   const said = readNarration(narration);
   const reads = tools.filter((tool) => tool.name.startsWith('Read')).length;
+
+  if (presentation === 'page') {
+    const title = projectName
+      ? t('harness.agentScreen.titleOf', { agent: agentName, name: projectName })
+      : t('harness.agentScreen.title', { agent: agentName });
+    return (
+      <section className={styles.page} aria-label={title}>
+        <PageHeader
+          title={title}
+          titleAside={<StateBadge state="running">{t('agent.status.running')}</StateBadge>}
+          description={t('harness.agentScreen.explain')}
+          actions={
+            <Button variant="secondary" disabled={runs.length === 0 || stopping} onClick={stop}>
+              {stopping ? t('harness.agentScreen.stopping') : t('harness.agentScreen.stop')}
+            </Button>
+          }
+        />
+        <HarnessSteps step={2} />
+        <p role="status" className={styles.liveLine}>
+          {t(`harness.agentScreen.phase.${phase}` as TranslationKey)} ·{' '}
+          {formatDuration(now - (run?.startedAt ?? startedAt))} ·{' '}
+          {t('harness.agentScreen.files', { count: reads })} ·{' '}
+          {t('harness.agentScreen.calls', { count: tools.length })}
+        </p>
+        {many && (
+          <Tabs
+            label={t('harness.multi.tabs')}
+            active={run?.executionId ?? ''}
+            onChange={setSelectedId}
+            items={runs.map((r) => ({ id: r.executionId, label: projects[r.path] ?? r.path }))}
+          />
+        )}
+        <div className={styles.liveGrid}>
+          <section className={styles.livePanel} aria-label={t('harness.agentScreen.doing')}>
+            <h3 className={styles.livePanelTitle}>{t('harness.agentScreen.doing')}</h3>
+            {tools.length === 0 ? (
+              <p className={styles.empty}>{t('harness.agentScreen.noTools')}</p>
+            ) : (
+              <ul className={styles.liveTools}>
+                {tools.map((tool) => {
+                  const running = tool.ms === undefined;
+                  return (
+                    <li key={tool.id} data-running={running}>
+                      <span className={styles.liveToolDot} aria-hidden="true" />
+                      <span className={styles.liveToolName}>{tool.name}</span>
+                      <span className={styles.liveToolTime}>
+                        {running ? t('harness.agentScreen.running') : `${String(tool.ms)}ms`}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+          <section className={styles.livePanel} aria-label={t('harness.agentScreen.says')}>
+            <h3 className={styles.livePanelTitle}>{t('harness.agentScreen.stream')}</h3>
+            <div className={styles.liveStream} aria-live="polite">
+              {said.prose.map((line, index) => (
+                <p key={`p${String(index)}`}>{line}</p>
+              ))}
+              {said.findings.length > 0 && (
+                <ul className={styles.sayList}>
+                  {said.findings.map((finding, index) => (
+                    <li key={`f${String(index)}`} className={styles.sayItem}>
+                      <span className={styles.sayTag}>{categoryName(t, finding.category)}</span>
+                      <span className={styles.sayText}>
+                        <strong>{finding.key}</strong> {finding.value}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {said.building && <p role="status">{t('harness.agentScreen.writing')}</p>}
+              <span className={styles.liveCursor} aria-hidden="true">
+                ▍
+              </span>
+            </div>
+          </section>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <div className={styles.screen}>

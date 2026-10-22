@@ -1,42 +1,19 @@
-import { useId } from 'react';
-
-/** The Atlas mark: a geometric chevron over a coordinate dot, on a dark tile. */
-export function AtlasLogo({ size = 28 }: { size?: number }) {
-  const gradientId = useId();
+/** The Atlas mark: an indigo tile with the letter "A". */
+export function AtlasLogo({ size = 20 }: { size?: number }) {
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 48 48"
+      viewBox="0 0 20 20"
       fill="none"
       aria-hidden="true"
       focusable="false"
     >
-      <rect width="48" height="48" rx="10" fill="#15191e" />
-      <rect x="0.5" y="0.5" width="47" height="47" rx="9.5" stroke="#242c37" />
-      <path d="M24 10L36 34H28.5L24 23L19.5 34H12L24 10Z" fill={`url(#${gradientId})`} />
-      <circle cx="24" cy="28" r="2.5" fill="#60a5fa" />
+      <rect width="20" height="20" rx="4" fill="#6366f1" />
       <path
-        d="M17 38H31"
-        stroke="#3b82f6"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeOpacity="0.8"
+        d="M10 4.5 14.25 15.5h-2.1l-.95-2.6H8.8l-.95 2.6h-2.1L10 4.5Zm0 3.55-1.55 3.3h3.1L10 8.05Z"
+        fill="#fff"
       />
-      <defs>
-        <linearGradient
-          id={gradientId}
-          x1="12"
-          y1="10"
-          x2="36"
-          y2="34"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop stopColor="#818cf8" />
-          <stop offset="0.5" stopColor="#6366f1" />
-          <stop offset="1" stopColor="#3b82f6" />
-        </linearGradient>
-      </defs>
     </svg>
   );
 }

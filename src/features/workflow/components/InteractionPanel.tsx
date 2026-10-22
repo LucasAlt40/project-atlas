@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { Markdown } from '@/components/ui/Markdown';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { TranslationKey } from '@/i18n';
@@ -17,105 +19,43 @@ interface Props {
   /** The core refused the last answer (not pending any more, not an option…). */
   error?: string | null;
   onAnswer: (answer: InteractionAnswerDto) => void;
-  onCancelRun: () => void;
+  /** Cancelling the run is the run bar's "⋯"; kept here for callers that offer it apart. */
+  onCancelRun?: () => void;
 }
 
-interface PlanProps extends Props {
-  rootRef: React.RefObject<HTMLElement | null>;
-}
-
-/**
- * A plan an agent drew up, in front of the person: the plan itself, large, and the three things
- * they can do with it. Nothing is carried out until they decide; asking for changes needs their
- * words, redoing may have them.
- */
-function PlanPanel({ interaction, busy, error, onAnswer, onCancelRun, rootRef }: PlanProps) {
+/** A long document folds to its first screen until the person asks for all of it. */
+function Document({ children }: { children: string }) {
   const { t } = useI18n();
-  const [note, setNote] = useState('');
-  const text = note.trim();
+  const [all, setAll] = useState(false);
+  const long = children.length > 900;
   return (
-    <section
-      ref={rootRef}
-      className={styles.plan}
-      role="alert"
-      aria-labelledby={`interaction-${interaction.id}`}
-      data-kind="plan"
-    >
-      <header className={styles.planHead}>
-        <h2 id={`interaction-${interaction.id}`} className={styles.title}>
-          {t('interaction.plan.title')}
-        </h2>
-        <p className={styles.who}>{t('interaction.plan.intro', { step: interaction.stepLabel })}</p>
-      </header>
-      <div className={styles.planBody} tabIndex={0} aria-label={t('workflow.plans.read')}>
-        {interaction.document ? (
-          <Markdown>{interaction.document}</Markdown>
-        ) : (
-          <p>{interaction.question}</p>
-        )}
+    <div className={styles.document} data-folded={long && !all ? true : undefined}>
+      <div className={styles.documentBody} tabIndex={0} aria-label={t('workflow.plans.read')}>
+        <Markdown>{children}</Markdown>
       </div>
-      {interaction.context && <p className={styles.note}>{interaction.context}</p>}
-      <label className={styles.planNote}>
-        <span>{t('interaction.plan.note')}</span>
-        <textarea
-          className={styles.input}
-          placeholder={t('interaction.plan.notePlaceholder')}
-          value={note}
-          disabled={busy}
-          rows={3}
-          onChange={(e) => {
-            setNote(e.target.value);
+      {long && (
+        <button
+          type="button"
+          className={styles.more}
+          onClick={() => {
+            setAll((value) => !value);
           }}
-        />
-      </label>
-      {error && (
-        <p role="alert" className={styles.error}>
-          {error}
-        </p>
+        >
+          {all ? t('interaction.showLess') : t('interaction.showAll')}
+        </button>
       )}
-      <div className={styles.actions}>
-        <Button
-          disabled={busy}
-          onClick={() => {
-            onAnswer({ choice: 'approve' });
-          }}
-        >
-          {t('interaction.plan.approve')}
-        </Button>
-        <Button
-          variant="secondary"
-          disabled={busy || text === ''}
-          onClick={() => {
-            onAnswer({ choice: 'revise', text });
-          }}
-        >
-          {t('interaction.plan.revise')}
-        </Button>
-        <Button
-          variant="secondary"
-          disabled={busy}
-          onClick={() => {
-            onAnswer({ choice: 'redo', ...(text ? { text } : {}) });
-          }}
-        >
-          {t('interaction.plan.redo')}
-        </Button>
-        <Button variant="danger" disabled={busy} onClick={onCancelRun}>
-          {t('interaction.cancelRun')}
-        </Button>
-      </div>
-      <p className={styles.note}>{t('interaction.worktreeNote')}</p>
-    </section>
+    </div>
   );
 }
 
 /**
- * "Action required": an agent has stopped and is waiting for the person. It cannot be missed
- * or mistaken for a log line. A clarification takes text; an approval or a permission takes its
- * two buttons. Answering lets the agent go on inside the run's own worktree: it applies nothing
- * to the project, which stays a separate review.
+ * "Action required": an agent has stopped and is waiting for the person, in an amber column
+ * beside the canvas. The question first, then what it rests on (the plan, its context), then the
+ * answer: a plan takes approve / ask for changes / redo; a clarification takes text; an approval
+ * or a permission takes its buttons. Answering applies nothing to the project: that is a separate
+ * review.
  */
-export function InteractionPanel({ interaction, busy, error, onAnswer, onCancelRun }: Props) {
+export function InteractionPanel({ interaction, busy, error, onAnswer }: Props) {
   const { t } = useI18n();
   const [text, setText] = useState('');
   const root = useRef<HTMLElement>(null);
@@ -128,26 +68,120 @@ export function InteractionPanel({ interaction, busy, error, onAnswer, onCancelR
     }
   }, [interaction.id]);
 
-  if (interaction.kind === 'plan') {
-    return (
-      <PlanPanel
-        interaction={interaction}
-        busy={busy}
-        error={error ?? null}
-        onAnswer={onAnswer}
-        onCancelRun={onCancelRun}
-        rootRef={root}
-      />
-    );
-  }
-
-  const decision = interaction.kind !== 'clarification';
+  const plan = interaction.kind === 'plan';
+  const decision = !plan && interaction.kind !== 'clarification';
   const optionLabel = (id: string, label: string) =>
     FIXED_OPTIONS.has(id) ? t(`interaction.option.${id}` as TranslationKey) : label;
-  const submit = () => {
-    const answer = text.trim();
-    if (answer) onAnswer({ text: answer });
-  };
+  const note = text.trim();
+
+  let answer: ReactNode;
+  if (plan) {
+    answer = (
+      <>
+        <label className={styles.field}>
+          <span>{t('interaction.plan.note')}</span>
+          <textarea
+            className={styles.input}
+            placeholder={t('interaction.plan.notePlaceholder')}
+            value={text}
+            disabled={busy}
+            rows={3}
+            onChange={(e) => {
+              setText(e.target.value);
+            }}
+          />
+        </label>
+        <div className={styles.actions}>
+          <Button
+            disabled={busy}
+            onClick={() => {
+              onAnswer({ choice: 'approve' });
+            }}
+          >
+            {t('interaction.plan.approve')}
+          </Button>
+          <Button
+            variant="secondary"
+            disabled={busy || note === ''}
+            onClick={() => {
+              onAnswer({ choice: 'revise', text: note });
+            }}
+          >
+            {t('interaction.plan.revise')}
+          </Button>
+          <Button
+            variant="secondary"
+            disabled={busy}
+            onClick={() => {
+              onAnswer({ choice: 'redo', ...(note ? { text: note } : {}) });
+            }}
+          >
+            {t('interaction.plan.redo')}
+          </Button>
+        </div>
+      </>
+    );
+  } else if (decision) {
+    answer = (
+      <div className={styles.actions}>
+        {interaction.options.map((option, index) => (
+          <Button
+            key={option.id}
+            variant={index === 0 ? 'primary' : 'secondary'}
+            disabled={busy}
+            onClick={() => {
+              onAnswer({ choice: option.id });
+            }}
+          >
+            {optionLabel(option.id, option.label)}
+          </Button>
+        ))}
+      </div>
+    );
+  } else {
+    answer = (
+      <>
+        {interaction.options.length > 0 && (
+          <div className={styles.suggestions} aria-label={t('interaction.suggestions')}>
+            {interaction.options.map((option) => (
+              <Button
+                key={option.id}
+                variant="secondary"
+                size="sm"
+                disabled={busy}
+                onClick={() => {
+                  setText(option.id);
+                }}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        )}
+        <textarea
+          className={styles.input}
+          aria-label={t('interaction.answer')}
+          placeholder={t('interaction.answer.placeholder')}
+          value={text}
+          disabled={busy}
+          rows={3}
+          onChange={(e) => {
+            setText(e.target.value);
+          }}
+        />
+        <div className={styles.actions}>
+          <Button
+            disabled={busy || note === ''}
+            onClick={() => {
+              if (note) onAnswer({ text: note });
+            }}
+          >
+            {t('interaction.send')}
+          </Button>
+        </div>
+      </>
+    );
+  }
 
   return (
     <section
@@ -157,94 +191,48 @@ export function InteractionPanel({ interaction, busy, error, onAnswer, onCancelR
       aria-labelledby={`interaction-${interaction.id}`}
       data-kind={interaction.kind}
     >
-      <h2 id={`interaction-${interaction.id}`} className={styles.title}>
-        <span aria-hidden="true">⚠</span> {t('interaction.required')}
-      </h2>
-      <p className={styles.who}>{t('interaction.waiting', { step: interaction.stepLabel })}</p>
-      <p className={styles.reason}>
-        {t('interaction.reason', {
-          reason: t(`interaction.kind.${interaction.kind}` as TranslationKey),
-        })}
-      </p>
-      <blockquote className={styles.question}>{interaction.question}</blockquote>
-      {interaction.document && (
-        <details className={styles.document} open>
-          <summary>{t('interaction.document')}</summary>
-          <Markdown>{interaction.document}</Markdown>
-        </details>
-      )}
-      {interaction.context && (
-        <details className={styles.context}>
-          <summary>{t('interaction.context')}</summary>
-          <p>{interaction.context}</p>
-        </details>
+      <header className={styles.head}>
+        <div className={styles.headText}>
+          <h2 id={`interaction-${interaction.id}`} className={styles.title}>
+            {t('interaction.required')}
+          </h2>
+          <p className={styles.who}>{t('interaction.waiting', { step: interaction.stepLabel })}</p>
+        </div>
+        <Badge tone="warning">{t(`interaction.kind.${interaction.kind}` as TranslationKey)}</Badge>
+      </header>
+
+      <div className={styles.question}>
+        <h3 className={styles.questionTitle}>
+          {plan ? t('interaction.plan.title') : interaction.question}
+        </h3>
+        {plan && (
+          <p className={styles.questionText}>
+            {t('interaction.plan.intro', { step: interaction.stepLabel })}
+          </p>
+        )}
+      </div>
+
+      {interaction.document ? (
+        <Document>{interaction.document}</Document>
+      ) : (
+        plan && <p className={styles.questionText}>{interaction.question}</p>
       )}
 
-      {decision ? (
-        <>
-          <div className={styles.actions}>
-            {interaction.options.map((option) => (
-              <Button
-                key={option.id}
-                disabled={busy}
-                onClick={() => {
-                  onAnswer({ choice: option.id });
-                }}
-              >
-                {optionLabel(option.id, option.label)}
-              </Button>
-            ))}
-          </div>
-          <p className={styles.note}>{t('interaction.worktreeNote')}</p>
-        </>
-      ) : (
-        <>
-          {interaction.options.length > 0 && (
-            <div className={styles.actions} aria-label={t('interaction.suggestions')}>
-              {interaction.options.map((option) => (
-                <Button
-                  key={option.id}
-                  variant="secondary"
-                  disabled={busy}
-                  onClick={() => {
-                    setText(option.id);
-                  }}
-                >
-                  {option.label}
-                </Button>
-              ))}
-            </div>
-          )}
-          <textarea
-            className={styles.input}
-            aria-label={t('interaction.answer')}
-            placeholder={t('interaction.answer.placeholder')}
-            value={text}
-            disabled={busy}
-            rows={3}
-            onChange={(e) => {
-              setText(e.target.value);
-            }}
-          />
-          <div className={styles.actions}>
-            <Button disabled={busy || text.trim() === ''} onClick={submit}>
-              {t('interaction.send')}
-            </Button>
-          </div>
-        </>
+      {interaction.context && (
+        <CollapsibleSection title={t('interaction.context')} defaultOpen={false}>
+          <p className={styles.contextText}>{interaction.context}</p>
+        </CollapsibleSection>
       )}
+
+      {answer}
 
       {error && (
         <p role="alert" className={styles.error}>
           {error}
         </p>
       )}
-      <div className={styles.footer}>
-        <Button variant="danger" disabled={busy} onClick={onCancelRun}>
-          {t('interaction.cancelRun')}
-        </Button>
-        <span className={styles.note}>{t('interaction.noAutoApply')}</span>
-      </div>
+      <p className={styles.note}>{t('interaction.noAutoApply')}</p>
+      <p className={styles.note}>{t('interaction.worktreeNote')}</p>
     </section>
   );
 }

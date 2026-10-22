@@ -31,7 +31,7 @@
   background: var(--surface-3);
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.625rem;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   letter-spacing: 0.06em;
 }
@@ -57,7 +57,7 @@
   list-style: none;
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 .stats li[data-alert='true'] {
   color: var(--danger);
@@ -94,7 +94,7 @@
   border: 1px solid var(--warning);
   border-radius: var(--radius-sm);
   color: var(--text-standard);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 
 .section {
@@ -120,10 +120,7 @@
   margin-left: auto;
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
-}
-.sectionBody {
-  padding: 0 var(--space-4) var(--space-4);
+  font-size: var(--font-size-xs);
 }
 .subtitle {
   margin: var(--space-3) 0 var(--space-2);
@@ -171,7 +168,7 @@
 .stepMeta {
   margin: var(--space-1) 0;
   color: var(--text-muted);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 .status,
 .outcome,
@@ -180,7 +177,7 @@
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-size: var(--font-size-2xs);
 }
 .status[data-status='completed'],
 .status[data-addressed='true'] {
@@ -194,7 +191,7 @@
 .trailNote {
   margin: var(--space-1) 0 0;
   color: var(--text-muted);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 
 .findings,
@@ -245,4 +242,130 @@
   margin: var(--space-1) 0;
   color: var(--text-standard);
   overflow-wrap: anywhere;
+}
+
+/* ── Revisão e entrega (3.7): numbers, the delivery card, findings beside the timeline. ── */
+.review {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border: 0;
+  background: transparent;
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-standard);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+}
+.stats li + li::before {
+  content: '·';
+  margin-right: var(--space-3);
+  color: var(--text-dim);
+}
+.columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+@container (max-width: 52rem) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.columnTitle {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: 500;
+}
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  list-style: none;
+}
+.timeline > li + li {
+  border-top: 1px solid var(--border-subtle);
+}
+.timeline > li::after,
+.timeline > li::before {
+  display: none;
+}
+.step {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.step > button {
+  grid-column: 2;
+  grid-row: 1;
+}
+.stepHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.stepHead strong {
+  font-size: var(--font-size-base);
+  font-weight: 500;
+}
+.stepMeta {
+  grid-column: 1;
+  margin: 0;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+.findings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.finding {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+.timeline li + li::before {
+  content: none;
 }

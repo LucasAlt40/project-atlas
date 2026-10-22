@@ -184,7 +184,7 @@ describe('ContextReviewPanel', () => {
     );
 
     expect(await screen.findByText('Parcial')).toBeInTheDocument();
-    expect(screen.getByText('Revisão do contexto'.toUpperCase())).toBeInTheDocument();
+    expect(screen.getByText('Revisão do contexto')).toBeInTheDocument();
     expect(screen.queryByText(/Proteções:/)).not.toBeInTheDocument();
   });
 });

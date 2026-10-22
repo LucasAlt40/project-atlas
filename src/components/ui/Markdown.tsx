@@ -2,6 +2,7 @@ import { Children, isValidElement, useState, type MouseEvent, type ReactNode } f
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useT } from '@/i18n/I18nProvider';
+import { Icon } from './Icon';
 import styles from './Markdown.module.css';
 
 function textOf(node: ReactNode): string {
@@ -87,6 +88,7 @@ function CodeBlock({ children }: { children?: ReactNode }) {
         <span>{json ? 'JSON' : language || 'Code'}</span>
         {canCopy && (
           <button type="button" className={styles.copy} onClick={copy}>
+            <Icon name={copied ? 'check' : 'copy'} size={12} />
             {copied ? t('markdown.copied') : t('terminal.copy')}
           </button>
         )}

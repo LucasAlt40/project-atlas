@@ -46,6 +46,11 @@ function inspect(
   return onChange;
 }
 
+/** The inspector folds its groups: opens the one a setting lives in. */
+async function openSection(name: RegExp) {
+  await userEvent.click(screen.getByRole('button', { name }));
+}
+
 describe('the connection editor', () => {
   it('offers exactly the outcomes the source agent declares', () => {
     const { workflow, edge } = connection(null);
@@ -197,6 +202,7 @@ describe('the integrations setting of an agent step', () => {
 
   it('is on by default and turning it off changes only that setting of the step', async () => {
     const { onChange, node, workflow } = show();
+    await openSection(/^Permissions/);
     const box = screen.getByRole('checkbox', {
       name: /Tell the agent which integrations it was given/,
     });
@@ -242,6 +248,7 @@ describe('the completion criteria and the read-only setting of an agent step', (
 
   it('edits when the step is done, and nothing else of it', async () => {
     const { onChange, node, workflow } = show();
+    await openSection(/^Instructions and completion criteria/);
 
     await userEvent.type(screen.getByLabelText(/Done when/), 'X');
 
@@ -252,7 +259,8 @@ describe('the completion criteria and the read-only setting of an agent step', (
 
   it('is not read-only until someone says so, and then only the file-editing tools are held back', async () => {
     const { onChange, node, workflow } = show();
-    const box = screen.getByRole('checkbox', { name: /Read-only step/ });
+    await openSection(/^Permissions/);
+    const box = screen.getByRole('switch', { name: /Read-only step/ });
     expect(box).not.toBeChecked();
 
     await userEvent.click(box);

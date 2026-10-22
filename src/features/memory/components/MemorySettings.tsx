@@ -392,7 +392,7 @@ function NoteCard({
         <div className={styles.noteTitle}>
           <strong>{note.title}</strong>
           {badges.map((badge) => (
-            <Badge key={badge.key} dot mono caps={false} tone={badge.tone} title={badge.full}>
+            <Badge key={badge.key} dot mono tone={badge.tone} title={badge.full}>
               {badge.short === badge.full ? (
                 badge.full
               ) : (

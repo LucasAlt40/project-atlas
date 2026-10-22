@@ -1,4 +1,5 @@
 import { useAppInfo } from '@/features/home/hooks/useAppInfo';
+import { platformName } from '@/features/home/platform';
 import styles from './AppShell.module.css';
 
 /** The app name and version, anchored at the bottom of the sidebar. */
@@ -9,7 +10,7 @@ export function SidebarFooter() {
     <>
       <span className={styles.footerName}>{state.info.name}</span>
       <span className={styles.footerMeta}>
-        v{state.info.version} · {state.info.platform}
+        v{state.info.version} · {platformName(state.info.platform)}
       </span>
     </>
   );

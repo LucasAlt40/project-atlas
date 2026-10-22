@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { OverflowMenu } from '@/components/ui/OverflowMenu';
+import { Tabs } from '@/components/ui/Tabs';
 import type { Agent, RuntimeStatus } from '@/features/agents/types';
 import type { TranslationKey } from '@/i18n';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -80,11 +81,48 @@ export function Inspector({
   return (
     <aside className={styles.inspector} aria-label={t('hub.inspector.title')}>
       <header className={styles.inspectorHead}>
-        <div>
-          <span className={styles.eyebrow}>{t('hub.inspector.title')}</span>
-          <h2 className={styles.inspectorName}>{connection.name}</h2>
-        </div>
+        <h2 className={styles.inspectorName}>{connection.name}</h2>
         <StatusPill status={statusOf(connection)} />
+        <span className={styles.inspectorMenu}>
+          {removing ? (
+            <span className={styles.row} role="group" aria-label={t('integrations.removeConfirm')}>
+              <Button
+                variant="danger"
+                size="sm"
+                disabled={busy}
+                onClick={() => {
+                  run(() => removeMcpConnection(connection.id));
+                }}
+              >
+                {t('integrations.removeConfirm')}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setRemoving(false);
+                }}
+              >
+                {t('common.cancel')}
+              </Button>
+            </span>
+          ) : (
+            <OverflowMenu
+              label={t('hub.inspector.more', { name: connection.name })}
+              items={[
+                { label: t('hub.export'), icon: 'upload', onSelect: onExport },
+                {
+                  label: t('hub.remove'),
+                  icon: 'trash',
+                  danger: true,
+                  onSelect: () => {
+                    setRemoving(true);
+                  },
+                },
+              ]}
+            />
+          )}
+        </span>
       </header>
 
       {confirmingOn && (
@@ -114,21 +152,17 @@ export function Inspector({
         </div>
       )}
 
-      <div className={styles.tabsBar} role="tablist" aria-label={t('hub.inspector.title')}>
-        {(['tools', 'env', 'manifest', 'activity'] as const).map((name) => (
-          <button
-            key={name}
-            type="button"
-            role="tab"
-            aria-selected={tab === name}
-            className={styles.tab}
-            onClick={() => {
-              setTab(name);
-            }}
-          >
-            {t(`hub.tab.${name}` as TranslationKey, { n: tools.length })}
-          </button>
-        ))}
+      <div className={styles.inspectorTabs}>
+        <Tabs
+          label={t('hub.inspector.title')}
+          idPrefix="hub-inspector"
+          active={tab}
+          onChange={setTab}
+          items={(['tools', 'env', 'manifest', 'activity'] as const).map((name) => ({
+            id: name,
+            label: t(`hub.tab.${name}` as TranslationKey, { n: tools.length }),
+          }))}
+        />
       </div>
 
       <div className={styles.inspectorBody} role="tabpanel">
@@ -245,11 +279,7 @@ export function Inspector({
         <CollapsibleSection
           title={t('hub.guardrails.title')}
           defaultOpen={false}
-          aside={
-            <Badge mono caps={false}>
-              {t('hub.guardrails.badge')}
-            </Badge>
-          }
+          aside={<Badge mono>{t('hub.guardrails.badge')}</Badge>}
         >
           <ul className={styles.plainList}>
             {(['untrusted', 'unauthorized', 'secrets'] as const).map((rule) => (
@@ -260,45 +290,6 @@ export function Inspector({
           </ul>
         </CollapsibleSection>
       </div>
-
-      <footer className={styles.inspectorFoot}>
-        {removing ? (
-          <div className={styles.row} role="group" aria-label={t('integrations.removeConfirm')}>
-            <Button
-              variant="danger"
-              disabled={busy}
-              onClick={() => {
-                run(() => removeMcpConnection(connection.id));
-              }}
-            >
-              {t('integrations.removeConfirm')}
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setRemoving(false);
-              }}
-            >
-              {t('common.cancel')}
-            </Button>
-          </div>
-        ) : (
-          <OverflowMenu
-            label={t('hub.inspector.more', { name: connection.name })}
-            items={[
-              { label: t('hub.export'), icon: 'upload', onSelect: onExport },
-              {
-                label: t('hub.remove'),
-                icon: 'trash',
-                danger: true,
-                onSelect: () => {
-                  setRemoving(true);
-                },
-              },
-            ]}
-          />
-        )}
-      </footer>
     </aside>
   );
 }

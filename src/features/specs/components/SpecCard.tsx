@@ -1,3 +1,4 @@
+import { Badge } from '@/components/ui/Badge';
 import { Icon } from '@/components/ui/Icon';
 import { useI18n } from '@/i18n/I18nProvider';
 import { agoText } from '@/features/workflow/model/time';
@@ -14,27 +15,53 @@ interface Props {
   onOpen: (specId: string) => void;
 }
 
-/** One spec in the overview: where it is, how far, and whether it is waiting for the person. */
+/** One spec in the list, on one row: where it is, how far, and whether it waits for the person. */
 export function SpecCard({ spec, agentName, now, onOpen }: Props) {
   const { t, language } = useI18n();
   const status = statusView(spec.status);
   return (
     <button
       type="button"
-      className={styles.card}
+      className={styles.specRow}
       data-status={spec.status}
       onClick={() => {
         onOpen(spec.id);
       }}
       aria-label={spec.title}
     >
-      <span className={styles.cardTop}>
-        <span className={styles.mono}>{spec.changeId}</span>
-        <StatusBadge tone={status.tone}>{t(status.key)}</StatusBadge>
+      <span className={styles.specMain}>
+        <span className={styles.specTitleLine}>
+          <span className={styles.specTitle}>{spec.title}</span>
+          <span className={styles.idChip}>{spec.changeId}</span>
+          <StatusBadge tone={status.tone}>{t(status.key)}</StatusBadge>
+          {spec.pendingQuestions > 0 && (
+            <Badge tone="warning">
+              <Icon name="help" size={12} />
+              {t('specs.pendingQuestions', { count: spec.pendingQuestions })}
+            </Badge>
+          )}
+          {spec.openFindings > 0 && (
+            <Badge tone="warning">
+              <Icon name="warning" size={12} />
+              {t('specs.openFindings', { count: spec.openFindings })}
+            </Badge>
+          )}
+        </span>
+        <span className={styles.specSub}>
+          <span className={styles.specRequest}>{spec.request}</span>
+          <span className={styles.specMeta}>
+            <span>{agentName}</span>
+            <span>{phaseLabel(t, spec)}</span>
+            {spec.implementations > 0 && (
+              <span>{t('specs.implementedBy', { count: spec.implementations })}</span>
+            )}
+          </span>
+        </span>
       </span>
-      <span className={styles.cardTitle}>{spec.title}</span>
-      <span className={styles.excerpt}>{spec.request}</span>
-      <span className={styles.progressRow}>
+      <span className={styles.specProgress} data-tone={status.tone}>
+        <span className={styles.progressText}>
+          {t('specs.approvedOf', { approved: spec.approved, total: spec.stageTotal })}
+        </span>
         <span
           className={styles.progress}
           role="progressbar"
@@ -48,36 +75,8 @@ export function SpecCard({ spec, agentName, now, onOpen }: Props) {
             style={{ width: `${String((spec.approved / Math.max(spec.stageTotal, 1)) * 100)}%` }}
           />
         </span>
-        <span className={styles.progressText}>
-          {t('specs.approvedOf', { approved: spec.approved, total: spec.stageTotal })}
-        </span>
       </span>
-      <span className={styles.cardFoot}>
-        <span className={styles.footItem}>
-          <Icon name="agents" size={13} />
-          {agentName}
-        </span>
-        <span className={styles.footItem}>{phaseLabel(t, spec)}</span>
-        {spec.pendingQuestions > 0 && (
-          <span className={styles.footAlert}>
-            <Icon name="help" size={13} />
-            {t('specs.pendingQuestions', { count: spec.pendingQuestions })}
-          </span>
-        )}
-        {spec.openFindings > 0 && (
-          <span className={styles.footAlert}>
-            <Icon name="warning" size={13} />
-            {t('specs.openFindings', { count: spec.openFindings })}
-          </span>
-        )}
-        {spec.implementations > 0 && (
-          <span className={styles.footItem}>
-            <Icon name="workflow" size={13} />
-            {t('specs.implementedBy', { count: spec.implementations })}
-          </span>
-        )}
-        <span className={styles.footTime}>{agoText(spec.updatedAt, language, now)}</span>
-      </span>
+      <span className={styles.specTime}>{agoText(spec.updatedAt, language, now)}</span>
     </button>
   );
 }

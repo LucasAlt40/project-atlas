@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas — Configurações / Importar e exportar</title>
+<!-- Fonts: Geist & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "inverse-primary": "#494bd6",
+            "primary-fixed": "#e1e0ff",
+            "on-primary-container": "#0d0096",
+            "secondary-fixed": "#d4e3ff",
+            "on-tertiary": "#640039",
+            "inverse-on-surface": "#2e3135",
+            "surface-container": "#1d2024",
+            "secondary-container": "#0267b8",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "surface-dim": "#111418",
+            "surface-variant": "#323539",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "tertiary-container": "#f751a1",
+            "surface-bright": "#36393e",
+            "surface": "#111418",
+            "error": "#ffb4ab",
+            "surface-tint": "#c0c1ff",
+            "on-error": "#690005",
+            "on-surface-variant": "#c7c4d7",
+            "primary-container": "#8083ff",
+            "surface-container-lowest": "#0b0e12",
+            "on-tertiary-container": "#570032",
+            "surface-container-highest": "#323539",
+            "on-secondary-fixed-variant": "#004883",
+            "tertiary-fixed": "#ffd9e4",
+            "primary": "#c0c1ff",
+            "background": "#111418",
+            "on-primary-fixed": "#07006c",
+            "surface-container-low": "#191c20",
+            "secondary": "#a4c9ff",
+            "on-surface": "#e1e2e8",
+            "on-secondary": "#00315d",
+            "primary-fixed-dim": "#c0c1ff",
+            "secondary-fixed-dim": "#a4c9ff",
+            "outline-variant": "#464554",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "on-secondary-fixed": "#001c39",
+            "on-primary": "#1000a9",
+            "tertiary": "#ffb0cd",
+            "inverse-surface": "#e1e2e8",
+            "on-secondary-container": "#d6e5ff",
+            "error-container": "#93000a",
+            "on-error-container": "#ffdad6",
+            "surface-container-high": "#272a2e",
+            "on-tertiary-fixed": "#3e0022",
+            "on-background": "#e1e2e8",
+            "outline": "#908fa0"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "gutter": "0.5rem",
+            "space-xs": "0.25rem",
+            "space-xl": "1.5rem",
+            "space-2xl": "2rem",
+            "space-sm": "0.5rem",
+            "space-md": "0.75rem",
+            "margin": "0.75rem",
+            "margin-window": "0.5rem",
+            "gutter-expanded": "1rem",
+            "gutter-compact": "0.25rem",
+            "space-2xs": "0.125rem",
+            "space-lg": "1rem"
+          },
+          "fontFamily": {
+            "code-md": ["JetBrains Mono"],
+            "body-sm": ["Geist"],
+            "headline-md": ["Geist"],
+            "telemetry-pill": ["JetBrains Mono"],
+            "code-sm": ["JetBrains Mono"],
+            "body-lg": ["Geist"],
+            "headline-sm": ["Geist"],
+            "label-md": ["Geist"],
+            "headline-lg": ["Geist"],
+            "code-lg": ["JetBrains Mono"],
+            "headline-xl": ["Geist"],
+            "body-md": ["Geist"],
+            "label-sm": ["Geist"]
+          },
+          "fontSize": {
+            "code-md": ["0.8125rem", { "lineHeight": "1.25rem", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+            "body-sm": ["0.75rem", { "lineHeight": "1.125rem", "letterSpacing": "0.005em", "fontWeight": "400" }],
+            "headline-md": ["1.25rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.015em", "fontWeight": "500" }],
+            "telemetry-pill": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.02em", "fontWeight": "600" }],
+            "code-sm": ["0.6875rem", { "lineHeight": "1rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "body-lg": ["1rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "headline-sm": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "label-md": ["0.8125rem", { "lineHeight": "1rem", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "headline-lg": ["1.5rem", { "lineHeight": "2rem", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "code-lg": ["0.875rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "headline-xl": ["2rem", { "lineHeight": "2.5rem", "letterSpacing": "-0.025em", "fontWeight": "600" }],
+            "body-md": ["0.875rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "label-sm": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.04em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-background text-on-surface antialiased overflow-hidden select-none font-body-md text-body-md">
+<!-- Frame Container Desktop (1440x900 viewport simulation) -->
+<div class="flex h-screen w-screen overflow-hidden bg-background">
+<!-- ============================================================== -->
+<!-- MOLDURA FIXA: BARRA LATERAL (216px, bg: #0b0e12)              -->
+<!-- ============================================================== -->
+<aside class="w-[216px] min-w-[216px] max-w-[216px] h-screen bg-surface-container-lowest border-r border-[#1c2128] flex flex-col justify-between z-30 select-none">
+<!-- Topo: Marca e Seletor de Workspace -->
+<div class="flex flex-col p-space-sm space-y-space-sm">
+<!-- Logo Atlas -->
+<div class="flex items-center gap-2 px-2 py-1.5">
+<div class="w-5 h-5 bg-[#6366f1] rounded-[3px] flex items-center justify-center flex-shrink-0">
+<span class="font-headline-sm text-[12px] font-semibold text-white leading-none">A</span>
+</div>
+<span class="font-label-md text-[14px] font-medium text-[#f3f4f6] tracking-tight">Atlas</span>
+</div>
+<!-- Seletor de workspace -->
+<div class="bg-[#15191e] border border-[#1c2128] rounded-[4px] px-2.5 py-2 cursor-pointer hover:border-[#2d3748] transition-colors">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-[13px] font-medium text-[#f3f4f6] truncate leading-tight">Transport ERP</span>
+<span class="material-symbols-outlined text-[16px] text-outline" data-icon="unfold_more">unfold_more</span>
+</div>
+<p class="font-code-sm text-[11px] text-[#9ca3af] truncate mt-0.5 tracking-tight">/Users/lucas/dev/transport-erp</p>
+</div>
+<!-- Menu de Navegação -->
+<nav class="flex flex-col gap-[2px] pt-1">
+<!-- 1. Workspace -->
+<a class="flex items-center gap-2.5 px-2.5 h-8 rounded-[4px] text-[#9ca3af] hover:text-[#f3f4f6] hover:bg-[#15191e] transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="folder_open">folder_open</span>
+<span class="font-label-md text-[13px]">Workspace</span>
+</a>
+<!-- 2. Workflow -->
+<a class="flex items-center gap-2.5 px-2.5 h-8 rounded-[4px] text-[#9ca3af] hover:text-[#f3f4f6] hover:bg-[#15191e] transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="account_tree">account_tree</span>
+<span class="font-label-md text-[13px]">Workflow</span>
+</a>
+<!-- 3. Agentes -->
+<a class="flex items-center gap-2.5 px-2.5 h-8 rounded-[4px] text-[#9ca3af] hover:text-[#f3f4f6] hover:bg-[#15191e] transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="smart_toy">smart_toy</span>
+<span class="font-label-md text-[13px]">Agentes</span>
+</a>
+<!-- 4. Personalidades -->
+<a class="flex items-center gap-2.5 px-2.5 h-8 rounded-[4px] text-[#9ca3af] hover:text-[#f3f4f6] hover:bg-[#15191e] transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="psychology">psychology</span>
+<span class="font-label-md text-[13px]">Personalidades</span>
+</a>
+<!-- 5. Specs -->
+<a class="flex items-center gap-2.5 px-2.5 h-8 rounded-[4px] text-[#9ca3af] hover:text-[#f3f4f6] hover:bg-[#15191e] transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="description">description</span>
+<span class="font-label-md text-[13px]">Specs</span>
+</a>
+<!-- 6. MCP Hub -->
+<a class="flex items-center gap-2.5 px-2.5 h-8 rounded-[4px] text-[#9ca3af] hover:text-[#f3f4f6] hover:bg-[#15191e] transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="hub">hub</span>
+<span class="font-label-md text-[13px]">MCP Hub</span>
+</a>
+<!-- 7. Configurações (ATIVO/DESTACADO) -->
+<a class="flex items-center gap-2.5 px-2.5 h-8 rounded-[4px] bg-[#191c20] text-[#f3f4f6] border border-[#2d3748] transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px] text-[#6366f1]" data-icon="settings">settings</span>
+<span class="font-label-md text-[13px] font-medium">Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Rodapé da barra lateral -->
+<div class="p-space-md border-t border-[#1c2128]">
+<div class="flex flex-col gap-0.5 px-1">
+<span class="font-label-md text-[11px] text-[#64748b]">Project Atlas</span>
+<span class="font-code-sm text-[11px] text-[#64748b]">v0.2.0 · macOS</span>
+</div>
+</div>
+</aside>
+<!-- ============================================================== -->
+<!-- ÁREA PRINCIPAL COM HEADER SUPERIOR FIXO                        -->
+<!-- ============================================================== -->
+<div class="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+<!-- BARRA SUPERIOR (48px, bg: #0b0e12) -->
+<header class="h-12 min-h-[48px] max-h-[48px] bg-surface-container-lowest border-b border-[#1c2128] flex items-center justify-between px-4 z-20 select-none">
+<!-- Esquerda: Toggle e Breadcrumb -->
+<div class="flex items-center gap-3">
+<button class="text-on-surface-variant hover:text-[#f3f4f6] p-1 rounded hover:bg-[#15191e] transition-colors flex items-center justify-center" type="button">
+<span class="material-symbols-outlined text-[18px]" data-icon="view_sidebar">view_sidebar</span>
+</button>
+<nav aria-label="Breadcrumb" class="flex items-center gap-1.5 font-label-md text-[13px]">
+<span class="text-[#9ca3af]">Transport ERP</span>
+<span class="text-[#464554]">/</span>
+<span class="text-[#9ca3af]">Configurações</span>
+<span class="text-[#464554]">/</span>
+<span class="text-[#f3f4f6] font-medium">Importar e exportar</span>
+</nav>
+</div>
+<!-- Direita: Celular e PT | EN -->
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-1.5 px-2.5 py-1 text-[12px] font-label-md text-[#9ca3af] hover:text-[#f3f4f6] hover:bg-[#15191e] rounded transition-colors border border-transparent hover:border-[#1c2128]" type="button">
+<span class="material-symbols-outlined text-[16px]" data-icon="smartphone">smartphone</span>
+<span>Celular</span>
+</button>
+<div class="flex items-center text-[12px] font-label-md text-[#64748b]">
+<span class="text-[#f3f4f6] font-medium cursor-pointer">PT</span>
+<span class="mx-1 text-[#464554]">|</span>
+<span class="text-[#9ca3af] hover:text-[#f3f4f6] cursor-pointer">EN</span>
+</div>
+</div>
+</header>
+<!-- ============================================================== -->
+<!-- ÁREA DE CONTEÚDO PRINCIPAL (bg: #111418) - 2 COLUNAS           -->
+<!-- ============================================================== -->
+<main class="flex-1 flex overflow-hidden bg-surface">
+<!-- 1. Sub-navegação Lateral de Seções (200px) -->
+<nav class="w-[200px] min-w-[200px] border-r border-[#1c2128] p-4 flex flex-col gap-1 select-none">
+<a class="font-label-md text-[13px] text-[#9ca3af] hover:text-white px-3 py-2 rounded-[4px] transition-colors" href="#">
+            Geral
+          </a>
+<a class="font-label-md text-[13px] text-[#9ca3af] hover:text-white px-3 py-2 rounded-[4px] transition-colors" href="#">
+            Memória
+          </a>
+<!-- Ativo -->
+<a class="font-label-md text-[13px] font-medium text-[#f3f4f6] bg-[#191c20] px-3 py-2 rounded-[4px] border border-[#2d3748]" href="#">
+            Importar e exportar
+          </a>
+<a class="font-label-md text-[13px] text-[#9ca3af] hover:text-white px-3 py-2 rounded-[4px] transition-colors" href="#">
+            Sobre e atualizações
+          </a>
+</nav>
+<!-- 2. Coluna de Conteúdo à Direita (Máx 720px) -->
+<section class="flex-1 overflow-y-auto px-8 pt-6 pb-12">
+<div class="max-w-[720px]">
+<!-- Cabeçalho / Título de seção -->
+<div class="space-y-1">
+<h1 class="font-headline-sm text-[16px] font-semibold text-[#f3f4f6] tracking-tight">
+                Importar e exportar
+              </h1>
+<p class="font-label-md text-[13px] text-[#9ca3af] leading-relaxed">
+                Compartilhe agentes, personalidades e workflows como arquivo. Nunca vão: segredos, conversas, logs nem caminhos.
+              </p>
+</div>
+<!-- Bloco com 2 cartões lado a lado -->
+<div class="grid grid-cols-2 gap-4 my-6">
+<!-- Cartão "Exportar" -->
+<div class="bg-[#15191e] border border-[#1c2128] p-4 rounded-[6px] flex flex-col justify-between">
+<div>
+<div class="flex items-center gap-1.5 text-[#f3f4f6]">
+<span class="material-symbols-outlined text-[16px] text-[#6366f1]" data-icon="upload">upload</span>
+<h2 class="font-label-md text-[14px] font-medium">Exportar</h2>
+</div>
+<p class="font-label-md text-[13px] text-[#9ca3af] mt-1 mb-4 leading-normal">
+                    Escolha o que entra no arquivo.
+                  </p>
+</div>
+<div>
+<button class="inline-flex items-center justify-center font-label-md text-[13px] font-medium text-[#f3f4f6] bg-[#1c2128] hover:bg-[#242c37] border border-[#2d3748] px-3 py-1.5 rounded-[4px] transition-colors active:scale-[0.99]" type="button">
+                    Exportar…
+                  </button>
+</div>
+</div>
+<!-- Cartão "Importar" -->
+<div class="bg-[#15191e] border border-[#1c2128] p-4 rounded-[6px] flex flex-col justify-between">
+<div>
+<div class="flex items-center gap-1.5 text-[#f3f4f6]">
+<span class="material-symbols-outlined text-[16px] text-[#6366f1]" data-icon="download">download</span>
+<h2 class="font-label-md text-[14px] font-medium">Importar</h2>
+</div>
+<p class="font-label-md text-[13px] text-[#9ca3af] mt-1 mb-4 leading-normal">
+                    Importar só adiciona definições. Nada é executado nem concedido.
+                  </p>
+</div>
+<div>
+<button class="inline-flex items-center justify-center font-label-md text-[13px] font-medium text-[#f3f4f6] bg-[#1c2128] hover:bg-[#242c37] border border-[#2d3748] px-3 py-1.5 rounded-[4px] transition-colors active:scale-[0.99]" type="button">
+                    Escolher arquivo…
+                  </button>
+</div>
+</div>
+</div>
+<!-- Passo de Exportação Aberto -->
+<div class="bg-[#15191e] border border-[#1c2128] p-5 rounded-[6px]">
+<h3 class="font-label-md text-[14px] font-semibold text-[#f3f4f6] mb-4">
+                O que exportar
+              </h3>
+<div class="divide-y divide-[#1c2128]">
+<!-- 1. Grupo: Personalidades que você criou ou alterou -->
+<div class="py-3 first:pt-0">
+<span class="font-label-md text-[12px] font-medium text-[#64748b] block mb-2">
+                    Personalidades que você criou ou alterou
+                  </span>
+<label class="inline-flex items-center gap-2.5 cursor-pointer group">
+<input checked="" class="w-[14px] h-[14px] rounded-[2px] bg-[#15191e] border-[#2d3748] text-[#6366f1] focus:ring-0 focus:ring-offset-0 cursor-pointer" type="checkbox"/>
+<span class="font-label-md text-[13px] text-[#f3f4f6] group-hover:text-white">Revisor de segurança</span>
+</label>
+</div>
+<!-- 2. Grupo: Agentes -->
+<div class="py-3">
+<span class="font-label-md text-[12px] font-medium text-[#64748b] block mb-2">
+                    Agentes
+                  </span>
+<div class="flex items-center gap-6">
+<label class="inline-flex items-center gap-2.5 cursor-pointer group">
+<input checked="" class="w-[14px] h-[14px] rounded-[2px] bg-[#15191e] border-[#2d3748] text-[#6366f1] focus:ring-0 focus:ring-offset-0 cursor-pointer" type="checkbox"/>
+<span class="font-label-md text-[13px] text-[#f3f4f6] group-hover:text-white">Arquiteto</span>
+</label>
+<label class="inline-flex items-center gap-2.5 cursor-pointer group">
+<input checked="" class="w-[14px] h-[14px] rounded-[2px] bg-[#15191e] border-[#2d3748] text-[#6366f1] focus:ring-0 focus:ring-offset-0 cursor-pointer" type="checkbox"/>
+<span class="font-label-md text-[13px] text-[#f3f4f6] group-hover:text-white">Desenvolvedor</span>
+</label>
+<label class="inline-flex items-center gap-2.5 cursor-pointer group">
+<input class="w-[14px] h-[14px] rounded-[2px] bg-[#15191e] border-[#2d3748] text-[#6366f1] focus:ring-0 focus:ring-offset-0 cursor-pointer" type="checkbox"/>
+<span class="font-label-md text-[13px] text-[#9ca3af] group-hover:text-[#f3f4f6]">QA</span>
+</label>
+</div>
+</div>
+<!-- 3. Grupo: Templates de workflow salvos -->
+<div class="py-3">
+<span class="font-label-md text-[12px] font-medium text-[#64748b] block mb-1">
+                    Templates de workflow salvos
+                  </span>
+<p class="font-label-md text-[13px] text-[#64748b] italic">
+                    Nenhum
+                  </p>
+</div>
+<!-- 4. Grupo: Workflows deste workspace -->
+<div class="py-3">
+<span class="font-label-md text-[12px] font-medium text-[#64748b] block mb-2">
+                    Workflows deste workspace
+                  </span>
+<label class="inline-flex items-center gap-2.5 cursor-pointer group">
+<input checked="" class="w-[14px] h-[14px] rounded-[2px] bg-[#15191e] border-[#2d3748] text-[#6366f1] focus:ring-0 focus:ring-offset-0 cursor-pointer" type="checkbox"/>
+<span class="font-label-md text-[13px] text-[#f3f4f6] group-hover:text-white">Recuperação de senha</span>
+</label>
+</div>
+<!-- Opção global vinculada -->
+<div class="pt-3.5">
+<label class="inline-flex items-center gap-2.5 cursor-pointer group">
+<input checked="" class="w-[14px] h-[14px] rounded-[2px] bg-[#15191e] border-[#2d3748] text-[#6366f1] focus:ring-0 focus:ring-offset-0 cursor-pointer" type="checkbox"/>
+<span class="font-label-md text-[13px] font-medium text-[#f3f4f6] group-hover:text-white">Incluir o que eles precisam</span>
+</label>
+</div>
+</div>
+<!-- Rodapé de Ações do Formulário -->
+<div class="mt-6 pt-4 border-t border-[#1c2128] flex items-center justify-end gap-3">
+<button class="font-label-md text-[13px] text-[#9ca3af] hover:text-white px-3 py-1.5 transition-colors" type="button">
+                  Cancelar
+                </button>
+<button class="font-label-md text-[13px] font-medium bg-[#6366f1] hover:bg-[#4f46e5] text-white px-4 py-1.5 rounded-[4px] transition-colors active:scale-[0.99]" type="button">
+                  Continuar (4)
+                </button>
+</div>
+</div>
+</div>
+</section>
+</main>
+</div>
+</div>
+</body></html>

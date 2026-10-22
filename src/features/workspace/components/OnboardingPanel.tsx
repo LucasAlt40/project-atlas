@@ -11,7 +11,10 @@ interface Props {
   pickFolder?: (defaultPath?: string) => Promise<string | null>;
 }
 
-/** What a first-time user sees: no workspaces yet. */
+const ATLAS_DIR = '.atlas/';
+const SLOT = '\u0000';
+
+/** What a first-time user sees: no workspaces yet, what one is and the three steps after it. */
 export function OnboardingPanel({ pickFolder }: Props) {
   const t = useT();
   const { create } = useWorkspace();
@@ -19,34 +22,36 @@ export function OnboardingPanel({ pickFolder }: Props) {
   const close = () => {
     setCreating(false);
   };
+  // The folder name is set in mono inside the sentence.
+  const [before, after] = t('workspace.onboarding.step3.text', { path: SLOT }).split(SLOT);
 
   return (
     <section className={styles.onboarding}>
       <div className={styles.welcome}>
-        <div className={styles.welcomeHead}>
-          <span className={styles.welcomeTile} aria-hidden="true">
-            <Icon name="workspace" size={22} />
-          </span>
-          <div>
-            <h1>{t('workspace.onboarding.title')}</h1>
-            <p>{t('workspace.onboarding.text')}</p>
-          </div>
-        </div>
+        <header className={styles.welcomeHead}>
+          <h1>{t('workspace.onboarding.title')}</h1>
+          <p>{t('workspace.onboarding.text')}</p>
+        </header>
         <ol className={styles.steps}>
-          {(
-            [
-              ['01', 'step1', 'folder'],
-              ['02', 'step2', 'agents'],
-              ['03', 'step3', 'shield'],
-            ] as const
-          ).map(([number, key, icon]) => (
+          {(['step1', 'step2', 'step3'] as const).map((key, index) => (
             <li key={key} className={styles.step}>
-              <span className={styles.stepHead}>
-                <span className={styles.stepNumber}>{number}</span>
-                <Icon name={icon} size={16} />
+              <span className={styles.stepNumber} aria-hidden="true">
+                {index + 1}
               </span>
-              <h2>{t(`workspace.onboarding.${key}.title`)}</h2>
-              <p>{t(`workspace.onboarding.${key}.text`)}</p>
+              <div>
+                <h2>{t(`workspace.onboarding.${key}.title`)}</h2>
+                <p>
+                  {key === 'step3' ? (
+                    <>
+                      {before}
+                      <code>{ATLAS_DIR}</code>
+                      {after}
+                    </>
+                  ) : (
+                    t(`workspace.onboarding.${key}.text`)
+                  )}
+                </p>
+              </div>
             </li>
           ))}
         </ol>
@@ -57,12 +62,16 @@ export function OnboardingPanel({ pickFolder }: Props) {
             }}
           >
             {t('workspace.onboarding.cta')}
-            <Icon name="arrowRight" size={14} />
+            <Icon name="arrowRight" size={16} />
           </Button>
         </div>
       </div>
       {creating && (
-        <Modal label={t('workspace.form.createTitle')} onClose={close}>
+        <Modal
+          label={t('workspace.form.createTitle')}
+          title={t('workspace.form.createTitle')}
+          onClose={close}
+        >
           <WorkspaceForm
             onSubmit={create}
             onSaved={close}

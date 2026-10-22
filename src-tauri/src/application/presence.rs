@@ -13,6 +13,8 @@
 //!   workflow, step) are a separate choice. The text of prompts, files and answers never reaches it;
 //! - it only observes. A failing Discord (closed, no application id, a refused frame) never reaches
 //!   the run: the worker retries on a schedule and the events are not held up;
+//! - the screen the person has open is only its name (`Screen`): it picks a line of the profile when
+//!   nothing is running. What is on the screen never reaches it;
 //! - the events only mutate [`State`] and wake the worker. What is shown is always composed from the
 //!   state *at the moment it is sent*, so bursts collapse into one update.
 
@@ -24,12 +26,14 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use super::settings::SettingsService;
+use super::specs::service::SpecService;
 use super::support::now_ms;
 use super::workflow::service::WorkflowService;
 use super::workspace::WorkspaceService;
 use crate::application::support::LockExt;
 use crate::domain::execution::{ExecutionEvent, ExecutionEventKind};
-use crate::domain::presence::{Activity, PresenceSettings, DEFAULT_CLIENT_ID};
+use crate::domain::presence::{Activity, PresenceSettings, Screen, DEFAULT_CLIENT_ID};
+use crate::domain::spec::SpecStatus;
 use crate::domain::workflow::{WorkflowEvent, WorkflowEventKind};
 
 /// Discord drops updates beyond about five per twenty seconds.
@@ -38,6 +42,8 @@ const MIN_INTERVAL: Duration = Duration::from_secs(4);
 const RETRY_AFTER: Duration = Duration::from_secs(15);
 /// How long a finished run stays on the profile before the workspace takes its place.
 const FINISHED_WINDOW_MS: u64 = 30_000;
+/// How often a specification in progress is looked at again.
+const SPEC_RECHECK: Duration = Duration::from_secs(15);
 
 /// What is sent: the Discord application and the activity.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -75,6 +81,26 @@ pub trait PresenceEnv: Send + Sync {
     fn workspace_name(&self, workspace_id: &str) -> Option<String>;
     fn workflow_name(&self, workflow_id: &str) -> Option<String>;
     fn node_label(&self, workflow_id: &str, node_id: &str) -> Option<String>;
+    /// Specifications of the selected workspace that are being written or wait for the person.
+    fn spec_work(&self) -> Vec<SpecWork>;
+}
+
+/// What a specification is doing right now, for the profile. The title is shown only when the person
+/// allowed names.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpecWork {
+    pub title: String,
+    /// The document at hand (`proposal`, `specs`, `design`, `tasks`).
+    pub stage: Option<String>,
+    pub phase: SpecPhase,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SpecPhase {
+    /// An agent is writing a document.
+    Writing,
+    /// A question, a review or the last word waits for the person.
+    WaitingForYou,
 }
 
 /// [`PresenceEnv`] over the real services.
@@ -82,6 +108,7 @@ pub struct AtlasEnv {
     pub settings: Arc<SettingsService>,
     pub workspaces: Arc<WorkspaceService>,
     pub workflows: Arc<WorkflowService>,
+    pub specs: Arc<SpecService>,
 }
 
 impl PresenceEnv for AtlasEnv {
@@ -113,6 +140,30 @@ impl PresenceEnv for AtlasEnv {
             .iter()
             .find(|n| n.id == node_id)
             .map(|n| n.label().to_owned())
+    }
+
+    fn spec_work(&self) -> Vec<SpecWork> {
+        let Some(workspace) = self.settings.get().selected_workspace_id else {
+            return Vec::new();
+        };
+        self.specs
+            .list(&workspace)
+            .into_iter()
+            .filter_map(|spec| {
+                let phase = match spec.status {
+                    SpecStatus::Generating => SpecPhase::Writing,
+                    SpecStatus::WaitingForInput
+                    | SpecStatus::AwaitingReview
+                    | SpecStatus::Approved => SpecPhase::WaitingForYou,
+                    _ => return None,
+                };
+                Some(SpecWork {
+                    title: spec.title,
+                    stage: spec.current_artifact,
+                    phase,
+                })
+            })
+            .collect()
     }
 }
 
@@ -153,6 +204,10 @@ struct State {
     executions: BTreeSet<String>,
     seq: u64,
     opened_ms: u64,
+    /// The screen the webview said is open.
+    screen: Option<Screen>,
+    /// Since when a specification has been written without a break; the profile's timer.
+    writing_since: Option<u64>,
 }
 
 enum Msg {
@@ -218,6 +273,19 @@ impl PresenceService {
     pub fn poke(&self) {
         // The worker is gone only when the process is closing.
         let _ = self.wake.send(Msg::Poke);
+    }
+
+    /// The person opened another screen.
+    pub fn set_screen(&self, screen: Screen) {
+        let changed = {
+            let mut state = self.shared.lock();
+            let changed = state.screen != Some(screen);
+            state.screen = Some(screen);
+            changed
+        };
+        if changed {
+            self.poke();
+        }
     }
 
     pub fn on_workflow_event(&self, event: &WorkflowEvent) {
@@ -311,10 +379,24 @@ fn desired(shared: &Shared) -> Desired {
     }
     let language = shared.env.language();
     let selected = shared.env.selected_workspace_name();
+    let spec_work = shared.env.spec_work();
     let now = now_ms();
-    let state = shared.lock();
-    let activity = compose(&state, &settings, &language, selected.as_deref(), now);
-    let wake_in = state
+    let mut state = shared.lock();
+    // The timer of a specification being written starts when it was first seen so, and stops with it.
+    if spec_work.iter().any(|w| w.phase == SpecPhase::Writing) {
+        state.writing_since.get_or_insert(now);
+    } else {
+        state.writing_since = None;
+    }
+    let activity = compose(
+        &state,
+        &settings,
+        &language,
+        selected.as_deref(),
+        now,
+        &spec_work,
+    );
+    let finished_in = state
         .runs
         .values()
         .filter_map(|run| run.ended_ms)
@@ -322,6 +404,13 @@ fn desired(shared: &Shared) -> Desired {
         .filter(|left| *left > 0)
         .min()
         .map(|left| Duration::from_millis(left + 50));
+    // A specification changes without any execution event telling it (a question answered, a
+    // document approved): look again now and then while one is in progress.
+    let spec_in = (!spec_work.is_empty()).then_some(SPEC_RECHECK);
+    let wake_in = match (finished_in, spec_in) {
+        (Some(a), Some(b)) => Some(a.min(b)),
+        (a, b) => a.or(b),
+    };
     Desired {
         published: Some(Published {
             client_id: DEFAULT_CLIENT_ID.to_owned(),
@@ -394,6 +483,10 @@ impl Words {
             pt
         }
     }
+
+    fn pick_static(&self, pt: &'static str, en: &'static str) -> &'static str {
+        self.pick(pt, en)
+    }
 }
 
 #[allow(clippy::too_many_lines)] // one branch per thing Atlas can be doing
@@ -403,6 +496,7 @@ fn compose(
     language: &str,
     selected_workspace: Option<&str>,
     now: u64,
+    spec_work: &[SpecWork],
 ) -> Activity {
     let w = Words {
         english: language == "en-US",
@@ -475,6 +569,17 @@ fn compose(
         };
     }
 
+    if let Some(activity) = compose_specs(
+        state,
+        &w,
+        names,
+        selected_workspace,
+        spec_work,
+        SpecPhase::Writing,
+    ) {
+        return activity;
+    }
+
     let working = state.executions.len();
     if working > 0 {
         let count = if working == 1 {
@@ -494,6 +599,21 @@ fn compose(
             small_image: Some("running"),
             small_text: Some(w.pick("Executando", "Running").to_owned()),
         };
+    }
+
+    if let Some(activity) = compose_specs(
+        state,
+        &w,
+        names,
+        selected_workspace,
+        spec_work,
+        SpecPhase::WaitingForYou,
+    ) {
+        return activity;
+    }
+
+    if let Some(activity) = compose_screen(state, &w, names, selected_workspace) {
+        return activity;
     }
 
     match (selected_workspace, names) {
@@ -526,6 +646,118 @@ fn compose(
     }
 }
 
+/// The name of a specification document, in the person's language.
+fn stage_name(w: &Words, stage: &str) -> &'static str {
+    match stage {
+        "proposal" => w.pick_static("Proposta", "Proposal"),
+        "specs" => w.pick_static("Requisitos", "Requirements"),
+        "design" => "Design",
+        "tasks" => w.pick_static("Tarefas", "Tasks"),
+        _ => w.pick_static("Documento", "Document"),
+    }
+}
+
+/// A specification being written or waiting for the person (the SDD flow).
+fn compose_specs(
+    state: &State,
+    w: &Words,
+    names: bool,
+    selected_workspace: Option<&str>,
+    spec_work: &[SpecWork],
+    phase: SpecPhase,
+) -> Option<Activity> {
+    let mut mine = spec_work.iter().filter(|work| work.phase == phase);
+    let first = mine.next()?;
+    let more = mine.count();
+    let details = match (names, phase) {
+        (true, _) => format!(
+            "{} {}",
+            w.pick("Especificação:", "Specification:"),
+            first.title
+        ),
+        (false, SpecPhase::Writing) => w
+            .pick("Escrevendo uma especificação", "Writing a specification")
+            .to_owned(),
+        (false, SpecPhase::WaitingForYou) => w
+            .pick("Especificação (SDD)", "Specification (SDD)")
+            .to_owned(),
+    };
+    let mut line = match phase {
+        SpecPhase::Writing => match &first.stage {
+            Some(document) => format!(
+                "{} {}",
+                w.pick("Escrevendo:", "Writing:"),
+                stage_name(w, document)
+            ),
+            None => w.pick("Agente escrevendo", "Agent writing").to_owned(),
+        },
+        SpecPhase::WaitingForYou => w.pick("Aguardando você", "Waiting for you").to_owned(),
+    };
+    if more > 0 {
+        let _ = write!(line, " (+{more})");
+    }
+    let (image, hint) = match phase {
+        SpecPhase::Writing => ("running", w.pick("Escrevendo", "Writing")),
+        SpecPhase::WaitingForYou => ("waiting", w.pick("Aguardando você", "Waiting for you")),
+    };
+    Some(Activity {
+        details,
+        state: line,
+        started_at: match phase {
+            SpecPhase::Writing => state.writing_since.map(|ms| ms / 1000),
+            SpecPhase::WaitingForYou => Some(state.opened_ms / 1000),
+        },
+        large_text: workspace_hint(names, selected_workspace),
+        small_image: Some(image),
+        small_text: Some(hint.to_owned()),
+    })
+}
+
+/// What the person is doing on a screen, when nothing is running. The screen's name only.
+fn compose_screen(
+    state: &State,
+    w: &Words,
+    names: bool,
+    selected_workspace: Option<&str>,
+) -> Option<Activity> {
+    let (details, line) = match state.screen? {
+        // The workspace has its own lines, with its name.
+        Screen::Workspace => return None,
+        Screen::Workflow => (
+            w.pick("Workflows", "Workflows"),
+            w.pick("Montando um workflow", "Building a workflow"),
+        ),
+        Screen::Agents => (
+            w.pick("Agentes", "Agents"),
+            w.pick("Configurando agentes", "Configuring agents"),
+        ),
+        Screen::Personalities => (
+            w.pick("Personalidades", "Personalities"),
+            w.pick("Ajustando personalidades", "Tuning personalities"),
+        ),
+        Screen::Specs => (
+            w.pick("Especificações (SDD)", "Specifications (SDD)"),
+            w.pick("Lendo e aprovando specs", "Reading and approving specs"),
+        ),
+        Screen::McpHub => (
+            "MCP Hub",
+            w.pick("Conectando ferramentas", "Connecting tools"),
+        ),
+        Screen::Settings => (
+            w.pick("Configurações", "Settings"),
+            w.pick("Ajustando o Atlas", "Adjusting Atlas"),
+        ),
+    };
+    Some(Activity {
+        details: details.to_owned(),
+        state: line.to_owned(),
+        started_at: Some(state.opened_ms / 1000),
+        large_text: workspace_hint(names, selected_workspace),
+        small_image: Some("idle"),
+        small_text: Some(w.pick("Ocioso", "Idle").to_owned()),
+    })
+}
+
 fn workspace_hint(names: bool, workspace: Option<&str>) -> Option<String> {
     match (workspace, names) {
         (Some(name), true) => Some(format!("Workspace: {name}")),
@@ -544,6 +776,7 @@ mod tests {
         settings: Mutex<PresenceSettings>,
         language: &'static str,
         selected: Mutex<Option<String>>,
+        specs: Mutex<Vec<SpecWork>>,
     }
 
     impl FakeEnv {
@@ -555,6 +788,7 @@ mod tests {
                 }),
                 language: "en-US",
                 selected: Mutex::new(Some("Billing".to_owned())),
+                specs: Mutex::new(Vec::new()),
             })
         }
     }
@@ -577,6 +811,9 @@ mod tests {
         }
         fn node_label(&self, _: &str, node: &str) -> Option<String> {
             Some(format!("step {node}"))
+        }
+        fn spec_work(&self) -> Vec<SpecWork> {
+            self.specs.lock().unwrap().clone()
         }
     }
 
@@ -738,5 +975,97 @@ mod tests {
         wait_for("cleared", || {
             matches!(transport.calls.lock().unwrap().last(), Some(None))
         });
+    }
+
+    fn spec(title: &str, stage: &str, phase: SpecPhase) -> SpecWork {
+        SpecWork {
+            title: title.to_owned(),
+            stage: Some(stage.to_owned()),
+            phase,
+        }
+    }
+
+    #[test]
+    fn shows_the_specification_being_written_and_then_the_one_waiting() {
+        let (env, transport) = (FakeEnv::new(true), Arc::new(FakeTransport::default()));
+        env.specs
+            .lock()
+            .unwrap()
+            .push(spec("Dark mode", "design", SpecPhase::Writing));
+        let service = start(&env, &transport);
+
+        wait_for("writing", || {
+            last(&transport).is_some_and(|p| {
+                p.activity.details == "Specification: Dark mode"
+                    && p.activity.state == "Writing: Design"
+                    && p.activity.started_at.is_some()
+            })
+        });
+
+        *env.specs.lock().unwrap() = vec![spec("Dark mode", "design", SpecPhase::WaitingForYou)];
+        service.poke();
+        wait_for("waiting", || {
+            last(&transport).is_some_and(|p| {
+                p.activity.state == "Waiting for you" && p.activity.small_image == Some("waiting")
+            })
+        });
+    }
+
+    #[test]
+    fn a_workflow_run_comes_before_a_specification() {
+        let (env, transport) = (FakeEnv::new(true), Arc::new(FakeTransport::default()));
+        env.specs
+            .lock()
+            .unwrap()
+            .push(spec("Dark mode", "design", SpecPhase::Writing));
+        let service = start(&env, &transport);
+        service.on_workflow_event(&workflow_event(WorkflowEventKind::Started, None));
+
+        wait_for("run", || {
+            last(&transport).is_some_and(|p| p.activity.details == "Workflow: Ship it")
+        });
+    }
+
+    #[test]
+    fn the_screen_picks_the_line_when_nothing_runs_and_never_carries_content() {
+        let (env, transport) = (FakeEnv::new(true), Arc::new(FakeTransport::default()));
+        let service = start(&env, &transport);
+        service.set_screen(Screen::Specs);
+        wait_for("specs screen", || {
+            last(&transport).is_some_and(|p| {
+                p.activity.details == "Specifications (SDD)"
+                    && p.activity.state == "Reading and approving specs"
+            })
+        });
+        service.set_screen(Screen::McpHub);
+        wait_for("hub screen", || {
+            last(&transport).is_some_and(|p| p.activity.details == "MCP Hub")
+        });
+        // The workspace screen keeps the workspace's own lines.
+        service.set_screen(Screen::Workspace);
+        wait_for("workspace", || {
+            last(&transport).is_some_and(|p| p.activity.details == "Workspace: Billing")
+        });
+    }
+
+    #[test]
+    fn without_names_a_specification_is_generic() {
+        let env = FakeEnv::new(true);
+        env.settings.lock().unwrap().show_names = false;
+        env.specs
+            .lock()
+            .unwrap()
+            .push(spec("Secret title", "tasks", SpecPhase::Writing));
+        let transport = Arc::new(FakeTransport::default());
+        let _service = start(&env, &transport);
+
+        wait_for("generic", || {
+            last(&transport).is_some_and(|p| p.activity.details == "Writing a specification")
+        });
+        let shown = format!("{:?}", transport.calls.lock().unwrap());
+        assert!(
+            !shown.contains("Secret title") && !shown.contains("Billing"),
+            "{shown}"
+        );
     }
 }

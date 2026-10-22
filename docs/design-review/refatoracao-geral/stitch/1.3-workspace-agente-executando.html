@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas — Workspace — Agente executando</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Fonts: Geist & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "inverse-primary": "#494bd6",
+            "on-secondary": "#00315d",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "outline": "#908fa0",
+            "surface-container-lowest": "#0b0d10",
+            "surface-container": "#1d2024",
+            "error": "#ffb4ab",
+            "on-surface-variant": "#c7c4d7",
+            "on-primary": "#1000a9",
+            "on-error-container": "#ffdad6",
+            "on-error": "#690005",
+            "on-primary-fixed": "#07006c",
+            "inverse-on-surface": "#2e3135",
+            "primary-container": "#8083ff",
+            "surface-container-low": "#191c20",
+            "secondary": "#a4c9ff",
+            "error-container": "#93000a",
+            "surface-bright": "#36393e",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-secondary-fixed": "#001c39",
+            "tertiary-fixed": "#ffd9e4",
+            "on-tertiary": "#640039",
+            "surface": "#111418",
+            "surface-container-highest": "#323539",
+            "primary-fixed": "#e1e0ff",
+            "secondary-fixed-dim": "#a4c9ff",
+            "surface-dim": "#111418",
+            "surface-variant": "#323539",
+            "tertiary-container": "#f751a1",
+            "surface-container-high": "#272a2e",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "on-secondary-fixed-variant": "#004883",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "primary": "#c0c1ff",
+            "on-tertiary-container": "#570032",
+            "secondary-fixed": "#d4e3ff",
+            "on-secondary-container": "#d6e5ff",
+            "inverse-surface": "#e1e2e8",
+            "on-primary-container": "#0d0096",
+            "tertiary": "#ffb0cd",
+            "surface-tint": "#c0c1ff",
+            "on-tertiary-fixed": "#3e0022",
+            "on-surface": "#e1e2e8",
+            "outline-variant": "#464554",
+            "secondary-container": "#0267b8",
+            "on-background": "#e1e2e8",
+            "background": "#111418",
+            /* App Surface Tiers & Semantics */
+            "atlas-void": "#0b0d10",
+            "atlas-base": "#101317",
+            "atlas-card": "#15191e",
+            "atlas-elevated": "#1c2128",
+            "atlas-border": "#242c37",
+            "atlas-border-strong": "#2d3748",
+            "state-ready": "#10b981",
+            "state-running": "#60a5fa",
+            "state-waiting": "#f59e0b",
+            "state-policy": "#ec4899",
+            "state-error": "#ef4444",
+            "accent-indigo": "#6366f1"
+          },
+          borderRadius: {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          spacing: {
+            "space-sm": "0.5rem",
+            "space-xs": "0.25rem",
+            "space-md": "0.75rem",
+            "space-xl": "1.5rem",
+            "space-2xl": "2rem",
+            "gutter-compact": "0.25rem",
+            "margin-window": "0.5rem",
+            "gutter": "0.5rem",
+            "space-2xs": "0.125rem",
+            "space-lg": "1rem",
+            "gutter-expanded": "1rem",
+            "margin": "0.75rem"
+          },
+          fontFamily: {
+            "label-md": ["Geist", "sans-serif"],
+            "body-lg": ["Geist", "sans-serif"],
+            "code-md": ["JetBrains Mono", "monospace"],
+            "body-md": ["Geist", "sans-serif"],
+            "label-sm": ["Geist", "sans-serif"],
+            "headline-sm": ["Geist", "sans-serif"],
+            "headline-xl": ["Geist", "sans-serif"],
+            "telemetry-pill": ["JetBrains Mono", "monospace"],
+            "headline-lg": ["Geist", "sans-serif"],
+            "code-lg": ["JetBrains Mono", "monospace"],
+            "body-sm": ["Geist", "sans-serif"],
+            "code-sm": ["JetBrains Mono", "monospace"],
+            "headline-md": ["Geist", "sans-serif"]
+          },
+          fontSize: {
+            "label-md": ["0.8125rem", { lineHeight: "1rem", letterSpacing: "0.01em", fontWeight: "500" }],
+            "body-lg": ["1rem", { lineHeight: "1.5rem", letterSpacing: "-0.005em", fontWeight: "400" }],
+            "code-md": ["0.8125rem", { lineHeight: "1.25rem", letterSpacing: "-0.01em", fontWeight: "400" }],
+            "body-md": ["0.875rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
+            "label-sm": ["0.6875rem", { lineHeight: "0.875rem", letterSpacing: "0.04em", fontWeight: "600" }],
+            "headline-sm": ["1.125rem", { lineHeight: "1.5rem", letterSpacing: "-0.01em", fontWeight: "500" }],
+            "headline-xl": ["2rem", { lineHeight: "2.5rem", letterSpacing: "-0.025em", fontWeight: "600" }],
+            "telemetry-pill": ["0.6875rem", { lineHeight: "0.875rem", letterSpacing: "0.02em", fontWeight: "600" }],
+            "headline-lg": ["1.5rem", { lineHeight: "2rem", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "code-lg": ["0.875rem", { lineHeight: "1.375rem", letterSpacing: "-0.01em", fontWeight: "500" }],
+            "body-sm": ["0.75rem", { lineHeight: "1.125rem", letterSpacing: "0.005em", fontWeight: "400" }],
+            "code-sm": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0em", fontWeight: "400" }],
+            "headline-md": ["1.25rem", { lineHeight: "1.75rem", letterSpacing: "-0.015em", fontWeight: "500" }]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    body {
+      background-color: #0b0d10;
+      color: #e1e2e8;
+      font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+      overflow: hidden;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Hairline scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #101317;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #242c37;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #2d3748;
+    }
+  </style>
+</head>
+<body class="w-[1440px] h-[900px] flex overflow-hidden bg-atlas-void text-on-surface">
+<!-- MOLDURA FIXA NATIVA: BARRA LATERAL (216px) -->
+<aside class="w-[216px] min-w-[216px] max-w-[216px] h-full flex flex-col justify-between bg-atlas-void border-r border-atlas-border">
+<!-- Topo da Barra Lateral -->
+<div class="flex flex-col">
+<!-- Logo Minimalista Atlas -->
+<div class="h-12 px-space-md flex items-center gap-2 border-b border-atlas-border">
+<div class="w-5 h-5 rounded-[2px] bg-accent-indigo flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-[13px] font-bold">polyline</span>
+</div>
+<span class="font-headline-sm text-[15px] font-semibold tracking-tight text-white">Atlas</span>
+</div>
+<!-- Seletor de Workspace -->
+<div class="px-space-md py-2.5 border-b border-atlas-border bg-atlas-base/40 hover:bg-atlas-elevated/40 transition-colors cursor-pointer group">
+<div class="flex items-center justify-between">
+<div class="flex flex-col min-w-0 pr-1">
+<span class="font-body-md text-[13px] font-medium text-white truncate group-hover:text-primary transition-colors">Transport ERP</span>
+<span class="font-mono-code text-[11px] text-[#71717a] truncate tracking-tight">/Users/lucas/dev/transport-erp</span>
+</div>
+<span class="material-symbols-outlined text-[#71717a] group-hover:text-white transition-colors">expand_more</span>
+</div>
+</div>
+<!-- Navegação Vertical (Exatamente os 7 itens) -->
+<nav class="p-2 space-y-0.5">
+<!-- 1. Workspace (Ativo) -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 bg-atlas-elevated text-primary border-l-2 border-accent-indigo font-label-md text-[13px] font-medium rounded-r-[2px]" href="#">
+<span class="material-symbols-outlined text-primary text-[17px]">grid_view</span>
+<span>Workspace</span>
+</a>
+<!-- 2. Workflow -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 text-on-surface-variant hover:text-white hover:bg-atlas-elevated/60 font-label-md text-[13px] rounded-[2px] transition-colors" href="#">
+<span class="material-symbols-outlined text-[17px] text-[#71717a]">account_tree</span>
+<span>Workflow</span>
+</a>
+<!-- 3. Agentes -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 text-on-surface-variant hover:text-white hover:bg-atlas-elevated/60 font-label-md text-[13px] rounded-[2px] transition-colors" href="#">
+<span class="material-symbols-outlined text-[17px] text-[#71717a]">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- 4. Personalidades -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 text-on-surface-variant hover:text-white hover:bg-atlas-elevated/60 font-label-md text-[13px] rounded-[2px] transition-colors" href="#">
+<span class="material-symbols-outlined text-[17px] text-[#71717a]">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- 5. Specs -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 text-on-surface-variant hover:text-white hover:bg-atlas-elevated/60 font-label-md text-[13px] rounded-[2px] transition-colors" href="#">
+<span class="material-symbols-outlined text-[17px] text-[#71717a]">description</span>
+<span>Specs</span>
+</a>
+<!-- 6. MCP Hub -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 text-on-surface-variant hover:text-white hover:bg-atlas-elevated/60 font-label-md text-[13px] rounded-[2px] transition-colors" href="#">
+<span class="material-symbols-outlined text-[17px] text-[#71717a]">hub</span>
+<span>MCP Hub</span>
+</a>
+<!-- 7. Configurações -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 text-on-surface-variant hover:text-white hover:bg-atlas-elevated/60 font-label-md text-[13px] rounded-[2px] transition-colors" href="#">
+<span class="material-symbols-outlined text-[17px] text-[#71717a]">settings</span>
+<span>Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Rodapé da Barra Lateral -->
+<div class="p-3 border-t border-atlas-border flex flex-col gap-0.5">
+<span class="font-body-md text-[12px] font-medium text-white/90">Project Atlas</span>
+<span class="font-mono-code text-[11px] text-[#71717a]">v0.2.0 · macOS</span>
+</div>
+</aside>
+<!-- PAINEL OPERACIONAL PRINCIPAL -->
+<div class="flex-1 flex flex-col h-full bg-atlas-base overflow-hidden">
+<!-- MOLDURA FIXA NATIVA: BARRA SUPERIOR (48px) -->
+<header class="h-12 min-h-[48px] max-h-[48px] px-space-md flex items-center justify-between border-b border-atlas-border bg-atlas-base">
+<!-- Esquerda: Botão Recolher + Breadcrumb -->
+<div class="flex items-center gap-2.5">
+<button class="w-7 h-7 flex items-center justify-center rounded-[2px] text-[#71717a] hover:text-white hover:bg-atlas-card border border-transparent hover:border-atlas-border transition-colors">
+<span class="material-symbols-outlined text-[18px]">dock_to_left</span>
+</button>
+<div class="h-3.5 w-[1px] bg-atlas-border"></div>
+<div class="flex items-center gap-1.5 font-label-md text-[13px]">
+<span class="text-[#71717a]">Transport ERP</span>
+<span class="text-[#52525b]">/</span>
+<span class="text-white font-medium">Workspace</span>
+</div>
+</div>
+<!-- Direita: Status Chips, Celular e Idioma -->
+<div class="flex items-center gap-2.5">
+<!-- Chip Âmbar: 1 agente aguardando você -->
+<div class="flex items-center gap-1.5 px-2.5 py-1 rounded-[3px] bg-[#f59e0b]/10 border border-[#f59e0b]/30">
+<span class="w-1.5 h-1.5 rounded-full bg-state-waiting animate-pulse"></span>
+<span class="font-label-md text-[12px] font-medium text-state-waiting">1 agente aguardando você</span>
+</div>
+<!-- Chip Azul: 1 agente em execução -->
+<div class="flex items-center gap-1.5 px-2.5 py-1 rounded-[3px] bg-[#60a5fa]/10 border border-[#60a5fa]/30">
+<span class="w-1.5 h-1.5 rounded-full bg-state-running"></span>
+<span class="font-label-md text-[12px] font-medium text-state-running">1 agente em execução</span>
+</div>
+<div class="h-4 w-[1px] bg-atlas-border mx-0.5"></div>
+<!-- Botão Celular com Badge -->
+<button class="flex items-center gap-1.5 px-2 py-1 rounded-[2px] text-on-surface-variant hover:text-white hover:bg-atlas-elevated border border-atlas-border transition-colors">
+<span class="material-symbols-outlined text-[16px]">smartphone</span>
+<span class="font-label-md text-[12px]">Celular</span>
+<span class="w-4 h-4 rounded-full bg-state-waiting text-[#101317] font-mono-code text-[10px] font-bold flex items-center justify-center">1</span>
+</button>
+<div class="h-4 w-[1px] bg-atlas-border mx-0.5"></div>
+<!-- Alternância de Idioma PT | EN -->
+<div class="flex items-center font-label-md text-[12px] border border-atlas-border rounded-[2px] bg-atlas-card overflow-hidden">
+<span class="px-2 py-0.5 bg-atlas-elevated text-white font-medium border-r border-atlas-border">PT</span>
+<span class="px-2 py-0.5 text-[#71717a] hover:text-white cursor-pointer transition-colors">EN</span>
+</div>
+</div>
+</header>
+<!-- ÁREA DE ROLAGEM DO CONTEÚDO PRINCIPAL -->
+<main class="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
+<!-- CABEÇALHO DA PÁGINA -->
+<section class="flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<!-- Título + Badge de Custo -->
+<div class="flex items-center gap-3">
+<h1 class="font-headline-sm text-[16px] font-semibold text-white tracking-tight">Transport ERP</h1>
+<div class="flex items-center px-2 py-0.5 rounded-[2px] bg-atlas-card border border-atlas-border text-[#a1a1aa] font-mono-code text-[12px]">
+              Hoje US$ 1,24 · Semana US$ 3,72
+            </div>
+</div>
+<!-- Ações Primárias / Secundárias -->
+<div class="flex items-center gap-2">
+<button class="px-3 py-1.5 rounded-[3px] bg-atlas-elevated hover:bg-atlas-border border border-atlas-border font-label-md text-[13px] text-white transition-colors">
+              Projetos (2)
+            </button>
+<button class="px-3 py-1.5 rounded-[3px] bg-atlas-elevated hover:bg-atlas-border border border-atlas-border font-label-md text-[13px] text-white transition-colors">
+              Integrações
+            </button>
+<button class="px-3.5 py-1.5 rounded-[3px] bg-accent-indigo hover:bg-[#4f46e5] font-label-md text-[13px] font-medium text-white transition-colors flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[15px]">add</span>
+<span>Adicionar agente</span>
+</button>
+</div>
+</div>
+<!-- Barra de Controles de Visualização -->
+<div class="flex items-center justify-between pt-1 border-b border-atlas-border pb-2.5">
+<div class="flex items-center gap-1 font-label-md text-[13px]">
+<span class="text-white font-medium px-2 py-0.5 bg-atlas-card rounded-[2px] border border-atlas-border">Lista expansível</span>
+<span class="text-[#71717a] px-1.5">|</span>
+<span class="text-[#71717a] hover:text-white cursor-pointer px-1.5 py-0.5 transition-colors">Grade</span>
+</div>
+<button class="font-label-md text-[13px] text-[#71717a] hover:text-white transition-colors flex items-center gap-1">
+<span>Recolher todos</span>
+</button>
+</div>
+</section>
+<!-- LISTA DE AGENTES -->
+<section class="flex flex-col gap-3 pb-8">
+<!-- 1. CARTÃO "DESENVOLVEDOR" (EXPANDIDO) -->
+<article class="bg-atlas-card border border-atlas-border rounded-[3px] flex flex-col overflow-hidden">
+<!-- Cabeçalho do Cartão -->
+<div class="px-4 py-3 flex items-center justify-between border-b border-atlas-border bg-atlas-card">
+<div class="flex items-center gap-3">
+<div class="w-6 h-6 rounded-[2px] bg-accent-indigo/15 border border-accent-indigo/30 flex items-center justify-center text-accent-indigo">
+<span class="material-symbols-outlined text-[15px]">code</span>
+</div>
+<h2 class="font-headline-sm text-[16px] font-semibold text-white">Desenvolvedor</h2>
+<!-- Selo de Estado Âmbar -->
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-[2px] bg-[#f59e0b]/10 border border-[#f59e0b]/30">
+<span class="w-1.5 h-1.5 rounded-full bg-state-waiting"></span>
+<span class="font-label-md text-[12px] font-medium text-state-waiting">Aguardando você</span>
+</div>
+<!-- Metadados Técnicos -->
+<span class="text-[13px] text-[#71717a]">Developer · Codex · OpenAI</span>
+<span class="px-1.5 py-0.5 rounded-[2px] bg-atlas-elevated border border-atlas-border font-mono-code text-[11px] text-[#a1a1aa]">
+                gpt-5-codex
+              </span>
+</div>
+<!-- Ações no cabeçalho -->
+<div class="flex items-center gap-1.5">
+<button class="px-2.5 py-1 rounded-[2px] bg-atlas-elevated hover:bg-atlas-border border border-atlas-border font-label-md text-[12px] text-white transition-colors">
+                Editar
+              </button>
+<button class="w-7 h-7 flex items-center justify-center rounded-[2px] text-[#71717a] hover:text-white hover:bg-atlas-elevated border border-transparent hover:border-atlas-border transition-colors">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center rounded-[2px] text-[#71717a] hover:text-white hover:bg-atlas-elevated border border-transparent hover:border-atlas-border transition-colors">
+<span class="material-symbols-outlined text-[18px]">expand_less</span>
+</button>
+</div>
+</div>
+<!-- Abas do Agente -->
+<div class="px-4 border-b border-atlas-border bg-atlas-base flex items-center gap-6">
+<button class="py-2.5 font-label-md text-[13px] text-[#71717a] hover:text-white transition-colors">
+              Chat
+            </button>
+<button class="py-2.5 font-label-md text-[13px] text-white font-medium border-b-2 border-accent-indigo flex items-center gap-1.5">
+<span>Atividade</span>
+<span class="w-1.5 h-1.5 rounded-full bg-state-waiting"></span>
+</button>
+<button class="py-2.5 font-label-md text-[13px] text-[#71717a] hover:text-white transition-colors">
+              Terminal
+            </button>
+<button class="py-2.5 font-label-md text-[13px] text-[#71717a] hover:text-white transition-colors">
+              Detalhes
+            </button>
+<button class="py-2.5 font-label-md text-[13px] text-[#71717a] hover:text-white transition-colors">
+              Execuções
+            </button>
+</div>
+<!-- Conteúdo da Aba Atividade -->
+<div class="p-5 flex flex-col gap-4 bg-atlas-card">
+<!-- Linha do Tempo Vertical Contínua -->
+<div class="relative pl-6 space-y-3.5 before:content-[''] before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-[1px] before:bg-atlas-border">
+<!-- Evento 1 -->
+<div class="relative flex items-center gap-3">
+<span class="absolute -left-6 top-1.5 w-3.5 h-3.5 rounded-full bg-atlas-card border border-[#52525b] flex items-center justify-center">
+<span class="w-1 h-1 rounded-full bg-[#a1a1aa]"></span>
+</span>
+<span class="font-mono-code text-[12px] text-[#71717a] w-16">14:40:02</span>
+<span class="font-body-md text-[13px] text-on-surface">Iniciando o runtime Codex</span>
+</div>
+<!-- Evento 2 -->
+<div class="relative flex items-center gap-3">
+<span class="absolute -left-6 top-1.5 w-3.5 h-3.5 rounded-full bg-atlas-card border border-[#52525b] flex items-center justify-center">
+<span class="w-1 h-1 rounded-full bg-[#a1a1aa]"></span>
+</span>
+<span class="font-mono-code text-[12px] text-[#71717a] w-16">14:40:04</span>
+<span class="font-body-md text-[13px] text-on-surface">Prompt enviado</span>
+</div>
+<!-- Evento 3 -->
+<div class="relative flex items-center gap-3">
+<span class="absolute -left-6 top-1.5 w-3.5 h-3.5 rounded-full bg-atlas-card border border-[#52525b] flex items-center justify-center">
+<span class="w-1 h-1 rounded-full bg-[#a1a1aa]"></span>
+</span>
+<span class="font-mono-code text-[12px] text-[#71717a] w-16">14:40:11</span>
+<span class="font-body-md text-[13px] text-on-surface">Lendo <code class="font-mono-code text-[12px] px-1.5 py-0.5 rounded-[2px] bg-atlas-elevated text-primary border border-atlas-border">src/auth/session.ts</code></span>
+</div>
+<!-- Evento 4 -->
+<div class="relative flex items-center gap-3">
+<span class="absolute -left-6 top-1.5 w-3.5 h-3.5 rounded-full bg-atlas-card border border-[#52525b] flex items-center justify-center">
+<span class="w-1 h-1 rounded-full bg-[#a1a1aa]"></span>
+</span>
+<span class="font-mono-code text-[12px] text-[#71717a] w-16">14:40:19</span>
+<span class="font-body-md text-[13px] text-on-surface">Lendo <code class="font-mono-code text-[12px] px-1.5 py-0.5 rounded-[2px] bg-atlas-elevated text-primary border border-atlas-border">src/auth/token.ts</code></span>
+</div>
+<!-- Evento 5 -->
+<div class="relative flex items-center gap-3">
+<span class="absolute -left-6 top-1.5 w-3.5 h-3.5 rounded-full bg-atlas-card border border-state-waiting flex items-center justify-center">
+<span class="w-1 h-1 rounded-full bg-state-waiting"></span>
+</span>
+<span class="font-mono-code text-[12px] text-state-waiting font-medium w-16">14:40:31</span>
+<span class="font-body-md text-[13px] text-white font-medium">Pedido de permissão</span>
+</div>
+</div>
+<!-- Bloco de Aviso Cor de Política (#ec4899) "Permissão necessária" -->
+<div class="mt-2 rounded-[3px] border border-state-policy/40 bg-[#ec4899]/[0.06] p-4 flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-state-policy shadow-[0_0_8px_rgba(236,72,153,0.6)]"></span>
+<span class="font-headline-sm text-[14px] font-semibold text-state-policy tracking-tight">Permissão necessária</span>
+</div>
+<span class="font-body-md text-[12px] text-[#a1a1aa]">
+                  Expira em <span class="font-mono-code text-white font-medium">4:12</span> se você não responder.
+                </span>
+</div>
+<!-- Comando Técnico Destacado -->
+<div class="flex items-center gap-2 text-[14px] text-white">
+<span class="text-[#a1a1aa]">Desenvolvedor quer executar:</span>
+<span class="px-2.5 py-1 rounded-[3px] bg-atlas-void border border-state-policy/30 font-mono-code text-[13px] text-white tracking-wide font-medium">
+                  npm test
+                </span>
+</div>
+<!-- Botões de Decisão -->
+<div class="flex items-center gap-2 pt-1">
+<button class="px-4 py-1.5 rounded-[3px] bg-accent-indigo hover:bg-[#4f46e5] font-label-md text-[13px] font-medium text-white transition-colors flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[15px]">check</span>
+<span>Aprovar</span>
+</button>
+<button class="px-4 py-1.5 rounded-[3px] bg-atlas-elevated hover:bg-atlas-border border border-atlas-border hover:border-state-error/40 font-label-md text-[13px] text-[#e1e2e8] hover:text-state-error transition-colors flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[15px]">close</span>
+<span>Rejeitar</span>
+</button>
+</div>
+</div>
+</div>
+</article>
+<!-- 2. CARTÃO "ARQUITETO" (RECOLHIDO) -->
+<article class="bg-atlas-card border border-atlas-border rounded-[3px] px-4 py-3 flex items-center justify-between hover:border-atlas-border-strong transition-colors cursor-pointer">
+<div class="flex items-center gap-3">
+<div class="w-6 h-6 rounded-[2px] bg-atlas-elevated border border-atlas-border flex items-center justify-center text-[#71717a]">
+<span class="material-symbols-outlined text-[15px]">architecture</span>
+</div>
+<h2 class="font-headline-sm text-[16px] font-semibold text-white">Arquiteto</h2>
+<!-- Selo Verde "Pronto" -->
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-[2px] bg-[#10b981]/10 border border-[#10b981]/30">
+<span class="w-1.5 h-1.5 rounded-full bg-state-ready"></span>
+<span class="font-label-md text-[12px] font-medium text-state-ready">Pronto</span>
+</div>
+<!-- Metadados Técnicos -->
+<span class="text-[13px] text-[#71717a]">Architect · Claude CLI</span>
+<span class="px-1.5 py-0.5 rounded-[2px] bg-atlas-elevated border border-atlas-border font-mono-code text-[11px] text-[#a1a1aa]">
+              sonnet
+            </span>
+</div>
+<!-- Chevron Recolhido (apontando para baixo) -->
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#71717a] text-[18px]">expand_more</span>
+</div>
+</article>
+<!-- 3. CARTÃO "QA" (RECOLHIDO) -->
+<article class="bg-atlas-card border border-atlas-border rounded-[3px] px-4 py-3 flex items-center justify-between hover:border-atlas-border-strong transition-colors cursor-pointer">
+<div class="flex items-center gap-3">
+<div class="w-6 h-6 rounded-[2px] bg-atlas-elevated border border-atlas-border flex items-center justify-center text-[#71717a]">
+<span class="material-symbols-outlined text-[15px]">verified</span>
+</div>
+<h2 class="font-headline-sm text-[16px] font-semibold text-white">QA</h2>
+<!-- Selo Verde "Pronto" -->
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-[2px] bg-[#10b981]/10 border border-[#10b981]/30">
+<span class="w-1.5 h-1.5 rounded-full bg-state-ready"></span>
+<span class="font-label-md text-[12px] font-medium text-state-ready">Pronto</span>
+</div>
+<!-- Metadados Técnicos -->
+<span class="text-[13px] text-[#71717a]">QA · OpenCode</span>
+<span class="px-1.5 py-0.5 rounded-[2px] bg-atlas-elevated border border-atlas-border font-mono-code text-[11px] text-[#a1a1aa]">
+              opencode/qwen3-coder
+            </span>
+</div>
+<!-- Chevron Recolhido (apontando para baixo) -->
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#71717a] text-[18px]">expand_more</span>
+</div>
+</article>
+</section>
+</main>
+</div>
+</body></html>

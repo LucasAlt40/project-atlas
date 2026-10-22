@@ -258,6 +258,7 @@ impl AppState {
         ));
         let (settings_for_presence, workspaces_for_presence, workflows_for_presence) =
             (settings.clone(), workspaces.clone(), workflows.clone());
+        let specs_for_presence = specs.clone();
         Self {
             app_info,
             personalities,
@@ -303,6 +304,7 @@ impl AppState {
                     settings: settings_for_presence,
                     workspaces: workspaces_for_presence,
                     workflows: workflows_for_presence,
+                    specs: specs_for_presence,
                 }),
                 Arc::new(crate::application::presence::NullTransport),
             )),

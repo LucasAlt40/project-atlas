@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useDismiss } from '@/hooks/useDismiss';
+import { useRef, useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
@@ -28,16 +29,9 @@ export function WorkspaceSwitcher({ pickFolder }: Props) {
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const root = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return undefined;
-    function onPointerDown(event: MouseEvent) {
-      if (root.current && !root.current.contains(event.target as Node)) setOpen(false);
-    }
-    document.addEventListener('mousedown', onPointerDown);
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-    };
-  }, [open]);
+  useDismiss(open, root, () => {
+    setOpen(false);
+  });
 
   const closeDialog = () => {
     setDialog(null);
@@ -56,14 +50,16 @@ export function WorkspaceSwitcher({ pickFolder }: Props) {
         }}
       >
         <span className={styles.switcherText}>
-          <span className={styles.switcherLabel} aria-hidden="true">
-            {t('workspace.switcher.label')}
-          </span>
           <span className={styles.switcherName}>
             {active?.name ?? t('workspace.switcher.none')}
           </span>
+          {active && (
+            <span className={styles.switcherPath} title={active.projectPath}>
+              {active.projectPath}
+            </span>
+          )}
         </span>
-        <Icon name="chevronDown" size={14} />
+        <Icon name="unfold" size={16} />
       </button>
 
       {open && (
@@ -86,9 +82,6 @@ export function WorkspaceSwitcher({ pickFolder }: Props) {
                   void select(workspace.id);
                 }}
               >
-                <span className={styles.menuTile} aria-hidden="true">
-                  <Icon name="stack" size={16} />
-                </span>
                 <span className={styles.menuText}>
                   <span className={styles.menuLine}>
                     <strong className={styles.menuName}>{workspace.name}</strong>

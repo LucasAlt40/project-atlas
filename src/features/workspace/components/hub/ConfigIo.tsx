@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { Tabs } from '@/components/ui/Tabs';
 import { Icon } from '@/components/ui/Icon';
 import type { TranslationKey } from '@/i18n';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -104,22 +105,15 @@ export function ConfigIo({ workspaceId, connections, selectedId, onChanged }: Pr
   const [tab, setTab] = useState<Tab>('import');
   return (
     <div className={styles.stack}>
-      <div className={styles.tabsBar} role="tablist" aria-label={t('hub.config.title')}>
-        {(['import', 'export'] as const).map((name) => (
-          <button
-            key={name}
-            type="button"
-            role="tab"
-            aria-selected={tab === name}
-            className={styles.tab}
-            onClick={() => {
-              setTab(name);
-            }}
-          >
-            {t(`hub.config.${name}`)}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        label={t('hub.config.title')}
+        active={tab}
+        onChange={setTab}
+        items={(['import', 'export'] as const).map((name) => ({
+          id: name,
+          label: t(`hub.config.${name}`),
+        }))}
+      />
       {tab === 'import' ? (
         <ImportTab workspaceId={workspaceId} onChanged={onChanged} />
       ) : (

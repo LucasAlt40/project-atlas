@@ -112,7 +112,7 @@ describe('WorkspaceSwitcher', () => {
 
     await user.click(await screen.findByRole('button', { name: /^Workspace:/ }));
     await user.click(screen.getByRole('button', { name: 'New Workspace' }));
-    const dialog = screen.getByRole('dialog', { name: 'Create Workspace' });
+    const dialog = screen.getByRole('dialog', { name: 'Create workspace' });
     expect(within(dialog).getByText('No folder selected')).toBeVisible();
     await user.click(within(dialog).getByRole('button', { name: 'Select folder' }));
     await user.type(within(dialog).getByLabelText('Description'), 'ERP system');
@@ -143,14 +143,14 @@ describe('WorkspaceSwitcher', () => {
 
     await user.click(await screen.findByRole('button', { name: /^Workspace:/ }));
     await user.click(screen.getByRole('button', { name: 'New Workspace' }));
-    const dialog = screen.getByRole('dialog', { name: 'Create Workspace' });
+    const dialog = screen.getByRole('dialog', { name: 'Create workspace' });
     await user.click(within(dialog).getByRole('button', { name: 'Select folder' }));
     await user.click(within(dialog).getByRole('button', { name: 'Create' }));
 
     expect(await within(dialog).findByRole('alert')).toHaveTextContent(
       'The folder “/nowhere” does not exist.',
     );
-    expect(screen.getByRole('dialog', { name: 'Create Workspace' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Create workspace' })).toBeInTheDocument();
   });
 
   it('keeps the form open and unchanged when the folder picker is cancelled', async () => {
@@ -159,7 +159,7 @@ describe('WorkspaceSwitcher', () => {
 
     await user.click(await screen.findByRole('button', { name: /^Workspace:/ }));
     await user.click(screen.getByRole('button', { name: 'New Workspace' }));
-    const dialog = screen.getByRole('dialog', { name: 'Create Workspace' });
+    const dialog = screen.getByRole('dialog', { name: 'Create workspace' });
     await user.click(within(dialog).getByRole('button', { name: 'Select folder' }));
 
     expect(within(dialog).getByText('No folder selected')).toBeVisible();
@@ -181,7 +181,7 @@ describe('WorkspaceSwitcher', () => {
 
     await user.click(await screen.findByRole('button', { name: /^Workspace:/ }));
     await user.click(screen.getByRole('button', { name: 'New Workspace' }));
-    const dialog = screen.getByRole('dialog', { name: 'Create Workspace' });
+    const dialog = screen.getByRole('dialog', { name: 'Create workspace' });
     await user.click(within(dialog).getByRole('button', { name: 'Select folder' }));
     await user.click(within(dialog).getByRole('button', { name: 'Add another folder' }));
     // The same folder twice is one folder.

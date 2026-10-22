@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { TranslationKey } from '@/i18n';
@@ -6,6 +8,9 @@ import { clock } from '../model/time';
 import type { RecoveryPlan, WorkflowRun } from '../types';
 import { FileRow, FindingCard } from './HandoffView';
 import styles from './Workflow.module.css';
+
+const isWorking = (status: string | undefined) =>
+  status === 'running' || status === 'waiting_approval' || status === 'waiting_for_input';
 
 const names = (run: WorkflowRun, ids: readonly string[]) =>
   ids.map((id) => nodeLabel(run, id)).join(', ');
@@ -22,10 +27,16 @@ export function VerdictList({ run }: { run: WorkflowRun }) {
   const shown = [...latest.values()].filter(
     (entry) => entry.outcome !== null || entry.findings.length > 0,
   );
+  // Only the current step starts open: the one running now, or else the last one that concluded.
+  // What the person opened or closed by hand wins over that.
+  const [toggled, setToggled] = useState<Record<string, boolean>>({});
   if (shown.length === 0) return null;
+  const working = shown.find((entry) => isWorking(run.nodes[entry.nodeId]?.status));
+  const current = (working ?? shown.at(-1))?.nodeId;
   return (
     <>
       {shown.map((entry) => {
+        const open = toggled[entry.nodeId] ?? entry.nodeId === current;
         const outcome = (entry.outcome ?? entry.status).toUpperCase();
         const unrouted =
           run.failure?.code === 'no_route_matched' && run.failure.nodeId === entry.nodeId;
@@ -43,7 +54,15 @@ export function VerdictList({ run }: { run: WorkflowRun }) {
         const delivered = artifacts.length + files.length;
         return (
           <section key={entry.nodeId} className={styles.result} aria-label={t('workflow.verdict')}>
-            <header className={styles.resultHead}>
+            <button
+              type="button"
+              className={styles.resultToggle}
+              aria-expanded={open}
+              aria-label={`${nodeLabel(run, entry.nodeId)} · ${t('workflow.verdict.outcome', { outcome })}`}
+              onClick={() => {
+                setToggled((current) => ({ ...current, [entry.nodeId]: !open }));
+              }}
+            >
               <span className={styles.chip} data-tone="finished">
                 {t('workflow.result.finished')}
               </span>
@@ -53,82 +72,90 @@ export function VerdictList({ run }: { run: WorkflowRun }) {
                   <Icon name="check" size={18} />
                 </span>
               )}
-            </header>
-            <h4 className={styles.resultTitle}>
+              <Icon name={open ? 'chevronUp' : 'chevronDown'} size={16} />
+            </button>
+            <h4
+              className={styles.resultTitle}
+              onClick={() => {
+                setToggled((current) => ({ ...current, [entry.nodeId]: !open }));
+              }}
+            >
               {nodeLabel(run, entry.nodeId)} · {t('workflow.verdict.outcome', { outcome })}
             </h4>
-            {entry.summary && (
-              <>
-                <h5 className={styles.cardLabel}>{t('workflow.result.summary')}</h5>
-                <p className={styles.cardBlock}>{entry.summary}</p>
-              </>
-            )}
-            {decisions.length > 0 && (
-              <>
-                <h5 className={styles.cardLabel}>{t('workflow.result.decisions')}</h5>
-                {decisions.map((d) => (
-                  <div key={d.id} className={styles.decisionRow} title={d.rationale}>
-                    <Icon name="branch" size={14} />
-                    <span>
-                      <strong>{d.title ? `${d.title}: ` : ''}</strong>
-                      {d.decision}
-                    </span>
-                  </div>
-                ))}
-              </>
-            )}
-            {delivered > 0 && (
-              <>
-                <h5 className={styles.cardLabel}>
-                  <span>{t('workflow.result.artifacts', { n: delivered })}</span>
-                  {files.length > 0 && (
-                    <span className={styles.cardLabelMeta}>
-                      <span data-sign="add">+{String(added)}</span>{' '}
-                      <span data-sign="del">−{String(removed)}</span> {t('workflow.result.lines')}
-                    </span>
-                  )}
-                </h5>
-                <ul className={styles.rowList}>
-                  {artifacts.map((a) => (
-                    <li key={a.id} className={styles.fileRow} title={a.summary}>
-                      <Icon name="stack" size={14} />
-                      <span className={styles.fileRowText}>
-                        <span className={styles.fileRowName}>{a.name}</span>
-                        {a.path && <span className={styles.fileRowFolder}>{a.path}</span>}
+            <div className={styles.resultBody} hidden={!open}>
+              {entry.summary && (
+                <>
+                  <h5 className={styles.cardLabel}>{t('workflow.result.summary')}</h5>
+                  <p className={styles.cardBlock}>{entry.summary}</p>
+                </>
+              )}
+              {decisions.length > 0 && (
+                <>
+                  <h5 className={styles.cardLabel}>{t('workflow.result.decisions')}</h5>
+                  {decisions.map((d) => (
+                    <div key={d.id} className={styles.decisionRow} title={d.rationale}>
+                      <Icon name="branch" size={14} />
+                      <span>
+                        <strong>{d.title ? `${d.title}: ` : ''}</strong>
+                        {d.decision}
                       </span>
-                    </li>
+                    </div>
                   ))}
-                  {files.map((file) => (
-                    <FileRow key={file.path} file={file} />
-                  ))}
-                </ul>
-              </>
-            )}
-            {entry.findings.length > 0 && (
-              <>
-                <h5 className={styles.cardLabel}>
-                  <span>{t('workflow.result.findings')}</span>
-                </h5>
-                <p className={styles.muted}>
-                  {t('workflow.verdict.findings', { n: entry.findings.length })}
-                </p>
-                <ul className={styles.rowList}>
-                  {entry.findings.map((finding, index) => (
-                    <FindingCard key={`${finding.title}-${String(index)}`} finding={finding} />
-                  ))}
-                </ul>
-              </>
-            )}
-            {unrouted ? (
-              <p className={styles.cardBlock}>{t('workflow.verdict.noRoute')}</p>
-            ) : (
-              next && (
-                <p className={styles.nextStep}>
-                  <Icon name="chevronRight" size={14} />
-                  {t('workflow.verdict.next', { node: nodeLabel(run, next) })}
-                </p>
-              )
-            )}
+                </>
+              )}
+              {delivered > 0 && (
+                <>
+                  <h5 className={styles.cardLabel}>
+                    <span>{t('workflow.result.artifacts', { n: delivered })}</span>
+                    {files.length > 0 && (
+                      <span className={styles.cardLabelMeta}>
+                        <span data-sign="add">+{String(added)}</span>{' '}
+                        <span data-sign="del">−{String(removed)}</span> {t('workflow.result.lines')}
+                      </span>
+                    )}
+                  </h5>
+                  <ul className={styles.rowList}>
+                    {artifacts.map((a) => (
+                      <li key={a.id} className={styles.fileRow} title={a.summary}>
+                        <Icon name="stack" size={14} />
+                        <span className={styles.fileRowText}>
+                          <span className={styles.fileRowName}>{a.name}</span>
+                          {a.path && <span className={styles.fileRowFolder}>{a.path}</span>}
+                        </span>
+                      </li>
+                    ))}
+                    {files.map((file) => (
+                      <FileRow key={file.path} file={file} />
+                    ))}
+                  </ul>
+                </>
+              )}
+              {entry.findings.length > 0 && (
+                <>
+                  <h5 className={styles.cardLabel}>
+                    <span>{t('workflow.result.findings')}</span>
+                  </h5>
+                  <p className={styles.muted}>
+                    {t('workflow.verdict.findings', { n: entry.findings.length })}
+                  </p>
+                  <ul className={styles.rowList}>
+                    {entry.findings.map((finding, index) => (
+                      <FindingCard key={`${finding.title}-${String(index)}`} finding={finding} />
+                    ))}
+                  </ul>
+                </>
+              )}
+              {unrouted ? (
+                <p className={styles.cardBlock}>{t('workflow.verdict.noRoute')}</p>
+              ) : (
+                next && (
+                  <p className={styles.nextStep}>
+                    <Icon name="chevronRight" size={14} />
+                    {t('workflow.verdict.next', { node: nodeLabel(run, next) })}
+                  </p>
+                )
+              )}
+            </div>
           </section>
         );
       })}
@@ -158,29 +185,31 @@ export function RecoveryPanel({
     );
   }
   return (
-    <div className={styles.ok} role="status">
-      <strong>{t('workflow.recovery.title')}</strong>
-      {plan.lastCompletedNodeId && (
-        <p>
-          {t('workflow.recovery.lastCompleted', { node: nodeLabel(run, plan.lastCompletedNodeId) })}
-        </p>
-      )}
-      {plan.failureNodeId && (
-        <p>{t('workflow.recovery.stoppedAt', { node: nodeLabel(run, plan.failureNodeId) })}</p>
-      )}
-      <p>
-        {t(`workflow.recovery.${plan.kind}` as TranslationKey, {
-          nodes: names(run, plan.restartNodeIds),
-        })}
-      </p>
-      {plan.reusedNodeIds.length > 0 && (
-        <p className={styles.muted}>
-          {t('workflow.recovery.kept', { nodes: names(run, plan.reusedNodeIds) })}
-        </p>
-      )}
-      <button type="button" className={styles.link} disabled={busy} onClick={onResume}>
+    <section className={styles.recovery} role="status" aria-label={t('workflow.recovery.title')}>
+      <h4 className={styles.recoveryTitle}>{t('workflow.recovery.title')}</h4>
+      <ul className={styles.recoveryFacts}>
+        {plan.lastCompletedNodeId && (
+          <li>
+            {t('workflow.recovery.lastCompleted', {
+              node: nodeLabel(run, plan.lastCompletedNodeId),
+            })}
+          </li>
+        )}
+        {plan.failureNodeId && (
+          <li>{t('workflow.recovery.stoppedAt', { node: nodeLabel(run, plan.failureNodeId) })}</li>
+        )}
+        <li>
+          {t(`workflow.recovery.${plan.kind}` as TranslationKey, {
+            nodes: names(run, plan.restartNodeIds),
+          })}
+        </li>
+        {plan.reusedNodeIds.length > 0 && (
+          <li>{t('workflow.recovery.kept', { nodes: names(run, plan.reusedNodeIds) })}</li>
+        )}
+      </ul>
+      <Button disabled={busy} onClick={onResume}>
         {t('workflow.recovery.button')}
-      </button>
-    </div>
+      </Button>
+    </section>
   );
 }

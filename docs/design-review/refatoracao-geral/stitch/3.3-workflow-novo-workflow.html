@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas — Novo workflow</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Fonts: Geist & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "tertiary-fixed": "#ffd9e4",
+            "secondary-fixed": "#d4e3ff",
+            "secondary-container": "#0267b8",
+            "primary-container": "#8083ff",
+            "secondary-fixed-dim": "#a4c9ff",
+            "on-error-container": "#ffdad6",
+            "inverse-surface": "#e1e2e8",
+            "surface-dim": "#111418",
+            "on-tertiary": "#640039",
+            "error-container": "#93000a",
+            "tertiary": "#ffb0cd",
+            "on-secondary-fixed-variant": "#004883",
+            "error": "#ffb4ab",
+            "on-secondary-container": "#d6e5ff",
+            "surface-container-low": "#101317",
+            "inverse-on-surface": "#2e3135",
+            "surface-container": "#15191e",
+            "primary": "#6366f1",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-secondary-fixed": "#001c39",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "background": "#0b0d10",
+            "surface-container-lowest": "#0b0d10",
+            "on-tertiary-fixed": "#3e0022",
+            "surface": "#101317",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "on-primary-fixed": "#07006c",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "primary-fixed": "#e1e0ff",
+            "secondary": "#a4c9ff",
+            "inverse-primary": "#494bd6",
+            "surface-container-highest": "#1c2128",
+            "on-primary": "#ffffff",
+            "tertiary-container": "#f751a1",
+            "outline-variant": "#242c37",
+            "surface-bright": "#242c37",
+            "on-tertiary-container": "#570032",
+            "on-surface": "#e1e2e8",
+            "on-secondary": "#00315d",
+            "surface-tint": "#6366f1",
+            "on-primary-container": "#0d0096",
+            "surface-container-high": "#191c20",
+            "on-background": "#e1e2e8",
+            "outline": "#464554",
+            "on-surface-variant": "#94a3b8",
+            "on-error": "#690005",
+            "surface-variant": "#1c2128"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "gutter-compact": "0.25rem",
+            "margin-window": "0.5rem",
+            "gutter": "0.5rem",
+            "space-sm": "0.5rem",
+            "space-md": "0.75rem",
+            "space-xs": "0.25rem",
+            "gutter-expanded": "1rem",
+            "space-2xs": "0.125rem",
+            "space-2xl": "2rem",
+            "space-xl": "1.5rem",
+            "space-lg": "1rem",
+            "margin": "0.75rem"
+          },
+          "fontFamily": {
+            "code-sm": ["JetBrains Mono"],
+            "code-md": ["JetBrains Mono"],
+            "label-sm": ["Geist"],
+            "label-md": ["Geist"],
+            "body-md": ["Geist"],
+            "headline-lg": ["Geist"],
+            "code-lg": ["JetBrains Mono"],
+            "headline-md": ["Geist"],
+            "headline-xl": ["Geist"],
+            "body-lg": ["Geist"],
+            "body-sm": ["Geist"],
+            "headline-sm": ["Geist"],
+            "telemetry-pill": ["JetBrains Mono"]
+          },
+          "fontSize": {
+            "code-sm": ["0.6875rem", { "lineHeight": "1rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "code-md": ["0.8125rem", { "lineHeight": "1.25rem", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+            "label-sm": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.04em", "fontWeight": "600" }],
+            "label-md": ["0.8125rem", { "lineHeight": "1rem", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "body-md": ["0.875rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-lg": ["1.5rem", { "lineHeight": "2rem", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "code-lg": ["0.875rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "headline-md": ["1.25rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.015em", "fontWeight": "500" }],
+            "headline-xl": ["2rem", { "lineHeight": "2.5rem", "letterSpacing": "-0.025em", "fontWeight": "600" }],
+            "body-lg": ["1rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "body-sm": ["0.75rem", { "lineHeight": "1.125rem", "letterSpacing": "0.005em", "fontWeight": "400" }],
+            "headline-sm": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "telemetry-pill": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.02em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    body {
+      background-color: #0b0d10;
+      color: #e1e2e8;
+      font-family: 'Geist', sans-serif;
+      overflow: hidden;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+    }
+    /* Subtle custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0d10;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #242c37;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3b4554;
+    }
+  </style>
+</head>
+<body class="h-screen w-screen flex antialiased select-none">
+<!-- ========================================================================= -->
+<!-- LEFT SIDEBAR: Shared Component "SideNavBar" execution                     -->
+<!-- ========================================================================= -->
+<aside class="docked fixed top-0 left-0 h-screen w-[216px] z-30 bg-surface-container-low border-r border-[#1c2128] flex flex-col justify-between p-space-sm">
+<div class="flex flex-col gap-3">
+<!-- Top Brand Icon & Title -->
+<div class="flex items-center gap-2 px-1 pt-1">
+<div class="w-5 h-5 rounded-[4px] bg-[#6366f1] flex items-center justify-center text-white font-semibold text-[11px] leading-none shrink-0 shadow-sm">
+          A
+        </div>
+<span class="font-headline-sm text-[14px] font-medium text-white tracking-tight">Atlas</span>
+</div>
+<!-- Workspace Selector -->
+<div class="flex items-center justify-between px-2 py-1.5 rounded bg-[#15191e] border border-[#1c2128] hover:border-[#2d3748] cursor-pointer transition-colors">
+<div class="flex flex-col overflow-hidden text-left">
+<span class="text-[13px] font-medium text-white truncate leading-tight">Transport ERP</span>
+<span class="font-code-sm text-[11px] text-[#94a3b8] truncate font-mono">/Users/lucas/dev/transport-erp</span>
+</div>
+<span class="material-symbols-outlined text-[#94a3b8] text-[14px] shrink-0 ml-1">expand_more</span>
+</div>
+<!-- Navigation Tabs (Exact 7 items from JSON) -->
+<nav aria-label="Navegação Principal" class="flex flex-col gap-0.5 mt-1">
+<!-- 1. Workspace -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="folder_open">folder_open</span>
+<span>Workspace</span>
+</a>
+<!-- 2. Workflow (ACTIVE) -->
+<a aria-current="page" class="flex items-center gap-space-sm px-space-md py-space-xs rounded bg-[#1c2128] text-[#818cf8] font-label-md text-label-md border border-[#2d3748] transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+<span class="font-medium text-white">Workflow</span>
+</a>
+<!-- 3. Agentes -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="smart_toy">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- 4. Personalidades -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- 5. Specs -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span>Specs</span>
+</a>
+<!-- 6. MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="hub">hub</span>
+<span>MCP Hub</span>
+</a>
+<!-- 7. Configurações -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span>Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Sidebar Footer (Exact spec constraints) -->
+<div class="pt-3 border-t border-[#1c2128] px-2 flex flex-col gap-0.5">
+<div class="text-[12px] font-medium text-[#94a3b8] leading-tight">Project Atlas</div>
+<div class="font-code-sm text-[11px] text-[#64748b]">v0.2.0 · macOS</div>
+</div>
+</aside>
+<!-- ========================================================================= -->
+<!-- MAIN SHELL: TopBar + Central Workspace Canvas                             -->
+<!-- ========================================================================= -->
+<div class="ml-[216px] w-[calc(100vw-216px)] h-screen flex flex-col bg-[#0b0d10] overflow-hidden">
+<!-- TopNavBar (Fixed 48px height) -->
+<header class="h-12 w-full bg-[#0b0d10] border-b border-[#1c2128] px-4 flex items-center justify-between z-20 shrink-0">
+<!-- Left: Collapse icon & Breadcrumbs -->
+<div class="flex items-center gap-3">
+<button class="p-1 rounded text-[#94a3b8] hover:text-white hover:bg-[#15191e] transition-colors duration-150" title="Recolher barra lateral">
+<span class="material-symbols-outlined text-[18px]">view_sidebar</span>
+</button>
+<div class="h-3.5 w-[1px] bg-[#242c37]"></div>
+<nav aria-label="Breadcrumb" class="flex items-center gap-1.5 font-label-md text-[13px] text-[#94a3b8]">
+<span class="hover:text-on-surface transition-colors cursor-pointer">Transport ERP</span>
+<span class="text-[#464554] text-[11px]">/</span>
+<span class="hover:text-on-surface transition-colors cursor-pointer">Workflow</span>
+<span class="text-[#464554] text-[11px]">/</span>
+<span class="text-white font-medium">Novo</span>
+</nav>
+</div>
+<!-- Right: Celular action & PT | EN toggle -->
+<div class="flex items-center gap-3">
+<!-- Button Celular -->
+<button class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#15191e] border border-[#1c2128] text-white hover:border-[#2d3748] hover:bg-[#1c2128] text-[12px] font-medium transition-colors">
+<span class="material-symbols-outlined text-[14px] text-[#94a3b8]">smartphone</span>
+<span>Celular</span>
+</button>
+<div class="h-3.5 w-[1px] bg-[#242c37]"></div>
+<!-- Language toggle -->
+<div class="flex items-center gap-1 text-[12px] font-mono">
+<span class="text-[#818cf8] font-semibold cursor-pointer">PT</span>
+<span class="text-[#464554]">|</span>
+<span class="text-[#94a3b8] hover:text-white cursor-pointer transition-colors">EN</span>
+</div>
+</div>
+</header>
+<!-- Scrollable Workspace Body -->
+<main class="flex-1 overflow-y-auto px-8 py-6 pb-20">
+<div class="max-w-[1180px] mx-auto flex flex-col gap-6">
+<!-- Header: Back link, Title, Dropdown -->
+<div class="flex items-center justify-between">
+<div class="flex flex-col gap-1">
+<a class="inline-flex items-center gap-1 text-[13px] text-[#94a3b8] hover:text-white transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[14px]">arrow_back</span>
+<span>Workflow</span>
+</a>
+<h1 class="font-headline-md text-[20px] font-semibold text-white tracking-tight">Novo workflow</h1>
+</div>
+<!-- Actions -->
+<div class="relative">
+<button class="w-8 h-8 rounded border border-[#1c2128] bg-[#15191e] hover:bg-[#1c2128] text-[#94a3b8] hover:text-white flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- Horizontal Stepper -->
+<div class="border-b border-[#1c2128] pb-4">
+<div class="flex items-center gap-6 text-[13px]">
+<!-- Step 1: Concluído -->
+<div class="flex items-center gap-2 text-[#94a3b8]">
+<div class="w-5 h-5 rounded bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)] flex items-center justify-center text-[#10b981] font-mono text-[11px]">
+                ✓
+              </div>
+<span class="text-[#e2e8f0]">1 Tarefa</span>
+</div>
+<div class="w-8 h-[1px] bg-[#242c37]"></div>
+<!-- Step 2: Ativo -->
+<div class="flex items-center gap-2">
+<div class="w-5 h-5 rounded bg-[#6366f1] flex items-center justify-center text-white font-mono text-[11px] font-semibold">
+                2
+              </div>
+<span class="text-white font-medium">2 Modelo</span>
+</div>
+<div class="w-8 h-[1px] bg-[#242c37]"></div>
+<!-- Step 3: Pendente -->
+<div class="flex items-center gap-2 text-[#64748b]">
+<div class="w-5 h-5 rounded bg-[#15191e] border border-[#242c37] flex items-center justify-center text-[#64748b] font-mono text-[11px]">
+                3
+              </div>
+<span>3 Nome</span>
+</div>
+</div>
+</div>
+<!-- Resumo do Passo 1 -->
+<div class="bg-[#15191e] border border-[#1c2128] rounded-md px-4 py-2.5 flex items-center justify-between text-[13px]">
+<div class="flex items-center gap-2 truncate">
+<span class="text-[#94a3b8]">Tarefa:</span>
+<span class="text-white font-medium truncate">Implementar recuperação de senha por e-mail</span>
+<span class="text-[#464554]">·</span>
+<span class="text-[#94a3b8]">Vibe coding</span>
+<span class="text-[#464554]">·</span>
+<span class="text-[#94a3b8]">Automático</span>
+</div>
+<button class="text-[#818cf8] hover:text-[#c0c1ff] font-medium text-[13px] ml-4 shrink-0 transition-colors">
+            Alterar
+          </button>
+</div>
+<!-- Faixa de Sugestão -->
+<div class="flex items-center gap-2 px-3 py-2 rounded bg-[rgba(99,102,241,0.08)] border border-[rgba(99,102,241,0.25)] text-[13px] text-[#e1e2e8]">
+<span class="material-symbols-outlined text-[#818cf8] text-[16px]">lightbulb</span>
+<span>Sugerido para a sua tarefa: <strong class="text-white font-semibold">Implementar</strong></span>
+</div>
+<!-- Master-Detail Split Grid (38% Left / 62% Right) -->
+<div class="grid grid-cols-12 gap-5 items-start">
+<!-- Left Column (38% ~ 5 of 12 cols in grid) -->
+<div class="col-span-12 lg:col-span-5 flex flex-col gap-2.5">
+<!-- Card 1: SELECTED / Active -->
+<div class="p-4 rounded-lg bg-[#191c20] border border-[#6366f1] cursor-pointer transition-all flex flex-col gap-2 relative">
+<div class="flex items-center justify-between">
+<span class="text-[14px] font-semibold text-white">Implementar</span>
+<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-[rgba(99,102,241,0.18)] border border-[rgba(99,102,241,0.35)] text-[#a4c9ff]">
+                  Recomendado
+                </span>
+</div>
+<p class="text-[12px] text-[#94a3b8] leading-relaxed">
+                Criação de novos recursos e fluxos com ciclo completo de arquitetura, código e validação.
+              </p>
+<div class="font-code-sm text-[11px] text-[#64748b] pt-1 border-t border-[#242c37]">
+                4 etapas · 2 ferramentas sugeridas
+              </div>
+</div>
+<!-- Card 2: Mudança rápida -->
+<div class="p-4 rounded-lg bg-[#101317] border border-[#1c2128] hover:border-[#2d3748] hover:bg-[#15191e] cursor-pointer transition-all flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<span class="text-[14px] font-medium text-white">Mudança rápida</span>
+</div>
+<p class="text-[12px] text-[#94a3b8] leading-relaxed">
+                Ajustes pontuais de lógica ou interface direto entre dev e validação rápida.
+              </p>
+<div class="font-code-sm text-[11px] text-[#64748b] pt-1 border-t border-[#1c2128]">
+                2 etapas · 0 ferramentas sugeridas
+              </div>
+</div>
+<!-- Card 3: Depurar e corrigir -->
+<div class="p-4 rounded-lg bg-[#101317] border border-[#1c2128] hover:border-[#2d3748] hover:bg-[#15191e] cursor-pointer transition-all flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<span class="text-[14px] font-medium text-white">Depurar e corrigir</span>
+</div>
+<p class="text-[12px] text-[#94a3b8] leading-relaxed">
+                Investigação com reprodução de erros, correção de bugs e testes de regressão.
+              </p>
+<div class="font-code-sm text-[11px] text-[#64748b] pt-1 border-t border-[#1c2128]">
+                3 etapas · 1 ferramenta sugerida
+              </div>
+</div>
+<!-- Card 4: Revisar e auditar -->
+<div class="p-4 rounded-lg bg-[#101317] border border-[#1c2128] hover:border-[#2d3748] hover:bg-[#15191e] cursor-pointer transition-all flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<span class="text-[14px] font-medium text-white">Revisar e auditar</span>
+</div>
+<p class="text-[12px] text-[#94a3b8] leading-relaxed">
+                Inspeção estática, análise de vulnerabilidades e conformidade de arquitetura.
+              </p>
+<div class="font-code-sm text-[11px] text-[#64748b] pt-1 border-t border-[#1c2128]">
+                2 etapas · 1 ferramenta sugerida · Somente leitura
+              </div>
+</div>
+</div>
+<!-- Right Column Preview (62% ~ 7 of 12 cols in grid) -->
+<div class="col-span-12 lg:col-span-7 bg-[#15191e] border border-[#1c2128] rounded-lg p-5 flex flex-col gap-6">
+<!-- Title & Short Description -->
+<div class="flex flex-col gap-1.5 border-b border-[#242c37] pb-4">
+<div class="flex items-center justify-between">
+<h2 class="text-[17px] font-semibold text-white tracking-tight">Implementar</h2>
+<span class="text-[11px] font-mono text-[#64748b]">TEMPLATE ID: standard-impl</span>
+</div>
+<p class="text-[13px] text-[#94a3b8] leading-relaxed">
+                Fluxo padrão para implementar novas funcionalidades do início ao fim com isolamento e qualidade garantida.
+              </p>
+</div>
+<!-- Section: Etapas -->
+<div class="flex flex-col gap-3">
+<span class="font-label-sm text-[11px] uppercase tracking-wider text-[#94a3b8] font-mono">Etapas do Workflow</span>
+<div class="flex flex-col gap-2">
+<!-- Step 1 Card -->
+<div class="p-3 rounded bg-[#101317] border border-[#1c2128] flex items-start gap-3">
+<div class="w-6 h-6 rounded bg-[#1c2128] text-white flex items-center justify-center font-mono text-[12px] shrink-0 font-medium">
+                    1
+                  </div>
+<div class="flex flex-col text-[13px] leading-tight">
+<div>
+<strong class="text-white font-medium">Arquiteto</strong>
+<span class="text-[#94a3b8]"> — planeja a solução e define as fronteiras e contratos.</span>
+</div>
+</div>
+</div>
+<!-- Step 2 Card -->
+<div class="p-3 rounded bg-[#101317] border border-[#1c2128] flex items-start gap-3">
+<div class="w-6 h-6 rounded bg-[#1c2128] text-white flex items-center justify-center font-mono text-[12px] shrink-0 font-medium">
+                    2
+                  </div>
+<div class="flex flex-col gap-1 text-[13px]">
+<div>
+<strong class="text-white font-medium">Desenvolvedor</strong>
+<span class="text-[#94a3b8]"> — implementa o código e os testes unitários</span>
+</div>
+<span class="font-code-sm text-[11px] text-[#64748b] bg-[#15191e] px-2 py-0.5 rounded self-start border border-[#242c37]">
+                      feito quando: os testes passam
+                    </span>
+</div>
+</div>
+<!-- Step 3 Card -->
+<div class="p-3 rounded bg-[#101317] border border-[#1c2128] flex items-start gap-3">
+<div class="w-6 h-6 rounded bg-[#1c2128] text-white flex items-center justify-center font-mono text-[12px] shrink-0 font-medium">
+                    3
+                  </div>
+<div class="flex flex-col gap-1 text-[13px]">
+<div>
+<strong class="text-white font-medium">QA</strong>
+<span class="text-[#94a3b8]"> — valida os cenários de ponta a ponta</span>
+</div>
+<span class="font-code-sm text-[11px] text-[#64748b] bg-[#15191e] px-2 py-0.5 rounded self-start border border-[#242c37]">
+                      loop até 3 vezes com o Desenvolvedor
+                    </span>
+</div>
+</div>
+<!-- Step 4 Card -->
+<div class="p-3 rounded bg-[#101317] border border-[#1c2128] flex items-start gap-3">
+<div class="w-6 h-6 rounded bg-[#1c2128] text-white flex items-center justify-center font-mono text-[12px] shrink-0 font-medium">
+                    4
+                  </div>
+<div class="flex flex-col text-[13px] leading-tight">
+<div>
+<strong class="text-white font-medium">Revisor</strong>
+<span class="text-[#94a3b8]"> — revisa a conformidade final e prepara o handoff.</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Section: Saídas -->
+<div class="flex flex-col gap-2 pt-2 border-t border-[#242c37]">
+<span class="font-label-sm text-[11px] uppercase tracking-wider text-[#94a3b8] font-mono">Saídas esperadas</span>
+<ul class="flex flex-wrap gap-2 text-[12px]">
+<li class="px-2.5 py-1 rounded bg-[#101317] border border-[#1c2128] text-[#e2e8f0] flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#818cf8]"></span>
+                  plano
+                </li>
+<li class="px-2.5 py-1 rounded bg-[#101317] border border-[#1c2128] text-[#e2e8f0] flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#818cf8]"></span>
+                  alterações de código
+                </li>
+<li class="px-2.5 py-1 rounded bg-[#101317] border border-[#1c2128] text-[#e2e8f0] flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#818cf8]"></span>
+                  relatório de validação
+                </li>
+</ul>
+</div>
+<!-- Section: Ferramentas Sugeridas -->
+<div class="flex flex-col gap-3 pt-2 border-t border-[#242c37]">
+<span class="font-label-sm text-[11px] uppercase tracking-wider text-[#94a3b8] font-mono">Ferramentas sugeridas</span>
+<div class="flex items-center justify-between flex-wrap gap-3">
+<div class="flex items-center gap-2">
+<!-- github chip -->
+<div class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)] text-[12px] font-mono text-[#10b981]">
+<span class="w-2 h-2 rounded-full bg-[#10b981]"></span>
+<span>github — pronta</span>
+</div>
+<!-- chrome-devtools chip -->
+<div class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[rgba(245,158,11,0.14)] border border-[rgba(245,158,11,0.4)] text-[12px] font-mono text-[#f59e0b]">
+<span class="w-2 h-2 rounded-full bg-[#f59e0b]"></span>
+<span>chrome-devtools — faltando</span>
+</div>
+</div>
+<!-- Secondary Button: Aplicar ferramentas -->
+<button class="border border-[#1c2128] hover:bg-[#191c20] hover:border-[#2d3748] text-white text-[13px] px-3 py-1.5 rounded transition-colors font-medium">
+                  Aplicar ferramentas
+                </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Rodapé Fixo (Fixed bottom action footer) -->
+<footer class="h-14 w-full bg-[#0b0d10] border-t border-[#1c2128] px-6 flex justify-between items-center z-20 shrink-0">
+<button class="px-4 py-2 rounded text-[13px] font-medium text-[#94a3b8] hover:text-white hover:bg-[#15191e] transition-colors duration-150">
+        Voltar
+      </button>
+<button class="bg-[#6366f1] text-white px-5 py-2 font-medium text-[13px] rounded-md hover:bg-[#4f46e5] active:bg-[#4338ca] transition-colors duration-150 flex items-center gap-1.5 shadow-sm">
+<span>Continuar</span>
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</button>
+</footer>
+</div>
+</body></html>

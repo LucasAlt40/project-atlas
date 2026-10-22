@@ -54,6 +54,7 @@ export function EditAgentPanel({
         onSubmit={onSave}
         onSaved={onClose}
         onCancel={onClose}
+        variant="inline"
       />
       {error && (
         <p role="alert" className={styles.notice}>

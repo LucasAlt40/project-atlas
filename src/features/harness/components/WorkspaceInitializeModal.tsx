@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
+import { ActionBar } from '@/components/ui/ActionBar';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import {
@@ -72,6 +73,7 @@ export function WorkspaceInitializeModal({
   presentation = 'modal',
 }: Props) {
   const t = useT();
+  const reviewFormId = useId();
   const ai = useSemanticForm();
   const [items, setItems] = useState<Record<string, Item>>(() =>
     Object.fromEntries(projects.map((p) => [p.id, { status: 'analyzing' } satisfies Item])),
@@ -235,6 +237,21 @@ export function WorkspaceInitializeModal({
   const done = projects.filter((p) => item(p.id).outcome !== undefined);
   const failedAtWriting = projects.filter((p) => item(p.id).submitProblem !== undefined);
 
+  const page = presentation === 'page';
+  const toProjects = { label: t('harness.backToProjects'), onClick: onClose };
+
+  if (running && page) {
+    return (
+      <AgentAnalysisScreen
+        workspaceId={workspaceId}
+        agentId={running.agentId}
+        agentName={running.agentName}
+        projects={names}
+        presentation="page"
+      />
+    );
+  }
+
   return (
     <>
       {running && (
@@ -250,8 +267,27 @@ export function WorkspaceInitializeModal({
         onClose={onClose}
         presentation={presentation}
         size={stage === 'review' ? 'wide' : stage === 'findings' ? 'analyze' : 'normal'}
-        step={stage === 'review' ? 2 : stage === 'done' ? 3 : 1}
+        step={stage === 'review' || stage === 'done' ? 3 : 1}
         finished={stage === 'done'}
+        title={t('harness.multi.title')}
+        {...(stage === 'review'
+          ? {
+              titleAside: <span className={rv.pathChip}>.atlas/</span>,
+              back: {
+                label: t('harness.back'),
+                onClick: () => {
+                  setStage('findings');
+                },
+              },
+              actions: (
+                <Button type="submit" form={reviewFormId} disabled={busy}>
+                  {busy
+                    ? t('harness.initializing')
+                    : t('harness.multi.initializeAll', { count: String(ready.length) })}
+                </Button>
+              ),
+            }
+          : { back: toProjects })}
       >
         <div className={styles.modal}>
           {stage === 'findings' && (
@@ -281,33 +317,33 @@ export function WorkspaceInitializeModal({
                   onUseExisting={reviewAll}
                   onSemantic={runSemantic}
                   footer={
-                    <footer className={[rv.footer, rv.analyzeFooter].join(' ')}>
-                      <button type="button" className={rv.textButton} onClick={onClose}>
-                        {t('common.cancel')}
-                      </button>
-                      <div className={rv.footerActions}>
-                        <button
-                          type="button"
-                          className={rv.ghostButton}
-                          disabled={busy || loading || ready.length === 0}
-                          onClick={reviewAll}
-                        >
-                          <Icon name="eye" size={15} />
-                          {t('harness.multi.reviewAll', { count: String(ready.length) })}
-                        </button>
-                        {ai.canRun && (
-                          <button
-                            type="button"
-                            className={rv.primaryButton}
-                            disabled={busy || loading || !ai.chosen || ready.length === 0}
-                            onClick={runSemantic}
+                    <ActionBar
+                      start={
+                        <Button variant="ghost" onClick={onClose}>
+                          {t('common.cancel')}
+                        </Button>
+                      }
+                      end={
+                        <>
+                          <Button
+                            variant="secondary"
+                            disabled={busy || loading || ready.length === 0}
+                            onClick={reviewAll}
                           >
-                            <Icon name="sparkle" size={15} />
-                            {busy ? t('harness.semantic.running') : t('harness.multi.runAll')}
-                          </button>
-                        )}
-                      </div>
-                    </footer>
+                            {t('harness.multi.reviewAll', { count: String(ready.length) })}
+                          </Button>
+                          {ai.canRun && (
+                            <Button
+                              disabled={busy || loading || !ai.chosen || ready.length === 0}
+                              onClick={runSemantic}
+                            >
+                              {busy ? t('harness.semantic.running') : t('harness.multi.runAll')}
+                              <Icon name="arrowRight" size={16} />
+                            </Button>
+                          )}
+                        </>
+                      }
+                    />
                   }
                 />
               ) : (
@@ -343,6 +379,7 @@ export function WorkspaceInitializeModal({
                   </>
                 }
                 submitLabel={t('harness.multi.initializeAll', { count: String(ready.length) })}
+                {...(page ? { framed: { formId: reviewFormId } } : {})}
                 onChange={(review) => {
                   patch(activeId, { review });
                 }}

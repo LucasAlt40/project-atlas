@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { useI18n } from '@/i18n/I18nProvider';
 import { errorMessage } from '@/i18n/messages';
 import type { SandboxModeDto, SandboxSettingsDto, SandboxStatusDto } from '@/lib/tauri/commands';
@@ -48,31 +49,23 @@ export function SandboxSettings() {
 
   return (
     <div className={styles.stack}>
-      <p className={styles.availability} data-available={status.available}>
-        <Badge dot mono caps={false} tone={status.available ? 'success' : 'warning'}>
+      <div className={styles.headRow}>
+        <h2 className={styles.heading}>{t('settings.sandbox.title')}</h2>
+        <Badge dot tone={status.available ? 'success' : 'warning'}>
           {t(status.available ? 'settings.sandbox.available' : 'settings.sandbox.unavailable')}
         </Badge>
-      </p>
-      <div className={styles.group}>
-        <label htmlFor="settings-sandbox-mode" className={styles.label}>
-          {t('settings.sandbox.mode')}
-        </label>
-        <select
-          id="settings-sandbox-mode"
-          className={styles.control}
-          value={settings.mode}
-          onChange={(event) => {
-            const mode = MODES.find((m) => m === event.target.value);
-            if (mode) void change({ ...settings, mode });
-          }}
-        >
-          {MODES.map((mode) => (
-            <option key={mode} value={mode}>
-              {t(`settings.sandbox.mode.${mode}`)}
-            </option>
-          ))}
-        </select>
       </div>
+      <SegmentedControl
+        label={t('settings.sandbox.mode')}
+        value={settings.mode}
+        onChange={(mode) => {
+          void change({ ...settings, mode });
+        }}
+        segments={MODES.map((mode) => ({
+          value: mode,
+          label: t(`settings.sandbox.mode.${mode}`),
+        }))}
+      />
       <div className={styles.group}>
         <label className={styles.toggle}>
           <input
@@ -86,7 +79,11 @@ export function SandboxSettings() {
         </label>
         <p className={styles.help}>{t('settings.sandbox.devCachesHelp')}</p>
       </div>
-      <CollapsibleSection title={t('settings.sandbox.how')} defaultOpen={false}>
+      <CollapsibleSection
+        title={t('settings.sandbox.how')}
+        variant="disclosure"
+        defaultOpen={false}
+      >
         <p className={styles.help}>{t('settings.sandbox.help')}</p>
       </CollapsibleSection>
       {failure && <p role="alert">{failure}</p>}

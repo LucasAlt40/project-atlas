@@ -54,7 +54,7 @@ export function FinalReview(props: Props) {
       <section className={styles.panel} aria-label={t('specs.final.readiness')}>
         <header className={styles.readinessHead}>
           <h3>{t('specs.final.readiness')}</h3>
-          <Badge dot mono caps={false} tone={view.readiness.ready ? 'success' : 'warning'}>
+          <Badge dot tone={view.readiness.ready ? 'success' : 'warning'}>
             {view.readiness.ready ? t('specs.final.ready') : t('specs.final.notReady')}
           </Badge>
           <Button variant="ghost" disabled={busy} onClick={props.onRevalidate}>
@@ -160,7 +160,7 @@ export function FinalReview(props: Props) {
         onArchive={props.onCliArchive}
       />
 
-      <PanelSection title={t('specs.implement.title')} defaultOpen={false}>
+      <PanelSection title={t('specs.implement.title')} defaultOpen={view.readiness.ready}>
         <p className={styles.muted}>{t('specs.implement.intro')}</p>
         <div className={styles.row}>
           <Button

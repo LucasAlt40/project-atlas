@@ -75,6 +75,7 @@ export interface CommandMap {
   get_sandbox_status: { args: undefined; result: SandboxStatusDto };
   set_sandbox_settings: { args: { sandbox: SandboxSettingsDto }; result: AppSettingsDto };
   set_presence_settings: { args: { presence: PresenceSettingsDto }; result: AppSettingsDto };
+  set_presence_screen: { args: { screen: PresenceScreenDto }; result: null };
   list_memories: { args: undefined; result: MemoryDto[] };
   create_memory: {
     args: {
@@ -1248,6 +1249,10 @@ export interface AppSettingsDto {
   /** Discord Rich Presence: what Atlas shares on the person's profile. Off by default. */
   presence?: PresenceSettingsDto;
 }
+
+/** The screen that is open, for the Discord profile: only its name. Mirrors `domain::presence::Screen`. */
+export type PresenceScreenDto =
+  'workspace' | 'workflow' | 'agents' | 'personalities' | 'specs' | 'mcp_hub' | 'settings';
 
 export interface PresenceSettingsDto {
   enabled: boolean;

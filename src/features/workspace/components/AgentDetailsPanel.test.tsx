@@ -43,6 +43,11 @@ async function openDetails(user: ReturnType<typeof userEvent.setup>, name: strin
   return screen.getByRole('dialog', { name: `Details of ${name}` });
 }
 
+/** The drawer keeps its groups in tabs: Summary, Permissions, Context, Usage. */
+async function openTab(user: ReturnType<typeof userEvent.setup>, panel: HTMLElement, name: string) {
+  await user.click(within(panel).getByRole('tab', { name }));
+}
+
 const record = (metrics: UsageRecordDto['metrics']): UsageRecordDto => ({
   executionId: 'exec-1',
   workspaceId: 'w1',
@@ -66,7 +71,7 @@ describe('Agent details and usage', () => {
 
     const panel = await openDetails(user, 'Architect');
 
-    expect(within(panel).getByRole('heading', { name: 'Architect' })).toBeInTheDocument();
+    expect(within(panel).getByRole('heading', { name: /^Architect/ })).toBeInTheDocument();
     expect(within(panel).getByText(/Architect · Claude CLI · Anthropic/)).toBeInTheDocument();
     expect(within(panel).getAllByText('sonnet').length).toBeGreaterThan(0);
     expect(within(panel).getAllByText('Ready').length).toBeGreaterThan(0);
@@ -78,6 +83,7 @@ describe('Agent details and usage', () => {
     show();
 
     const panel = await openDetails(user, 'Developer');
+    await openTab(user, panel, 'Permissions');
 
     const profile = await within(panel).findByRole('combobox', { name: 'Profile' });
     expect(profile).toHaveValue('read_only');
@@ -93,6 +99,7 @@ describe('Agent details and usage', () => {
     show(emptyAgentUsage(), { profile: 'developer' });
 
     const panel = await openDetails(user, 'Developer');
+    await openTab(user, panel, 'Permissions');
 
     expect(await within(panel).findByRole('combobox', { name: 'Profile' })).toHaveValue(
       'developer',
@@ -111,6 +118,7 @@ describe('Agent details and usage', () => {
     });
 
     const panel = await openDetails(user, 'Architect');
+    await openTab(user, panel, 'Usage');
 
     const last = await within(panel).findByRole('region', { name: 'Last execution' });
     expect(within(last).getAllByText('Not reported')).toHaveLength(4);
@@ -160,6 +168,7 @@ describe('Agent details and usage', () => {
     });
 
     const panel = await openDetails(user, 'Architect');
+    await openTab(user, panel, 'Usage');
 
     const last = await within(panel).findByRole('region', { name: 'Last execution' });
     expect(within(last).getByText('12.4K')).toBeInTheDocument();
@@ -192,6 +201,7 @@ describe('Agent details and usage', () => {
     });
 
     const panel = await openDetails(user, 'Architect');
+    await openTab(user, panel, 'Usage');
 
     const last = await within(panel).findByRole('region', { name: 'Last execution' });
     expect(within(last).queryByText('Not reported')).not.toBeInTheDocument();
@@ -207,6 +217,7 @@ describe('Agent details and usage', () => {
     });
 
     const panel = await openDetails(user, 'Architect');
+    await openTab(user, panel, 'Usage');
 
     const usage = await within(panel).findByRole('region', { name: 'Usage' });
     expect(within(usage).getByText(/\$0\.50 \(reported for 1 of 4 runs\)/)).toBeInTheDocument();
@@ -227,6 +238,7 @@ describe('Agent details and usage', () => {
     });
 
     const panel = await openDetails(user, 'Architect');
+    await openTab(user, panel, 'Usage');
 
     const quota = await within(panel).findByRole('region', { name: 'Quota' });
     expect(within(quota).getByRole('progressbar', { name: '5-hour window' })).toHaveAttribute(
@@ -249,6 +261,7 @@ describe('Agent details and usage', () => {
     show();
 
     const panel = await openDetails(user, 'Developer');
+    await openTab(user, panel, 'Usage');
 
     const quota = await within(panel).findByRole('region', { name: 'Quota' });
     expect(within(quota).getByText('Not available for this runtime.')).toBeInTheDocument();
@@ -260,6 +273,7 @@ describe('Agent details and usage', () => {
     show();
 
     const panel = await openDetails(user, 'Architect');
+    await openTab(user, panel, 'Usage');
 
     const quota = await within(panel).findByRole('region', { name: 'Quota' });
     expect(
@@ -279,6 +293,7 @@ describe('Agent details and usage', () => {
     show({ ...emptyAgentUsage(), latestExecution: record(null) }, { runtimes: [claude, silent] });
 
     const panel = await openDetails(user, 'Developer');
+    await openTab(user, panel, 'Usage');
 
     const last = await within(panel).findByRole('region', { name: 'Last execution' });
     expect(within(last).getAllByText('Not available for this runtime')).toHaveLength(4);
@@ -345,8 +360,8 @@ describe('Agent details and usage', () => {
 
     const chip = await screen.findByRole('button', { name: 'Workspace usage' });
     expect(chip).toHaveTextContent('This workspace');
-    expect(chip).toHaveTextContent('Today: $0.84');
-    expect(chip).toHaveTextContent('Week: $3.12');
+    expect(chip).toHaveTextContent('Today $0.84');
+    expect(chip).toHaveTextContent('Week $3.12');
     await user.click(chip);
 
     const dialog = screen.getByRole('dialog', { name: 'Workspace usage' });
@@ -376,9 +391,9 @@ describe('Agent project context', () => {
 
     const panel = await openDetails(user, 'Architect');
 
-    const context = within(panel).getByRole('region', { name: 'Project Context' });
-    expect(await within(context).findByText('Harness: Loaded')).toBeVisible();
-    expect(within(context).getByText(/grants no permissions/)).toBeVisible();
+    const context = within(panel).getByRole('region', { name: 'Project context' });
+    expect(await within(context).findByText('Analyzed')).toBeVisible();
+    expect(within(context).getByText(/never permission/)).toBeVisible();
   });
 
   it('says when there is no Harness', async () => {
@@ -387,6 +402,6 @@ describe('Agent project context', () => {
 
     const panel = await openDetails(user, 'Architect');
 
-    expect(await within(panel).findByText('Harness: Not initialized')).toBeVisible();
+    expect(await within(panel).findByText('Not analyzed')).toBeVisible();
   });
 });

@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas — Configurações / Memória</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-secondary-fixed-variant": "#004883",
+            "surface-container-high": "#272a2e",
+            "inverse-on-surface": "#2e3135",
+            "on-tertiary-container": "#570032",
+            "on-surface-variant": "#c7c4d7",
+            "tertiary": "#ffb0cd",
+            "surface-variant": "#323539",
+            "surface-bright": "#36393e",
+            "surface-container-highest": "#323539",
+            "on-primary-container": "#0d0096",
+            "on-error-container": "#ffdad6",
+            "on-error": "#690005",
+            "on-background": "#e1e2e8",
+            "outline-variant": "#464554",
+            "primary-fixed": "#e1e0ff",
+            "primary-container": "#8083ff",
+            "outline": "#908fa0",
+            "secondary": "#a4c9ff",
+            "on-secondary-container": "#d6e5ff",
+            "surface": "#111418",
+            "secondary-container": "#0267b8",
+            "secondary-fixed": "#d4e3ff",
+            "tertiary-fixed": "#ffd9e4",
+            "on-surface": "#e1e2e8",
+            "tertiary-container": "#f751a1",
+            "primary": "#c0c1ff",
+            "primary-fixed-dim": "#c0c1ff",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "inverse-surface": "#e1e2e8",
+            "on-secondary": "#00315d",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "on-tertiary": "#640039",
+            "inverse-primary": "#494bd6",
+            "surface-dim": "#111418",
+            "on-secondary-fixed": "#001c39",
+            "surface-container-low": "#191c20",
+            "surface-tint": "#c0c1ff",
+            "error": "#ffb4ab",
+            "on-primary-fixed": "#07006c",
+            "secondary-fixed-dim": "#a4c9ff",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "error-container": "#93000a",
+            "surface-container": "#1d2024",
+            "on-tertiary-fixed": "#3e0022",
+            "surface-container-lowest": "#0b0e12",
+            "background": "#111418",
+            "on-primary": "#1000a9"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-xl": "1.5rem",
+            "space-2xl": "2rem",
+            "space-md": "0.75rem",
+            "space-xs": "0.25rem",
+            "gutter": "0.5rem",
+            "space-sm": "0.5rem",
+            "space-lg": "1rem",
+            "margin-window": "0.5rem",
+            "gutter-compact": "0.25rem",
+            "space-2xs": "0.125rem",
+            "margin": "0.75rem",
+            "gutter-expanded": "1rem"
+          },
+          "fontFamily": {
+            "telemetry-pill": ["JetBrains Mono"],
+            "body-lg": ["Geist"],
+            "label-sm": ["Geist"],
+            "body-sm": ["Geist"],
+            "headline-sm": ["Geist"],
+            "body-md": ["Geist"],
+            "code-md": ["JetBrains Mono"],
+            "headline-xl": ["Geist"],
+            "headline-md": ["Geist"],
+            "headline-lg": ["Geist"],
+            "code-sm": ["JetBrains Mono"],
+            "label-md": ["Geist"],
+            "code-lg": ["JetBrains Mono"]
+          },
+          "fontSize": {
+            "telemetry-pill": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.02em", "fontWeight": "600" }],
+            "body-lg": ["1rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "label-sm": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.04em", "fontWeight": "600" }],
+            "body-sm": ["0.75rem", { "lineHeight": "1.125rem", "letterSpacing": "0.005em", "fontWeight": "400" }],
+            "headline-sm": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "body-md": ["0.875rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "code-md": ["0.8125rem", { "lineHeight": "1.25rem", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+            "headline-xl": ["2rem", { "lineHeight": "2.5rem", "letterSpacing": "-0.025em", "fontWeight": "600" }],
+            "headline-md": ["1.25rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.015em", "fontWeight": "500" }],
+            "headline-lg": ["1.5rem", { "lineHeight": "2rem", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "code-sm": ["0.6875rem", { "lineHeight": "1rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "label-md": ["0.8125rem", { "lineHeight": "1rem", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "code-lg": ["0.875rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.01em", "fontWeight": "500" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    body {
+      background-color: #0b0d10;
+      color: #e1e2e8;
+      font-family: 'Geist', sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    .material-symbols-outlined {
+      font-size: 18px;
+      line-height: 1;
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    ::selection {
+      background-color: #6366f1;
+      color: #ffffff;
+    }
+  </style>
+</head>
+<body class="bg-[#0b0d10] text-on-surface h-screen w-screen overflow-hidden flex select-none">
+<!-- MOLDURA FIXA ESTRITA: Barra Lateral (SideNavBar) 216px -->
+<aside class="h-screen w-[216px] shrink-0 flex flex-col justify-between bg-surface-container-low border-r border-[#242c37] select-none z-20">
+<!-- Top Area: Logo, Workspace Selector & Nav Items -->
+<div class="flex flex-col">
+<!-- Logo Atlas Puro -->
+<div class="h-12 px-4 flex items-center gap-2 border-b border-[#242c37]">
+<div class="w-5 h-5 bg-[#6366f1] rounded flex items-center justify-center shrink-0">
+<span class="text-white text-[11px] font-semibold tracking-tight font-['Geist'] leading-none">A</span>
+</div>
+<span class="text-[15px] font-semibold text-[#f1f5f9] tracking-tight font-['Geist']">Atlas</span>
+</div>
+<!-- Workspace Selector -->
+<div class="p-2 border-b border-[#242c37]">
+<div class="px-2.5 py-2 rounded bg-[#15191e] border border-[#242c37] hover:border-[#2d3748] transition-colors cursor-pointer group">
+<div class="flex items-center justify-between">
+<span class="text-[13px] font-medium text-[#f1f5f9] truncate">Transport ERP</span>
+<span class="material-symbols-outlined text-[#94a3b8] text-[16px] group-hover:text-[#f1f5f9] transition-colors">unfold_more</span>
+</div>
+<div class="text-[11px] font-['JetBrains_Mono'] text-[#94a3b8] truncate mt-0.5">
+            /Users/lucas/dev/transport-erp
+          </div>
+</div>
+</div>
+<!-- Navegação Estrita (7 itens obrigatórios do Blueprint) -->
+<nav aria-label="Navegação Principal" class="p-2 flex flex-col gap-0.5">
+<!-- 1. Workspace -->
+<a class="flex items-center gap-2 px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-high hover:text-on-surface transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[#94a3b8]">folder_open</span>
+<span>Workspace</span>
+</a>
+<!-- 2. Workflow -->
+<a class="flex items-center gap-2 px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-high hover:text-on-surface transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[#94a3b8]">schema</span>
+<span>Workflow</span>
+</a>
+<!-- 3. Agentes -->
+<a class="flex items-center gap-2 px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-high hover:text-on-surface transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[#94a3b8]">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- 4. Personalidades -->
+<a class="flex items-center gap-2 px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-high hover:text-on-surface transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[#94a3b8]">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- 5. Specs -->
+<a class="flex items-center gap-2 px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-high hover:text-on-surface transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[#94a3b8]">description</span>
+<span>Specs</span>
+</a>
+<!-- 6. MCP Hub -->
+<a class="flex items-center gap-2 px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-high hover:text-on-surface transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[#94a3b8]">hub</span>
+<span>MCP Hub</span>
+</a>
+<!-- 7. Configurações (DESTACADO como ativo) -->
+<a aria-current="page" class="flex items-center gap-2 px-space-md py-space-xs rounded bg-[#1c2128] text-[#f1f5f9] font-label-md text-label-md border-l-2 border-[#6366f1] transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[#6366f1]">settings</span>
+<span class="font-medium">Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Rodapé da Barra Lateral -->
+<div class="p-3 border-t border-[#242c37] flex flex-col gap-0.5">
+<div class="text-[12px] text-[#94a3b8] font-medium leading-none">Project Atlas</div>
+<div class="text-[11px] font-['JetBrains_Mono'] text-[#64748b] leading-tight">v0.2.0 · macOS</div>
+</div>
+</aside>
+<!-- Estrutura Principal da Janela -->
+<div class="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-[#0b0d10]">
+<!-- TopNavBar (48px) Estrita -->
+<header class="h-12 w-full shrink-0 flex items-center justify-between px-4 bg-surface-container-lowest border-b border-[#242c37] z-10">
+<!-- Esquerda: Botão de recolher barra lateral + Breadcrumb -->
+<div class="flex items-center gap-3">
+<button aria-label="Recolher barra lateral" class="p-1 rounded text-[#94a3b8] hover:text-[#f1f5f9] hover:bg-[#1c2128] transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">dock_to_left</span>
+</button>
+<div class="flex items-center gap-1.5 text-label-md font-label-md text-[#94a3b8]">
+<span class="hover:text-[#e1e2e8] transition-colors cursor-pointer">Transport ERP</span>
+<span class="text-[#64748b]">/</span>
+<span class="hover:text-[#e1e2e8] transition-colors cursor-pointer">Configurações</span>
+<span class="text-[#64748b]">/</span>
+<span class="text-[#f1f5f9] font-medium">Memória</span>
+</div>
+</div>
+<!-- Direita: APENAS o botão Celular e a alternância PT | EN -->
+<div class="flex items-center gap-3">
+<button class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#1c2128] hover:bg-[#242c37] border border-[#242c37] text-label-md font-label-md text-[#e2e8f0] transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px] text-[#94a3b8]">smartphone</span>
+<span>Celular</span>
+</button>
+<div class="h-4 w-[1px] bg-[#242c37]"></div>
+<div class="flex items-center text-[12px] font-['JetBrains_Mono'] tracking-tight">
+<span class="text-[#f1f5f9] font-semibold px-1 py-0.5 rounded cursor-default">PT</span>
+<span class="text-[#64748b] px-0.5">|</span>
+<button class="text-[#94a3b8] hover:text-[#e2e8f0] px-1 py-0.5 rounded transition-colors" type="button">EN</button>
+</div>
+</div>
+</header>
+<!-- ÁREA DE CONTEÚDO (Split Layout Configurações) -->
+<div class="flex-1 flex min-w-0 overflow-hidden">
+<!-- Submenu Secundário (largura fixa 200px) -->
+<nav aria-label="Submenu Configurações" class="w-[200px] shrink-0 border-r border-[#242c37] bg-[#101317] p-2 flex flex-col gap-0.5 select-none">
+<a class="px-3 py-1.5 rounded text-[13px] text-[#94a3b8] hover:text-[#f8fafc] hover:bg-[#15191e] transition-colors" href="#">
+          Geral
+        </a>
+<a aria-current="page" class="px-3 py-1.5 rounded text-[13px] bg-[#1c2128] text-[#f8fafc] font-medium border-l border-[#6366f1] transition-colors" href="#">
+          Memória
+        </a>
+<a class="px-3 py-1.5 rounded text-[13px] text-[#94a3b8] hover:text-[#f8fafc] hover:bg-[#15191e] transition-colors" href="#">
+          Importar e exportar
+        </a>
+<a class="px-3 py-1.5 rounded text-[13px] text-[#94a3b8] hover:text-[#f8fafc] hover:bg-[#15191e] transition-colors" href="#">
+          Sobre e atualizações
+        </a>
+</nav>
+<!-- Coluna de Conteúdo Principal (largura máxima 720px, scroll vertical limpo) -->
+<main class="flex-1 overflow-y-auto px-8 py-8 bg-[#0b0d10]">
+<div class="max-w-[720px] flex flex-col">
+<!-- 1. Cabeçalho da Seção -->
+<header class="mb-8">
+<h1 class="text-[20px] font-semibold text-[#f8fafc] tracking-tight">Memória</h1>
+<p class="text-[13px] text-[#94a3b8] mt-1.5 leading-relaxed">
+              Notas de trabalhos anteriores. Uma nota é uma dica para o agente, nunca uma instrução nem uma permissão.
+            </p>
+</header>
+<!-- 2. Seção "Onde as notas são usadas" -->
+<section class="mb-9 border-b border-[#242c37] pb-8">
+<h2 class="text-[16px] font-medium text-[#e2e8f0] mb-4">Onde as notas são usadas</h2>
+<div class="flex flex-col gap-3">
+<!-- Linha 1: Minhas (todos os projetos) -->
+<div class="flex items-center justify-between py-2 border-b border-[#1c2128]/70">
+<span class="text-[14px] text-[#cbd5e1]">Minhas (todos os projetos)</span>
+<!-- Controle segmentado -->
+<div class="inline-flex p-0.5 rounded bg-[#101317] border border-[#242c37] text-[12px]">
+<button class="px-3 py-1 text-[#94a3b8] hover:text-[#cbd5e1] rounded transition-colors" type="button">
+                    Desligado
+                  </button>
+<button class="px-3 py-1 bg-[#242c37] text-[#f8fafc] font-medium rounded shadow-sm transition-colors" type="button">
+                    Propor, eu aprovo
+                  </button>
+</div>
+</div>
+<!-- Linha 2: Workspace -->
+<div class="flex items-center justify-between py-2 border-b border-[#1c2128]/70">
+<span class="text-[14px] text-[#cbd5e1]">Workspace</span>
+<!-- Controle segmentado -->
+<div class="inline-flex p-0.5 rounded bg-[#101317] border border-[#242c37] text-[12px]">
+<button class="px-2.5 py-1 text-[#94a3b8] hover:text-[#cbd5e1] rounded transition-colors" type="button">
+                    Desligado
+                  </button>
+<button class="px-2.5 py-1 bg-[#242c37] text-[#f8fafc] font-medium rounded shadow-sm transition-colors" type="button">
+                    Propor, eu aprovo
+                  </button>
+<button class="px-2.5 py-1 text-[#94a3b8] hover:text-[#cbd5e1] rounded transition-colors" type="button">
+                    Automático
+                  </button>
+</div>
+</div>
+<!-- Linha 3: Agente -->
+<div class="flex items-center justify-between py-2 border-b border-[#1c2128]/70">
+<span class="text-[14px] text-[#cbd5e1]">Agente</span>
+<!-- Controle segmentado -->
+<div class="inline-flex p-0.5 rounded bg-[#101317] border border-[#242c37] text-[12px]">
+<button class="px-2.5 py-1 bg-[#242c37] text-[#f8fafc] font-medium rounded shadow-sm transition-colors" type="button">
+                    Desligado
+                  </button>
+<button class="px-2.5 py-1 text-[#94a3b8] hover:text-[#cbd5e1] rounded transition-colors" type="button">
+                    Propor, eu aprovo
+                  </button>
+<button class="px-2.5 py-1 text-[#94a3b8] hover:text-[#cbd5e1] rounded transition-colors" type="button">
+                    Automático
+                  </button>
+</div>
+</div>
+</div>
+<!-- Bloco Limite de Tokens por Prompt -->
+<div class="mt-5 flex items-center justify-between">
+<label class="text-[13px] text-[#94a3b8]" for="token-limit">Máximo de tokens por prompt</label>
+<div class="flex items-center gap-2">
+<input class="w-24 px-3 py-1.5 rounded bg-[#101317] border border-[#242c37] focus:border-[#6366f1] focus:ring-0 text-[13px] font-['JetBrains_Mono'] text-[#f8fafc] text-center" id="token-limit" type="text" value="600"/>
+<button class="px-3 py-1.5 rounded bg-[#1c2128] hover:bg-[#242c37] border border-[#242c37] text-[13px] text-[#e2e8f0] transition-colors font-medium" type="button">
+                  Definir limite
+                </button>
+</div>
+</div>
+</section>
+<!-- 3. Abas de Navegação da Memória -->
+<div class="flex items-center gap-6 border-b border-[#242c37] mb-5">
+<!-- Aba 1 (ATIVA) -->
+<button class="text-[13px] text-[#f8fafc] font-medium border-b-2 border-[#6366f1] pb-2 transition-colors" type="button">
+              Esperando sua decisão (2)
+            </button>
+<!-- Aba 2 (Inativa) -->
+<button class="text-[13px] text-[#94a3b8] hover:text-[#e2e8f0] pb-2 transition-colors" type="button">
+              Notas guardadas (5)
+            </button>
+<!-- Aba 3 (Inativa) -->
+<button class="text-[13px] text-[#94a3b8] hover:text-[#e2e8f0] pb-2 transition-colors" type="button">
+              Adicionar nota
+            </button>
+</div>
+<!-- 4. Conteúdo da Aba Ativa: Cartões de Notas Propostas -->
+<div class="flex flex-col gap-3.5">
+<!-- Nota 1 -->
+<article class="bg-[#15191e] border border-[#242c37] rounded-[6px] p-4 transition-colors hover:border-[#2d3748]">
+<div class="flex items-start justify-between gap-4">
+<h3 class="text-[15px] font-medium text-[#f8fafc] leading-snug">
+                  Os testes rodam com <code class="font-['JetBrains_Mono'] text-[13px] bg-[#101317] border border-[#242c37] px-1.5 py-0.5 rounded text-[#e1e2e8]">npm run check</code>
+</h3>
+<!-- Selo de estado padronizado "Não confirmada" -->
+<div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#f59e0b]/15 border border-[#f59e0b]/30 shrink-0">
+<span class="w-1.5 h-1.5 rounded-full bg-[#f59e0b]"></span>
+<span class="text-[12px] text-[#f59e0b] font-medium">Não confirmada</span>
+</div>
+</div>
+<!-- Metadados de apoio -->
+<div class="text-[12px] text-[#94a3b8] mt-1">
+                Como fazer · Workspace · proposta por Desenvolvedor
+              </div>
+<!-- Texto da nota -->
+<p class="text-[13px] text-[#cbd5e1] leading-relaxed mt-2.5">
+                Execuções do teste de integração exigem verificação de tipos e linter unificados. Use npm run check para validar o conjunto antes de qualquer entrega.
+              </p>
+<!-- Barra inferior de ações -->
+<div class="mt-3 pt-3 border-t border-[#242c37]/50 flex justify-end gap-2 items-center">
+<button class="text-[13px] text-[#94a3b8] hover:text-[#ef4444] px-2.5 py-1 rounded transition-colors" type="button">
+                  Descartar
+                </button>
+<button class="text-[13px] text-[#94a3b8] hover:text-[#f8fafc] px-2.5 py-1 rounded transition-colors" type="button">
+                  Editar
+                </button>
+<button class="text-[13px] font-medium text-white bg-[#6366f1] hover:bg-[#4f46e5] px-3 py-1 rounded transition-colors shadow-sm" type="button">
+                  Aprovar
+                </button>
+</div>
+</article>
+<!-- Nota 2 -->
+<article class="bg-[#15191e] border border-[#242c37] rounded-[6px] p-4 transition-colors hover:border-[#2d3748]">
+<div class="flex items-start justify-between gap-4">
+<h3 class="text-[15px] font-medium text-[#f8fafc] leading-snug">
+                  Sempre escrever commits em português
+                </h3>
+<!-- Selo de estado padronizado "Não confirmada" -->
+<div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#f59e0b]/15 border border-[#f59e0b]/30 shrink-0">
+<span class="w-1.5 h-1.5 rounded-full bg-[#f59e0b]"></span>
+<span class="text-[12px] text-[#f59e0b] font-medium">Não confirmada</span>
+</div>
+</div>
+<!-- Metadados de apoio -->
+<div class="text-[12px] text-[#94a3b8] mt-1">
+                Preferência · Workspace · proposta por Arquiteto
+              </div>
+<!-- Texto da nota -->
+<p class="text-[13px] text-[#cbd5e1] leading-relaxed mt-2.5">
+                O padrão de histórico do repositório deve adotar mensagens semânticas em português do Brasil, mantendo consistência com as issues e a documentação interna.
+              </p>
+<!-- Barra inferior de ações -->
+<div class="mt-3 pt-3 border-t border-[#242c37]/50 flex justify-end gap-2 items-center">
+<button class="text-[13px] text-[#94a3b8] hover:text-[#ef4444] px-2.5 py-1 rounded transition-colors" type="button">
+                  Descartar
+                </button>
+<button class="text-[13px] text-[#94a3b8] hover:text-[#f8fafc] px-2.5 py-1 rounded transition-colors" type="button">
+                  Editar
+                </button>
+<button class="text-[13px] font-medium text-white bg-[#6366f1] hover:bg-[#4f46e5] px-3 py-1 rounded transition-colors shadow-sm" type="button">
+                  Aprovar
+                </button>
+</div>
+</article>
+</div>
+<!-- Espaço de respiro final limpo -->
+<div class="h-12"></div>
+</div>
+</main>
+</div>
+</div>
+</body></html>

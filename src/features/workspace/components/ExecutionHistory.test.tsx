@@ -72,8 +72,10 @@ describe('the execution history of an agent', () => {
     expect(await screen.findByText('The login flow is fine.')).toBeInTheDocument();
     expect(screen.queryByText('Other workspace question')).not.toBeInTheDocument();
 
-    await user.click(within(card('Architect')).getByRole('tab', { name: 'Executions' }));
-    const list = within(card('Architect')).getByRole('tabpanel');
+    await user.click(within(card('Architect')).getByRole('tab', { name: /^Executions/ }));
+    const list = within(card('Architect')).getByRole('navigation', {
+      name: 'Executions of the agent',
+    });
     expect(within(list).getAllByRole('button')).toHaveLength(2);
     expect(within(list).getByText('Run the tests')).toBeInTheDocument();
     expect(within(list).getByText('Review the login flow')).toBeInTheDocument();
@@ -83,7 +85,7 @@ describe('the execution history of an agent', () => {
   it('says so when nothing has finished yet', async () => {
     const user = userEvent.setup();
     show();
-    await user.click(await screen.findByRole('tab', { name: 'Executions' }));
+    await user.click(await screen.findByRole('tab', { name: /^Executions/ }));
     expect(screen.getByText('No execution has finished yet.')).toBeInTheDocument();
   });
 
@@ -115,10 +117,10 @@ describe('the execution history of an agent', () => {
         }),
       ],
     });
-    await user.click(await screen.findByRole('tab', { name: 'Executions' }));
+    await user.click(await screen.findByRole('tab', { name: /^Executions/ }));
     await user.click(screen.getByRole('button', { name: 'Inspect execution #1' }));
 
-    const inspector = screen.getByRole('dialog', { name: 'Execution #1' });
+    const inspector = screen.getByRole('region', { name: 'Execution #1' });
     expect(within(inspector).getByText('Review the login flow')).toBeInTheDocument();
     expect(within(inspector).getByText('Atlas')).toBeInTheDocument();
     expect(within(inspector).getByText('Claude CLI')).toBeInTheDocument();
@@ -129,7 +131,7 @@ describe('the execution history of an agent', () => {
     expect(within(inspector).getByText('150')).toBeInTheDocument();
     expect(within(inspector).getByText('Not reported')).toBeInTheDocument();
 
-    await user.click(within(inspector).getByRole('tab', { name: 'Activity' }));
+    await user.click(within(inspector).getByRole('tab', { name: /^Activity/ }));
     expect(within(inspector).getByText(/Interrupted the execution/)).toBeInTheDocument();
     await user.click(within(inspector).getByRole('tab', { name: 'Chat' }));
     expect(within(inspector).getByText('The login flow is fine.')).toBeInTheDocument();
@@ -151,7 +153,7 @@ describe('the execution history of an agent', () => {
       emitConversationMessage(chatMessage('w1', 'a1', 'exec-5', 'assistant', 'Done.'));
     });
     await user.click(await screen.findByRole('button', { name: 'View execution' }));
-    expect(screen.getByRole('dialog', { name: 'Execution #5' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Execution #5' })).toBeInTheDocument();
   });
 });
 
@@ -166,9 +168,9 @@ describe('the Git section of the inspector', () => {
       executions: [storedExecution('w1', 'a1', 'exec-42', { task: 'Add login' })],
       ...options,
     });
-    await user.click(await screen.findByRole('tab', { name: 'Executions' }));
+    await user.click(await screen.findByRole('tab', { name: /^Executions/ }));
     await user.click(screen.getByRole('button', { name: 'Inspect execution #42' }));
-    return { user, inspector: screen.getByRole('dialog', { name: 'Execution #42' }) };
+    return { user, inspector: screen.getByRole('region', { name: 'Execution #42' }) };
   }
 
   it('shows base, branch, worktree, changes, tests and merge state of an isolated execution', async () => {
@@ -261,10 +263,10 @@ describe('the Git section of the inspector', () => {
       agents: [{ ...architect, worktreeIsolation: false }, developer],
       executions: [storedExecution('w1', 'a1', 'exec-42', { task: 'Add login' })],
     });
-    await user.click(await screen.findByRole('tab', { name: 'Executions' }));
+    await user.click(await screen.findByRole('tab', { name: /^Executions/ }));
     await user.click(screen.getByRole('button', { name: 'Inspect execution #42' }));
 
-    const inspector = screen.getByRole('dialog', { name: 'Execution #42' });
+    const inspector = screen.getByRole('region', { name: 'Execution #42' });
     expect(within(inspector).getByText('Not isolated (project checkout)')).toBeInTheDocument();
   });
 
@@ -272,7 +274,7 @@ describe('the Git section of the inspector', () => {
     show({ agents: [{ ...architect, worktreeIsolation: false }, developer] });
 
     const off = await screen.findByRole('article', { name: 'Architect' });
-    expect(off).toHaveTextContent('Git isolation: OFF');
+    expect(off).toHaveTextContent('Git isolation off');
   });
 });
 

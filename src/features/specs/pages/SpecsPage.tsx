@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { useNavigation } from '@/app/NavigationContext';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
+import { OverflowMenu } from '@/components/ui/OverflowMenu';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { useCatalog } from '@/features/agents/hooks/useCatalog';
 import { useWorkspace } from '@/features/workspace/hooks/WorkspaceProvider';
 import type { Workspace } from '@/features/workspace/types';
@@ -12,6 +14,8 @@ import { NewSpecDialog } from '../components/NewSpecDialog';
 import { Overview } from '../components/Overview';
 import { SpecDetail } from '../components/SpecDetail';
 import { useSpecs } from '../hooks/useSpecs';
+import { archiveSpec, deleteSpec } from '../services/specService';
+import { countsByGroup } from '../model/status';
 import styles from '../components/Specs.module.css';
 
 /**
@@ -33,7 +37,7 @@ function Home({ workspace }: { workspace: Workspace }) {
   const navigation = useNavigation();
   const { catalog } = useCatalog();
   const agents = useMemo(() => (catalog.status === 'ready' ? catalog.agents : []), [catalog]);
-  const { state } = useSpecs(workspace.id);
+  const { state, reload } = useSpecs(workspace.id);
   const intent = navigation.intent;
   const [openId, setOpenId] = useState<string | null>(
     intent?.type === 'open-spec' ? intent.specId : null,
@@ -42,40 +46,57 @@ function Home({ workspace }: { workspace: Workspace }) {
     intent?.type === 'new-spec' ? 'new' : null,
   );
 
-  const specs = state.status === 'ready' ? state.specs : [];
+  const specs = useMemo(() => (state.status === 'ready' ? state.specs : []), [state]);
+  const counts = useMemo(() => countsByGroup(specs), [specs]);
 
   return (
     <div className={styles.page}>
       {openId ? (
         <h1 className={styles.srOnly}>{t('nav.specs')}</h1>
       ) : (
-        <header className={styles.pageHead}>
-          <div className={styles.heading}>
-            <h1>{t('nav.specs')}</h1>
-            <p>{t('specs.subtitle')}</p>
-          </div>
-          {state.status === 'ready' && specs.length > 0 && (
-            <div className={styles.headRight}>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setDialog('import');
-                }}
-              >
-                <Icon name="download" size={14} />
-                {t('specs.import')}
-              </Button>
-              <Button
-                onClick={() => {
-                  setDialog('new');
-                }}
-              >
-                <Icon name="plus" size={14} />
-                {t('specs.new')}
-              </Button>
-            </div>
-          )}
-        </header>
+        <PageHeader
+          title={t('nav.specs')}
+          description={t('specs.subtitle')}
+          {...(state.status === 'ready' && specs.length > 0
+            ? {
+                meta: (['progress', 'attention', 'ready'] as const)
+                  .map((group) =>
+                    t(`specs.meta.${group}`, {
+                      count:
+                        group === 'ready'
+                          ? specs.filter((spec) => spec.status === 'ready_for_implementation')
+                              .length
+                          : counts[group],
+                    }),
+                  )
+                  .join(' · '),
+                actions: (
+                  <>
+                    <Button
+                      onClick={() => {
+                        setDialog('new');
+                      }}
+                    >
+                      <Icon name="plus" size={14} />
+                      {t('specs.new')}
+                    </Button>
+                    <OverflowMenu
+                      label={t('specs.more')}
+                      items={[
+                        {
+                          label: t('specs.import'),
+                          icon: 'download',
+                          onSelect: () => {
+                            setDialog('import');
+                          },
+                        },
+                      ]}
+                    />
+                  </>
+                ),
+              }
+            : {})}
+        />
       )}
 
       {openId ? (
@@ -112,6 +133,14 @@ function Home({ workspace }: { workspace: Workspace }) {
           }}
           onImport={() => {
             setDialog('import');
+          }}
+          onArchive={async (specId) => {
+            await archiveSpec(specId);
+            reload();
+          }}
+          onDelete={async (specId) => {
+            await deleteSpec(specId);
+            reload();
           }}
         />
       )}

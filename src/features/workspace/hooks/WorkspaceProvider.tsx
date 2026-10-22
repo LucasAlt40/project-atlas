@@ -32,7 +32,7 @@ import { useAgentConversations } from './useAgentConversations';
 export interface FocusRequest {
   workspaceId: string;
   agentId: string;
-  tab: 'chat' | 'terminal' | 'details';
+  tab: 'chat' | 'terminal' | 'details' | 'executions';
 }
 
 export type WorkspacesState =
@@ -219,6 +219,7 @@ function useWorkspaceState() {
     history: conversations.history,
     worktrees: conversations.worktrees,
     mergeExecution: conversations.merge,
+    resolveApproval: conversations.resolve,
     focus,
     focusAgent,
     clearFocus,

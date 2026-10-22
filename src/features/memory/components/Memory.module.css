@@ -6,17 +6,16 @@
 .help {
   margin: 0;
   color: var(--text-dim);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 .label,
 .heading {
   margin: 0;
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.625rem;
+  font-size: var(--font-size-2xs);
   font-weight: 500;
   letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 .modes {
   display: flex;
@@ -106,11 +105,11 @@
 .uses {
   color: var(--text-dim);
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-size: var(--font-size-2xs);
 }
 .meta {
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-size: var(--font-size-2xs);
 }
 .noteFoot {
   display: flex;
@@ -125,7 +124,7 @@
   margin: 0;
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-size: var(--font-size-2xs);
 }
 .tabs {
   display: flex;
@@ -164,7 +163,7 @@
 }
 .meta {
   color: var(--text-dim);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 .content {
   margin: 0;
@@ -183,8 +182,7 @@
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.625rem;
-  text-transform: uppercase;
+  font-size: var(--font-size-2xs);
 }
 .badge[data-tone='warning'] {
   color: var(--state-warning, var(--text-high));
@@ -196,6 +194,6 @@
 }
 .error {
   margin: 0;
-  color: var(--color-danger);
+  color: var(--danger);
   font-size: var(--font-size-base);
 }

@@ -107,8 +107,8 @@ describe('McpHubPage', () => {
     const list = await screen.findByRole('list', { name: 'MCP servers' });
     expect(within(list).getAllByRole('listitem')).toHaveLength(2);
     const summary = screen.getByRole('list', { name: 'Hub summary' });
-    expect(within(summary).getByText('Connected').closest('li')).toHaveTextContent('1');
-    expect(within(summary).getByText('Tools listed').closest('li')).toHaveTextContent('2');
+    expect(within(summary).getByText('connected').closest('li')).toHaveTextContent('1');
+    expect(within(summary).getByText('tools').closest('li')).toHaveTextContent('2');
 
     await userEvent.type(screen.getByLabelText(/Search server/), 'files');
     expect(within(list).getAllByRole('listitem')).toHaveLength(1);
@@ -337,6 +337,7 @@ describe('McpHubPage', () => {
     vi.mocked(mcp.setMcpSecret).mockResolvedValue(connection());
 
     await userEvent.click(first(await screen.findAllByRole('button', { name: 'Add MCP server' })));
+    await userEvent.click(screen.getByRole('tab', { name: 'MCP Registry' }));
     await userEvent.type(screen.getByLabelText('Search servers (Jira, GitHub, Postgres…)'), 'jira');
     await userEvent.click(screen.getByRole('button', { name: 'Search' }));
 
@@ -451,7 +452,7 @@ describe('McpHubPage', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: 'Configuration' }));
     await userEvent.click(screen.getByRole('menuitem', { name: /atlas-mcp.json/ }));
-    await userEvent.type(screen.getByLabelText('Configuration'), 'x');
+    await userEvent.type(within(screen.getByRole('dialog')).getByLabelText('Configuration'), 'x');
     await userEvent.click(screen.getByRole('button', { name: /^Import/ }));
 
     expect(mcp.importMcpConfig).toHaveBeenCalledWith('w1', 'x', undefined);

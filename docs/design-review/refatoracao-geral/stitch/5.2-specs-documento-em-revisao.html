@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Atlas — Specs / Recuperação de senha</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-container-high": "#272a2e",
+            "on-secondary-fixed-variant": "#004883",
+            "on-tertiary-fixed": "#3e0022",
+            "error-container": "#93000a",
+            "outline": "#908fa0",
+            "surface-container-highest": "#323539",
+            "surface-container": "#1d2024",
+            "primary": "#c0c1ff",
+            "on-tertiary-container": "#570032",
+            "on-primary-fixed": "#07006c",
+            "on-error-container": "#ffdad6",
+            "secondary-fixed": "#d4e3ff",
+            "primary-container": "#8083ff",
+            "background": "#111418",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-primary": "#1000a9",
+            "secondary": "#a4c9ff",
+            "on-background": "#e1e2e8",
+            "surface-tint": "#c0c1ff",
+            "on-tertiary-fixed-variant": "#8c0053",
+            "inverse-surface": "#e1e2e8",
+            "surface-container-low": "#191c20",
+            "surface-bright": "#36393e",
+            "on-secondary-fixed": "#001c39",
+            "on-surface-variant": "#c7c4d7",
+            "on-surface": "#e1e2e8",
+            "on-error": "#690005",
+            "secondary-container": "#0267b8",
+            "surface-variant": "#323539",
+            "surface": "#111418",
+            "on-secondary-container": "#d6e5ff",
+            "on-secondary": "#00315d",
+            "primary-fixed": "#e1e0ff",
+            "surface-dim": "#111418",
+            "on-primary-container": "#0d0096",
+            "tertiary-container": "#f751a1",
+            "surface-container-lowest": "#0b0e12",
+            "inverse-primary": "#494bd6",
+            "tertiary": "#ffb0cd",
+            "outline-variant": "#464554",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "secondary-fixed-dim": "#a4c9ff",
+            "tertiary-fixed-dim": "#ffb0cd",
+            "on-tertiary": "#640039",
+            "tertiary-fixed": "#ffd9e4",
+            "inverse-on-surface": "#2e3135",
+            "error": "#ffb4ab"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "gutter-expanded": "1rem",
+            "gutter-compact": "0.25rem",
+            "gutter": "0.5rem",
+            "margin": "0.75rem",
+            "margin-window": "0.5rem",
+            "space-md": "0.75rem",
+            "space-sm": "0.5rem",
+            "space-2xl": "2rem",
+            "space-xs": "0.25rem",
+            "space-lg": "1rem",
+            "space-2xs": "0.125rem",
+            "space-xl": "1.5rem"
+          },
+          "fontFamily": {
+            "headline-lg": ["Geist", "sans-serif"],
+            "telemetry-pill": ["JetBrains Mono", "monospace"],
+            "label-sm": ["Geist", "sans-serif"],
+            "body-md": ["Geist", "sans-serif"],
+            "code-lg": ["JetBrains Mono", "monospace"],
+            "headline-md": ["Geist", "sans-serif"],
+            "code-sm": ["JetBrains Mono", "monospace"],
+            "headline-sm": ["Geist", "sans-serif"],
+            "code-md": ["JetBrains Mono", "monospace"],
+            "label-md": ["Geist", "sans-serif"],
+            "body-lg": ["Geist", "sans-serif"],
+            "headline-xl": ["Geist", "sans-serif"],
+            "body-sm": ["Geist", "sans-serif"]
+          },
+          "fontSize": {
+            "headline-lg": ["1.5rem", { "lineHeight": "2rem", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "telemetry-pill": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.02em", "fontWeight": "600" }],
+            "label-sm": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.04em", "fontWeight": "600" }],
+            "body-md": ["0.875rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "code-lg": ["0.875rem", { "lineHeight": "1.375rem", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "headline-md": ["1.25rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.015em", "fontWeight": "500" }],
+            "code-sm": ["0.6875rem", { "lineHeight": "1rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-sm": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "code-md": ["0.8125rem", { "lineHeight": "1.25rem", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+            "label-md": ["0.8125rem", { "lineHeight": "1rem", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "body-lg": ["1rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "headline-xl": ["2rem", { "lineHeight": "2.5rem", "letterSpacing": "-0.025em", "fontWeight": "600" }],
+            "body-sm": ["0.75rem", { "lineHeight": "1.125rem", "letterSpacing": "0.005em", "fontWeight": "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+    }
+    /* Scrollbar styling for clinical terminal look */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #242c37;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3b4554;
+    }
+  </style>
+</head>
+<body class="bg-[#0b0d10] text-on-surface antialiased overflow-hidden select-none font-body-md text-body-md h-screen w-screen flex">
+<!-- ============================================================== -->
+<!-- MOLDURA FIXA: BARRA LATERAL (216px)                            -->
+<!-- ============================================================== -->
+<aside class="fixed top-0 left-0 h-screen w-[216px] z-30 bg-surface-container-low border-r border-outline-variant flex flex-col justify-between p-space-sm">
+<div class="flex flex-col gap-space-sm">
+<!-- Brand Logo / Window Drag Header -->
+<div class="flex items-center gap-2 px-space-xs py-1">
+<div class="w-5 h-5 bg-[#6366f1] rounded flex items-center justify-center font-bold text-white text-xs leading-none">
+          A
+        </div>
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface tracking-tight leading-none">Atlas</span>
+</div>
+<!-- Workspace Selector -->
+<div class="mt-1 px-space-xs py-1.5 rounded bg-surface-container-lowest border border-outline-variant flex items-center justify-between cursor-pointer hover:bg-surface-container transition-colors">
+<div class="overflow-hidden pr-1">
+<div class="font-label-md text-label-md text-on-surface truncate leading-tight font-medium">Transport ERP</div>
+<div class="font-code-sm text-code-sm text-[#64748b] truncate leading-none mt-0.5" title="/Users/lucas/dev/transport-erp">/Users/lucas/dev/transport-erp</div>
+</div>
+<span class="material-symbols-outlined text-outline shrink-0 text-[14px]">unfold_more</span>
+</div>
+<!-- Navigation List: Exactly 7 tabs from JSON blueprint -->
+<nav class="flex flex-col gap-0.5 mt-2">
+<!-- 1. Workspace -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">folder_open</span>
+<span>Workspace</span>
+</a>
+<!-- 2. Workflow -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span>Workflow</span>
+</a>
+<!-- 3. Agentes -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span>Agentes</span>
+</a>
+<!-- 4. Personalidades -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">psychology</span>
+<span>Personalidades</span>
+</a>
+<!-- 5. Specs (ACTIVE MAPPING) -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded bg-surface-container-highest text-primary font-label-md text-label-md border border-outline-variant font-medium" href="#">
+<span class="material-symbols-outlined" style="color: #c0c1ff;">description</span>
+<span>Specs</span>
+</a>
+<!-- 6. MCP Hub -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">hub</span>
+<span>MCP Hub</span>
+</a>
+<!-- 7. Configurações -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant font-label-md text-label-md hover:text-on-surface hover:bg-surface-container transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Configurações</span>
+</a>
+</nav>
+</div>
+<!-- Sidebar Footer -->
+<div class="pt-2 border-t border-outline-variant flex flex-col gap-0.5 px-space-xs">
+<div class="font-code-sm text-code-sm text-on-surface font-medium">Project Atlas</div>
+<div class="font-code-sm text-code-sm text-[#64748b]">v0.2.0 · macOS</div>
+</div>
+</aside>
+<!-- ============================================================== -->
+<!-- MOLDURA FIXA: BARRA SUPERIOR (48px)                            -->
+<!-- ============================================================== -->
+<header class="fixed top-0 left-[216px] right-0 h-12 z-20 bg-surface-container-lowest border-b border-outline-variant flex items-center justify-between px-space-lg">
+<!-- Left: Collapse toggle + Breadcrumb -->
+<div class="flex items-center gap-3">
+<button class="p-1 text-on-surface-variant hover:text-on-surface rounded hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[18px]">dock_to_right</span>
+</button>
+<div class="h-3.5 w-px bg-outline-variant"></div>
+<nav class="flex items-center gap-1.5 font-code-sm text-code-sm">
+<span class="text-on-surface-variant hover:text-on-surface cursor-pointer">Transport ERP</span>
+<span class="text-outline">/</span>
+<span class="text-on-surface-variant hover:text-on-surface cursor-pointer">Specs</span>
+<span class="text-outline">/</span>
+<span class="text-on-surface font-medium">Recuperação de senha</span>
+</nav>
+</div>
+<!-- Right Controls: Status Chip + Celular + Locale Toggle -->
+<div class="flex items-center gap-3">
+<!-- Amber Chip: 1 agente aguardando você -->
+<div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[rgba(245,158,11,0.12)] border border-[rgba(245,158,11,0.35)]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#f59e0b] animate-pulse"></span>
+<span class="font-label-sm text-label-sm text-[#f59e0b] font-medium leading-none">1 agente aguardando você</span>
+</div>
+<!-- Celular button -->
+<button class="flex items-center gap-1.5 px-2 py-1 rounded bg-surface-container hover:bg-surface-container-high border border-outline-variant text-on-surface font-label-sm text-label-sm transition-colors">
+<span class="material-symbols-outlined text-[15px]">smartphone</span>
+<span>Celular</span>
+</button>
+<div class="h-3.5 w-px bg-outline-variant"></div>
+<!-- PT | EN switcher -->
+<div class="flex items-center gap-1 font-label-sm text-label-sm">
+<button class="text-primary font-semibold px-1 py-0.5 rounded bg-surface-container-high">PT</button>
+<span class="text-outline text-xs">|</span>
+<button class="text-on-surface-variant hover:text-on-surface px-1 py-0.5">EN</button>
+</div>
+</div>
+</header>
+<!-- ============================================================== -->
+<!-- MAIN WORKSPACE CONTENT CANVAS                                  -->
+<!-- ============================================================== -->
+<main class="ml-[216px] mt-12 flex-1 h-[calc(100vh-48px)] flex flex-col bg-[#101317] overflow-hidden">
+<!-- 1. CABEÇALHO DA SPEC & SDD STEPPER -->
+<div class="border-b border-outline-variant bg-[#101317] px-6 pt-4 pb-3 flex-shrink-0">
+<!-- Top nav backlink & actions -->
+<div class="flex items-center justify-between mb-2">
+<a class="inline-flex items-center gap-1 text-on-surface-variant hover:text-on-surface font-label-md text-label-md group transition-colors" href="#">
+<span class="material-symbols-outlined text-[14px] group-hover:-translate-x-0.5 transition-transform">arrow_back</span>
+<span>Todas as specs</span>
+</a>
+<div class="flex items-center gap-2">
+<button class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#1c2128] hover:bg-[#242c37] border border-outline-variant text-on-surface font-label-sm text-label-sm transition-colors">
+<span class="material-symbols-outlined text-[14px]">tune</span>
+<span>Agentes e ferramentas</span>
+</button>
+<div class="relative group">
+<button class="p-1 rounded hover:bg-[#1c2128] border border-transparent hover:border-outline-variant text-on-surface-variant hover:text-on-surface transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+<div class="hidden group-hover:block absolute right-0 top-full mt-1 w-28 bg-[#1c2128] border border-outline-variant rounded shadow-lg py-1 z-30">
+<button class="w-full text-left px-3 py-1 font-label-sm text-label-sm text-[#ef4444] hover:bg-[#242c37] flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]">delete</span>
+<span>Excluir</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Spec Title & Status Badge -->
+<div class="flex items-center gap-3">
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">Recuperação de senha</h1>
+<div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[rgba(245,158,11,0.14)] border border-[rgba(245,158,11,0.35)]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#f59e0b]"></span>
+<span class="font-label-sm text-label-sm text-[#f59e0b] font-normal leading-none">Aguardando você</span>
+</div>
+</div>
+<!-- Telemetry Metadata Line -->
+<div class="font-code-sm text-code-sm text-[#64748b] mt-1.5 flex items-center gap-2">
+<span>password-reset</span>
+<span>·</span>
+<span>spec-driven/1</span>
+<span>·</span>
+<span>transport-erp</span>
+<span>·</span>
+<span>escreve: <span class="text-on-surface-variant font-medium">Arquiteto</span></span>
+<span>·</span>
+<span>revisa: <span class="text-on-surface-variant font-medium">QA</span></span>
+</div>
+<!-- 2. PASSOS DO SDD (Stepper Horizontal) -->
+<div class="mt-4 pt-3 border-t border-outline-variant grid grid-cols-5 gap-2">
+<!-- Step 1: Proposta (Aprovado) -->
+<div class="flex flex-col gap-1 p-2 rounded bg-[#15191e] border border-outline-variant/60">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-on-surface-variant">1. Proposta</span>
+<span class="material-symbols-outlined text-[#10b981] text-[14px]">check_circle</span>
+</div>
+<span class="font-code-sm text-code-sm text-[#10b981] font-medium leading-none">✓ Aprovado</span>
+</div>
+<!-- Step 2: Requisitos (Active / Aguardando revisão) -->
+<div class="flex flex-col gap-1 p-2 rounded bg-[#1c2128] border border-[#f59e0b]/50 ring-1 ring-[#f59e0b]/20">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-on-surface font-semibold">2. Requisitos</span>
+<span class="w-2 h-2 rounded-full bg-[#f59e0b]"></span>
+</div>
+<span class="font-code-sm text-code-sm text-[#f59e0b] font-medium leading-none">Aguardando revisão</span>
+</div>
+<!-- Step 3: Design (Pendente) -->
+<div class="flex flex-col gap-1 p-2 rounded bg-[#15191e]/50 border border-outline-variant/40 opacity-70">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-outline">3. Design</span>
+<span class="material-symbols-outlined text-outline text-[14px]">lock</span>
+</div>
+<span class="font-code-sm text-code-sm text-outline leading-tight truncate">Aguardando anteriores</span>
+</div>
+<!-- Step 4: Tarefas (Pendente) -->
+<div class="flex flex-col gap-1 p-2 rounded bg-[#15191e]/50 border border-outline-variant/40 opacity-50">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-outline">4. Tarefas</span>
+<span class="material-symbols-outlined text-outline text-[14px]">radio_button_unchecked</span>
+</div>
+<span class="font-code-sm text-code-sm text-outline leading-tight">Pendente</span>
+</div>
+<!-- Step 5: Revisão final (Pendente) -->
+<div class="flex flex-col gap-1 p-2 rounded bg-[#15191e]/50 border border-outline-variant/40 opacity-50">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-outline">5. Revisão final</span>
+<span class="material-symbols-outlined text-outline text-[14px]">radio_button_unchecked</span>
+</div>
+<span class="font-code-sm text-code-sm text-outline leading-tight">Pendente</span>
+</div>
+</div>
+</div>
+<!-- 3. SPLIT CANVAS AREA (Left Document + Right Context Panel) -->
+<div class="flex-1 flex overflow-hidden relative">
+<!-- Coluna da Esquerda: Documento em Revisão -->
+<section class="flex-1 flex flex-col bg-[#0b0d10] overflow-hidden border-r border-outline-variant">
+<!-- Document Toolbar -->
+<div class="h-10 px-5 bg-[#15191e] border-b border-outline-variant flex items-center justify-between flex-shrink-0">
+<div class="flex items-center gap-3">
+<span class="font-code-sm text-code-sm text-[#94a3b8] flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[15px] text-[#6366f1]">draft</span>
+              specs/password-reset/spec.md
+            </span>
+<span class="text-outline-variant">|</span>
+<div class="flex items-center gap-1 bg-[#1c2128] px-2 py-0.5 rounded border border-outline-variant cursor-pointer text-on-surface">
+<span class="font-code-sm text-code-sm font-medium">Revisão 2</span>
+<span class="material-symbols-outlined text-[13px] text-outline">expand_more</span>
+</div>
+<span class="font-body-sm text-body-sm text-[#64748b]">escrito pelo Arquiteto há 4 min</span>
+</div>
+<!-- Mode Toggle: Renderizado | Markdown -->
+<div class="flex items-center bg-[#101317] p-0.5 rounded border border-outline-variant text-label-sm font-label-sm">
+<button class="px-2 py-0.5 rounded bg-[#242c37] text-on-surface font-medium">Renderizado</button>
+<button class="px-2 py-0.5 text-on-surface-variant hover:text-on-surface">Markdown</button>
+</div>
+</div>
+<!-- Rendered Document Viewport (72ch centered container, bottom-padded for decision bar) -->
+<div class="flex-1 overflow-y-auto px-8 py-6 pb-24">
+<article class="max-w-[72ch] mx-auto text-on-surface flex flex-col gap-5">
+<!-- Requirement Header -->
+<div class="border-b border-outline-variant/60 pb-3">
+<span class="font-code-sm text-code-sm text-[#818cf8] uppercase tracking-wider font-semibold">SEC-AUTH-091</span>
+<h2 class="font-headline-md text-headline-md text-on-surface mt-1">Requisito: Pedir recuperação</h2>
+<p class="font-body-md text-body-md text-[#94a3b8] mt-1.5 leading-relaxed">
+                Garante que clientes e colaboradores da frota possam recuperar credenciais de acesso corporativo com garantias criptográficas e retenção controlada de tokens para mitigar ataques de enumeração de conta.
+              </p>
+</div>
+<!-- Scenario: Registered Email -->
+<div class="flex flex-col gap-3">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-secondary">checklist</span>
+                Cenário: e-mail cadastrado
+              </h3>
+<!-- Specification List Rules -->
+<ul class="flex flex-col gap-2.5 bg-[#15191e] border border-outline-variant/80 rounded p-4 font-body-md text-body-md">
+<li class="flex items-start gap-2.5">
+<span class="font-code-sm text-code-sm text-[#60a5fa] bg-[#1c2128] px-1.5 py-0.5 rounded font-semibold shrink-0 mt-0.5">QUANDO</span>
+<span class="text-on-surface">o usuário informar um endereço de e-mail válido existente na base de dados ativa do ERP;</span>
+</li>
+<li class="flex items-start gap-2.5">
+<span class="font-code-sm text-code-sm text-[#10b981] bg-[#1c2128] px-1.5 py-0.5 rounded font-semibold shrink-0 mt-0.5">ENTÃO</span>
+<span class="text-on-surface">o sistema gera um token assinado (HMAC-SHA256) com expiração estrita de 15 minutos mantido exclusivamente em memória/cache Redis;</span>
+</li>
+<li class="flex items-start gap-2.5">
+<span class="font-code-sm text-code-sm text-[#10b981] bg-[#1c2128] px-1.5 py-0.5 rounded font-semibold shrink-0 mt-0.5">ENTÃO</span>
+<span class="text-on-surface">envia um link único de redefinição transacional para a caixa postal informada via fila de e-mail do microserviço de mensageria;</span>
+</li>
+<li class="flex items-start gap-2.5">
+<span class="font-code-sm text-code-sm text-[#10b981] bg-[#1c2128] px-1.5 py-0.5 rounded font-semibold shrink-0 mt-0.5">ENTÃO</span>
+<span class="text-on-surface">registra evento de auditoria <code class="font-code-sm text-code-sm text-primary bg-[#1c2128] px-1 rounded">AUTH_RESET_REQUESTED</code> sem expor o token criptográfico nos logs estruturados da aplicação.</span>
+</li>
+</ul>
+</div>
+<!-- Security Rules & Code Payload -->
+<div class="flex flex-col gap-2.5">
+<h4 class="font-label-md text-label-md text-on-surface uppercase tracking-wider text-[#94a3b8] font-semibold">Contrato de Payload e Evento</h4>
+<div class="bg-[#15191e] border border-outline-variant rounded p-3 font-code-sm text-code-sm overflow-x-auto leading-relaxed">
+<div class="text-[#64748b]">// POST /api/v2/auth/password-reset/request</div>
+<div class="text-[#c0c1ff]">{</div>
+<div class="pl-4 text-on-surface">"email": <span class="text-[#a4c9ff]">"operador@transport-erp.internal"</span>,</div>
+<div class="pl-4 text-on-surface">"client_ip": <span class="text-[#a4c9ff]">"192.168.1.120"</span>,</div>
+<div class="pl-4 text-on-surface">"origin_device": <span class="text-[#a4c9ff]">"native-desktop-tauri"</span>,</div>
+<div class="pl-4 text-on-surface">"ttl_seconds": <span class="text-[#f59e0b]">900</span></div>
+<div class="text-[#c0c1ff]">}</div>
+</div>
+</div>
+<!-- Architectural Note Callout -->
+<div class="p-3 bg-[#1c2128] border-l-2 border-[#6366f1] rounded-r text-body-sm font-body-sm text-[#c7c4d7]">
+<div class="font-label-sm font-semibold text-on-surface mb-0.5">Diretriz de Segurança Restritiva</div>
+              Respostas HTTP para e-mails não cadastrados devem manter latência idêntica (tempo constante) e retornar mensagem genérica para mitigar User Enumeration Attacks.
+            </div>
+</article>
+</div>
+</section>
+<!-- Coluna da Direita: Painel Lateral de Contexto (300px) -->
+<aside class="w-[300px] flex-shrink-0 bg-[#15191e] border-l border-outline-variant flex flex-col justify-between overflow-y-auto pb-20">
+<div class="p-4 flex flex-col gap-5">
+<!-- Bloco 1: Validações -->
+<div class="flex flex-col gap-2 pb-4 border-b border-outline-variant">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface font-semibold">Validações</span>
+<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[rgba(16,185,129,0.14)] border border-[rgba(16,185,129,0.4)] text-[#10b981] font-code-sm text-code-sm font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+                Aprovado
+              </span>
+</div>
+<p class="font-body-sm text-body-sm text-[#94a3b8] leading-tight">
+              Nenhum problema na estrutura.
+            </p>
+<button class="mt-1 flex items-center justify-center gap-1.5 w-full py-1 rounded bg-[#1c2128] hover:bg-[#242c37] border border-outline-variant text-on-surface font-label-sm text-label-sm transition-colors">
+<span class="material-symbols-outlined text-[14px]">refresh</span>
+<span>Rodar validações novamente</span>
+</button>
+</div>
+<!-- Bloco 2: Perguntas do agente (2) -->
+<div class="flex flex-col gap-2.5 pb-4 border-b border-outline-variant">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface font-semibold">Perguntas do agente (2)</span>
+<span class="font-code-sm text-code-sm text-[#f59e0b] font-medium">Bloqueante</span>
+</div>
+<!-- Pergunta 1 -->
+<div class="p-2.5 rounded bg-[#1c2128] border border-outline-variant flex flex-col gap-2">
+<p class="font-body-sm text-body-sm text-on-surface leading-snug">
+                "O token deve ser invalidado imediatamente após o primeiro uso ou mantido até a expiração?"
+              </p>
+<div class="flex justify-end">
+<button class="px-2 py-0.5 rounded bg-[#242c37] hover:bg-[#2d3748] border border-outline-variant text-on-surface font-label-sm text-label-sm transition-colors">
+                  Responder
+                </button>
+</div>
+</div>
+<!-- Pergunta 2 -->
+<div class="p-2.5 rounded bg-[#1c2128] border border-outline-variant flex flex-col gap-2">
+<p class="font-body-sm text-body-sm text-on-surface leading-snug">
+                "Devemos limitar as tentativas de solicitação por IP para mitigar spam de e-mails?"
+              </p>
+<div class="flex justify-end">
+<button class="px-2 py-0.5 rounded bg-[#242c37] hover:bg-[#2d3748] border border-outline-variant text-on-surface font-label-sm text-label-sm transition-colors">
+                  Responder
+                </button>
+</div>
+</div>
+</div>
+<!-- Bloco 3: Consumo -->
+<div class="flex flex-col gap-1.5 pb-4 border-b border-outline-variant">
+<span class="font-label-md text-label-md text-on-surface font-semibold">Consumo</span>
+<div class="font-code-sm text-code-sm text-[#94a3b8] leading-relaxed bg-[#101317] p-2 rounded border border-outline-variant">
+              Entrada <span class="text-on-surface font-medium">42.100</span> · Saída <span class="text-on-surface font-medium">8.300 tokens</span> · limite <span class="text-[#c0c1ff]">200.000</span>
+</div>
+</div>
+<!-- Bloco 4: Histórico -->
+<div class="flex flex-col gap-2">
+<span class="font-label-md text-label-md text-on-surface font-semibold">Histórico</span>
+<div class="flex flex-col gap-1.5 font-code-sm text-code-sm">
+<div class="flex items-center justify-between p-1.5 rounded bg-[#1c2128] border border-outline-variant">
+<span class="text-on-surface">Revisão 2</span>
+<span class="text-[#10b981] font-medium">revisada</span>
+</div>
+<div class="flex items-center justify-between p-1.5 rounded bg-[#101317] border border-outline-variant/60 text-[#64748b]">
+<span>Revisão 1</span>
+<span>gerada</span>
+</div>
+</div>
+</div>
+</div>
+</aside>
+<!-- 4. BARRA FIXA NO RODAPÉ: "SUA DECISÃO" -->
+<footer class="absolute bottom-0 left-0 right-0 h-16 bg-[#15191e]/95 backdrop-blur-sm border-t border-outline-variant z-20 flex items-center justify-between px-6 shadow-2xl">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-[#f59e0b]"></span>
+<span class="font-body-md text-body-md text-on-surface font-medium">
+            Revise os requisitos. Nada roda até você pedir.
+          </span>
+</div>
+<!-- Action cluster -->
+<div class="flex items-center gap-2.5">
+<!-- Botão fantasma -->
+<button class="px-3 py-1.5 rounded text-on-surface-variant hover:text-on-surface hover:bg-[#1c2128] font-label-md text-label-md transition-colors">
+            Escrever de novo
+          </button>
+<!-- Botão secundário -->
+<button class="px-3 py-1.5 rounded bg-[#1c2128] hover:bg-[#242c37] border border-outline-variant text-on-surface font-label-md text-label-md transition-colors">
+            Solicitar alterações
+          </button>
+<!-- Botão principal em acento índigo (#6366f1) -->
+<button class="flex items-center gap-1.5 px-4 py-1.5 rounded bg-[#6366f1] hover:bg-[#4f46e5] active:bg-[#4338ca] text-white font-label-md text-label-md font-semibold transition-colors shadow-sm">
+<span>Aprovar e continuar</span>
+<span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+</button>
+</div>
+</footer>
+</div>
+</main>
+</body></html>

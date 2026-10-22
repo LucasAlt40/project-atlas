@@ -1,4 +1,8 @@
+import type { ReactNode } from 'react';
+import { Switch } from '@/components/ui/Switch';
 import { Button } from '@/components/ui/Button';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
+import { StateBadge } from '@/components/ui/status';
 import { Icon } from '@/components/ui/Icon';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { Translate, TranslationKey } from '@/i18n';
@@ -185,30 +189,55 @@ export function NodeInspector({
   const disabled = !editable;
   const facts = node.type === 'agent' ? factsOf(node.agentId) : undefined;
 
+  const outcomes = facts?.outcomes ?? [];
+  const failure =
+    node.type === 'agent' && node.failurePolicy.type === 'route_to_node'
+      ? t('workflow.inspector.summary.routeTo', { name: name(node.failurePolicy.nodeId) })
+      : t('workflow.inspector.summary.stop');
+  const loopText = node.loopPolicy
+    ? t('workflow.inspector.summary.loop', { n: node.loopPolicy.maxIterations })
+    : t('workflow.inspector.noLoop');
+  const routesSummary = [
+    incoming.length > 0
+      ? t('workflow.inspector.summary.after', {
+          names: incoming.map((e) => name(e.sourceNodeId)).join(', '),
+        })
+      : null,
+    outgoing.length > 0
+      ? t('workflow.inspector.summary.next', {
+          names: outgoing.map((e) => name(e.targetNodeId)).join(', '),
+        })
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const section = (title: string, summary: string, open: boolean, body: ReactNode) => (
+    <CollapsibleSection
+      title={title}
+      label={t('workflow.inspector.sectionLabel', { name: title })}
+      variant="flat"
+      defaultOpen={open}
+      summary={summary || '—'}
+    >
+      {body}
+    </CollapsibleSection>
+  );
+
   return (
     <section className={styles.drawer} aria-label={t('workflow.inspector.node')}>
       <header className={styles.drawerHead}>
         <div className={styles.drawerTop}>
-          <span className={styles.drawerIcon} aria-hidden="true">
-            <Icon
-              name={node.type === 'agent' ? 'agents' : node.type === 'end' ? 'endNode' : 'branch'}
-              size={18}
-            />
-          </span>
           <div className={styles.drawerTitles}>
-            <h3 className={styles.drawerTitle}>
-              {node.label}
-              <span className={styles.chip}>
-                {t(
-                  node.type === 'agent'
-                    ? 'workflow.node.agent'
-                    : node.type === 'condition'
-                      ? 'workflow.node.condition'
-                      : 'workflow.node.end',
-                )}
-              </span>
-            </h3>
-            <p className={styles.muted}>{facts?.personality ?? ''}</p>
+            <h3 className={styles.drawerTitle}>{node.label}</h3>
+            <p className={styles.muted}>
+              {t(
+                node.type === 'agent'
+                  ? 'workflow.inspector.kind.agent'
+                  : node.type === 'condition'
+                    ? 'workflow.inspector.kind.condition'
+                    : 'workflow.inspector.kind.end',
+              )}
+            </p>
           </div>
           {onClose && (
             <button
@@ -218,303 +247,392 @@ export function NodeInspector({
               title={t('workflow.inspector.close')}
               onClick={onClose}
             >
-              <Icon name="close" size={16} />
+              <Icon name="close" size={18} />
             </button>
           )}
         </div>
         <div className={styles.drawerStrip}>
-          {valid === undefined ? (
-            <span />
-          ) : valid ? (
-            <span className={styles.ok}>
-              <Icon name="check" size={13} /> {t('workflow.inspector.stepValid')}
-            </span>
+          {valid === undefined ? null : valid ? (
+            <StateBadge state="completed">{t('workflow.inspector.stepValid')}</StateBadge>
           ) : (
-            <span className={styles.warnText}>
-              <Icon name="warning" size={13} /> {t('workflow.inspector.stepInvalid')}
-            </span>
+            <StateBadge state="blocked">{t('workflow.inspector.stepInvalid')}</StateBadge>
           )}
-          <span className={styles.chip} title={t('workflow.inspector.nodeId')}>
-            NODE_ID: {node.id}
+          <span className={styles.nodeId} title={t('workflow.inspector.nodeId')}>
+            {node.id}
           </span>
         </div>
       </header>
-      <div className={styles.drawerBody}>
-        <h4 className={styles.sectionTitle}>{t('workflow.inspector.sectionIdentity')}</h4>
-        <Field label={t('workflow.inspector.label')}>
-          <input
-            className={styles.control}
-            value={node.label}
-            disabled={disabled}
-            onChange={(e) => {
-              onChange((w) => updateNodeLabel(w, node.id, e.target.value));
-            }}
-          />
-        </Field>
-
+      <div className={styles.drawerSections}>
         {node.type === 'agent' && (
           <>
-            <Field label={t('workflow.inspector.agent')}>
-              <select
-                className={styles.control}
-                value={node.agentId}
-                disabled={disabled}
-                onChange={(e) => {
-                  onChange((w) => updateAgentNode(w, node.id, { agentId: e.target.value }));
-                }}
-              >
-                {node.agentId === '' && (
-                  <option value="">{t('workflow.inspector.chooseAgent')}</option>
+            {section(
+              t('workflow.inspector.sectionAgent'),
+              facts ? `${facts.name} · ${facts.runtime}` : '',
+              true,
+              <>
+                <Field label={t('workflow.inspector.agent')}>
+                  <select
+                    className={styles.control}
+                    value={node.agentId}
+                    disabled={disabled}
+                    onChange={(e) => {
+                      onChange((w) => updateAgentNode(w, node.id, { agentId: e.target.value }));
+                    }}
+                  >
+                    {node.agentId === '' && (
+                      <option value="">{t('workflow.inspector.chooseAgent')}</option>
+                    )}
+                    {agents.map((agent) => (
+                      <option key={agent.id} value={agent.id}>
+                        {agent.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label={t('workflow.inspector.label')}>
+                  <input
+                    className={styles.control}
+                    value={node.label}
+                    disabled={disabled}
+                    onChange={(e) => {
+                      onChange((w) => updateNodeLabel(w, node.id, e.target.value));
+                    }}
+                  />
+                </Field>
+                {facts && (
+                  <dl className={styles.facts}>
+                    <div>
+                      <dt>{t('workflow.inspector.personality')}</dt>
+                      <dd>{facts.personality}</dd>
+                    </div>
+                    <div>
+                      <dt>{t('workflow.inspector.runtime')}</dt>
+                      <dd>{facts.runtime}</dd>
+                    </div>
+                    <div>
+                      <dt>{t('workflow.inspector.model')}</dt>
+                      <dd>{facts.model || '—'}</dd>
+                    </div>
+                    <div>
+                      <dt>{t('workflow.inspector.isolation')}</dt>
+                      <dd>
+                        {facts.isolation ? t('workflow.inspector.on') : t('workflow.inspector.off')}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>{t('workflow.inspector.context')}</dt>
+                      <dd>{t('workflow.inspector.taskAware')}</dd>
+                    </div>
+                  </dl>
                 )}
-                {agents.map((agent) => (
-                  <option key={agent.id} value={agent.id}>
-                    {agent.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            {facts && (
-              <dl className={styles.facts}>
-                <div>
-                  <dt>{t('workflow.inspector.personality')}</dt>
-                  <dd>{facts.personality}</dd>
-                </div>
-                <div>
-                  <dt>{t('workflow.inspector.runtime')}</dt>
-                  <dd>{facts.runtime}</dd>
-                </div>
-                <div>
-                  <dt>{t('workflow.inspector.model')}</dt>
-                  <dd>{facts.model || '—'}</dd>
-                </div>
-                <div>
-                  <dt>{t('workflow.inspector.isolation')}</dt>
-                  <dd>
-                    {facts.isolation ? t('workflow.inspector.on') : t('workflow.inspector.off')}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{t('workflow.inspector.context')}</dt>
-                  <dd>{t('workflow.inspector.taskAware')}</dd>
-                </div>
-                <div className={styles.wide}>
-                  <dt>{t('workflow.inspector.result')}</dt>
-                  <dd>
-                    {facts.outcomes.length === 0
-                      ? t('workflow.inspector.resultGeneral')
-                      : facts.outcomes.map((o, i) => (
-                          <span key={o.id} className={styles.outcomeChip} data-first={i === 0}>
-                            {o.id}
-                          </span>
-                        ))}
-                  </dd>
-                </div>
-              </dl>
+              </>,
             )}
-            <h4 className={styles.sectionTitle}>
-              {t('workflow.inspector.sectionGuidelines')}
-              <span className={styles.muted}>
-                {t('workflow.inspector.tokens', {
-                  n: Math.ceil((node.instructions.length + node.completionCriteria.length) / 4),
-                })}
-              </span>
-            </h4>
-            <Field label={t('workflow.inspector.instructions')}>
-              <textarea
-                className={styles.textarea}
-                value={node.instructions}
-                disabled={disabled}
-                placeholder={t('workflow.inspector.instructionsPlaceholder')}
-                onChange={(e) => {
-                  onChange((w) => updateAgentNode(w, node.id, { instructions: e.target.value }));
-                }}
-              />
-            </Field>
-            <Field label={t('workflow.inspector.completionCriteria')}>
-              <textarea
-                className={styles.textarea}
-                value={node.completionCriteria}
-                disabled={disabled}
-                placeholder={t('workflow.inspector.completionCriteriaPlaceholder')}
-                onChange={(e) => {
-                  const completionCriteria = e.target.value;
-                  onChange((w) => updateAgentNode(w, node.id, { completionCriteria }));
-                }}
-              />
-              <p className={styles.muted}>{t('workflow.inspector.completionCriteriaHint')}</p>
-            </Field>
-            <h4 className={styles.sectionTitle}>{t('workflow.inspector.sectionPermissions')}</h4>
-            <div className={styles.field}>
-              <label className={[styles.checkRow, styles.switchRow].join(' ')}>
-                <input
-                  className={styles.switch}
-                  type="checkbox"
-                  checked={node.executionPolicy.readOnly}
-                  disabled={disabled}
-                  onChange={(e) => {
-                    const readOnly = e.target.checked;
-                    onChange((w) =>
-                      updateAgentNode(w, node.id, {
-                        executionPolicy: { ...node.executionPolicy, readOnly },
-                      }),
-                    );
-                  }}
-                />{' '}
-                {t('workflow.inspector.readOnly')}
-              </label>
-              <p className={styles.muted}>{t('workflow.inspector.readOnlyHint')}</p>
-            </div>
-            {tools && editable && (
-              <StepTools
-                workspaceId={tools.workspaceId}
-                workflow={workflow}
-                node={node}
-                saved={tools.savedNodeIds.has(node.id)}
-              />
+            {section(
+              t('workflow.inspector.sectionContract'),
+              outcomes.length === 0
+                ? t('workflow.inspector.resultGeneral')
+                : outcomes.map((o) => o.id).join(', '),
+              false,
+              <p className={styles.outcomes}>
+                {outcomes.length === 0
+                  ? t('workflow.inspector.resultGeneral')
+                  : outcomes.map((o, i) => (
+                      <span key={o.id} className={styles.outcomeChip} data-first={i === 0}>
+                        {o.id}
+                      </span>
+                    ))}
+              </p>,
             )}
-            <Field label={t('workflow.inspector.integrations')}>
-              <label className={styles.checkRow}>
-                <input
-                  type="checkbox"
-                  checked={node.executionPolicy.announceIntegrations}
-                  disabled={disabled}
-                  onChange={(e) => {
-                    const announceIntegrations = e.target.checked;
-                    onChange((w) =>
-                      updateAgentNode(w, node.id, {
-                        executionPolicy: { ...node.executionPolicy, announceIntegrations },
-                      }),
-                    );
-                  }}
-                />{' '}
-                {t('workflow.inspector.announceIntegrations')}
-              </label>
-              <p className={styles.muted}>{t('workflow.inspector.announceIntegrationsHint')}</p>
-            </Field>
-            <h4 className={styles.sectionTitle}>{t('workflow.inspector.sectionResilience')}</h4>
-            <Field label={t('workflow.inspector.retries')}>
-              <input
-                className={styles.control}
-                type="number"
-                min={0}
-                max={5}
-                value={node.retryPolicy.maxRetries}
-                disabled={disabled}
-                onChange={(e) => {
-                  const value = Math.min(5, Math.max(0, Number(e.target.value) || 0));
-                  onChange((w) =>
-                    updateAgentNode(w, node.id, { retryPolicy: { maxRetries: value } }),
-                  );
-                }}
-              />
-            </Field>
-            <Field label={t('workflow.inspector.onFailure')}>
-              <select
-                className={styles.control}
-                value={node.failurePolicy.type === 'route_to_node' ? node.failurePolicy.nodeId : ''}
-                disabled={disabled}
-                onChange={(e) => {
-                  onChange((w) => setFailureRoute(w, node.id, e.target.value || null));
-                }}
-              >
-                <option value="">{t('workflow.inspector.stopWorkflow')}</option>
-                {workflow.nodes
-                  .filter((n) => n.id !== node.id && n.type !== 'end')
-                  .map((n) => (
-                    <option key={n.id} value={n.id}>
-                      {t('workflow.inspector.routeTo', { name: n.label })}
-                    </option>
-                  ))}
-              </select>
-            </Field>
+            {section(
+              t('workflow.inspector.sectionInstructions'),
+              node.instructions.trim() || t('workflow.inspector.summary.empty'),
+              false,
+              <>
+                <p className={styles.muted}>
+                  {t('workflow.inspector.tokens', {
+                    n: Math.ceil((node.instructions.length + node.completionCriteria.length) / 4),
+                  })}
+                </p>
+                <Field label={t('workflow.inspector.instructions')}>
+                  <textarea
+                    className={styles.textarea}
+                    value={node.instructions}
+                    disabled={disabled}
+                    placeholder={t('workflow.inspector.instructionsPlaceholder')}
+                    onChange={(e) => {
+                      onChange((w) =>
+                        updateAgentNode(w, node.id, { instructions: e.target.value }),
+                      );
+                    }}
+                  />
+                </Field>
+                <Field label={t('workflow.inspector.completionCriteria')}>
+                  <textarea
+                    className={styles.textarea}
+                    value={node.completionCriteria}
+                    disabled={disabled}
+                    placeholder={t('workflow.inspector.completionCriteriaPlaceholder')}
+                    onChange={(e) => {
+                      const completionCriteria = e.target.value;
+                      onChange((w) => updateAgentNode(w, node.id, { completionCriteria }));
+                    }}
+                  />
+                  <p className={styles.muted}>{t('workflow.inspector.completionCriteriaHint')}</p>
+                </Field>
+              </>,
+            )}
+            {section(
+              t('workflow.inspector.sectionPermissionsOnly'),
+              node.executionPolicy.readOnly
+                ? t('workflow.inspector.summary.readOnly')
+                : t('workflow.inspector.summary.writes'),
+              false,
+              <>
+                <div className={styles.field}>
+                  <div className={styles.switchRow}>
+                    <Switch
+                      labelPosition="before"
+                      checked={node.executionPolicy.readOnly}
+                      disabled={disabled}
+                      onChange={(readOnly) => {
+                        onChange((w) =>
+                          updateAgentNode(w, node.id, {
+                            executionPolicy: { ...node.executionPolicy, readOnly },
+                          }),
+                        );
+                      }}
+                    >
+                      {t('workflow.inspector.readOnly')}
+                    </Switch>
+                  </div>
+                  <p className={styles.muted}>{t('workflow.inspector.readOnlyHint')}</p>
+                </div>
+                <Field label={t('workflow.inspector.integrations')}>
+                  <label className={styles.checkRow}>
+                    <input
+                      type="checkbox"
+                      checked={node.executionPolicy.announceIntegrations}
+                      disabled={disabled}
+                      onChange={(e) => {
+                        const announceIntegrations = e.target.checked;
+                        onChange((w) =>
+                          updateAgentNode(w, node.id, {
+                            executionPolicy: { ...node.executionPolicy, announceIntegrations },
+                          }),
+                        );
+                      }}
+                    />{' '}
+                    {t('workflow.inspector.announceIntegrations')}
+                  </label>
+                  <p className={styles.muted}>{t('workflow.inspector.announceIntegrationsHint')}</p>
+                </Field>
+              </>,
+            )}
+            {section(
+              t('workflow.inspector.sectionResilienceOnly'),
+              t('workflow.inspector.summary.resilience', {
+                retries: node.retryPolicy.maxRetries,
+                failure,
+                loop: loopText,
+              }),
+              false,
+              <>
+                <Field label={t('workflow.inspector.retries')}>
+                  <input
+                    className={styles.control}
+                    type="number"
+                    min={0}
+                    max={5}
+                    value={node.retryPolicy.maxRetries}
+                    disabled={disabled}
+                    onChange={(e) => {
+                      const value = Math.min(5, Math.max(0, Number(e.target.value) || 0));
+                      onChange((w) =>
+                        updateAgentNode(w, node.id, { retryPolicy: { maxRetries: value } }),
+                      );
+                    }}
+                  />
+                </Field>
+                <Field label={t('workflow.inspector.onFailure')}>
+                  <select
+                    className={styles.control}
+                    value={
+                      node.failurePolicy.type === 'route_to_node' ? node.failurePolicy.nodeId : ''
+                    }
+                    disabled={disabled}
+                    onChange={(e) => {
+                      onChange((w) => setFailureRoute(w, node.id, e.target.value || null));
+                    }}
+                  >
+                    <option value="">{t('workflow.inspector.stopWorkflow')}</option>
+                    {workflow.nodes
+                      .filter((n) => n.id !== node.id && n.type !== 'end')
+                      .map((n) => (
+                        <option key={n.id} value={n.id}>
+                          {t('workflow.inspector.routeTo', { name: n.label })}
+                        </option>
+                      ))}
+                  </select>
+                </Field>
+                <Field label={t('workflow.inspector.maxLoop')}>
+                  <input
+                    className={styles.control}
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={node.loopPolicy?.maxIterations ?? ''}
+                    placeholder={t('workflow.inspector.noLoop')}
+                    disabled={disabled}
+                    onChange={(e) => {
+                      const value =
+                        e.target.value === ''
+                          ? null
+                          : Math.min(20, Math.max(1, Number(e.target.value) || 1));
+                      onChange((w) => setLoopLimit(w, node.id, value));
+                    }}
+                  />
+                </Field>
+              </>,
+            )}
+            {tools &&
+              editable &&
+              section(
+                t('workflow.inspector.sectionTools'),
+                t('workflow.inspector.summary.tools'),
+                false,
+                <>
+                  <StepTools
+                    workspaceId={tools.workspaceId}
+                    workflow={workflow}
+                    node={node}
+                    saved={tools.savedNodeIds.has(node.id)}
+                  />
+                </>,
+              )}
           </>
         )}
 
-        {node.type === 'condition' && (
-          <ConditionEditor
-            condition={node.condition}
-            disabled={disabled}
-            onChange={(condition) => {
-              onChange((w) => updateCondition(w, node.id, condition));
-            }}
-          />
-        )}
+        {node.type === 'condition' &&
+          section(
+            t('workflow.inspector.sectionCondition'),
+            '',
+            true,
+            <>
+              <Field label={t('workflow.inspector.label')}>
+                <input
+                  className={styles.control}
+                  value={node.label}
+                  disabled={disabled}
+                  onChange={(e) => {
+                    onChange((w) => updateNodeLabel(w, node.id, e.target.value));
+                  }}
+                />
+              </Field>
+              <ConditionEditor
+                condition={node.condition}
+                disabled={disabled}
+                onChange={(condition) => {
+                  onChange((w) => updateCondition(w, node.id, condition));
+                }}
+              />
 
-        {node.type === 'end' && (
-          <Field label={t('workflow.inspector.outcome')}>
-            <select
-              className={styles.control}
-              value={node.outcome}
-              disabled={disabled}
-              onChange={(e) => {
-                onChange((w) =>
-                  updateEndOutcome(w, node.id, e.target.value as 'done' | 'failed' | 'cancelled'),
-                );
-              }}
-            >
-              {(['done', 'failed', 'cancelled'] as const).map((outcome) => (
-                <option key={outcome} value={outcome}>
-                  {t(`workflow.end.${outcome}` as TranslationKey)}
-                </option>
-              ))}
-            </select>
-          </Field>
-        )}
-
-        {node.type === 'condition' && (
-          <h4 className={styles.sectionTitle}>{t('workflow.inspector.sectionResilience')}</h4>
-        )}
-        {node.type !== 'end' && (
-          <Field label={t('workflow.inspector.maxLoop')}>
-            <input
-              className={styles.control}
-              type="number"
-              min={1}
-              max={20}
-              value={node.loopPolicy?.maxIterations ?? ''}
-              placeholder={t('workflow.inspector.noLoop')}
-              disabled={disabled}
-              onChange={(e) => {
-                const value =
-                  e.target.value === ''
-                    ? null
-                    : Math.min(20, Math.max(1, Number(e.target.value) || 1));
-                onChange((w) => setLoopLimit(w, node.id, value));
-              }}
-            />
-          </Field>
-        )}
-
-        <div className={styles.routes}>
-          <h4>{t('workflow.inspector.dependencies')}</h4>
-          {incoming.length === 0 ? (
-            <p className={styles.muted}>{t('workflow.inspector.noDependencies')}</p>
-          ) : (
-            <ul>
-              {incoming.map((edge) => (
-                <li key={edge.id}>{name(edge.sourceNodeId)}</li>
-              ))}
-            </ul>
+              <Field label={t('workflow.inspector.maxLoop')}>
+                <input
+                  className={styles.control}
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={node.loopPolicy?.maxIterations ?? ''}
+                  placeholder={t('workflow.inspector.noLoop')}
+                  disabled={disabled}
+                  onChange={(e) => {
+                    const value =
+                      e.target.value === ''
+                        ? null
+                        : Math.min(20, Math.max(1, Number(e.target.value) || 1));
+                    onChange((w) => setLoopLimit(w, node.id, value));
+                  }}
+                />
+              </Field>
+            </>,
           )}
-          <h4>{t('workflow.inspector.routes')}</h4>
-          {outgoing.length === 0 ? (
-            <p className={styles.muted}>{t('workflow.inspector.noRoutes')}</p>
-          ) : (
-            <ul>
-              {outgoing.map((edge) => (
-                <li key={edge.id}>
-                  {name(edge.targetNodeId)}
-                  {edge.condition && (
-                    <span className={styles.muted}> — {conditionText(edge.condition)}</span>
-                  )}
-                </li>
-              ))}
-            </ul>
+
+        {node.type === 'end' &&
+          section(
+            t('workflow.inspector.sectionEnd'),
+            '',
+            true,
+            <>
+              <Field label={t('workflow.inspector.label')}>
+                <input
+                  className={styles.control}
+                  value={node.label}
+                  disabled={disabled}
+                  onChange={(e) => {
+                    onChange((w) => updateNodeLabel(w, node.id, e.target.value));
+                  }}
+                />
+              </Field>
+              <Field label={t('workflow.inspector.outcome')}>
+                <select
+                  className={styles.control}
+                  value={node.outcome}
+                  disabled={disabled}
+                  onChange={(e) => {
+                    onChange((w) =>
+                      updateEndOutcome(
+                        w,
+                        node.id,
+                        e.target.value as 'done' | 'failed' | 'cancelled',
+                      ),
+                    );
+                  }}
+                >
+                  {(['done', 'failed', 'cancelled'] as const).map((outcome) => (
+                    <option key={outcome} value={outcome}>
+                      {t(`workflow.end.${outcome}` as TranslationKey)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </>,
           )}
-        </div>
+
+        {section(
+          t('workflow.inspector.sectionRoutes'),
+          routesSummary,
+          false,
+          <div className={styles.routes}>
+            <h4>{t('workflow.inspector.dependencies')}</h4>
+            {incoming.length === 0 ? (
+              <p className={styles.muted}>{t('workflow.inspector.noDependencies')}</p>
+            ) : (
+              <ul>
+                {incoming.map((edge) => (
+                  <li key={edge.id}>{name(edge.sourceNodeId)}</li>
+                ))}
+              </ul>
+            )}
+            <h4>{t('workflow.inspector.routes')}</h4>
+            {outgoing.length === 0 ? (
+              <p className={styles.muted}>{t('workflow.inspector.noRoutes')}</p>
+            ) : (
+              <ul>
+                {outgoing.map((edge) => (
+                  <li key={edge.id}>
+                    {name(edge.targetNodeId)}
+                    {edge.condition && (
+                      <span className={styles.muted}> — {conditionText(edge.condition)}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>,
+        )}
 
         {state && (
-          <div className={styles.routes}>
+          <div className={styles.runState}>
             <h4>{t('workflow.inspector.execution')}</h4>
             <p>
               <span aria-hidden="true">{NODE_STATUS_VIEW[state.status].symbol}</span>{' '}
@@ -567,7 +685,7 @@ export function NodeInspector({
       </div>
       {save && editable && (
         <footer className={styles.drawerFoot}>
-          <span className={styles.muted}>
+          <span className={styles.saveState} data-dirty={save.dirty}>
             {save.dirty ? t('workflow.inspector.unsaved') : t('workflow.inspector.saved')}
           </span>
           <Button disabled={!save.dirty} onClick={save.onSave}>

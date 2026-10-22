@@ -120,7 +120,7 @@ export function ImportDialog({ onClose, onImported }: Props) {
 
   const label = t('portability.import.title');
   return (
-    <Modal label={label} onClose={onClose} size={stage.name === 'review' ? 'wide' : 'analyze'}>
+    <Modal label={label} onClose={onClose} size={stage.name === 'review' ? 'lg' : 'md'}>
       <div className={styles.dialog}>
         <h2 className={styles.title}>{label}</h2>
         {stage.name === 'pick' && (
@@ -197,18 +197,12 @@ function Review({
   return (
     <>
       <div className={styles.meta}>
-        <Badge mono caps={false}>
-          {t('portability.import.file', { file })}
-        </Badge>
+        <Badge mono>{t('portability.import.file', { file })}</Badge>
         {preview.source.appVersion && (
-          <Badge mono caps={false}>
-            {t('portability.import.from', { version: preview.source.appVersion })}
-          </Badge>
+          <Badge mono>{t('portability.import.from', { version: preview.source.appVersion })}</Badge>
         )}
         {preview.exportedAt !== null && (
-          <Badge mono caps={false}>
-            {new Date(preview.exportedAt).toLocaleString()}
-          </Badge>
+          <Badge mono>{new Date(preview.exportedAt).toLocaleString()}</Badge>
         )}
       </div>
       <p className={styles.safety}>{t('portability.safety')}</p>

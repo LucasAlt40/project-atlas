@@ -104,6 +104,17 @@ const node = async (name: string) =>
     new RegExp(`^${name} \\(`),
   );
 
+/** Keeping and discarding are rare: the delivery card's "⋯". Opens it and returns the item. */
+async function codeAction(
+  user: ReturnType<typeof userEvent.setup>,
+  delivery: HTMLElement,
+  name: string,
+  menu = 'More code actions',
+) {
+  await user.click(within(delivery).getByRole('button', { name: menu }));
+  return screen.getByRole('menuitem', { name });
+}
+
 describe('the code of a workflow run', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -141,15 +152,11 @@ describe('the code of a workflow run', () => {
     );
     expect(within(delivery).getByText('2 file(s) changed · +113 −4')).toBeInTheDocument();
     expect(delivery).toHaveTextContent('does not mean the code is in your project');
-    for (const name of [
-      'Review diff',
-      'Open in IDE',
-      'Apply changes',
-      'Keep isolated',
-      'Discard',
-    ]) {
+    for (const name of ['Review diff', 'Open in IDE', 'Apply changes']) {
       expect(within(delivery).getByRole('button', { name })).toBeEnabled();
     }
+    expect(await codeAction(user, delivery, 'Keep isolated')).toBeEnabled();
+    expect(screen.getByRole('menuitem', { name: 'Discard' })).toBeEnabled();
     // It never claims what has not happened.
     expect(delivery).not.toHaveTextContent('were applied to your working tree');
   });
@@ -238,7 +245,7 @@ describe('the code of a workflow run', () => {
     const delivery = await open(user);
     expect(delivery).toHaveTextContent('takes these changes back out of your project');
 
-    await user.click(within(delivery).getByRole('button', { name: 'Keep isolated' }));
+    await user.click(await codeAction(user, delivery, 'Keep isolated'));
 
     expect(keepChanges).toHaveBeenCalledWith('wfx-1');
     await waitFor(() => {
@@ -253,9 +260,10 @@ describe('the code of a workflow run', () => {
   it('does not offer it once the applied changes can no longer be taken back, and says when they could not', async () => {
     const user = userEvent.setup();
     show(withCode(finished(), 'integrated', { canUndo: false }));
-    expect(
-      within(await open(user)).queryByRole('button', { name: 'Keep isolated' }),
-    ).not.toBeInTheDocument();
+    const delivery = await open(user);
+    const more = within(delivery).queryByRole('button', { name: 'More code actions' });
+    if (more) await user.click(more);
+    expect(screen.queryByRole('menuitem', { name: 'Keep isolated' })).not.toBeInTheDocument();
   });
 
   it('says why applied changes could not be taken back, and that nothing was touched', async () => {
@@ -308,7 +316,7 @@ describe('the code of a workflow run', () => {
     expect(delivery).toHaveTextContent('Nothing in your project changed.');
     expect(within(delivery).getByText('src/auth/auth.controller.ts')).toBeInTheDocument();
     expect(within(delivery).getByRole('button', { name: 'Open in IDE' })).toBeEnabled();
-    expect(within(delivery).getByRole('button', { name: 'Keep isolated' })).toBeEnabled();
+    expect(await codeAction(user, delivery, 'Keep isolated')).toBeEnabled();
   });
 
   it("keeps a cancelled workflow's work for inspection and never offers to apply it", async () => {
@@ -327,9 +335,11 @@ describe('the code of a workflow run', () => {
     expect(
       within(delivery).queryByRole('button', { name: 'Apply changes' }),
     ).not.toBeInTheDocument();
-    for (const name of ['Review diff', 'Open in IDE', 'Keep isolated', 'Discard']) {
+    for (const name of ['Review diff', 'Open in IDE']) {
       expect(within(delivery).getByRole('button', { name })).toBeEnabled();
     }
+    expect(await codeAction(user, delivery, 'Keep isolated')).toBeEnabled();
+    expect(screen.getByRole('menuitem', { name: 'Discard' })).toBeEnabled();
   });
 
   it('says a workflow that changed no code has no code to decide about', async () => {
@@ -359,7 +369,7 @@ describe('the code of a workflow run', () => {
     vi.mocked(discardChanges).mockResolvedValue(withCode(finished(), 'discarded', {}, null));
     const delivery = await open(user);
 
-    await user.click(within(delivery).getByRole('button', { name: 'Discard' }));
+    await user.click(await codeAction(user, delivery, 'Discard'));
     expect(discardChanges).not.toHaveBeenCalled();
     expect(delivery).toHaveTextContent('Its branch is kept');
     await user.click(within(delivery).getByRole('button', { name: 'Confirm discard' }));
@@ -380,7 +390,7 @@ describe('the code of a workflow run', () => {
     );
     const delivery = await open(user);
 
-    await user.click(within(delivery).getByRole('button', { name: 'Keep isolated' }));
+    await user.click(await codeAction(user, delivery, 'Keep isolated'));
 
     expect(keepChanges).toHaveBeenCalledWith('wfx-1');
     await waitFor(() => {
@@ -458,7 +468,7 @@ describe('the code of a workflow run', () => {
     show(withCode(finished(), 'changes_available'));
     await open(user);
 
-    await user.click(screen.getByRole('tab', { name: 'Changes' }));
+    await user.click(screen.getByRole('tab', { name: /^Changes/ }));
 
     const panel = screen.getByRole('tabpanel');
     expect(within(panel).getByText('src/auth/password-reset.ts')).toBeInTheDocument();
@@ -480,7 +490,9 @@ describe('the code of a workflow run', () => {
     expect(
       within(delivery).getByRole('button', { name: 'Aplicar alterações' }),
     ).toBeInTheDocument();
-    expect(within(delivery).getByRole('button', { name: 'Manter isolado' })).toBeInTheDocument();
+    expect(
+      await codeAction(user, delivery, 'Manter isolado', 'Mais ações do código'),
+    ).toBeInTheDocument();
   });
 });
 
@@ -536,7 +548,7 @@ describe('handoffs between agents', () => {
     show(handedOver());
     await openRun(user);
 
-    await user.click(screen.getByRole('tab', { name: 'Handoffs (2)' }));
+    await user.click(screen.getByRole('tab', { name: /^Handoffs\s*2/ }));
 
     const first = screen.getByRole('article', { name: 'Handoff from Architect to Developer' });
     expect(within(first).getByText('Defined the reset flow.')).toBeInTheDocument();
@@ -577,7 +589,7 @@ describe('handoffs between agents', () => {
     const user = userEvent.setup();
     show(handedOver());
     await openRun(user);
-    await user.click(screen.getByRole('tab', { name: 'Handoffs (2)' }));
+    await user.click(screen.getByRole('tab', { name: /^Handoffs\s*2/ }));
 
     const second = screen.getByRole('article', { name: 'Handoff from Developer to QA' });
     await user.click(within(second).getByRole('button', { name: '#42' }));

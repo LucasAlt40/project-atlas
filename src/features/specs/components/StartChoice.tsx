@@ -1,4 +1,7 @@
+import { useDismiss } from '@/hooks/useDismiss';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { SpecSummary } from '../types';
 import styles from './StartChoice.module.css';
@@ -16,6 +19,8 @@ interface Props {
   /** A run is going or the graph is not runnable: the choice is shown but cannot be changed. */
   disabled?: boolean;
   name: string;
+  /** A compact control ("Vibe coding ▾") that opens the choice, for the workflow's run bar. */
+  compact?: boolean;
 }
 
 /**
@@ -23,11 +28,24 @@ interface Props {
  * as the source of truth. A spec that is ready and has never been built from is pointed out, but
  * never chosen for the person.
  */
-export function StartChoice({ specs, value, onChange, onNewSpec, disabled = false, name }: Props) {
+export function StartChoice({
+  specs,
+  value,
+  onChange,
+  onNewSpec,
+  disabled = false,
+  name,
+  compact = false,
+}: Props) {
   const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  useDismiss(open, root, () => {
+    setOpen(false);
+  });
   const fresh = specs.filter((spec) => spec.implementations === 0);
   const chosen = value.kind === 'spec' ? specs.find((s) => s.id === value.specId) : undefined;
-  return (
+  const choice = (
     <fieldset className={styles.choice} disabled={disabled}>
       <legend>{t('specs.startFrom.title')}</legend>
       {fresh.length > 0 && value.kind === 'vibe' && (
@@ -96,5 +114,42 @@ export function StartChoice({ specs, value, onChange, onNewSpec, disabled = fals
         </Button>
       </div>
     </fieldset>
+  );
+  if (!compact) return choice;
+  return (
+    <div className={styles.compact} ref={root}>
+      <button
+        type="button"
+        className={styles.trigger}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        disabled={disabled}
+        aria-label={`${t('specs.startFrom.title')} ${
+          value.kind === 'vibe'
+            ? t('specs.startFrom.vibe')
+            : (chosen?.title ?? t('specs.startFrom.spec'))
+        }`}
+        title={
+          fresh.length > 0 && value.kind === 'vibe'
+            ? t('specs.startFrom.newReady', { title: fresh[0]?.title ?? '' })
+            : t('specs.startFrom.title')
+        }
+        onClick={() => {
+          setOpen((current) => !current);
+        }}
+      >
+        <Icon name="sparkle" size={15} />
+        <span className={styles.triggerLabel}>
+          {value.kind === 'vibe'
+            ? t('specs.startFrom.vibe')
+            : (chosen?.title ?? t('specs.startFrom.spec'))}
+        </span>
+        {fresh.length > 0 && value.kind === 'vibe' && (
+          <span className={styles.freshDot} aria-hidden="true" />
+        )}
+        <Icon name="chevronDown" size={14} />
+      </button>
+      {open && <div className={styles.popover}>{choice}</div>}
+    </div>
   );
 }

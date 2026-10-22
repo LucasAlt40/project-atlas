@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Switch } from '@/components/ui/Switch';
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { useI18n } from '@/i18n/I18nProvider';
 import { errorMessage } from '@/i18n/messages';
@@ -46,17 +47,17 @@ export function PresenceSettings() {
 
   return (
     <div className={styles.stack}>
-      <div className={styles.group}>
-        <label className={styles.toggle}>
-          <input
-            type="checkbox"
-            checked={settings.enabled}
-            onChange={(event) => {
-              void change({ ...settings, enabled: event.target.checked });
-            }}
-          />
+      <h2 className={styles.heading}>{t('settings.presence.title')}</h2>
+      <div className={styles.switchRow}>
+        <Switch
+          labelPosition="before"
+          checked={settings.enabled}
+          onChange={(enabled) => {
+            void change({ ...settings, enabled });
+          }}
+        >
           {t('settings.presence.enabled')}
-        </label>
+        </Switch>
       </div>
       <div className={styles.group}>
         <label className={styles.toggle}>
@@ -71,7 +72,11 @@ export function PresenceSettings() {
         </label>
         <p className={styles.help}>{t('settings.presence.showNamesHelp')}</p>
       </div>
-      <CollapsibleSection title={t('settings.sandbox.how')} defaultOpen={false}>
+      <CollapsibleSection
+        title={t('settings.sandbox.how')}
+        variant="disclosure"
+        defaultOpen={false}
+      >
         <p className={styles.help}>{t('settings.presence.help')}</p>
       </CollapsibleSection>
       {failure && <p role="alert">{failure}</p>}
