@@ -436,7 +436,7 @@ describe('A plan waiting for the person', () => {
 
     const plans = await screen.findByRole('region', { name: 'Plans' });
     expect(within(plans).getByText('Approved automatically')).toBeInTheDocument();
-    await user.click(screen.getByRole('checkbox', { name: 'Approve plans automatically' }));
+    await user.click(screen.getByRole('switch', { name: 'Approve plans automatically' }));
     await waitFor(() => {
       expect(setAutoApprovePlans).toHaveBeenCalledWith('wfx-1', true);
     });

@@ -618,22 +618,24 @@
 .inspector select,
 .inspector input:not([type='checkbox']):not([type='radio']),
 .inspector textarea,
-.modalTitle ~ * select,
-.modalTitle ~ * input:not([type='checkbox']):not([type='radio']),
-.modalTitle ~ * textarea {
+.stack select,
+.stack input:not([type='checkbox']):not([type='radio']),
+.stack textarea {
   box-sizing: border-box;
   max-width: 100%;
-  padding: var(--space-2) var(--space-3);
+  min-height: var(--control-height);
+  padding: var(--space-1) var(--space-3);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   background: var(--surface-void);
   color: var(--text-high);
   color-scheme: dark;
   font: inherit;
+  line-height: 1.4;
 }
 .inspector input[type='checkbox'],
 .inspector input[type='radio'],
-.modalTitle ~ * input[type='checkbox'] {
+.stack input[type='checkbox'] {
   accent-color: var(--accent);
 }
 .inspector select:focus-visible,

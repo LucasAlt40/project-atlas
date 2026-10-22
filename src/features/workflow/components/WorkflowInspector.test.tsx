@@ -260,7 +260,7 @@ describe('the completion criteria and the read-only setting of an agent step', (
   it('is not read-only until someone says so, and then only the file-editing tools are held back', async () => {
     const { onChange, node, workflow } = show();
     await openSection(/^Permissions/);
-    const box = screen.getByRole('checkbox', { name: /Read-only step/ });
+    const box = screen.getByRole('switch', { name: /Read-only step/ });
     expect(box).not.toBeChecked();
 
     await userEvent.click(box);

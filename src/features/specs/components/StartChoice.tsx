@@ -150,9 +150,11 @@ export function StartChoice({
         }}
       >
         <Icon name="sparkle" size={15} />
-        {value.kind === 'vibe'
-          ? t('specs.startFrom.vibe')
-          : (chosen?.title ?? t('specs.startFrom.spec'))}
+        <span className={styles.triggerLabel}>
+          {value.kind === 'vibe'
+            ? t('specs.startFrom.vibe')
+            : (chosen?.title ?? t('specs.startFrom.spec'))}
+        </span>
         {fresh.length > 0 && value.kind === 'vibe' && (
           <span className={styles.freshDot} aria-hidden="true" />
         )}

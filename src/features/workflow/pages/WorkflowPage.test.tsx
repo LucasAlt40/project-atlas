@@ -482,7 +482,7 @@ describe('Workflow page', () => {
       vi.mocked(startWorkflow).mockResolvedValue(run(passwordRecovery(), 'running', {}));
       await canvas();
       expect(await screen.findByText(/The workflow is valid and can run/)).toBeInTheDocument();
-      const toggle = screen.getByRole('checkbox', { name: 'Approve plans automatically' });
+      const toggle = screen.getByRole('switch', { name: 'Approve plans automatically' });
       expect(toggle).not.toBeChecked();
 
       await user.click(toggle);

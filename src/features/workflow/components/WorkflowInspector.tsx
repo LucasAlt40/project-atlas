@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Switch } from '@/components/ui/Switch';
 import { Button } from '@/components/ui/Button';
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { StateBadge } from '@/components/ui/status';
@@ -388,23 +389,22 @@ export function NodeInspector({
               false,
               <>
                 <div className={styles.field}>
-                  <label className={[styles.checkRow, styles.switchRow].join(' ')}>
-                    <input
-                      className={styles.switch}
-                      type="checkbox"
+                  <div className={styles.switchRow}>
+                    <Switch
+                      labelPosition="before"
                       checked={node.executionPolicy.readOnly}
                       disabled={disabled}
-                      onChange={(e) => {
-                        const readOnly = e.target.checked;
+                      onChange={(readOnly) => {
                         onChange((w) =>
                           updateAgentNode(w, node.id, {
                             executionPolicy: { ...node.executionPolicy, readOnly },
                           }),
                         );
                       }}
-                    />{' '}
-                    {t('workflow.inspector.readOnly')}
-                  </label>
+                    >
+                      {t('workflow.inspector.readOnly')}
+                    </Switch>
+                  </div>
                   <p className={styles.muted}>{t('workflow.inspector.readOnlyHint')}</p>
                 </div>
                 <Field label={t('workflow.inspector.integrations')}>

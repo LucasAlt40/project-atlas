@@ -1357,6 +1357,9 @@
 .outcomeChip[data-first='true'] {
   color: var(--st-secondary);
 }
+.switchRow > label {
+  width: 100%;
+}
 .switchRow {
   display: flex;
   align-items: center;
@@ -1366,45 +1369,6 @@
   border-radius: var(--radius-lg);
   background: var(--st-lowest);
   font-weight: 500;
-}
-.switch {
-  appearance: none;
-  position: relative;
-  flex: none;
-  order: 2;
-  width: 2.25rem;
-  height: 1.25rem;
-  margin: 0;
-  border-radius: 999px;
-  background: var(--st-highest);
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.switch::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 50%;
-  background: #0d0096;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.5);
-  transition: transform 0.2s;
-}
-.switch:checked {
-  background: #8083ff;
-}
-.switch:checked::after {
-  transform: translateX(1rem);
-}
-.switch:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.switch:focus-visible {
-  outline: 1px solid var(--accent-soft);
-  outline-offset: 2px;
 }
 .drawerFoot {
   display: flex;
@@ -1447,18 +1411,6 @@
 }
 
 /* Approving plans without asking */
-.autoPlans {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--text-standard);
-  font-size: var(--font-size-xs);
-  cursor: pointer;
-  white-space: nowrap;
-}
-.autoPlans .switch {
-  order: 0;
-}
 .planItem {
   width: 100%;
 }
@@ -2203,10 +2155,6 @@
   gap: var(--space-4);
   padding: var(--space-4);
 }
-.autoPlans {
-  color: var(--text-standard);
-  font-size: var(--font-size-sm);
-}
 @media (max-width: 1023px) {
   .workspace,
   .workspace[data-drawer='true'],
@@ -2219,31 +2167,6 @@
     border-top: 1px solid var(--border-subtle);
     border-left: 0;
   }
-}
-/* "Aprovar planos automaticamente": the design system's switch. */
-.switch {
-  width: 2rem;
-  height: 1.125rem;
-  background: var(--surface-3);
-}
-.switch::after {
-  top: 3px;
-  left: 3px;
-  width: 0.75rem;
-  height: 0.75rem;
-  background: var(--text-muted);
-  box-shadow: none;
-}
-.switch:checked {
-  background: var(--accent);
-}
-.switch:checked::after {
-  transform: translateX(0.875rem);
-  background: #fff;
-}
-.switch:focus-visible {
-  outline: 2px solid var(--border-focus);
-  outline-offset: 2px;
 }
 .facts dt {
   letter-spacing: 0;
@@ -2565,4 +2488,9 @@
 }
 .delivery[data-tone='neutral'] {
   border-color: var(--border-subtle);
+}
+
+/* The badge and the buttons of the bar keep their size; the bar wraps instead. */
+.barLeft > * {
+  flex: none;
 }
