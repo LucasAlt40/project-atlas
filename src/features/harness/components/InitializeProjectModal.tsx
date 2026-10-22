@@ -1,5 +1,8 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
+import { ActionBar } from '@/components/ui/ActionBar';
 import { Button } from '@/components/ui/Button';
+import { Callout } from '@/components/ui/Callout';
+import { Tabs } from '@/components/ui/Tabs';
 import { Icon } from '@/components/ui/Icon';
 import { useCatalog } from '@/features/agents/hooks/useCatalog';
 import { useT } from '@/i18n/I18nProvider';
@@ -139,6 +142,25 @@ export function InitializeProjectModal({
       });
   }
 
+  const page = presentation === 'page';
+  const analysisOf = stage.name === 'findings' || stage.name === 'review' ? stage.analysis : null;
+  const projectName = analysisOf?.projectName ?? '';
+  const toProjects = { label: t('harness.backToProjects'), onClick: onClose };
+  const reviewFormId = useId();
+
+  // While an agent reads the project, the page is its live analysis (step 2).
+  if (running && page) {
+    return (
+      <AgentAnalysisScreen
+        workspaceId={workspaceId}
+        agentId={running.agentId}
+        agentName={running.agentName}
+        presentation="page"
+        projectName={projectName}
+      />
+    );
+  }
+
   return (
     <>
       {running && (
@@ -153,8 +175,36 @@ export function InitializeProjectModal({
         onClose={onClose}
         presentation={presentation}
         size={stage.name === 'review' ? 'wide' : stage.name === 'findings' ? 'analyze' : 'normal'}
-        step={stage.name === 'review' ? 2 : stage.name === 'done' ? 3 : 1}
+        step={stage.name === 'review' || stage.name === 'done' ? 3 : 1}
         finished={stage.name === 'done'}
+        {...(stage.name === 'review'
+          ? {
+              title: t('harness.review.pageTitle', { name: projectName }),
+              titleAside: <span className={rv.pathChip}>.atlas/</span>,
+              back: {
+                label: t('harness.back'),
+                onClick: () => {
+                  setError(null);
+                  setStage({ name: 'findings', analysis: stage.analysis });
+                },
+              },
+              actions: (
+                <Button type="submit" form={reviewFormId} disabled={busy}>
+                  {busy ? t('harness.initializing') : t('harness.initializeButton')}
+                </Button>
+              ),
+            }
+          : stage.name === 'done'
+            ? { title: t('harness.done.title'), back: toProjects }
+            : {
+                title: analysisOf
+                  ? t('harness.analyze.pageTitle', { name: projectName })
+                  : t('harness.modal.title'),
+                ...(analysisOf
+                  ? { titleAside: <span className={rv.pagePath}>{analysisOf.path}</span> }
+                  : {}),
+                back: toProjects,
+              })}
       >
         <div className={styles.modal}>
           {stage.name === 'analyzing' && <p className={styles.muted}>{t('harness.analyzing')}</p>}
@@ -195,6 +245,7 @@ export function InitializeProjectModal({
               review={stage.review}
               busy={busy}
               error={error}
+              {...(page ? { framed: { formId: reviewFormId } } : {})}
               onChange={(review) => {
                 setStage({ ...stage, review });
               }}
@@ -219,7 +270,6 @@ function DoneStep({ outcome, onClose }: { outcome: InitializeOutcomeDto; onClose
   const { summary } = outcome;
   return (
     <>
-      <h2 className={styles.title}>{t('harness.done.title')}</h2>
       <p>
         <span className={styles.ok}>✓</span> {t('harness.status.initialized')}{' '}
         {summary.health && <HealthBadge health={summary.health} />}
@@ -304,82 +354,22 @@ export function FindingsStep({
   return (
     <>
       {header}
-      <header className={rv.analyzeHead}>
-        <div className={rv.titleRow}>
-          <h2 className={rv.title}>{t('harness.analyze.title')}</h2>
-          <span className={cx(rv.chip, rv.chipAccent)}>
-            <Icon name="sparkle" size={13} />
-            {t('harness.analyze.engine')}
-          </span>
-          <span className={cx(rv.chip, rv.chipInfo)}>
-            <span className={rv.dot} aria-hidden="true" />
-            {t('harness.analyze.localCore')}
-          </span>
-        </div>
-        <p className={styles.muted} title={analysis.path}>
-          <strong>{analysis.projectName}</strong> · {analysis.path}
-        </p>
-        <p className={rv.lockNote}>
-          <Icon name="lock" size={15} />
-          {t('harness.analyze.readOnlyNote')}
-        </p>
-      </header>
+      <Callout tone="info" icon="lock">
+        {t('harness.analyze.readOnlyNote')}
+      </Callout>
       {analysis.partial && (
         <p role="status" className={styles.warning}>
           {t('harness.partial')}
         </p>
       )}
 
-      <div className={rv.analyzeGrid}>
-        <SemanticSection analysis={analysis} busy={busy} form={ai} />
-        <section className={rv.aiCard} aria-label={t('harness.manual.title')}>
-          <div className={rv.aiHead}>
-            <h3 className={rv.aiTitle}>
-              <Icon name="eye" size={16} />
-              {t('harness.manual.title')}
-            </h3>
-            <span className={rv.pill}>{t('harness.manual.badge')}</span>
-          </div>
-          <p className={rv.body}>{t('harness.manual.body')}</p>
-          <ul className={rv.manualList}>
-            <li>
-              <span className={rv.tick}>✓</span> {t('harness.manual.local')}
-            </li>
-            <li>
-              <span className={rv.tick}>✓</span> {t('harness.manual.noTokens')}
-            </li>
-          </ul>
-          <button
-            type="button"
-            className={rv.ghostButton}
-            disabled={busy}
-            onClick={() => {
-              onReview(hasHarness || broken ? 'update_existing' : 'create');
-            }}
-          >
-            {t('harness.manual.cta')}
-            <Icon name="arrowRight" size={14} />
-          </button>
-        </section>
-      </div>
+      <SemanticSection analysis={analysis} busy={busy} form={ai} />
 
-      <section className={rv.aiCard}>
-        <div className={rv.aiHead}>
-          <h3 className={cx(rv.cardTitle)}>
-            <Icon name="cpu" size={16} />
-            {t('harness.diagnostic.title')}
-          </h3>
-          <span className={cx(rv.chip, rv.chipInfo)}>
-            <span className={rv.dot} aria-hidden="true" />
-            {t('harness.diagnostic.chip')}
-          </span>
-        </div>
+      <section className={rv.detected} aria-label={t('harness.diagnostic.title')}>
+        <h3 className={rv.blockTitle}>{t('harness.diagnostic.title')}</h3>
         <div className={rv.diagCols}>
           <section className={rv.diagCol} aria-label={t('harness.detected')}>
-            <h4 className={rv.diagHead}>
-              {t('harness.diagnostic.stack')}
-              <Icon name="cpu" size={14} />
-            </h4>
+            <h4 className={rv.diagHead}>{t('harness.diagnostic.stack')}</h4>
             {stack.length === 0 ? (
               <p className={rv.source}>{t('harness.nothingDetected')}</p>
             ) : (
@@ -395,10 +385,7 @@ export function FindingsStep({
           </section>
 
           <section className={rv.diagCol} aria-label={t('harness.repository')}>
-            <h4 className={rv.diagHead}>
-              {t('harness.diagnostic.git')}
-              <Icon name="commit" size={14} />
-            </h4>
+            <h4 className={rv.diagHead}>{t('harness.diagnostic.git')}</h4>
             <ul className={rv.diagList}>
               {repository.map((finding) => (
                 <li key={finding.id}>
@@ -410,17 +397,14 @@ export function FindingsStep({
           </section>
 
           <section className={rv.diagCol} aria-label={t('harness.architecture')}>
-            <h4 className={rv.diagHead}>
-              {t('harness.diagnostic.topology')}
-              <Icon name="tree" size={14} />
-            </h4>
+            <h4 className={rv.diagHead}>{t('harness.diagnostic.topology')}</h4>
             {architecture.length === 0 ? (
               <p className={rv.source}>{t('harness.architecture.unknown')}</p>
             ) : (
               <ul className={rv.diagList}>
                 {architecture.map((finding) => (
                   <li key={finding.id}>
-                    <span className={rv.tick}>○</span>
+                    <span className={rv.tick}>✓</span>
                     {findingName(t, finding)} <ConfidenceTag finding={finding} />
                   </li>
                 ))}
@@ -449,71 +433,74 @@ export function FindingsStep({
 
       {error && <ErrorBox problem={error} />}
       {footer ?? (
-        <footer className={cx(rv.footer, rv.analyzeFooter)}>
-          <button type="button" className={rv.textButton} onClick={onCancel}>
-            {t('common.cancel')}
-          </button>
-          <div className={rv.footerActions}>
-            {hasHarness ? (
-              <>
-                <button
-                  type="button"
-                  className={rv.ghostButton}
+        <ActionBar
+          start={
+            <Button variant="ghost" onClick={onCancel}>
+              {t('common.cancel')}
+            </Button>
+          }
+          end={
+            <>
+              {hasHarness ? (
+                <>
+                  <Button variant="secondary" disabled={busy} onClick={onUseExisting}>
+                    {t('harness.existing.useExisting')}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    disabled={busy}
+                    onClick={() => {
+                      onReview('update_existing');
+                    }}
+                  >
+                    {t('harness.existing.update')}
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="secondary"
                   disabled={busy}
-                  onClick={onUseExisting}
-                >
-                  {t('harness.existing.useExisting')}
-                </button>
-                <button
-                  type="button"
-                  className={rv.ghostButton}
-                  disabled={busy}
+                  title={`${t('harness.manual.body')} ${t('harness.manual.local')} · ${t('harness.manual.noTokens')}`}
                   onClick={() => {
-                    onReview('update_existing');
+                    onReview(broken ? 'update_existing' : 'create');
                   }}
                 >
-                  <Icon name="eye" size={15} />
-                  {t('harness.existing.update')}
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                className={rv.ghostButton}
-                disabled={busy}
-                onClick={() => {
-                  onReview(broken ? 'update_existing' : 'create');
-                }}
-              >
-                <Icon name="eye" size={15} />
-                {aiDone || !ai.canRun ? t('harness.reviewButton') : t('harness.reviewWithoutAi')}
-              </button>
-            )}
-            {ai.canRun && (
-              <button
-                type="button"
-                className={rv.primaryButton}
-                disabled={busy || !ai.chosen}
-                onClick={() => {
-                  onSemantic(
-                    {
-                      agentId: ai.chosen,
-                      instructions: ai.instructions.trim(),
-                      restricted: ai.restricted,
-                    },
-                    ai.agents.find((a) => a.id === ai.chosen)?.name ?? ai.chosen,
-                  );
-                }}
-              >
-                <Icon name="sparkle" size={15} />
-                {busy ? t('harness.semantic.running') : t('harness.semantic.run')}
-              </button>
-            )}
-          </div>
-        </footer>
+                  {aiDone || !ai.canRun ? t('harness.reviewButton') : t('harness.reviewWithoutAi')}
+                </Button>
+              )}
+              {ai.canRun && (
+                <Button
+                  disabled={busy || !ai.chosen}
+                  onClick={() => {
+                    onSemantic(
+                      {
+                        agentId: ai.chosen,
+                        instructions: ai.instructions.trim(),
+                        restricted: ai.restricted,
+                      },
+                      ai.agents.find((a) => a.id === ai.chosen)?.name ?? ai.chosen,
+                    );
+                  }}
+                >
+                  {busy ? t('harness.semantic.running') : t('harness.semantic.run')}
+                  <Icon name="arrowRight" size={16} />
+                </Button>
+              )}
+            </>
+          }
+        />
       )}
     </>
   );
+}
+
+/** Findings of one area, grouped by their category in the order they first appear. */
+function byCategory(findings: ProjectAnalysisDto['findings']) {
+  const groups = new Map<string, ProjectAnalysisDto['findings']>();
+  for (const finding of findings) {
+    groups.set(finding.category, [...(groups.get(finding.category) ?? []), finding]);
+  }
+  return [...groups.entries()];
 }
 
 export type SemanticForm = ReturnType<typeof useSemanticForm>;
@@ -568,124 +555,124 @@ function SemanticSection({
   const inputId = useId();
 
   return (
-    <section className={rv.aiCard} aria-label={t('harness.semantic.title')}>
-      <div className={rv.aiHead}>
-        <h3 className={rv.aiTitle}>
-          <Icon name="agents" size={16} />
-          {t('harness.semantic.title')}
-        </h3>
-        <span className={rv.pill}>{t('harness.semantic.badge')}</span>
-      </div>
-      <p className={rv.body}>{t('harness.semantic.body')}</p>
-      <p className={rv.body}>
-        {restricted ? t('harness.semantic.disclosureRestricted') : t('harness.semantic.disclosure')}
-      </p>
-      {all.length === 0 ? (
-        <p className={rv.body}>{t('harness.semantic.noAgents')}</p>
-      ) : (
-        <>
-          <div className={rv.field}>
-            <div className={rv.fieldHead}>
-              <label htmlFor={inputId}>{t('harness.semantic.instructions')}</label>
-              <span className={rv.counter}>
-                <Icon name="database" size={12} />
-                {t('harness.semantic.tokens', { count: estimateTokens(instructions) })}
-              </span>
-            </div>
-            <textarea
-              id={inputId}
-              className={rv.textarea}
-              rows={3}
-              value={instructions}
-              placeholder={t('harness.semantic.instructionsPlaceholder')}
-              onChange={(event) => {
-                form.setInstructions(event.target.value);
-              }}
-            />
-          </div>
-          {canRestrict && (
-            <label className={rv.option}>
-              <input
-                type="checkbox"
-                checked={restricted}
+    <section className={rv.semantic} aria-label={t('harness.semantic.title')}>
+      <h3 className={rv.blockTitle}>{t('harness.semantic.title')}</h3>
+      <p className={rv.blockLead}>{t('harness.semantic.body')}</p>
+      <div className={rv.aiCard}>
+        <p className={rv.body}>
+          {restricted
+            ? t('harness.semantic.disclosureRestricted')
+            : t('harness.semantic.disclosure')}
+        </p>
+        {all.length === 0 ? (
+          <p className={rv.body}>{t('harness.semantic.noAgents')}</p>
+        ) : (
+          <>
+            <div className={rv.field}>
+              <div className={rv.fieldHead}>
+                <label htmlFor={inputId}>{t('harness.semantic.instructions')}</label>
+                <span className={rv.counter}>
+                  <Icon name="database" size={12} />
+                  {t('harness.semantic.tokens', { count: estimateTokens(instructions) })}
+                </span>
+              </div>
+              <textarea
+                id={inputId}
+                className={rv.textarea}
+                rows={3}
+                value={instructions}
+                placeholder={t('harness.semantic.instructionsPlaceholder')}
                 onChange={(event) => {
-                  form.setRestricted(event.target.checked);
+                  form.setInstructions(event.target.value);
                 }}
               />
-              <span className={rv.optionText}>
-                <span className={rv.optionTitle}>
-                  {t('harness.semantic.restrictedTitle')}
-                  <span title={t('harness.semantic.disclosureRestricted')}>
-                    <Icon name="help" size={14} />
+            </div>
+            {canRestrict && (
+              <label className={rv.option}>
+                <input
+                  type="checkbox"
+                  checked={restricted}
+                  onChange={(event) => {
+                    form.setRestricted(event.target.checked);
+                  }}
+                />
+                <span className={rv.optionText}>
+                  <span className={rv.optionTitle}>
+                    {t('harness.semantic.restrictedTitle')}
+                    <span title={t('harness.semantic.disclosureRestricted')}>
+                      <Icon name="help" size={14} />
+                    </span>
+                  </span>
+                  <span>{t('harness.semantic.restricted')}</span>
+                </span>
+              </label>
+            )}
+            <div className={rv.field}>
+              <span className={rv.fieldLabel}>{t('harness.semantic.executor')}</span>
+              <label className={rv.select}>
+                <span className={rv.selectMain}>
+                  <span className={rv.selectIcon}>
+                    <Icon name="agents" size={15} />
+                  </span>
+                  <span className={rv.selectText}>
+                    <span className={rv.selectName}>{agent?.name ?? ''}</span>
+                    <span className={rv.selectSub}>{agent?.modelId ?? ''}</span>
                   </span>
                 </span>
-                <span>{t('harness.semantic.restricted')}</span>
-              </span>
-            </label>
-          )}
-          <div className={rv.field}>
-            <span className={rv.fieldLabel}>{t('harness.semantic.executor')}</span>
-            <label className={rv.select}>
-              <span className={rv.selectMain}>
-                <span className={rv.selectIcon}>
-                  <Icon name="agents" size={15} />
-                </span>
-                <span className={rv.selectText}>
-                  <span className={rv.selectName}>{agent?.name ?? ''}</span>
-                  <span className={rv.selectSub}>{agent?.modelId ?? ''}</span>
-                </span>
-              </span>
-              <Icon name="unfold" size={16} />
-              <select
-                aria-label={t('harness.semantic.agent')}
-                value={chosen}
-                onChange={(event) => {
-                  form.setAgentId(event.target.value);
-                }}
-              >
-                {agents.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <Icon name="unfold" size={16} />
+                <select
+                  aria-label={t('harness.semantic.agent')}
+                  value={chosen}
+                  onChange={(event) => {
+                    form.setAgentId(event.target.value);
+                  }}
+                >
+                  {agents.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {busy && <p className={rv.body}>{t('harness.semantic.wait')}</p>}
+          </>
+        )}
+        {report.status === 'completed' && (
+          <div role="status">
+            <p className={rv.body}>{t('harness.semantic.completed')}</p>
+            {report.explored ? (
+              <p className={rv.body}>{t('harness.semantic.explored')}</p>
+            ) : (
+              <>
+                <p className={rv.body}>{t('harness.semantic.sent')}</p>
+                <ul className={rv.diagList}>
+                  {report.sentFiles.map((file) => (
+                    <li key={file}>
+                      <code>{file}</code>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {report.rejected > 0 && (
+              <p className={rv.body}>
+                {t('harness.semantic.rejected', { count: report.rejected })}
+              </p>
+            )}
           </div>
-          {busy && <p className={rv.body}>{t('harness.semantic.wait')}</p>}
-        </>
-      )}
-      {report.status === 'completed' && (
-        <div role="status">
-          <p className={rv.body}>{t('harness.semantic.completed')}</p>
-          {report.explored ? (
-            <p className={rv.body}>{t('harness.semantic.explored')}</p>
-          ) : (
-            <>
-              <p className={rv.body}>{t('harness.semantic.sent')}</p>
-              <ul className={rv.diagList}>
-                {report.sentFiles.map((file) => (
-                  <li key={file}>
-                    <code>{file}</code>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-          {report.rejected > 0 && (
-            <p className={rv.body}>{t('harness.semantic.rejected', { count: report.rejected })}</p>
-          )}
-        </div>
-      )}
-      {report.status === 'failed' && (
-        <ErrorBox
-          problem={{
-            message: t('harness.semantic.failed', {
-              message: t(`error.${report.error ?? 'semantic_analysis_failed'}` as TranslationKey),
-            }),
-            detail: report.errorDetail ?? undefined,
-          }}
-        />
-      )}
+        )}
+        {report.status === 'failed' && (
+          <ErrorBox
+            problem={{
+              message: t('harness.semantic.failed', {
+                message: t(`error.${report.error ?? 'semantic_analysis_failed'}` as TranslationKey),
+              }),
+              detail: report.errorDetail ?? undefined,
+            }}
+          />
+        )}
+      </div>
     </section>
   );
 }
@@ -711,6 +698,11 @@ interface ReviewProps {
   header?: ReactNode;
   /** The submit button's text, when it does more than initialize one project. */
   submitLabel?: string;
+  /**
+   * In the Harness page the title, "←" and the submit button live in the page's header (the
+   * button submits this form by its id); the step draws only its body.
+   */
+  framed?: { formId: string };
 }
 
 type TabId = ReviewGroupId | 'business';
@@ -725,14 +717,17 @@ export function ReviewStep({
   onSubmit,
   header,
   submitLabel,
+  framed,
 }: ReviewProps) {
   const t = useT();
   const groups = reviewGroups(analysis);
   const tabs: TabId[] = [...groups.map((g) => g.id), 'business'];
   const [tab, setTab] = useState<TabId>(tabs[0] ?? 'business');
   const [inspectedId, setInspectedId] = useState<string | null>(null);
-  const inspected = analysis.findings.find((f) => f.id === inspectedId) ?? null;
   const current = groups.find((g) => g.id === tab);
+  // The evidence panel is never empty: it shows the first finding of the area until one is chosen.
+  const inspected =
+    analysis.findings.find((f) => f.id === inspectedId) ?? current?.findings[0] ?? null;
 
   const toggle = (id: string, list: 'excluded' | 'confirmed') => {
     const current = review[list];
@@ -748,40 +743,10 @@ export function ReviewStep({
   const pending = unresolvedConflicts(analysis, review).length;
   const included = reviewable.filter((f) => !review.excluded.includes(f.id)).length;
 
-  const metrics = [
-    {
-      label: t('harness.review.stats.total'),
-      value: t('harness.review.stats.items', { count: reviewable.length }),
-      tag: t('harness.review.stats.included', { count: included }),
-      icon: 'layout',
-      tone: rv.toneAccent,
-    },
-    {
-      label: t('harness.review.stats.verified'),
-      value: t('harness.review.stats.items', { count: verified }),
-      tag: 'git ref',
-      icon: 'endNode',
-      tone: rv.toneInfo,
-    },
-    {
-      label: t('harness.review.stats.inferred'),
-      value: t('harness.review.stats.rules', { count: inferred }),
-      tag: t('harness.confirmShort'),
-      icon: 'agents',
-      tone: rv.tonePolicy,
-    },
-    {
-      label: t('harness.review.stats.pending'),
-      value: t('harness.review.stats.conflicts', { count: pending }),
-      tag: pending > 0 ? '!' : '✓',
-      icon: 'shield',
-      tone: pending > 0 ? rv.toneDanger : rv.toneNeutral,
-    },
-  ] as const;
-
   return (
     <form
       className={rv.workbench}
+      {...(framed ? { id: framed.formId } : {})}
       aria-label={t('harness.review.title')}
       onSubmit={(event) => {
         event.preventDefault();
@@ -789,71 +754,58 @@ export function ReviewStep({
       }}
     >
       {header}
-      <header className={rv.header}>
-        <div className={rv.headText}>
-          <div className={rv.titleRow}>
-            <h2 className={rv.title}>{t('harness.review.title')}</h2>
-            <span className={rv.lockChip}>
-              <span className={rv.dot} aria-hidden="true" />
-              .atlas/
-            </span>
-            <span className={rv.lockChip} title={analysis.path}>
-              {analysis.projectName}
-            </span>
-          </div>
-          <p className={rv.subtitle}>{t('harness.review.subtitle')}</p>
-        </div>
-        <div className={rv.headActions}>
-          <button type="button" className={rv.ghostButton} onClick={onBack}>
-            <Icon name="undo" size={14} />
-            {t('harness.back')}
-          </button>
-          <button type="submit" className={rv.primaryButton} disabled={busy}>
-            <Icon name="endNode" size={15} />
-            {busy ? t('harness.initializing') : (submitLabel ?? t('harness.initializeButton'))}
-          </button>
-        </div>
-      </header>
-
-      <div className={rv.metrics}>
-        {metrics.map((metric) => (
-          <div key={metric.label} className={rv.metric}>
-            <div className={rv.metricMain}>
-              <span className={cx(rv.metricIcon, metric.tone)}>
-                <Icon name={metric.icon} size={15} />
-              </span>
-              <span className={rv.metricText}>
-                <span className={cx(rv.metricLabel, metric.tone)}>{metric.label}</span>
-                <span className={rv.metricValue}>{metric.value}</span>
+      {!framed && (
+        <header className={rv.header}>
+          <div className={rv.headText}>
+            <div className={rv.titleRow}>
+              <h2 className={rv.title}>{t('harness.review.title')}</h2>
+              <span className={rv.lockChip}>.atlas/</span>
+              <span className={rv.lockChip} title={analysis.path}>
+                {analysis.projectName}
               </span>
             </div>
-            <span className={cx(rv.metricTag, metric.tone)}>{metric.tag}</span>
+            <p className={rv.subtitle}>{t('harness.review.subtitle')}</p>
           </div>
-        ))}
-      </div>
+          <div className={rv.headActions}>
+            <Button variant="ghost" onClick={onBack}>
+              {t('harness.back')}
+            </Button>
+            <Button type="submit" disabled={busy}>
+              {busy ? t('harness.initializing') : (submitLabel ?? t('harness.initializeButton'))}
+            </Button>
+          </div>
+        </header>
+      )}
 
-      <div role="tablist" aria-label={t('harness.review.tabsLabel')} className={rv.tabs}>
-        {tabs.map((id) => {
-          const count = groups.find((g) => g.id === id)?.findings.length;
-          return (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={tab === id}
-              className={rv.tab}
-              onClick={() => {
-                setTab(id);
-              }}
-            >
-              {id === 'business'
-                ? t('harness.review.business')
-                : t(`harness.review.groups.${id}` as TranslationKey)}
-              {count !== undefined && <span className={rv.tabBadge}>{count}</span>}
-            </button>
-          );
+      <p className={rv.statsLine}>
+        {t('harness.review.statsLine', {
+          total: reviewable.length,
+          verified,
+          inferred,
+          pending,
         })}
-      </div>
+        <span className={rv.statsNote}>
+          {' '}
+          · {t('harness.review.stats.included', { count: included })}
+        </span>
+      </p>
+
+      <Tabs
+        label={t('harness.review.tabsLabel')}
+        active={tab}
+        onChange={setTab}
+        items={tabs.map((id) => {
+          const count = groups.find((g) => g.id === id)?.findings.length;
+          return {
+            id,
+            label:
+              id === 'business'
+                ? t('harness.review.business')
+                : t(`harness.review.groups.${id}` as TranslationKey),
+            ...(count !== undefined ? { count } : {}),
+          };
+        })}
+      />
 
       <div className={rv.grid}>
         <div className={rv.column} role="tabpanel">
@@ -866,45 +818,49 @@ export function ReviewStep({
           />
 
           {current && (
-            <section className={rv.card}>
-              <h3 className={rv.cardHead}>
-                <span className={rv.cardTitle}>
-                  {t(`harness.review.groups.${current.id}` as TranslationKey)}
-                  <span className={rv.cardCount}>{current.findings.length}</span>
-                </span>
-              </h3>
-              {current.findings.map((finding) => (
-                <FindingRow
-                  key={finding.id}
-                  finding={finding}
-                  included={!review.excluded.includes(finding.id)}
-                  onToggle={() => {
-                    toggle(finding.id, 'excluded');
-                  }}
-                  confirmed={review.confirmed.includes(finding.id)}
-                  onConfirm={
-                    canConfirm(finding)
-                      ? () => {
-                          toggle(finding.id, 'confirmed');
-                        }
-                      : undefined
-                  }
-                  value={review.values[finding.id] ?? finding.value}
-                  onValue={
-                    isEditableValue(finding)
-                      ? (value) => {
-                          onChange({
-                            ...review,
-                            values: { ...review.values, [finding.id]: value },
-                          });
-                        }
-                      : undefined
-                  }
-                  selected={inspectedId === finding.id}
-                  onInspect={() => {
-                    setInspectedId(finding.id);
-                  }}
-                />
+            <section
+              className={rv.card}
+              aria-label={t(`harness.review.groups.${current.id}` as TranslationKey)}
+            >
+              {byCategory(current.findings).map(([category, items]) => (
+                <div key={category} className={rv.categoryGroup}>
+                  <h4 className={rv.categoryTitle}>
+                    {t(`harness.category.${category}` as TranslationKey)}
+                  </h4>
+                  {items.map((finding) => (
+                    <FindingRow
+                      key={finding.id}
+                      finding={finding}
+                      included={!review.excluded.includes(finding.id)}
+                      onToggle={() => {
+                        toggle(finding.id, 'excluded');
+                      }}
+                      confirmed={review.confirmed.includes(finding.id)}
+                      onConfirm={
+                        canConfirm(finding)
+                          ? () => {
+                              toggle(finding.id, 'confirmed');
+                            }
+                          : undefined
+                      }
+                      value={review.values[finding.id] ?? finding.value}
+                      onValue={
+                        isEditableValue(finding)
+                          ? (value) => {
+                              onChange({
+                                ...review,
+                                values: { ...review.values, [finding.id]: value },
+                              });
+                            }
+                          : undefined
+                      }
+                      selected={inspected?.id === finding.id}
+                      onInspect={() => {
+                        setInspectedId(finding.id);
+                      }}
+                    />
+                  ))}
+                </div>
               ))}
             </section>
           )}
@@ -962,10 +918,7 @@ export function ReviewStep({
         <aside className={rv.column} aria-label={t('harness.review.inspector.title')}>
           <div className={rv.inspector}>
             <div className={rv.inspectorHead}>
-              <h3 className={rv.cardTitle}>
-                <Icon name="search" size={16} />
-                {t('harness.review.inspector.title')}
-              </h3>
+              <h3 className={rv.cardTitle}>{t('harness.review.inspector.title')}</h3>
               {inspected?.evidence[0] && (
                 <span className={rv.inspectorSource} title={inspected.evidence[0].source}>
                   {shortPath(inspected.evidence[0].source)}

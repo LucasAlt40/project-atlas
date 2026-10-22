@@ -1,3 +1,4 @@
+import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { useI18n, useT } from '@/i18n/I18nProvider';
 import type { TranslationKey } from '@/i18n';
 import type { FindingDto } from '@/lib/tauri/commands';
@@ -14,8 +15,6 @@ const ARCHITECTURE_KEYS = new Set([
   'monorepo',
   'frontend_backend_split',
 ]);
-
-const cx = (...parts: (string | undefined)[]) => parts.filter(Boolean).join(' ');
 
 /** A finding's name: architecture patterns are concepts and are translated, the rest are names. */
 export function findingName(t: ReturnType<typeof useT>, finding: FindingDto): string {
@@ -118,13 +117,16 @@ interface RowProps {
   onInspect: () => void;
 }
 
-const ORIGIN_TONE: Record<string, string> = {
-  fact: 'toneInfo',
-  inference: 'tonePolicy',
-  user: 'toneAccent',
+const ORIGIN_TONE: Record<string, BadgeTone> = {
+  fact: 'success',
+  inference: 'running',
+  user: 'accent',
 };
 
-/** One reviewable finding: include it, correct it, confirm it, look at its evidence. */
+/**
+ * One reviewable finding on one line: include it, correct its value, its origin and confidence,
+ * the file it rests on; choosing it shows its evidence beside the list.
+ */
 export function FindingRow({
   finding,
   included,
@@ -138,72 +140,66 @@ export function FindingRow({
 }: RowProps) {
   const t = useT();
   const name = findingName(t, finding);
-  const tone = styles[ORIGIN_TONE[finding.origin] ?? 'toneNeutral'];
   const source = finding.evidence[0]?.source;
+  const originKey =
+    finding.origin === 'fact' || finding.origin === 'inference' ? finding.origin : 'user';
   return (
     <div className={styles.finding} data-selected={selected} data-excluded={!included}>
-      <div className={styles.findingTop}>
-        <span className={cx(styles.kind, tone)}>
-          <span className={styles.dot} aria-hidden="true" />
-          {finding.category.replace('_', ' ')}
-        </span>
-        <span className={styles.tags}>
-          {finding.origin !== 'fact' && (
-            <span className={styles.tag} data-origin={finding.origin}>
-              {t(`harness.origin.${finding.origin}`)}
-            </span>
-          )}
-          {finding.confidence !== 'high' && <ConfidenceTag finding={finding} />}
-        </span>
-      </div>
-      <div className={styles.findingMain}>
-        <label className={styles.check}>
+      <input
+        type="checkbox"
+        checked={included}
+        aria-label={t('harness.review.include', { label: name })}
+        onChange={onToggle}
+      />
+      <div className={styles.findingValue}>
+        {onValue ? (
           <input
-            type="checkbox"
-            checked={included}
-            aria-label={t('harness.review.include', { label: name })}
-            onChange={onToggle}
+            className={styles.valueInput}
+            value={value ?? finding.value}
+            aria-label={t('harness.review.value', { label: name })}
+            onFocus={onInspect}
+            onChange={(event) => {
+              onValue(event.target.value);
+            }}
           />
+        ) : (
           <span className={styles.findingName}>{name}</span>
-        </label>
-        <span className={styles.tags}>
-          {onConfirm && (
-            <label className={styles.check}>
-              <input
-                type="checkbox"
-                checked={confirmed ?? false}
-                aria-label={t('harness.confirm', { label: name })}
-                onChange={onConfirm}
-              />
-              <span>{t('harness.confirmShort')}</span>
-            </label>
-          )}
-          {onValue && (
-            <input
-              className={styles.valueInput}
-              value={value ?? finding.value}
-              aria-label={t('harness.review.value', { label: name })}
-              onChange={(event) => {
-                onValue(event.target.value);
-              }}
-            />
-          )}
-        </span>
+        )}
+        {onValue && <span className={styles.findingLabel}>{name}</span>}
       </div>
-      <div className={styles.findingBottom}>
-        <span className={styles.source} title={source}>
-          {source === undefined ? '' : shortPath(source)}
+      <span className={styles.findingMeta}>
+        {onConfirm && (
+          <label className={styles.check}>
+            <input
+              type="checkbox"
+              checked={confirmed ?? false}
+              aria-label={t('harness.confirm', { label: name })}
+              onChange={onConfirm}
+            />
+            <span>{t('harness.confirmShort')}</span>
+          </label>
+        )}
+        <Badge
+          dot
+          tone={ORIGIN_TONE[originKey] ?? 'neutral'}
+          title={t(`harness.origin.${finding.origin}`)}
+        >
+          {t(`harness.originShort.${originKey}`)}
+        </Badge>
+        <span className={styles.findingConfidence}>
+          {t(`harness.confidenceShort.${finding.confidence}`)}
         </span>
         <button
           type="button"
-          className={styles.link}
+          className={styles.findingSource}
           aria-pressed={selected}
           aria-label={t('harness.evidence.toggle', { label: name })}
+          title={source}
           onClick={onInspect}
         >
-          {t('harness.evidence.button')}
+          {source === undefined ? t('harness.evidence.button') : shortPath(source)}
         </button>
-      </div>
+      </span>
     </div>
   );
 }

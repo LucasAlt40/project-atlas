@@ -49,7 +49,6 @@ async function openPanel(user: ReturnType<typeof userEvent.setup>) {
   return screen.findByRole('region', { name: 'Projects of ERP' });
 }
 
-
 /** "Recarregar" lives in the project's "⋯" menu: opens it and returns the item. */
 async function refreshItem(
   user: ReturnType<typeof userEvent.setup>,

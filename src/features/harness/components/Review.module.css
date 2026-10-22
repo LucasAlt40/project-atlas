@@ -1325,3 +1325,400 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
 }
+
+/* ── The Harness page (2.2–2.4): header, steps, blocks; later rules win over the older ones. ── */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 77.5rem;
+  min-width: 0;
+  margin: 0 auto;
+  container-type: inline-size;
+}
+.pageSteps {
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.pagePath {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+.pathChip {
+  padding: var(--space-half) var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-standard);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+.blockTitle {
+  margin: 0;
+  font-size: var(--font-size-headline);
+  font-weight: 500;
+}
+.blockLead {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-base);
+}
+.semantic {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.semantic .aiCard {
+  margin-top: var(--space-3);
+}
+.aiCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+.detected {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.diagCols {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+@container (max-width: 40rem) {
+  .diagCols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.diagCol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+.diagHead {
+  display: flex;
+  margin: 0;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-standard);
+  font-size: var(--font-size-base);
+  font-weight: 500;
+}
+.diagList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-high);
+  font-size: var(--font-size-base);
+}
+.diagList li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.tick {
+  color: var(--success);
+}
+/* Review: the counts in one line, the areas as tabs, the findings beside their evidence. */
+.statsLine {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-base);
+}
+.statsNote {
+  color: var(--text-dim);
+}
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.85fr) minmax(18rem, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+@container (max-width: 56rem) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.card,
+.inspector {
+  padding: var(--space-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+.cardTitle {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: 500;
+}
+
+/* Live analysis: what the agent used, and what it says. */
+.liveLine {
+  margin: 0;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+.liveGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: var(--space-4);
+  min-height: 24rem;
+}
+@container (max-width: 48rem) {
+  .liveGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.livePanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+.livePanelTitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 500;
+}
+.liveTools {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+}
+.liveTools li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.liveToolDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+}
+.liveTools li[data-running='true'] .liveToolDot {
+  background: var(--running);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.liveToolName {
+  overflow: hidden;
+  color: var(--text-high);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.liveToolTime {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+.liveTools li[data-running='true'] .liveToolTime {
+  color: var(--running);
+}
+.liveStream {
+  flex: 1;
+  min-height: 0;
+  max-height: 32rem;
+  padding: var(--space-4);
+  overflow-y: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-void);
+  color: var(--text-standard);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-reading);
+}
+.liveStream p {
+  margin: 0 0 var(--space-2);
+}
+.liveCursor {
+  color: var(--running);
+  animation: pulse 1s steps(2, start) infinite;
+}
+/* Fields of the page: a label above, the field on layer 1; never a box inside the card's box. */
+.field {
+  padding: 0;
+  background: transparent;
+}
+.fieldHead,
+.fieldLabel {
+  color: var(--text-standard);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.counter {
+  font-size: var(--font-size-xs);
+}
+.textarea {
+  min-height: 5.5rem;
+  padding: var(--space-3);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  box-shadow: none;
+  font-size: var(--font-size-base);
+  resize: vertical;
+}
+.textarea:focus,
+.textarea:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+.select {
+  min-height: 2.5rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+}
+.selectIcon {
+  display: none;
+}
+.selectText {
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+.selectName {
+  font-size: var(--font-size-base);
+}
+.selectSub {
+  color: var(--running);
+  font-size: var(--font-size-sm);
+}
+.diagHead {
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.body {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+/* A finding on one line: include, value, origin, confidence, the file it rests on. */
+.categoryGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.categoryGroup + .categoryGroup {
+  margin-top: var(--space-4);
+}
+.categoryTitle {
+  margin: 0 0 var(--space-2);
+  color: var(--text-high);
+  font-size: var(--font-size-md);
+  font-weight: 500;
+}
+.finding {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+}
+.finding:hover {
+  background: var(--surface-2);
+}
+.finding[data-selected='true'] {
+  border-color: rgb(99 102 241 / 0.5);
+  background: var(--accent-tint);
+}
+.finding[data-excluded='true'] .findingValue {
+  opacity: 0.5;
+}
+.findingValue {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-half);
+  min-width: 0;
+}
+.findingName {
+  overflow: hidden;
+  color: var(--text-high);
+  font-size: var(--font-size-base);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.findingLabel {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.valueInput {
+  width: min(100%, 15rem);
+  height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-base);
+  color: var(--text-high);
+  font: inherit;
+  font-size: var(--font-size-base);
+}
+.findingMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+.findingConfidence {
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+.findingSource {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-standard);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+.findingSource:hover,
+.findingSource[aria-pressed='true'] {
+  color: var(--accent-soft);
+}
+/* The evidence inspector: labels in normal case, close to their values. */
+.meta dt {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.modalTitle {
+  margin: 0 2rem 0 0;
+  font-size: var(--font-size-lg);
+}

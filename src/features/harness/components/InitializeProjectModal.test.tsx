@@ -157,7 +157,7 @@ describe('InitializeProjectModal', () => {
       'The layered architecture is intentional',
     );
     expect(initializeProject).not.toHaveBeenCalled();
-    await user.click(within(form).getByRole('button', { name: 'Initialize' }));
+    await user.click(within(form).getByRole('button', { name: 'Write to the project' }));
 
     expect(initializeProject).toHaveBeenCalledWith('w1', {
       mode: 'create',
@@ -188,7 +188,7 @@ describe('InitializeProjectModal', () => {
 
     const box = within(form).getByRole('checkbox', { name: /Keep \.atlas\/ out of Git/ });
     expect(box).toBeChecked();
-    await user.click(within(form).getByRole('button', { name: 'Initialize' }));
+    await user.click(within(form).getByRole('button', { name: 'Write to the project' }));
 
     expect(vi.mocked(initializeProject).mock.calls[0]?.[1].ignoreInGit).toBe(true);
     expect(await screen.findByRole('status')).toHaveTextContent(
@@ -206,7 +206,7 @@ describe('InitializeProjectModal', () => {
     const form = screen.getByRole('form', { name: 'Harness — Review Findings' });
 
     await user.click(within(form).getByRole('checkbox', { name: /Keep \.atlas\/ out of Git/ }));
-    await user.click(within(form).getByRole('button', { name: 'Initialize' }));
+    await user.click(within(form).getByRole('button', { name: 'Write to the project' }));
 
     expect(vi.mocked(initializeProject).mock.calls[0]?.[1].ignoreInGit).toBe(false);
     await screen.findByRole('heading', { name: 'Harness initialized' });
@@ -222,7 +222,7 @@ describe('InitializeProjectModal', () => {
     await user.click(await screen.findByRole('button', { name: /^Review/ }));
     await user.click(
       within(screen.getByRole('form', { name: 'Harness — Review Findings' })).getByRole('button', {
-        name: 'Initialize',
+        name: 'Write to the project',
       }),
     );
 
@@ -281,7 +281,7 @@ describe('InitializeProjectModal', () => {
     const guess = screen.getByLabelText('Include naming: kebab-case');
     expect(guess).not.toBeChecked();
     expect(screen.getAllByText('Low confidence').length).toBeGreaterThan(0);
-    await user.click(screen.getByRole('button', { name: 'Initialize' }));
+    await user.click(screen.getByRole('button', { name: 'Write to the project' }));
 
     expect(initializeProject).toHaveBeenCalledWith(
       'w1',
@@ -301,7 +301,7 @@ describe('InitializeProjectModal', () => {
     await user.click(screen.getByRole('button', { name: /^Review/ }));
     await user.click(screen.getByRole('button', { name: 'Use Angular 21 for Angular 21' }));
     expect(screen.getByText('Decided: 21')).toBeVisible();
-    await user.click(screen.getByRole('button', { name: 'Initialize' }));
+    await user.click(screen.getByRole('button', { name: 'Write to the project' }));
 
     // The fact the user chose is the analysis's own value: no correction needed.
     expect(initializeProject).toHaveBeenCalledWith(
@@ -317,7 +317,7 @@ describe('InitializeProjectModal', () => {
 
     await user.click(await screen.findByRole('button', { name: /^Review/ }));
     await user.click(screen.getByRole('button', { name: 'Use angular 18 for Angular 21' }));
-    await user.click(screen.getByRole('button', { name: 'Initialize' }));
+    await user.click(screen.getByRole('button', { name: 'Write to the project' }));
 
     expect(initializeProject).toHaveBeenCalledWith(
       'w1',
@@ -356,7 +356,7 @@ describe('InitializeProjectModal', () => {
     await user.click(await screen.findByRole('button', { name: /^Review/ }));
     await user.click(screen.getByRole('button', { name: 'Back' }));
 
-    expect(await screen.findByRole('heading', { name: 'Harness — Analyze Project' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: /^Analyze / })).toBeVisible();
     expect(analyzeProject).toHaveBeenCalledTimes(1);
   });
 
@@ -411,7 +411,7 @@ describe('InitializeProjectModal', () => {
     expect(screen.getByLabelText('Value of Angular 21')).toHaveValue('19');
     await user.click(screen.getByRole('tab', { name: /^Architecture and modules/ }));
     expect(screen.getByLabelText('Confirm Layered')).toBeChecked();
-    await user.click(screen.getByRole('button', { name: 'Initialize' }));
+    await user.click(screen.getByRole('button', { name: 'Write to the project' }));
 
     expect(initializeProject).toHaveBeenCalledWith(
       'w1',
@@ -443,7 +443,7 @@ describe('InitializeProjectModal', () => {
 
     expect(await screen.findByText(/is not a valid Harness/)).toBeVisible();
     await user.click(screen.getByRole('button', { name: /^Review/ }));
-    await user.click(screen.getByRole('button', { name: 'Initialize' }));
+    await user.click(screen.getByRole('button', { name: 'Write to the project' }));
 
     expect(initializeProject).toHaveBeenCalledWith(
       'w1',
@@ -461,14 +461,14 @@ describe('InitializeProjectModal', () => {
     });
 
     await user.click(await screen.findByRole('button', { name: /^Review/ }));
-    await user.click(screen.getByRole('button', { name: 'Initialize' }));
+    await user.click(screen.getByRole('button', { name: 'Write to the project' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'The Harness could not be written to .atlas/.',
     );
     expect(screen.getByRole('form', { name: 'Harness — Review Findings' })).toBeVisible();
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Initialize' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Write to the project' })).toBeEnabled();
     });
   });
 
@@ -653,7 +653,7 @@ describe('InitializeProjectModal', () => {
       const screenDialog = await screen.findByRole('dialog', {
         name: 'Analyst is analyzing your project',
       });
-      const stop = within(screenDialog).getByRole('button', { name: 'Stop analysis' });
+      const stop = within(screenDialog).getByRole('button', { name: 'Interrupt' });
       // Nothing to stop until the agent has started.
       expect(stop).toBeDisabled();
       const progress = (
@@ -700,9 +700,9 @@ describe('InitializeProjectModal', () => {
         within(screenDialog).getByText('The core folder holds the API services.'),
       ).toBeVisible();
       expect(within(screenDialog).queryByText(/NOPE/)).not.toBeInTheDocument();
-      expect(within(screenDialog).getByRole('button', { name: 'Stop analysis' })).toBeEnabled();
+      expect(within(screenDialog).getByRole('button', { name: 'Interrupt' })).toBeEnabled();
 
-      await user.click(within(screenDialog).getByRole('button', { name: 'Stop analysis' }));
+      await user.click(within(screenDialog).getByRole('button', { name: 'Interrupt' }));
       expect(interruptExecution).toHaveBeenCalledWith({
         workspaceId: 'w1',
         agentId: 'a1',

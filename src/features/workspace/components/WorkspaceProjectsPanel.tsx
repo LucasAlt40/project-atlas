@@ -79,7 +79,6 @@ export function WorkspaceProjectsPanel({
   pickFolder = nativePickFolder,
 }: Props) {
   const t = useT();
-  useBreadcrumb([t('projects.crumb')]);
   const { state, reload } = useProjectsOverview(workspace.id, signatureOf(workspace));
   const [editing, setEditing] = useState<Editing>(null);
   const [reviewing, setReviewing] = useState<Reviewing>(null);
@@ -166,6 +165,10 @@ export function WorkspaceProjectsPanel({
     ? ready.projects.filter((p) => harnessOf(p.id)?.state === 'not_initialized')
     : [];
   const nameOf = (id: string) => workspace.projects.find((p) => p.id === id)?.name ?? id;
+  useBreadcrumb([
+    t('projects.crumb'),
+    (together !== null || reviewing?.kind === 'initialize') && t('harness.crumb'),
+  ]);
 
   // The flow of the Harness takes the page itself, with its three steps on top.
   if (together) {

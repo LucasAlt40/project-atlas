@@ -76,7 +76,6 @@ async function openPanel(user: ReturnType<typeof userEvent.setup>) {
   return screen.findByRole('region', { name: 'Projects of Shop' });
 }
 
-
 /** "Recarregar" lives in the project's "⋯" menu: opens it and returns the item. */
 async function refreshItem(
   user: ReturnType<typeof userEvent.setup>,
@@ -322,12 +321,8 @@ describe('the projects of a workspace', () => {
       await user.click(await within(dialog).findByRole('button', { name: 'Review all (2)' }));
       expect(initializeProject).not.toHaveBeenCalled();
       await user.click(
-        within(screen.getByRole('form', { name: 'Harness — Review Findings' })).getByRole(
-          'button',
-          {
-            name: 'Initialize 2 project(s)',
-          },
-        ),
+        // The submit sits in the page's header and submits the review form.
+        within(dialog).getByRole('button', { name: 'Initialize 2 project(s)' }),
       );
 
       expect(await within(dialog).findByText('2 of 2 projects initialized.')).toBeVisible();
@@ -362,12 +357,8 @@ describe('the projects of a workspace', () => {
       const dialog = await screen.findByRole('region', { name: 'Initialize Projects' });
       await user.click(await within(dialog).findByRole('button', { name: 'Review all (2)' }));
       await user.click(
-        within(screen.getByRole('form', { name: 'Harness — Review Findings' })).getByRole(
-          'button',
-          {
-            name: 'Initialize 2 project(s)',
-          },
-        ),
+        // The submit sits in the page's header and submits the review form.
+        within(dialog).getByRole('button', { name: 'Initialize 2 project(s)' }),
       );
 
       expect(await within(dialog).findByText('1 of 2 projects initialized.')).toBeVisible();
