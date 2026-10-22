@@ -53,7 +53,7 @@ describe('AgentsPage', () => {
   it('lists every saved agent with its personality, runtime and model', async () => {
     show();
 
-    const list = await screen.findByRole('list', { name: 'Agents' });
+    const list = await screen.findByRole('table', { name: 'Agents' });
     expect(within(list).getByText('Architecture Expert')).toBeInTheDocument();
     expect(within(list).getByText('Architect')).toBeInTheDocument();
     expect(within(list).getByText('OpenCode CLI')).toBeInTheDocument();
@@ -434,13 +434,15 @@ describe('AgentsPage', () => {
     await user.keyboard('{Escape}');
 
     vi.mocked(listAgents).mockResolvedValue([architect, imported]);
-    await user.click(screen.getByRole('button', { name: 'Import' }));
+    // Importing is a rare action of the page: its "⋯".
+    await user.click(screen.getByRole('button', { name: 'More agent page actions' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Import' }));
     const dialog = await screen.findByRole('dialog', { name: 'Import configuration' });
     await user.click(await within(dialog).findByRole('button', { name: /Choose file/ }));
     await user.click(await within(dialog).findByRole('button', { name: 'Import' }));
     await user.click(await within(dialog).findByRole('button', { name: 'Done' }));
 
-    const list = await screen.findByRole('list', { name: 'Agents' });
+    const list = await screen.findByRole('table', { name: 'Agents' });
     expect(await within(list).findByText('Imported Reviewer')).toBeInTheDocument();
   });
 });

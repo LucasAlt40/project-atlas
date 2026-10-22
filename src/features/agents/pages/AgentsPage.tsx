@@ -4,7 +4,10 @@ import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { errorMessage } from '@/i18n/messages';
 import { useT } from '@/i18n/I18nProvider';
-import { ImportButton } from '@/features/portability';
+import { ImportDialog } from '@/features/portability';
+import { OverflowMenu } from '@/components/ui/OverflowMenu';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { AgentForm } from '../components/AgentForm';
 import { AgentList } from '../components/AgentList';
 import { useCatalog } from '../hooks/useCatalog';
@@ -29,6 +32,7 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'ready' | 'unavailable'>('all');
+  const [importing, setImporting] = useState(false);
 
   if (catalog.status === 'loading') {
     return <p className={styles.muted}>{t('common.loadingCore')}</p>;
@@ -62,96 +66,69 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
       inFilter(a, filter) &&
       (!needle || `${a.name} ${a.modelId} ${a.runtimeId}`.toLowerCase().includes(needle)),
   );
-  const readyRuntimes =
+  const availabilityOf = (id: string) =>
     runtimes.status === 'ready'
-      ? runtimes.runtimes.filter((r) => r.availability === 'ready').length
-      : null;
-  const stats: { label: string; value: string }[] = [
-    { label: t('agents.stat.agents'), value: String(agents.length) },
-    {
-      label: t('agents.stat.runtimes'),
-      value:
-        runtimes.status === 'ready'
-          ? `${String(readyRuntimes ?? 0)}/${String(runtimes.runtimes.length)}`
-          : '—',
-    },
-    {
-      label: t('agents.stat.isolated'),
-      value: String(agents.filter((a) => a.worktreeIsolation).length),
-    },
-    {
-      label: t('agents.stat.contract'),
-      value: String(agents.filter((a) => a.resultContract.outcomes.length > 0).length),
-    },
-  ];
+      ? runtimes.runtimes.find((r) => r.runtime.id === id)?.availability
+      : undefined;
 
   return (
     <section className={styles.page}>
       {!creating && !editing && (
-        <header className={styles.pageHeader}>
-          <div className={styles.headerText}>
-            <div className={styles.titleRow}>
-              <h1 className={styles.title}>{t('agents.title')}</h1>
-              <Badge mono>{t('agents.count', { n: agents.length })}</Badge>
-            </div>
-            <p className={styles.subtitle}>{t('agents.subtitle')}</p>
-          </div>
-          <div className={styles.headerActions}>
-            <label className={styles.search}>
-              <Icon name="search" size={16} />
-              <input
-                type="search"
-                value={query}
-                placeholder={t('agents.search')}
-                aria-label={t('agents.search')}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                }}
-              />
-            </label>
-            <ImportButton
-              onImported={() => {
-                void reloadCatalog();
-              }}
-            />
-            <Button
-              onClick={() => {
-                setEditingId(null);
-                setCreating(true);
-              }}
-            >
-              <Icon name="plus" size={16} />
-              {t('agents.create')}
-            </Button>
-          </div>
-        </header>
-      )}
-
-      {!creating && !editing && agents.length > 0 && (
         <>
-          <ul className={styles.summary} aria-label={t('agents.summary')}>
-            {stats.map(({ label, value }) => (
-              <li key={label}>
-                <b>{value}</b> {label}
-              </li>
-            ))}
-          </ul>
-          <div className={styles.tabsBar} role="group" aria-label={t('agents.filter.label')}>
-            {(['all', 'ready', 'unavailable'] as const).map((name) => (
-              <button
-                key={name}
-                type="button"
-                className={styles.filterTab}
-                aria-pressed={filter === name}
-                onClick={() => {
-                  setFilter(name);
-                }}
-              >
-                {t(`agents.filter.${name}`)} (
-                {String(agents.filter((a) => inFilter(a, name)).length)})
-              </button>
-            ))}
-          </div>
+          <PageHeader
+            title={t('agents.title')}
+            titleAside={<Badge mono>{String(agents.length)}</Badge>}
+            actions={
+              <>
+                <Button
+                  onClick={() => {
+                    setEditingId(null);
+                    setCreating(true);
+                  }}
+                >
+                  <Icon name="plus" size={16} />
+                  {t('agents.create')}
+                </Button>
+                <OverflowMenu
+                  label={t('agents.more')}
+                  items={[
+                    {
+                      label: t('portability.import'),
+                      icon: 'download',
+                      onSelect: () => {
+                        setImporting(true);
+                      },
+                    },
+                  ]}
+                />
+              </>
+            }
+          />
+          {agents.length > 0 && (
+            <div className={styles.controls}>
+              <label className={styles.search}>
+                <Icon name="search" size={16} />
+                <input
+                  type="search"
+                  value={query}
+                  placeholder={t('agents.search')}
+                  aria-label={t('agents.search')}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                  }}
+                />
+              </label>
+              <SegmentedControl
+                label={t('agents.filter.label')}
+                value={filter}
+                onChange={setFilter}
+                segments={(['all', 'ready', 'unavailable'] as const).map((name) => ({
+                  value: name,
+                  label: `${t(`agents.filter.${name}`)} (${String(agents.filter((a) => inFilter(a, name)).length)})`,
+                }))}
+              />
+            </div>
+          )}
         </>
       )}
 
@@ -221,6 +198,7 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
           personalities={personalities}
           runtimeName={runtimeName}
           runtimeReady={runtimeReady}
+          runtimeAvailability={availabilityOf}
           onEdit={(id) => {
             setCreating(false);
             setEditingId(id);
@@ -229,6 +207,16 @@ export function AgentsPage({ startCreating, onAgentCreated, notice }: Props) {
           onCreate={() => {
             setEditingId(null);
             setCreating(true);
+          }}
+        />
+      )}
+      {importing && (
+        <ImportDialog
+          onImported={() => {
+            void reloadCatalog();
+          }}
+          onClose={() => {
+            setImporting(false);
           }}
         />
       )}
