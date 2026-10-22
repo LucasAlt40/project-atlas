@@ -36,26 +36,9 @@
   border-color: var(--border-focus);
   outline: 0;
 }
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-4);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--surface-1);
-}
-.actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-3);
-}
 .error {
   margin: 0;
   color: var(--danger);
-}
-.success {
-  color: var(--success);
 }
 .checkRow {
   display: flex;
@@ -270,7 +253,7 @@
   }
 }
 
-/* The personality form inside the side panel: the instructions take the height that is left. */
+/* The personality form inside the drawer: the instructions take the height that is left. */
 .panelForm {
   display: flex;
   flex: 1;
@@ -278,17 +261,9 @@
   gap: var(--space-4);
   min-height: 0;
 }
-.grow {
-  flex: 1;
-  min-height: 10rem;
-}
-.grow .textarea {
-  flex: 1;
-}
-.panelActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-3);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border-subtle);
+.mono {
+  min-height: 14rem;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
 }

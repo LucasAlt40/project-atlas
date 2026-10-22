@@ -626,13 +626,12 @@ export const enUS = {
   'agents.form.section.instructions': 'Additional instructions',
   'agents.form.section.contract': 'Result contract',
   'agents.form.section.security': 'Permissions and isolation',
-  'personalities.available': '{n} available',
-  'personalities.customCount': '{n} custom',
+  'personalities.customCount': '{n} yours',
   'personalities.builtinCount': '{n} built-in',
   'personalities.filter.all': 'All',
   'personalities.filter.builtin': 'System default',
   'personalities.filter.custom': 'Custom',
-  'personalities.search': 'Search personality, tag or instruction…',
+  'personalities.search': 'Search by name, tag or instruction',
   'personalities.noMatch': 'No personality matches your search.',
   'personalities.panel.edit': 'Edit personality',
   'agents.col.agent': 'Agent',
@@ -697,20 +696,17 @@ export const enUS = {
 
   // Personalities screen
   'personalities.title': 'Personalities',
-  'personalities.intro':
-    'Personalities define how an agent behaves. Inspect one, edit it, or use it to create an agent.',
   'personalities.restore': 'Restore default personalities',
   'personalities.new': 'New personality',
-  'personalities.use': 'Use this personality',
+  'personalities.use': 'Use',
   'personalities.behavior': 'Behavior',
   'personalities.instructions': 'System instructions',
   'personalities.instructionsLabel': '{name} system instructions',
   'personalities.tags': 'Tags',
   'personalities.note':
     'Atlas adds its live-narration and read-only rules to every personality, built-in or custom. The exact prompt is shown after each run.',
-  'personalities.protocol.title': 'Atlas protocol, injected globally',
-  'personalities.source.builtin': 'built-in',
-  'personalities.source.custom': 'custom',
+  'personalities.source.builtin': 'Built-in',
+  'personalities.source.custom': 'Custom',
   'personalities.deleteQuestion': 'Delete {name}?',
   'personalities.form.new': 'New personality',
   'personalities.form.name': 'Name',
@@ -721,7 +717,7 @@ export const enUS = {
   'personalities.form.instructionsPlaceholder':
     'You are a senior .NET architect. Prefer Clean Architecture, DDD and pragmatic design…',
   'personalities.form.tags': 'Tags',
-  'personalities.form.tagsPlaceholder': 'architecture, ddd (comma separated)',
+  'personalities.form.tagsPlaceholder': 'architecture, ddd',
   'personalities.form.save': 'Save personality',
   'personalities.form.builtinNote':
     'This is a built-in personality. Your changes are saved as your own version; “Restore default personalities” undoes them.',
@@ -3733,6 +3729,17 @@ export const enUS = {
   'portability.settings.exportCard': 'Export',
   'specs.moreActions': 'More actions for {title}',
   'mobile.run.task': 'Task',
+  'personalities.more': 'More personality actions',
+  'personalities.customCount.one': '1 yours',
+  'personalities.protocol.summary':
+    'Every personality gets the Atlas protocol (live narration and result format).',
+  'personalities.filter.label': 'Filter personalities',
+  'personalities.useNamed': 'Use {name}',
+  'personalities.form.tagsHint': 'Comma separated',
+  'common.seeMore': 'See more',
+  'common.seeLess': 'See less',
+  'common.showMore': 'Show more',
+  'common.showLess': 'Show less',
 } as const;
 
 export type TranslationKey = keyof typeof enUS;

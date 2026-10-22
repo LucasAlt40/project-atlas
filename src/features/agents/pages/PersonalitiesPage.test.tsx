@@ -38,12 +38,14 @@ describe('PersonalitiesPage', () => {
     const card = await screen.findByRole('article', { name: 'Architect' });
     // A card is compact until it is opened; one card is open at a time.
     expect(within(card).queryByText('Identifies boundaries')).not.toBeInTheDocument();
-    await user.click(within(card).getByRole('button', { name: 'Expand Architect' }));
+    await user.click(within(card).getByRole('button', { name: 'Show more' }));
     expect(within(card).getByText('Identifies boundaries')).toBeInTheDocument();
     expect(within(card).getByLabelText('Architect system instructions')).toHaveTextContent(
       'You are an experienced software architect.',
     );
     // The protocol Atlas adds to every personality is stated once, above the cards.
+    expect(screen.getByText(/Every personality gets the Atlas protocol/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'See more' }));
     expect(
       screen.getByText(/live-narration and read-only rules to every personality/),
     ).toBeInTheDocument();
@@ -56,7 +58,7 @@ describe('PersonalitiesPage', () => {
 
     await user.click(
       within(await screen.findByRole('article', { name: 'QA' })).getByRole('button', {
-        name: 'Use this personality',
+        name: 'Use QA',
       }),
     );
 
@@ -120,8 +122,7 @@ describe('PersonalitiesPage', () => {
       behavior: [],
     });
 
-    await user.click(await screen.findByRole('button', { name: 'More actions for Architect' }));
-    await user.click(screen.getByRole('menuitem', { name: 'Edit' }));
+    await user.click(await screen.findByRole('button', { name: 'Edit Architect' }));
     const form = screen.getByRole('form', { name: 'Edit Architect' });
     expect(within(form).getByLabelText('Instructions')).toHaveValue(
       'You are an experienced software architect.',
@@ -131,7 +132,11 @@ describe('PersonalitiesPage', () => {
     await user.type(within(form).getByLabelText('Name'), 'Strict Architect');
     await user.clear(within(form).getByLabelText('Instructions'));
     await user.type(within(form).getByLabelText('Instructions'), 'Be strict.');
-    await user.click(within(form).getByRole('button', { name: 'Save personality' }));
+    await user.click(
+      within(screen.getByRole('dialog', { name: 'Edit personality' })).getByRole('button', {
+        name: 'Save personality',
+      }),
+    );
 
     expect(updatePersonality).toHaveBeenCalledWith('architect', {
       name: 'Strict Architect',
@@ -175,7 +180,8 @@ describe('PersonalitiesPage', () => {
     show(vi.fn(), { personalities: [architectPersonality] });
     vi.mocked(restoreDefaultPersonalities).mockResolvedValue(personalities);
 
-    await user.click(await screen.findByRole('button', { name: 'Restore default personalities' }));
+    await user.click(await screen.findByRole('button', { name: 'More personality actions' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Restore default personalities' }));
 
     expect(await screen.findByRole('article', { name: 'QA' })).toBeInTheDocument();
   });
@@ -188,7 +194,8 @@ describe('PersonalitiesPage', () => {
     await user.click(within(card).getByRole('button', { name: 'More actions for Architect' }));
     expect(screen.getByRole('menuitem', { name: 'Export' })).toBeInTheDocument();
     await user.keyboard('{Escape}');
-    await user.click(screen.getByRole('button', { name: 'Import' }));
+    await user.click(screen.getByRole('button', { name: 'More personality actions' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Import' }));
     expect(await screen.findByRole('dialog', { name: 'Import configuration' })).toBeInTheDocument();
   });
 });

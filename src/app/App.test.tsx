@@ -127,7 +127,11 @@ describe('App', () => {
       ),
     ).toBeInTheDocument();
     // The behavior list shows when the card is opened.
-    await user.click(screen.getByRole('button', { name: 'Expandir Architect' }));
+    await user.click(
+      within(screen.getByRole('article', { name: 'Architect' })).getByRole('button', {
+        name: 'Mostrar mais',
+      }),
+    );
     expect(screen.getByText('Identifica fronteiras')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Configurações' }));
@@ -205,7 +209,7 @@ describe('App', () => {
     await user.click(await screen.findByRole('button', { name: 'Personalities' }));
     await user.click(
       within(await screen.findByRole('article', { name: 'QA' })).getByRole('button', {
-        name: 'Use this personality',
+        name: 'Use QA',
       }),
     );
 

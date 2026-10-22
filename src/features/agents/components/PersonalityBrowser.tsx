@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
+import { Callout } from '@/components/ui/Callout';
+import { Drawer } from '@/components/ui/Drawer';
 import { Icon } from '@/components/ui/Icon';
-import { Modal } from '@/components/ui/Modal';
-import { ImportButton } from '@/features/portability';
+import { OverflowMenu } from '@/components/ui/OverflowMenu';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { useBreadcrumb } from '@/app/BreadcrumbContext';
+import { ImportDialog } from '@/features/portability';
 import { useT } from '@/i18n/I18nProvider';
 import type { CreatePersonalityInput, Personality } from '../types';
 import { PersonalityCard } from './PersonalityCard';
@@ -12,6 +16,8 @@ import { PersonalityForm } from './PersonalityForm';
 import styles from './Personality.module.css';
 
 type Filter = 'all' | 'builtin' | 'custom';
+
+const FORM_ID = 'personality-form';
 
 interface Props {
   personalities: Personality[];
@@ -36,9 +42,12 @@ export function PersonalityBrowser({
   const t = useT();
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [protocolOpen, setProtocolOpen] = useState(false);
   /** One card is open at a time; the others stay compact. */
   const [openId, setOpenId] = useState<string | null>(null);
   const editing = personalities.find((p) => p.id === editingId);
+  useBreadcrumb([creating && t('personalities.form.new'), editing?.name]);
 
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
@@ -60,62 +69,71 @@ export function PersonalityBrowser({
     setCreating(false);
     setEditingId(null);
   };
+  const custom = count('custom');
+  const panelTitle = editing ? t('personalities.panel.edit') : t('personalities.form.new');
 
   return (
     <div className={styles.browser}>
-      <header className={styles.pageHead}>
-        <div className={styles.headText}>
-          <h1 className={styles.title}>{t('personalities.title')}</h1>
-          <div className={styles.chips}>
-            <Badge mono>{t('personalities.available', { n: personalities.length })}</Badge>
-            <Badge mono>{t('personalities.customCount', { n: count('custom') })}</Badge>
-            <Badge mono>{t('personalities.builtinCount', { n: count('builtin') })}</Badge>
-          </div>
-          <p className={styles.intro}>{t('personalities.intro')}</p>
-        </div>
-        <div className={styles.actions}>
-          <ImportButton onImported={onImported} />
-          <Button
-            variant="ghost"
-            onClick={() => {
-              void onRestoreDefaults();
-            }}
-          >
-            <Icon name="refresh" size={14} />
-            {t('personalities.restore')}
-          </Button>
-          <Button
-            onClick={() => {
-              setEditingId(null);
-              setCreating(true);
-            }}
-          >
-            <Icon name="plus" size={16} />
-            {t('personalities.new')}
-          </Button>
-        </div>
-      </header>
-
-      <CollapsibleSection title={t('personalities.protocol.title')} defaultOpen={false}>
-        <p className={styles.protocolText}>{t('personalities.note')}</p>
-      </CollapsibleSection>
-
-      <div className={styles.filterBar}>
-        <div className={styles.tabsBar} role="group" aria-label={t('personalities.title')}>
-          {(['all', 'builtin', 'custom'] as const).map((name) => (
-            <button
-              key={name}
-              type="button"
-              className={styles.filterTab}
-              aria-pressed={filter === name}
+      <PageHeader
+        title={t('personalities.title')}
+        meta={`${t('personalities.builtinCount', { n: count('builtin') })} · ${t(
+          custom === 1 ? 'personalities.customCount.one' : 'personalities.customCount',
+          { n: custom },
+        )}`}
+        actions={
+          <>
+            <Button
               onClick={() => {
-                setFilter(name);
+                setEditingId(null);
+                setCreating(true);
               }}
             >
-              {t(`personalities.filter.${name}`)} ({count(name)})
-            </button>
-          ))}
-        </div>
+              <Icon name="plus" size={16} />
+              {t('personalities.new')}
+            </Button>
+            <OverflowMenu
+              label={t('personalities.more')}
+              items={[
+                {
+                  label: t('portability.import'),
+                  icon: 'download',
+                  onSelect: () => {
+                    setImporting(true);
+                  },
+                },
+                {
+                  label: t('personalities.restore'),
+                  icon: 'refresh',
+                  onSelect: () => {
+                    void onRestoreDefaults();
+                  },
+                },
+              ]}
+            />
+          </>
+        }
+      />
+
+      <Callout
+        tone="info"
+        action={
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-expanded={protocolOpen}
+            onClick={() => {
+              setProtocolOpen((open) => !open);
+            }}
+          >
+            {t(protocolOpen ? 'common.seeLess' : 'common.seeMore')}
+          </Button>
+        }
+      >
+        {t('personalities.protocol.summary')}
+        {protocolOpen && <span className={styles.protocolText}>{t('personalities.note')}</span>}
+      </Callout>
+
+      <div className={styles.controls}>
         <label className={styles.searchBox}>
           <Icon name="search" size={16} />
           <input
@@ -128,10 +146,19 @@ export function PersonalityBrowser({
             }}
           />
         </label>
+        <SegmentedControl
+          label={t('personalities.filter.label')}
+          value={filter}
+          onChange={setFilter}
+          segments={(['all', 'builtin', 'custom'] as const).map((name) => ({
+            value: name,
+            label: `${t(`personalities.filter.${name}`)} (${String(count(name))})`,
+          }))}
+        />
       </div>
 
+      {visible.length === 0 && <p className={styles.note}>{t('personalities.noMatch')}</p>}
       <div className={styles.list}>
-        {visible.length === 0 && <p className={styles.note}>{t('personalities.noMatch')}</p>}
         {visible.map((personality) => (
           <PersonalityCard
             key={personality.id}
@@ -151,36 +178,53 @@ export function PersonalityBrowser({
       </div>
 
       {panelOpen && (
-        <Modal
-          label={editing ? t('personalities.panel.edit') : t('personalities.form.new')}
+        <Drawer
+          label={panelTitle}
           onClose={closePanel}
-          placement="side"
-          size="md"
+          width="lg"
+          title={
+            <>
+              {panelTitle}
+              <Badge>
+                {t(
+                  editing?.source === 'builtin'
+                    ? 'personalities.source.builtin'
+                    : 'personalities.source.custom',
+                )}
+              </Badge>
+            </>
+          }
+          footer={
+            <>
+              <Button type="button" variant="secondary" onClick={closePanel}>
+                {t('common.cancel')}
+              </Button>
+              <Button type="submit" form={FORM_ID}>
+                {t('personalities.form.save')}
+              </Button>
+            </>
+          }
         >
-          <h2 className={styles.panelHeading}>
-            {editing ? t('personalities.panel.edit') : t('personalities.form.new')}
-            <Badge mono dot tone={editing?.source === 'builtin' ? 'info' : 'policy'}>
-              {t(
-                editing?.source === 'builtin'
-                  ? 'personalities.source.builtin'
-                  : 'personalities.source.custom',
-              )}
-            </Badge>
-          </h2>
-          {creating && (
-            <PersonalityForm panel onSubmit={onCreate} onSaved={closePanel} onCancel={closePanel} />
-          )}
+          {creating && <PersonalityForm id={FORM_ID} onSubmit={onCreate} onSaved={closePanel} />}
           {editing && (
             <PersonalityForm
-              panel
+              id={FORM_ID}
               key={editing.id}
               initial={editing}
               onSubmit={(input) => onEdit(editing.id, input)}
               onSaved={closePanel}
-              onCancel={closePanel}
             />
           )}
-        </Modal>
+        </Drawer>
+      )}
+
+      {importing && (
+        <ImportDialog
+          onImported={onImported}
+          onClose={() => {
+            setImporting(false);
+          }}
+        />
       )}
     </div>
   );

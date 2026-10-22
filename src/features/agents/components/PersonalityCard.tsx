@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Icon } from '@/components/ui/Icon';
+import { Callout } from '@/components/ui/Callout';
 import { OverflowMenu } from '@/components/ui/OverflowMenu';
 import { errorMessage } from '@/i18n/messages';
 import { useT } from '@/i18n/I18nProvider';
@@ -20,6 +20,9 @@ interface Props {
   /** Rejects when the personality cannot be deleted (for example agents use it). */
   onDelete: (personalityId: string) => Promise<void>;
 }
+
+/** A compact card shows this many tags; the open card shows them all. */
+const MAX_TAGS = 3;
 
 const BUILTIN_IDS = [
   'architect',
@@ -73,37 +76,26 @@ export function PersonalityCard({
     });
   }
 
+  const tags = expanded ? personality.tags : personality.tags.slice(0, MAX_TAGS);
+
   return (
     <article className={styles.card} aria-labelledby={headingId} data-expanded={expanded}>
       <header className={styles.header}>
-        <span className={styles.avatar} aria-hidden="true">
-          <Icon name={personality.source === 'builtin' ? 'shield' : 'personalities'} size={20} />
-        </span>
         <h3 id={headingId} className={styles.name}>
           {personality.name}
         </h3>
-        <Badge mono dot tone={personality.source === 'builtin' ? 'info' : 'policy'}>
-          {t(`personalities.source.${personality.source}`)}
-        </Badge>
-        <button
-          type="button"
-          className={styles.toggle}
-          aria-expanded={expanded}
-          aria-controls={detailsId}
-          aria-label={t(expanded ? 'agent.collapse' : 'agent.expand', { name: personality.name })}
-          title={t(expanded ? 'agent.collapse' : 'agent.expand', { name: personality.name })}
-          onClick={onToggle}
-        >
-          <Icon name={expanded ? 'chevronUp' : 'chevronDown'} size={16} />
-        </button>
+        <Badge>{t(`personalities.source.${personality.source}`)}</Badge>
       </header>
       {description && <p className={styles.description}>{description}</p>}
 
-      {personality.tags.length > 0 && (
+      {tags.length > 0 && (
         <ul className={styles.tags} aria-label={t('personalities.tags')}>
-          {personality.tags.map((tag) => (
+          {tags.map((tag) => (
             <li key={tag}>{tag}</li>
           ))}
+          {tags.length < personality.tags.length && (
+            <li className={styles.moreTags}>+{personality.tags.length - tags.length}</li>
+          )}
         </ul>
       )}
 
@@ -129,10 +121,22 @@ export function PersonalityCard({
         </div>
       )}
 
+      <div className={styles.toggleRow}>
+        <button
+          type="button"
+          className={styles.toggle}
+          aria-expanded={expanded}
+          aria-controls={detailsId}
+          onClick={onToggle}
+        >
+          {t(expanded ? 'common.showLess' : 'common.showMore')}
+        </button>
+      </div>
+
       {error && (
-        <p role="alert" className={styles.error}>
+        <Callout tone="danger" role="alert">
           {error}
-        </p>
+        </Callout>
       )}
       <div className={styles.cardActions}>
         {confirming ? (
@@ -142,11 +146,12 @@ export function PersonalityCard({
             aria-label={t('personalities.deleteQuestion', { name: personality.name })}
           >
             {t('personalities.deleteQuestion', { name: personality.name })}
-            <Button variant="danger" onClick={confirmDelete}>
+            <Button variant="danger" size="sm" onClick={confirmDelete}>
               {t('common.confirmDelete')}
             </Button>
             <Button
               variant="ghost"
+              size="sm"
               onClick={() => {
                 setConfirming(false);
               }}
@@ -157,22 +162,29 @@ export function PersonalityCard({
         ) : (
           <>
             <Button
+              variant="secondary"
+              size="sm"
+              aria-label={t('personalities.useNamed', { name: personality.name })}
               onClick={() => {
                 onUse(personality.id);
               }}
             >
               {t('personalities.use')}
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={t('workspace.editAgent', { name: personality.name })}
+              onClick={() => {
+                onEdit(personality.id);
+              }}
+            >
+              {t('common.edit')}
+            </Button>
+            <span className={styles.spacer} />
             <OverflowMenu
               label={t('agent.moreActions', { name: personality.name })}
               items={[
-                {
-                  label: t('common.edit'),
-                  icon: 'edit',
-                  onSelect: () => {
-                    onEdit(personality.id);
-                  },
-                },
                 {
                   label: t('portability.export'),
                   icon: 'upload',
