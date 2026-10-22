@@ -632,7 +632,7 @@ export function NodeInspector({
         )}
 
         {state && (
-          <div className={styles.routes}>
+          <div className={styles.runState}>
             <h4>{t('workflow.inspector.execution')}</h4>
             <p>
               <span aria-hidden="true">{NODE_STATUS_VIEW[state.status].symbol}</span>{' '}

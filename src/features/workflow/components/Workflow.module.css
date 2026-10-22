@@ -2494,3 +2494,26 @@
 .barLeft > * {
   flex: none;
 }
+
+/* What happened in this step during the run: a section of the inspector like the others. */
+.runState {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+.runState h4 {
+  margin: 0;
+  color: var(--text-high);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+}
+.runState p,
+.runState ul {
+  margin: 0;
+}
+.runState ul {
+  padding: 0;
+  list-style: none;
+}
