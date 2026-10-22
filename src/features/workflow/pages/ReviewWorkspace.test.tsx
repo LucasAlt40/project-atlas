@@ -171,8 +171,11 @@ const open = async (user: ReturnType<typeof userEvent.setup>) => {
   return screen.findByRole('region', { name: 'Review workspace' });
 };
 
-const section = (review: HTMLElement, name: RegExp) =>
-  within(review).getByRole('button', { name }).closest('section')!;
+function section(review: HTMLElement, name: RegExp): HTMLElement {
+  const found = within(review).getByRole('button', { name }).closest('section');
+  if (!found) throw new Error(`no section ${String(name)}`);
+  return found;
+}
 
 /** The secondary sections start folded: opens one (if it is not open yet) and returns it. */
 async function opened(user: ReturnType<typeof userEvent.setup>, review: HTMLElement, name: RegExp) {
