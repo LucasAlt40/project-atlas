@@ -3787,4 +3787,6 @@ export const ptBR: Record<TranslationKey, string> = {
   'specs.meta.attention': '{count} aguardando você',
   'specs.meta.ready': '{count} pronta(s) para implementar',
   'hub.config.importExport': 'Importar ou exportar atlas-mcp.json',
+  'hub.add.note':
+    'Todo servidor novo entra desligado. Nada é iniciado nem concedido até você fazer isso.',
 };

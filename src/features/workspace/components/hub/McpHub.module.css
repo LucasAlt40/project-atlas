@@ -839,3 +839,19 @@
 .matrixWrap {
   overflow-x: auto;
 }
+
+/* "Known to Atlas": the presets as cards in up to three columns. */
+.presetGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.presetGrid .preset {
+  height: 100%;
+}
+.presetGrid .presetFoot {
+  margin-top: auto;
+}

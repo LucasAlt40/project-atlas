@@ -423,6 +423,16 @@ function Hub({ workspaceId }: { workspaceId: string }) {
               label={t('hub.add.title')}
               title={t('hub.add.title')}
               size="lg"
+              footer={
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setDialog(null);
+                  }}
+                >
+                  {t('common.close')}
+                </Button>
+              }
               onClose={() => {
                 setDialog(null);
               }}

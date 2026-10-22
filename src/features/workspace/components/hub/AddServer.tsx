@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Callout } from '@/components/ui/Callout';
 import { Icon } from '@/components/ui/Icon';
+import { Tabs } from '@/components/ui/Tabs';
 import type { TranslationKey } from '@/i18n';
 import { useI18n } from '@/i18n/I18nProvider';
 import { errorMessage } from '@/i18n/messages';
@@ -34,27 +36,21 @@ interface Props {
 /** The three ways to bring a server in: what Atlas knows by name, the MCP Registry, or by hand. */
 export function AddServer({ workspaceId, catalog, existing, onAddPreset, onAdded }: Props) {
   const { t } = useI18n();
-  const [tab, setTab] = useState<Tab>('registry');
+  const [tab, setTab] = useState<Tab>('catalog');
   return (
     <div className={styles.stack}>
-      <div className={styles.tabsBar} role="tablist" aria-label={t('hub.add.title')}>
-        {(['registry', 'catalog', 'custom'] as const).map((name) => (
-          <button
-            key={name}
-            type="button"
-            role="tab"
-            aria-selected={tab === name}
-            className={styles.tab}
-            onClick={() => {
-              setTab(name);
-            }}
-          >
-            {t(`hub.add.${name}`)}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        label={t('hub.add.title')}
+        active={tab}
+        onChange={setTab}
+        items={(['catalog', 'registry', 'custom'] as const).map((name) => ({
+          id: name,
+          label: t(`hub.add.${name}`),
+        }))}
+      />
+      <Callout tone="info">{t('hub.add.note')}</Callout>
       {tab === 'catalog' && (
-        <ul className={styles.plainList}>
+        <ul className={styles.presetGrid}>
           {catalog.map((preset) => (
             <PresetRow
               key={preset.id}
@@ -91,9 +87,7 @@ function PresetRow({
       <div className={styles.rowBetween}>
         <span className={styles.presetTitle}>
           <strong>{t(`integrations.preset.${preset.id}.name` as TranslationKey)}</strong>
-          <Badge mono tone="danger">
-            {t('integrations.riskHigh')}
-          </Badge>
+          <Badge tone="danger">{t('integrations.riskHigh')}</Badge>
         </span>
         <a href={preset.sourceUrl} target="_blank" rel="noreferrer" className={styles.link}>
           {t('integrations.source')} <Icon name="externalLink" size={12} />

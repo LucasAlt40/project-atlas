@@ -337,6 +337,7 @@ describe('McpHubPage', () => {
     vi.mocked(mcp.setMcpSecret).mockResolvedValue(connection());
 
     await userEvent.click(first(await screen.findAllByRole('button', { name: 'Add MCP server' })));
+    await userEvent.click(screen.getByRole('tab', { name: 'MCP Registry' }));
     await userEvent.type(screen.getByLabelText('Search servers (Jira, GitHub, Postgres…)'), 'jira');
     await userEvent.click(screen.getByRole('button', { name: 'Search' }));
 

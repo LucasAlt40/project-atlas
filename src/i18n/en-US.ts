@@ -3745,6 +3745,8 @@ export const enUS = {
   'specs.meta.attention': '{count} waiting for you',
   'specs.meta.ready': '{count} ready to build',
   'hub.config.importExport': 'Import or export atlas-mcp.json',
+  'hub.add.note':
+    'Every new server starts switched off. Nothing is started or granted until you do it.',
 } as const;
 
 export type TranslationKey = keyof typeof enUS;
