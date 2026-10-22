@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
 import { OverflowMenu } from '@/components/ui/OverflowMenu';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { useCatalog } from '@/features/agents/hooks/useCatalog';
 import type { Agent, RuntimeStatus } from '@/features/agents/types';
 import type { TranslationKey } from '@/i18n';
@@ -197,51 +199,51 @@ function Hub({ workspaceId }: { workspaceId: string }) {
 
   return (
     <section className={styles.page} aria-label={t('hub.title')}>
-      <header className={styles.pageHead}>
-        <div className={styles.heading}>
-          <h1>{t('hub.title')}</h1>
-          <p>{t('hub.subtitle')}</p>
-        </div>
-        <div className={styles.row}>
-          <Button
-            variant="secondary"
-            disabled={pinging !== null || connections.length === 0}
-            onClick={pingAll}
-          >
-            <Icon name="pulse" size={14} />{' '}
-            {pinging
-              ? t('hub.ping.running', { done: pinging.done, total: pinging.total })
-              : t('hub.ping')}
-          </Button>
-          <OverflowMenu
-            label={t('hub.config.menu')}
-            text={t('hub.config.menu')}
-            items={[
-              {
-                label: t('hub.sync.open'),
-                icon: 'refresh',
-                onSelect: () => {
-                  setDialog('sync');
+      <PageHeader
+        title={t('hub.title')}
+        description={t('hub.subtitle')}
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              disabled={pinging !== null || connections.length === 0}
+              onClick={pingAll}
+            >
+              <Icon name="refresh" size={14} />
+              {pinging
+                ? t('hub.ping.running', { done: pinging.done, total: pinging.total })
+                : t('hub.ping')}
+            </Button>
+            <Button
+              onClick={() => {
+                setDialog('add');
+              }}
+            >
+              <Icon name="plus" size={14} />
+              {t('hub.add.open')}
+            </Button>
+            <OverflowMenu
+              label={t('hub.config.menu')}
+              items={[
+                {
+                  label: t('hub.sync.open'),
+                  icon: 'refresh',
+                  onSelect: () => {
+                    setDialog('sync');
+                  },
                 },
-              },
-              {
-                label: 'atlas-mcp.json',
-                icon: 'braces',
-                onSelect: () => {
-                  setDialog('config');
+                {
+                  label: t('hub.config.importExport'),
+                  icon: 'braces',
+                  onSelect: () => {
+                    setDialog('config');
+                  },
                 },
-              },
-            ]}
-          />
-          <Button
-            onClick={() => {
-              setDialog('add');
-            }}
-          >
-            <Icon name="plus" size={14} /> {t('hub.add.open')}
-          </Button>
-        </div>
-      </header>
+              ]}
+            />
+          </>
+        }
+      />
 
       {error && (
         <p role="alert" className={styles.error}>
@@ -277,22 +279,16 @@ function Hub({ workspaceId }: { workspaceId: string }) {
               </ul>
 
               <div className={styles.controls}>
-                <div className={styles.segment} role="group" aria-label={t('hub.filter.label')}>
-                  {tabs.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      aria-pressed={tab === item.id}
-                      disabled={item.disabled}
-                      title={item.disabled ? t('hub.filter.remoteSoon') : undefined}
-                      onClick={() => {
-                        setTab(item.id);
-                      }}
-                    >
-                      {item.label} ({counts[item.id]})
-                    </button>
-                  ))}
-                </div>
+                <SegmentedControl
+                  label={t('hub.filter.label')}
+                  value={tab}
+                  onChange={setTab}
+                  segments={tabs.map((item) => ({
+                    value: item.id,
+                    label: `${item.label} (${String(counts[item.id])})`,
+                    ...(item.disabled ? { disabled: true, title: t('hub.filter.remoteSoon') } : {}),
+                  }))}
+                />
                 <div className={styles.row}>
                   <label className={styles.search}>
                     <Icon name="search" size={14} />
@@ -425,12 +421,12 @@ function Hub({ workspaceId }: { workspaceId: string }) {
           {dialog === 'add' && (
             <Modal
               label={t('hub.add.title')}
+              title={t('hub.add.title')}
               size="lg"
               onClose={() => {
                 setDialog(null);
               }}
             >
-              <h2 className={styles.modalTitle}>{t('hub.add.title')}</h2>
               <AddServer
                 workspaceId={workspaceId}
                 catalog={value.catalog}
@@ -445,12 +441,12 @@ function Hub({ workspaceId }: { workspaceId: string }) {
           {dialog === 'config' && (
             <Modal
               label={t('hub.config.title')}
+              title={t('hub.config.title')}
               size="md"
               onClose={() => {
                 setDialog(null);
               }}
             >
-              <h2 className={styles.modalTitle}>{t('hub.config.title')}</h2>
               <ConfigIo
                 workspaceId={workspaceId}
                 connections={connections}
@@ -462,12 +458,12 @@ function Hub({ workspaceId }: { workspaceId: string }) {
           {dialog === 'sync' && (
             <Modal
               label={t('hub.sync.title')}
+              title={t('hub.sync.title')}
               size="lg"
               onClose={() => {
                 setDialog(null);
               }}
             >
-              <h2 className={styles.modalTitle}>{t('hub.sync.title')}</h2>
               <SyncRuntimes workspaceId={workspaceId} onChanged={reload} />
             </Modal>
           )}

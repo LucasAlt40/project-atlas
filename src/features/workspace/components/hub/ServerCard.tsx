@@ -23,7 +23,7 @@ const STATUS_TONE: Record<HubStatus, BadgeTone> = {
 export function StatusPill({ status }: { status: HubStatus }) {
   const { t } = useI18n();
   return (
-    <Badge dot mono tone={STATUS_TONE[status]}>
+    <Badge dot tone={STATUS_TONE[status]}>
       {t(`hub.status.${status}` as TranslationKey)}
     </Badge>
   );
@@ -72,7 +72,6 @@ export function ServerCard({
     ),
   ];
   const tools = connection.discovery?.tools ?? [];
-  const kind = connection.transport.kind === 'stdio' ? 'stdio' : 'http';
   const problem = status === 'failed' || status === 'needs_auth';
   const warningCount = missingSecrets.length + deliveryNotes.length + (problem ? 1 : 0);
   // The warning that matters most colours the indicator, even while the list is folded.
@@ -98,6 +97,25 @@ export function ServerCard({
       aria-label={connection.name}
     >
       <div className={styles.cardHead}>
+        <button
+          type="button"
+          className={styles.cardTitle}
+          aria-pressed={selected}
+          aria-label={t('hub.card.inspectNamed', { name: connection.name })}
+          onClick={onSelect}
+        >
+          <strong className={styles.cardNameText}>{connection.name}</strong>
+          <StatusPill status={status} />
+          {connection.required && <Badge tone="warning">{t('integrations.required')}</Badge>}
+        </button>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={busy || !connection.enabled || missingSecrets.length > 0}
+          onClick={onTest}
+        >
+          {t('hub.card.test')}
+        </Button>
         <label className={styles.switch}>
           <input
             type="checkbox"
@@ -109,34 +127,6 @@ export function ServerCard({
           />
           <span aria-hidden="true" />
         </label>
-        <button
-          type="button"
-          className={styles.cardTitle}
-          aria-pressed={selected}
-          aria-label={t('hub.card.inspectNamed', { name: connection.name })}
-          onClick={onSelect}
-        >
-          <strong className={styles.cardNameText}>{connection.name}</strong>
-          <Badge mono>{kind}</Badge>
-          {connection.required && (
-            <Badge mono tone="warning">
-              {t('integrations.required')}
-            </Badge>
-          )}
-          <StatusPill status={status} />
-        </button>
-        <div className={styles.row}>
-          <Button variant="secondary" onClick={onSelect}>
-            {t('hub.card.inspect')}
-          </Button>
-          <Button
-            variant="ghost"
-            disabled={busy || !connection.enabled || missingSecrets.length > 0}
-            onClick={onTest}
-          >
-            {t('hub.card.test')}
-          </Button>
-        </div>
       </div>
 
       <code className={styles.command} title={commandLine(connection)}>
