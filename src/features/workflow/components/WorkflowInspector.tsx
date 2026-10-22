@@ -573,30 +573,28 @@ export function NodeInspector({
                   }}
                 />
               </Field>
-              {node.type === 'end' && (
-                <Field label={t('workflow.inspector.outcome')}>
-                  <select
-                    className={styles.control}
-                    value={node.outcome}
-                    disabled={disabled}
-                    onChange={(e) => {
-                      onChange((w) =>
-                        updateEndOutcome(
-                          w,
-                          node.id,
-                          e.target.value as 'done' | 'failed' | 'cancelled',
-                        ),
-                      );
-                    }}
-                  >
-                    {(['done', 'failed', 'cancelled'] as const).map((outcome) => (
-                      <option key={outcome} value={outcome}>
-                        {t(`workflow.end.${outcome}` as TranslationKey)}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              )}
+              <Field label={t('workflow.inspector.outcome')}>
+                <select
+                  className={styles.control}
+                  value={node.outcome}
+                  disabled={disabled}
+                  onChange={(e) => {
+                    onChange((w) =>
+                      updateEndOutcome(
+                        w,
+                        node.id,
+                        e.target.value as 'done' | 'failed' | 'cancelled',
+                      ),
+                    );
+                  }}
+                >
+                  {(['done', 'failed', 'cancelled'] as const).map((outcome) => (
+                    <option key={outcome} value={outcome}>
+                      {t(`workflow.end.${outcome}` as TranslationKey)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
             </>,
           )}
 
