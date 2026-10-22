@@ -48,8 +48,7 @@ export function ExecutionView({
     facts.usage?.cost === null || facts.usage?.cost === undefined
       ? null
       : formatCost(facts.usage.cost, facts.usage.currency, language);
-  const state =
-    facts.status === 'running' ? 'running' : (AGENT_STATE[facts.status] ?? ('pending' as const));
+  const state = AGENT_STATE[facts.status];
   const idPrefix = `execution-${execution.id}`;
 
   return (
