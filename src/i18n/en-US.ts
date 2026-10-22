@@ -2220,12 +2220,12 @@ export const enUS = {
     'The operating system confines the runtime’s program, and everything it starts: it can write only its worktree, its own folders and a temporary folder of the execution, and it cannot read your SSH keys, cloud credentials or browser data. The network stays open (a sandbox cannot filter by site), so this protects your files, not what leaves through the connection. Off by default: turn it on after trying a task.',
   'settings.sandbox.mode': 'Sandbox',
   'settings.sandbox.mode.off': 'Off',
-  'settings.sandbox.mode.auto': 'On when the system can',
-  'settings.sandbox.mode.required': 'Required: do not start without it',
+  'settings.sandbox.mode.auto': 'When possible',
+  'settings.sandbox.mode.required': 'Required',
   'settings.sandbox.devCaches': 'Let it write the caches of developer tools (npm, cargo, pip…)',
   'settings.sandbox.devCachesHelp':
     'Without them installing and testing fail inside the sandbox. With them, a process could change a cache other projects use.',
-  'settings.sandbox.available': 'This system can confine processes.',
+  'settings.sandbox.available': 'Available on this system',
   'settings.sandbox.unavailable':
     'This system cannot confine processes (macOS only, with sandbox-exec). “On when the system can” runs unconfined and says so on the activity; “Required” refuses to start.',
   'settings.sandbox.why.platform': 'this system has no sandbox',

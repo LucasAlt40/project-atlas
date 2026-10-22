@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { mockBackend, renderWithProviders } from '@/test/fixtures';
 import type { SandboxStatusDto } from '@/lib/tauri/commands';
@@ -33,14 +33,21 @@ describe('SandboxSettings', () => {
     );
     renderWithProviders(<SandboxSettings />);
 
-    const mode = await screen.findByLabelText('Sandbox');
-    expect(mode).toHaveValue('off');
-    expect(screen.getByText('This system can confine processes.')).toBeInTheDocument();
+    const mode = await screen.findByRole('group', { name: 'Sandbox' });
+    expect(within(mode).getByRole('button', { name: 'Off' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByText('Available on this system')).toBeInTheDocument();
 
-    await person.selectOptions(mode, 'required');
+    await person.click(within(mode).getByRole('button', { name: 'Required' }));
 
     expect(setSandboxSettings).toHaveBeenCalledWith({ mode: 'required', devCaches: true });
-    expect(await screen.findByLabelText('Sandbox')).toHaveValue('required');
+    expect(
+      within(await screen.findByRole('group', { name: 'Sandbox' })).getByRole('button', {
+        name: 'Required',
+      }),
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('lets the person decide about the caches of developer tools and warns what each choice costs', async () => {
@@ -77,7 +84,7 @@ describe('SandboxSettings', () => {
     vi.mocked(getSandboxStatus).mockResolvedValue(status());
     renderWithProviders(<SandboxSettings />);
 
-    expect(await screen.findByLabelText('Sandbox')).toBeInTheDocument();
-    expect(screen.getByText('Este sistema consegue confinar processos.')).toBeInTheDocument();
+    expect(await screen.findByRole('group', { name: 'Sandbox' })).toBeInTheDocument();
+    expect(screen.getByText('Disponível neste sistema')).toBeInTheDocument();
   });
 });

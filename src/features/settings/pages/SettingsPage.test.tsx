@@ -52,6 +52,7 @@ describe('SettingsPage', () => {
   });
 
   it('is in Portuguese by default and offers both languages', async () => {
+    const user = userEvent.setup();
     mockBackend({ language: 'pt-BR' });
     renderWithProviders(<SettingsPage />);
 
@@ -63,6 +64,7 @@ describe('SettingsPage', () => {
         .getAllByRole('option')
         .map((o) => o.textContent),
     ).toEqual(['Português (Brasil)', 'English']);
+    await user.click(screen.getByRole('button', { name: 'Sobre e atualizações' }));
     expect(await screen.findByText('macOS')).toBeInTheDocument();
   });
 
@@ -76,6 +78,7 @@ describe('SettingsPage', () => {
     expect(setLanguage).toHaveBeenCalledWith('en-US');
     expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument();
     expect(screen.getByLabelText('Language')).toHaveValue('en-US');
+    await user.click(screen.getByRole('button', { name: 'About and updates' }));
     expect(screen.getByText('Version')).toBeInTheDocument();
   });
 
@@ -92,6 +95,7 @@ describe('SettingsPage', () => {
     vi.mocked(checkForUpdate).mockResolvedValue(null);
     renderWithProviders(<SettingsPage />);
 
+    await user.click(await screen.findByRole('button', { name: 'Sobre e atualizações' }));
     await user.click(await screen.findByRole('button', { name: 'Buscar atualizações' }));
 
     expect(await screen.findByText(/versão mais recente/)).toBeInTheDocument();
@@ -105,6 +109,7 @@ describe('SettingsPage', () => {
     vi.mocked(installUpdate).mockResolvedValue();
     renderWithProviders(<SettingsPage />);
 
+    await user.click(await screen.findByRole('button', { name: 'Sobre e atualizações' }));
     await user.click(await screen.findByRole('button', { name: 'Buscar atualizações' }));
     expect(await screen.findByText('A versão 0.2.0 está disponível.')).toBeInTheDocument();
     expect(installUpdate).not.toHaveBeenCalled();
@@ -121,6 +126,7 @@ describe('SettingsPage', () => {
     vi.mocked(checkForUpdate).mockRejectedValue(new Error('offline'));
     renderWithProviders(<SettingsPage />);
 
+    await user.click(await screen.findByRole('button', { name: 'Sobre e atualizações' }));
     await user.click(await screen.findByRole('button', { name: 'Buscar atualizações' }));
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();
@@ -140,6 +146,7 @@ describe('SettingsPage', () => {
     });
     renderWithProviders(<SettingsPage />);
 
+    await user.click(await screen.findByRole('button', { name: 'Import and export' }));
     expect(await screen.findByRole('heading', { name: 'Import and export' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Import' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Export several…' }));

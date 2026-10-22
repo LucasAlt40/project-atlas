@@ -743,8 +743,7 @@ export const ptBR: Record<TranslationKey, string> = {
   // Settings screen
   'settings.title': 'Configurações',
   'settings.language': 'Idioma',
-  'settings.languageHelp':
-    'O idioma da interface do Atlas. A saída dos modelos e o seu próprio conteúdo não são traduzidos.',
+  'settings.languageHelp': 'A saída dos modelos e o seu conteúdo não são traduzidos.',
   'settings.about': 'Sobre',
   'settings.version': 'Versão',
   'settings.platform': 'Plataforma',
@@ -2245,12 +2244,12 @@ export const ptBR: Record<TranslationKey, string> = {
     'O sistema operacional confina o programa do runtime e tudo o que ele inicia: só escreve no worktree, nas próprias pastas e numa pasta temporária da execução, e não lê suas chaves SSH, credenciais de nuvem nem dados do navegador. A rede continua aberta (um sandbox não filtra por site), então isto protege seus arquivos, não o que sai pela conexão. Desligado por padrão: ligue depois de testar uma tarefa.',
   'settings.sandbox.mode': 'Sandbox',
   'settings.sandbox.mode.off': 'Desligado',
-  'settings.sandbox.mode.auto': 'Ligado quando o sistema puder',
-  'settings.sandbox.mode.required': 'Obrigatório: não iniciar sem ele',
+  'settings.sandbox.mode.auto': 'Quando possível',
+  'settings.sandbox.mode.required': 'Obrigatório',
   'settings.sandbox.devCaches': 'Deixar escrever nos caches de ferramentas (npm, cargo, pip…)',
   'settings.sandbox.devCachesHelp':
     'Sem eles, instalar e testar falham dentro do sandbox. Com eles, um processo poderia alterar um cache que outros projetos usam.',
-  'settings.sandbox.available': 'Este sistema consegue confinar processos.',
+  'settings.sandbox.available': 'Disponível neste sistema',
   'settings.sandbox.unavailable':
     'Este sistema não consegue confinar processos (só macOS, com sandbox-exec). “Ligado quando o sistema puder” roda sem confinamento e avisa na atividade; “Obrigatório” se recusa a iniciar.',
   'settings.sandbox.why.platform': 'este sistema não tem sandbox',
