@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useDismiss } from '@/hooks/useDismiss';
+import { useRef, useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
@@ -28,16 +29,9 @@ export function WorkspaceSwitcher({ pickFolder }: Props) {
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const root = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return undefined;
-    function onPointerDown(event: MouseEvent) {
-      if (root.current && !root.current.contains(event.target as Node)) setOpen(false);
-    }
-    document.addEventListener('mousedown', onPointerDown);
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-    };
-  }, [open]);
+  useDismiss(open, root, () => {
+    setOpen(false);
+  });
 
   const closeDialog = () => {
     setDialog(null);

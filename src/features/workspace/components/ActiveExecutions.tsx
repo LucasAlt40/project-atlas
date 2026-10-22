@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useDismiss } from '@/hooks/useDismiss';
+import { useRef, useState } from 'react';
 import { useNavigation } from '@/app/NavigationContext';
 import { useNow } from '@/features/agents/hooks/useNow';
 import { useCatalog } from '@/features/agents/hooks/useCatalog';
@@ -22,16 +23,9 @@ export function ActiveExecutions() {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return undefined;
-    function onPointerDown(event: MouseEvent) {
-      if (root.current && !root.current.contains(event.target as Node)) setOpen(false);
-    }
-    document.addEventListener('mousedown', onPointerDown);
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-    };
-  }, [open]);
+  useDismiss(open, root, () => {
+    setOpen(false);
+  });
 
   if (catalog.status !== 'ready') return null;
   const items = Object.entries(workspace.conversations.runs)

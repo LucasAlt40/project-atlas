@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useDismiss } from '@/hooks/useDismiss';
+import { useRef, useState } from 'react';
 import { useNavigation } from '@/app/NavigationContext';
 import { useWorkspace } from '@/features/workspace/hooks/WorkspaceProvider';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -17,16 +18,9 @@ export function ActionRequired() {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return undefined;
-    const onPointerDown = (event: MouseEvent) => {
-      if (root.current && !root.current.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', onPointerDown);
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-    };
-  }, [open]);
+  useDismiss(open, root, () => {
+    setOpen(false);
+  });
 
   const approvals = workspace.conversations.approvals.filter(
     (request) => request.workspaceId === workspace.active?.id,

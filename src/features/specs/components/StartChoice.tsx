@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useDismiss } from '@/hooks/useDismiss';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -39,21 +40,9 @@ export function StartChoice({
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return undefined;
-    const close = (event: MouseEvent) => {
-      if (root.current && !root.current.contains(event.target as Node)) setOpen(false);
-    };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', escape);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', escape);
-    };
-  }, [open]);
+  useDismiss(open, root, () => {
+    setOpen(false);
+  });
   const fresh = specs.filter((spec) => spec.implementations === 0);
   const chosen = value.kind === 'spec' ? specs.find((s) => s.id === value.specId) : undefined;
   const choice = (

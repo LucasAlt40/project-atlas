@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useDismiss } from '@/hooks/useDismiss';
+import { useId, useRef, useState } from 'react';
 import { Icon, type IconName } from './Icon';
 import styles from './OverflowMenu.module.css';
 
@@ -26,21 +27,9 @@ export function OverflowMenu({ label, text, items, align = 'end' }: Props) {
   const root = useRef<HTMLSpanElement>(null);
   const menuId = useId();
 
-  useEffect(() => {
-    if (!open) return;
-    function onPointerDown(event: MouseEvent) {
-      if (root.current && !root.current.contains(event.target as Node)) setOpen(false);
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setOpen(false);
-    }
-    document.addEventListener('mousedown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [open]);
+  useDismiss(open, root, () => {
+    setOpen(false);
+  });
 
   return (
     <span className={styles.root} ref={root}>

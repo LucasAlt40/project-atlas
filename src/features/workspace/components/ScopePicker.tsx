@@ -1,4 +1,5 @@
-import { useId, useState } from 'react';
+import { useDismiss } from '@/hooks/useDismiss';
+import { useId, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { useT } from '@/i18n/I18nProvider';
 import type { WorkspaceProjectDto } from '@/lib/tauri/commands';
@@ -29,6 +30,10 @@ export function ScopePicker({
   const t = useT();
   const [open, setOpen] = useState(false);
   const bodyId = useId();
+  const root = useRef<HTMLDivElement>(null);
+  useDismiss(open, root, () => {
+    setOpen(false);
+  });
   if (projects.length < 2) return null;
 
   const name = (id: string) => projects.find((p) => p.id === id)?.name ?? id;
@@ -40,7 +45,7 @@ export function ScopePicker({
     : t('scope.only', { working });
 
   return (
-    <div className={styles.scope}>
+    <div className={styles.scope} ref={root}>
       <button
         type="button"
         className={styles.scopeToggle}
