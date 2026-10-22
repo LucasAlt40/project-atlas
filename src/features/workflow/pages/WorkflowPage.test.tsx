@@ -746,6 +746,22 @@ describe('Workflow page', () => {
       expect(screen.queryByRole('button', { name: 'Run' })).not.toBeInTheDocument();
     });
 
+    it('explains the lock when the person goes back to the editor, and leads to the run', async () => {
+      const user = userEvent.setup();
+      show({ runs: [running()] });
+
+      await user.click(await screen.findByRole('button', { name: 'Back to editor' }));
+      expect(screen.getByText(/A run is in progress in this workflow/)).toBeInTheDocument();
+      // Exporting only reads, so it stays; deleting does not.
+      await user.click(screen.getByRole('button', { name: 'More workflow actions' }));
+      expect(screen.getByRole('menuitem', { name: 'Export' })).toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: 'Delete workflow' })).not.toBeInTheDocument();
+      await user.keyboard('{Escape}');
+
+      await user.click(screen.getByRole('button', { name: 'Open the run' }));
+      expect(await screen.findByRole('button', { name: 'Pause' })).toBeInTheDocument();
+    });
+
     it('pauses and cancels the workflow', async () => {
       const user = userEvent.setup();
       show({ runs: [running()] });

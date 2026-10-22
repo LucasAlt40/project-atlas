@@ -3729,4 +3729,7 @@ export const ptBR: Record<TranslationKey, string> = {
     'Todo servidor novo entra desligado. Nada é iniciado nem concedido até você fazer isso.',
   'approval.indicatorOne': '1 comando aguardando aprovação',
   'approval.indicatorMany': '{count} comandos aguardando aprovação',
+  'workflow.lockedByRun':
+    'Há uma execução em andamento neste workflow, então ele não pode ser editado nem excluído. Abra a execução para acompanhar, pausar ou cancelar; ou aguarde o fim.',
+  'workflow.openActiveRun': 'Abrir a execução',
 };

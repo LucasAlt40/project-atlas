@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { useNavigation } from '@/app/NavigationContext';
+import { Callout } from '@/components/ui/Callout';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { OverflowMenu } from '@/components/ui/OverflowMenu';
@@ -338,17 +339,22 @@ export function WorkflowPage() {
               setSavingTemplate((value) => !value);
             },
           },
-          ...(space.selected
-            ? [
-                {
-                  label: t('portability.export'),
-                  icon: 'upload' as const,
-                  onSelect: () => {
-                    setExporting(true);
-                  },
-                },
-              ]
-            : []),
+        ]
+      : []),
+    // Exporting only reads the workflow, so it stays available while a run locks the editing.
+    ...(space.selected
+      ? [
+          {
+            label: t('portability.export'),
+            icon: 'upload' as const,
+            onSelect: () => {
+              setExporting(true);
+            },
+          },
+        ]
+      : []),
+    ...(editable
+      ? [
           {
             label: t('portability.import'),
             icon: 'download' as const,
@@ -524,6 +530,25 @@ export function WorkflowPage() {
               {runMenu.length > 0 && <OverflowMenu label={t('workflow.runMore')} items={runMenu} />}
             </div>
           </header>
+        )}
+
+        {!shownRun && space.activeRun && (
+          <Callout
+            tone="warning"
+            action={
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  space.showRun(space.activeRun?.id ?? null);
+                }}
+              >
+                {t('workflow.openActiveRun')}
+              </Button>
+            }
+          >
+            {t('workflow.lockedByRun')}
+          </Callout>
         )}
 
         {confirmingDelete && editable && (

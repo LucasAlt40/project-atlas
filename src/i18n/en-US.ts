@@ -3688,6 +3688,9 @@ export const enUS = {
     'Every new server starts switched off. Nothing is started or granted until you do it.',
   'approval.indicatorOne': '1 command waiting for approval',
   'approval.indicatorMany': '{count} commands waiting for approval',
+  'workflow.lockedByRun':
+    'A run is in progress in this workflow, so it cannot be edited or deleted. Open the run to follow, pause or cancel it, or wait for it to finish.',
+  'workflow.openActiveRun': 'Open the run',
 } as const;
 
 export type TranslationKey = keyof typeof enUS;
