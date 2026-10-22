@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { fetchAppInfo } from '@/features/home/services/appInfoService';
-import { setLanguage } from '@/features/settings/services/settingsService';
+import { setLanguage, setPresenceScreen } from '@/features/settings/services/settingsService';
 import { createAgent } from '@/features/agents/services/catalogService';
 import {
   addAgentToWorkspace,
@@ -58,6 +58,28 @@ describe('App', () => {
     expect(await screen.findByRole('button', { name: /^Workspace: Acme ERP/ })).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: 'Adicionar agente' })).toBeInTheDocument();
     expect(screen.getByRole('complementary')).toHaveTextContent('Atlas');
+  });
+
+  it('tells the core which screen is open, for the Discord profile', async () => {
+    const user = userEvent.setup();
+    mockBackend({
+      language: 'en-US',
+      workspaces: [workspace('w1', 'Acme ERP', '/dev/acme')],
+      selectedWorkspaceId: 'w1',
+    });
+    render(<App />);
+
+    await waitFor(() => {
+      expect(setPresenceScreen).toHaveBeenCalledWith('workspace');
+    });
+    await user.click(await screen.findByRole('button', { name: 'Specs' }));
+    await waitFor(() => {
+      expect(setPresenceScreen).toHaveBeenLastCalledWith('specs');
+    });
+    await user.click(screen.getByRole('button', { name: 'MCP Hub' }));
+    await waitFor(() => {
+      expect(setPresenceScreen).toHaveBeenLastCalledWith('mcp_hub');
+    });
   });
 
   it('has the Specs screen in the menu', async () => {

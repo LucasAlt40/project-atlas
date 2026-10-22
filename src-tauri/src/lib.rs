@@ -144,6 +144,7 @@ pub fn run() {
             commands::specs::set_spec_integrations,
             commands::settings::select_workspace,
             commands::presence::set_presence_settings,
+            commands::presence::set_presence_screen,
             commands::chat::send_message,
             commands::chat::list_messages,
             commands::chat::list_executions,
@@ -542,6 +543,7 @@ fn build_state(
             settings: settings.clone(),
             workspaces: workspaces.clone(),
             workflows: workflows.clone(),
+            specs: specs.clone(),
         }),
         Arc::new(infrastructure::DiscordIpc::system()),
     ));

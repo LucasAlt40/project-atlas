@@ -3696,11 +3696,11 @@ export const ptBR: Record<TranslationKey, string> = {
   'settings.sandbox.how': 'Como funciona',
   'settings.presence.title': 'Presença no Discord',
   'settings.presence.help':
-    'Mostra no seu perfil do Discord o que o Atlas está fazendo: o workspace aberto, o workflow em execução e o passo atual, como a extensão do VS Code faz. Desligado por padrão. O texto de prompts, arquivos e respostas nunca é enviado. Só precisa do Discord aberto neste computador.',
+    'Mostra no seu perfil do Discord o que o Atlas está fazendo: o workflow em execução e o passo atual, a especificação (SDD) que um agente está escrevendo ou que espera você, os agentes trabalhando e a tela aberta (por exemplo, Agentes, MCP Hub ou Configurações). Desligado por padrão. O texto de prompts, arquivos e respostas nunca é enviado, e das telas só vai o nome. Só precisa do Discord aberto neste computador.',
   'settings.presence.enabled': 'Mostrar o que o Atlas está fazendo no Discord',
   'settings.presence.showNames': 'Mostrar nomes do workspace, do workflow e do passo',
   'settings.presence.showNamesHelp':
-    'Desligado, o Discord mostra só textos genéricos ("Executando um workflow").',
+    'Desligado, o Discord mostra só textos genéricos ("Executando um workflow", "Escrevendo uma especificação").',
   'memory.unconfirmed': 'Não confirmada',
   'memory.heldShort': 'Aguardando validação',
   'memory.moreActions': 'Mais ações de {name}',

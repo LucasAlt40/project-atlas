@@ -44,3 +44,17 @@ pub struct Activity {
     pub small_image: Option<&'static str>,
     pub small_text: Option<String>,
 }
+
+/// The part of Atlas the person has open. Only which screen it is, never what is on it: the profile
+/// says "Configuring agents", not which agent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Screen {
+    Workspace,
+    Workflow,
+    Agents,
+    Personalities,
+    Specs,
+    McpHub,
+    Settings,
+}

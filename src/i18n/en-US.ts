@@ -3655,11 +3655,11 @@ export const enUS = {
   'settings.sandbox.how': 'How it works',
   'settings.presence.title': 'Discord presence',
   'settings.presence.help':
-    'Shows on your Discord profile what Atlas is doing: the open workspace, the running workflow and the current step, like the VS Code extension does. Off by default. The text of prompts, files and answers is never sent. It only needs Discord open on this computer.',
+    'Shows on your Discord profile what Atlas is doing: the running workflow and the current step, the specification (SDD) an agent is writing or that waits for you, the agents at work and the open screen (for example Agents, MCP Hub or Settings). Off by default. The text of prompts, files and answers is never sent, and of the screens only the name goes. It only needs Discord open on this computer.',
   'settings.presence.enabled': 'Show what Atlas is doing on Discord',
   'settings.presence.showNames': 'Show the names of the workspace, workflow and step',
   'settings.presence.showNamesHelp':
-    'Off, Discord shows only generic texts ("Running a workflow").',
+    'Off, Discord shows only generic texts ("Running a workflow", "Writing a specification").',
   'memory.unconfirmed': 'Unconfirmed',
   'memory.heldShort': 'Awaiting validation',
   'memory.moreActions': 'More actions for {name}',

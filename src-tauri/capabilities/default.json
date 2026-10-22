@@ -17,6 +17,7 @@
     "allow-get-sandbox-status",
     "allow-set-sandbox-settings",
     "allow-set-presence-settings",
+    "allow-set-presence-screen",
     "allow-check-for-update",
     "allow-install-update",
     "allow-list-mcp-connections",

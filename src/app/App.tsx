@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { BreadcrumbContext } from './BreadcrumbContext';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { AppShell } from '@/components/layout/AppShell';
@@ -8,11 +8,13 @@ import { useAttentionNotifications } from '@/features/workflow/hooks/useAttentio
 import { ActionRequired } from '@/features/workflow/components/ActionRequired';
 import { MobileAccessButton } from '@/features/remote/MobileAccessButton';
 import { LanguageSwitch } from '@/features/settings/components/LanguageSwitch';
+import { setPresenceScreen } from '@/features/settings/services/settingsService';
 import { SettingsProvider } from '@/features/settings/hooks/SettingsProvider';
 import { ActiveExecutions } from '@/features/workspace/components/ActiveExecutions';
 import { WorkspaceSwitcher } from '@/features/workspace/components/WorkspaceSwitcher';
 import { WorkspaceProvider, useWorkspace } from '@/features/workspace/hooks/WorkspaceProvider';
 import { useT } from '@/i18n/I18nProvider';
+import type { PresenceScreenDto } from '@/lib/tauri/commands';
 import { NavigationContext, type Navigation, type NavigationIntent } from './NavigationContext';
 import { DEFAULT_SCREEN_ID, SCREENS } from './navigation';
 
@@ -20,6 +22,17 @@ interface Location {
   screenId: string;
   intent: NavigationIntent | undefined;
 }
+
+/** The screens that have a line on the Discord profile. */
+const PRESENCE_SCREEN: Record<string, PresenceScreenDto> = {
+  workspace: 'workspace',
+  workflow: 'workflow',
+  agents: 'agents',
+  personalities: 'personalities',
+  specs: 'specs',
+  mcp: 'mcp_hub',
+  settings: 'settings',
+};
 
 function Shell() {
   const t = useT();
@@ -43,6 +56,12 @@ function Shell() {
     }),
     [location.intent],
   );
+
+  // The profile on Discord says which part of Atlas is open (only its name, never its content).
+  useEffect(() => {
+    const screen = PRESENCE_SCREEN[location.screenId];
+    if (screen) Promise.resolve(setPresenceScreen(screen)).catch(() => undefined);
+  }, [location.screenId]);
 
   // An agent asks while the app is behind: notify, and take the person to it on return.
   useAttentionNotifications((target) => {

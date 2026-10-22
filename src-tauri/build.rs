@@ -49,6 +49,7 @@ const COMMANDS: &[&str] = &[
     "get_sandbox_status",
     "set_sandbox_settings",
     "set_presence_settings",
+    "set_presence_screen",
     "raise_spec_budget",
     "set_spec_integrations",
     "select_workspace",

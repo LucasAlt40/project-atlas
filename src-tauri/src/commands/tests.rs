@@ -178,6 +178,7 @@ pub(super) fn app_window(
             super::mcp::set_mcp_connection_enabled,
             super::mcp::set_mcp_secret,
             super::mcp::update_mcp_connection,
+            super::presence::set_presence_screen,
             super::presence::set_presence_settings,
             super::remote::get_remote_status,
             super::remote::new_remote_pairing_code,
