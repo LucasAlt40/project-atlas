@@ -67,18 +67,34 @@ export function useAgentConversations() {
     };
   }, []);
 
-  // Requests that were already open when the app started: the core still has them paused.
+  // Requests that were already open when the app started (the core still has them paused), read
+  // again when the window comes back into view and retried once if the core was not ready.
   useEffect(() => {
     let cancelled = false;
-    Promise.resolve(listPendingApprovals())
-      .then((pending) => {
-        if (!cancelled) dispatch({ type: 'approvalsLoaded', approvals: pending.map(fromPending) });
-      })
-      .catch(() => {
-        // Live events still bring new requests.
-      });
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    const load = (again: boolean) => {
+      Promise.resolve(listPendingApprovals())
+        .then((pending) => {
+          if (!cancelled) {
+            dispatch({ type: 'approvalsLoaded', approvals: pending.map(fromPending) });
+          }
+        })
+        .catch(() => {
+          if (again && !cancelled)
+            retry = setTimeout(() => {
+              load(false);
+            }, 3000);
+        });
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') load(false);
+    };
+    load(true);
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       cancelled = true;
+      if (retry) clearTimeout(retry);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, []);
 

@@ -28,7 +28,10 @@ export function ActionRequired() {
     };
   }, [open]);
 
-  if (pending.length === 0) return null;
+  const approvals = workspace.conversations.approvals.filter(
+    (request) => request.workspaceId === workspace.active?.id,
+  ).length;
+  if (pending.length === 0 && approvals === 0) return null;
   const go = (index: number) => {
     const target = pending[index];
     if (!target) return;
@@ -41,39 +44,56 @@ export function ActionRequired() {
   };
 
   return (
-    <div className={headerPopover.root} ref={root}>
-      <HeaderChip
-        tone="warning"
-        count={pending.length}
-        aria-haspopup={pending.length > 1 ? 'true' : undefined}
-        aria-expanded={pending.length > 1 ? open : undefined}
-        onClick={() => {
-          if (pending.length === 1) go(0);
-          else setOpen((value) => !value);
-        }}
-      >
-        {pending.length === 1
-          ? t('interaction.indicatorOne')
-          : t('interaction.indicatorMany', { count: pending.length })}
-      </HeaderChip>
-      {open && pending.length > 1 && (
-        <ul className={headerPopover.list} aria-label={t('interaction.indicatorList')}>
-          {pending.map((item, index) => (
-            <li key={item.id}>
-              <button
-                type="button"
-                className={headerPopover.item}
-                onClick={() => {
-                  go(index);
-                }}
-              >
-                <span>{t('interaction.waiting', { step: item.stepLabel })}</span>
-                <span className={headerPopover.meta}>{item.question}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+    <>
+      {approvals > 0 && (
+        <HeaderChip
+          tone="warning"
+          count={approvals}
+          onClick={() => {
+            navigate('workspace');
+          }}
+        >
+          {t(approvals === 1 ? 'approval.indicatorOne' : 'approval.indicatorMany', {
+            count: approvals,
+          })}
+        </HeaderChip>
       )}
-    </div>
+      {pending.length > 0 && (
+        <div className={headerPopover.root} ref={root}>
+          <HeaderChip
+            tone="warning"
+            count={pending.length}
+            aria-haspopup={pending.length > 1 ? 'true' : undefined}
+            aria-expanded={pending.length > 1 ? open : undefined}
+            onClick={() => {
+              if (pending.length === 1) go(0);
+              else setOpen((value) => !value);
+            }}
+          >
+            {pending.length === 1
+              ? t('interaction.indicatorOne')
+              : t('interaction.indicatorMany', { count: pending.length })}
+          </HeaderChip>
+          {open && pending.length > 1 && (
+            <ul className={headerPopover.list} aria-label={t('interaction.indicatorList')}>
+              {pending.map((item, index) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    className={headerPopover.item}
+                    onClick={() => {
+                      go(index);
+                    }}
+                  >
+                    <span>{t('interaction.waiting', { step: item.stepLabel })}</span>
+                    <span className={headerPopover.meta}>{item.question}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </>
   );
 }

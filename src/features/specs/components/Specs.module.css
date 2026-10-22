@@ -1529,3 +1529,11 @@
   color: var(--text-muted);
   font-size: var(--font-size-xs);
 }
+
+@media (max-width: 1023px) {
+  .dock {
+    bottom: calc(var(--space-4) * -1);
+    margin: auto calc(var(--space-4) * -1) calc(var(--space-4) * -1);
+    padding-inline: var(--space-4);
+  }
+}

@@ -59,7 +59,15 @@ function Home({ workspace }: { workspace: Workspace }) {
           {...(state.status === 'ready' && specs.length > 0
             ? {
                 meta: (['progress', 'attention', 'ready'] as const)
-                  .map((group) => t(`specs.meta.${group}`, { count: counts[group] }))
+                  .map((group) =>
+                    t(`specs.meta.${group}`, {
+                      count:
+                        group === 'ready'
+                          ? specs.filter((spec) => spec.status === 'ready_for_implementation')
+                              .length
+                          : counts[group],
+                    }),
+                  )
                   .join(' · '),
                 actions: (
                   <>

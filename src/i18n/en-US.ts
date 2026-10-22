@@ -3686,6 +3686,8 @@ export const enUS = {
   'hub.config.importExport': 'Import or export atlas-mcp.json',
   'hub.add.note':
     'Every new server starts switched off. Nothing is started or granted until you do it.',
+  'approval.indicatorOne': '1 command waiting for approval',
+  'approval.indicatorMany': '{count} commands waiting for approval',
 } as const;
 
 export type TranslationKey = keyof typeof enUS;

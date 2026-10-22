@@ -10,6 +10,14 @@
   background: var(--surface-1);
   container-type: inline-size;
 }
+.card > :first-child {
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+}
+.card > :last-child {
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
+}
 .card:hover {
   border-color: var(--border-strong);
 }

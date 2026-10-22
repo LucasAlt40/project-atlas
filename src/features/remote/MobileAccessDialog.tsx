@@ -284,7 +284,7 @@ export function MobileAccessDialog({ onClose }: { onClose: () => void }) {
           </>
         )}
 
-        <CollapsibleSection title={t('remote.know.title')} defaultOpen={false}>
+        <CollapsibleSection title={t('remote.know.title')} defaultOpen>
           <ul className={styles.knowList}>
             <li>{t('remote.know.computer')}</li>
             <li>{t('remote.know.http')}</li>

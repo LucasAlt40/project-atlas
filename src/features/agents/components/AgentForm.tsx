@@ -27,6 +27,13 @@ const PROFILES: { id: string; label: TranslationKey; hint: TranslationKey }[] = 
 ];
 
 /** What a personality suggests for a new agent; the editor starts from it, the user decides. */
+/** The ids of a contract's outcomes, in a form that compares regardless of the label language. */
+const outcomeIds = (contract: ResultContract) =>
+  contract.outcomes
+    .map((outcome) => outcome.id)
+    .sort()
+    .join(',');
+
 const FALLBACK_PROFILE = 'developer';
 
 interface Props {
@@ -121,7 +128,8 @@ export function AgentForm({
   const followsSuggestion =
     suggested !== null &&
     suggested.profile === profile &&
-    JSON.stringify(suggested.contract) === JSON.stringify(contract);
+    suggested.contract.kind === contract.kind &&
+    outcomeIds(suggested.contract) === outcomeIds(contract);
   const profileLabel = (id: string) =>
     t(PROFILES.find((option) => option.id === id)?.label ?? 'security.profile.developer');
   const sectionId = (name: string) => `agent-form-${name}`;

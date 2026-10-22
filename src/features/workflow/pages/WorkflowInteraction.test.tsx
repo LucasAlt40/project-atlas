@@ -1,6 +1,13 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { agent, mockBackend, navigate, renderWithProviders, workspace } from '@/test/fixtures';
+import {
+  agent,
+  mockBackend,
+  navigate,
+  renderWithProviders,
+  workspace,
+  type Backend,
+} from '@/test/fixtures';
 import {
   attempt,
   nodeState,
@@ -260,8 +267,12 @@ describe('The global "Action required" indicator', () => {
     navigate.mockReset();
   });
 
-  function showIndicator(pending: PendingInteractionDto[]) {
+  function showIndicator(
+    pending: PendingInteractionDto[],
+    pendingApprovals: NonNullable<Backend['pendingApprovals']> = [],
+  ) {
     mockBackend({
+      pendingApprovals,
       language: 'en-US',
       agents: AGENTS,
       workspaces: [workspace('w1', 'ERP', '/dev/erp', ['a-architect'])],
@@ -282,6 +293,33 @@ describe('The global "Action required" indicator', () => {
       expect(listPendingInteractions).toHaveBeenCalledWith('w1');
     });
     expect(screen.queryByRole('button', { name: /waiting for you/ })).not.toBeInTheDocument();
+  });
+
+  it('says in the header that a command waits for approval and takes the person to it', async () => {
+    const user = userEvent.setup();
+    showIndicator(
+      [],
+      [
+        {
+          id: 'ap1',
+          executionId: 'e1',
+          workspaceId: 'w1',
+          taskId: 't1',
+          agentId: 'a-architect',
+          agentName: 'Architect',
+          action: 'run_process',
+          executable: 'make',
+          args: [],
+          cwd: null,
+          reason: 'not_allowed',
+          requestedAt: 1,
+        },
+      ],
+    );
+
+    await user.click(await screen.findByRole('button', { name: /1 command waiting for approval/ }));
+
+    expect(navigate).toHaveBeenCalledWith('workspace');
   });
 
   it('counts the agents waiting and opens that run when it is the only one', async () => {
