@@ -14,6 +14,7 @@ import { NewSpecDialog } from '../components/NewSpecDialog';
 import { Overview } from '../components/Overview';
 import { SpecDetail } from '../components/SpecDetail';
 import { useSpecs } from '../hooks/useSpecs';
+import { archiveSpec, deleteSpec } from '../services/specService';
 import { countsByGroup } from '../model/status';
 import styles from '../components/Specs.module.css';
 
@@ -36,7 +37,7 @@ function Home({ workspace }: { workspace: Workspace }) {
   const navigation = useNavigation();
   const { catalog } = useCatalog();
   const agents = useMemo(() => (catalog.status === 'ready' ? catalog.agents : []), [catalog]);
-  const { state } = useSpecs(workspace.id);
+  const { state, reload } = useSpecs(workspace.id);
   const intent = navigation.intent;
   const [openId, setOpenId] = useState<string | null>(
     intent?.type === 'open-spec' ? intent.specId : null,
@@ -132,6 +133,14 @@ function Home({ workspace }: { workspace: Workspace }) {
           }}
           onImport={() => {
             setDialog('import');
+          }}
+          onArchive={async (specId) => {
+            await archiveSpec(specId);
+            reload();
+          }}
+          onDelete={async (specId) => {
+            await deleteSpec(specId);
+            reload();
           }}
         />
       )}

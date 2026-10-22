@@ -3399,7 +3399,7 @@ export const ptBR: Record<TranslationKey, string> = {
   'specs.publish.action': 'Publicar',
   'specs.publish.again': 'Publicar as alterações',
   'specs.publish.resume': 'Continuar a publicação',
-  'specs.publish.archive': 'Encerrar esta spec',
+  'specs.publish.archive': 'Arquivar spec',
   'specs.publish.needsReady': 'Publicar exige a spec pronta e aprovada por você.',
   'specs.final.readiness': 'O que falta para esta spec ficar pronta',
   'specs.final.ready': 'Pronta',
@@ -3732,4 +3732,5 @@ export const ptBR: Record<TranslationKey, string> = {
   'workflow.lockedByRun':
     'Há uma execução em andamento neste workflow, então ele não pode ser editado nem excluído. Abra a execução para acompanhar, pausar ou cancelar; ou aguarde o fim.',
   'workflow.openActiveRun': 'Abrir a execução',
+  'specs.archive': 'Arquivar spec',
 };

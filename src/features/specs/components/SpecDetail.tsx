@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
-import { Modal } from '@/components/ui/Modal';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useBreadcrumb } from '@/app/BreadcrumbContext';
 import { OverflowMenu } from '@/components/ui/OverflowMenu';
@@ -46,6 +45,7 @@ import {
   type Stage,
 } from '../types';
 import { AgentsDialog } from './AgentsDialog';
+import { DeleteSpecDialog } from './DeleteSpecDialog';
 import { ArtifactDocument } from './ArtifactDocument';
 import { OpenQuestions } from './OpenQuestions';
 import { UsageBar } from './UsageBar';
@@ -114,6 +114,8 @@ export function SpecDetail({ workspace, agents, specId, onBack, onImplement, onD
   const stage = picked ?? defaultStage(view);
   const artifact = stage === 'final' ? undefined : spec.artifacts.find((a) => a.id === stage);
   const status = statusView(view.status);
+  const canArchive =
+    view.spec.publication.state === 'published' && view.publicationCurrent && !view.spec.archived;
   const nextStage = STAGES[STAGES.indexOf(stage) + 1];
   const questions = spec.questions.filter(
     (q) => q.status === 'pending' && q.source === 'artifact' && q.artifactId === stage,
@@ -279,18 +281,33 @@ export function SpecDetail({ workspace, agents, specId, onBack, onImplement, onD
               <Icon name="settings" size={14} />
               {t('specs.agents.action')}
             </Button>
-            {!busy && spec.implementations.length === 0 && !view.busy && (
+            {!busy && !view.busy && (canArchive || spec.implementations.length === 0) && (
               <OverflowMenu
                 label={t('specs.moreActions', { title: spec.title })}
                 items={[
-                  {
-                    label: t('common.delete'),
-                    icon: 'trash',
-                    danger: true,
-                    onSelect: () => {
-                      setDialog('delete');
-                    },
-                  },
+                  ...(canArchive
+                    ? [
+                        {
+                          label: t('specs.archive'),
+                          icon: 'stack' as const,
+                          onSelect: () => {
+                            void act(() => archiveSpec(specId));
+                          },
+                        },
+                      ]
+                    : []),
+                  ...(spec.implementations.length === 0
+                    ? [
+                        {
+                          label: t('common.delete'),
+                          icon: 'trash' as const,
+                          danger: true,
+                          onSelect: () => {
+                            setDialog('delete');
+                          },
+                        },
+                      ]
+                    : []),
                 ]}
               />
             )}
@@ -469,7 +486,7 @@ export function SpecDetail({ workspace, agents, specId, onBack, onImplement, onD
         />
       )}
       {dialog === 'delete' && (
-        <DeleteConfirm
+        <DeleteSpecDialog
           title={spec.title}
           busy={busy}
           onClose={() => {
@@ -485,36 +502,5 @@ export function SpecDetail({ workspace, agents, specId, onBack, onImplement, onD
         />
       )}
     </section>
-  );
-}
-
-function DeleteConfirm({
-  title,
-  busy,
-  onClose,
-  onConfirm,
-}: {
-  title: string;
-  busy: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-}) {
-  const { t } = useI18n();
-  return (
-    <Modal label={t('specs.delete.title')} onClose={onClose}>
-      <div className={styles.form}>
-        <h2 className={styles.dialogTitle}>{t('specs.delete.title')}</h2>
-        <p>{t('specs.delete.body', { title })}</p>
-        <p className={styles.muted}>{t('specs.delete.files')}</p>
-        <div className={styles.dialogActions}>
-          <Button variant="secondary" onClick={onClose}>
-            {t('common.cancel')}
-          </Button>
-          <Button variant="danger" disabled={busy} onClick={onConfirm}>
-            {t('common.confirmDelete')}
-          </Button>
-        </div>
-      </div>
-    </Modal>
   );
 }

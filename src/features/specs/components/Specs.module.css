@@ -1537,3 +1537,17 @@
     padding-inline: var(--space-4);
   }
 }
+
+/* A row of the list and its "⋯": the menu sits over the right edge, outside the row's own button. */
+.specItem {
+  position: relative;
+}
+.specItem .specRow {
+  padding-right: calc(var(--space-4) + var(--control-height-sm) + var(--space-2));
+}
+.specMenu {
+  position: absolute;
+  top: 50%;
+  right: var(--space-3);
+  transform: translateY(-50%);
+}

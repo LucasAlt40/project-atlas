@@ -3360,7 +3360,7 @@ export const enUS = {
   'specs.publish.action': 'Publish',
   'specs.publish.again': 'Publish the changes',
   'specs.publish.resume': 'Continue publishing',
-  'specs.publish.archive': 'Close this spec',
+  'specs.publish.archive': 'Archive spec',
   'specs.publish.needsReady': 'Publishing needs the spec ready and approved by you.',
   'specs.final.readiness': 'What is left before this spec is ready',
   'specs.final.ready': 'Ready',
@@ -3691,6 +3691,7 @@ export const enUS = {
   'workflow.lockedByRun':
     'A run is in progress in this workflow, so it cannot be edited or deleted. Open the run to follow, pause or cancel it, or wait for it to finish.',
   'workflow.openActiveRun': 'Open the run',
+  'specs.archive': 'Archive spec',
 } as const;
 
 export type TranslationKey = keyof typeof enUS;
