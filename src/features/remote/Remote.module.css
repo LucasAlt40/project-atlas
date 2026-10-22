@@ -66,12 +66,6 @@
   gap: var(--space-4);
   min-width: 0;
 }
-.title {
-  margin: 0;
-  padding-right: var(--space-5);
-  font-size: var(--font-size-lg);
-  color: var(--text-high);
-}
 .heading {
   margin: 0;
   font-size: var(--font-size-base);
@@ -124,13 +118,6 @@
 .stateRow,
 .rowBetween {
   justify-content: space-between;
-}
-.state {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--text-high);
-  font-weight: 600;
 }
 .field {
   display: flex;
@@ -213,30 +200,35 @@
   border-radius: var(--radius-md);
   background: var(--surface-1);
 }
-.know {
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.urlRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
   padding-top: var(--space-3);
   border-top: 1px solid var(--border-subtle);
 }
-.know ul {
+.knowList {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  margin: var(--space-2) 0 0;
+  margin: 0;
   padding-left: 1.1rem;
   color: var(--text-muted);
-  font-size: var(--font-size-xs);
-  line-height: 1.5;
+  line-height: var(--line-height-reading);
 }
-
-.columns {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
-  gap: var(--space-5);
-  align-items: start;
-}
-.column {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  min-width: 0;
+.code {
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-void);
+  font-size: var(--font-size-headline);
+  letter-spacing: 0.08em;
 }
