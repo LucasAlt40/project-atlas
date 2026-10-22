@@ -174,6 +174,7 @@ describe('Workflow page', () => {
       expect(panel.getByText('Isolation').nextSibling).toHaveTextContent('On');
       expect(panel.getByText('Context').nextSibling).toHaveTextContent('Task-aware');
       // Its dependency: what leads to it.
+      await userEvent.click(panel.getByRole('button', { name: /^Dependencies and routes/ }));
       expect(
         panel.getByRole('heading', { name: 'Dependencies' }).nextElementSibling,
       ).toHaveTextContent('Architect');
@@ -183,6 +184,10 @@ describe('Workflow page', () => {
       const user = userEvent.setup();
       show();
       await clickNode('Developer');
+      await user.click(
+        within(side()).getByRole('button', { name: /^Instructions and completion criteria/ }),
+      );
+      await user.click(within(side()).getByRole('button', { name: /^Resilience/ }));
 
       const instructions = within(side()).getByLabelText('Instructions for this step');
       await user.clear(instructions);
