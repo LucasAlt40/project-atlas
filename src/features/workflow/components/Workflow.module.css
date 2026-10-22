@@ -2582,3 +2582,72 @@
   border-radius: 50%;
   background: var(--warning);
 }
+/* New workflow (3.3): steps on top, the template cards beside the chosen one's detail. */
+.newPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.newStep {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: var(--measure-form);
+}
+.newSummary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  color: var(--text-standard);
+}
+.recommendation {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid rgb(99 102 241 / 0.4);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent-tint);
+  color: var(--text-high);
+}
+.newGrid {
+  display: grid;
+  grid-template-columns: minmax(18rem, 2fr) minmax(0, 3fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+@container (max-width: 52rem) {
+  .newGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.newCards .templateGrid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.newPreview {
+  min-width: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+.templateCard {
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+.templateCard[data-selected='true'] {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}

@@ -515,9 +515,11 @@ describe('Workflow page', () => {
 
       expect(await screen.findByRole('form', { name: 'New workflow' })).toBeInTheDocument();
       await user.type(screen.getByLabelText('Task'), 'Implement password recovery');
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
       expect(await screen.findByRole('status')).toHaveTextContent(
         'Suggested for your task: Implement',
       );
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
       await user.click(screen.getByRole('button', { name: 'Create workflow' }));
 
       expect(createFromTemplate).toHaveBeenCalledWith(
@@ -552,8 +554,10 @@ describe('Workflow page', () => {
       });
 
       await screen.findByRole('form', { name: 'New workflow' });
-      await screen.findByText(/context7/);
       await user.type(screen.getByLabelText('Task'), 'Implement password recovery');
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+      await screen.findByText(/context7/);
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
       await user.click(screen.getByRole('button', { name: 'Create workflow' }));
 
       expect(createFromTemplate).toHaveBeenCalledWith(
@@ -598,7 +602,9 @@ describe('Workflow page', () => {
 
       await user.click(await screen.findByRole('radio', { name: /Custom/ }));
       expect(screen.queryByLabelText('Task')).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
       await user.click(screen.getByRole('radio', { name: /Debug & fix/ }));
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
       await user.type(screen.getByLabelText('Name'), 'My bug fix');
       await user.click(screen.getByRole('button', { name: 'Create workflow' }));
 
@@ -621,6 +627,8 @@ describe('Workflow page', () => {
       );
 
       await user.click(await screen.findByRole('radio', { name: /Custom/ }));
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
       await user.click(screen.getByRole('button', { name: 'Create workflow' }));
 
       expect(createWorkflow).toHaveBeenCalledWith({
