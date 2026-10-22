@@ -903,6 +903,24 @@ describe('Workflow page', () => {
         ).toBeInTheDocument();
       });
 
+      it('folds the result of a step, keeping only the current one open', async () => {
+        const user = userEvent.setup();
+        show({ runs: [failedOnVerdict()] });
+        await user.selectOptions(await screen.findByLabelText('Runs'), 'wfx-1');
+
+        // The only step with a result is also the latest one, so it starts open.
+        const toggle = await screen.findByRole('button', { name: /Developer · Result: FAIL/ });
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByText('The webhook is not atomic.')).toBeVisible();
+
+        await user.click(toggle);
+        expect(toggle).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.getByText('The webhook is not atomic.')).not.toBeVisible();
+
+        await user.click(toggle);
+        expect(screen.getByText('The webhook is not atomic.')).toBeVisible();
+      });
+
       it('offers to resume where the graph says, naming what is kept and what runs next', async () => {
         const user = userEvent.setup();
         show({
