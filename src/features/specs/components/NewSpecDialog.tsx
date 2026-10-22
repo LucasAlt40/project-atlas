@@ -106,153 +106,151 @@ export function NewSpecDialog({ workspace, agents, onClose, onCreated }: Props) 
   }
 
   return (
-    <Modal label={t('specs.new')} onClose={onClose} size="lg">
-      <form className={styles.form} onSubmit={(event) => void submit(event)}>
-        <h2 className={styles.dialogTitle}>{t('specs.new')}</h2>
-        <p className={styles.muted}>{t('specs.new.intro')}</p>
-        <div className={styles.formBody}>
-          <div className={styles.formColumns}>
-            <div className={styles.formCol}>
-              <label className={styles.field}>
-                <span>{t('specs.new.title')}</span>
-                <input
-                  value={title}
-                  maxLength={TITLE_MAX}
-                  placeholder={t('specs.new.titlePlaceholder')}
-                  onChange={(event) => {
-                    setTitle(event.target.value);
-                  }}
-                />
-              </label>
-              <label className={styles.field}>
-                <span>{t('specs.new.request')}</span>
-                <textarea
-                  rows={4}
-                  value={request}
-                  maxLength={REQUEST_MAX}
-                  placeholder={t('specs.new.requestPlaceholder')}
-                  onChange={(event) => {
-                    setRequest(event.target.value);
-                  }}
-                />
-                <small className={styles.hint}>{t('specs.new.requestHelp')}</small>
-              </label>
-              <label className={styles.field}>
-                <span>{t('specs.new.ctx.extra')}</span>
-                <textarea
-                  rows={2}
-                  value={context}
-                  maxLength={REQUEST_MAX}
-                  onChange={(event) => {
-                    setContext(event.target.value);
-                  }}
-                />
-                <small className={styles.hint}>{t('specs.new.ctx.extraHelp')}</small>
-              </label>
-            </div>
-            <div className={styles.formCol}>
-              <section className={styles.contextAsk} aria-label={t('specs.new.ctx.title')}>
-                <h3>{t('specs.new.ctx.title')}</h3>
-                <p className={styles.muted}>{t('specs.new.ctx.intro')}</p>
-                {asked.length === 0 ? (
-                  <p className={styles.hint}>{t('specs.new.ctx.waiting')}</p>
-                ) : (
-                  <>
-                    <p className={styles.hint}>
-                      {t('specs.new.ctx.profile', { kind: t(`specs.new.ctx.kind.${kind}`) })}
-                    </p>
-                    {asked.map((question) => (
-                      <label key={question.id} className={styles.field}>
-                        <span className={styles.questionText}>
-                          {t(`specs.ctxq.${question.id}`)}
-                        </span>
-                        <small className={styles.hint}>
-                          {t(`specs.ctxq.because.${question.because}`)}
-                        </small>
-                        <textarea
-                          rows={2}
-                          value={answers[question.id] ?? ''}
-                          maxLength={1500}
-                          placeholder={t('specs.new.ctx.placeholder')}
-                          onChange={(event) => {
-                            setAnswers((current) => ({
-                              ...current,
-                              [question.id]: event.target.value,
-                            }));
-                          }}
-                        />
-                      </label>
-                    ))}
-                  </>
-                )}
-              </section>
-              {inWorkspace.length === 0 ? (
-                <p className={styles.error} role="alert">
-                  {t('specs.new.noAgents')}
-                </p>
-              ) : (
-                <>
-                  <div className={styles.fieldRow}>
-                    <label className={styles.field}>
-                      <span>{t('specs.new.author')}</span>
-                      <select
-                        value={author}
-                        onChange={(event) => {
-                          setAuthor(event.target.value);
-                        }}
-                      >
-                        {inWorkspace.map((agent) => (
-                          <option key={agent.id} value={agent.id}>
-                            {authorName(t, agent)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className={styles.field}>
-                      <span>{t('specs.new.reviewer')}</span>
-                      <select
-                        value={reviewer}
-                        onChange={(event) => {
-                          setReviewer(event.target.value);
-                        }}
-                      >
-                        <option value="">{t('specs.new.sameAgent')}</option>
-                        {inWorkspace.map((agent) => (
-                          <option key={agent.id} value={agent.id}>
-                            {agent.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                  {!inWorkspace.some(isRecommendedAuthor) && (
-                    <small className={styles.hint}>{t('specs.new.authorHint')}</small>
-                  )}
-                </>
-              )}
-              <IntegrationsPicker
-                workspaceId={workspace.id}
-                selected={integrations}
-                onChange={setIntegrations}
-                preselect
-              />
-            </div>
-          </div>
-          <p className={styles.note}>{t('specs.new.nothingRuns')}</p>
-          {error !== null && (
-            <p className={styles.error} role="alert">
-              {errorMessage(t, error)}
-            </p>
-          )}
-        </div>
-        <div className={styles.dialogActions}>
+    <Modal
+      label={t('specs.new')}
+      onClose={onClose}
+      size="md"
+      title={t('specs.new')}
+      footer={
+        <>
+          <span className={styles.footerNote}>{t('specs.new.nothingRuns')}</span>
           <Button variant="secondary" onClick={onClose}>
             {t('common.cancel')}
           </Button>
-          <Button type="submit" disabled={!valid || busy}>
+          <Button type="submit" form="new-spec-form" disabled={!valid || busy}>
             {t('specs.new.create')}
           </Button>
+        </>
+      }
+    >
+      <form id="new-spec-form" className={styles.newForm} onSubmit={(event) => void submit(event)}>
+        <p className={styles.muted}>{t('specs.new.intro')}</p>
+        <div className={styles.formCol}>
+          <label className={styles.field}>
+            <span>{t('specs.new.title')}</span>
+            <input
+              value={title}
+              maxLength={TITLE_MAX}
+              placeholder={t('specs.new.titlePlaceholder')}
+              onChange={(event) => {
+                setTitle(event.target.value);
+              }}
+            />
+          </label>
+          <label className={styles.field}>
+            <span>{t('specs.new.request')}</span>
+            <textarea
+              rows={4}
+              value={request}
+              maxLength={REQUEST_MAX}
+              placeholder={t('specs.new.requestPlaceholder')}
+              onChange={(event) => {
+                setRequest(event.target.value);
+              }}
+            />
+            <small className={styles.hint}>{t('specs.new.requestHelp')}</small>
+          </label>
+          <section className={styles.contextAsk} aria-label={t('specs.new.ctx.title')}>
+            <h3>{t('specs.new.ctx.title')}</h3>
+            <p className={styles.muted}>{t('specs.new.ctx.intro')}</p>
+            {asked.length === 0 ? (
+              <p className={styles.hint}>{t('specs.new.ctx.waiting')}</p>
+            ) : (
+              <>
+                <p className={styles.hint}>
+                  {t('specs.new.ctx.profile', { kind: t(`specs.new.ctx.kind.${kind}`) })}
+                </p>
+                {asked.map((question) => (
+                  <label key={question.id} className={styles.field}>
+                    <span className={styles.questionText}>{t(`specs.ctxq.${question.id}`)}</span>
+                    <small className={styles.hint}>
+                      {t(`specs.ctxq.because.${question.because}`)}
+                    </small>
+                    <textarea
+                      rows={2}
+                      value={answers[question.id] ?? ''}
+                      maxLength={1500}
+                      placeholder={t('specs.new.ctx.placeholder')}
+                      onChange={(event) => {
+                        setAnswers((current) => ({
+                          ...current,
+                          [question.id]: event.target.value,
+                        }));
+                      }}
+                    />
+                  </label>
+                ))}
+              </>
+            )}
+          </section>
+          <label className={styles.field}>
+            <span>{t('specs.new.ctx.extra')}</span>
+            <textarea
+              rows={2}
+              value={context}
+              maxLength={REQUEST_MAX}
+              onChange={(event) => {
+                setContext(event.target.value);
+              }}
+            />
+            <small className={styles.hint}>{t('specs.new.ctx.extraHelp')}</small>
+          </label>
+          {inWorkspace.length === 0 ? (
+            <p className={styles.error} role="alert">
+              {t('specs.new.noAgents')}
+            </p>
+          ) : (
+            <>
+              <div className={styles.fieldRow}>
+                <label className={styles.field}>
+                  <span>{t('specs.new.author')}</span>
+                  <select
+                    value={author}
+                    onChange={(event) => {
+                      setAuthor(event.target.value);
+                    }}
+                  >
+                    {inWorkspace.map((agent) => (
+                      <option key={agent.id} value={agent.id}>
+                        {authorName(t, agent)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className={styles.field}>
+                  <span>{t('specs.new.reviewer')}</span>
+                  <select
+                    value={reviewer}
+                    onChange={(event) => {
+                      setReviewer(event.target.value);
+                    }}
+                  >
+                    <option value="">{t('specs.new.sameAgent')}</option>
+                    {inWorkspace.map((agent) => (
+                      <option key={agent.id} value={agent.id}>
+                        {agent.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              {!inWorkspace.some(isRecommendedAuthor) && (
+                <small className={styles.hint}>{t('specs.new.authorHint')}</small>
+              )}
+            </>
+          )}
+          <IntegrationsPicker
+            workspaceId={workspace.id}
+            selected={integrations}
+            onChange={setIntegrations}
+            preselect
+          />
         </div>
+        {error !== null && (
+          <p className={styles.error} role="alert">
+            {errorMessage(t, error)}
+          </p>
+        )}
       </form>
     </Modal>
   );

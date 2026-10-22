@@ -1219,10 +1219,12 @@
   line-height: 1.5;
 }
 
-.questionText {
-  color: var(--text-high);
+.contextAsk .questionText {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: var(--font-size-base);
   font-weight: 500;
-  line-height: 1.5;
 }
 
 .contextAsk {
@@ -1635,4 +1637,17 @@
   .formColumns {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
+}
+
+/* New specification: one column that scrolls inside the dialog; the note sits in the footer. */
+.newForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.footerNote {
+  margin-right: auto;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
 }
