@@ -170,6 +170,7 @@
   background: var(--border-subtle);
 }
 .crumb {
+  flex: 1;
   min-width: 0;
 }
 .crumbList {
@@ -187,10 +188,9 @@
   align-items: center;
   min-width: 0;
 }
-/* The current level never shrinks below its name; the parents give way first. */
-.crumbItem:last-child {
-  flex: none;
-  max-width: 60%;
+/* The parents give way first; the current level keeps its name as long as it can. */
+.crumbItem:not(:last-child) {
+  flex-shrink: 4;
 }
 .crumbParent {
   overflow: hidden;
