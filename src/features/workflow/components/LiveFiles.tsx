@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Icon } from '@/components/ui/Icon';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { FileChangeDto } from '@/lib/tauri/commands';
 import { STATUS_LABEL, STATUS_LETTER, treeRows, type ActivityEntry } from '../model/live';
@@ -50,6 +51,11 @@ export function LiveFileTree({
             <span aria-hidden="true" className={styles.caret}>
               {collapsed.has(row.path) ? '▸' : '▾'}
             </span>
+            <Icon
+              name={collapsed.has(row.path) ? 'folder' : 'folderOpen'}
+              size={14}
+              className={[styles.treeIcon, styles.treeDir].join(' ')}
+            />
             <span className={styles.treeName}>{row.name}</span>
             <span className={styles.muted}>{row.count}</span>
           </button>
@@ -70,6 +76,7 @@ export function LiveFileTree({
               onSelect(row.path);
             }}
           >
+            <Icon name="file" size={14} className={styles.treeIcon} />
             <span className={styles.status} data-status={row.change?.status} aria-hidden="true">
               {row.change ? STATUS_LETTER[row.change.status] : ''}
             </span>

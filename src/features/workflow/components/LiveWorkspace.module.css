@@ -239,6 +239,7 @@
 }
 .tabs {
   display: flex;
+  flex: none;
   gap: var(--space-1);
   padding: 2px;
   border-radius: var(--radius-md);
@@ -253,6 +254,7 @@
   font: inherit;
   font-size: var(--font-size-xs);
   font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
 }
 .tab[aria-selected='true'] {
@@ -268,6 +270,13 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   background: var(--surface-base);
+}
+.treeIcon {
+  flex: none;
+  color: var(--text-dim);
+}
+.treeDir {
+  color: var(--accent-soft);
 }
 .treeRow {
   display: flex;

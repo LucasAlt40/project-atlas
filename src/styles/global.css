@@ -251,9 +251,14 @@ input[type='radio'] {
   background: var(--border-strong);
 }
 
+/* A state that is happening now: the dot fades out and back, plainly visible. */
 @keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
   50% {
-    opacity: 0.35;
+    opacity: 0.2;
   }
 }
 

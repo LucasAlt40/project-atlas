@@ -2517,3 +2517,70 @@
   padding: 0;
   list-style: none;
 }
+
+/* The status line of a step in the canvas: the badge keeps its size, the rest wraps inside the card. */
+.nodeStrip {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.nodeStripMeta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Titles of the sections of the run column: big enough to mark where a new section starts. */
+.cardLabel,
+.card h4,
+.shared h4 {
+  margin: var(--space-3) 0 0;
+  color: var(--text-high);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.card h4 svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* A state that is happening now: the dot fades out and back, plainly visible. */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
+/* The dot of a step that is running right now blinks, in the canvas as in the list of steps. */
+.badge[data-status='running'] > span[aria-hidden='true'] {
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .badge[data-status='running'] > span[aria-hidden='true'],
+  .stepDot[data-status='running'] {
+    animation: none;
+  }
+}
+
+/* "Atual" / "Agentes ativos" and the other labels of facts read as titles of their small blocks. */
+.facts dt {
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+.facts dd {
+  font-size: var(--font-size-md);
+}
+.groupTitle {
+  color: var(--text-high);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  letter-spacing: 0;
+}
