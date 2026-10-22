@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { Badge } from '@/components/ui/Badge';
+import { Callout } from '@/components/ui/Callout';
 import { listMcpConnections } from '@/features/workspace/services/mcpService';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { McpConnectionDto } from '@/lib/tauri/commands';
@@ -41,43 +43,59 @@ export function IntegrationsPicker({ workspaceId, selected, onChange, preselect 
   }, [workspaceId]);
 
   if (connections === null) return null;
+  const toggle = (id: string, on: boolean) => {
+    onChange(on ? [...selected, id] : selected.filter((chosen) => chosen !== id));
+  };
   return (
-    <fieldset className={styles.integrations}>
-      <legend>{t('specs.integrations.title')}</legend>
+    <section className={styles.tools} aria-labelledby="spec-tools-title">
+      <div className={styles.toolsHead}>
+        <h3 id="spec-tools-title" className={styles.toolsTitle}>
+          {t('specs.integrations.title')}
+        </h3>
+        {connections.length > 0 && (
+          <Badge mono>
+            {String(selected.length)} / {String(connections.length)}
+          </Badge>
+        )}
+      </div>
       <p className={styles.muted}>{t('specs.integrations.intro')}</p>
       {connections.length === 0 ? (
         <p className={styles.hint}>{t('specs.integrations.none')}</p>
       ) : (
-        <ul className={styles.plain}>
-          {connections.map((connection) => (
-            <li key={connection.id}>
-              <label className={styles.inline}>
-                <input
-                  type="checkbox"
-                  checked={selected.includes(connection.id)}
-                  disabled={!connection.enabled}
-                  onChange={(event) => {
-                    onChange(
-                      event.target.checked
-                        ? [...selected, connection.id]
-                        : selected.filter((id) => id !== connection.id),
-                    );
-                  }}
-                />
-                <span>{connection.name}</span>
-              </label>
-              <span className={styles.muted}>
-                {connection.enabled
-                  ? connection.discovery
-                    ? t('specs.integrations.tools', { count: connection.discovery.tools.length })
-                    : t('specs.integrations.notListed')
-                  : t('specs.integrations.off')}
-              </span>
-            </li>
-          ))}
+        <ul className={styles.toolList}>
+          {connections.map((connection) => {
+            const on = selected.includes(connection.id);
+            return (
+              <li key={connection.id}>
+                <label className={styles.toolRow} data-on={on} data-off={!connection.enabled}>
+                  <input
+                    type="checkbox"
+                    aria-label={connection.name}
+                    checked={on}
+                    disabled={!connection.enabled}
+                    onChange={(event) => {
+                      toggle(connection.id, event.target.checked);
+                    }}
+                  />
+                  <span className={styles.toolName}>{connection.name}</span>
+                  {connection.enabled ? (
+                    <Badge dot tone="success">
+                      {connection.discovery
+                        ? t('specs.integrations.tools', {
+                            count: connection.discovery.tools.length,
+                          })
+                        : t('specs.integrations.notListed')}
+                    </Badge>
+                  ) : (
+                    <Badge dot>{t('specs.integrations.off')}</Badge>
+                  )}
+                </label>
+              </li>
+            );
+          })}
         </ul>
       )}
-      <p className={styles.hint}>{t('specs.integrations.grants')}</p>
-    </fieldset>
+      <Callout tone="policy">{t('specs.integrations.grants')}</Callout>
+    </section>
   );
 }

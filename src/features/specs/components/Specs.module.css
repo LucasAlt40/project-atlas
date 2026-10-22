@@ -325,7 +325,9 @@
 .field input,
 .field textarea,
 .field select {
-  padding: 0.5rem 0.65rem;
+  min-height: var(--control-height);
+  padding: var(--space-2) 0.65rem;
+  line-height: 1.4;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--surface-void);
@@ -1474,26 +1476,66 @@
   gap: var(--space-3);
 }
 
-.integrations {
+.tools {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  margin: 0;
-  padding: var(--space-3) var(--space-4);
+  gap: var(--space-3);
+  padding: var(--space-4);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   background: var(--surface-1);
 }
-.integrations legend {
-  padding: 0 var(--space-2);
-  color: var(--text-high);
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-}
-.integrations li {
+.toolsHead {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+}
+.toolsTitle {
+  margin: 0;
+  color: var(--text-high);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+}
+.toolList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.toolRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-void);
+  cursor: pointer;
+}
+.toolRow:hover {
+  border-color: var(--border-strong);
+}
+.toolRow[data-on='true'] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-void));
+}
+.toolRow[data-off='true'] {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+.toolName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-high);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* The final review: the verdict and the one primary action on top, the checks as plain rows. */
@@ -1554,3 +1596,9 @@
   align-items: center;
 }
 /* No transform here: it would make a stacking context that keeps the open menu under the next row. */
+
+/* Selects: the text sits centred in the control; padding above and below would clip it. */
+.field select {
+  height: var(--control-height);
+  padding-block: 0;
+}
