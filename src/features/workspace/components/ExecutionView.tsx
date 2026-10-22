@@ -53,7 +53,10 @@ export function ExecutionView({
   const idPrefix = `execution-${execution.id}`;
 
   return (
-    <div className={styles.view}>
+    <section
+      className={styles.view}
+      aria-label={t('inspector.title', { id: shortId(execution.id) })}
+    >
       <header className={styles.viewHead}>
         {execution.workflow && (
           <nav className={styles.breadcrumb} aria-label={t('inspector.breadcrumb')}>
@@ -135,6 +138,6 @@ export function ExecutionView({
           ))}
         {tab === 'terminal' && <p className={styles.note}>{t('inspector.terminalNotSaved')}</p>}
       </div>
-    </div>
+    </section>
   );
 }

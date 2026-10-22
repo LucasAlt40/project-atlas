@@ -57,12 +57,14 @@ describe('WorkspacePage', () => {
     show(['a1', 'a2']);
 
     const architectCard = await screen.findByRole('article', { name: 'Architect' });
-    expect(architectCard).toHaveTextContent(
-      /Personality: Architect\s*Runtime: Claude CLI\s*Provider: Anthropic/,
-    );
     expect(within(architectCard).getByText('sonnet')).toBeInTheDocument();
     expect(statusOf('Architect')).toHaveTextContent('Ready');
-    expect(card('Developer')).toHaveTextContent(/Runtime: OpenCode CLI\s*Provider: OpenCode/);
+    // The grid keeps one compact line; who the agent is and what it runs on is in its details.
+    await userEvent.click(
+      within(architectCard).getByRole('button', { name: 'Details of Architect' }),
+    );
+    const details = screen.getByRole('dialog', { name: 'Details of Architect' });
+    expect(details).toHaveTextContent('Architect · Claude CLI · Anthropic');
     expect(screen.getAllByText('Free space')).toHaveLength(2);
     expect(screen.getByRole('heading', { name: 'Atlas' })).toBeInTheDocument();
   });
@@ -187,8 +189,16 @@ describe('WorkspacePage', () => {
     });
     await user.click(within(card('Architect')).getByRole('tab', { name: 'Activity' }));
     const activity = within(card('Architect')).getByRole('list', { name: 'Activity' });
-    expect(within(activity).getByText(/Starting Claude CLI/)).toHaveTextContent('✓');
-    expect(within(activity).getByText(/Waiting for sonnet/)).toHaveTextContent('●');
+    expect(
+      within(activity)
+        .getByText(/Starting Claude CLI/)
+        .closest('li'),
+    ).toHaveAttribute('data-state', 'done');
+    expect(
+      within(activity)
+        .getByText(/Waiting for sonnet/)
+        .closest('li'),
+    ).toHaveAttribute('data-state', 'active');
     expect(statusOf('Architect')).toHaveTextContent('Waiting for model');
     await user.click(within(card('Architect')).getByRole('tab', { name: 'Chat' }));
 
@@ -281,8 +291,16 @@ describe('WorkspacePage', () => {
     expect(within(architectCard).getByText(/RAW STDERR/)).toBeInTheDocument();
     await user.click(within(card('Architect')).getByRole('tab', { name: 'Activity' }));
     const activity = within(architectCard).getByRole('list', { name: 'Activity' });
-    expect(within(activity).getByText(/Sending prompt/)).toHaveTextContent('✓');
-    expect(within(activity).getByText(/needs you to sign in/)).toHaveTextContent('✕');
+    expect(
+      within(activity)
+        .getByText(/Sending prompt/)
+        .closest('li'),
+    ).toHaveAttribute('data-state', 'done');
+    expect(
+      within(activity)
+        .getByText(/needs you to sign in/)
+        .closest('li'),
+    ).toHaveAttribute('data-state', 'failed');
     expect(statusOf('Developer')).toHaveTextContent('Ready');
   });
 
@@ -383,6 +401,8 @@ describe('WorkspacePage', () => {
   });
 
   it('edits an agent from its card', async () => {
+    // Edit is a button of the full header (the list); the grid keeps it in "⋯".
+    localStorage.setItem('atlas.workspace.view', 'list');
     const user = userEvent.setup();
     show(['a1', 'a2']);
     vi.mocked(updateAgent).mockResolvedValue({
@@ -413,6 +433,8 @@ describe('WorkspacePage', () => {
   });
 
   it('deletes an agent after confirmation and frees its slot', async () => {
+    // Edit is a button of the full header (the list); the grid keeps it in "⋯".
+    localStorage.setItem('atlas.workspace.view', 'list');
     const user = userEvent.setup();
     show(['a1', 'a2']);
     vi.mocked(deleteAgent).mockResolvedValue();
@@ -430,6 +452,8 @@ describe('WorkspacePage', () => {
   });
 
   it('shows why deleting an agent failed and keeps it', async () => {
+    // Edit is a button of the full header (the list); the grid keeps it in "⋯".
+    localStorage.setItem('atlas.workspace.view', 'list');
     const user = userEvent.setup();
     show(['a1']);
     vi.mocked(deleteAgent).mockRejectedValue({ code: 'agent_busy', params: {}, detail: null });
@@ -450,11 +474,11 @@ describe('WorkspacePage', () => {
     expect(await screen.findByRole('heading', { name: 'Welcome to Atlas' })).toBeInTheDocument();
     expect(
       screen.getByText(
-        'A workspace brings together a project, its agents and the context they share.',
+        "A workspace brings together a project's folders and the agents that work on it.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Choose the project folder' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Create Workspace' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Create workspace' })).toBeInTheDocument();
   });
 
   it('shows an error when the core is unreachable', async () => {

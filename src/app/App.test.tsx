@@ -56,7 +56,7 @@ describe('App', () => {
       'page',
     );
     expect(await screen.findByRole('button', { name: /^Workspace: Acme ERP/ })).toBeInTheDocument();
-    expect(await screen.findByRole('button', { name: '+ Adicionar agente' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Adicionar agente' })).toBeInTheDocument();
     expect(screen.getByRole('complementary')).toHaveTextContent('Atlas');
   });
 
@@ -92,12 +92,12 @@ describe('App', () => {
       selectedWorkspaceId: 'w1',
     });
     render(<App />);
-    await screen.findByRole('button', { name: '+ Adicionar agente' });
+    await screen.findByRole('button', { name: 'Adicionar agente' });
 
     await user.click(screen.getByRole('button', { name: 'EN' }));
 
     expect(setLanguage).toHaveBeenCalledWith('en-US');
-    expect(await screen.findByRole('button', { name: '+ Add Agent' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Add agent' })).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Manage the projects of/ })).toBeInTheDocument();
     // Names the user chose are not translated.
@@ -142,8 +142,8 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: 'Welcome to Atlas' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Create Workspace' }));
-    const dialog = screen.getByRole('dialog', { name: 'Create Workspace' });
+    await user.click(screen.getByRole('button', { name: 'Create workspace' }));
+    const dialog = screen.getByRole('dialog', { name: 'Create workspace' });
     await user.click(within(dialog).getByRole('button', { name: 'Select folder' }));
     await user.click(within(dialog).getByRole('button', { name: 'Create' }));
 
@@ -171,7 +171,7 @@ describe('App', () => {
     render(<App />);
 
     // "+ Add Agent" → "Create new agent" opens the creation flow directly.
-    await user.click(await screen.findByRole('button', { name: '+ Add Agent' }));
+    await user.click(await screen.findByRole('button', { name: 'Add agent' }));
     await user.click(screen.getByRole('button', { name: 'Create new agent' }));
     const form = await screen.findByRole('form', { name: 'Create agent' });
     await user.type(within(form).getByLabelText('Name'), 'Architecture Expert');

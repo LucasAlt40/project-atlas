@@ -104,7 +104,7 @@ export const enUS = {
   'workspace.switcher.new': 'New Workspace',
   'workspace.switcher.manage': 'Manage Workspaces',
   'workspace.switcher.none': 'No workspace',
-  'workspace.form.createTitle': 'Create Workspace',
+  'workspace.form.createTitle': 'Create workspace',
   'workspace.form.editTitle': 'Edit Workspace',
   'workspace.form.name': 'Name',
   'workspace.form.namePlaceholder': 'Acme ERP',

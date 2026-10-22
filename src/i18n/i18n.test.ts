@@ -15,8 +15,8 @@ describe('i18n', () => {
     const pt = createTranslator('pt-BR');
     const en = createTranslator('en-US');
 
-    expect(pt('workspace.addAgent')).toBe('+ Adicionar agente');
-    expect(en('workspace.addAgent')).toBe('+ Add Agent');
+    expect(pt('workspace.addAgent')).toBe('Adicionar agente');
+    expect(en('workspace.addAgent')).toBe('Add agent');
     expect(en('workspace.removeAgent', { name: 'Architect' })).toBe(
       'Remove Architect from workspace',
     );
