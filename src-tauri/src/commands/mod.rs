@@ -20,6 +20,7 @@ pub mod sandbox;
 pub mod security;
 pub mod settings;
 pub mod specs;
+pub mod storage;
 pub mod terminal;
 pub mod updater;
 pub mod usage;

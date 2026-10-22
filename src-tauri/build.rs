@@ -47,6 +47,8 @@ const COMMANDS: &[&str] = &[
     "delete_automatic_memories",
     "set_memory_settings",
     "get_sandbox_status",
+    "get_storage_usage",
+    "clean_storage",
     "set_sandbox_settings",
     "set_presence_settings",
     "set_presence_screen",

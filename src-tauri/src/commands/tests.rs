@@ -46,6 +46,8 @@ pub(super) fn app_window(
             super::memory::set_memory_settings,
             super::sandbox::get_sandbox_status,
             super::sandbox::set_sandbox_settings,
+            super::storage::get_storage_usage,
+            super::storage::clean_storage,
             super::personalities::list_personalities,
             super::personalities::create_personality,
             super::personalities::update_personality,

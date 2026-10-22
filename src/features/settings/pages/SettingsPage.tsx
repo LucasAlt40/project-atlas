@@ -9,11 +9,12 @@ import { LANGUAGES } from '@/i18n';
 import { useI18n } from '@/i18n/I18nProvider';
 import { PresenceSettings } from '../components/PresenceSettings';
 import { SandboxSettings } from '../components/SandboxSettings';
+import { StorageSettings } from '../components/StorageSettings';
 import { UpdateChecker } from '../components/UpdateChecker';
 import { useSettings } from '../hooks/SettingsProvider';
 import styles from './SettingsPage.module.css';
 
-const SECTIONS = ['general', 'memory', 'portability', 'about'] as const;
+const SECTIONS = ['general', 'memory', 'storage', 'portability', 'about'] as const;
 type Section = (typeof SECTIONS)[number];
 
 /**
@@ -109,6 +110,12 @@ export function SettingsPage() {
           {current === 'memory' && (
             <section className={styles.section} aria-label={t('settings.nav.memory')}>
               <MemorySettings />
+            </section>
+          )}
+
+          {current === 'storage' && (
+            <section className={styles.section} aria-label={t('settings.nav.storage')}>
+              <StorageSettings />
             </section>
           )}
 

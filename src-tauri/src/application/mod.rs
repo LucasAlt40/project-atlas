@@ -27,6 +27,7 @@ pub mod security;
 pub mod sessions;
 pub mod settings;
 pub mod specs;
+pub mod storage;
 pub mod support;
 pub mod usage;
 pub mod usage_reports;

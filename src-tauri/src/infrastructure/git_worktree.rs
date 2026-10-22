@@ -1575,4 +1575,42 @@ impl WorktreeManager for GitWorktreeManager {
         self.run_ok(toplevel, ["branch", "--delete", "--", branch])?;
         Ok(())
     }
+
+    fn execution_branches(&self, toplevel: &Path) -> Vec<String> {
+        if !self.is_git_repository(toplevel) {
+            return Vec::new();
+        }
+        self.run(
+            toplevel,
+            [
+                "for-each-ref",
+                "--format=%(refname:short)",
+                "refs/heads/atlas/",
+            ],
+            None,
+        )
+        .ok()
+        .filter(Output::ok)
+        .map(|output| lines(&output))
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|branch| WorktreeLayout::is_execution_branch(branch))
+        .collect()
+    }
+
+    fn delete_branch(&self, toplevel: &Path, branch: &str) -> Result<(), WorktreeError> {
+        Self::require_execution_branch(branch)?;
+        let _write = self.lock();
+        if !self.ref_exists(toplevel, &head(branch))? {
+            return Ok(());
+        }
+        // Git still refuses a branch checked out in a worktree.
+        self.run_ok(toplevel, ["branch", "-D", "--", branch])?;
+        Ok(())
+    }
+
+    fn prune(&self, toplevel: &Path) {
+        let _write = self.lock();
+        let _ = self.run(toplevel, ["worktree", "prune"], None);
+    }
 }

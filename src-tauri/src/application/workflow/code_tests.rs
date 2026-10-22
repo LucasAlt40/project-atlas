@@ -196,7 +196,7 @@ struct Stack {
     worktrees: Arc<WorktreeService>,
     workflows: Arc<WorkflowService>,
     orchestrator: Arc<Orchestrator>,
-    integration: IntegrationService,
+    integration: Arc<IntegrationService>,
     ide: Arc<FakeIde>,
     seen: Arc<Mutex<Vec<Seen>>>,
 }
@@ -285,12 +285,12 @@ fn assemble_registry(
         Orchestrator::new(workflows.clone(), Arc::new(runner)).with_poll(Duration::from_millis(5)),
     );
     let ide = Arc::new(FakeIde::default());
-    let integration = IntegrationService::new(
+    let integration = Arc::new(IntegrationService::new(
         workflows.clone(),
         worktrees.clone(),
         workspaces,
         ide.clone(),
-    );
+    ));
     Stack {
         env,
         config,
@@ -1507,6 +1507,53 @@ fn keeping_the_changes_isolated_leaves_them_in_the_worktree_and_can_still_be_app
         s.integration.apply(&run.id).unwrap().integration.status,
         IntegrationStatus::Integrated
     );
+}
+
+#[test]
+fn cleaning_up_storage_discards_a_run_left_waiting_and_keeps_its_work_on_the_branch() {
+    use crate::application::storage::{CleanupChoice, StorageService};
+    let s = stack(Permission::Allowed, team);
+    let run = s.run(&s.pipeline());
+    assert_eq!(run.integration.status, IntegrationStatus::ChangesAvailable);
+    let dir = s.saw("Developer")[0].dir.clone();
+    // Left behind after the run, never committed.
+    write(&dir, "notes.txt", "late\n");
+    let storage = StorageService::new(
+        s.env.data.path().to_path_buf(),
+        s.worktrees.clone(),
+        s.workflows.clone(),
+        s.integration.clone(),
+        Arc::new(crate::application::sessions::SessionRegistry::default()),
+        Arc::new(crate::application::security::MacosSandbox::new(
+            Arc::new(crate::domain::security::SandboxSettings::default),
+            s.env.data.path().join("sandbox"),
+            crate::application::runtimes::confinement::default_confinements(),
+        )),
+    );
+    assert_eq!(storage.usage().leftovers.worktrees.count, 1);
+
+    let report = storage
+        .clean(CleanupChoice {
+            worktrees: true,
+            ..CleanupChoice::default()
+        })
+        .unwrap();
+
+    assert_eq!(report.worktrees_removed, 1);
+    assert!(!dir.exists());
+    // Recorded as the person's own "Discard" would.
+    let after = s.workflows.execution(&run.id).unwrap();
+    assert_eq!(after.integration.status, IntegrationStatus::Discarded);
+    let branch = git(
+        s.project(),
+        &["branch", "--list", "--format=%(refname:short)", "atlas/*"],
+    );
+    let files = git(s.project(), &["ls-tree", "-r", "--name-only", &branch]);
+    assert!(
+        files.contains("src/foo.ts") && files.contains("notes.txt"),
+        "{files}"
+    );
+    assert!(!s.project().join("src/foo.ts").exists());
 }
 
 #[test]

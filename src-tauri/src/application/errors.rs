@@ -147,6 +147,8 @@ pub enum ErrorCode {
     IdeNotInstalled,
     IdeLaunchFailed,
     StorageFailed,
+    /// Cleaning up Atlas's data cannot start while an agent is running.
+    StorageBusy,
     /// The update server could not be reached or its answer was not usable (`detail` says why).
     UpdateCheckFailed,
     /// The update was found but downloading, verifying or installing it failed.

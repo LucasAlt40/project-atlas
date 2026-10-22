@@ -432,6 +432,24 @@ pub trait WorktreeManager: Send + Sync {
     ///
     /// Fails if the branch is not merged or Git refuses.
     fn delete_merged_branch(&self, toplevel: &Path, branch: &str) -> Result<(), WorktreeError>;
+
+    /// The execution branches (`atlas/exec-…`) of a repository. Empty when it cannot be read.
+    fn execution_branches(&self, _toplevel: &Path) -> Vec<String> {
+        Vec::new()
+    }
+
+    /// Deletes an execution branch even when it is not merged. Only for the person's explicit
+    /// cleanup of leftovers: the commits on it are gone for good.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the name is not an execution branch, or Git refuses (it is checked out).
+    fn delete_branch(&self, _toplevel: &Path, branch: &str) -> Result<(), WorktreeError> {
+        Err(WorktreeError::Git(format!("cannot delete {branch}")))
+    }
+
+    /// Forgets worktrees whose folder is gone (`git worktree prune`). Best effort.
+    fn prune(&self, _toplevel: &Path) {}
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

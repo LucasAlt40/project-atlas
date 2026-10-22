@@ -140,6 +140,8 @@ pub fn run() {
             commands::memory::set_memory_settings,
             commands::sandbox::get_sandbox_status,
             commands::sandbox::set_sandbox_settings,
+            commands::storage::get_storage_usage,
+            commands::storage::clean_storage,
             commands::specs::raise_spec_budget,
             commands::specs::set_spec_integrations,
             commands::settings::select_workspace,
@@ -547,7 +549,16 @@ fn build_state(
         }),
         Arc::new(infrastructure::DiscordIpc::system()),
     ));
+    let storage = Arc::new(application::storage::StorageService::new(
+        data_dir.to_path_buf(),
+        worktrees.clone(),
+        workflows.clone(),
+        integration.clone(),
+        sessions.clone(),
+        sandbox.clone(),
+    ));
     AppState {
+        storage,
         app_info,
         personalities,
         runtimes,

@@ -67,6 +67,33 @@ impl MacosSandbox {
         (self.settings)()
     }
 
+    /// The profiles and temporary folders executions left behind (removed after a day anyway).
+    pub fn leftovers(&self) -> Vec<PathBuf> {
+        ["profiles", "tmp"]
+            .iter()
+            .filter_map(|sub| fs::read_dir(self.work_dir.join(sub)).ok())
+            .flat_map(|entries| entries.flatten().map(|entry| entry.path()))
+            .collect()
+    }
+
+    /// Removes every profile and temporary folder: only while no runtime process is running.
+    /// Returns how many went.
+    pub fn clear_leftovers(&self) -> usize {
+        self.leftovers()
+            .into_iter()
+            .filter(|path| {
+                let link = path
+                    .symlink_metadata()
+                    .is_ok_and(|m| m.file_type().is_symlink() || !m.is_dir());
+                if link {
+                    fs::remove_file(path).is_ok()
+                } else {
+                    fs::remove_dir_all(path).is_ok()
+                }
+            })
+            .count()
+    }
+
     fn sweep(&self) {
         for sub in ["profiles", "tmp"] {
             let Ok(entries) = fs::read_dir(self.work_dir.join(sub)) else {

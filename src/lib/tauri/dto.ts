@@ -74,6 +74,8 @@ export interface CommandMap {
   set_specs_max_tokens: { args: { max: number | null }; result: AppSettingsDto };
   get_sandbox_status: { args: undefined; result: SandboxStatusDto };
   set_sandbox_settings: { args: { sandbox: SandboxSettingsDto }; result: AppSettingsDto };
+  get_storage_usage: { args: undefined; result: StorageUsageDto };
+  clean_storage: { args: { choice: CleanupChoiceDto }; result: CleanupReportDto };
   set_presence_settings: { args: { presence: PresenceSettingsDto }; result: AppSettingsDto };
   set_presence_screen: { args: { screen: PresenceScreenDto }; result: null };
   list_memories: { args: undefined; result: MemoryDto[] };
@@ -596,6 +598,7 @@ export type ErrorCodeDto =
   | 'harness_generation_failed'
   | 'unsafe_project_path'
   | 'storage_failed'
+  | 'storage_busy'
   | 'update_check_failed'
   | 'update_install_failed'
   | 'import_file_too_large'
@@ -1266,6 +1269,46 @@ export interface SandboxSettingsDto {
   mode: SandboxModeDto;
   /** Let a confined process write the caches of the common developer tools. */
   devCaches: boolean;
+}
+
+/** What a part of Atlas's data folder holds (`settings`: config.json, with the run history). */
+export type StoragePartKindDto =
+  'worktrees' | 'sandbox_temp' | 'settings' | 'memory' | 'specs' | 'workspace_context' | 'other';
+
+export interface StorageAmountDto {
+  count: number;
+  bytes: number;
+}
+
+/** How much disk Atlas uses, and what executions left behind that can be cleaned. */
+export interface StorageUsageDto {
+  folder: string;
+  totalBytes: number;
+  /** Largest first. */
+  parts: { kind: StoragePartKindDto; bytes: number }[];
+  leftovers: {
+    worktrees: StorageAmountDto;
+    sandboxTemp: StorageAmountDto;
+    /** `atlas/exec-…` branches whose folder is gone (their size is in the project's repository). */
+    branches: number;
+  };
+  /** An agent is running: cleaning has to wait. */
+  running: boolean;
+}
+
+export interface CleanupChoiceDto {
+  worktrees: boolean;
+  sandboxTemp: boolean;
+  branches: boolean;
+}
+
+export interface CleanupReportDto {
+  freedBytes: number;
+  worktreesRemoved: number;
+  worktreesKept: number;
+  sandboxTempRemoved: number;
+  branchesRemoved: number;
+  branchesKept: number;
 }
 
 export interface SandboxStatusDto {

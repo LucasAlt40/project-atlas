@@ -18,6 +18,8 @@ use crate::domain::worktree::{
     WorktreeChanges, WorktreeStatus, MAX_CHANGESET_FILES,
 };
 
+mod leftovers;
+
 /// A worktree ready for a runtime.
 #[derive(Debug, Clone)]
 pub struct Prepared {

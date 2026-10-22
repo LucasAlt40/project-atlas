@@ -1,0 +1,185 @@
+/* Settings › Storage: what Atlas uses on disk, and the cleanup of leftovers. */
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.group + .group {
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border-subtle);
+}
+.headRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.heading {
+  margin: 0;
+  color: var(--text-high);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+.muted {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: var(--line-height-reading);
+}
+.total {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+}
+.totalValue {
+  color: var(--text-high);
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.path {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* One bar, a segment per part; a 1px gap separates them. */
+.bar {
+  display: flex;
+  gap: 1px;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--surface-void);
+}
+.segment {
+  flex-basis: 0;
+  min-width: 2px;
+}
+.segment,
+.dot {
+  background: var(--text-muted);
+}
+/* Scoped to the bar and the legend: a bare attribute selector would leak to the whole app. */
+:is(.segment, .dot)[data-kind='worktrees'] {
+  background: var(--accent);
+}
+:is(.segment, .dot)[data-kind='sandbox_temp'] {
+  background: var(--warning);
+}
+:is(.segment, .dot)[data-kind='settings'] {
+  background: var(--accent-soft);
+}
+:is(.segment, .dot):is([data-kind='memory'], [data-kind='specs']) {
+  background: var(--success);
+}
+:is(.segment, .dot)[data-kind='workspace_context'] {
+  background: var(--border-strong);
+}
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.legendRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.dot {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+}
+.legendLabel {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-high);
+}
+.legendSize {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  list-style: none;
+}
+.option + .option {
+  border-top: 1px solid var(--border-subtle);
+}
+.optionLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+}
+.optionLabel input {
+  margin-top: 0.2rem;
+}
+.optionLabel:has(input:disabled) {
+  cursor: default;
+  opacity: 0.6;
+}
+.optionText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.optionTitle {
+  color: var(--text-high);
+  font-weight: 600;
+}
+.option[data-danger] .optionTitle {
+  color: var(--color-danger);
+}
+.optionAmount {
+  flex: none;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+@container (max-width: 36rem) {
+  .optionLabel {
+    flex-wrap: wrap;
+  }
+  .optionAmount {
+    width: 100%;
+    padding-left: calc(1rem + var(--space-3));
+  }
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.confirmList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding-left: var(--space-4);
+}

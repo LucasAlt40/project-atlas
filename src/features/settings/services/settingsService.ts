@@ -6,6 +6,9 @@ import {
   type PresenceSettingsDto,
   type SandboxSettingsDto,
   type SandboxStatusDto,
+  type CleanupChoiceDto,
+  type CleanupReportDto,
+  type StorageUsageDto,
 } from '@/lib/tauri/commands';
 
 /** Settings of the whole application (not of any workspace), stored by the core. */
@@ -50,4 +53,14 @@ export function setPresenceSettings(presence: PresenceSettingsDto): Promise<AppS
 /** Tells the core which screen is open; it picks a line of the Discord profile when idle. */
 export function setPresenceScreen(screen: PresenceScreenDto): Promise<null> {
   return invokeCommand('set_presence_screen', { screen });
+}
+
+/** How much disk Atlas uses, by part, and what can be cleaned. */
+export function getStorageUsage(): Promise<StorageUsageDto> {
+  return invokeCommand('get_storage_usage');
+}
+
+/** Cleans what the person chose; refused while an agent is running. */
+export function cleanStorage(choice: CleanupChoiceDto): Promise<CleanupReportDto> {
+  return invokeCommand('clean_storage', { choice });
 }

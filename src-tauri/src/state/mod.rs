@@ -71,6 +71,8 @@ pub struct AppState {
     pub spec_cli: Arc<crate::application::specs::cli_service::SpecCliService>,
     /// Discord Rich Presence (proof of concept): shows what Atlas is doing, if the person allows.
     pub presence: Arc<crate::application::presence::PresenceService>,
+    /// How much disk Atlas uses and the cleanup of what executions leave behind.
+    pub storage: Arc<crate::application::storage::StorageService>,
 }
 
 #[cfg(test)]
@@ -259,6 +261,19 @@ impl AppState {
         let (settings_for_presence, workspaces_for_presence, workflows_for_presence) =
             (settings.clone(), workspaces.clone(), workflows.clone());
         let specs_for_presence = specs.clone();
+        let sandbox = Arc::new(crate::application::security::MacosSandbox::new(
+            Arc::new(crate::domain::security::SandboxSettings::default),
+            std::env::temp_dir().join("atlas-test-sandbox"),
+            crate::application::runtimes::confinement::default_confinements(),
+        ));
+        let storage = Arc::new(crate::application::storage::StorageService::new(
+            std::env::temp_dir().join(format!("atlas-test-data-{}", std::process::id())),
+            worktrees.clone(),
+            workflows.clone(),
+            integration.clone(),
+            sessions.clone(),
+            sandbox.clone(),
+        ));
         Self {
             app_info,
             personalities,
@@ -284,11 +299,7 @@ impl AppState {
                     Err(crate::application::process::ProcessError::NotFound)
                 }),
             ))),
-            sandbox: Arc::new(crate::application::security::MacosSandbox::new(
-                Arc::new(crate::domain::security::SandboxSettings::default),
-                std::env::temp_dir().join("atlas-test-sandbox"),
-                crate::application::runtimes::confinement::default_confinements(),
-            )),
+            sandbox: sandbox.clone(),
             memory: Arc::new(crate::application::memory::MemoryService::new(
                 Arc::new(crate::application::memory::ports::MemoryMemoryStore::default()),
                 Arc::new(crate::application::memory::ports::FakeProbe::default()),
@@ -308,6 +319,7 @@ impl AppState {
                 }),
                 Arc::new(crate::application::presence::NullTransport),
             )),
+            storage,
         }
     }
 }
