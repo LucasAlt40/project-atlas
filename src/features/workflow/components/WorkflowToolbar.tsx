@@ -68,7 +68,7 @@ export function NodeTools({
       <div className={styles.toolGroup}>
         <div className={styles.popoverHost}>
           <Tool
-            icon="agents"
+            icon="plus"
             disabled={!editable}
             expanded={choosing}
             onClick={() => {
@@ -99,10 +99,10 @@ export function NodeTools({
             </ul>
           )}
         </div>
-        <Tool icon="branch" disabled={!editable} onClick={onAddCondition}>
+        <Tool icon="plus" disabled={!editable} onClick={onAddCondition}>
           {t('workflow.toolbar.addCondition')}
         </Tool>
-        <Tool icon="endNode" disabled={!editable} onClick={onAddEnd}>
+        <Tool icon="plus" disabled={!editable} onClick={onAddEnd}>
           {t('workflow.toolbar.addEnd')}
         </Tool>
         <Tool
@@ -121,7 +121,7 @@ export function NodeTools({
   );
 }
 
-interface CanvasToolsProps {
+interface HistoryToolsProps {
   editable: boolean;
   canUndo: boolean;
   canRedo: boolean;
@@ -130,39 +130,46 @@ interface CanvasToolsProps {
   onResetLayout: () => void;
 }
 
-/** History and the view of the canvas: the right end of the pipeline bar. */
-export function CanvasTools({
+/** Undo, redo and the automatic layout: the end of the floating toolbar. */
+export function HistoryTools({
   editable,
   canUndo,
   canRedo,
   onUndo,
   onRedo,
   onResetLayout,
-}: CanvasToolsProps) {
+}: HistoryToolsProps) {
+  const { t } = useI18n();
+  return (
+    <div className={styles.toolGroup} role="group" aria-label={t('workflow.toolbar.canvas')}>
+      <Tool
+        icon="undo"
+        label={t('workflow.toolbar.undo')}
+        disabled={!editable || !canUndo}
+        onClick={onUndo}
+      />
+      <Tool
+        icon="redo"
+        label={t('workflow.toolbar.redo')}
+        disabled={!editable || !canRedo}
+        onClick={onRedo}
+      />
+      <Tool icon="layout" disabled={!editable} onClick={onResetLayout}>
+        {t('workflow.toolbar.resetLayout')}
+      </Tool>
+    </div>
+  );
+}
+
+/** The view of the canvas: zoom and fit, at its lower right. */
+export function ZoomTools() {
   const { t } = useI18n();
   const flow = useReactFlow();
   const zoom = useStore((state) => state.transform[2]);
   return (
-    <div className={styles.canvasTools} role="toolbar" aria-label={t('workflow.toolbar.canvas')}>
-      <Tool icon="undo" disabled={!editable || !canUndo} onClick={onUndo}>
-        {t('workflow.toolbar.undo')}
-      </Tool>
-      <Tool icon="redo" disabled={!editable || !canRedo} onClick={onRedo}>
-        {t('workflow.toolbar.redo')}
-      </Tool>
-      <Tool icon="layout" disabled={!editable} onClick={onResetLayout}>
-        {t('workflow.toolbar.resetLayout')}
-      </Tool>
+    <div className={styles.zoomTools} role="toolbar" aria-label={t('workflow.toolbar.zoom')}>
       <Tool
-        icon="fit"
-        onClick={() => {
-          void flow.fitView({ padding: 0.2, maxZoom: 1.1 });
-        }}
-      >
-        {t('workflow.toolbar.fit')}
-      </Tool>
-      <Tool
-        icon="zoomOut"
+        icon="minus"
         label={t('workflow.toolbar.zoomOut')}
         onClick={() => {
           void flow.zoomOut();
@@ -172,12 +179,21 @@ export function CanvasTools({
         {String(Math.round(zoom * 100))}%
       </span>
       <Tool
-        icon="zoomIn"
+        icon="plus"
         label={t('workflow.toolbar.zoomIn')}
         onClick={() => {
           void flow.zoomIn();
         }}
       />
+      <span className={styles.zoomRule} aria-hidden="true" />
+      <Tool
+        icon="fit"
+        onClick={() => {
+          void flow.fitView({ padding: 0.2, maxZoom: 1.1 });
+        }}
+      >
+        {t('workflow.toolbar.fit')}
+      </Tool>
     </div>
   );
 }

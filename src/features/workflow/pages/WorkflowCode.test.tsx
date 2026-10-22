@@ -458,7 +458,7 @@ describe('the code of a workflow run', () => {
     show(withCode(finished(), 'changes_available'));
     await open(user);
 
-    await user.click(screen.getByRole('tab', { name: 'Changes' }));
+    await user.click(screen.getByRole('tab', { name: /^Changes/ }));
 
     const panel = screen.getByRole('tabpanel');
     expect(within(panel).getByText('src/auth/password-reset.ts')).toBeInTheDocument();
@@ -536,7 +536,7 @@ describe('handoffs between agents', () => {
     show(handedOver());
     await openRun(user);
 
-    await user.click(screen.getByRole('tab', { name: 'Handoffs (2)' }));
+    await user.click(screen.getByRole('tab', { name: /^Handoffs\s*2/ }));
 
     const first = screen.getByRole('article', { name: 'Handoff from Architect to Developer' });
     expect(within(first).getByText('Defined the reset flow.')).toBeInTheDocument();
@@ -577,7 +577,7 @@ describe('handoffs between agents', () => {
     const user = userEvent.setup();
     show(handedOver());
     await openRun(user);
-    await user.click(screen.getByRole('tab', { name: 'Handoffs (2)' }));
+    await user.click(screen.getByRole('tab', { name: /^Handoffs\s*2/ }));
 
     const second = screen.getByRole('article', { name: 'Handoff from Developer to QA' });
     await user.click(within(second).getByRole('button', { name: '#42' }));

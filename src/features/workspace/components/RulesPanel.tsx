@@ -22,7 +22,7 @@ export function RulesPanel({ rules }: { rules: ManifestRuleDto[] }) {
 
   return (
     <section className={styles.panel} aria-label={t('context.rules.title')}>
-      <h3>{t('context.rules.title').toUpperCase()}</h3>
+      <h3>{t('context.rules.title')}</h3>
       <p className={styles.line}>{t('context.rules.note')}</p>
       {rules.some((rule) => rule.strength === 'mandatory' && rule.status === 'applied') && (
         <p className={styles.line}>{t('context.rules.checked')}</p>

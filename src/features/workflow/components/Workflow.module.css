@@ -290,7 +290,6 @@
   color: var(--text-muted);
   font-size: var(--font-size-xs);
   font-weight: 600;
-  text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 .handoff ul {
@@ -548,20 +547,21 @@
  * them. `secondary` is the running/pass accent, `primary` the lavender of icons and links.
  */
 .pageFlush {
-  --st-lowest: #0b0e12;
-  --st-low: #191c20;
-  --st-container: #1d2024;
-  --st-high: #272a2e;
-  --st-highest: #323539;
-  --st-outline: #908fa0;
-  --st-outline-variant: #464554;
-  --st-on-variant: #c7c4d7;
-  --st-primary: #c0c1ff;
-  --st-secondary: #7bd0ff;
-  --st-secondary-container: #00a6e0;
-  --st-on-secondary-container: #00374d;
-  --st-error: #ffb4ab;
-  --st-error-container: #93000a;
+  /* The screen's own names, mapped onto the design system's tokens. */
+  --st-lowest: var(--surface-void);
+  --st-low: var(--surface-1);
+  --st-container: var(--surface-2);
+  --st-high: var(--surface-3);
+  --st-highest: var(--border-strong);
+  --st-outline: var(--text-muted);
+  --st-outline-variant: var(--border-focus);
+  --st-on-variant: var(--text-standard);
+  --st-primary: var(--accent-soft);
+  --st-secondary: var(--running);
+  --st-secondary-container: var(--running);
+  --st-on-secondary-container: var(--surface-void);
+  --st-error: var(--danger);
+  --st-error-container: rgb(239 68 68 / 0.2);
   /* The shell pads its content; this screen runs edge to edge. */
   height: calc(100% + 2 * var(--space-5));
   margin: calc(var(--space-5) * -1);
@@ -656,7 +656,6 @@
   font-size: var(--font-size-2xs);
   font-weight: 500;
   letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 .runBadge::before {
   content: '';
@@ -916,7 +915,6 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
   letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 .pipelineStatus strong {
   color: var(--st-secondary);
@@ -1051,7 +1049,6 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
   letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 .facts dd {
   margin: 0;
@@ -1489,7 +1486,6 @@
   font-size: var(--font-size-2xs);
   font-weight: 500;
   letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 .sectionTitle:first-child {
   margin-top: 0;
@@ -1826,7 +1822,6 @@
   font-size: var(--font-size-2xs);
   font-weight: 500;
   letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 .cardLabelMeta {
   padding: 0.125rem var(--space-2);
@@ -1903,7 +1898,6 @@
   color: #0d0096;
   font-weight: 600;
   letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 .nextStep {
   display: flex;
@@ -1975,7 +1969,6 @@
   font-size: var(--font-size-2xs);
   font-weight: 600;
   letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 .findingCard[data-tone='low'] .findingTag {
   background: var(--st-high);
@@ -2118,4 +2111,364 @@
 }
 .cardLabel {
   flex-wrap: wrap;
+}
+
+/* ── Refatoração geral (3.1–3.7): the bars, the floating tools, the canvas and its column. ── */
+.pageFlush {
+  display: flex;
+  flex-direction: column;
+}
+.bar {
+  flex: none;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  min-height: 3.5rem;
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-base);
+}
+.barLeft,
+.barRight {
+  gap: var(--space-2);
+  min-width: 0;
+}
+.barRight {
+  margin-left: auto;
+}
+.switcher {
+  height: var(--control-height);
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.switcherSelect {
+  max-width: 18rem;
+  height: 100%;
+  padding: 0 2rem 0 var(--space-3);
+  border: 0;
+  background-color: transparent;
+  font-size: var(--font-size-base);
+  font-weight: 500;
+}
+.runPicker {
+  max-width: 18rem;
+  height: var(--control-height);
+  font-size: var(--font-size-sm);
+}
+.runBar {
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-base);
+}
+.taskInput {
+  flex: 1 1 18rem;
+  min-width: 12rem;
+  height: var(--control-height);
+}
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: var(--space-3) var(--space-5) 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid rgb(239 68 68 / 0.35);
+  border-radius: var(--radius-sm);
+  background: rgb(239 68 68 / 0.06);
+}
+.confirmActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* The canvas is the main figure; its column is 320px (edit), 380px (a step), 45% (a run). */
+.workspace {
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) 20rem;
+  min-height: 0;
+}
+.workspace[hidden] {
+  display: none;
+}
+.workspace[data-drawer='true'] {
+  grid-template-columns: minmax(0, 1fr) 23.75rem;
+}
+.workspace[data-side='run'] {
+  grid-template-columns: minmax(0, 3fr) minmax(22rem, 2fr);
+}
+.workspace[data-side='action'] {
+  grid-template-columns: minmax(0, 55fr) minmax(24rem, 45fr);
+}
+.canvas {
+  min-height: 0;
+  background: var(--surface-void);
+}
+.side {
+  min-height: 0;
+  border-left: 1px solid var(--border-subtle);
+  background: var(--surface-base);
+}
+.canvasHud {
+  top: auto;
+  bottom: var(--space-3);
+  left: var(--space-4);
+  color: var(--text-dim);
+  font-size: var(--font-size-xs);
+}
+/* Floating over the canvas: the tools at the upper left, zoom at the lower right. */
+.floatTools {
+  position: absolute;
+  z-index: 6;
+  top: var(--space-3);
+  left: var(--space-3);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: calc(100% - 2 * var(--space-3));
+  padding: var(--space-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-overlay);
+}
+.floatTools .nodeTools {
+  padding: 0;
+  background: transparent;
+}
+.toolRule,
+.zoomRule {
+  width: 1px;
+  height: 1.125rem;
+  margin: 0 var(--space-1);
+  background: var(--border-subtle);
+}
+.toolButton {
+  height: var(--control-height-sm);
+  padding: 0 var(--space-2);
+  color: var(--text-standard);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  letter-spacing: 0;
+}
+.toolButton svg {
+  color: var(--accent-soft);
+}
+.zoomTools {
+  position: absolute;
+  z-index: 6;
+  right: calc(11rem + var(--space-3) * 2);
+  bottom: var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+.zoomValue {
+  min-width: 2.75rem;
+  color: var(--text-standard);
+  font-size: var(--font-size-xs);
+  text-align: center;
+}
+.canvas :global(.react-flow__minimap) {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  box-shadow: none;
+}
+.canvas :global(.react-flow__edge-textbg) {
+  fill: var(--surface-2);
+}
+.canvas :global(.react-flow__edge-text) {
+  fill: var(--text-standard);
+  font-size: var(--font-size-sm);
+}
+
+/* The column beside the canvas. */
+.dockHead {
+  padding: var(--space-4) var(--space-4) 0;
+  background: transparent;
+}
+.dockTabs {
+  padding: 0 var(--space-4);
+}
+.dockBody {
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+.inspectorTitle {
+  font-size: var(--font-size-lg);
+}
+.inspectorTitle svg {
+  display: none;
+}
+.statusCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.progressCount {
+  font-size: var(--font-size-sm);
+}
+.progressCount span:last-child {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+.progressBar {
+  height: 4px;
+  background: var(--surface-3);
+}
+.progressBar span {
+  background: var(--running);
+}
+.progressList li {
+  padding: var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-standard);
+}
+.progressList li[data-status='running'] {
+  border-color: rgb(96 165 250 / 0.35);
+  background: rgb(96 165 250 / 0.08);
+}
+.stepState {
+  gap: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+.stepDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  background: var(--idle);
+}
+.stepDot[data-status='running'] {
+  background: var(--running);
+}
+.stepDot[data-status='completed'] {
+  background: var(--success);
+}
+.stepDot[data-status='failed'],
+.stepDot[data-status='blocked'] {
+  background: var(--danger);
+}
+.stepDot[data-status='waiting_for_input'],
+.stepDot[data-status='waiting_approval'] {
+  background: var(--warning);
+}
+.counters {
+  margin: 0;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+.overviewGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.groupTitle {
+  margin: 0;
+  color: var(--text-high);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+.taskText {
+  margin: 0;
+  color: var(--text-standard);
+  overflow-wrap: anywhere;
+}
+.actionColumn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+.graphToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-4) var(--space-5);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+.graphToggle:hover {
+  color: var(--text-high);
+}
+.autoPlans {
+  color: var(--text-standard);
+  font-size: var(--font-size-sm);
+}
+@media (max-width: 1023px) {
+  .workspace,
+  .workspace[data-drawer='true'],
+  .workspace[data-side='run'],
+  .workspace[data-side='action'] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(22rem, 1fr) auto;
+  }
+  .side {
+    border-top: 1px solid var(--border-subtle);
+    border-left: 0;
+  }
+}
+/* "Aprovar planos automaticamente": the design system's switch. */
+.switch {
+  width: 2rem;
+  height: 1.125rem;
+  background: var(--surface-3);
+}
+.switch::after {
+  top: 3px;
+  left: 3px;
+  width: 0.75rem;
+  height: 0.75rem;
+  background: var(--text-muted);
+  box-shadow: none;
+}
+.switch:checked {
+  background: var(--accent);
+}
+.switch:checked::after {
+  transform: translateX(0.875rem);
+  background: #fff;
+}
+.switch:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+.facts dt {
+  letter-spacing: 0;
+  font-family: var(--font-sans);
+}
+/* A finished run: the review first, then its graph below, at a fixed height; the page scrolls. */
+.pageFlush[data-mode='review'] {
+  overflow-y: auto;
+}
+.pageFlush[data-mode='review'] .workspace {
+  flex: none;
+  height: 34rem;
+  margin: 0 var(--space-5) var(--space-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.graphTitle {
+  margin: var(--space-5) var(--space-5) var(--space-3);
+  font-size: var(--font-size-lg);
+  font-weight: 500;
 }

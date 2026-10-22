@@ -19,7 +19,7 @@ export function MemoryPanel({
 
   return (
     <section className={styles.panel} aria-label={t('context.memory.title')}>
-      <h3>{t('context.memory.title').toUpperCase()}</h3>
+      <h3>{t('context.memory.title')}</h3>
       <p className={styles.line}>{t('context.memory.note')}</p>
       <ul className={styles.sources}>
         {memories.map((memory) => (

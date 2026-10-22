@@ -56,7 +56,7 @@ export function ContextPlatformPanel({ execution }: { execution: StoredExecution
     <div aria-label={t('inspector.tab.context')}>
       {budget && (
         <section className={styles.panel} aria-label={t('context.budget.title')}>
-          <h3>{t('context.budget.title').toUpperCase()}</h3>
+          <h3>{t('context.budget.title')}</h3>
           <dl className={styles.detail}>
             <dt>{t('inspector.runtime')}</dt>
             <dd>{budget.runtimeId}</dd>
@@ -72,7 +72,7 @@ export function ContextPlatformPanel({ execution }: { execution: StoredExecution
       )}
       {plan && (
         <section className={styles.panel} aria-label={t('context.plan.title')}>
-          <h3>{t('context.plan.title').toUpperCase()}</h3>
+          <h3>{t('context.plan.title')}</h3>
           <ul className={styles.sources}>
             {plan.sections.map((part) => (
               <li key={part.section}>
@@ -92,7 +92,7 @@ export function ContextPlatformPanel({ execution }: { execution: StoredExecution
       )}
       {manifest && (
         <section className={styles.panel} aria-label={t('context.manifest.title')}>
-          <h3>{t('context.manifest.title').toUpperCase()}</h3>
+          <h3>{t('context.manifest.title')}</h3>
           <dl className={styles.detail}>
             <dt>{t('context.manifest.delivered')}</dt>
             <dd>
@@ -133,7 +133,7 @@ export function ContextPlatformPanel({ execution }: { execution: StoredExecution
       {manifest?.mcp && manifest.mcp.servers.length > 0 && <McpPanel record={manifest.mcp} />}
       {surface && (
         <section className={styles.panel} aria-label={t('context.surface.title')}>
-          <h3>{t('context.surface.title').toUpperCase()}</h3>
+          <h3>{t('context.surface.title')}</h3>
           <p className={styles.line}>{t('context.surface.note')}</p>
           {CONTROLS.map((control) => {
             const entries = surface.entries.filter((entry) => entry.control === control);
@@ -171,7 +171,7 @@ export function ContextPlatformPanel({ execution }: { execution: StoredExecution
       )}
       {manifest && manifest.warnings.length > 0 && (
         <section className={styles.panel} aria-label={t('context.warnings.title')}>
-          <h3>{t('context.warnings.title').toUpperCase()}</h3>
+          <h3>{t('context.warnings.title')}</h3>
           <ul className={styles.issues}>
             {manifest.warnings.map((warning) => (
               <li key={warning}>{t(`context.warning.${warning}` as TranslationKey)}</li>

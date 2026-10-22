@@ -4,18 +4,13 @@ import { useNow } from '@/features/agents/hooks/useNow';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { TranslationKey } from '@/i18n';
 import { shortId } from '@/features/workspace/model/inspection';
-import {
-  failureText,
-  NODE_STATUS_VIEW,
-  RUN_STATUS_LABEL,
-  nodeLabel,
-  runProgress,
-} from '../model/status';
+import { failureText, NODE_STATUS_VIEW, nodeLabel, runProgress } from '../model/status';
 import { isFinished } from '../model/review';
 import { clock } from '../model/time';
 import { isActiveRun } from '../types';
 import { isRoutingIssue, issueMessage } from '../model/validation';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { Tabs } from '@/components/ui/Tabs';
 import type { Ide, RecoveryPlan, ValidationReport, Workflow, WorkflowRun } from '../types';
 import { DeliveryPanel, type CodeActions } from './DeliveryPanel';
 import { FileLine, HandoffList } from './HandoffView';
@@ -38,6 +33,8 @@ interface RunProps {
   onResume: () => void;
   /** Where the MCP connections of the workspace are read and managed. */
   tools?: ToolsProps;
+  /** The files and code being written right now (the Live tab), while the run is not over. */
+  live?: ReactNode;
 }
 
 interface ToolsProps {
@@ -45,8 +42,7 @@ interface ToolsProps {
   onOpenHub: () => void;
 }
 
-type Tab = 'overview' | 'handoffs' | 'changes';
-const TABS: readonly Tab[] = ['overview', 'handoffs', 'changes'];
+type Tab = 'overview' | 'handoffs' | 'changes' | 'live';
 
 /** What is going on in a run right now, and what has come out of it so far. */
 export function RunOverview({
@@ -59,6 +55,7 @@ export function RunOverview({
   recovery,
   onResume,
   tools,
+  live,
 }: RunProps) {
   const { t } = useI18n();
   const [tab, setTab] = useState<Tab>('overview');
@@ -76,35 +73,28 @@ export function RunOverview({
   const current = run.state.currentNodes.map((id) => nodeLabel(run, id));
   const agents = run.state.activeAgents.map(agentName);
 
-  const tabs = (
-    <div className={styles.tabs} role="tablist" aria-label={t('workflow.tabs')}>
-      {TABS.map((name) => (
-        <button
-          key={name}
-          type="button"
-          role="tab"
-          className={styles.tab}
-          aria-selected={tab === name}
-          onClick={() => {
-            setTab(name);
-          }}
-        >
-          {t(`workflow.tab.${name}` as TranslationKey)}
-          {name === 'handoffs' && run.handoffs.length > 0
-            ? ` (${String(run.handoffs.length)})`
-            : ''}
-        </button>
-      ))}
-    </div>
-  );
-
+  const fileCount = run.changes?.files.length ?? 0;
   const head = (
-    <div className={styles.dockHead}>
-      <h3 className={styles.inspectorTitle}>
-        <Icon name="workflow" size={16} />
-        {t('workflow.overview')}
-      </h3>
-      {tabs}
+    <div className={styles.dockTabs}>
+      <Tabs
+        label={t('workflow.tabs')}
+        active={tab}
+        onChange={setTab}
+        items={[
+          { id: 'overview' as const, label: t('workflow.tab.overview') },
+          {
+            id: 'handoffs' as const,
+            label: t('workflow.tab.handoffs'),
+            ...(run.handoffs.length > 0 ? { count: run.handoffs.length } : {}),
+          },
+          {
+            id: 'changes' as const,
+            label: t('workflow.tab.changes'),
+            ...(fileCount > 0 ? { count: fileCount } : {}),
+          },
+          ...(live ? [{ id: 'live' as const, label: t('workflow.tab.live') }] : []),
+        ]}
+      />
     </div>
   );
 
@@ -151,6 +141,16 @@ export function RunOverview({
           />
         </div>
         {footer}
+      </section>
+    );
+  }
+  if (tab === 'live' && live) {
+    return (
+      <section className={styles.overview} aria-label={t('workflow.overview')}>
+        {head}
+        <div role="tabpanel" className={styles.dockBody}>
+          {live}
+        </div>
       </section>
     );
   }
@@ -206,12 +206,10 @@ export function RunOverview({
           </p>
         )}
         <section className={styles.statusCard} aria-label={t('workflow.overview.status')}>
-          <p className={styles.pipelineStatus} data-status={run.status}>
-            <span>{t('workflow.overview.status')}</span>
-            <strong>{t(RUN_STATUS_LABEL[run.status])}</strong>
-          </p>
           <p className={styles.progressCount}>
-            {t('workflow.progress', { done: progress.completed, total: progress.total })}
+            <span>
+              {t('workflow.progress', { done: progress.completed, total: progress.total })}
+            </span>
             <span>
               {String(
                 progress.total === 0 ? 0 : Math.round((progress.completed / progress.total) * 100),
@@ -219,7 +217,16 @@ export function RunOverview({
               %
             </span>
           </p>
-          <div className={styles.progressBar} aria-hidden="true">
+          <div
+            className={styles.progressBar}
+            role="progressbar"
+            aria-label={t('workflow.overview.status')}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={
+              progress.total === 0 ? 0 : Math.round((progress.completed / progress.total) * 100)
+            }
+          >
             <span
               style={{
                 width: `${String(progress.total === 0 ? 0 : Math.round((progress.completed / progress.total) * 100))}%`,
@@ -247,17 +254,14 @@ export function RunOverview({
               return (
                 <li key={node.id} data-status={status}>
                   <span className={styles.stepName}>
-                    <span className={styles.stepDot} data-status={status} aria-hidden="true">
-                      {''}
-                    </span>
+                    <span className={styles.stepDot} data-status={status} aria-hidden="true" />
                     <span title={node.label}>
                       <span className={styles.srOnly}>{view.symbol} </span>
                       {node.label}
                     </span>
                   </span>
                   <span className={styles.stepState}>
-                    {elapsed !== null && <span className={styles.stepTime}>{clock(elapsed)}</span>}
-                    <span className={status === 'running' ? styles.stepTag : undefined}>
+                    <span>
                       {t(view.label)}
                       {outcome &&
                         ` · ${t('workflow.node.outcome', { outcome: outcome.toUpperCase() })}`}
@@ -265,11 +269,24 @@ export function RunOverview({
                         ` · ${t('workflow.node.loop', { n: loop.iteration, max: loop.max })}`}
                       {reused && ` · ${t('workflow.node.reused')}`}
                     </span>
+                    {elapsed !== null && <span className={styles.stepTime}>{clock(elapsed)}</span>}
                   </span>
                 </li>
               );
             })}
           </ul>
+          <p className={styles.counters}>
+            {t('workflow.overview.counters', {
+              running: progress.running + progress.waiting,
+              pending: progress.pending,
+              failed: progress.failed,
+              blocked: progress.blocked,
+            })}
+          </p>
+        </section>
+        <section className={styles.overviewGroup} aria-label={t('workflow.overview.taskTitle')}>
+          <h4 className={styles.groupTitle}>{t('workflow.overview.taskTitle')}</h4>
+          <p className={styles.taskText}>{run.task}</p>
         </section>
         <VerdictList run={run} />
         {run.status === 'failed' && recovery && (
@@ -289,22 +306,6 @@ export function RunOverview({
             <dt>{t('workflow.overview.agents')}</dt>
             <dd>{agents.join(', ') || '—'}</dd>
           </div>
-          <div>
-            <dt>{t('workflow.overview.running')}</dt>
-            <dd data-tone="running">{progress.running + progress.waiting}</dd>
-          </div>
-          <div>
-            <dt>{t('workflow.overview.pending')}</dt>
-            <dd data-tone="number">{progress.pending}</dd>
-          </div>
-          <div>
-            <dt>{t('workflow.overview.failed')}</dt>
-            <dd data-tone="number">{progress.failed}</dd>
-          </div>
-          <div>
-            <dt>{t('workflow.overview.blocked')}</dt>
-            <dd data-tone="number">{progress.blocked}</dd>
-          </div>
         </dl>
         <PlansPanel run={run} />
         {tools && (
@@ -316,7 +317,6 @@ export function RunOverview({
         )}
         <SharedStatePanel run={run} onOpenExecution={onOpenExecution} />
         <p className={styles.codeBlock}>
-          {t('workflow.overview.task', { task: run.task })} ·{' '}
           {t('workflow.version', { version: run.workflowVersion })}
           {run.state.artifacts[0] && ` · ${shortId(run.state.artifacts[0].executionId)}`}
         </p>

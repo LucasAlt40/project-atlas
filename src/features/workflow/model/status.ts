@@ -1,5 +1,6 @@
 import type { Translate, TranslationKey } from '@/i18n';
 import type { NodeStatusDto, WorkflowFailureDto } from '@/lib/tauri/commands';
+import type { StateKind } from '@/components/ui/status';
 import type { WorkflowRun, WorkflowRunStatus } from '../types';
 
 /**
@@ -26,6 +27,31 @@ export const RUN_STATUS_LABEL: Record<WorkflowRunStatus, TranslationKey> = {
   failed: 'workflow.run.failed',
   cancelled: 'workflow.run.cancelled',
   interrupted: 'workflow.run.interrupted',
+};
+
+/** Where a run's state falls in the app's one vocabulary of states (its badge's color). */
+export const RUN_STATE: Record<WorkflowRunStatus, StateKind> = {
+  running: 'running',
+  paused: 'paused',
+  waiting_for_input: 'waiting',
+  completed: 'completed',
+  failed: 'failed',
+  cancelled: 'cancelled',
+  interrupted: 'interrupted',
+};
+
+/** Where a step's state falls in the same vocabulary. */
+export const NODE_STATE: Record<NodeStatusDto, StateKind> = {
+  pending: 'pending',
+  ready: 'pending',
+  running: 'running',
+  waiting_approval: 'waiting',
+  waiting_for_input: 'waiting',
+  completed: 'completed',
+  failed: 'failed',
+  blocked: 'blocked',
+  cancelled: 'cancelled',
+  skipped: 'pending',
 };
 
 export const FAILURE_LABEL: Record<WorkflowFailureDto['code'], TranslationKey> = {

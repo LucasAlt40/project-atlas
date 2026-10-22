@@ -16,7 +16,6 @@
   font-size: var(--font-size-2xs);
   font-weight: 500;
   letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 .status,
 .line {
@@ -46,7 +45,6 @@
 .severity {
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
-  text-transform: uppercase;
 }
 .severity[data-severity='error'],
 .severity[data-severity='blocking'] {

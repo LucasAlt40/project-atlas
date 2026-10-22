@@ -137,7 +137,6 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
   letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 .approvalFacts dd {
   margin: 0;

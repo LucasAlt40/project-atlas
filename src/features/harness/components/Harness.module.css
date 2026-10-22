@@ -16,7 +16,6 @@
   font-size: var(--font-size-2xs);
   font-weight: 500;
   letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 .muted {
   margin: 0;

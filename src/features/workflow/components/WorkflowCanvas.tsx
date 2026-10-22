@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import {
   Background,
   BackgroundVariant,
@@ -37,6 +37,8 @@ interface Props {
   onConnect: (source: string, target: string) => void;
   onDeleteNode: (id: string) => void;
   onDeleteEdge: (id: string) => void;
+  /** What floats over the canvas (its toolbars). */
+  overlay?: ReactNode;
 }
 
 /**
@@ -56,6 +58,7 @@ export function WorkflowCanvas({
   onConnect,
   onDeleteNode,
   onDeleteEdge,
+  overlay,
 }: Props) {
   const { t } = useI18n();
   const flow = useMemo(
@@ -106,9 +109,12 @@ export function WorkflowCanvas({
 
   return (
     <div className={styles.canvas} role="group" aria-label={t('workflow.canvas')}>
+      {overlay}
       <div className={styles.canvasHud} aria-hidden="true">
-        <span>{t('workflow.canvas.nodes', { n: workflow.nodes.length })}</span>
-        <span>{t('workflow.canvas.edges', { n: workflow.edges.length })}</span>
+        {t('workflow.canvas.count', {
+          nodes: workflow.nodes.length,
+          edges: workflow.edges.length,
+        })}
       </div>
       <ReactFlow
         key={`${workflow.id}:${run?.id ?? 'editor'}`}
@@ -148,14 +154,14 @@ export function WorkflowCanvas({
         maxZoom={2}
         colorMode="dark"
       >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#272a2e" />
+        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#242c37" />
         <MiniMap
           pannable
           zoomable
           ariaLabel={t('workflow.minimap')}
-          nodeColor={(node) => (node.data.status === 'running' ? '#7bd0ff' : '#323539')}
+          nodeColor={(node) => (node.data.status === 'running' ? '#60a5fa' : '#2d3748')}
           nodeStrokeWidth={0}
-          maskColor="rgb(25 28 32 / 0.7)"
+          maskColor="rgb(16 19 23 / 0.7)"
         />
       </ReactFlow>
     </div>

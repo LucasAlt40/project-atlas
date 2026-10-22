@@ -97,7 +97,6 @@
 .subheading {
   margin: var(--space-2) 0 0;
   font-size: var(--font-size-xs);
-  text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-muted);
 }

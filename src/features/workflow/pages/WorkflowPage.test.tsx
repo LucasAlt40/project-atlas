@@ -135,6 +135,12 @@ const clickNode = async (name: string) => {
 };
 const side = () => screen.getByRole('complementary', { name: 'Workflow details' });
 
+/** Rare actions live in the bar's "⋯": opens it and returns the item. */
+async function menuItem(user: ReturnType<typeof userEvent.setup>, menu: string, item: string) {
+  await user.click(screen.getByRole('button', { name: menu }));
+  return screen.getByRole('menuitem', { name: item });
+}
+
 describe('Workflow page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -453,9 +459,9 @@ describe('Workflow page', () => {
       await canvas();
 
       expect(screen.getByText('Automatic · version 1', { selector: 'span' })).toBeInTheDocument();
-      await user.click(screen.getByRole('button', { name: 'Customize workflow' }));
+      await user.click(screen.getByRole('button', { name: 'Customize' }));
       expect(screen.getByText('Custom · version 1', { selector: 'span' })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Customize workflow' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Customize' })).not.toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: 'Save' }));
       const saved = vi.mocked(updateWorkflow).mock.calls[0]?.[0];
@@ -490,7 +496,7 @@ describe('Workflow page', () => {
       expect(screen.getByText('Automatic · version 1')).toBeInTheDocument();
       expect(screen.getByLabelText('Zoom level')).toHaveTextContent('100%');
       expect(screen.getByRole('toolbar', { name: 'Workflow editor' })).toBeInTheDocument();
-      expect(screen.getByRole('toolbar', { name: 'Canvas view' })).toBeInTheDocument();
+      expect(screen.getByRole('toolbar', { name: 'Zoom' })).toBeInTheDocument();
     });
 
     it('proposes a recommended workflow for the task in Automatic mode and creates it', async () => {
@@ -566,7 +572,7 @@ describe('Workflow page', () => {
         name: 'House rules',
       });
 
-      await user.click(screen.getByRole('button', { name: 'Save as template' }));
+      await user.click(await menuItem(user, 'More workflow actions', 'Save as template'));
       const form = screen.getByRole('form', { name: 'Save as template' });
       await user.clear(within(form).getByLabelText('Template name'));
       await user.type(within(form).getByLabelText('Template name'), 'House rules');
@@ -684,7 +690,7 @@ describe('Workflow page', () => {
       await canvas();
 
       const overview = await screen.findByRole('region', { name: 'Workflow overview' });
-      expect(within(overview).getByText('1 / 4 nodes completed')).toBeInTheDocument();
+      expect(within(overview).getByText('1 / 4 steps completed')).toBeInTheDocument();
       expect(within(overview).getByText('Current').nextSibling).toHaveTextContent('Developer');
       expect(within(overview).getByText('Active agents').nextSibling).toHaveTextContent(
         'Developer agent',
@@ -719,7 +725,8 @@ describe('Workflow page', () => {
 
       await clickNode('Developer');
 
-      expect(screen.getByRole('button', { name: 'Add agent' })).toBeDisabled();
+      // The editing tools are not offered at all while a run holds the workflow.
+      expect(screen.queryByRole('button', { name: 'Add agent' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
       expect(within(side()).getByLabelText('Instructions for this step')).toBeDisabled();
       expect(within(side()).getByLabelText('Agent')).toBeDisabled();
@@ -732,7 +739,7 @@ describe('Workflow page', () => {
 
       await user.click(await screen.findByRole('button', { name: 'Pause' }));
       expect(pauseWorkflow).toHaveBeenCalledWith('wfx-1');
-      await user.click(screen.getByRole('button', { name: 'Cancel workflow' }));
+      await user.click(await menuItem(user, 'More run actions', 'Cancel run'));
       expect(cancelWorkflow).toHaveBeenCalledWith('wfx-1');
     });
 
@@ -975,13 +982,15 @@ describe('Workflow page', () => {
         await screen.findByText(/interrupted by the application shutdown/),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole('status', { name: 'Workflow status: Interrupted (recoverable)' }),
+        screen.getByRole('status', { name: 'Workflow status: Interrupted — can resume' }),
       ).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Run' })).not.toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: 'Resume' }));
       expect(resumeWorkflow).toHaveBeenCalledWith('wfx-1');
-      expect(screen.getByRole('button', { name: 'Restart' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Cancel workflow' })).toBeInTheDocument();
+      // Restarting and cancelling are rare: they are in the run's "⋯".
+      await user.click(screen.getByRole('button', { name: 'More run actions' }));
+      expect(screen.getByRole('menuitem', { name: 'Restart' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Cancel run' })).toBeInTheDocument();
       // An interrupted step is never shown as completed.
       expect((await node('Developer')).dataset.status).toBe('failed');
     });
@@ -1056,7 +1065,7 @@ describe('Workflow page', () => {
       show();
       await canvas();
 
-      await user.click(screen.getByRole('button', { name: 'Delete workflow' }));
+      await user.click(await menuItem(user, 'More workflow actions', 'Delete workflow'));
       expect(deleteWorkflow).not.toHaveBeenCalled();
       await user.click(screen.getByRole('button', { name: 'Confirm delete' }));
       expect(deleteWorkflow).toHaveBeenCalledWith('wf-1');
@@ -1095,7 +1104,7 @@ describe('Workflow page', () => {
 
       expect(await screen.findByRole('button', { name: 'Novo workflow' })).toBeInTheDocument();
       expect(screen.getByText('Automático · versão 1', { selector: 'span' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Personalizar workflow' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Personalizar' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Executar' })).toBeInTheDocument();
       // The workflow's name and its nodes are the user's: never translated.
       expect(screen.getByRole('option', { name: 'Password recovery' })).toBeInTheDocument();

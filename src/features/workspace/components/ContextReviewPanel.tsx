@@ -37,7 +37,7 @@ export function ContextReviewPanel({
 
   return (
     <section className={styles.panel} aria-label={t('contextReview.title')}>
-      <h3>{t('contextReview.title').toUpperCase()}</h3>
+      <h3>{t('contextReview.title')}</h3>
       <p className={styles.status} data-health={review.health}>
         <span aria-hidden="true">{MARK[review.health]}</span>{' '}
         <strong>{t(`contextReview.status.${review.health}` as TranslationKey)}</strong>

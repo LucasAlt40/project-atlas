@@ -104,7 +104,6 @@
   font-size: var(--font-size-2xs);
   font-weight: 500;
   letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 .list {
   display: flex;
@@ -146,7 +145,6 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
   letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 .chip[data-tone='warning'] {
   border-color: var(--warning);

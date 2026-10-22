@@ -65,6 +65,11 @@ beforeEach(() => {
   navigate.mockReset();
 });
 
+/** How a run starts is a compact control of the run bar: opens it. */
+async function openStart(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole('button', { name: /^How do you want to start\?/ }));
+}
+
 describe('starting a workflow: vibe coding or a spec', () => {
   it('runs as vibe coding by default: a spec is only used when chosen', async () => {
     show({ ready: [summary({ status: 'ready_for_implementation' })] });
@@ -74,6 +79,7 @@ describe('starting a workflow: vibe coding or a spec', () => {
 
     await screen.findByText(/The workflow is valid and can run/, {}, { timeout: 5000 });
     await user.type(await screen.findByLabelText('Task'), 'Implement password recovery');
+    await openStart(user);
     expect(screen.getByRole('radio', { name: /Vibe coding/ })).toBeChecked();
     await user.click(screen.getByRole('button', { name: 'Run' }));
 
@@ -88,6 +94,7 @@ describe('starting a workflow: vibe coding or a spec', () => {
     const user = userEvent.setup();
     renderWithProviders(<WorkflowPage />);
 
+    await openStart(user);
     expect(await screen.findByText('How do you want to start?')).toBeInTheDocument();
     expect(
       await screen.findByText(/A new spec is ready to build: “Dark mode”/),
@@ -119,6 +126,7 @@ describe('starting a workflow: vibe coding or a spec', () => {
 
     expect(await screen.findByText(/The workflow is valid and can run/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Run' })).toBeDisabled();
+    await openStart(user);
     await user.click(await screen.findByRole('radio', { name: /From an approved spec/ }));
     expect(screen.getByLabelText('Spec')).toHaveValue('s1');
     expect(screen.getByRole('button', { name: 'Run' })).toBeEnabled();
@@ -136,6 +144,7 @@ describe('starting a workflow: vibe coding or a spec', () => {
     const user = userEvent.setup();
     renderWithProviders(<WorkflowPage />);
 
+    await openStart(user);
     expect(await screen.findByText('No spec is ready yet.')).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: /From an approved spec/ })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'Write a new spec' }));
