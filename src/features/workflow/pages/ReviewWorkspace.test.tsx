@@ -172,7 +172,7 @@ const open = async (user: ReturnType<typeof userEvent.setup>) => {
 };
 
 const section = (review: HTMLElement, name: RegExp) =>
-  within(review).getByRole('button', { name }).closest('section') as HTMLElement;
+  within(review).getByRole('button', { name }).closest('section')!;
 
 /** The secondary sections start folded: opens one (if it is not open yet) and returns it. */
 async function opened(user: ReturnType<typeof userEvent.setup>, review: HTMLElement, name: RegExp) {
