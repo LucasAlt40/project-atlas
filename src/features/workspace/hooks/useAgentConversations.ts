@@ -7,13 +7,16 @@ import type {
   SessionStatusEventDto,
   TerminalChunkDto,
 } from '@/lib/tauri/commands';
+import { fromPending } from '../model/approvals';
 import { conversationsReducer, initialConversations, runKey } from '../model/agentRuns';
 import { TerminalHub } from '../model/terminalHub';
 import {
   listExecutions,
+  listPendingApprovals,
   listExecutionWorktrees,
   listMessages,
   mergeExecution,
+  resolveApproval,
   sendMessage,
   subscribeToExecutionEvents,
   subscribeToMessages,
@@ -58,6 +61,21 @@ export function useAgentConversations() {
       })
       .catch(() => {
         // Start with empty conversations if they cannot be read.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Requests that were already open when the app started: the core still has them paused.
+  useEffect(() => {
+    let cancelled = false;
+    Promise.resolve(listPendingApprovals())
+      .then((pending) => {
+        if (!cancelled) dispatch({ type: 'approvalsLoaded', approvals: pending.map(fromPending) });
+      })
+      .catch(() => {
+        // Live events still bring new requests.
       });
     return () => {
       cancelled = true;
@@ -133,6 +151,12 @@ export function useAgentConversations() {
     [],
   );
 
+  /** The user's explicit answer to a command waiting for approval; only this releases it. */
+  const resolve = useCallback(async (id: string, approve: boolean) => {
+    await resolveApproval(id, approve);
+    dispatch({ type: 'approvalGone', id });
+  }, []);
+
   /** The user's explicit merge. Resolves with the worktree as it is afterwards. */
   const merge = useCallback(async (ref: ExecutionRefDto) => {
     const updated = await mergeExecution(ref);
@@ -140,5 +164,5 @@ export function useAgentConversations() {
     return updated;
   }, []);
 
-  return { state, send, usageVersion, hub, history, worktrees, merge };
+  return { state, send, usageVersion, hub, history, worktrees, merge, resolve };
 }

@@ -11,6 +11,7 @@ import { useT } from '@/i18n/I18nProvider';
 import { AddAgentPanel } from '../components/AddAgentPanel';
 import { AgentCard } from '../components/AgentCard';
 import { AgentDetailsPanel } from '../components/AgentDetailsPanel';
+import { ApprovalRequests } from '../components/ApprovalRequests';
 import { EditAgentPanel } from '../components/EditAgentPanel';
 import { OnboardingPanel } from '../components/OnboardingPanel';
 import { WorkspaceProjectsPanel } from '../components/WorkspaceProjectsPanel';
@@ -258,6 +259,16 @@ export function WorkspacePage() {
             </Button>
           </>
         }
+      />
+
+      <ApprovalRequests
+        requests={conversations.approvals.filter((request) => request.workspaceId === active.id)}
+        agentName={(id) => agents.find((a) => a.id === id)?.name ?? id}
+        onResolve={(id, approve) => {
+          workspace.resolveApproval(id, approve).catch((error: unknown) => {
+            setNotice(errorMessage(t, error));
+          });
+        }}
       />
 
       {notice && (

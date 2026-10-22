@@ -219,6 +219,7 @@ function useWorkspaceState() {
     history: conversations.history,
     worktrees: conversations.worktrees,
     mergeExecution: conversations.merge,
+    resolveApproval: conversations.resolve,
     focus,
     focusAgent,
     clearFocus,

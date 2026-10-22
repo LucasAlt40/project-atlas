@@ -48,6 +48,7 @@ import {
   updateWorkspaceProject,
   listExecutions,
   listExecutionWorktrees,
+  listPendingApprovals,
   listMessages,
   listWorkspaces,
   previewTaskContext,
@@ -72,6 +73,7 @@ import type {
   AgentUsageSummaryDto,
   SecurityPolicyDto,
   ExecutionWorktreeDto,
+  PendingApprovalDto,
   HarnessProgressDto,
   HarnessSummaryDto,
   InitializeOutcomeDto,
@@ -288,6 +290,7 @@ export interface Backend {
   workspaceUsage?: WorkspaceUsageSummaryDto;
   /** The Git worktrees of executions that ran isolated. */
   worktrees?: ExecutionWorktreeDto[];
+  pendingApprovals?: PendingApprovalDto[];
   /** What `getExecutionTerminal` answers (by default: no terminal). */
   terminal?: TerminalSnapshotDto | null;
   /** The project's Harness state (by default: not initialized). */
@@ -602,6 +605,7 @@ export function mockBackend(backend: Backend = {}): void {
   vi.mocked(listMessages).mockResolvedValue(backend.messages ?? []);
   vi.mocked(listExecutions).mockResolvedValue(backend.executions ?? []);
   vi.mocked(listExecutionWorktrees).mockResolvedValue(backend.worktrees ?? []);
+  vi.mocked(listPendingApprovals).mockResolvedValue(backend.pendingApprovals ?? []);
   vi.mocked(getProjectContext).mockImplementation((workspaceId) => {
     const found = (backend.workspaces ?? []).find((w) => w.id === workspaceId);
     return Promise.resolve({

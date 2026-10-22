@@ -17,6 +17,7 @@ import {
 import {
   addAgentToWorkspace,
   listMessages,
+  resolveApproval,
   removeAgentFromWorkspace,
   sendMessage,
 } from '../services/workspaceService';
@@ -111,6 +112,40 @@ describe('WorkspacePage', () => {
     expect(addAgentToWorkspace).toHaveBeenCalledWith(W1, 'a2');
     expect(await screen.findByRole('article', { name: 'Developer' })).toBeInTheDocument();
     expect(screen.getAllByText('Free space')).toHaveLength(2);
+  });
+
+  it('shows a command waiting for approval and releases it only with the buttons', async () => {
+    const user = userEvent.setup();
+    show(['a1'], [architect], {
+      pendingApprovals: [
+        {
+          id: 'ap1',
+          executionId: 'e1',
+          workspaceId: W1,
+          taskId: 't1',
+          agentId: 'a1',
+          agentName: 'Architect',
+          action: 'run_process',
+          executable: 'make',
+          args: ['all'],
+          cwd: '/dev/atlas',
+          reason: 'not_allowed',
+          requestedAt: 1,
+        },
+      ],
+    });
+    vi.mocked(resolveApproval).mockResolvedValue(undefined);
+
+    const request = await screen.findByRole('article', { name: 'Approval request' });
+    expect(within(request).getByText('make all')).toBeInTheDocument();
+    expect(resolveApproval).not.toHaveBeenCalled();
+
+    await user.click(within(request).getByRole('button', { name: 'Allow once' }));
+
+    expect(resolveApproval).toHaveBeenCalledWith('ap1', true);
+    await waitFor(() => {
+      expect(screen.queryByRole('article', { name: 'Approval request' })).not.toBeInTheDocument();
+    });
   });
 
   it('sends "Create new agent" to the agent creation flow', async () => {

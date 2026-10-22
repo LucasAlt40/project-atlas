@@ -42,7 +42,7 @@ Callout, Tabs) sem redesenho próprio.
 
 ## 2. O Stitch mostra, o app não tem
 
-- **Aprovar / Rejeitar** no painel "Ação necessária" (1.3): o componente `ApprovalRequests` existe, mas nunca é montado. Segui o código e não o liguei. **Decisão pendente.**
+- ~~Aprovar / Rejeitar no painel "Ação necessária" (1.3)~~: ligado depois, a pedido. O `ApprovalRequests` agora aparece na página do workspace, carrega os pedidos abertos ao iniciar e só libera o comando pelos botões "Permitir uma vez" / "Negar" (comandos Tauri já existentes).
 - **Campo "Projeto"** na nova especificação (5.4): o app grava a spec no projeto principal do workspace.
 - **"Abrir"** em cada linha verde da revisão final (5.3).
 - **"Servidor HTTP local ativo"**, **"Rede local"** e **"visto há 2 min"** no acesso pelo celular (7.4): o app não informa esses dados.
@@ -63,7 +63,7 @@ Callout, Tabs) sem redesenho próprio.
 
 ## 4. Divergências intencionais
 
-1. **Código ganha do prompt** quando divergem: `ApprovalRequests` (acima); "Adicionar" no Hub abre em "Conhecidos do Atlas" (aba que o prompt pede ativa) — os testes passaram a escolher "Registro MCP" explicitamente.
+1. **Código ganha do prompt** quando divergem: "Adicionar" no Hub abre em "Conhecidos do Atlas" (aba que o prompt pede ativa) — os testes passaram a escolher "Registro MCP" explicitamente.
 2. **Seção Memória e Importar/exportar** mostram um painel por vez (índice), não rolagem contínua.
 3. **Texto de "não disponível"** do cartão de Jira no Hub repete a frase do Figma (texto do app; não alterei o conteúdo, só a forma). Vale corrigir à parte.
 4. **Terminologia**: Agente, Etapa, Passagem (handoff), Achado; restos em inglês do `pt-BR.ts` corrigidos.
@@ -98,4 +98,4 @@ Resultado de `npm run check` no fim do trabalho: **verde** — `tsc`, `eslint`, 
 - **Estouro horizontal**: o verificador automático (720, 1024, 1280, 1440, 1920, 2560) não achou estouro nem texto cortado nas 23 telas capturadas. Telas só alcançáveis com dados reais (sincronização de CLIs, harness com projeto real) não foram exercitadas em todas as larguras.
 - **6.3 Sincronizar CLIs** e **3.7 revisão** não foram comparadas contra o Stitch com dados.
 - **Acessibilidade**: seguiu os papéis e rótulos dos testes; não houve auditoria com leitor de tela.
-- **Decisões para você**: (1) ligar Aprovar/Rejeitar no painel "Ação necessária"; (2) campo "Projeto" na nova spec; (3) corrigir o texto "não disponível" do Jira no Hub; (4) "Abrir" por verificação na revisão final.
+- **Decisões para você**: (1) campo "Projeto" na nova spec; (2) corrigir o texto "não disponível" do Jira no Hub; (3) "Abrir" por verificação na revisão final.
