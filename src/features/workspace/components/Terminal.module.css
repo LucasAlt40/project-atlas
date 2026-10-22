@@ -172,13 +172,6 @@
 .tab:focus-visible {
   outline-offset: -2px;
 }
-.tabPanel {
-  display: flex;
-  overflow: hidden;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-}
 .runBar {
   display: flex;
   flex-wrap: wrap;

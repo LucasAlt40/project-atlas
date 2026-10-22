@@ -122,9 +122,6 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
 }
-.sectionBody {
-  padding: 0 var(--space-4) var(--space-4);
-}
 .subtitle {
   margin: var(--space-3) 0 var(--space-2);
   color: var(--text-muted);

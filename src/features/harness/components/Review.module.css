@@ -73,45 +73,6 @@
   align-items: center;
   gap: var(--space-3);
 }
-.ghostButton,
-.primaryButton {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 0.375rem var(--space-4);
-  border: 0;
-  border-radius: var(--radius-sm);
-  font: inherit;
-  font-size: var(--font-size-xs);
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    background 0.15s,
-    transform 0.1s;
-}
-.ghostButton {
-  background: var(--surface-3);
-  color: var(--text-standard);
-}
-.ghostButton:hover {
-  background: var(--border-strong);
-}
-.primaryButton {
-  background: var(--accent-soft);
-  color: #0d0a4a;
-  font-weight: 600;
-}
-.primaryButton:hover:not(:disabled) {
-  background: #a5a8ff;
-}
-.primaryButton:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
-.primaryButton:active:not(:disabled),
-.ghostButton:active {
-  transform: scale(0.97);
-}
 
 /* Metrics ----------------------------------------------------------------- */
 .metrics {
@@ -127,27 +88,6 @@
   padding: var(--space-3);
   border-radius: var(--radius-sm);
   background: var(--surface-1);
-}
-.metricMain {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-width: 0;
-}
-.metricIcon {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: var(--radius-sm);
-  background: var(--surface-3);
-}
-.metricText {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
 }
 .metricLabel {
   overflow: hidden;
@@ -165,28 +105,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.metricTag {
-  flex: none;
-  padding: 1px var(--space-2);
-  border-radius: var(--radius-sm);
-  background: var(--surface-void);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
-}
-.toneNeutral {
-  color: var(--text-dim);
-}
 .toneInfo {
   color: var(--info);
-}
-.tonePolicy {
-  color: var(--policy);
-}
-.toneDanger {
-  color: var(--danger);
-}
-.toneAccent {
-  color: var(--accent-soft);
 }
 
 /* Tabs -------------------------------------------------------------------- */
@@ -228,22 +148,6 @@
   background: var(--accent);
   color: #fff;
   font-weight: 600;
-}
-.tabBadge {
-  padding: 0 var(--space-2);
-  border-radius: 999px;
-  background: rgb(56 189 248 / 0.15);
-  color: var(--info);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
-}
-.tabBadge[data-tone='warn'] {
-  background: rgb(236 72 153 / 0.15);
-  color: var(--policy);
-}
-.tab[aria-selected='true'] .tabBadge {
-  background: var(--accent-soft);
-  color: #0d0a4a;
 }
 
 /* Layout ------------------------------------------------------------------ */
@@ -298,14 +202,6 @@
   font-size: var(--font-size-md);
   font-weight: 600;
 }
-.cardCount {
-  padding: 1px var(--space-2);
-  border-radius: var(--radius-sm);
-  background: var(--surface-3);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
-}
 .note {
   margin: 0;
   padding: var(--space-3);
@@ -337,13 +233,6 @@
   color: var(--text-dim);
   text-decoration: line-through;
 }
-.findingTop {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
 .kind {
   display: inline-flex;
   align-items: center;
@@ -367,13 +256,6 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
 }
-.findingMain {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
 .check {
   display: inline-flex;
   align-items: center;
@@ -394,12 +276,6 @@
   color: var(--text-high);
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
-}
-.findingBottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
 }
 .source {
   overflow: hidden;
@@ -645,29 +521,8 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
 }
-.chipAccent {
-  background: rgb(99 102 241 / 0.2);
-  color: var(--accent-soft);
-  font-size: var(--font-size-2xs);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-}
 .chipInfo {
   background: var(--surface-3);
-  color: var(--info);
-}
-.lockNote {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
-  margin: 0;
-  color: var(--text-muted);
-  font-size: var(--font-size-xs);
-  line-height: 1.4;
-}
-.lockNote > svg {
-  flex: none;
-  margin-top: 1px;
   color: var(--info);
 }
 .aiCard {
@@ -677,30 +532,6 @@
   padding: var(--space-4);
   border-radius: var(--radius-md);
   background: var(--surface-1);
-}
-.aiHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-.aiTitle {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin: 0;
-  color: var(--accent-soft);
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-.pill {
-  padding: 1px var(--space-3);
-  border-radius: 999px;
-  background: rgb(129 140 248 / 0.12);
-  color: var(--accent-soft);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
 }
 .body {
   margin: 0;
@@ -880,30 +711,6 @@
   margin-right: var(--space-2);
   color: var(--info);
   font-weight: 600;
-}
-.footerActions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-}
-.textButton {
-  padding: 0.375rem var(--space-4);
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-muted);
-  font: inherit;
-  font-size: var(--font-size-xs);
-  font-weight: 500;
-  cursor: pointer;
-}
-.textButton:hover {
-  background: var(--surface-3);
-  color: var(--text-high);
-}
-.analyzeFooter {
-  font-family: var(--font-sans);
 }
 
 /* Live analysis screen ---------------------------------------------------- */
@@ -1227,16 +1034,6 @@
   cursor: not-allowed;
 }
 
-.analyzeHead {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding-right: var(--space-5);
-}
-.analyzeFooter {
-  justify-content: space-between;
-}
-
 /* One checkbox look everywhere in the review: the Stitch square, indigo when on. */
 :where(.workbench, .aiCard, .footer) input[type='checkbox'] {
   appearance: none;
@@ -1288,32 +1085,6 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   box-shadow: none;
-}
-
-/* Analyze: the AI analysis beside the manual path, stacked when the page is narrow. */
-.analyzeGrid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-4);
-}
-@container (min-width: 56rem) {
-  .analyzeGrid {
-    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-    align-items: start;
-  }
-}
-.manualList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin: 0;
-  padding: var(--space-3);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: var(--surface-void);
-  list-style: none;
-  font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
 }
 
 /* ── The Harness page (2.2–2.4): header, steps, blocks; later rules win over the older ones. ── */

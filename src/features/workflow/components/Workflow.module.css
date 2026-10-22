@@ -12,13 +12,6 @@
   justify-content: space-between;
   gap: var(--space-3);
 }
-.headerLeft,
-.headerRight {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-}
 .title {
   margin: 0;
   font-size: var(--font-size-xl);
@@ -26,15 +19,6 @@
 .muted {
   margin: 0;
   color: var(--text-muted);
-}
-
-/* Canvas + side panel */
-
-/* Toolbar */
-.toolbarGroup {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
 }
 .popoverHost {
   position: relative;
@@ -309,10 +293,6 @@
 .handoffStatus[data-status='pass'],
 .handoffStatus[data-status='success'] {
   color: var(--success);
-}
-.handoffText {
-  margin: 0;
-  white-space: pre-wrap;
 }
 .fold {
   border: 1px solid var(--border-subtle);
@@ -620,79 +600,6 @@
 .switcherSelect:focus-visible {
   outline: 1px solid var(--border-focus);
 }
-.newButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  height: 1.625rem;
-  padding: 0 var(--space-2);
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: #6366f1;
-  color: #fff;
-  font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-}
-.newButton:hover {
-  opacity: 0.9;
-}
-.modeBadge,
-.runBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.125rem var(--space-2);
-  border-radius: var(--radius-sm);
-  background: var(--st-high);
-  color: var(--st-on-variant);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
-  line-height: 1rem;
-}
-.runBadge {
-  font-size: var(--font-size-2xs);
-  font-weight: 500;
-  letter-spacing: 0.08em;
-}
-.runBadge::before {
-  content: '';
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: var(--st-outline);
-}
-.runBadge[data-status='running'] {
-  color: var(--st-secondary);
-}
-.runBadge[data-status='running']::before {
-  background: var(--st-secondary);
-  animation: pulse 1.6s ease-in-out infinite;
-}
-.runBadge[data-status='completed'] {
-  color: var(--success);
-}
-.runBadge[data-status='completed']::before {
-  background: var(--success);
-}
-.runBadge[data-status='failed'],
-.runBadge[data-status='interrupted'] {
-  color: var(--st-error);
-}
-.runBadge[data-status='failed']::before,
-.runBadge[data-status='interrupted']::before {
-  background: var(--st-error);
-}
-.runBadge[data-status='paused'],
-.runBadge[data-status='waiting_for_input'] {
-  color: var(--warning);
-}
-.runBadge[data-status='paused']::before,
-.runBadge[data-status='waiting_for_input']::before {
-  background: var(--warning);
-}
 
 /* Segmented groups of tools */
 .nodeTools,
@@ -903,33 +810,6 @@
   color: var(--text-high);
   font-weight: 500;
 }
-.pipelineStatus {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 0;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-md);
-  background: var(--st-high);
-  color: var(--st-on-variant);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
-  letter-spacing: 0.08em;
-}
-.pipelineStatus strong {
-  color: var(--st-secondary);
-  font-family: var(--font-sans);
-  font-size: var(--font-size-xs);
-  letter-spacing: 0.01em;
-  text-transform: none;
-}
-.pipelineStatus[data-status='failed'] strong,
-.pipelineStatus[data-status='interrupted'] strong {
-  color: var(--st-error);
-}
-.pipelineStatus[data-status='completed'] strong {
-  color: var(--success);
-}
 .progressCount {
   display: flex;
   align-items: baseline;
@@ -1022,12 +902,6 @@
 }
 .stepTime {
   color: var(--st-secondary);
-}
-.stepTag {
-  padding: 0 0.25rem;
-  border-radius: var(--radius-sm);
-  background: var(--st-secondary-container);
-  color: var(--st-on-secondary-container);
 }
 .facts {
   display: grid;
@@ -1392,17 +1266,6 @@
   align-items: center;
   gap: var(--space-2);
 }
-.drawerIcon {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: var(--radius-md);
-  background: #8083ff;
-  color: #0d0096;
-}
 .drawerTitles {
   flex: 1;
   min-width: 0;
@@ -1444,12 +1307,6 @@
   gap: 0.375rem;
   color: var(--st-secondary);
 }
-.warnText {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  color: var(--warning);
-}
 .iconButton {
   display: inline-flex;
   flex: none;
@@ -1466,15 +1323,6 @@
 .iconButton:hover {
   background: var(--st-container);
   color: var(--text-high);
-}
-.drawerBody {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: var(--space-3);
-  min-height: 0;
-  padding: var(--space-3) var(--space-4) var(--space-5);
-  overflow-y: auto;
 }
 .sectionTitle {
   display: flex;
@@ -1494,40 +1342,6 @@
   letter-spacing: 0;
   text-transform: none;
   font-size: var(--font-size-2xs);
-}
-.drawerBody .control,
-.drawerBody .textarea {
-  border: 0;
-  border-radius: var(--radius-md);
-  background: var(--st-lowest);
-  color: var(--text-high);
-}
-.drawerBody .control {
-  height: 2.25rem;
-}
-.drawerBody .textarea {
-  min-height: 5.5rem;
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  line-height: 1.25rem;
-}
-.drawerBody .control:focus-visible,
-.drawerBody .textarea:focus-visible {
-  background: var(--st-high);
-}
-.drawerBody .fieldLabel {
-  font-weight: 500;
-}
-.drawerBody .facts {
-  padding: var(--space-2);
-  border-radius: var(--radius-lg);
-  background: var(--st-lowest);
-}
-.drawerBody .facts > div {
-  background: var(--st-low);
-}
-.drawerBody .facts .wide {
-  grid-column: 1 / -1;
 }
 .outcomeChip {
   display: inline-flex;
@@ -1806,10 +1620,6 @@
   padding: var(--space-3);
   border-radius: var(--radius-lg);
   background: var(--st-lowest);
-}
-.statusCard .pipelineStatus {
-  padding: 0;
-  background: transparent;
 }
 .cardLabel {
   display: flex;
@@ -2392,22 +2202,6 @@
   flex-direction: column;
   gap: var(--space-4);
   padding: var(--space-4);
-}
-.graphToggle {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin: var(--space-4) var(--space-5);
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--text-muted);
-  font: inherit;
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-}
-.graphToggle:hover {
-  color: var(--text-high);
 }
 .autoPlans {
   color: var(--text-standard);

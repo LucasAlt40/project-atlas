@@ -33,9 +33,6 @@
 .ok {
   color: var(--success, #22c55e);
 }
-.maybe {
-  color: var(--text-muted);
-}
 .tag {
   padding: 0 var(--space-2);
   border: 1px solid var(--border-subtle);
@@ -129,29 +126,6 @@
 }
 .status[hidden] {
   display: none;
-}
-.statusLabel {
-  color: var(--text-muted);
-}
-.statusValue[data-status='initialized'] {
-  color: var(--success, #22c55e);
-}
-.statusValue[data-status='not_initialized'],
-.statusValue[data-status='needs_review'] {
-  color: var(--warning, #eab308);
-}
-
-.findingRow {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-.rowTools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-2);
 }
 .linkButton {
   padding: 0;
@@ -250,19 +224,6 @@
   background: rgb(0 0 0 / 0.72);
   backdrop-filter: blur(3px);
 }
-.blockerCard {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  width: min(36rem, 100%);
-  max-height: 100%;
-  padding: var(--space-5);
-  overflow-y: auto;
-  border: 1px solid var(--border-focus);
-  border-radius: var(--radius-md);
-  background: var(--surface-2);
-  box-shadow: var(--shadow-overlay);
-}
 .phase {
   display: flex;
   align-items: center;
@@ -271,13 +232,6 @@
   color: var(--running);
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
-}
-.pulse {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: currentcolor;
-  animation: harness-pulse 1.2s ease-in-out infinite;
 }
 @keyframes harness-pulse {
   50% {

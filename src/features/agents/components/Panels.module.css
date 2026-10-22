@@ -41,11 +41,6 @@
   font-size: var(--font-size-xs);
   white-space: pre-wrap;
 }
-.historyItem {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
 .muted {
   margin: 0;
   color: var(--text-muted);
@@ -161,78 +156,12 @@
   gap: var(--space-2);
   font-size: var(--font-size-xs);
 }
-
-/* Agent cards */
-.agentGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 26rem), 1fr));
-  gap: var(--space-5);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.agentCard {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  min-width: 0;
-  padding: var(--space-4);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--surface-1);
-}
-.agentCard:hover {
-  border-color: var(--border-strong);
-}
-.agentCardHead {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-}
-.agentIcon {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: var(--radius-md);
-  background: var(--surface-3);
-  color: var(--accent-soft);
-}
-.agentCardTitle {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.agentNameRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-3);
-}
-.agentCardName {
-  color: var(--text-high);
-  font-size: var(--font-size-lg);
-  letter-spacing: -0.02em;
-}
 .chip {
   padding: 1px var(--space-2);
   border-radius: var(--radius-sm);
   background: var(--surface-3);
   color: var(--info);
   font-size: var(--font-size-2xs);
-}
-.agentRuntime {
-  color: var(--text-dim);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-}
-.agentRuntime b {
-  color: var(--text-high);
-  font-weight: 500;
 }
 .emptyState {
   display: flex;
@@ -245,38 +174,6 @@
 }
 .emptyState p {
   margin: 0;
-}
-.agentFacts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
-  gap: var(--space-2) var(--space-4);
-  margin: 0;
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border-subtle);
-}
-.agentFacts div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  min-width: 0;
-}
-.agentFacts dt {
-  color: var(--text-dim);
-}
-.agentFacts dd {
-  margin: 0;
-  color: var(--text-high);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  overflow-wrap: anywhere;
-}
-.agentCardFoot {
-  display: flex;
-  justify-content: flex-end;
-}
-.iconActions {
-  display: inline-flex;
-  gap: var(--space-1);
 }
 .iconButton {
   display: inline-flex;
@@ -293,9 +190,6 @@
 .iconButton:hover {
   background: var(--surface-2);
   color: var(--text-high);
-}
-.iconDanger:hover {
-  color: var(--danger);
 }
 
 /* The agents table (4.1): one row per agent, the actions at the end. */

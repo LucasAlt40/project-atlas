@@ -75,24 +75,6 @@
 .link:hover {
   text-decoration: underline;
 }
-.ghost {
-  padding: 2px var(--space-3);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-standard);
-  font: inherit;
-  font-size: var(--font-size-xs);
-  cursor: pointer;
-}
-.ghost:hover:not(:disabled) {
-  border-color: var(--border-strong);
-  background: var(--surface-2);
-}
-.ghost:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
 .danger {
   display: inline-flex;
   align-items: center;
@@ -475,45 +457,11 @@
   padding-top: var(--space-3);
   border-top: 1px solid var(--border-subtle);
 }
-
-.pill {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 2px var(--space-3);
-  border: 1px solid var(--border-subtle);
-  border-radius: 999px;
-  background: var(--surface-void);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
-  white-space: nowrap;
-}
 .dot {
   width: 0.4rem;
   height: 0.4rem;
   border-radius: 50%;
   background: var(--idle);
-}
-.pill[data-status='connected'] {
-  color: var(--success);
-}
-.pill[data-status='connected'] .dot {
-  background: var(--success);
-}
-.pill[data-status='failed'] {
-  color: var(--danger);
-}
-.pill[data-status='failed'] .dot {
-  background: var(--danger);
-}
-.pill[data-status='needs_auth'],
-.pill[data-status='pending'] {
-  color: var(--warning);
-}
-.pill[data-status='needs_auth'] .dot,
-.pill[data-status='pending'] .dot {
-  background: var(--warning);
 }
 
 /* A switch is a checkbox with a role; its box is the visible part. */

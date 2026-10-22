@@ -353,9 +353,6 @@
   font-size: var(--font-size-xs);
   line-height: 1.5;
 }
-.contextName {
-  color: var(--text-high);
-}
 .context .muted {
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
@@ -382,12 +379,6 @@
   color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
-}
-.headerRight {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
 }
 /* The workspace's spending, one mono line under its name; opening it shows the month too. */
 .usageChip {
@@ -440,20 +431,6 @@
 }
 .pathChip svg {
   flex: none;
-}
-.divider {
-  align-self: stretch;
-  width: 1px;
-  margin-block: var(--space-1);
-  background: var(--border-strong);
-}
-
-/* The stats line and the stale notice take a row of their own under the project strip. */
-.contextFoot {
-  display: flex;
-  flex: 1 0 100%;
-  flex-direction: column;
-  gap: var(--space-3);
 }
 
 /* The folders of a workspace being created. */
@@ -520,14 +497,6 @@
   border-radius: var(--radius-md);
   background: var(--surface-2);
   color: var(--accent-soft);
-}
-
-.headerLeft {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3) var(--space-4);
-  min-width: 0;
 }
 
 /* Read by assistive technology, not drawn. */

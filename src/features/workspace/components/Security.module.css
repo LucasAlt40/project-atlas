@@ -92,22 +92,6 @@
   color: var(--text-muted);
   font-size: var(--font-size-xs);
 }
-.profileRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-bottom: var(--space-2);
-}
-.profileSelect {
-  height: 1.75rem;
-  padding: 0 var(--space-2);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: var(--surface-void);
-  color: var(--text-high);
-  font: inherit;
-}
 
 /* Permission requests: the policy (rose) accent. */
 .approvals {
