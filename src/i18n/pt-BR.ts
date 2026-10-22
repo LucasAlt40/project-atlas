@@ -3135,7 +3135,7 @@ export const ptBR: Record<TranslationKey, string> = {
   'specs.start.explain':
     'Nada rodou ainda. Ao iniciar, {agent} escreve a proposta; você lê e decide antes de qualquer outra coisa ser escrita.',
   'specs.start.action': 'Iniciar especificação',
-  'specs.agents.action': 'Agentes',
+  'specs.agents.action': 'Agentes e ferramentas',
   'specs.integrations.title': 'Ferramentas para testar e revisar',
   'specs.integrations.intro':
     'Integrações conectadas a este workspace. As que você escolher são citadas aos agentes que escrevem a spec, para as verificações poderem usá-las, e aos que a implementam.',
@@ -3296,7 +3296,7 @@ export const ptBR: Record<TranslationKey, string> = {
   'specs.question.answer': 'Sua resposta',
   'specs.question.send': 'Enviar resposta e continuar',
   'specs.inspector.title': 'Validações e revisão',
-  'specs.inspector.checks': 'Validações automáticas',
+  'specs.inspector.checks': 'Validações',
   'specs.inspector.errors': '{count} erro(s)',
   'specs.inspector.passed': 'Aprovado',
   'specs.inspector.nothing': 'Nada escrito ainda.',

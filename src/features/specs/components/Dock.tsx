@@ -27,7 +27,7 @@ const VARIANT = {
   approve: 'primary',
   generate: 'primary',
   revise: 'secondary',
-  redo: 'secondary',
+  redo: 'ghost',
   keep: 'secondary',
   cancel: 'secondary',
 } as const;

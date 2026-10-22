@@ -80,7 +80,8 @@ export function Inspector({ view, artifact, busy, onRevalidate, onFindings }: Pr
           );
         })}
         {latest && (
-          <Button variant="ghost" disabled={busy} onClick={onRevalidate}>
+          <Button variant="secondary" disabled={busy} onClick={onRevalidate}>
+            <Icon name="refresh" size={14} />
             {t('specs.inspector.rerun')}
           </Button>
         )}

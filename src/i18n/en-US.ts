@@ -3095,7 +3095,7 @@ export const enUS = {
   'specs.start.explain':
     'Nothing has run yet. When you start, {agent} writes the proposal; you read it and decide before anything else is written.',
   'specs.start.action': 'Start specification',
-  'specs.agents.action': 'Agents',
+  'specs.agents.action': 'Agents and tools',
   'specs.integrations.title': 'Tools to test and review with',
   'specs.integrations.intro':
     'Integrations connected to this workspace. The ones you choose are named to the agents that write the spec, so verifications can use them, and to the agents that implement it.',
@@ -3256,7 +3256,7 @@ export const enUS = {
   'specs.question.answer': 'Your answer',
   'specs.question.send': 'Send answer and go on',
   'specs.inspector.title': 'Checks and review',
-  'specs.inspector.checks': 'Automatic checks',
+  'specs.inspector.checks': 'Checks',
   'specs.inspector.errors': '{count} error(s)',
   'specs.inspector.passed': 'Passed',
   'specs.inspector.nothing': 'Nothing written yet.',

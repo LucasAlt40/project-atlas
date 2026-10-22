@@ -22,11 +22,12 @@ export function PanelSection({
   return (
     <CollapsibleSection
       title={title}
+      variant="flat"
       defaultOpen={defaultOpen}
       {...(tag
         ? {
             aside: (
-              <Badge dot mono tone={tone}>
+              <Badge dot tone={tone}>
                 {tag}
               </Badge>
             ),

@@ -16,6 +16,8 @@ interface Props {
   actions?: ReactNode;
   /** `page` (24px) for a screen; `section` (20px) for a page inside a flow. */
   size?: 'page' | 'section';
+  /** `h2` when the screen already has its own `h1` (a detail inside a list screen). */
+  level?: 'h1' | 'h2';
 }
 
 /**
@@ -30,7 +32,9 @@ export function PageHeader({
   description,
   actions,
   size = 'page',
+  level = 'h1',
 }: Props) {
+  const Heading = level;
   return (
     <header className={styles.header} data-size={size}>
       <div className={styles.lead}>
@@ -41,7 +45,7 @@ export function PageHeader({
           </button>
         )}
         <div className={styles.titleRow}>
-          <h1 className={styles.title}>{title}</h1>
+          <Heading className={styles.title}>{title}</Heading>
           {titleAside}
         </div>
         {description !== undefined && <p className={styles.description}>{description}</p>}

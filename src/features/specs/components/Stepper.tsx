@@ -37,12 +37,18 @@ export function Stepper({ view, selected, onSelect }: Props) {
                   onSelect(stage);
                 }}
               >
-                <span className={styles.stepMark} aria-hidden="true">
-                  {done ? <Icon name="check" size={13} /> : index + 1}
-                </span>
                 <span className={styles.stepText}>
-                  <span className={styles.stepName}>{stageName(t, stage)}</span>
+                  <span className={styles.stepName}>
+                    {index + 1}. {stageName(t, stage)}
+                  </span>
                   <span className={styles.stepState}>{label}</span>
+                </span>
+                <span className={styles.stepMark} aria-hidden="true">
+                  {done ? (
+                    <Icon name="check" size={13} />
+                  ) : phase === 'blocked' ? (
+                    <Icon name="lock" size={13} />
+                  ) : null}
                 </span>
               </button>
             </li>
