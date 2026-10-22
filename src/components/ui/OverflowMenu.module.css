@@ -7,12 +7,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--control-height-sm);
-  height: var(--control-height-sm);
-  border: 1px solid transparent;
+  width: var(--control-height);
+  height: var(--control-height);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-standard);
+  background: var(--surface-2);
+  color: var(--text-high);
   cursor: pointer;
 }
 .trigger[data-text] {
@@ -101,4 +101,8 @@
   left: calc(var(--space-1) * -1);
   height: 1px;
   background: var(--border-subtle);
+}
+/* The three dots are bold enough to see at a glance. */
+.trigger svg {
+  stroke-width: 3.4;
 }

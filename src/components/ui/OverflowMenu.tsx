@@ -45,7 +45,7 @@ export function OverflowMenu({ label, text, items, align = 'end' }: Props) {
           setOpen((current) => !current);
         }}
       >
-        <Icon name="more" size={16} />
+        <Icon name="more" size={20} />
         {text}
       </button>
       {open && (
