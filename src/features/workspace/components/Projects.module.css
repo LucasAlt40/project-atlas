@@ -1,48 +1,17 @@
-/* Projects of a workspace and the scope of an execution. Same tokens as the rest of the app. */
-/* The Projects and Harness page. Columns follow the width of the page, not of the window. */
+/* The Projects and Harness page (2.1): one card per project, then Harness, context and notes. */
 .page {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  max-width: 77.5rem;
   min-width: 0;
+  margin: 0 auto;
   container-type: inline-size;
 }
-.pageHead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3) var(--space-5);
-  padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--border-subtle);
-}
-.pageTitleBlock {
-  display: flex;
-  flex: 1 1 24rem;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-2);
-  max-width: 48rem;
-}
-.title {
-  margin: 0;
-  font-size: var(--font-size-xl);
-}
-.intro,
 .muted {
   margin: 0;
   color: var(--text-muted);
-  font-size: var(--font-size-xs);
-}
-.sectionHead {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-.sectionTitle {
-  margin: 0;
-  font-size: var(--font-size-lg);
-  color: var(--text-high);
+  font-size: var(--font-size-sm);
 }
 .toolbar {
   display: flex;
@@ -53,80 +22,44 @@
 .list {
   display: flex;
   flex-direction: column;
+  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--surface-1);
 }
 .row {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   min-width: 0;
-  padding: var(--space-4);
-}
-.row + .row {
-  border-top: 1px solid var(--border-subtle);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
 }
 .rowMain {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: var(--space-3) var(--space-5);
-}
-@container (min-width: 60rem) {
-  .rowMain {
-    grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) minmax(0, 5fr);
-  }
 }
 .identity {
   display: flex;
+  flex: 1 1 24rem;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-2);
   min-width: 0;
 }
-.stats {
-  min-width: 0;
-}
-.side {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-3);
-  min-width: 0;
-}
-@container (min-width: 60rem) {
-  .side {
-    align-items: flex-end;
-  }
-}
-.sideMeta {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 0;
-  color: var(--text-dim);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
-}
-@container (min-width: 60rem) {
-  .sideMeta {
-    text-align: right;
-  }
-}
-.sideMeta b {
-  color: var(--text-high);
-  font-weight: 500;
-}
 .rowHead {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2) var(--space-3);
+  gap: var(--space-2);
 }
 .name {
+  margin-right: var(--space-1);
   color: var(--text-high);
   font-size: var(--font-size-lg);
   font-weight: 600;
@@ -134,13 +67,36 @@
   overflow-wrap: anywhere;
 }
 .path {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
-  color: var(--text-dim);
-  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.line {
+  margin: 0;
+  color: var(--text-standard);
+  font-size: var(--font-size-sm);
+}
+.statsLine {
+  color: var(--text-standard);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+.statsLine span {
+  color: inherit;
+  font-size: inherit;
+}
+.meta {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
 }
 .rowActions {
   display: flex;
+  flex: none;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
@@ -148,54 +104,77 @@
 .problem {
   margin: 0;
   color: var(--danger);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
+}
+/* A destructive action asks in place: what it does, then Cancel and the red confirm. */
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid rgb(239 68 68 / 0.35);
+  border-radius: var(--radius-sm);
+  background: rgb(239 68 68 / 0.06);
 }
 .cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  display: flex;
+  flex-direction: column;
   gap: var(--space-4);
+  margin-top: var(--space-2);
 }
 .card {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   min-width: 0;
-  padding: var(--space-4);
+  padding: var(--space-5);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   background: var(--surface-1);
 }
-.cardHead {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-.cardTile {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  color: var(--accent-soft);
-}
 .cardTitle {
   margin: 0;
   font-size: var(--font-size-lg);
+  font-weight: 500;
+}
+.cardRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-5);
+}
+.cardText {
+  display: flex;
+  flex: 1 1 20rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-width: 0;
 }
 .cardActions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2) var(--space-3);
-  margin-top: auto;
+  gap: var(--space-2);
+}
+.cardFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
 }
 .textarea {
   width: 100%;
-  min-height: 6rem;
+  min-height: 6.5rem;
+  padding: var(--space-3);
+  background: var(--surface-base);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
   resize: vertical;
 }
 

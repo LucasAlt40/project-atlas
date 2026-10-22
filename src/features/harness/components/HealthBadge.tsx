@@ -12,7 +12,14 @@ const TONE: Record<HarnessHealthDto['state'], BadgeTone> = {
 };
 
 /** How far the Harness can be trusted, and why. */
-export function HealthBadge({ health }: { health: HarnessHealthDto }) {
+export function HealthBadge({
+  health,
+  plain = false,
+}: {
+  health: HarnessHealthDto;
+  /** Words only, in the tone's color (inside a line of text). */
+  plain?: boolean;
+}) {
   const t = useT();
   const reasons = health.reasons
     .map((reason) => t(`harness.health.reason.${reason}` as TranslationKey))
@@ -21,9 +28,21 @@ export function HealthBadge({ health }: { health: HarnessHealthDto }) {
     <span
       aria-label={`${t('harness.health.label')}: ${t(`harness.health.${health.state}`)}${reasons ? `. ${reasons}` : ''}`}
     >
-      <Badge dot tone={TONE[health.state]} {...(reasons ? { title: reasons } : {})}>
-        {t(`harness.health.${health.state}`)}
-      </Badge>
+      {plain ? (
+        <span
+          data-tone={TONE[health.state]}
+          style={{
+            color: health.state === 'healthy' ? 'inherit' : `var(--${TONE[health.state]})`,
+          }}
+          {...(reasons ? { title: reasons } : {})}
+        >
+          {t(`harness.health.${health.state}`)}
+        </span>
+      ) : (
+        <Badge dot tone={TONE[health.state]} {...(reasons ? { title: reasons } : {})}>
+          {t(`harness.health.${health.state}`)}
+        </Badge>
+      )}
     </span>
   );
 }

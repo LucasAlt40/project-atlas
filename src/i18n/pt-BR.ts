@@ -192,6 +192,11 @@ export const ptBR: Record<TranslationKey, string> = {
   'projects.init.none': 'Todos os projetos têm Harness.',
   'projects.init.note':
     'Lê cada projeto como a análise de um projeto único e grava o .atlas/ dele. Projetos que já têm Harness não são analisados de novo.',
+  'projects.context.badge.current': 'Atualizado',
+  'projects.context.badge.outdated': 'Desatualizado',
+  'projects.backShort': 'Workspace',
+  'projects.crumb': 'Projetos',
+  'projects.analyzedAt': 'Analisado em {date}',
   'projects.context.title': 'Contexto do workspace',
   'projects.context.none':
     'Ainda não foi montado. Ele relaciona os projetos e é passado aos agentes junto com o Harness dos projetos do escopo deles.',

@@ -195,6 +195,11 @@ export const enUS = {
   'projects.init.none': 'Every project has a Harness.',
   'projects.init.note':
     'Reads each project as the single-project analysis does and writes its .atlas/. Projects that already have a Harness are not analysed again.',
+  'projects.context.badge.current': 'Up to date',
+  'projects.context.badge.outdated': 'Outdated',
+  'projects.backShort': 'Workspace',
+  'projects.crumb': 'Projects',
+  'projects.analyzedAt': 'Analyzed on {date}',
   'projects.context.title': 'Workspace context',
   'projects.context.none':
     'Not built yet. It relates the projects and is told to agents together with the Harness of the projects in their scope.',

@@ -76,6 +76,17 @@ async function openPanel(user: ReturnType<typeof userEvent.setup>) {
   return screen.findByRole('region', { name: 'Projects of Shop' });
 }
 
+
+/** "Recarregar" lives in the project's "⋯" menu: opens it and returns the item. */
+async function refreshItem(
+  user: ReturnType<typeof userEvent.setup>,
+  scope: HTMLElement,
+  name: string,
+): Promise<HTMLElement> {
+  await user.click(await within(scope).findByRole('button', { name: `More actions for ${name}` }));
+  return within(scope).getByRole('menuitem', { name: 'Refresh' });
+}
+
 describe('the projects of a workspace', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -111,9 +122,10 @@ describe('the projects of a workspace', () => {
     expect(within(first).getByText('/dev/shop/front')).toBeVisible();
     expect(within(first).getByText('Primary')).toBeVisible();
     // Analysed and out-of-date projects are refreshed; one never analysed is initialized.
-    expect(within(first).getByRole('button', { name: 'Refresh Harness of front' })).toBeVisible();
+    expect(within(first).getByRole('button', { name: 'Update Harness of front' })).toBeVisible();
     expect(within(second).getByRole('button', { name: 'Review Harness of API' })).toBeVisible();
-    expect(within(third).getByRole('button', { name: 'Refresh Harness of Orders' })).toBeVisible();
+    expect(within(third).getByRole('button', { name: 'Update Harness of Orders' })).toBeVisible();
+    expect(await refreshItem(user, third, 'Orders')).toBeVisible();
   });
 
   it('adds a folder chosen with the native picker, and says so when it is already a project', async () => {

@@ -49,6 +49,17 @@ async function openPanel(user: ReturnType<typeof userEvent.setup>) {
   return screen.findByRole('region', { name: 'Projects of ERP' });
 }
 
+
+/** "Recarregar" lives in the project's "⋯" menu: opens it and returns the item. */
+async function refreshItem(
+  user: ReturnType<typeof userEvent.setup>,
+  scope: HTMLElement,
+  name: string,
+): Promise<HTMLElement> {
+  await user.click(await within(scope).findByRole('button', { name: `More actions for ${name}` }));
+  return within(scope).getByRole('menuitem', { name: 'Refresh' });
+}
+
 describe('Workspace Harness status', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -61,9 +72,7 @@ describe('Workspace Harness status', () => {
     await screen.findByRole('button', { name: 'Manage the projects of ERP' });
     expect(screen.queryByRole('button', { name: 'Initialize Project' })).not.toBeInTheDocument();
     const panel = await openPanel(user);
-    expect(
-      await within(panel).findByRole('button', { name: 'Refresh Harness of erp' }),
-    ).toBeVisible();
+    expect(await refreshItem(user, panel, 'erp')).toBeVisible();
   });
 
   it('says the project is not initialized and offers to initialize it', async () => {
@@ -82,7 +91,7 @@ describe('Workspace Harness status', () => {
     show({ harness: initialized });
 
     const panel = await openPanel(user);
-    expect(await within(panel).findByText('Angular 21 · .NET 10')).toBeVisible();
+    expect(await within(panel).findByText(/Angular 21, \.NET 10/)).toBeVisible();
     expect(
       within(panel).queryByRole('button', { name: 'Review Harness of erp' }),
     ).not.toBeInTheDocument();
@@ -163,7 +172,7 @@ describe('Workspace Harness status', () => {
       conflicts: [],
       applied: null,
     });
-    await user.click(within(panel).getByRole('button', { name: 'Refresh Harness of erp' }));
+    await user.click(await refreshItem(user, panel, 'erp'));
     const dialog = await screen.findByRole('dialog', { name: 'Refresh Harness' });
     expect(await within(dialog).findByText(/1 relevant project change detected/)).toBeVisible();
     // Previewing writes nothing: only an explicit confirmation does.
@@ -242,7 +251,7 @@ describe('Workspace Harness status', () => {
     );
 
     const panel = await openPanel(user);
-    await user.click(await within(panel).findByRole('button', { name: 'Refresh Harness of erp' }));
+    await user.click(await refreshItem(user, panel, 'erp'));
     const dialog = await screen.findByRole('dialog', { name: 'Refresh Harness' });
     expect(await within(dialog).findByText('− Angular 21')).toBeVisible();
     expect(within(dialog).getByText('+ Angular 22')).toBeVisible();
@@ -285,7 +294,7 @@ describe('Workspace Harness status', () => {
     });
 
     const panel = await openPanel(user);
-    await user.click(await within(panel).findByRole('button', { name: 'Refresh Harness of erp' }));
+    await user.click(await refreshItem(user, panel, 'erp'));
 
     const conflicts = await screen.findByRole('region', { name: 'Conflicting information' });
     expect(within(conflicts).getByText('Decided: 19')).toBeVisible();
@@ -302,7 +311,7 @@ describe('Workspace Harness status', () => {
     });
 
     const panel = await openPanel(user);
-    await user.click(await within(panel).findByRole('button', { name: 'Refresh Harness of erp' }));
+    await user.click(await refreshItem(user, panel, 'erp'));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/could not be read/);
   });

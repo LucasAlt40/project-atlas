@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { StalenessDto } from '@/lib/tauri/commands';
 import styles from './Harness.module.css';
@@ -30,7 +31,10 @@ export function StaleNotice({
   const more = staleness.totalChanges - shown.length;
   return (
     <section className={styles.stale} role="status" aria-label={t('harness.stale.title')}>
-      <h3 className={styles.staleTitle}>⚠ {t('harness.stale.title')}</h3>
+      <h3 className={styles.staleTitle}>
+        <Icon name="warning" size={14} />
+        {t('harness.stale.title')}
+      </h3>
       <p className={styles.staleSummary}>
         {staleness.totalChanges === 1
           ? t('harness.stale.summaryOne', { date })
@@ -50,7 +54,7 @@ export function StaleNotice({
       <p className={styles.staleNote}>{t('harness.stale.keeps')}</p>
       {fix && (
         <div className={styles.staleActions}>
-          <Button disabled={fix.busy} onClick={fix.onFix}>
+          <Button size="sm" disabled={fix.busy} onClick={fix.onFix}>
             {fix.busy ? t('harness.stale.fixing') : t('harness.stale.fix')}
           </Button>
           <button type="button" className={styles.staleReview} onClick={fix.onReview}>
