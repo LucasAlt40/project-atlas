@@ -1,171 +1,126 @@
+/* "Ação necessária" (3.4): an amber column beside the canvas, the question before everything. */
 .panel {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border: 2px solid var(--warning);
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-5);
+  border: 1px solid rgb(245 158 11 / 0.45);
   border-radius: var(--radius-md);
-  background: var(--surface-1);
+  background: var(--surface-base);
+}
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.headText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
 }
 .title {
   margin: 0;
-  font-size: var(--font-size-md);
-  letter-spacing: 0.04em;
-  color: var(--warning);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
 }
 .who {
   margin: 0;
-  font-weight: 600;
-}
-.reason {
-  margin: 0;
   color: var(--text-muted);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
 }
 .question {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+.questionTitle {
   margin: 0;
-  padding: var(--space-2) var(--space-3);
-  border-left: 3px solid var(--warning);
-  background: var(--surface-base);
-  white-space: pre-wrap;
+  font-size: var(--font-size-md);
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
-.document {
-  max-height: 40vh;
-  overflow: auto;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface-base);
-}
-.document summary {
-  cursor: pointer;
-  font-weight: 600;
-}
-.context {
+.questionText {
+  margin: 0;
   color: var(--text-muted);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-reading);
 }
-.context p {
-  margin: var(--space-1) 0 0;
+.document {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+.documentBody {
+  padding: var(--space-4);
+  overflow: auto;
+}
+.document[data-folded] .documentBody {
+  max-height: 22rem;
+  overflow: hidden;
+  mask-image: linear-gradient(to bottom, #000 80%, transparent);
+}
+.documentBody:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -2px;
+}
+.more {
+  align-self: flex-start;
+  margin: 0 var(--space-4) var(--space-3);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-soft);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+.more:hover {
+  color: var(--text-high);
+}
+.contextText {
+  margin: 0;
+  color: var(--text-standard);
+  font-size: var(--font-size-sm);
   white-space: pre-wrap;
 }
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  color: var(--text-high);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+.input {
+  width: 100%;
+  min-height: 5rem;
+  font-weight: 400;
+}
+.suggestions,
 .actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
 }
-.input {
-  width: 100%;
-  resize: vertical;
-  padding: var(--space-2);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface-base);
-  color: var(--text-standard);
-  font: inherit;
+.error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--font-size-sm);
 }
 .note {
   margin: 0;
   color: var(--text-muted);
   font-size: var(--font-size-xs);
-}
-.error {
-  margin: 0;
-  color: var(--danger);
-}
-.footer {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-}
-
-/* The header indicator: one place that cannot be overlooked from any screen. */
-.indicator {
-  position: relative;
-}
-.indicatorButton {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-3);
-  border: 1px solid var(--warning);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--warning);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-.indicatorButton:hover,
-.indicatorButton:focus-visible {
-  background: var(--surface-1);
-}
-.indicatorList {
-  position: absolute;
-  right: 0;
-  z-index: 20;
-  min-width: 260px;
-  margin: var(--space-1) 0 0;
-  padding: var(--space-1);
-  list-style: none;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface-1);
-}
-.indicatorItem {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  width: 100%;
-  padding: var(--space-2) var(--space-3);
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-standard);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.indicatorItem:hover,
-.indicatorItem:focus-visible {
-  background: var(--surface-base);
-}
-.indicatorMeta {
-  color: var(--text-muted);
-  font-size: var(--font-size-xs);
-}
-
-/* A plan awaiting approval: the plan is the point, so it gets the room */
-.plan {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid var(--accent-soft);
-  border-radius: var(--radius-md);
-  background: var(--surface-1);
-  box-shadow: 0 0 0 3px var(--accent-tint);
-}
-.planHead {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-.planBody {
-  max-height: 28rem;
-  padding: var(--space-4);
-  overflow-y: auto;
-  border-radius: var(--radius-md);
-  background: var(--surface-void);
-}
-.planBody:focus-visible {
-  outline: 1px solid var(--border-focus);
-}
-.planNote {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  color: var(--text-standard);
 }

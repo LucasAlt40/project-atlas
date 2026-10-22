@@ -2651,3 +2651,124 @@
   border-color: var(--accent);
   background: var(--accent-tint);
 }
+.newPanel {
+  max-width: none;
+  width: 100%;
+}
+.newPreview {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+/* "Esta execução pode ser retomada" (3.6). */
+.recovery {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid rgb(245 158 11 / 0.4);
+  border-left: 2px solid var(--warning);
+  border-radius: var(--radius-sm);
+  background: rgb(245 158 11 / 0.06);
+}
+.recoveryTitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+}
+.recoveryFacts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-standard);
+  font-size: var(--font-size-sm);
+}
+.recovery button {
+  align-self: flex-start;
+}
+/* The delivery card: the most serious decision of the flow, framed in indigo. */
+.delivery {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+.deliveryHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-5);
+}
+.deliveryHeadText {
+  display: flex;
+  flex: 1 1 24rem;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.deliveryTitleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+.deliveryTitle {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+.stateRows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+}
+.stateRows dd {
+  margin: 0;
+}
+.deliveryCode {
+  margin: 0;
+  color: var(--text-standard);
+  line-height: var(--line-height-reading);
+}
+.deliveryStats {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-base);
+  color: var(--text-high);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+.deliveryActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+.deliveryMore {
+  margin-left: auto;
+}
+.delivery[data-tone] {
+  border-color: var(--accent);
+}
+.delivery[data-tone='problem'] {
+  border-color: var(--warning);
+}
+.delivery[data-tone='done'] {
+  border-color: rgb(16 185 129 / 0.6);
+}
+.delivery[data-tone='neutral'] {
+  border-color: var(--border-subtle);
+}

@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { OverflowMenu } from '@/components/ui/OverflowMenu';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -71,33 +73,64 @@ export function DeliveryPanel({
         })
       : null;
 
+  const menu = [
+    ...(delivery.keep
+      ? [{ label: t('integration.keep'), icon: 'lock' as const, onSelect: actions.keep }]
+      : []),
+    ...(delivery.discard
+      ? [
+          {
+            label: t('integration.discard'),
+            icon: 'trash' as const,
+            danger: true,
+            onSelect: () => {
+              setConfirming(true);
+            },
+          },
+        ]
+      : []),
+  ];
+
   return (
     <section
       className={styles.delivery}
       aria-label={t('integration.title')}
       data-tone={delivery.tone}
     >
-      <p className={styles.deliveryRun}>
-        <span aria-hidden="true">
-          {run.status === 'completed' ? '✓' : run.status === 'failed' ? '✕' : '⊘'}
-        </span>{' '}
-        <strong>{t(delivery.runLine)}</strong>
-      </p>
+      <header className={styles.deliveryHead}>
+        <div className={styles.deliveryHeadText}>
+          <div className={styles.deliveryTitleRow}>
+            <h3 className={styles.deliveryTitle}>{t(delivery.runLine)}</h3>
+            <dl className={styles.stateRows}>
+              <div>
+                <dt className={styles.srOnly}>{t('review.reviewStatus')}</dt>
+                <dd>
+                  <Badge dot tone="accent">
+                    {t(state.review)}
+                  </Badge>
+                </dd>
+              </div>
+              <div>
+                <dt className={styles.srOnly}>{t('review.integrationStatus')}</dt>
+                <dd data-applied={state.applied}>
+                  <Badge dot tone={state.applied ? 'success' : 'idle'}>
+                    {t(state.integration)}
+                  </Badge>
+                </dd>
+              </div>
+            </dl>
+          </div>
+          <p className={styles.deliveryCode} role="status">
+            {t(delivery.codeLine, delivery.params)}
+          </p>
+          {!delivery.inProject && delivery.tone !== 'neutral' && (
+            <p className={styles.deliveryCode}>{t('integration.note')}</p>
+          )}
+        </div>
+        {stats && <p className={styles.deliveryStats}>{stats}</p>}
+      </header>
       {run.status === 'failed' && <p className={styles.warning}>{t('review.failedNote')}</p>}
       {run.status === 'cancelled' && <p className={styles.warning}>{t('review.cancelledNote')}</p>}
-      <dl className={styles.stateRows}>
-        <div>
-          <dt>{t('review.reviewStatus')}</dt>
-          <dd>{t(state.review)}</dd>
-        </div>
-        <div>
-          <dt>{t('review.integrationStatus')}</dt>
-          <dd data-applied={state.applied}>{t(state.integration)}</dd>
-        </div>
-      </dl>
-      <p className={styles.deliveryCode} role="status">
-        {t(delivery.codeLine, delivery.params)}
-      </p>
       {noChanges && <p className={styles.muted}>{t('review.noChangesToApply')}</p>}
       {integration.status === 'integrated' && (
         <p className={styles.applied}>
@@ -113,14 +146,10 @@ export function DeliveryPanel({
             <strong>{t('review.blocked.title')}</strong> {t('review.blocked.files')}
           </p>
         )}
-      {stats && <p className={styles.deliveryStats}>{stats}</p>}
       {changes && changes.uncommitted.length > 0 && (
         <p className={styles.muted}>
           {t('integration.uncommitted', { count: changes.uncommitted.length })}
         </p>
-      )}
-      {!delivery.inProject && delivery.tone !== 'neutral' && (
-        <p className={styles.muted}>{t('integration.note')}</p>
       )}
       {integration.status === 'integrated' && integration.canUndo && (
         <p className={styles.muted}>{t('integration.undoNote')}</p>
@@ -149,6 +178,17 @@ export function DeliveryPanel({
         <p className={styles.muted}>{t('review.blocked.resolve')}</p>
       )}
       <div className={styles.deliveryActions}>
+        {delivery.apply && (
+          <Button
+            disabled={busy}
+            onClick={() => {
+              setApplying(true);
+            }}
+          >
+            <Icon name="check" size={16} />
+            {t('integration.apply')}
+          </Button>
+        )}
         {delivery.review && (
           <Button
             variant="secondary"
@@ -172,6 +212,7 @@ export function DeliveryPanel({
                 else setChoosing((value) => !value);
               }}
             >
+              <Icon name="externalLink" size={14} />
               {t('integration.openIde')}
             </Button>
             {choosing && ides.length > 1 && (
@@ -194,23 +235,24 @@ export function DeliveryPanel({
             )}
           </div>
         )}
-        {delivery.apply && (
-          <Button
-            disabled={busy}
-            onClick={() => {
-              setApplying(true);
-            }}
-          >
-            {t('integration.apply')}
-          </Button>
+        {menu.length > 0 && !busy && (
+          <span className={styles.deliveryMore}>
+            <OverflowMenu label={t('integration.more')} items={menu} />
+          </span>
         )}
-        {delivery.keep && (
-          <Button variant="secondary" disabled={busy} onClick={actions.keep}>
-            {t('integration.keep')}
-          </Button>
-        )}
-        {delivery.discard &&
-          (confirming ? (
+      </div>
+      {confirming && (
+        <div role="group" aria-label={t('integration.discard')} className={styles.confirm}>
+          <span>{t('integration.discardNote')}</span>
+          <span className={styles.confirmActions}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setConfirming(false);
+              }}
+            >
+              {t('common.cancel')}
+            </Button>
             <Button
               variant="danger"
               disabled={busy}
@@ -221,19 +263,10 @@ export function DeliveryPanel({
             >
               {t('integration.confirmDiscard')}
             </Button>
-          ) : (
-            <Button
-              variant="secondary"
-              disabled={busy}
-              onClick={() => {
-                setConfirming(true);
-              }}
-            >
-              {t('integration.discard')}
-            </Button>
-          ))}
-      </div>
-      {confirming && <p className={styles.warning}>{t('integration.discardNote')}</p>}
+          </span>
+        </div>
+      )}
+
       {applying && (
         <Modal
           label={t('review.apply.title')}

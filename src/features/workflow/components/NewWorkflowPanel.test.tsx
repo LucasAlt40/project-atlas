@@ -54,7 +54,6 @@ function show(plan: ToolPlanItemDto[], list: WorkflowTemplateDto[] = [...templat
   return { onCreate, onDeleteTemplate, planTools };
 }
 
-
 /** The form is in steps: Task, then Template, then Name. */
 async function next(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('button', { name: 'Continue' }));

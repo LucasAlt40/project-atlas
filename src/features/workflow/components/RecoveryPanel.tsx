@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { TranslationKey } from '@/i18n';
@@ -158,29 +159,31 @@ export function RecoveryPanel({
     );
   }
   return (
-    <div className={styles.ok} role="status">
-      <strong>{t('workflow.recovery.title')}</strong>
-      {plan.lastCompletedNodeId && (
-        <p>
-          {t('workflow.recovery.lastCompleted', { node: nodeLabel(run, plan.lastCompletedNodeId) })}
-        </p>
-      )}
-      {plan.failureNodeId && (
-        <p>{t('workflow.recovery.stoppedAt', { node: nodeLabel(run, plan.failureNodeId) })}</p>
-      )}
-      <p>
-        {t(`workflow.recovery.${plan.kind}` as TranslationKey, {
-          nodes: names(run, plan.restartNodeIds),
-        })}
-      </p>
-      {plan.reusedNodeIds.length > 0 && (
-        <p className={styles.muted}>
-          {t('workflow.recovery.kept', { nodes: names(run, plan.reusedNodeIds) })}
-        </p>
-      )}
-      <button type="button" className={styles.link} disabled={busy} onClick={onResume}>
+    <section className={styles.recovery} role="status" aria-label={t('workflow.recovery.title')}>
+      <h4 className={styles.recoveryTitle}>{t('workflow.recovery.title')}</h4>
+      <ul className={styles.recoveryFacts}>
+        {plan.lastCompletedNodeId && (
+          <li>
+            {t('workflow.recovery.lastCompleted', {
+              node: nodeLabel(run, plan.lastCompletedNodeId),
+            })}
+          </li>
+        )}
+        {plan.failureNodeId && (
+          <li>{t('workflow.recovery.stoppedAt', { node: nodeLabel(run, plan.failureNodeId) })}</li>
+        )}
+        <li>
+          {t(`workflow.recovery.${plan.kind}` as TranslationKey, {
+            nodes: names(run, plan.restartNodeIds),
+          })}
+        </li>
+        {plan.reusedNodeIds.length > 0 && (
+          <li>{t('workflow.recovery.kept', { nodes: names(run, plan.reusedNodeIds) })}</li>
+        )}
+      </ul>
+      <Button disabled={busy} onClick={onResume}>
         {t('workflow.recovery.button')}
-      </button>
-    </div>
+      </Button>
+    </section>
   );
 }

@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from 'react';
-import { Icon } from '@/components/ui/Icon';
+import type { ReactNode } from 'react';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { TranslationKey } from '@/i18n';
 import { useLiveWorkspace } from '../hooks/useLiveWorkspace';
@@ -62,13 +62,10 @@ export function ReviewWorkspace({ run, ides, busy, code, context, onOpenExecutio
 
   return (
     <section className={styles.review} aria-label={t('review.title')} data-status={run.status}>
-      <header className={styles.head}>
-        <span className={styles.mode}>{t('live.mode.review')}</span>
-        <h3 className={styles.title}>{t('review.title')}</h3>
-        <span className={styles.headline} data-status={run.status}>
-          {t(`review.run.${run.status as 'completed' | 'failed' | 'cancelled'}` as TranslationKey)}
-        </span>
-      </header>
+      <h3 className={styles.srOnly}>
+        {t('review.title')} ·{' '}
+        {t(`review.run.${run.status as 'completed' | 'failed' | 'cancelled'}` as TranslationKey)}
+      </h3>
 
       <ul className={styles.stats} aria-label={t('review.summary')}>
         <li>{t('review.stat.steps', { n: summary.steps })}</li>
@@ -115,17 +112,18 @@ export function ReviewWorkspace({ run, ides, busy, code, context, onOpenExecutio
 
       <DeliveryPanel run={run} ides={ides} busy={busy} actions={code} worktree={availability} />
 
-      <Section title={t('review.timeline')} count={summary.steps} defaultOpen>
-        <Timeline run={run} context={context} onOpenExecution={onOpenExecution} />
-      </Section>
-
-      <Section
-        title={t('review.findings')}
-        count={findings.length}
-        defaultOpen={findings.length > 0}
-      >
-        <FindingsView run={run} findings={findings} trail={trail} context={context} />
-      </Section>
+      <div className={styles.columns}>
+        <section className={styles.column} aria-label={t('review.findings')}>
+          <h4 className={styles.columnTitle}>
+            {t('review.findings')} ({findings.length})
+          </h4>
+          <FindingsView run={run} findings={findings} trail={trail} context={context} />
+        </section>
+        <section className={styles.column} aria-label={t('review.timeline')}>
+          <h4 className={styles.columnTitle}>{t('review.timeline')}</h4>
+          <Timeline run={run} context={context} onOpenExecution={onOpenExecution} />
+        </section>
+      </div>
 
       <Section title={t('review.handoffs')} count={run.handoffs.length}>
         <HandoffList run={run} handoffs={run.handoffs} onOpenExecution={onOpenExecution} />
@@ -176,7 +174,7 @@ export function ReviewWorkspace({ run, ides, busy, code, context, onOpenExecutio
         )}
       </Section>
 
-      <Section title={t('review.changeSet')} count={run.changes?.filesChanged ?? 0} defaultOpen>
+      <Section title={t('review.changeSet')} count={run.changes?.filesChanged ?? 0}>
         <ChangeSetView run={run} onOpen={code.review} />
       </Section>
 
@@ -196,23 +194,15 @@ function Section({
   defaultOpen?: boolean;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className={styles.section}>
-      <button
-        type="button"
-        className={styles.sectionHead}
-        aria-expanded={open}
-        onClick={() => {
-          setOpen((value) => !value);
-        }}
-      >
-        <Icon name={open ? 'chevronDown' : 'chevronRight'} size={14} />
-        <span>{title}</span>
-        <span className={styles.count}>{count}</span>
-      </button>
-      {open && <div className={styles.sectionBody}>{children}</div>}
-    </div>
+    <CollapsibleSection
+      title={`${title} (${String(count)})`}
+      label={title}
+      defaultOpen={defaultOpen}
+      lazy
+    >
+      {children}
+    </CollapsibleSection>
   );
 }
 

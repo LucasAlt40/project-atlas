@@ -19,6 +19,8 @@ interface Props {
   /** Controlled open state, for a parent that opens one section at a time. */
   open?: boolean;
   onToggle?: (open: boolean) => void;
+  /** Draw the content only while open (long or heavy content, shown on demand). */
+  lazy?: boolean;
   children: ReactNode;
 }
 
@@ -32,6 +34,7 @@ export function CollapsibleSection({
   variant = 'card',
   open: controlled,
   onToggle,
+  lazy = false,
   children,
 }: Props) {
   const [own, setOwn] = useState(defaultOpen);
@@ -71,7 +74,7 @@ export function CollapsibleSection({
         )}
       </div>
       <div id={bodyId} className={styles.body} hidden={!open}>
-        {children}
+        {lazy && !open ? null : children}
       </div>
     </section>
   );

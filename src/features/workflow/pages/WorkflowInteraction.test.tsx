@@ -105,7 +105,8 @@ describe('An agent waiting for the person', () => {
     expect(
       within(ask).getByText('Which authentication strategy should I use?'),
     ).toBeInTheDocument();
-    expect(within(ask).getByText('Waiting reason: Clarification')).toBeInTheDocument();
+    // Why it waits is the panel's badge.
+    expect(within(ask).getByText('Clarification')).toBeInTheDocument();
     expect(await screen.findByRole('status', { name: /waiting for you/i })).toBeInTheDocument();
     // The graph shows the node as waiting, and what comes after it as still pending.
     const developer = await screen.findByLabelText(/^Developer \(/);
@@ -169,7 +170,7 @@ describe('An agent waiting for the person', () => {
     ]);
 
     const ask = await panel();
-    expect(within(ask).getByText('Waiting reason: Approval')).toBeInTheDocument();
+    expect(within(ask).getByText('Approval')).toBeInTheDocument();
     expect(within(ask).queryByRole('textbox')).not.toBeInTheDocument();
     expect(
       within(ask).getByText(/isolated worktree\. Your project checkout is not changed/),
@@ -223,7 +224,10 @@ describe('An agent waiting for the person', () => {
     const user = userEvent.setup();
     show([waitingRun()]);
 
-    await user.click(within(await panel()).getByRole('button', { name: 'Cancel execution' }));
+    await panel();
+    // Cancelling the run is the run bar's "⋯", never next to the answer.
+    await user.click(screen.getByRole('button', { name: 'More run actions' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Cancel run' }));
 
     await waitFor(() => {
       expect(cancelWorkflow).toHaveBeenCalledWith('wfx-1');
@@ -348,7 +352,12 @@ describe('A plan waiting for the person', () => {
     vi.clearAllMocks();
     navigate.mockReset();
   });
-  const planPanel = () => screen.findByRole('alert', { name: /plan awaiting your approval/i });
+  const planPanel = async () => {
+    const ask = await screen.findByRole('alert', { name: /action required/i });
+    expect(within(ask).getByText('Do you approve this plan?')).toBeInTheDocument();
+    expect(within(ask).getByText('Plan to approve')).toBeInTheDocument();
+    return ask;
+  };
   const waitingPlan = () =>
     waitingRun({
       kind: 'plan',
@@ -367,8 +376,8 @@ describe('A plan waiting for the person', () => {
     const ask = await planPanel();
     expect(within(ask).getByText('Fix the webhook')).toBeInTheDocument();
     expect(within(ask).getByText(/Developer drew up this plan and stopped/)).toBeInTheDocument();
-    expect(within(ask).getByRole('button', { name: 'Approve plan' })).toBeEnabled();
-    expect(within(ask).getByRole('button', { name: 'Request changes' })).toBeDisabled();
+    expect(within(ask).getByRole('button', { name: 'Approve' })).toBeEnabled();
+    expect(within(ask).getByRole('button', { name: 'Ask for changes' })).toBeDisabled();
     expect(within(ask).getByRole('button', { name: 'Redo the plan' })).toBeEnabled();
     expect(answerInteraction).not.toHaveBeenCalled();
   });
@@ -377,7 +386,7 @@ describe('A plan waiting for the person', () => {
     const user = userEvent.setup();
     show([waitingPlan()]);
 
-    await user.click(within(await planPanel()).getByRole('button', { name: 'Approve plan' }));
+    await user.click(within(await planPanel()).getByRole('button', { name: 'Approve' }));
 
     await waitFor(() => {
       expect(answerInteraction).toHaveBeenCalledWith('wfx-1', 'q1', { choice: 'approve' });
@@ -390,7 +399,7 @@ describe('A plan waiting for the person', () => {
     const ask = await planPanel();
 
     await user.type(within(ask).getByRole('textbox'), 'Split step 2');
-    await user.click(within(ask).getByRole('button', { name: 'Request changes' }));
+    await user.click(within(ask).getByRole('button', { name: 'Ask for changes' }));
     await waitFor(() => {
       expect(answerInteraction).toHaveBeenCalledWith('wfx-1', 'q1', {
         choice: 'revise',
