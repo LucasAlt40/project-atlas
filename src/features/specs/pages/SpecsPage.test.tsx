@@ -139,8 +139,8 @@ describe('the Specs overview', () => {
     expect(within(dark).getByText('Now: Requirements')).toBeInTheDocument();
     expect(within(dark).getByText('1 question(s) for you')).toBeInTheDocument();
     // The counters are the counts of the group tabs.
-    expect(screen.getByRole('button', { name: /^Waiting for you\s*1$/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Ready\s*1$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Waiting for you (1)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ready (1)' })).toBeInTheDocument();
     // An archived spec is out of the way until asked for.
     expect(screen.queryByRole('button', { name: 'Old idea' })).not.toBeInTheDocument();
 

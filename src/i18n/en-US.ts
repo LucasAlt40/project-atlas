@@ -3031,7 +3031,7 @@ export const enUS = {
 
   // Specs (ADR 0035)
   'nav.specs': 'Specs',
-  'specs.subtitle': 'Define, check and approve a specification before the agents write any code.',
+  'specs.subtitle': 'Specify before you build: agents write, you approve.',
   'specs.noWorkspace': 'Open a workspace to work on specs.',
   'specs.loading': 'Loading…',
   'specs.back': 'All specs',
@@ -3740,6 +3740,10 @@ export const enUS = {
   'common.seeLess': 'See less',
   'common.showMore': 'Show more',
   'common.showLess': 'Show less',
+  'specs.more': 'More spec actions',
+  'specs.meta.progress': '{count} in progress',
+  'specs.meta.attention': '{count} waiting for you',
+  'specs.meta.ready': '{count} ready to build',
 } as const;
 
 export type TranslationKey = keyof typeof enUS;

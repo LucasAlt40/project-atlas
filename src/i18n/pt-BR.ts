@@ -3071,8 +3071,7 @@ export const ptBR: Record<TranslationKey, string> = {
     'Desligar encerra todas as conexões e o acesso de todos os celulares de uma vez. As execuções continuam.',
   // Specs (ADR 0035)
   'nav.specs': 'Specs',
-  'specs.subtitle':
-    'Defina, valide e aprove uma especificação antes de os agentes escreverem código.',
+  'specs.subtitle': 'Especifique antes de implementar: agentes escrevem, você aprova.',
   'specs.noWorkspace': 'Abra um workspace para trabalhar com specs.',
   'specs.loading': 'Carregando…',
   'specs.back': 'Todas as specs',
@@ -3783,4 +3782,8 @@ export const ptBR: Record<TranslationKey, string> = {
   'common.seeLess': 'Ver menos',
   'common.showMore': 'Mostrar mais',
   'common.showLess': 'Mostrar menos',
+  'specs.more': 'Mais ações de specs',
+  'specs.meta.progress': '{count} em andamento',
+  'specs.meta.attention': '{count} aguardando você',
+  'specs.meta.ready': '{count} pronta(s) para implementar',
 };

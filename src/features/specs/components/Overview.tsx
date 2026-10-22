@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { useNow } from '@/features/agents/hooks/useNow';
 import type { Agent } from '@/features/agents/types';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -55,24 +56,7 @@ export function Overview({ specs, agents, onOpen, onNew, onImport }: Props) {
 
   return (
     <section className={styles.overview} aria-label={t('specs.list')}>
-      <div className={styles.filters}>
-        <div className={styles.tabs} role="group" aria-label={t('specs.filter')}>
-          {GROUPS.map((name) => (
-            <button
-              key={name}
-              type="button"
-              className={styles.tab}
-              aria-pressed={group === name}
-              data-group={name}
-              onClick={() => {
-                setGroup(name);
-              }}
-            >
-              {t(`specs.group.${name}`)}
-              <span className={styles.chipCount}>{counts[name]}</span>
-            </button>
-          ))}
-        </div>
+      <div className={styles.listControls}>
         <label className={styles.search}>
           <Icon name="search" size={14} />
           <input
@@ -85,13 +69,22 @@ export function Overview({ specs, agents, onOpen, onNew, onImport }: Props) {
             }}
           />
         </label>
+        <SegmentedControl
+          label={t('specs.filter')}
+          value={group}
+          onChange={setGroup}
+          segments={GROUPS.map((name) => ({
+            value: name,
+            label: `${t(`specs.group.${name}`)} (${String(counts[name])})`,
+          }))}
+        />
       </div>
       {shown.length === 0 ? (
         <p className={styles.muted} role="status">
           {t('specs.noMatches')}
         </p>
       ) : (
-        <ul className={styles.grid}>
+        <ul className={styles.specList}>
           {shown.map((spec) => (
             <li key={spec.id}>
               <SpecCard

@@ -76,3 +76,16 @@
   gap: var(--space-2);
   margin-left: auto;
 }
+/* A page's "⋯" sits with its buttons: same height and a border, like a secondary button. */
+.actions button[aria-haspopup='menu'] {
+  width: var(--control-height);
+  height: var(--control-height);
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-standard);
+}
+.actions button[aria-haspopup='menu']:hover,
+.actions button[aria-haspopup='menu'][aria-expanded='true'] {
+  background: var(--surface-3);
+  color: var(--text-high);
+}
