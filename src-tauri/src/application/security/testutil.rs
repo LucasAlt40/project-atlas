@@ -11,7 +11,7 @@ pub struct TempDir(PathBuf);
 
 impl TempDir {
     pub fn new(label: &str) -> Self {
-        let path = std::fs::canonicalize(std::env::temp_dir())
+        let path = dunce::canonicalize(std::env::temp_dir())
             .unwrap()
             .join(format!(
                 "atlas-{label}-{}-{}",

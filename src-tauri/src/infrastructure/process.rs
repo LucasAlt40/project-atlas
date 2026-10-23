@@ -563,7 +563,7 @@ mod tests {
 
     #[test]
     fn the_working_directory_is_also_what_the_tool_sees_in_pwd() {
-        let dir = std::fs::canonicalize(std::env::temp_dir()).unwrap();
+        let dir = dunce::canonicalize(std::env::temp_dir()).unwrap();
         let mut spec = spec(
             "sh",
             &["-c", "pwd -P; echo \"$PWD\""],

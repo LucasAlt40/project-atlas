@@ -116,7 +116,7 @@ impl HarnessStore for FsHarnessStore {
     }
 
     fn write(&self, project_path: &str, files: &[HarnessFile]) -> Result<WriteReport, AppError> {
-        let project = fs::canonicalize(project_path).map_err(|e| failed(e.to_string()))?;
+        let project = dunce::canonicalize(project_path).map_err(|e| failed(e.to_string()))?;
         let atlas = project.join(ATLAS_DIR);
         ensure_dir(&project, Path::new(ATLAS_DIR))?;
         let backup_dir = format!("backups/{}", crate::application::support::now_ms());
@@ -206,7 +206,7 @@ impl HarnessStore for FsHarnessStore {
     }
 
     fn ensure_gitignored(&self, project_path: &str) -> Result<GitIgnoreStatus, AppError> {
-        let project = fs::canonicalize(project_path).map_err(|e| failed(e.to_string()))?;
+        let project = dunce::canonicalize(project_path).map_err(|e| failed(e.to_string()))?;
         // Only a project inside a Git repository has anything to be ignored from.
         if !project.ancestors().any(|dir| dir.join(".git").exists()) {
             return Ok(GitIgnoreStatus::NoRepository);
@@ -244,7 +244,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("atlas-store-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
-        fs::canonicalize(dir).unwrap()
+        dunce::canonicalize(dir).unwrap()
     }
 
     fn file(path: &str, content: &str, keep: bool) -> HarnessFile {

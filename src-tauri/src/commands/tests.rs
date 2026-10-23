@@ -221,7 +221,15 @@ pub(super) fn invoke(
             cmd: cmd.into(),
             callback: CallbackFn(0),
             error: CallbackFn(1),
-            url: "tauri://localhost".parse().unwrap(),
+            // The app's own address, which is what the capabilities allow: Windows serves it
+            // over http.
+            url: if cfg!(windows) {
+                "http://tauri.localhost"
+            } else {
+                "tauri://localhost"
+            }
+            .parse()
+            .unwrap(),
             body: tauri::ipc::InvokeBody::Json(body),
             headers: tauri::http::HeaderMap::default(),
             invoke_key: INVOKE_KEY.to_string(),

@@ -1913,7 +1913,7 @@ fn an_agent_that_writes_into_the_project_checkout_is_named_by_the_run() {
 
     let told = fs::read_to_string(&log).unwrap_or_default();
     let dirs = fs::read_to_string(log.with_extension("txt.cwd")).unwrap_or_default();
-    let project = s.project.canonicalize().unwrap();
+    let project = dunce::canonicalize(&s.project).unwrap();
     println!(
         "status {:?}, integration {:?}",
         done.status, done.integration.status

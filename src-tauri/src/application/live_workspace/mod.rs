@@ -281,7 +281,7 @@ impl LiveWorkspaceService {
             sink: self.sink.clone(),
             config: self.config,
             roots: std::iter::once(target.path.clone())
-                .chain(target.path.canonicalize().ok())
+                .chain(dunce::canonicalize(&target.path).ok())
                 .collect(),
             guard,
         };

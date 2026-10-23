@@ -1844,7 +1844,7 @@ fn on_a_real_folder_a_changed_dependency_makes_it_stale_and_a_confirmed_refresh_
         r#"{"dependencies":{"@angular/core":"^18.1.0"},"scripts":{"test":"vitest"}}"#,
     )
     .unwrap();
-    let path = std::fs::canonicalize(&dir)
+    let path = dunce::canonicalize(&dir)
         .unwrap()
         .to_string_lossy()
         .into_owned();

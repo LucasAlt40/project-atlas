@@ -99,6 +99,9 @@ fn path_in_argument(arg: &str) -> Option<&str> {
     } else {
         arg
     };
+    if is_remote_url(value) {
+        return None;
+    }
     let bytes = value.as_bytes();
     let drive = bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':';
     (!value.is_empty()
@@ -109,6 +112,22 @@ fn path_in_argument(arg: &str) -> Option<&str> {
             || value.starts_with("file:")
             || drive))
         .then_some(value)
+}
+
+/// `scheme://…` with a scheme of two letters or more (one letter is a Windows drive), other than
+/// `file:`: an address elsewhere, not a place on this disk. Reaching it is the network rule's
+/// business. Read as a path it would be a folder named `https:` inside the project on Unix, and
+/// a name Windows cannot resolve (so "outside" there).
+fn is_remote_url(value: &str) -> bool {
+    let Some((scheme, _)) = value.split_once("://") else {
+        return false;
+    };
+    scheme.len() >= 2
+        && !scheme.eq_ignore_ascii_case("file")
+        && scheme.starts_with(|c: char| c.is_ascii_alphabetic())
+        && scheme
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'))
 }
 
 fn check_arguments(root: &Path, spec: &ProcessSpec, extra: &[String]) -> Option<Evaluation> {
@@ -518,6 +537,20 @@ mod tests {
         assert_eq!(
             evaluate_agent_request(&developer(), &p.root, &spec).reason,
             Some(Reason::NoWorkingDirectory)
+        );
+    }
+
+    #[test]
+    fn a_remote_address_is_not_a_place_on_disk_but_a_file_url_is() {
+        assert!(is_remote_url("https://example.com/x"));
+        assert!(is_remote_url("git+ssh://host/repo.git"));
+        assert!(!is_remote_url("file:///etc/hosts"));
+        assert!(!is_remote_url("C://x"));
+        assert!(!is_remote_url("../other"));
+        assert_eq!(path_in_argument("--registry=https://r.test"), None);
+        assert_eq!(
+            path_in_argument("file:///etc/hosts"),
+            Some("file:///etc/hosts")
         );
     }
 

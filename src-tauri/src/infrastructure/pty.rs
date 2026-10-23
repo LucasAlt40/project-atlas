@@ -830,7 +830,7 @@ mod process_tests {
 
     #[test]
     fn the_working_directory_is_what_the_tool_sees_in_pwd() {
-        let dir = std::fs::canonicalize(std::env::temp_dir()).unwrap();
+        let dir = dunce::canonicalize(std::env::temp_dir()).unwrap();
         let (registry, _) = registry();
         let mut spec = spec("e1", "pwd -P; echo \"$PWD\"", Duration::from_secs(10));
         spec.cwd = Some(dir.clone());
