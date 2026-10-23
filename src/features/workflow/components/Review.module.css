@@ -349,6 +349,17 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
 }
+/* The error spans the whole card; left to auto-placement it lands in the button column and
+   squeezes the title and meta to one word per line. */
+.stepFailure {
+  grid-column: 1 / -1;
+  overflow-wrap: anywhere;
+}
+/* The validation summary under a card in the trail lines up with the card's text. */
+.timeline .trailNote {
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-3);
+}
 .findings {
   display: flex;
   flex-direction: column;
