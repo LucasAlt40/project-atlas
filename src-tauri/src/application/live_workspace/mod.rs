@@ -341,15 +341,23 @@ impl LiveWorkspaceService {
             let sessions = self.sessions.lock_or_recover();
             if let Some(session) = sessions.get(primary_id).filter(|s| s.alive()) {
                 let (done, wait) = mpsc::channel();
-                session
-                    .commands
-                    .send(Command::Reconcile(done))
-                    .map_err(|_| LiveError::Unresponsive)?;
+                let sent = session.commands.send(Command::Reconcile(done)).is_ok();
                 let state = session.state.clone();
                 drop(sessions);
-                wait.recv_timeout(Duration::from_secs(60))
-                    .map_err(|_| LiveError::Unresponsive)?;
-                return Ok(state.lock_or_recover().clone());
+                if sent {
+                    match wait.recv_timeout(Duration::from_secs(60)) {
+                        Ok(()) => return Ok(state.lock_or_recover().clone()),
+                        Err(RecvTimeoutError::Timeout) => return Err(LiveError::Unresponsive),
+                        Err(RecvTimeoutError::Disconnected) => {}
+                    }
+                }
+                // The observer ended before it could answer. It does when the folder goes away,
+                // and what it last held says so.
+                let last = state.lock_or_recover().clone();
+                if last.availability == WorktreeAvailability::Available {
+                    return Err(LiveError::Unresponsive);
+                }
+                return Ok(last);
             }
         }
         self.snapshot(primary_id, LivePhase::Idle)

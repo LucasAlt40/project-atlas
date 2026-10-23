@@ -351,9 +351,10 @@ fn git_layout(worktree: &Path) -> (Option<GitLayout>, Vec<PathBuf>) {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use std::os::unix::fs::PermissionsExt;
+    #[cfg(target_os = "macos")]
     use std::process::Command;
 
     use super::*;

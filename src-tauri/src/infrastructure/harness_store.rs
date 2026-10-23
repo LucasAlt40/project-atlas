@@ -505,6 +505,7 @@ mod tests {
         assert!(!dir.join(".gitignore").exists());
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_gitignore_that_is_not_a_regular_file_is_refused() {
         let dir = repository("ignore-link");
