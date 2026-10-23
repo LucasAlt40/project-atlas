@@ -13,8 +13,8 @@ mod template;
 mod workflow;
 
 pub use chain::{
-    ChainProject, ChainStep, ProjectChain, MAX_CHAIN_DIFF_CHARS, MAX_CHAIN_FILES,
-    MAX_CHAIN_SUMMARY_CHARS,
+    ChainNote, ChainProject, ChainStep, ChainStepSummary, ProjectChain, MAX_CHAIN_DIFF_CHARS,
+    MAX_CHAIN_FILES, MAX_CHAIN_STEPS, MAX_CHAIN_SUMMARY_CHARS,
 };
 pub use condition::{Condition, ConditionError, ConditionOperator, Facts};
 pub use edge::WorkflowEdge;

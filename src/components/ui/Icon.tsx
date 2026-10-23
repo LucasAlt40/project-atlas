@@ -74,6 +74,7 @@ const PATHS = {
   info: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v6M12 7.5h.01',
   collapseAll: 'm8 4 4 4 4-4M8 20l4-4 4 4M4 12h16',
   minus: 'M5 12h14',
+  grip: 'M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01',
 } as const;
 
 export type IconName = keyof typeof PATHS;

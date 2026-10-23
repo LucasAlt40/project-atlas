@@ -38,9 +38,10 @@ use crate::domain::interaction::{
 use crate::domain::orchestration::ArtifactType;
 use crate::domain::result_contract::{ContractKind, ResultContract};
 use crate::domain::workflow::{
-    ChainStep, FailureCode, IntegrationStatus, RecoveryKind, RecoveryPlan, RecoveryProblem,
-    WorkflowEvent, WorkflowEventKind, WorkflowExecution, WorkflowExecutionStatus, WorkflowFailure,
-    WorkflowIntegration, MAX_CHAIN_DIFF_CHARS, MAX_CHAIN_FILES, MAX_CHAIN_SUMMARY_CHARS,
+    ChainNote, ChainStep, ChainStepSummary, FailureCode, IntegrationStatus, NodeAttempt,
+    ProjectChain, RecoveryKind, RecoveryPlan, RecoveryProblem, WorkflowEvent, WorkflowEventKind,
+    WorkflowExecution, WorkflowExecutionStatus, WorkflowFailure, WorkflowIntegration,
+    MAX_CHAIN_DIFF_CHARS, MAX_CHAIN_FILES, MAX_CHAIN_STEPS, MAX_CHAIN_SUMMARY_CHARS,
 };
 
 /// What the user can ask of a run in progress.
@@ -417,8 +418,9 @@ impl Orchestrator {
         }
     }
 
-    /// Starts the run of the next project of `execution_id`'s chain, if it has one and completed.
-    /// Its id, to be driven; `None` when there is nothing to go on with.
+    /// Goes on with `execution_id`'s chain, if it has one and completed: the projects its runs
+    /// said need nothing are skipped, and the run of the next one that does is started. Its id, to
+    /// be driven; `None` when there is nothing to go on with.
     fn continue_chain(
         &self,
         execution_id: &str,
@@ -428,38 +430,59 @@ impl Orchestrator {
         if exec.status != WorkflowExecutionStatus::Completed {
             return None;
         }
-        exec.chain.as_ref()?.next()?;
-        let step = self.chain_step(&exec);
-        match self.workflows.start_next_in_chain(&exec, step) {
-            Ok(Some(next)) => {
-                let at = now_ms();
-                // Read again: the person may have decided about its code since it was read above.
-                let mut previous = self.workflows.execution(execution_id).unwrap_or(exec);
-                let event = previous.record(
-                    WorkflowEventKind::ChainContinued,
-                    None,
-                    "The task goes on in the next project, in a run of its own",
-                    BTreeMap::from([("nextExecutionId".to_owned(), next.id.clone())]),
-                    at,
-                );
-                let _ = self.workflows.save_execution(&previous);
-                announce(observer, &[event]);
-                Some(next.id)
+        let chain = exec.chain.clone()?;
+        chain.next()?;
+        let advance = chain.advanced(self.chain_step(&exec));
+        let started = match advance.next {
+            Some(next_chain) => match self.workflows.start_next_in_chain(&exec, next_chain) {
+                Ok(next) => Some(next),
+                Err(error) => {
+                    eprintln!("the chain of run {execution_id} could not go on: {error}");
+                    None
+                }
+            },
+            None => None,
+        };
+        // Read again: the person may have decided about its code since it was read above.
+        let mut previous = self.workflows.execution(execution_id).unwrap_or(exec);
+        let at = now_ms();
+        let mut events = Vec::new();
+        for skip in &advance.skipped {
+            if let Some(own) = previous.chain.as_mut() {
+                own.skipped.push(skip.clone());
             }
-            Ok(None) => None,
-            Err(error) => {
-                eprintln!("the chain of run {execution_id} could not go on: {error}");
-                None
-            }
+            events.push(previous.record(
+                WorkflowEventKind::ChainSkipped,
+                None,
+                format!(
+                    "{} needs nothing for this task, the run said: it is not run",
+                    chain.name_of(&skip.project_id)
+                ),
+                BTreeMap::from([("projectId".to_owned(), skip.project_id.clone())]),
+                at,
+            ));
         }
+        if let Some(next) = &started {
+            events.push(previous.record(
+                WorkflowEventKind::ChainContinued,
+                None,
+                "The task goes on in the next project, in a run of its own",
+                BTreeMap::from([("nextExecutionId".to_owned(), next.id.clone())]),
+                at,
+            ));
+        }
+        if !events.is_empty() {
+            let _ = self.workflows.save_execution(&previous);
+            announce(observer, &events);
+        }
+        started.map(|next| next.id)
     }
 
-    /// What a completed run of a chain leaves for the next: by Git, not by what the agents said,
-    /// except for the summary, which is the last step's own words.
+    /// What a completed run of a chain leaves for the next: what changed by Git, what its steps
+    /// said they did and decided, and what they said to the later projects (the handoff).
     fn chain_step(&self, exec: &WorkflowExecution) -> ChainStep {
-        let project_id = exec
-            .chain
-            .as_ref()
+        let chain = exec.chain.as_ref();
+        let project_id = chain
             .and_then(|c| c.current())
             .map(|p| p.id.clone())
             .unwrap_or_default();
@@ -486,14 +509,47 @@ impl Orchestrator {
             })
             .map(|diff| clip_chars(&diff, MAX_CHAIN_DIFF_CHARS))
             .unwrap_or_default();
-        let summary = exec
+        // Each node's latest word, in the order the nodes finished.
+        let mut finished: Vec<(&String, &NodeAttempt)> = exec
             .nodes
-            .values()
-            .flat_map(|state| state.attempts.iter())
-            .filter(|a| a.summary.as_deref().is_some_and(|s| !s.trim().is_empty()))
-            .max_by_key(|a| a.completed_at.unwrap_or(a.started_at))
-            .and_then(|a| a.summary.as_deref())
+            .iter()
+            .filter_map(|(id, state)| {
+                state
+                    .attempts
+                    .iter()
+                    .rev()
+                    .find(|a| a.summary.as_deref().is_some_and(|s| !s.trim().is_empty()))
+                    .map(|a| (id, a))
+            })
+            .collect();
+        finished.sort_by_key(|(_, a)| a.completed_at.unwrap_or(a.started_at));
+        let summary = finished
+            .last()
+            .and_then(|(_, a)| a.summary.as_deref())
             .map(|s| clip_chars(s.trim(), MAX_CHAIN_SUMMARY_CHARS))
+            .unwrap_or_default();
+        let steps = finished
+            .iter()
+            .rev()
+            .take(MAX_CHAIN_STEPS)
+            .rev()
+            .map(|(id, a)| ChainStepSummary {
+                label: exec
+                    .workflow
+                    .node(id)
+                    .map_or_else(|| String::clone(id), |n| n.label().to_owned()),
+                summary: clip_chars(a.summary.as_deref().unwrap_or_default().trim(), 600),
+            })
+            .collect();
+        let decisions = exec
+            .state
+            .decisions
+            .iter()
+            .take(MAX_CHAIN_STEPS)
+            .map(|d| clip_chars(&format!("{}: {}", d.title, d.decision), 300))
+            .collect();
+        let notes = chain
+            .map(|chain| chain_notes(exec, chain, &finished))
             .unwrap_or_default();
         ChainStep {
             project_id,
@@ -504,6 +560,9 @@ impl Orchestrator {
             files_changed,
             diff,
             summary,
+            steps,
+            decisions,
+            notes,
         }
     }
 
@@ -1411,4 +1470,34 @@ fn clip_chars(text: &str, max: usize) -> String {
     let mut cut: String = text.chars().take(max).collect();
     cut.push_str("\n[cut]");
     cut
+}
+
+/// What the steps of a completed run said to the later projects of its chain, one note per
+/// project: the latest word about each one wins. `finished` is each node's latest attempt, in the
+/// order the nodes finished.
+fn chain_notes(
+    exec: &WorkflowExecution,
+    chain: &ProjectChain,
+    finished: &[(&String, &NodeAttempt)],
+) -> Vec<ChainNote> {
+    let later: Vec<&str> = chain.later().iter().map(|p| p.id.as_str()).collect();
+    let mut notes: Vec<ChainNote> = Vec::new();
+    for (id, _) in finished {
+        for said in exec.state.next_projects.get(*id).into_iter().flatten() {
+            let Some(project) = chain.project_named(&said.project) else {
+                continue;
+            };
+            if !later.contains(&project.id.as_str()) {
+                continue;
+            }
+            notes.retain(|n| n.project_id != project.id);
+            notes.push(ChainNote {
+                project_id: project.id.clone(),
+                needed: said.needed != Some(false),
+                done: said.done.clone(),
+                todo: said.todo.clone(),
+            });
+        }
+    }
+    notes
 }

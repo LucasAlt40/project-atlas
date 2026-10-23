@@ -226,7 +226,7 @@ export const ptBR: Record<TranslationKey, string> = {
   'runPlan.badge.chain': '{count} projetos',
   'runPlan.badge.one': 'Só {name}',
   'runPlan.many':
-    'Este workspace tem {count} projetos. A sugestão é alterar 1 e só consultar os outros; você escolhe.',
+    'Este workspace tem {count} projetos. Marque só os que precisam ser alterados; os outros ficam para consulta.',
   'runPlan.useOf': 'Uso de {name}',
   'runPlan.use.work': 'Altera',
   'runPlan.use.work.hint':
@@ -234,12 +234,13 @@ export const ptBR: Record<TranslationKey, string> = {
   'runPlan.use.read': 'Consulta',
   'runPlan.use.read.hint': 'Os agentes podem ler, nunca alterar',
   'runPlan.use.none': 'Fora',
-  'runPlan.earlier': 'Rodar {name} antes',
-  'runPlan.later': 'Rodar {name} depois',
   'runPlan.allWork': 'Alterar todos',
-  'runPlan.oneWorks': 'Alterar só 1',
+  'runPlan.oneWorks': 'Só o principal',
   'runPlan.hint':
-    'Cada projeto alterado é uma execução, na ordem acima; a seguinte começa quando a anterior conclui e recebe o que ela mudou.',
+    'Cada projeto marcado é uma execução, nesta ordem. Ele só roda se a execução anterior disser que precisa de algo, e recebe dela o que foi feito e o que falta.',
+  'runPlan.section.working': 'Alteram, nesta ordem',
+  'runPlan.section.others': 'Outros projetos',
+  'runPlan.drag': 'Arrastar {name} para mudar a ordem (ou use as setas do teclado)',
   'runPlan.confirm.title': 'Confirmar os projetos desta execução',
   'runPlan.confirm.intro':
     'Este workspace tem {count} projetos. Confira o que a tarefa vai alterar.',
@@ -250,7 +251,7 @@ export const ptBR: Record<TranslationKey, string> = {
   'runPlan.confirm.reads': 'Só consulta:',
   'runPlan.confirm.untouched': 'Fica de fora:',
   'runPlan.confirm.chainNote':
-    'Cada projeto tem seu worktree, sua revisão e seu merge. A próxima execução começa quando a anterior conclui e recebe o que ela mudou; se uma falhar ou for cancelada, as seguintes não começam.',
+    'Cada projeto tem seu worktree, sua revisão e seu merge. Cada execução termina dizendo aos próximos projetos o que fez e o que eles provavelmente precisam fazer; a próxima começa com esse contexto. Se a anterior disser que um projeto não precisa de nada, ele é pulado. Se uma execução falhar ou for cancelada, as seguintes não começam.',
   'runPlan.confirm.oneNote':
     'Só {name} será alterado. Os outros projetos ficam só para consulta (ou de fora), como você escolheu.',
   'runPlan.confirm.manyTitle': 'Workspace com {count} projetos',
@@ -262,6 +263,10 @@ export const ptBR: Record<TranslationKey, string> = {
   'runPlan.chain.label': 'Projetos desta tarefa',
   'runPlan.chain.position': 'Projeto {position} de {count}:',
   'runPlan.chain.waiting': 'aguardando',
+  'runPlan.chain.skipped': 'não precisou',
+  'runPlan.chain.received': 'O que as execuções anteriores passaram para {name}',
+  'runPlan.chain.receivedNone': 'Nenhuma execução anterior deixou nota para {name}',
+  'runPlan.chain.from': 'De {name}:',
 
   // Project Harness
   'harness.title': 'Harness',

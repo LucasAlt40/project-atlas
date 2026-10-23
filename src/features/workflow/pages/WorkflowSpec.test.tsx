@@ -249,7 +249,26 @@ describe('running in a workspace of several projects (ADR 0043)', () => {
     ['front', 'web', '/dev/web'],
   ];
 
-  it('says what will be changed before running, and runs once per project in order', async () => {
+  it('changes only the primary project unless the person marks another', async () => {
+    show({ projects: fullstack });
+    vi.mocked(startWorkflow).mockResolvedValue(run(passwordRecovery(), 'running', {}));
+    const user = userEvent.setup();
+    renderWithProviders(<WorkflowPage />);
+
+    await screen.findByText(/The workflow is valid and can run/, {}, { timeout: 5000 });
+    await user.type(await screen.findByLabelText('Task'), 'Fix the API');
+    await user.click(screen.getByRole('button', { name: 'Run' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Confirm the projects of this run' });
+    expect(within(dialog).getByText(/Only api will be changed/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Run' }));
+
+    expect(startWorkflow).toHaveBeenCalledWith('wf-1', 'Fix the API', false, {
+      workingProjectId: 'back',
+      readProjectIds: ['front'],
+    });
+  });
+
+  it('says what will be changed before running, and runs once per marked project in order', async () => {
     show({ projects: fullstack });
     vi.mocked(startWorkflow).mockResolvedValue(run(passwordRecovery(), 'running', {}));
     const user = userEvent.setup();
@@ -257,6 +276,9 @@ describe('running in a workspace of several projects (ADR 0043)', () => {
 
     await screen.findByText(/The workflow is valid and can run/, {}, { timeout: 5000 });
     await user.type(await screen.findByLabelText('Task'), 'Add the orders screen');
+    await user.click(screen.getByRole('button', { name: /^Projects of the run/ }));
+    const web = screen.getByRole('group', { name: 'Use of web' });
+    await user.click(within(web).getByRole('button', { name: 'Changes' }));
     await user.click(screen.getByRole('button', { name: 'Run' }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Confirm the projects of this run' });

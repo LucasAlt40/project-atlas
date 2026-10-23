@@ -164,6 +164,11 @@ pub fn record_result(
             .or_default()
             .extend(result.completed_tasks.iter().cloned());
     }
+    if !result.next_projects.is_empty() {
+        exec.state
+            .next_projects
+            .insert(report.node_id.to_owned(), result.next_projects.clone());
+    }
     events.extend(detect_overlaps(exec, graph, report.node_id, at));
     events
 }

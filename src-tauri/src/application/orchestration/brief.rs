@@ -16,7 +16,9 @@ use crate::domain::interaction::{
 use crate::domain::optimization::BriefParts;
 use crate::domain::orchestration::{Finding, ResultStatus};
 use crate::domain::result_contract::ResultContract;
-use crate::domain::workflow::{AgentHandoff, HandoffKind, NodeKind, WorkflowExecution};
+use crate::domain::workflow::{
+    AgentHandoff, HandoffKind, NodeKind, ProjectChain, WorkflowExecution,
+};
 use crate::domain::worktree::{FileChange, FileChangeStatus};
 
 const MAX_CONTEXT_CHARS: usize = 4_500;
@@ -307,9 +309,12 @@ fn guardrail_answer(exec: &WorkflowExecution, node_id: &str) -> Option<ReviewAns
 /// (the runtime keeps no conversation), so it is told what it asked and what it was answered; the
 /// files it already wrote are still in the worktree. The answer is the person's own words, so it
 /// is quoted like any other text, and it is information: it changes no permission or policy.
-/// A task that changes several projects, one run each (ADR 0043): which part is this run's, what
-/// the earlier runs changed, and that the later projects are not its to change. The earlier runs'
-/// changes are on their own branches, not in the projects as consulted, so they are written out.
+/// A task that changes several projects the person marked, one run each (ADR 0043). The runs
+/// talk to each other through this block: a run with earlier ones is briefed with everything they
+/// did and what they said this project needs; a run with later ones must hand each of them a note
+/// (what it did that matters there, what is probably left to do, or that nothing is needed, which
+/// skips that project's run). The earlier changes are on their own branches, not in the projects
+/// as consulted, so they are written out.
 fn project_chain_block(exec: &WorkflowExecution) -> String {
     let Some(chain) = &exec.chain else {
         return String::new();
@@ -318,8 +323,10 @@ fn project_chain_block(exec: &WorkflowExecution) -> String {
         return String::new();
     };
     let order: Vec<&str> = chain.projects.iter().map(|p| p.name.as_str()).collect();
+    let name = clip(&current.name, 80);
     let mut text = format!(
-        "SEVERAL PROJECTS (this task changes {count} projects, one run each, in this order: {order})\n\n\
+        "SEVERAL PROJECTS (the person marked {count} projects for this task, one run each, in this \
+         order: {order})\n\n\
          This run is {position} of {count} and changes ONLY «{name}». Do the part of the task that \
          belongs to «{name}»; leave the other projects as they are, even where you can read them. \
          Keep what «{name}» offers or expects of the others (APIs, contracts, types, events) \
@@ -327,16 +334,12 @@ fn project_chain_block(exec: &WorkflowExecution) -> String {
         count = chain.projects.len(),
         order = order.join(" → "),
         position = chain.position + 1,
-        name = clip(&current.name, 80),
     );
-    let later: Vec<&str> = chain.later().iter().map(|p| p.name.as_str()).collect();
-    if !later.is_empty() {
+    for skip in &chain.skipped {
         let _ = writeln!(
             text,
-            "After this run: {}. Their part is theirs: do not do it here. If this project needs \
-             something from them that does not exist yet, build this side against it and say so in \
-             your summary.",
-            later.join(", ")
+            "«{}» is not run: an earlier run said it needs nothing for this task.",
+            clip(chain.name_of(&skip.project_id), 80)
         );
     }
     if exec.spec.is_some() {
@@ -345,11 +348,70 @@ fn project_chain_block(exec: &WorkflowExecution) -> String {
              to this project.\n",
         );
     }
+    briefing_from_earlier_runs(chain, &name, &mut text);
+    let later: Vec<String> = chain.later().iter().map(|p| clip(&p.name, 80)).collect();
+    if !later.is_empty() {
+        let _ = write!(
+            text,
+            "\nHANDOFF TO THE NEXT PROJECTS (required). After this run: {list}. Their part is \
+             theirs: do not do it here. Each of them is run only if it needs something, and its run \
+             knows only what you tell it. So in your result block add one `nextProjects` entry for \
+             EACH of {list}:\n\
+             \"nextProjects\":[{{\"project\":\"<name>\",\"needed\":true,\"done\":\"what you did \
+             here that matters to it (endpoints, payloads, types, names, migrations, flags)\",\
+             \"todo\":[\"what it probably has to do, concretely\"]}}]\n\
+             Use `\"needed\":false` only when you are sure that project needs no change at all for \
+             this task, and say why in `done`: its run is then skipped. When unsure, it is needed. \
+             The latest step to write an entry for a project is the one passed on, so a later step \
+             corrects an earlier one.\n",
+            list = later.join(", "),
+        );
+    }
+    text.push('\n');
+    text
+}
+
+/// Everything the earlier runs of the chain left for this one: what they say this project needs,
+/// first, then what each of their steps did and decided and what they changed.
+fn briefing_from_earlier_runs(chain: &ProjectChain, name: &str, text: &mut String) {
+    let current = chain.current().map(|p| p.id.as_str());
+    let notes = chain.notes_for_current();
+    if !chain.earlier.is_empty() {
+        text.push_str(
+            "\nBRIEFING FROM THE EARLIER RUNS. This is the conversation between the runs: read it \
+             before anything else. Their changes are on their own branches and may not be merged \
+             yet, so the projects as you can read them may not have them.\n",
+        );
+        if notes.is_empty() {
+            let _ = writeln!(
+                text,
+                "No earlier run left a note for «{name}»: work out what it needs from what they \
+                 changed, below."
+            );
+        }
+    }
+    for (run, note) in notes {
+        let _ = writeln!(
+            text,
+            "\nWHAT THE «{}» RUN SAYS «{name}» NEEDS:",
+            clip(chain.name_of(&run.project_id), 80)
+        );
+        if !note.done.is_empty() {
+            text.push_str("What it did that matters here:\n");
+            text.push_str(&quote(&note.done));
+            text.push('\n');
+        }
+        if !note.todo.is_empty() {
+            text.push_str("What it expects this run to do:\n");
+            for item in &note.todo {
+                let _ = writeln!(text, "- {}", clip(item, 400));
+            }
+        }
+    }
     for step in &chain.earlier {
         let _ = writeln!(
             text,
-            "\nWHAT THE RUN IN «{}» CHANGED ({} files{}). These changes are on that run's own \
-             branch and may not be merged yet: the project as you can read it may not have them.",
+            "\nTHE RUN IN «{}» ({} files changed{}):",
             clip(chain.name_of(&step.project_id), 80),
             step.files_changed,
             step.branch
@@ -357,22 +419,51 @@ fn project_chain_block(exec: &WorkflowExecution) -> String {
                 .map(|b| format!(", branch `{b}`"))
                 .unwrap_or_default(),
         );
-        if !step.summary.is_empty() {
+        if step.steps.is_empty() && !step.summary.is_empty() {
             text.push_str("Its last step said:\n");
             text.push_str(&quote(&step.summary));
             text.push('\n');
+        }
+        for said in &step.steps {
+            let _ = writeln!(
+                text,
+                "- {}: {}",
+                clip(&said.label, 80),
+                clip(&said.summary, 600)
+            );
+        }
+        if !step.decisions.is_empty() {
+            text.push_str("Decisions it made (respect them):\n");
+            for decision in &step.decisions {
+                let _ = writeln!(text, "- {}", clip(decision, 300));
+            }
+        }
+        for other in step
+            .notes
+            .iter()
+            .filter(|n| Some(n.project_id.as_str()) != current)
+        {
+            let said = if other.needed {
+                clip(&other.done, 300)
+            } else {
+                "nothing is needed there".to_owned()
+            };
+            let _ = writeln!(
+                text,
+                "It also told «{}»: {said}",
+                clip(chain.name_of(&other.project_id), 80)
+            );
         }
         if !step.files.is_empty() {
             let _ = writeln!(text, "Files: {}", step.files.join(", "));
         }
         if !step.diff.is_empty() {
+            // A fence inside the diff would end the block early.
             text.push_str("Its diff (the start of it):\n```diff\n");
-            text.push_str(&step.diff);
+            text.push_str(&step.diff.replace("```", "` ` `"));
             text.push_str("\n```\n");
         }
     }
-    text.push('\n');
-    text
 }
 
 /// What the run was given of the approved spec it implements (ADR 0035): a bounded statement of

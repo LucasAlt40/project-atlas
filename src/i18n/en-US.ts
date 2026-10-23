@@ -229,7 +229,7 @@ export const enUS = {
   'runPlan.badge.chain': '{count} projects',
   'runPlan.badge.one': 'Only {name}',
   'runPlan.many':
-    'This workspace has {count} projects. The suggestion is to change 1 and only consult the others; you choose.',
+    'This workspace has {count} projects. Mark only the ones that need changing; the others are consulted.',
   'runPlan.useOf': 'Use of {name}',
   'runPlan.use.work': 'Changes',
   'runPlan.use.work.hint':
@@ -237,12 +237,13 @@ export const enUS = {
   'runPlan.use.read': 'Consults',
   'runPlan.use.read.hint': 'Agents may read it, never change it',
   'runPlan.use.none': 'Out',
-  'runPlan.earlier': 'Run {name} earlier',
-  'runPlan.later': 'Run {name} later',
   'runPlan.allWork': 'Change all',
-  'runPlan.oneWorks': 'Change only 1',
+  'runPlan.oneWorks': 'Only the primary',
   'runPlan.hint':
-    'Each project changed is a run, in the order above; the next starts when the one before completes and is told what it changed.',
+    'Each marked project is a run, in this order. It runs only if the run before says it needs something, and is handed what was done and what is left.',
+  'runPlan.section.working': 'Change, in this order',
+  'runPlan.section.others': 'Other projects',
+  'runPlan.drag': 'Drag {name} to change the order (or use the arrow keys)',
   'runPlan.confirm.title': 'Confirm the projects of this run',
   'runPlan.confirm.intro': 'This workspace has {count} projects. Check what the task will change.',
   'runPlan.confirm.introSpec':
@@ -252,7 +253,7 @@ export const enUS = {
   'runPlan.confirm.reads': 'Only consults:',
   'runPlan.confirm.untouched': 'Left out:',
   'runPlan.confirm.chainNote':
-    'Each project has its own worktree, review and merge. The next run starts when the one before completes and is told what it changed; if one fails or is cancelled, the later ones do not start.',
+    'Each project has its own worktree, review and merge. Each run ends by telling the next projects what it did and what they probably have to do; the next starts with that context. If the one before says a project needs nothing, it is skipped. If a run fails or is cancelled, the later ones do not start.',
   'runPlan.confirm.oneNote':
     'Only {name} will be changed. The other projects are only consulted (or left out), as you chose.',
   'runPlan.confirm.manyTitle': 'A workspace of {count} projects',
@@ -264,6 +265,10 @@ export const enUS = {
   'runPlan.chain.label': 'Projects of this task',
   'runPlan.chain.position': 'Project {position} of {count}:',
   'runPlan.chain.waiting': 'waiting',
+  'runPlan.chain.skipped': 'not needed',
+  'runPlan.chain.received': 'What the earlier runs handed {name}',
+  'runPlan.chain.receivedNone': 'No earlier run left a note for {name}',
+  'runPlan.chain.from': 'From {name}:',
 
   // Project Harness
   'harness.title': 'Harness',

@@ -9,7 +9,8 @@
 use serde_json::Value;
 
 use crate::domain::orchestration::{
-    AgentResult, ArtifactDraft, DecisionDraft, Finding, ResultStatus, ValidationSummary,
+    AgentResult, ArtifactDraft, DecisionDraft, Finding, NextProjectNote, ResultStatus,
+    ValidationSummary,
 };
 use crate::domain::result_contract::ResultContract;
 
@@ -17,6 +18,8 @@ pub const RESULT_FENCE: &str = "atlas-result";
 
 const MAX_SUMMARY: usize = 600;
 const MAX_FIELD: usize = 400;
+/// What a step says it did that matters to a later project.
+const MAX_NOTE: usize = 1_200;
 const MAX_ITEMS: usize = 30;
 const MAX_PATHS: usize = 100;
 
@@ -207,6 +210,21 @@ fn from_value(value: &Value) -> AgentResult {
         completed_tasks: paths(value, &["completedTasks", "completed_tasks"], false)
             .into_iter()
             .map(|t| t.chars().take(24).collect())
+            .collect(),
+        next_projects: list(value, &["nextProjects", "next_projects"])
+            .take(12)
+            .map(|n| NextProjectNote {
+                project: text(n, &["project", "name"], 80),
+                needed: n.get("needed").and_then(Value::as_bool),
+                done: text(n, &["done", "summary"], MAX_NOTE),
+                todo: list(n, &["todo", "next"])
+                    .filter_map(Value::as_str)
+                    .map(|t| clip(t, MAX_FIELD))
+                    .filter(|t| !t.is_empty())
+                    .take(12)
+                    .collect(),
+            })
+            .filter(|n| !n.project.is_empty())
             .collect(),
         validation: value.get("validation").and_then(|v| {
             let status = v
@@ -505,5 +523,23 @@ mod contract_tests {
             parse_agent_result("no block").completed_tasks,
             Vec::<String>::new()
         );
+    }
+
+    #[test]
+    fn reads_what_a_step_says_to_the_later_projects() {
+        let result = parse_agent_result(
+            "done\n```atlas-result\n{\"status\":\"success\",\"summary\":\"s\",\"nextProjects\":[{\"project\":\"Web\",\"needed\":false,\"done\":\"nothing there\",\"todo\":[\"a\",\"\",3]},{\"needed\":true}]}\n```",
+        );
+
+        assert_eq!(
+            result.next_projects.len(),
+            1,
+            "an entry without a project is dropped"
+        );
+        let note = &result.next_projects[0];
+        assert_eq!(note.project, "Web");
+        assert_eq!(note.needed, Some(false));
+        assert_eq!(note.done, "nothing there");
+        assert_eq!(note.todo, ["a"]);
     }
 }

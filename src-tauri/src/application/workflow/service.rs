@@ -19,7 +19,7 @@ use crate::application::workspace::WorkspaceService;
 use crate::domain::result_contract::ResultContract;
 use crate::domain::scope::ScopeRequest;
 use crate::domain::workflow::{
-    ChainProject, ChainStep, CustomTemplate, ProjectChain, SpecLink, ToolSuggestion,
+    ChainProject, CustomTemplate, ProjectChain, SpecLink, ToolSuggestion,
 };
 use crate::domain::workflow::{
     NodeState, RouteRepair, Viewport, Workflow, WorkflowEdge, WorkflowExecution,
@@ -630,25 +630,23 @@ impl WorkflowService {
         )
     }
 
-    /// Starts the run of the chain's next project, after `previous` completed and left `step`.
-    /// `None` when `previous` was the chain's last run (or not part of one). The run is saved but
-    /// not driven; consulted projects removed from the workspace since are left out.
+    /// Starts the run of `chain`'s current project, after `previous` (the run before it in the
+    /// chain) completed. The run is saved but not driven; consulted projects removed from the
+    /// workspace since are left out.
     ///
     /// # Errors
     ///
-    /// When the workflow is gone or invalid now, the next project was removed from the workspace,
-    /// or another run of the workflow is going.
+    /// When the workflow is gone or invalid now, the project was removed from the workspace, or
+    /// another run of the workflow is going.
     pub fn start_next_in_chain(
         &self,
         previous: &WorkflowExecution,
-        step: ChainStep,
-    ) -> Result<Option<WorkflowExecution>, AppError> {
-        let Some(chain) = previous.chain.as_ref().and_then(|c| c.advanced(step)) else {
-            return Ok(None);
-        };
-        let Some(project) = chain.current().cloned() else {
-            return Ok(None);
-        };
+        chain: ProjectChain,
+    ) -> Result<WorkflowExecution, AppError> {
+        let project = chain
+            .current()
+            .cloned()
+            .ok_or_else(|| AppError::new(ErrorCode::ScopeInvalid))?;
         let workflow = self
             .get(&previous.workflow_id)
             .ok_or_else(|| AppError::new(ErrorCode::WorkflowNotFound))?;
@@ -677,7 +675,7 @@ impl WorkflowService {
         execution.spec.clone_from(&previous.spec);
         execution.chain = Some(chain);
         self.insert_run(&execution)?;
-        Ok(Some(execution))
+        Ok(execution)
     }
 
     /// The runs of a chain that are still in the records, in the chain's order.
@@ -748,6 +746,7 @@ impl WorkflowService {
             position: 0,
             read_project_ids,
             earlier: Vec::new(),
+            skipped: Vec::new(),
         };
         let scope = ScopeRequest {
             working_project_id: Some(working.id),

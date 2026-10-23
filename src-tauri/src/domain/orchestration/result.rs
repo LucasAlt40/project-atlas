@@ -85,6 +85,23 @@ pub struct DecisionDraft {
     pub rationale: String,
 }
 
+/// What a step of a run over several projects (ADR 0043) says to the run of a later project:
+/// whether that project needs anything for the task, what was done here that matters to it, and
+/// what it probably has to do. Information handed on; it grants nothing.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct NextProjectNote {
+    /// The project's name (or id), as the step was told it.
+    pub project: String,
+    /// `Some(false)`: the step is sure the project needs no change, so its run is skipped.
+    #[serde(default)]
+    pub needed: Option<bool>,
+    #[serde(default)]
+    pub done: String,
+    #[serde(default)]
+    pub todo: Vec<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ValidationSummary {
@@ -120,6 +137,9 @@ pub struct AgentResult {
     /// the agent *reports*: Atlas confirms nothing from it alone.
     #[serde(default)]
     pub completed_tasks: Vec<String>,
+    /// For a run over several projects: what this step says to the runs of the later ones.
+    #[serde(default)]
+    pub next_projects: Vec<NextProjectNote>,
     #[serde(default)]
     pub validation: Option<ValidationSummary>,
     /// What the agent thinks should happen next. Information for the user: the workflow decides.

@@ -246,7 +246,9 @@ function StepCard({
           .filter((part) => part !== '')
           .join(' · ')}
       </p>
-      {step.failure && <p className={`${flow.failure} ${styles.stepFailure}`}>{step.failure}</p>}
+      {step.failure && (
+        <p className={[flow.failure, styles.stepFailure].join(' ')}>{step.failure}</p>
+      )}
       {onOpenExecution && (
         <button
           type="button"

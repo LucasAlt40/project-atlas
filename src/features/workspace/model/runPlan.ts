@@ -16,7 +16,7 @@ interface HasProjects {
   projects: WorkspaceProjectDto[];
 }
 
-/** Above this many projects Atlas suggests changing one and consulting the rest. */
+/** Above this many projects changed Atlas warns and suggests changing one, consulting the rest. */
 export const MANY_PROJECTS = 3;
 
 export function hasManyProjects(workspace: HasProjects): boolean {
@@ -67,11 +67,12 @@ export function oneWorking(workspace: HasProjects, projectId?: string): RunPlan 
 }
 
 /**
- * What a run does when nothing was chosen: every project is changed, unless the workspace has
- * many, when one is changed and the others are consulted. Only a suggestion: the person decides.
+ * What a run does when nothing was chosen: only the primary project is changed and the others are
+ * consulted. Another project is run only when the person marks it (ADR 0043), and even then only
+ * if the run before it says it needs something.
  */
 export function suggestedPlan(workspace: HasProjects): RunPlan {
-  return hasManyProjects(workspace) ? oneWorking(workspace) : allWorking(workspace);
+  return oneWorking(workspace);
 }
 
 /**
@@ -139,6 +140,17 @@ export function moved(plan: RunPlan, projectId: string, by: -1 | 1): RunPlan {
   const to = from + by;
   if (from < 0 || to < 0 || to >= ids.length) return plan;
   ids.splice(to, 0, ...ids.splice(from, 1));
+  return { ...plan, workingProjectIds: ids };
+}
+
+/** Moves a changed project to `index` in the order of the runs (where it was dropped). */
+export function movedTo(plan: RunPlan, projectId: string, index: number): RunPlan {
+  const from = plan.workingProjectIds.indexOf(projectId);
+  if (from < 0) return plan;
+  const ids = plan.workingProjectIds.filter((id) => id !== projectId);
+  const to = Math.max(0, Math.min(index, ids.length));
+  if (to === from) return plan;
+  ids.splice(to, 0, projectId);
   return { ...plan, workingProjectIds: ids };
 }
 

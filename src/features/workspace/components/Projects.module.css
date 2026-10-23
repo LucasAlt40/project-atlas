@@ -285,31 +285,112 @@
 }
 
 /* The projects a workflow run changes, in order, and the ones it consults (ADR 0043). */
+.planBody {
+  gap: var(--space-2);
+}
+.planLegend {
+  padding: 0;
+  color: var(--text-high);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+.planHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+.planSection {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.planShortcuts {
+  display: inline-flex;
+  gap: var(--space-3);
+}
+.planLink {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-soft);
+  font: inherit;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+.planLink:hover {
+  text-decoration: underline;
+}
 .planList {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-1);
   margin: 0;
   padding: 0;
   list-style: none;
 }
+.planList[data-dragging] {
+  cursor: grabbing;
+  user-select: none;
+}
 .planRow {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--surface-1, transparent);
+}
+.planRow[data-other] {
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding-left: calc(var(--space-2) + 1.75rem + var(--space-2));
+}
+.planRow[data-dragged] {
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
+  box-shadow: var(--shadow-overlay);
+}
+.planHandle {
+  display: inline-grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  cursor: grab;
+  touch-action: none;
+}
+.planHandle:hover,
+.planHandle:focus-visible {
+  color: var(--text-high);
+  background: var(--surface-void);
+}
+.planHandleSpace {
+  width: 1.25rem;
 }
 .planName {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  line-height: 1.25;
+}
+.planTitle {
   overflow: hidden;
   color: var(--text-high);
   font-size: var(--font-size-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.planRole {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
 }
 .planOrder {
   display: inline-grid;
@@ -323,27 +404,23 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
 }
-.planControls {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-.planMove {
-  display: inline-grid;
-  place-items: center;
-  width: var(--control-height-sm);
-  height: var(--control-height-sm);
-  padding: 0;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  color: var(--text-standard);
-  cursor: pointer;
-}
-.planMove:disabled {
-  opacity: 0.4;
-  cursor: default;
+.planHint {
+  margin: var(--space-1) 0 0;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
 }
 .scopeBody:has(.planList) {
-  width: min(28rem, 90vw);
+  width: min(30rem, 92vw);
+  overflow-y: auto;
+}
+/* The run's projects open on the side of the button that has room (the run bar sits near the top). */
+.scopeBody[data-placement='below'] {
+  top: calc(100% + var(--space-1));
+  bottom: auto;
+}
+.scopeBody[data-align='end'] {
+  right: 0;
+  left: auto;
 }

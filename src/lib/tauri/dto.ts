@@ -3003,6 +3003,8 @@ export type WorkflowEventKindDto =
   | 'integration_changed'
   /** The run completed and the task goes on in the chain's next project (`nextExecutionId`). */
   | 'chain_continued'
+  /** A project of the chain is not run: the run before said it needs nothing (`projectId`). */
+  | 'chain_skipped'
   /** A guardrail took secrets out of a step's result before it was handed on. */
   | 'guardrail_transformed';
 
@@ -3028,6 +3030,27 @@ export interface ChainStepDto {
   filesChanged: number;
   diff: string;
   summary: string;
+  /** What each of its steps said it did, in order. */
+  steps?: { label: string; summary: string }[];
+  decisions?: string[];
+  /** What it said to the later projects (the handoff). */
+  notes?: ChainNoteDto[];
+}
+
+/** Mirrors `domain::workflow::ChainNote`: what a run said to the run of a later project. */
+export interface ChainNoteDto {
+  projectId: string;
+  /** `false`: the run said the project needs nothing, so it is skipped. */
+  needed: boolean;
+  done: string;
+  todo: string[];
+}
+
+/** Mirrors `domain::workflow::ChainSkip`: a project not run because it needs nothing. */
+export interface ChainSkipDto {
+  projectId: string;
+  byExecutionId: string;
+  reason: string;
 }
 
 /** Mirrors `domain::workflow::ProjectChain`: the runs of one task over several projects. */
@@ -3040,6 +3063,8 @@ export interface ProjectChainDto {
   position: number;
   readProjectIds: string[];
   earlier: ChainStepDto[];
+  /** Projects not run because the run before said they need nothing. */
+  skipped?: ChainSkipDto[];
 }
 
 /** One run of a workflow, with the snapshot of the definition it started from. */

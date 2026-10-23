@@ -3393,3 +3393,74 @@ fn a_chain_of_only_the_working_project_is_a_plain_run() {
     assert!(run.chain.is_none());
     assert!(run.scope.is_none());
 }
+
+#[test]
+fn the_next_run_is_briefed_with_what_the_one_before_said_its_project_needs() {
+    let env = env();
+    let front = env.add_project("front", "Web");
+    let workflow = env.review_workflow();
+    let runner = Scripted::new();
+    let handoff = r#","nextProjects":[{"project":"web","needed":true,"done":"POST /orders returns {id,total}","todo":["Call POST /orders from the cart","Show the total"]}]"#;
+    runner.script(
+        "validator",
+        vec![outcome("pass", handoff), outcome("pass", "")],
+    );
+    let first = env
+        .service
+        .start_chain(&workflow, "Orders", false, None, None, &[front])
+        .unwrap();
+
+    env.orchestrator(&runner)
+        .run(&first.id, Arc::new(Collector::default()))
+        .unwrap();
+
+    let runs = env.service.chain_runs(&first.id);
+    assert_eq!(runs.len(), 2);
+    let note = &runs[1].chain.as_ref().unwrap().earlier[0].notes[0];
+    assert_eq!(note.project_id, "front", "matched by name, ignoring case");
+    assert!(note.needed);
+    let requests = runner.requests_for("validator");
+    assert!(requests[0]
+        .instruction
+        .contains("HANDOFF TO THE NEXT PROJECTS (required)"));
+    let second = &requests[1].instruction;
+    assert!(second.contains("BRIEFING FROM THE EARLIER RUNS"));
+    assert!(second.contains("SAYS «Web» NEEDS"));
+    assert!(second.contains("POST /orders returns {id,total}"));
+    assert!(second.contains("- Call POST /orders from the cart"));
+    assert!(
+        !second.contains("HANDOFF TO THE NEXT PROJECTS"),
+        "the last run hands nothing on"
+    );
+}
+
+#[test]
+fn a_project_the_run_before_said_needs_nothing_is_not_run() {
+    let env = env();
+    let front = env.add_project("front", "Web");
+    let workflow = env.review_workflow();
+    let runner = Scripted::new();
+    let handoff =
+        r#","nextProjects":[{"project":"Web","needed":false,"done":"Only the API changed"}]"#;
+    runner.script("validator", vec![outcome("pass", handoff)]);
+    let first = env
+        .service
+        .start_chain(&workflow, "Fix the API", false, None, None, &[front])
+        .unwrap();
+    let observer = Arc::new(Collector::default());
+
+    env.orchestrator(&runner)
+        .run(&first.id, observer.clone())
+        .unwrap();
+
+    let runs = env.service.chain_runs(&first.id);
+    assert_eq!(runs.len(), 1, "the frontend run is skipped");
+    let skipped = &runs[0].chain.as_ref().unwrap().skipped;
+    assert_eq!(skipped.len(), 1);
+    assert_eq!(skipped[0].project_id, "front");
+    assert_eq!(skipped[0].reason, "Only the API changed");
+    assert!(observer.kinds().contains(&WorkflowEventKind::ChainSkipped));
+    assert!(!observer
+        .kinds()
+        .contains(&WorkflowEventKind::ChainContinued));
+}

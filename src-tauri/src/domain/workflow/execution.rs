@@ -246,6 +246,9 @@ pub enum WorkflowEventKind {
     /// The run completed and the task goes on in the next project of its chain (ADR 0043), in a
     /// run of its own; `metadata` has `nextExecutionId`.
     ChainContinued,
+    /// A project of the chain is not run: the run before it said it needs nothing for the task;
+    /// `metadata` has `projectId`.
+    ChainSkipped,
     /// A guardrail took something out of a step's result before it was handed on (secrets);
     /// `metadata` has `stage`, `rule` and `lines`. Never the content.
     GuardrailTransformed,

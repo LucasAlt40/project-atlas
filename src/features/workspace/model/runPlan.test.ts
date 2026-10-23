@@ -3,6 +3,7 @@ import {
   isChain,
   loadRunPlan,
   moved,
+  movedTo,
   normalizePlan,
   oneWorking,
   orderByDependencies,
@@ -28,24 +29,28 @@ const many = {
 };
 
 describe('run plan over several projects', () => {
-  it('changes every project by default, dependencies first', () => {
+  it('changes only the primary project by default and consults the others', () => {
     expect(suggestedPlan(fullstack)).toEqual({
-      workingProjectIds: ['back', 'front'],
-      readProjectIds: [],
+      workingProjectIds: ['front'],
+      readProjectIds: ['back'],
     });
-    expect(orderByDependencies(fullstack.projects).map((p) => p.id)).toEqual(['back', 'front']);
-  });
-
-  it('suggests changing one and consulting the rest when the workspace has many projects', () => {
     expect(suggestedPlan(many)).toEqual({
       workingProjectIds: ['a'],
       readProjectIds: ['b', 'c', 'd'],
     });
   });
 
+  it('orders the projects the person marks by their dependencies', () => {
+    expect(orderByDependencies(fullstack.projects).map((p) => p.id)).toEqual(['back', 'front']);
+    expect(allWorking(fullstack)).toEqual({
+      workingProjectIds: ['back', 'front'],
+      readProjectIds: [],
+    });
+  });
+
   it('sends nothing for a one-project workspace, and the rest of the chain otherwise', () => {
     expect(toStartRequest(suggestedPlan(single), single)).toEqual({});
-    expect(toStartRequest(suggestedPlan(fullstack), fullstack)).toEqual({
+    expect(toStartRequest(allWorking(fullstack), fullstack)).toEqual({
       scope: { workingProjectId: 'back', readProjectIds: [] },
       nextProjectIds: ['front'],
     });
@@ -77,6 +82,19 @@ describe('run plan over several projects', () => {
 
     expect(moved(plan, 'front', -1).workingProjectIds).toEqual(['front', 'back']);
     expect(moved(plan, 'back', -1)).toBe(plan);
+  });
+
+  it('moves a dragged project to where it was dropped', () => {
+    const three = {
+      projects: [project('a'), project('b'), project('c')],
+    };
+    const plan = allWorking(three);
+
+    expect(movedTo(plan, 'c', 0).workingProjectIds).toEqual(['c', 'a', 'b']);
+    expect(movedTo(plan, 'a', 2).workingProjectIds).toEqual(['b', 'c', 'a']);
+    expect(movedTo(plan, 'a', 9).workingProjectIds).toEqual(['b', 'c', 'a']);
+    expect(movedTo(plan, 'b', 1)).toBe(plan);
+    expect(movedTo(plan, 'gone', 0)).toBe(plan);
   });
 
   it('drops removed projects and falls back to the suggestion when nothing is left to change', () => {

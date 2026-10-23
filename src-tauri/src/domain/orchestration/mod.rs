@@ -8,6 +8,7 @@ mod state;
 pub use artifact::{Artifact, ArtifactType};
 pub use decision::Decision;
 pub use result::{
-    AgentResult, ArtifactDraft, DecisionDraft, Finding, ResultStatus, ValidationSummary,
+    AgentResult, ArtifactDraft, DecisionDraft, Finding, NextProjectNote, ResultStatus,
+    ValidationSummary,
 };
 pub use state::{OverlapWarning, SharedExecutionState, ValidationEntry};

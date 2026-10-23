@@ -25,22 +25,28 @@ Escolhido: **A**.
 ## Decisão
 
 - **Plano da execução.** Ao rodar, o usuário escolhe, por projeto: _altera_, _consulta_ ou _fora_, e a ordem dos que
-  alteram. Padrão: todos alteram, na ordem das dependências declaradas (quem consome vem depois de quem fornece). Com
-  **mais de 3 projetos** o padrão sugerido passa a ser alterar 1 (o primário) e consultar o resto. A escolha fica
-  guardada por workspace no navegador (uma conveniência).
+  alteram. Padrão: **só o projeto primário altera** e os outros são consultados. Outro projeto só entra na pipeline se o
+  usuário o marcar (na ordem das dependências declaradas, que ele pode mudar). A escolha fica guardada por workspace no
+  navegador (uma conveniência).
 - **Alerta.** Em todo workspace com mais de um projeto, rodar um workflow ou implementar uma spec abre uma confirmação
-  que diz o que vai ser alterado, em quantas execuções e o que só é consultado. Com muitos projetos alterados ela mostra
-  a sugestão ("alterar só X") como opção; o usuário decide.
+  que diz o que vai ser alterado, em quantas execuções e o que só é consultado. Com mais de 3 projetos alterados ela
+  mostra a sugestão ("alterar só X") como opção; o usuário decide.
 - **Cadeia.** `start_workflow` recebe `nextProjectIds`. A primeira execução trabalha no projeto do escopo e guarda uma
   `ProjectChain` (`WorkflowExecution.chain`: projetos e nomes, posição, leituras, o que as anteriores deixaram). Cada
   execução consulta os outros projetos da cadeia e as leituras escolhidas.
-- **Seguir adiante.** Quando uma execução da cadeia **conclui**, o orquestrador cria a do próximo projeto
-  (`WorkflowService::start_next_in_chain`) com a mesma tarefa, a mesma spec e a definição atual do workflow, e a dirige
-  na mesma thread. Ela recebe, no prompt, o que a anterior mudou por Git (arquivos, o começo do diff, a branch) e o
-  resumo do último passo, com limites (`MAX_CHAIN_*`). Uma execução que falha ou é cancelada para a cadeia; retomada e
-  concluída depois, a cadeia continua. O evento `workflow:chain_continued` leva a tela para a execução seguinte.
-- **Prompt.** Cada passo é avisado de que a tarefa tem N projetos, de que esta execução altera só o seu, do que vem
-  depois e do que as anteriores mudaram (que pode ainda não estar mesclado).
+- **As execuções conversam (regra implícita do Atlas).** Toda execução que tem projetos depois dela recebe no prompt a
+  exigência de terminar com uma passagem de bastão: no bloco de resultado, um item `nextProjects` para **cada** projeto
+  seguinte, com `needed`, `done` (o que fez que importa lá: endpoints, payloads, tipos, nomes) e `todo` (o que ele
+  provavelmente precisa fazer). Vale a última palavra de cada passo sobre cada projeto. A execução seguinte começa com um
+  _briefing_: primeiro o que as anteriores disseram que o seu projeto precisa, depois o que cada passo delas fez, as
+  decisões, os arquivos, o começo do diff e a branch (que pode ainda não estar mesclada).
+- **Só roda se precisar.** Quando uma execução da cadeia **conclui**, o orquestrador vai para o próximo projeto marcado;
+  se a última palavra sobre ele foi `needed: false`, ele é pulado (evento `workflow:chain_skipped`, registrado em
+  `ProjectChain.skipped` com o motivo) e o seguinte é avaliado. Sem nota, o projeto roda: a falta de passagem nunca pula
+  nada. A execução do próximo (`WorkflowService::start_next_in_chain`) tem a mesma tarefa, a mesma spec e a definição
+  atual do workflow, e é dirigida na mesma thread. Uma execução que falha ou é cancelada para a cadeia; retomada e
+  concluída depois, a cadeia continua. O evento `workflow:chain_continued` leva a tela para a execução seguinte, que mostra
+  o que recebeu das anteriores.
 - **SDD.** A implementação pode começar em qualquer projeto do workspace (antes só no da spec) e encadear os outros;
   todas as execuções levam a mesma spec. Cada uma marca só as tarefas do seu projeto e o progresso da spec junta as
   execuções da cadeia. A escrita da spec, num workspace com vários projetos, pede as tarefas agrupadas por projeto.

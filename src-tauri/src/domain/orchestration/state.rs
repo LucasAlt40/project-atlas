@@ -49,6 +49,10 @@ pub struct SharedExecutionState {
     /// The tasks of a spec each node said it finished, by node id: reported, not confirmed.
     #[serde(default)]
     pub completed_tasks: BTreeMap<String, BTreeSet<String>>,
+    /// What each node said to the runs of the later projects of a chain (ADR 0043), by node id:
+    /// its latest attempt's word.
+    #[serde(default)]
+    pub next_projects: BTreeMap<String, Vec<super::NextProjectNote>>,
     pub validation_results: Vec<ValidationEntry>,
     pub warnings: Vec<OverlapWarning>,
     /// How many times each loop has gone round, by loop id.
