@@ -3365,6 +3365,49 @@ fn the_chain_stops_at_a_run_that_does_not_complete() {
 }
 
 #[test]
+fn a_chain_whose_next_run_cannot_start_says_so_instead_of_going_quiet() {
+    let env = env();
+    let front = env.add_project("front", "Web");
+    let workflow = env.review_workflow();
+    let runner = Scripted::new();
+    runner.script("validator", vec![outcome("pass", "")]);
+    let first = env
+        .service
+        .start_chain(
+            &workflow,
+            "task",
+            false,
+            None,
+            None,
+            std::slice::from_ref(&front),
+        )
+        .unwrap();
+    // The project leaves the workspace while the first run works.
+    env.config
+        .modify(|config| {
+            config.workspaces[0].projects.retain(|p| p.id != front);
+            Ok(())
+        })
+        .unwrap();
+    let observer = Arc::new(Collector::default());
+
+    env.orchestrator(&runner)
+        .run(&first.id, observer.clone())
+        .unwrap();
+
+    let runs = env.service.chain_runs(&first.id);
+    assert_eq!(runs.len(), 1, "the next project is not started");
+    assert_eq!(runs[0].status, WorkflowExecutionStatus::Completed);
+    let stopped = runs[0].chain.as_ref().unwrap().stopped.clone().unwrap();
+    assert_eq!(stopped.project_id, front);
+    assert_eq!(stopped.code, "scope_invalid");
+    assert!(observer.kinds().contains(&WorkflowEventKind::ChainStopped));
+    assert!(!observer
+        .kinds()
+        .contains(&WorkflowEventKind::ChainContinued));
+}
+
+#[test]
 #[allow(clippy::assert_is_empty)]
 fn a_chain_cannot_name_a_project_the_workspace_does_not_have() {
     let env = env();
@@ -3463,4 +3506,208 @@ fn a_project_the_run_before_said_needs_nothing_is_not_run() {
     assert!(!observer
         .kinds()
         .contains(&WorkflowEventKind::ChainContinued));
+}
+
+// ---- a chain that waits for its code to be delivered, and going on by hand (ADR 0043) ---------
+
+/// A chain over two projects whose first run is recorded as completed with `status` for its
+/// code, as it is when the person has (or has not yet) decided about it.
+fn completed_first_run_of_a_chain(
+    env: &Env,
+    wait: bool,
+    status: crate::domain::workflow::IntegrationStatus,
+) -> String {
+    let front = env.add_project("front", "Web");
+    let workflow = env.review_workflow();
+    let first = env
+        .service
+        .start_chain(&workflow, "task", false, None, None, &[front])
+        .unwrap();
+    env.service
+        .set_chain_wait_for_delivery(&first.id, wait)
+        .unwrap();
+    let mut done = env.service.execution(&first.id).unwrap();
+    done.status = WorkflowExecutionStatus::Completed;
+    done.integration.status = status;
+    env.service.save_execution(&done).unwrap();
+    first.id
+}
+
+#[test]
+fn a_chain_that_waits_goes_on_only_once_the_code_is_applied_and_only_once() {
+    use crate::domain::workflow::IntegrationStatus;
+    let env = env();
+    let first = completed_first_run_of_a_chain(&env, true, IntegrationStatus::ChangesAvailable);
+    let runner = Scripted::new();
+    let orchestrator = env.orchestrator(&runner);
+    let observer = Collector::default();
+
+    let waiting = orchestrator
+        .go_on_with_chain(&first, &observer)
+        .unwrap_err();
+    assert!(waiting.is(ErrorCode::ChainAwaitingDelivery));
+    assert_eq!(
+        env.service.chain_runs(&first).len(),
+        1,
+        "nothing started yet"
+    );
+
+    let mut applied = env.service.execution(&first).unwrap();
+    applied.integration.status = IntegrationStatus::Integrated;
+    env.service.save_execution(&applied).unwrap();
+    let next = orchestrator.go_on_with_chain(&first, &observer).unwrap();
+
+    let runs = env.service.chain_runs(&first);
+    assert_eq!(runs.len(), 2);
+    assert_eq!(runs[1].id, next);
+    assert!(
+        runs[1].chain.as_ref().unwrap().wait_for_delivery,
+        "the next one waits too"
+    );
+    assert!(observer
+        .kinds()
+        .contains(&WorkflowEventKind::ChainContinued));
+    // A second "continue" (or the run's own loop coming after) starts nothing more.
+    let again = orchestrator
+        .go_on_with_chain(&first, &observer)
+        .unwrap_err();
+    assert!(again.is(ErrorCode::ChainNothingToContinue));
+    assert_eq!(env.service.chain_runs(&first).len(), 2);
+}
+
+#[test]
+fn a_chain_that_waits_ends_when_the_code_is_discarded_and_says_so() {
+    use crate::domain::workflow::IntegrationStatus;
+    let env = env();
+    let first = completed_first_run_of_a_chain(&env, true, IntegrationStatus::Discarded);
+    let runner = Scripted::new();
+    let observer = Collector::default();
+
+    let refused = env
+        .orchestrator(&runner)
+        .go_on_with_chain(&first, &observer)
+        .unwrap_err();
+
+    assert!(refused.is(ErrorCode::ChainChangesDiscarded));
+    assert_eq!(env.service.chain_runs(&first).len(), 1);
+    let stopped = env
+        .service
+        .execution(&first)
+        .unwrap()
+        .chain
+        .unwrap()
+        .stopped
+        .unwrap();
+    assert_eq!(stopped.code, "chain_changes_discarded");
+    assert!(observer.kinds().contains(&WorkflowEventKind::ChainStopped));
+}
+
+#[test]
+fn a_chain_that_does_not_wait_can_be_continued_by_hand_after_the_app_closed() {
+    use crate::domain::workflow::IntegrationStatus;
+    let env = env();
+    // Completed, code not decided, and the app closed before the chain went on.
+    let first = completed_first_run_of_a_chain(&env, false, IntegrationStatus::ChangesAvailable);
+    let runner = Scripted::new();
+    runner.script("validator", vec![outcome("pass", "")]);
+    let orchestrator = env.orchestrator(&runner);
+    let observer = Arc::new(Collector::default());
+
+    let next = orchestrator
+        .go_on_with_chain(&first, observer.as_ref())
+        .unwrap();
+    orchestrator.run(&next, observer).unwrap();
+
+    let runs = env.service.chain_runs(&first);
+    assert_eq!(runs.len(), 2);
+    assert_eq!(runs[1].status, WorkflowExecutionStatus::Completed);
+}
+
+#[test]
+fn a_run_that_is_not_part_of_a_chain_has_nothing_to_continue() {
+    let env = env();
+    let workflow = dev_flow(&env);
+    let run = env.service.start(&workflow.id, "task").unwrap();
+    let runner = Scripted::new();
+
+    let refused = env
+        .orchestrator(&runner)
+        .go_on_with_chain(&run.id, &Collector::default())
+        .unwrap_err();
+
+    assert!(refused.is(ErrorCode::ChainNothingToContinue));
+}
+
+// ---- a question nobody answers in time ---------------------------------------------------------
+
+#[test]
+fn a_question_nobody_answers_in_time_lapses_and_its_step_fails_without_asking_again() {
+    let env = env();
+    let workflow = env.workflow(
+        vec![
+            with_retries(agent("developer", "developer"), 2),
+            agent("validator", "validator"),
+            end("done", EndOutcome::Done),
+        ],
+        vec![edge("developer", "validator"), edge("validator", "done")],
+    );
+    let runner = Scripted::new();
+    runner.script(
+        "developer",
+        vec![asks(
+            InteractionKind::Clarification,
+            "Which API should I use?",
+        )],
+    );
+    let exec = env.service.start(&workflow.id, "task").unwrap();
+    let observer = Arc::new(Collector::default());
+
+    env.orchestrator(&runner)
+        .with_question_timeout(Arc::new(|| Some(20)))
+        .run(&exec.id, observer.clone())
+        .unwrap();
+
+    let done = env.run_of(&exec.id);
+    assert_eq!(done.status, WorkflowExecutionStatus::Failed);
+    assert_eq!(done.interactions[0].status, InteractionStatus::Expired);
+    assert_eq!(
+        done.nodes["developer"].reason.as_deref(),
+        Some(super::engine::INTERACTION_EXPIRED)
+    );
+    assert_eq!(
+        runner.started(),
+        ["developer"],
+        "a lapsed question is not asked again"
+    );
+    assert!(observer
+        .kinds()
+        .contains(&WorkflowEventKind::InteractionExpired));
+}
+
+#[test]
+fn without_a_limit_a_question_keeps_waiting() {
+    let env = env();
+    let workflow = dev_flow(&env);
+    let runner = Scripted::new();
+    runner.script(
+        "developer",
+        vec![asks(
+            InteractionKind::Clarification,
+            "Which API should I use?",
+        )],
+    );
+    let run = env.drive(&runner, &workflow.id);
+
+    wait_until("the run to wait for the person", || {
+        env.run_of(&run.id).status == WorkflowExecutionStatus::WaitingForInput
+    });
+    std::thread::sleep(Duration::from_millis(40));
+
+    let waiting = env.run_of(&run.id);
+    assert_eq!(waiting.status, WorkflowExecutionStatus::WaitingForInput);
+    assert_eq!(waiting.interactions[0].status, InteractionStatus::Pending);
+    run.orchestrator
+        .control(&run.id, Control::Cancel, run.observer.as_ref())
+        .unwrap();
+    run.thread.join().unwrap();
 }

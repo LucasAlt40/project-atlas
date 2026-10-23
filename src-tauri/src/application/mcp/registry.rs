@@ -112,6 +112,15 @@ fn text(value: Option<&Value>) -> Option<String> {
         .map(str::to_owned)
 }
 
+/// A link the registry gives, only when it is `https`: it is shown to the person, and a
+/// `javascript:` or `file:` link from a third party has no place in the app.
+fn https_url(value: Option<&Value>) -> Option<String> {
+    text(value).filter(|url| {
+        url.get(..8)
+            .is_some_and(|scheme| scheme.eq_ignore_ascii_case("https://"))
+    })
+}
+
 fn flag(value: Option<&Value>) -> bool {
     value.and_then(Value::as_bool).unwrap_or(false)
 }
@@ -244,8 +253,8 @@ fn server_of(entry: &Value) -> Option<RegistryServer> {
         title: text(server.get("title")),
         description: text(server.get("description")).unwrap_or_default(),
         version: text(server.get("version")).unwrap_or_default(),
-        repository_url: text(server.pointer("/repository/url")),
-        website_url: text(server.get("websiteUrl")),
+        repository_url: https_url(server.pointer("/repository/url")),
+        website_url: https_url(server.get("websiteUrl")),
         name,
         installs,
         remotes,
@@ -296,6 +305,24 @@ mod tests {
         "packages":[{"registryType":"npm","identifier":"--evil","version":"1","transport":{"type":"stdio"}},
                     {"registryType":"npm","identifier":"ok","version":"1; rm","transport":{"type":"stdio"}}]}}
     ],"metadata":{"nextCursor":"abc:1","count":3}}"#;
+
+    #[test]
+    fn only_https_links_from_the_registry_are_kept() {
+        let link = |url: &str| https_url(Some(&Value::String(url.to_owned())));
+        assert_eq!(
+            link("https://github.com/acme/jira").as_deref(),
+            Some("https://github.com/acme/jira")
+        );
+        assert_eq!(link("HTTPS://x.dev").as_deref(), Some("HTTPS://x.dev"));
+        for refused in [
+            "javascript:alert(1)",
+            "http://x.dev",
+            "file:///etc/passwd",
+            "https:",
+        ] {
+            assert_eq!(link(refused), None, "{refused}");
+        }
+    }
 
     #[test]
     fn a_package_becomes_a_command_with_what_the_person_must_fill_in() {

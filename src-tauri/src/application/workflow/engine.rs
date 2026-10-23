@@ -382,6 +382,46 @@ impl<'a> WorkflowEngine<'a> {
         Ok(events)
     }
 
+    /// A question nobody answered in time lapses, and the step that asked fails without being
+    /// tried again: asking again would only wait again. Its failure route, if any, is taken.
+    /// Nothing for a question that is no longer pending.
+    pub fn expire_input(
+        &self,
+        exec: &mut WorkflowExecution,
+        interaction_id: &str,
+        at: u64,
+    ) -> Events {
+        let mut events = Vec::new();
+        let Some(index) = exec
+            .interactions
+            .iter()
+            .position(|i| i.id == interaction_id && i.is_pending())
+        else {
+            return events;
+        };
+        let node_id = exec.interactions[index].step_id.clone();
+        if exec
+            .node_state(&node_id)
+            .is_none_or(|s| s.status != NodeStatus::WaitingForInput)
+        {
+            return events;
+        }
+        exec.interactions[index].status = InteractionStatus::Expired;
+        let label = exec.interactions[index].step_label.clone();
+        events.push(exec.record(
+            WorkflowEventKind::InteractionExpired,
+            Some(&node_id),
+            format!("Nobody answered {label} in time"),
+            meta(&[("interactionId", interaction_id.to_owned())]),
+            at,
+        ));
+        self.step_failed(exec, &node_id, INTERACTION_EXPIRED, false, at, &mut events);
+        self.leave_waiting(exec);
+        self.refresh_shared(exec);
+        self.settle_into(exec, at, &mut events);
+        events
+    }
+
     /// An answer that was refused is part of the audit trail too.
     #[allow(clippy::unused_self)]
     pub fn reject_answer(
@@ -480,7 +520,7 @@ impl<'a> WorkflowEngine<'a> {
                 }
             }
             StepCompletion::Failed { message } => {
-                self.step_failed(exec, node_id, &message, at, &mut events);
+                self.step_failed(exec, node_id, &message, true, at, &mut events);
             }
             StepCompletion::NoValidOutcome { message } => {
                 let retry = !exec.cancel_requested && state.protocol_retries < MAX_PROTOCOL_RETRIES;
@@ -506,7 +546,7 @@ impl<'a> WorkflowEngine<'a> {
                         at,
                     ));
                 } else {
-                    self.step_failed(exec, node_id, &message, at, &mut events);
+                    self.step_failed(exec, node_id, &message, true, at, &mut events);
                 }
             }
             StepCompletion::Cancelled => {
@@ -1064,11 +1104,14 @@ impl<'a> WorkflowEngine<'a> {
         }
     }
 
+    /// A step failed. With `retry`, it is tried again while its retry policy allows; without,
+    /// it fails at once (its failure route still applies).
     fn step_failed(
         &self,
         exec: &mut WorkflowExecution,
         node_id: &str,
         message: &str,
+        retry: bool,
         at: u64,
         events: &mut Events,
     ) {
@@ -1085,7 +1128,7 @@ impl<'a> WorkflowEngine<'a> {
             attempt.failure = Some(message.to_owned());
         }
         state.failed_attempts += 1;
-        if !cancelling && state.failed_attempts <= max_retries {
+        if retry && !cancelling && state.failed_attempts <= max_retries {
             state.status = NodeStatus::Ready;
             state.continuing = true;
             let next = state.attempts.len() + 1;
@@ -1572,6 +1615,8 @@ impl<'a> WorkflowEngine<'a> {
 
 /// Reasons recorded on nodes. Stable codes the UI words.
 pub const INTERRUPTED: &str = "interrupted";
+/// A question to a person lapsed before anyone answered it.
+pub const INTERACTION_EXPIRED: &str = "interaction_expired";
 pub const MAX_ITERATIONS: &str = "max_iterations";
 pub const DEPENDENCY_FAILED: &str = "dependency_failed";
 pub const SKIPPED_BY_ROUTE: &str = "skipped_by_route";

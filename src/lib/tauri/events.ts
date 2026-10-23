@@ -34,6 +34,7 @@ export const WORKFLOW_EVENT_NAMES: readonly WorkflowEventName[] = [
   'workflow:interaction_answered',
   'workflow:interaction_rejected',
   'workflow:interaction_cancelled',
+  'workflow:interaction_expired',
   'workflow:node_completed',
   'workflow:node_failed',
   'workflow:node_blocked',
@@ -46,6 +47,7 @@ export const WORKFLOW_EVENT_NAMES: readonly WorkflowEventName[] = [
   'workflow:integration_changed',
   'workflow:chain_continued',
   'workflow:chain_skipped',
+  'workflow:chain_stopped',
 ];
 
 /**

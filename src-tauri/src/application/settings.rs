@@ -6,6 +6,9 @@ use super::errors::{AppError, ErrorCode};
 /// Languages the UI is translated into.
 pub const SUPPORTED_LANGUAGES: [&str; 2] = ["pt-BR", "en-US"];
 
+/// The longest a question may be set to wait: a week.
+pub const MAX_QUESTION_TIMEOUT_MINUTES: u32 = 7 * 24 * 60;
+
 /// Use case: settings of the whole application (not of any workspace): the UI language and the
 /// workspace that was open last.
 pub struct SettingsService {
@@ -42,6 +45,21 @@ impl SettingsService {
     pub fn set_specs_max_tokens(&self, max: Option<u64>) -> Result<AppSettings, AppError> {
         self.config.modify(|config| {
             config.settings.optimization.specs_max_tokens = max.filter(|m| *m > 0);
+            Ok(config.settings.clone())
+        })
+    }
+
+    /// How long a question to a person waits before it lapses (see `AppSettings`). `None`, or
+    /// zero: no limit. At most a week.
+    ///
+    /// # Errors
+    ///
+    /// Fails if saving fails.
+    pub fn set_question_timeout(&self, minutes: Option<u32>) -> Result<AppSettings, AppError> {
+        self.config.modify(|config| {
+            config.settings.question_timeout_minutes = minutes
+                .filter(|m| *m > 0)
+                .map(|m| m.min(MAX_QUESTION_TIMEOUT_MINUTES));
             Ok(config.settings.clone())
         })
     }
@@ -159,6 +177,34 @@ mod tests {
     }
 
     #[test]
+    fn a_question_timeout_is_kept_within_a_week_and_zero_means_no_limit() {
+        let (service, _) = service_with_workspace();
+
+        assert_eq!(
+            service
+                .set_question_timeout(Some(60))
+                .unwrap()
+                .question_timeout_minutes,
+            Some(60)
+        );
+        assert_eq!(
+            service
+                .set_question_timeout(Some(u32::MAX))
+                .unwrap()
+                .question_timeout_minutes,
+            Some(MAX_QUESTION_TIMEOUT_MINUTES)
+        );
+        assert_eq!(
+            service
+                .set_question_timeout(Some(0))
+                .unwrap()
+                .question_timeout_minutes,
+            None
+        );
+        assert_eq!(service.get().question_timeout_minutes, None);
+    }
+
+    #[test]
     fn defaults_to_portuguese_with_no_workspace_selected() {
         let (service, _) = service_with_workspace();
 
@@ -170,6 +216,7 @@ mod tests {
                 optimization: crate::application::config::OptimizationSettings::default(),
                 sandbox: crate::domain::security::SandboxSettings::default(),
                 presence: crate::domain::presence::PresenceSettings::default(),
+                question_timeout_minutes: None,
             }
         );
     }

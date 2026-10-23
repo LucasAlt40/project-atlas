@@ -33,7 +33,7 @@ pub async fn merge_execution(
 ) -> Result<ExecutionWorktree, AppError> {
     let worktrees = state.worktrees.clone();
     // Git can take a while on a big repository: not on the thread that serves the window.
-    tauri::async_runtime::spawn_blocking(move || {
+    super::off_window(ErrorCode::WorktreeFailed, move || {
         let known = worktrees
             .get(&execution_id)
             .filter(|w| w.workspace_id == workspace_id && w.agent_id == agent_id)
@@ -42,6 +42,5 @@ pub async fn merge_execution(
             .merge(&known.execution_id)
             .map_err(|error| AppError::from(&error))
     })
-    .await
-    .map_err(|error| AppError::new(ErrorCode::WorktreeFailed).with_detail(error.to_string()))?
+    .await?
 }

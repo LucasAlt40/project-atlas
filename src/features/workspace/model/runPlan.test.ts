@@ -59,6 +59,19 @@ describe('run plan over several projects', () => {
     });
   });
 
+  it('asks the chain to wait for each delivery only when there is a chain and the person chose it', () => {
+    const waiting = { ...allWorking(fullstack), waitForDelivery: true };
+
+    expect(toStartRequest(waiting, fullstack)).toEqual({
+      scope: { workingProjectId: 'back', readProjectIds: [] },
+      nextProjectIds: ['front'],
+      waitForDelivery: true,
+    });
+    expect(
+      toStartRequest({ ...oneWorking(fullstack, 'back'), waitForDelivery: true }, fullstack),
+    ).toEqual({ scope: { workingProjectId: 'back', readProjectIds: ['front'] } });
+  });
+
   it('never leaves a run with nothing to change', () => {
     const plan = oneWorking(fullstack, 'back');
 

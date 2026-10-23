@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Callout } from '@/components/ui/Callout';
 import { listMcpConnections } from '@/features/workspace/services/mcpService';
@@ -22,15 +22,16 @@ export function IntegrationsPicker({ workspaceId, selected, onChange, preselect 
   const { t } = useI18n();
   const [connections, setConnections] = useState<McpConnectionDto[] | null>(null);
 
+  // Read once per workspace: the choice is the person's after that.
+  const loaded = useEffectEvent((found: McpConnectionDto[]) => {
+    setConnections(found);
+    if (preselect) onChange(found.filter((c) => c.enabled).map((c) => c.id));
+  });
   useEffect(() => {
     let current = true;
     Promise.resolve(listMcpConnections(workspaceId))
       .then((overview) => {
-        if (!current) return;
-        setConnections(overview.connections);
-        if (preselect) {
-          onChange(overview.connections.filter((c) => c.enabled).map((c) => c.id));
-        }
+        if (current) loaded(overview.connections);
       })
       .catch(() => {
         if (current) setConnections([]);
@@ -38,8 +39,6 @@ export function IntegrationsPicker({ workspaceId, selected, onChange, preselect 
     return () => {
       current = false;
     };
-    // Read once per workspace: the choice is the person's after that.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId]);
 
   if (connections === null) return null;

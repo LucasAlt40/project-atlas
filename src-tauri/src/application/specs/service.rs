@@ -194,7 +194,7 @@ impl SpecService {
     ) -> Self {
         let (loaded, unreadable) = store.load_all();
         for problem in unreadable {
-            eprintln!("a spec record could not be read and was left as it is: {problem}");
+            log::warn!("a spec record could not be read and was left as it is: {problem}");
         }
         Self {
             store,

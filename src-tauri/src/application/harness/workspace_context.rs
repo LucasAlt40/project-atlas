@@ -23,7 +23,7 @@ use super::manifest::parse_manifest;
 use super::HarnessService;
 use crate::application::errors::{AppError, ErrorCode};
 use crate::application::runtimes::sha256_hex;
-use crate::application::support::now_ms;
+use crate::application::support::{now_ms, LockExt};
 use crate::domain::harness::{
     FindingCategory, HarnessStatus, HarnessSummary, InitMode, InitializeInput, Origin,
 };
@@ -292,13 +292,13 @@ impl HarnessService {
                         }
                         ProjectInitStatus::Failed => ProjectInitProgress::Failed,
                     });
-                    results.lock().expect("results lock").insert(index, result);
+                    results.lock_or_recover().insert(index, result);
                 });
             }
         });
         let projects: Vec<ProjectInitResult> = results
             .into_inner()
-            .expect("results lock")
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .into_values()
             .collect();
         let complete = projects

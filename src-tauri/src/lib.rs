@@ -58,6 +58,21 @@ use tauri::Manager;
 pub fn run() {
     let consent = commands::exit::ExitConsent::default();
     tauri::Builder::default()
+        // Registered first, so what the other plugins and the setup say is kept too. To a file
+        // in the OS log folder (and stdout in a terminal); no webview permission is granted.
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Info)
+                .max_file_size(2 * 1024 * 1024)
+                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(3))
+                .targets([
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+                        file_name: None,
+                    }),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+                ])
+                .build(),
+        )
         // Native folder picker only (granted as `dialog:allow-open` in the capability file).
         .plugin(tauri_plugin_dialog::init())
         // System notifications (granted as `notification:default`): an agent waiting for the person.
@@ -129,6 +144,7 @@ pub fn run() {
             commands::settings::get_settings,
             commands::settings::set_language,
             commands::settings::set_specs_max_tokens,
+            commands::settings::set_question_timeout,
             commands::memory::list_memories,
             commands::memory::create_memory,
             commands::memory::edit_memory,
@@ -213,6 +229,7 @@ pub fn run() {
             commands::workflow::set_auto_approve_plans,
             commands::workflow::pause_workflow,
             commands::workflow::resume_workflow,
+            commands::workflow::continue_workflow_chain,
             commands::workflow::cancel_workflow,
             commands::workflow::answer_workflow_interaction,
             commands::workflow::list_pending_interactions,
@@ -276,10 +293,11 @@ fn build_state(
     live_sink: Arc<dyn application::live_workspace::LiveSink>,
     spec_events: Arc<dyn application::specs::service::SpecEvents>,
 ) -> AppState {
-    let app_info = AppInfoService::new(env!("CARGO_PKG_VERSION").to_owned(), Arc::new(OsPlatform));
     let config = Arc::new(ConfigRepository::load(Box::new(JsonConfigStore::new(
         data_dir.join("config.json"),
     ))));
+    let app_info = AppInfoService::new(env!("CARGO_PKG_VERSION").to_owned(), Arc::new(OsPlatform))
+        .with_config_notice(config.notice());
     // Every process the core starts goes through the guard: the system runner is never handed
     // to a runtime directly. The policy it applies is derived from stored workspaces and agents.
     let security = Arc::new(SecurityService::new(config.clone()));
@@ -427,6 +445,7 @@ fn build_state(
     let ledger = Arc::new(UsageLedger::new(config.clone()));
     let config_for_overview = config.clone();
     let config_for_guardrails = config.clone();
+    let config_for_questions = config.clone();
     let config_for_portability = config.clone();
     // Workflow definitions and runs live in the same config store. A run the previous session
     // never saw end is marked interrupted: nothing is resumed or called finished on its own.
@@ -507,7 +526,15 @@ fn build_state(
             ),
         )
         .with_guardrails(config_for_guardrails)
-        .with_memory(memory.clone()),
+        .with_memory(memory.clone())
+        .with_question_timeout({
+            let config = config_for_questions;
+            Arc::new(move || {
+                config
+                    .read(|c| c.settings.question_timeout_minutes)
+                    .map(|minutes| u64::from(minutes) * 60 * 1000)
+            })
+        }),
     );
     // What becomes of a run's code (review, apply, keep, discard, open in an editor): Git and the
     // worktree service decide; the editor is launched by Atlas from a fixed list.

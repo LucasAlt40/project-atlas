@@ -1,6 +1,6 @@
 use tauri::State;
 
-use crate::application::errors::AppError;
+use crate::application::errors::{AppError, ErrorCode};
 use crate::domain::live_workspace::{LiveFile, LiveWorkspaceState};
 use crate::state::AppState;
 
@@ -15,12 +15,10 @@ pub async fn get_live_workspace(
 ) -> Result<Option<LiveWorkspaceState>, AppError> {
     let live = state.live.clone();
     // Git can take a while on a big worktree: not on the thread that serves the window.
-    tauri::async_runtime::spawn_blocking(move || live.state_for_run(&execution_id))
-        .await
-        .map_err(|e| {
-            AppError::new(crate::application::errors::ErrorCode::WorktreeFailed)
-                .with_detail(e.to_string())
-        })
+    super::off_window(ErrorCode::WorktreeFailed, move || {
+        live.state_for_run(&execution_id)
+    })
+    .await
 }
 
 /// Compares the whole worktree with the baseline now. For "refresh", or when the UI notices an
@@ -32,13 +30,11 @@ pub async fn refresh_live_workspace(
     execution_id: String,
 ) -> Result<LiveWorkspaceState, AppError> {
     let live = state.live.clone();
-    tauri::async_runtime::spawn_blocking(move || live.refresh_for_run(&execution_id))
-        .await
-        .map_err(|e| {
-            AppError::new(crate::application::errors::ErrorCode::WorktreeFailed)
-                .with_detail(e.to_string())
-        })?
-        .map_err(AppError::from)
+    super::off_window(ErrorCode::WorktreeFailed, move || {
+        live.refresh_for_run(&execution_id)
+    })
+    .await?
+    .map_err(AppError::from)
 }
 
 /// One file of the run's worktree as it is now. The webview names the run and a path inside the
@@ -52,13 +48,11 @@ pub async fn get_live_file(
     path: String,
 ) -> Result<LiveFile, AppError> {
     let live = state.live.clone();
-    tauri::async_runtime::spawn_blocking(move || live.file_for_run(&execution_id, &path))
-        .await
-        .map_err(|e| {
-            AppError::new(crate::application::errors::ErrorCode::WorktreeFailed)
-                .with_detail(e.to_string())
-        })?
-        .map_err(AppError::from)
+    super::off_window(ErrorCode::WorktreeFailed, move || {
+        live.file_for_run(&execution_id, &path)
+    })
+    .await?
+    .map_err(AppError::from)
 }
 
 /// The real diff of the run's worktree as it is now against the commit the run started from, of
@@ -71,11 +65,9 @@ pub async fn get_live_diff(
     path: Option<String>,
 ) -> Result<String, AppError> {
     let live = state.live.clone();
-    tauri::async_runtime::spawn_blocking(move || live.diff_for_run(&execution_id, path.as_deref()))
-        .await
-        .map_err(|e| {
-            AppError::new(crate::application::errors::ErrorCode::WorktreeFailed)
-                .with_detail(e.to_string())
-        })?
-        .map_err(AppError::from)
+    super::off_window(ErrorCode::WorktreeFailed, move || {
+        live.diff_for_run(&execution_id, path.as_deref())
+    })
+    .await?
+    .map_err(AppError::from)
 }

@@ -724,6 +724,7 @@ function NodeFindings({ run, nodeId }: { run: WorkflowRun; nodeId: string }) {
 
 const KNOWN_REASONS = [
   'interrupted',
+  'interaction_expired',
   'max_iterations',
   'dependency_failed',
   'skipped_by_route',

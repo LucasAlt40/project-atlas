@@ -10,6 +10,8 @@ export interface RunPlan {
   workingProjectIds: string[];
   /** Consulted only, never changed. Never one of `workingProjectIds`. */
   readProjectIds: string[];
+  /** For several runs: the next project runs only once the previous one's code is applied or kept. */
+  waitForDelivery?: boolean;
 }
 
 interface HasProjects {
@@ -89,7 +91,11 @@ export function normalizePlan(plan: RunPlan | undefined, workspace: HasProjects)
   const readProjectIds = workspace.projects
     .filter((p) => !working.includes(p.id) && wanted.has(p.id))
     .map((p) => p.id);
-  return { workingProjectIds: working, readProjectIds };
+  return {
+    workingProjectIds: working,
+    readProjectIds,
+    ...(plan.waitForDelivery ? { waitForDelivery: true } : {}),
+  };
 }
 
 export type ProjectUse = 'work' | 'read' | 'none';
@@ -166,7 +172,7 @@ export function isChain(plan: RunPlan): boolean {
 export function toStartRequest(
   plan: RunPlan,
   workspace: HasProjects,
-): { scope?: ScopeRequestDto; nextProjectIds?: string[] } {
+): { scope?: ScopeRequestDto; nextProjectIds?: string[]; waitForDelivery?: boolean } {
   const normal = normalizePlan(plan, workspace);
   const [first, ...next] = normal.workingProjectIds;
   const primary = workspace.projects[0]?.id;
@@ -175,6 +181,7 @@ export function toStartRequest(
   return {
     scope: { workingProjectId: first, readProjectIds: normal.readProjectIds },
     ...(next.length > 0 ? { nextProjectIds: next } : {}),
+    ...(next.length > 0 && normal.waitForDelivery ? { waitForDelivery: true } : {}),
   };
 }
 
@@ -194,6 +201,7 @@ export function loadRunPlan(workspaceId: string): RunPlan | undefined {
         (id): id is string => typeof id === 'string',
       ),
       readProjectIds: value.readProjectIds.filter((id): id is string => typeof id === 'string'),
+      ...(value.waitForDelivery === true ? { waitForDelivery: true } : {}),
     };
   } catch {
     return undefined;

@@ -112,6 +112,7 @@ export function startWorkflow(
   scope?: ScopeRequestDto,
   specId?: string,
   nextProjectIds?: string[],
+  waitForDelivery = false,
 ): Promise<WorkflowRun> {
   return invokeCommand('start_workflow', {
     workflowId,
@@ -120,7 +121,13 @@ export function startWorkflow(
     ...(scope ? { scope } : {}),
     ...(specId ? { specId } : {}),
     ...(nextProjectIds && nextProjectIds.length > 0 ? { nextProjectIds } : {}),
+    ...(waitForDelivery && nextProjectIds && nextProjectIds.length > 0 ? { waitForDelivery } : {}),
   });
+}
+
+/** Starts the run of the chain's next project after a completed run (ADR 0043). */
+export async function continueWorkflowChain(executionId: string): Promise<void> {
+  await invokeCommand('continue_workflow_chain', { executionId });
 }
 
 export async function setAutoApprovePlans(executionId: string, enabled: boolean): Promise<void> {

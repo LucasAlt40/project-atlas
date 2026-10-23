@@ -112,6 +112,26 @@ pub struct ProjectChain {
     /// Projects skipped so far, because the run before said they need nothing.
     #[serde(default)]
     pub skipped: Vec<ChainSkip>,
+    /// Set on a completed run when the run of the next project could not be started, so the
+    /// chain ends there: the person sees why instead of a chain that silently goes no further.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stopped: Option<ChainStop>,
+    /// The next project runs only once the person applied (or kept) this run's code, so it never
+    /// builds on work that is then thrown away. Off: it runs as soon as this run completes.
+    #[serde(default)]
+    pub wait_for_delivery: bool,
+}
+
+/// Why a chain went no further than a completed run.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChainStop {
+    /// The project whose run could not be started.
+    pub project_id: String,
+    /// The core's error code (`workflow_invalid`, `scope_invalid`…), worded by the UI.
+    pub code: String,
+    #[serde(default)]
+    pub params: std::collections::BTreeMap<String, String>,
 }
 
 /// Where a chain goes once a run of it completed.
@@ -172,6 +192,8 @@ impl ProjectChain {
             read_project_ids: self.read_project_ids.clone(),
             earlier,
             skipped: all_skipped,
+            stopped: None,
+            wait_for_delivery: self.wait_for_delivery,
         });
         Advance { next, skipped }
     }
@@ -249,6 +271,8 @@ mod tests {
             read_project_ids: vec!["docs".to_owned(), "front".to_owned()],
             earlier: Vec::new(),
             skipped: Vec::new(),
+            stopped: None,
+            wait_for_delivery: false,
         }
     }
 

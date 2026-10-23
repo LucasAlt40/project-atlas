@@ -37,7 +37,7 @@ impl<R: Runtime> TauriEventObserver<R> {
     fn emit<S: serde::Serialize + Clone>(&self, name: &str, payload: &S) {
         // Events are best-effort: the conversation can always be re-read with a command.
         if let Err(error) = self.app.emit(name, payload) {
-            eprintln!("failed to emit {name}: {error}");
+            log::warn!("failed to emit {name}: {error}");
         }
     }
 }
@@ -96,7 +96,7 @@ impl<R: Runtime> WorkflowObserver for TauriWorkflowObserver<R> {
     fn on_workflow_event(&self, event: &WorkflowEvent) {
         let name = event.kind.wire_name();
         if let Err(error) = self.app.emit(&name, event) {
-            eprintln!("failed to emit {name}: {error}");
+            log::warn!("failed to emit {name}: {error}");
         }
         announce_to_phone(&self.app, |hub| hub.publish_workflow(event));
         if let Some(state) = self.app.try_state::<AppState>() {
@@ -118,7 +118,7 @@ pub struct TauriLiveSink<R: Runtime> {
 impl<R: Runtime> LiveSink for TauriLiveSink<R> {
     fn on_update(&self, update: &LiveWorkspaceUpdate) {
         if let Err(error) = self.app.emit(LIVE_WORKSPACE_EVENT, update) {
-            eprintln!("failed to emit {LIVE_WORKSPACE_EVENT}: {error}");
+            log::warn!("failed to emit {LIVE_WORKSPACE_EVENT}: {error}");
         }
     }
 }
@@ -132,7 +132,7 @@ pub struct TauriSessionSink<R: Runtime> {
 impl<R: Runtime> TauriSessionSink<R> {
     fn emit<S: serde::Serialize + Clone>(&self, name: &str, payload: &S) {
         if let Err(error) = self.app.emit(name, payload) {
-            eprintln!("failed to emit {name}: {error}");
+            log::warn!("failed to emit {name}: {error}");
         }
     }
 }
@@ -162,7 +162,7 @@ impl<R: Runtime> PermissionSink for TauriPermissionSink<R> {
     fn on_permission_event(&self, event: &PermissionEvent) {
         let progress = permission_progress(event);
         if let Err(error) = self.app.emit(EXECUTION_PROGRESS_EVENT, &progress) {
-            eprintln!("failed to emit permission event: {error}");
+            log::warn!("failed to emit permission event: {error}");
         }
     }
 }
@@ -221,7 +221,7 @@ impl<R: Runtime> crate::application::harness::semantic::HarnessProgress
 {
     fn report(&self, update: &crate::application::harness::semantic::ProgressUpdate) {
         if let Err(error) = self.app.emit("harness:progress", update) {
-            eprintln!("failed to emit harness:progress: {error}");
+            log::warn!("failed to emit harness:progress: {error}");
         }
     }
 }

@@ -197,8 +197,7 @@ pub enum InteractionStatus {
     Pending,
     Answered,
     Cancelled,
-    /// Reserved: a timeout is not applied in this version, but the state exists so adding one
-    /// does not change the model.
+    /// Nobody answered in the time the person set (`question_timeout_minutes`).
     Expired,
 }
 

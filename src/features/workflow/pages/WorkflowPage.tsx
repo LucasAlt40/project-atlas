@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useEffectEvent, useMemo, useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { useNavigation } from '@/app/NavigationContext';
 import { Callout } from '@/components/ui/Callout';
@@ -122,14 +122,16 @@ export function WorkflowPage() {
   }, [agents, personalities]);
 
   // Opened from an execution's breadcrumb: show that run.
+  // Only when the intent (or the load) changes, not on every render.
   const { open, showRun } = space;
+  const openFromIntent = useEffectEvent((workflowId: string, executionId: string | null) => {
+    open(workflowId);
+    showRun(executionId);
+  });
   useEffect(() => {
     if (intent?.type === 'open-workflow' && space.load.status === 'ready') {
-      open(intent.workflowId);
-      showRun(intent.executionId ?? null);
+      openFromIntent(intent.workflowId, intent.executionId ?? null);
     }
-    // Only when the intent (or the load) changes, not on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [intent, space.load.status]);
 
   // Whatever was selected belongs to the workflow it was selected in.
@@ -385,7 +387,7 @@ export function WorkflowPage() {
     saveRunPlan(active.id, plan);
   };
   const startRun = (plan: RunPlan) => {
-    const { scope, nextProjectIds } = toStartRequest(plan, active);
+    const { scope, nextProjectIds, waitForDelivery } = toStartRequest(plan, active);
     if (startFrom.kind === 'spec') {
       // Always said for a spec: without a scope the run would work in the spec's own project,
       // which may not be the one the person was shown.
@@ -396,13 +398,13 @@ export function WorkflowPage() {
           ? { workingProjectId: first, readProjectIds: plan.readProjectIds }
           : undefined);
       void space
-        .run(task.trim(), autoPlans, explicit, startFrom.specId, nextProjectIds)
+        .run(task.trim(), autoPlans, explicit, startFrom.specId, nextProjectIds, waitForDelivery)
         .then((started) => {
           // A spec is built from on purpose, not by leaving the choice where it was.
           if (started) setStartFrom(VIBE);
         });
     } else if (nextProjectIds) {
-      void space.run(task.trim(), autoPlans, scope, undefined, nextProjectIds);
+      void space.run(task.trim(), autoPlans, scope, undefined, nextProjectIds, waitForDelivery);
     } else if (scope) void space.run(task.trim(), autoPlans, scope);
     else void space.run(task.trim(), autoPlans);
   };
@@ -713,6 +715,9 @@ export function WorkflowPage() {
             runs={space.runs}
             onShow={(runId) => {
               space.showRun(runId);
+            }}
+            onContinue={(runId) => {
+              void space.continueChain(runId);
             }}
           />
         )}

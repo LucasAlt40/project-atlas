@@ -3,6 +3,7 @@ import { BreadcrumbContext } from './BreadcrumbContext';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { AppShell } from '@/components/layout/AppShell';
 import { SidebarFooter } from '@/components/layout/SidebarFooter';
+import { ConfigNoticeBanner } from '@/features/home/components/ConfigNoticeBanner';
 import { CatalogProvider } from '@/features/agents/hooks/useCatalog';
 import { useAttentionNotifications } from '@/features/workflow/hooks/useAttentionNotifications';
 import { ActionRequired } from '@/features/workflow/components/ActionRequired';
@@ -97,6 +98,7 @@ function Shell() {
             </>
           }
         >
+          <ConfigNoticeBanner />
           <ErrorBoundary resetKey={active.id}>
             <Suspense fallback={null}>
               <ActiveScreen />

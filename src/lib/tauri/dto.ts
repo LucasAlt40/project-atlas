@@ -72,6 +72,8 @@ export interface CommandMap {
   get_settings: { args: undefined; result: AppSettingsDto };
   set_language: { args: { language: string }; result: AppSettingsDto };
   set_specs_max_tokens: { args: { max: number | null }; result: AppSettingsDto };
+  /** How long a question in a workflow run waits for a person; `null`: no limit. */
+  set_question_timeout: { args: { minutes: number | null }; result: AppSettingsDto };
   get_sandbox_status: { args: undefined; result: SandboxStatusDto };
   set_sandbox_settings: { args: { sandbox: SandboxSettingsDto }; result: AppSettingsDto };
   get_storage_usage: { args: undefined; result: StorageUsageDto };
@@ -338,6 +340,8 @@ export interface CommandMap {
        * Absent: one run.
        */
       nextProjectIds?: string[];
+      /** The next project runs only once this run's code is applied or kept. Absent: at once. */
+      waitForDelivery?: boolean;
     };
     result: WorkflowExecutionDto;
   };
@@ -349,6 +353,8 @@ export interface CommandMap {
    * at its Recovery Point (steps that completed are not run again).
    */
   resume_workflow: { args: { executionId: string }; result: null };
+  /** Starts the run of the chain's next project after a completed run (ADR 0043). */
+  continue_workflow_chain: { args: { executionId: string }; result: null };
   /** Where a failed run would go on from. `null` for a run that did not fail. Changes nothing. */
   get_workflow_recovery: { args: { executionId: string }; result: RecoveryPlanDto | null };
   cancel_workflow: { args: { executionId: string }; result: null };
@@ -546,7 +552,15 @@ export interface AppInfoDto {
   name: string;
   version: string;
   platform: string;
+  /** Present only when the stored config could not be read as it was at start. */
+  configNotice?: ConfigNoticeDto;
 }
+
+/** Mirrors `domain::app_info::ConfigNotice`. */
+export type ConfigNoticeDto =
+  | { kind: 'recovered'; backup: string; dropped: { section: string; count: number }[] }
+  | { kind: 'reset'; backup: string }
+  | { kind: 'unreadable'; path: string };
 
 /**
  * Every failure the core reports. The UI words each in the user's language (`src/i18n`); the
@@ -1256,6 +1270,8 @@ export interface AppSettingsDto {
   sandbox?: SandboxSettingsDto;
   /** Discord Rich Presence: what Atlas shares on the person's profile. Off by default. */
   presence?: PresenceSettingsDto;
+  /** How long a question in a workflow run waits for a person; absent or `null`: no limit. */
+  questionTimeoutMinutes?: number | null;
 }
 
 /** The screen that is open, for the Discord profile: only its name. Mirrors `domain::presence::Screen`. */
@@ -2991,6 +3007,8 @@ export type WorkflowEventKindDto =
   | 'interaction_answered'
   | 'interaction_rejected'
   | 'interaction_cancelled'
+  /** Nobody answered in the time set: the step fails (`interactionId`). */
+  | 'interaction_expired'
   | 'node_completed'
   | 'node_failed'
   | 'node_blocked'
@@ -3005,6 +3023,8 @@ export type WorkflowEventKindDto =
   | 'chain_continued'
   /** A project of the chain is not run: the run before said it needs nothing (`projectId`). */
   | 'chain_skipped'
+  /** The run of the chain's next project could not be started (`projectId`, `code`). */
+  | 'chain_stopped'
   /** A guardrail took secrets out of a step's result before it was handed on. */
   | 'guardrail_transformed';
 
@@ -3065,6 +3085,18 @@ export interface ProjectChainDto {
   earlier: ChainStepDto[];
   /** Projects not run because the run before said they need nothing. */
   skipped?: ChainSkipDto[];
+  /** On a completed run whose next project's run could not be started: the chain ends there. */
+  stopped?: ChainStopDto;
+  /** The next project runs only once this run's code is applied or kept. */
+  waitForDelivery?: boolean;
+}
+
+/** Mirrors `domain::workflow::ChainStop`: why a chain went no further. */
+export interface ChainStopDto {
+  projectId: string;
+  /** An `ErrorCodeDto`, worded by the UI. */
+  code: string;
+  params: Record<string, string>;
 }
 
 /** One run of a workflow, with the snapshot of the definition it started from. */

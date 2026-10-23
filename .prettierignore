@@ -6,3 +6,5 @@ src-tauri/gen
 package-lock.json
 docs/design-review/*/stitch
 tmp
+# Local MCP configuration of the developer's own tools (not tracked)
+.mcp.json

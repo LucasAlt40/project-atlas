@@ -231,6 +231,9 @@ pub enum WorkflowEventKind {
     InteractionRejected,
     /// The question lapsed because the run was cancelled (`interaction.cancelled`).
     InteractionCancelled,
+    /// Nobody answered the question in the time the person set; the step fails
+    /// (`interaction.expired`). `metadata` has `interactionId`.
+    InteractionExpired,
     NodeCompleted,
     NodeFailed,
     NodeBlocked,
@@ -249,6 +252,9 @@ pub enum WorkflowEventKind {
     /// A project of the chain is not run: the run before it said it needs nothing for the task;
     /// `metadata` has `projectId`.
     ChainSkipped,
+    /// The run of the chain's next project could not be started, so the chain ends here;
+    /// `metadata` has `projectId` and `code`.
+    ChainStopped,
     /// A guardrail took something out of a step's result before it was handed on (secrets);
     /// `metadata` has `stage`, `rule` and `lines`. Never the content.
     GuardrailTransformed,

@@ -38,10 +38,11 @@ use crate::domain::interaction::{
 use crate::domain::orchestration::ArtifactType;
 use crate::domain::result_contract::{ContractKind, ResultContract};
 use crate::domain::workflow::{
-    ChainNote, ChainStep, ChainStepSummary, FailureCode, IntegrationStatus, NodeAttempt,
-    ProjectChain, RecoveryKind, RecoveryPlan, RecoveryProblem, WorkflowEvent, WorkflowEventKind,
-    WorkflowExecution, WorkflowExecutionStatus, WorkflowFailure, WorkflowIntegration,
-    MAX_CHAIN_DIFF_CHARS, MAX_CHAIN_FILES, MAX_CHAIN_STEPS, MAX_CHAIN_SUMMARY_CHARS,
+    ChainNote, ChainStep, ChainStepSummary, ChainStop, Delivery, FailureCode, IntegrationStatus,
+    NodeAttempt, ProjectChain, RecoveryKind, RecoveryPlan, RecoveryProblem, WorkflowEvent,
+    WorkflowEventKind, WorkflowExecution, WorkflowExecutionStatus, WorkflowFailure,
+    WorkflowIntegration, MAX_CHAIN_DIFF_CHARS, MAX_CHAIN_FILES, MAX_CHAIN_STEPS,
+    MAX_CHAIN_SUMMARY_CHARS,
 };
 
 /// What the user can ask of a run in progress.
@@ -69,6 +70,48 @@ enum Message {
     AutoPlans(bool),
 }
 
+/// What asking a chain to go on came to.
+enum ChainGo {
+    /// The run of the next project was started (saved, not driven yet).
+    Started(String),
+    /// The chain waits for the person to apply or keep this run's code.
+    Waiting,
+    /// Nothing to go on with: no chain, not completed, no project left, or it already went on.
+    Nothing,
+    /// The next run could not be started; recorded in the chain.
+    Stopped(AppError),
+}
+
+/// The wire name of an error code (`chain_changes_discarded`), as the UI words it.
+fn error_code(code: ErrorCode) -> String {
+    serde_json::to_value(code)
+        .ok()
+        .and_then(|v| v.as_str().map(str::to_owned))
+        .unwrap_or_default()
+}
+
+/// Records that a chain ends at `exec` and why.
+fn record_stop(
+    exec: &mut WorkflowExecution,
+    chain: &ProjectChain,
+    stop: &ChainStop,
+    at: u64,
+) -> WorkflowEvent {
+    exec.record(
+        WorkflowEventKind::ChainStopped,
+        None,
+        format!(
+            "The run of {} was not started: the chain ends here",
+            chain.name_of(&stop.project_id)
+        ),
+        BTreeMap::from([
+            ("projectId".to_owned(), stop.project_id.clone()),
+            ("code".to_owned(), stop.code.clone()),
+        ]),
+        at,
+    )
+}
+
 /// Where an answer went.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AnswerDelivery {
@@ -91,6 +134,11 @@ pub struct Orchestrator {
     guardrails: Option<Arc<dyn OptimizationFlags>>,
     /// Where notes held for an independent validator are let in, or dropped (ADR 0037).
     memory: Option<Arc<MemoryService>>,
+    /// One chain goes on at a time (see `continue_chain`).
+    chain_gate: Mutex<()>,
+    /// How long a question waits for a person before it lapses and its step fails; `None`: for
+    /// as long as it takes. Read on every look, so a change applies to the questions waiting.
+    question_timeout: Option<Arc<dyn Fn() -> Option<u64> + Send + Sync>>,
 }
 
 impl Orchestrator {
@@ -102,7 +150,19 @@ impl Orchestrator {
             poll: Duration::from_millis(150),
             guardrails: None,
             memory: None,
+            chain_gate: Mutex::new(()),
+            question_timeout: None,
         }
+    }
+
+    /// Lets questions to a person lapse after the time `timeout` gives (in ms), read each time.
+    #[must_use]
+    pub fn with_question_timeout(
+        mut self,
+        timeout: Arc<dyn Fn() -> Option<u64> + Send + Sync>,
+    ) -> Self {
+        self.question_timeout = Some(timeout);
+        self
     }
 
     /// Lets a validation or review step that passes (or fails) a run settle the notes the run's
@@ -412,41 +472,89 @@ impl Orchestrator {
         loop {
             self.run_one(&current, observer.clone())?;
             match self.continue_chain(&current, observer.as_ref()) {
-                Some(next) => current = next,
-                None => return Ok(()),
+                ChainGo::Started(next) => current = next,
+                // Waiting for the code to be delivered: the delivery goes on with it.
+                ChainGo::Waiting | ChainGo::Nothing | ChainGo::Stopped(_) => return Ok(()),
             }
         }
     }
 
     /// Goes on with `execution_id`'s chain, if it has one and completed: the projects its runs
-    /// said need nothing are skipped, and the run of the next one that does is started. Its id, to
-    /// be driven; `None` when there is nothing to go on with.
-    fn continue_chain(
-        &self,
-        execution_id: &str,
-        observer: &dyn WorkflowObserver,
-    ) -> Option<String> {
-        let exec = self.workflows.execution(execution_id)?;
+    /// said need nothing are skipped, and the run of the next one that does is started (saved,
+    /// not driven). Goes on at most once per run, whoever asks first: the run's own loop, the
+    /// person's decision about its code, or the "continue" button.
+    fn continue_chain(&self, execution_id: &str, observer: &dyn WorkflowObserver) -> ChainGo {
+        // Two callers at once (the loop and a delivery) must not start the next project twice.
+        let _one_at_a_time = self.chain_gate.lock_or_recover();
+        let Some(exec) = self.workflows.execution(execution_id) else {
+            return ChainGo::Nothing;
+        };
         if exec.status != WorkflowExecutionStatus::Completed {
-            return None;
+            return ChainGo::Nothing;
         }
-        let chain = exec.chain.clone()?;
-        chain.next()?;
-        let advance = chain.advanced(self.chain_step(&exec));
-        let started = match advance.next {
-            Some(next_chain) => match self.workflows.start_next_in_chain(&exec, next_chain) {
-                Ok(next) => Some(next),
-                Err(error) => {
-                    eprintln!("the chain of run {execution_id} could not go on: {error}");
-                    None
+        let Some(chain) = exec.chain.clone() else {
+            return ChainGo::Nothing;
+        };
+        if chain.next().is_none() || self.chain_went_on(&exec, &chain) {
+            return ChainGo::Nothing;
+        }
+        let at = now_ms();
+        if chain.wait_for_delivery {
+            match exec.integration.status.delivery() {
+                Delivery::Done => {}
+                Delivery::Pending => return ChainGo::Waiting,
+                Delivery::Discarded => {
+                    let project_id = chain.next().map(|p| p.id.clone()).unwrap_or_default();
+                    let stop = ChainStop {
+                        project_id,
+                        code: error_code(ErrorCode::ChainChangesDiscarded),
+                        params: BTreeMap::new(),
+                    };
+                    let mut previous = exec;
+                    let events = vec![record_stop(&mut previous, &chain, &stop, at)];
+                    if let Some(own) = previous.chain.as_mut() {
+                        own.stopped = Some(stop);
+                    }
+                    let _ = self.workflows.save_execution(&previous);
+                    announce(observer, &events);
+                    return ChainGo::Stopped(AppError::new(ErrorCode::ChainChangesDiscarded));
                 }
-            },
+            }
+        }
+        let advance = chain.advanced(self.chain_step(&exec));
+        let mut failure = None;
+        let started = match advance.next {
+            Some(next_chain) => {
+                let project_id = next_chain.current().map(|p| p.id.clone());
+                match self.workflows.start_next_in_chain(&exec, next_chain) {
+                    Ok(next) => Some(next),
+                    Err(error) => {
+                        log::warn!("the chain of run {execution_id} could not go on: {error}");
+                        let stop = ChainStop {
+                            project_id: project_id.unwrap_or_default(),
+                            code: error_code(error.code),
+                            params: error.params.clone(),
+                        };
+                        failure = Some((stop, error));
+                        None
+                    }
+                }
+            }
             None => None,
         };
         // Read again: the person may have decided about its code since it was read above.
         let mut previous = self.workflows.execution(execution_id).unwrap_or(exec);
-        let at = now_ms();
         let mut events = Vec::new();
+        if let Some(own) = previous.chain.as_mut() {
+            // A stop said before (the button tries again) no longer holds once it went on.
+            own.stopped = None;
+        }
+        if let Some((stop, _)) = &failure {
+            events.push(record_stop(&mut previous, &chain, stop, at));
+            if let Some(own) = previous.chain.as_mut() {
+                own.stopped = Some(stop.clone());
+            }
+        }
         for skip in &advance.skipped {
             if let Some(own) = previous.chain.as_mut() {
                 own.skipped.push(skip.clone());
@@ -471,11 +579,46 @@ impl Orchestrator {
                 at,
             ));
         }
-        if !events.is_empty() {
-            let _ = self.workflows.save_execution(&previous);
-            announce(observer, &events);
+        let _ = self.workflows.save_execution(&previous);
+        announce(observer, &events);
+        match (started, failure) {
+            (Some(next), _) => ChainGo::Started(next.id),
+            (None, Some((_, error))) => ChainGo::Stopped(error),
+            (None, None) => ChainGo::Nothing,
         }
-        started.map(|next| next.id)
+    }
+
+    /// Whether the chain already went on from this run: a later project has a run, or this run
+    /// passed over every project after it.
+    fn chain_went_on(&self, exec: &WorkflowExecution, chain: &ProjectChain) -> bool {
+        let later_run = self.workflows.chain_runs(&chain.id).iter().any(|r| {
+            r.chain
+                .as_ref()
+                .is_some_and(|c| c.position > chain.position)
+        });
+        later_run || chain.skipped.iter().any(|s| s.by_execution_id == exec.id)
+    }
+
+    /// Goes on with a completed run's chain now: starts (saves, does not drive) the run of the
+    /// next project that needs one and returns its id. For the person's "continue", and for the
+    /// moment they decide about the code of a chain that waits for it.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorCode::ChainAwaitingDelivery`] while the code is not applied or kept,
+    /// [`ErrorCode::ChainNothingToContinue`] when there is no project left or the chain already
+    /// went on, or why the next run could not be started (also recorded in the chain).
+    pub fn go_on_with_chain(
+        &self,
+        execution_id: &str,
+        observer: &dyn WorkflowObserver,
+    ) -> Result<String, AppError> {
+        match self.continue_chain(execution_id, observer) {
+            ChainGo::Started(next) => Ok(next),
+            ChainGo::Waiting => Err(AppError::new(ErrorCode::ChainAwaitingDelivery)),
+            ChainGo::Nothing => Err(AppError::new(ErrorCode::ChainNothingToContinue)),
+            ChainGo::Stopped(error) => Err(error),
+        }
     }
 
     /// What a completed run of a chain leaves for the next: what changed by Git, what its steps
@@ -752,11 +895,38 @@ impl Orchestrator {
                 events.extend(self.handle(exec, &engine, message, &mut lock));
             }
             events.extend(self.watch_approvals(exec, &engine));
+            events.extend(self.expire_questions(exec, &engine));
             self.persist_settled(exec, observer.as_ref(), events)?;
             if exec.status.is_final() {
                 return Ok(());
             }
         }
+    }
+
+    /// Lets the questions nobody answered in the time the person set lapse (their steps fail). A
+    /// paused run keeps its questions: the person stopped the clock on purpose.
+    fn expire_questions(
+        &self,
+        exec: &mut WorkflowExecution,
+        engine: &WorkflowEngine<'_>,
+    ) -> Vec<WorkflowEvent> {
+        let Some(limit) = self.question_timeout.as_ref().and_then(|t| t()) else {
+            return Vec::new();
+        };
+        if exec.status == WorkflowExecutionStatus::Paused {
+            return Vec::new();
+        }
+        let now = now_ms();
+        let lapsed: Vec<String> = exec
+            .interactions
+            .iter()
+            .filter(|i| i.is_pending() && now.saturating_sub(i.created_at) >= limit)
+            .map(|i| i.id.clone())
+            .collect();
+        lapsed
+            .iter()
+            .flat_map(|id| engine.expire_input(exec, id, now))
+            .collect()
     }
 
     /// Starts every step the engine offers whose agent is free.

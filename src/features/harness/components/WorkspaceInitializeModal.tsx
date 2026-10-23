@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { useEffect, useEffectEvent, useId, useState, type ReactNode } from 'react';
 import { ActionBar } from '@/components/ui/ActionBar';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
@@ -87,23 +87,25 @@ export function WorkspaceInitializeModal({
     setItems((current) => ({ ...current, [id]: { ...current[id], ...change } as Item }));
   };
 
-  // Every project is analysed at the same time: the core serves them in parallel.
-  useEffect(() => {
-    let cancelled = false;
+  // Every project is analysed at the same time: the core serves them in parallel. The projects of
+  // a run are fixed when it starts, so only a new workspace starts the analyses again.
+  const analyzeAll = useEffectEvent((isCancelled: () => boolean) => {
     for (const project of projects) {
       analyzeProject(workspaceId, undefined, project.id)
         .then((analysis) => {
-          if (!cancelled) patch(project.id, { status: 'ready', analysis });
+          if (!isCancelled()) patch(project.id, { status: 'ready', analysis });
         })
         .catch((e: unknown) => {
-          if (!cancelled) patch(project.id, { status: 'failed', problem: problemOf(t, e) });
+          if (!isCancelled()) patch(project.id, { status: 'failed', problem: problemOf(t, e) });
         });
     }
+  });
+  useEffect(() => {
+    let cancelled = false;
+    analyzeAll(() => cancelled);
     return () => {
       cancelled = true;
     };
-    // The projects of a run are fixed when it starts.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId]);
 
   const item = (id: string): Item => items[id] ?? { status: 'analyzing' };

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::domain::app_info::AppInfo;
+use crate::domain::app_info::{AppInfo, ConfigNotice};
 
 const APP_NAME: &str = "Project Atlas";
 
@@ -14,11 +14,23 @@ pub trait PlatformInfo: Send + Sync {
 pub struct AppInfoService {
     version: String,
     platform: Arc<dyn PlatformInfo>,
+    config_notice: Option<ConfigNotice>,
 }
 
 impl AppInfoService {
     pub fn new(version: String, platform: Arc<dyn PlatformInfo>) -> Self {
-        Self { version, platform }
+        Self {
+            version,
+            platform,
+            config_notice: None,
+        }
+    }
+
+    /// What happened to the stored config at start (see [`ConfigNotice`]).
+    #[must_use]
+    pub fn with_config_notice(mut self, notice: Option<ConfigNotice>) -> Self {
+        self.config_notice = notice;
+        self
     }
 
     pub fn get_app_info(&self) -> AppInfo {
@@ -26,6 +38,7 @@ impl AppInfoService {
             name: APP_NAME.to_owned(),
             version: self.version.clone(),
             platform: self.platform.platform_name(),
+            config_notice: self.config_notice.clone(),
         }
     }
 }
@@ -52,6 +65,7 @@ mod tests {
                 name: "Project Atlas".to_owned(),
                 version: "1.2.3".to_owned(),
                 platform: "testos".to_owned(),
+                config_notice: None,
             }
         );
     }

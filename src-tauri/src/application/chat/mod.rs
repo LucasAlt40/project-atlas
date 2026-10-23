@@ -640,7 +640,7 @@ impl PendingRun {
             .map(|quota| (execution.runtime_id.clone(), quota));
         if let Err(error) = self.inner.ledger.record(usage, quota) {
             // Losing a usage entry must not fail the conversation.
-            eprintln!("could not record usage: {error}");
+            log::warn!("could not record usage: {error}");
         }
     }
 }

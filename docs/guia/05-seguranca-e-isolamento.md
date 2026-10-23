@@ -155,7 +155,7 @@ controle, não sandbox**: controla um processo que o guard já autorizou e **nã
 - Agentes ainda **não rodam shell nem testes**; leem e (se permitido) editam arquivos no worktree e só usam as conexões
   MCP que a pessoa concedeu ao workspace ou ao passo ([ADR 0028](../architecture/adr/0028-mcp-foundation.md),
   [ADR 0029](../architecture/adr/0029-mcp-for-every-runtime.md)).
-- Windows não foi compilado/executado; Linux não foi executado.
+- Windows e Linux são compilados e testados no CI, mas o app ainda não foi usado de verdade neles.
 - Submódulos e layouts incomuns de worktree não têm tratamento específico.
 - Um worktree por execução é um checkout completo (chat isolado somente leitura paga esse custo; worktree sem mudanças
   é removido logo em seguida).

@@ -119,7 +119,7 @@ impl SpecImplementation {
         );
         if let Err(error) = linked {
             // The run is already going and has what it was given; the spec's record is behind.
-            eprintln!(
+            log::warn!(
                 "the run {} could not be linked to spec {spec_id}: {error}",
                 execution.id
             );

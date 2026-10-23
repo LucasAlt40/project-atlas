@@ -1,15 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import type { AgentUsageSummaryDto, WorkspaceUsageSummaryDto } from '@/lib/tauri/commands';
 import { getAgentUsage, getWorkspaceUsage } from '../services/usageService';
 
 export type UsageState<T> =
   { status: 'loading' } | { status: 'error'; error: unknown } | { status: 'ready'; summary: T };
 
-function useSummary<T>(load: () => Promise<T>, dependencies: readonly unknown[]): UsageState<T> {
+/** Fetches with `load` whenever `key` changes (`load` itself is rebuilt every render). */
+function useSummary<T>(load: () => Promise<T>, key: string): UsageState<T> {
   const [state, setState] = useState<UsageState<T>>({ status: 'loading' });
+  const fetchSummary = useEffectEvent(load);
   useEffect(() => {
     let cancelled = false;
-    load()
+    fetchSummary()
       .then((summary) => {
         if (!cancelled) setState({ status: 'ready', summary });
       })
@@ -19,9 +21,7 @@ function useSummary<T>(load: () => Promise<T>, dependencies: readonly unknown[])
     return () => {
       cancelled = true;
     };
-    // `load` is rebuilt every render; the dependencies say when to fetch again.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, dependencies);
+  }, [key]);
   return state;
 }
 
@@ -34,12 +34,15 @@ export function useAgentUsage(
   agentId: string,
   version: number,
 ): UsageState<AgentUsageSummaryDto> {
-  return useSummary(() => getAgentUsage(workspaceId, agentId), [workspaceId, agentId, version]);
+  return useSummary(
+    () => getAgentUsage(workspaceId, agentId),
+    JSON.stringify([workspaceId, agentId, version]),
+  );
 }
 
 export function useWorkspaceUsage(
   workspaceId: string,
   version: number,
 ): UsageState<WorkspaceUsageSummaryDto> {
-  return useSummary(() => getWorkspaceUsage(workspaceId), [workspaceId, version]);
+  return useSummary(() => getWorkspaceUsage(workspaceId), JSON.stringify([workspaceId, version]));
 }

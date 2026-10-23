@@ -1,5 +1,14 @@
+import { Button } from '@/components/ui/Button';
+import { Callout } from '@/components/ui/Callout';
 import { useT } from '@/i18n/I18nProvider';
-import type { ChainNoteDto, ChainSkipDto } from '@/lib/tauri/commands';
+import { appErrorMessage } from '@/i18n/messages';
+import type {
+  ChainNoteDto,
+  ChainSkipDto,
+  ChainStopDto,
+  ErrorCodeDto,
+  IntegrationStatusDto,
+} from '@/lib/tauri/commands';
 import { RUN_STATUS_LABEL } from '../model/status';
 import type { WorkflowRun } from '../types';
 import styles from './Workflow.module.css';
@@ -9,15 +18,26 @@ interface Props {
   /** The runs of the workflow that are known, to find the chain's others among. */
   runs: WorkflowRun[];
   onShow: (runId: string) => void;
+  /** Goes on with the chain from a completed run (the person's "continue"). */
+  onContinue?: (runId: string) => void;
 }
 
 /**
  * Where a run of a task over several projects stands (ADR 0043): one run per project the person
  * marked, in order. Each project that has a run can be opened; a project the run before said needs
- * nothing is shown as skipped. Below, what the earlier runs handed this one: the runs talk to each
+ * nothing is shown as skipped, and a project whose run could not be started ends the chain with
+ * the reason. Below, what the earlier runs handed this one: the runs talk to each
  * other, and the person can read what they said.
  */
-export function ChainBar({ run, runs, onShow }: Props) {
+/** Where a run's code stands lets a chain that waits for it go on (mirrors `IntegrationStatus::delivery`). */
+const DELIVERED: ReadonlySet<IntegrationStatusDto> = new Set<IntegrationStatusDto>([
+  'not_applicable',
+  'no_changes',
+  'integrated',
+  'kept_isolated',
+]);
+
+export function ChainBar({ run, runs, onShow, onContinue }: Props) {
   const t = useT();
   const chain = run.chain;
   if (!chain) return null;
@@ -27,8 +47,23 @@ export function ChainBar({ run, runs, onShow }: Props) {
   for (const r of ofChain)
     for (const skip of r.chain?.skipped ?? []) skipped.set(skip.projectId, skip);
   for (const skip of chain.skipped ?? []) skipped.set(skip.projectId, skip);
+  const stopped: ChainStopDto | undefined =
+    chain.stopped ?? ofChain.find((r) => r.chain?.stopped)?.chain?.stopped;
   const name = (id: string) => chain.projects.find((p) => p.id === id)?.name ?? id;
   const current = chain.projects[chain.position];
+  // The chain may go on from this run: it completed, a project is left after it, and the chain
+  // did not already go on (a later run, or every later project passed over by this run).
+  const nextProject = chain.projects
+    .slice(chain.position + 1)
+    .find((p) => !skipped.has(p.id) || stopped?.projectId === p.id);
+  const wentOn =
+    ofChain.some((r) => (r.chain?.position ?? -1) > chain.position) ||
+    (chain.skipped ?? []).some((s) => s.byExecutionId === run.id);
+  // Code that was thrown away ends a chain that waited for it: trying again would not change that.
+  const retryable = stopped?.code !== 'chain_changes_discarded';
+  const canGoOn = run.status === 'completed' && nextProject !== undefined && !wentOn && retryable;
+  const awaitingDelivery =
+    canGoOn && chain.waitForDelivery === true && !DELIVERED.has(run.integration.status);
   const received: { from: string; note: ChainNoteDto }[] = chain.earlier.flatMap((step) =>
     (step.notes ?? [])
       .filter((note) => note.projectId === current?.id)
@@ -51,7 +86,9 @@ export function ChainBar({ run, runs, onShow }: Props) {
             ? t(RUN_STATUS_LABEL[projectRun.status])
             : skip
               ? t('runPlan.chain.skipped')
-              : t('runPlan.chain.waiting');
+              : stopped?.projectId === project.id
+                ? t('runPlan.chain.stopped')
+                : t('runPlan.chain.waiting');
           const title = skip?.reason ? `${status}: ${skip.reason}` : status;
           return (
             <button
@@ -71,6 +108,39 @@ export function ChainBar({ run, runs, onShow }: Props) {
           );
         })}
       </div>
+      {stopped && (
+        <Callout
+          tone="danger"
+          role="alert"
+          title={t('runPlan.chain.stoppedTitle', { name: name(stopped.projectId) })}
+        >
+          {appErrorMessage(t, {
+            code: stopped.code as ErrorCodeDto,
+            params: stopped.params,
+            detail: null,
+          })}
+        </Callout>
+      )}
+      {canGoOn && awaitingDelivery && !stopped && (
+        <p className={styles.chainWaiting} role="status">
+          {t('runPlan.chain.awaitingDelivery', { name: nextProject.name })}
+        </p>
+      )}
+      {canGoOn && !awaitingDelivery && onContinue && (
+        <div>
+          <Button
+            variant={stopped ? 'secondary' : 'primary'}
+            size="sm"
+            onClick={() => {
+              onContinue(run.id);
+            }}
+          >
+            {stopped
+              ? t('runPlan.chain.retry', { name: nextProject.name })
+              : t('runPlan.chain.continue', { name: nextProject.name })}
+          </Button>
+        </div>
+      )}
       {chain.earlier.length > 0 && (
         <details className={styles.chainHandoff}>
           <summary>

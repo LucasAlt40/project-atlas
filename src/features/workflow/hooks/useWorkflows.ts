@@ -27,6 +27,7 @@ import {
   setAutoApprovePlans,
   selectTemplate,
   startWorkflow,
+  continueWorkflowChain,
   subscribeToWorkflowEvents,
   updateWorkflow,
   validateWorkflow,
@@ -522,6 +523,7 @@ export function useWorkflows(workspaceId: string | undefined) {
       scope?: ScopeRequestDto,
       specId?: string,
       nextProjectIds?: string[],
+      waitForDelivery = false,
     ) => {
       if (!draft) return undefined;
       return guard(async () => {
@@ -534,7 +536,9 @@ export function useWorkflows(workspaceId: string | undefined) {
         }
         const next = nextProjectIds && nextProjectIds.length > 0 ? nextProjectIds : undefined;
         const started = next
-          ? await startWorkflow(workflow.id, task, autoApprovePlans, scope, specId, next)
+          ? waitForDelivery
+            ? await startWorkflow(workflow.id, task, autoApprovePlans, scope, specId, next, true)
+            : await startWorkflow(workflow.id, task, autoApprovePlans, scope, specId, next)
           : specId
             ? await startWorkflow(workflow.id, task, autoApprovePlans, scope, specId)
             : scope
@@ -687,6 +691,8 @@ export function useWorkflows(workspaceId: string | undefined) {
     save,
     remove,
     run,
+    /** Goes on with a completed run's chain; the new run is shown when its event arrives. */
+    continueChain: (executionId: string) => guard(() => continueWorkflowChain(executionId)),
     pause: () => control('pause'),
     resume: () => control('resume'),
     cancel: () => control('cancel'),

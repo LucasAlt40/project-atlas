@@ -252,7 +252,7 @@ fn trim_oldest<T>(items: &mut Vec<T>, max: usize, same_group: impl Fn(&T) -> boo
 
 fn report(what: &str, result: Result<(), AppError>) {
     if let Err(error) = result {
-        eprintln!("could not save {what}: {error:?}");
+        log::warn!("could not save {what}: {error:?}");
     }
 }
 

@@ -83,3 +83,5 @@ $RECYCLE.BIN/
 # ── Local AI-assistant state ────────────────────────────────
 .claude/settings.local.json
 .claude/worktrees/
+# Atlas: local project knowledge, kept out of Git
+.atlas/

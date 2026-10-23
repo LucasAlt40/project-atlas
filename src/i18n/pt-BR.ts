@@ -263,6 +263,15 @@ export const ptBR: Record<TranslationKey, string> = {
   'runPlan.chain.label': 'Projetos desta tarefa',
   'runPlan.chain.position': 'Projeto {position} de {count}:',
   'runPlan.chain.waiting': 'aguardando',
+  'runPlan.chain.stopped': 'não iniciado',
+  'runPlan.chain.stoppedTitle': 'A cadeia parou antes de {name}',
+  'runPlan.chain.continue': 'Continuar em {name}',
+  'runPlan.chain.retry': 'Tentar {name} de novo',
+  'runPlan.chain.awaitingDelivery':
+    'Aguardando o código desta execução ser aplicado ou mantido antes de rodar {name}.',
+  'runPlan.waitForDelivery': 'Esperar o código de cada projeto ser aplicado antes do próximo',
+  'runPlan.waitForDelivery.hint':
+    'O próximo projeto só roda depois que você aplicar (ou manter) o código do anterior, para nunca construir sobre um trabalho que depois seja descartado.',
   'runPlan.chain.skipped': 'não precisou',
   'runPlan.chain.received': 'O que as execuções anteriores passaram para {name}',
   'runPlan.chain.receivedNone': 'Nenhuma execução anterior deixou nota para {name}',
@@ -916,6 +925,17 @@ export const ptBR: Record<TranslationKey, string> = {
   'terminal.userControlled': 'Controlado pelo usuário',
   'terminal.readOnly': 'Somente leitura',
   'markdown.copied': 'Copiado',
+  'link.copied': 'Endereço copiado',
+  'configNotice.recovered.title': 'Parte dos seus dados salvos não pôde ser lida',
+  'configNotice.recovered.body':
+    'Outra versão do Atlas gravou registros que esta não entende ({sections}). Eles ficaram de fora e todo o resto foi mantido. O arquivo original está em {backup}.',
+  'configNotice.reset.title': 'Seus dados salvos não puderam ser lidos',
+  'configNotice.reset.body':
+    'O arquivo estava danificado e o Atlas começou vazio. O arquivo original está em {backup}.',
+  'configNotice.unreadable.title': 'Não foi possível abrir seus dados salvos',
+  'configNotice.unreadable.body':
+    'O Atlas não conseguiu ler {path}. Nada é salvo até você reiniciar o Atlas, para o arquivo não ser sobrescrito.',
+  'configNotice.dismiss': 'Dispensar',
   'terminal.copy': 'Copiar',
   'terminal.clear': 'Limpar',
   'terminal.search': 'Buscar',
@@ -1248,6 +1268,11 @@ export const ptBR: Record<TranslationKey, string> = {
   'error.workflow_template_not_found': 'Esse modelo de workflow não existe.',
   'error.workflow_execution_not_found': 'Esta execução de workflow não existe mais.',
   'error.workflow_state_invalid': 'A execução do workflow não está em um estado que permita isso.',
+  'error.chain_awaiting_delivery':
+    'O próximo projeto roda quando o código desta execução for aplicado ou mantido.',
+  'error.chain_changes_discarded':
+    'O código desta execução foi descartado, então o próximo projeto não rodou sobre ele.',
+  'error.chain_nothing_to_continue': 'Não há mais projeto para esta tarefa continuar.',
   'error.workflow_not_recoverable': 'A execução do workflow não pode ser retomada agora.',
   'workflow.title': 'Workflow',
   'workflow.noWorkspace': 'Crie um workspace para montar workflows.',
@@ -1526,6 +1551,7 @@ export const ptBR: Record<TranslationKey, string> = {
   'workflow.attempt.cancelled': 'cancelada',
   'workflow.attempt.interrupted': 'interrompida',
   'workflow.reason.interrupted': 'Interrompido pelo encerramento do aplicativo.',
+  'workflow.reason.interaction_expired': 'Ninguém respondeu à pergunta a tempo.',
   'workflow.reason.max_iterations': 'Limite do ciclo atingido.',
   'workflow.reason.dependency_failed': 'Uma etapa da qual depende falhou ou foi cancelada.',
   'workflow.reason.skipped_by_route': 'O caminho seguido não passou por aqui.',
@@ -3398,6 +3424,12 @@ export const ptBR: Record<TranslationKey, string> = {
     'O quanto as execuções de uma especificação podem usar juntas (entrada mais saída, como os runtimes informam). Ao chegar nele, nenhuma execução nova começa até você decidir continuar. Vazio: sem limite.',
   'settings.specsBudgetPlaceholder': 'Sem limite',
   'settings.specsBudgetSave': 'Salvar',
+  'settings.questionTimeout': 'Tempo para responder a uma pergunta de agente',
+  'settings.questionTimeoutHelp':
+    'Numa execução de workflow, uma pergunta que ninguém responder nesse tempo expira e o passo falha (a rota de falha, se houver, é seguida). Uma execução pausada mantém as perguntas.',
+  'settings.questionTimeout.none': 'Sem limite',
+  'settings.questionTimeout.minutes': '{count} minutos',
+  'settings.questionTimeout.hours': '{count} h',
   'specs.findings.summary': '{open} em aberto · {asking} perguntam algo a você',
   'specs.findings.asksYou': 'pergunta a você',
   'specs.finding.evidence': 'Evidência e raciocínio',

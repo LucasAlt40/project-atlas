@@ -15,6 +15,7 @@ import {
   selectWorkspace,
   setLanguage,
   setMemorySettings,
+  setQuestionTimeout,
   setSpecsMaxTokens,
 } from '../services/settingsService';
 
@@ -27,6 +28,9 @@ interface Settings {
   changeLanguage: (language: Language) => Promise<void>;
   rememberWorkspace: (workspaceId: string | null) => Promise<void>;
   changeSpecsMaxTokens: (max: number | null) => Promise<void>;
+  /** How long a question in a workflow run waits for a person, in minutes (`null`: no limit). */
+  questionTimeoutMinutes: number | null;
+  changeQuestionTimeout: (minutes: number | null) => Promise<void>;
   /** Which scopes of the Memory are recalled and proposed to (all off by default). */
   memory: MemorySettingsDto;
   changeMemorySettings: (memory: MemorySettingsDto) => Promise<void>;
@@ -82,6 +86,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setSettings(await setSpecsMaxTokens(max));
   }, []);
 
+  const changeQuestionTimeout = useCallback(async (minutes: number | null) => {
+    setSettings(await setQuestionTimeout(minutes));
+  }, []);
+
   const changeMemorySettings = useCallback(async (memory: MemorySettingsDto) => {
     setSettings(await setMemorySettings(memory));
   }, []);
@@ -96,6 +104,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         changeLanguage,
         rememberWorkspace,
         changeSpecsMaxTokens,
+        questionTimeoutMinutes: settings.questionTimeoutMinutes ?? null,
+        changeQuestionTimeout,
         memory: settings.optimization?.memory ?? MEMORY_OFF,
         changeMemorySettings,
       },
@@ -105,6 +115,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       changeLanguage,
       rememberWorkspace,
       changeSpecsMaxTokens,
+      changeQuestionTimeout,
       changeMemorySettings,
     ],
   );

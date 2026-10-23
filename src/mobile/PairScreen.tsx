@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
+import { useEffect, useEffectEvent, useRef, useState, type SyntheticEvent } from 'react';
 import { useT } from '@/i18n/I18nProvider';
 import type { TranslationKey } from '@/i18n';
 import { ApiError } from './api';
@@ -75,14 +75,17 @@ export function PairScreen({
       });
   };
 
-  useEffect(() => {
+  // Once, when the page opens: a code that came in the link is tried right away.
+  const tryLinkCode = useEffectEvent(() => {
     if (attempted.current) return;
     attempted.current = true;
     if (linkCode) {
       onLinkUsed();
       attempt(linkCode);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the page opens
+  });
+  useEffect(() => {
+    tryLinkCode();
   }, []);
 
   const submit = (event: SyntheticEvent) => {

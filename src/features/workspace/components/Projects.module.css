@@ -424,3 +424,23 @@
   right: 0;
   left: auto;
 }
+
+/* "Wait for each delivery": a choice about the whole chain, under its projects. */
+.planOption {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.planOption > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.planOption input {
+  margin-top: 2px;
+}

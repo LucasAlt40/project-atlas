@@ -15,6 +15,8 @@ import { useSettings } from '../hooks/SettingsProvider';
 import styles from './SettingsPage.module.css';
 
 const SECTIONS = ['general', 'memory', 'storage', 'portability', 'about'] as const;
+/** The choices for how long a question waits, in minutes (`null`: no limit). */
+const QUESTION_TIMEOUTS = [null, 30, 60, 240, 1440] as const;
 type Section = (typeof SECTIONS)[number];
 
 /**
@@ -23,7 +25,24 @@ type Section = (typeof SECTIONS)[number];
  */
 export function SettingsPage() {
   const { t, language } = useI18n();
-  const { changeLanguage, specsMaxTokens, changeSpecsMaxTokens } = useSettings();
+  const {
+    changeLanguage,
+    specsMaxTokens,
+    changeSpecsMaxTokens,
+    questionTimeoutMinutes,
+    changeQuestionTimeout,
+  } = useSettings();
+  const timeoutLabel = (minutes: number | null) =>
+    minutes === null
+      ? t('settings.questionTimeout.none')
+      : minutes < 60
+        ? t('settings.questionTimeout.minutes', { count: minutes })
+        : t('settings.questionTimeout.hours', { count: minutes / 60 });
+  const timeoutChoices: (number | null)[] = QUESTION_TIMEOUTS.includes(
+    questionTimeoutMinutes as (typeof QUESTION_TIMEOUTS)[number],
+  )
+    ? [...QUESTION_TIMEOUTS]
+    : [...QUESTION_TIMEOUTS, questionTimeoutMinutes];
   const [budget, setBudget] = useState(specsMaxTokens === null ? '' : String(specsMaxTokens));
   const appInfo = useAppInfo();
   const [current, setCurrent] = useState<Section>('general');
@@ -96,6 +115,29 @@ export function SettingsPage() {
                 </div>
                 <p className={styles.help}>{t('settings.specsBudgetHelp')}</p>
               </form>
+
+              <div className={styles.group}>
+                <label htmlFor="settings-question-timeout" className={styles.heading}>
+                  {t('settings.questionTimeout')}
+                </label>
+                <select
+                  id="settings-question-timeout"
+                  className={styles.control}
+                  value={questionTimeoutMinutes === null ? '' : String(questionTimeoutMinutes)}
+                  onChange={(e) => {
+                    void changeQuestionTimeout(
+                      e.target.value === '' ? null : Number(e.target.value),
+                    );
+                  }}
+                >
+                  {timeoutChoices.map((minutes) => (
+                    <option key={minutes ?? 'none'} value={minutes === null ? '' : String(minutes)}>
+                      {timeoutLabel(minutes)}
+                    </option>
+                  ))}
+                </select>
+                <p className={styles.help}>{t('settings.questionTimeoutHelp')}</p>
+              </div>
 
               <div className={styles.group}>
                 <SandboxSettings />

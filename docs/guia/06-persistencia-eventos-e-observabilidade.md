@@ -53,6 +53,14 @@ Workspace → Agent → Conversation (messages) + Executions (encerradas)
 - **Run cortado** (app fechado/crash): no próximo início a mensagem do usuário sem resposta recebe **uma** mensagem de
   assistente _failed_ e uma execução `app_closed` ("Atlas was closed while this was running"); **não** é mostrada como
   cancelada.
+- **`config.json` que não abre inteiro** (outra versão do Atlas gravou um registro que esta não conhece, como uma
+  variante nova de evento): o arquivo vai para `config.json.corrupt[.N]` e **só os registros ilegíveis ficam de fora**;
+  o resto é mantido. Se nem JSON for, o Atlas começa vazio. Se o arquivo não puder ser lido (permissão, disco) ou posto de
+  lado, **nada é salvo** até reiniciar, para nunca sobrescrever a config verdadeira. Nos três casos a tela avisa
+  (`AppInfo.configNotice`) e diz onde está o original. Atenção: `tauri dev` e o app instalado usam a **mesma** pasta de
+  dados.
+- **Log**: avisos do core vão para um arquivo rotativo na pasta de logs do SO (`~/Library/Logs/<identifier>/` no macOS),
+  via `tauri-plugin-log` (só no Rust; o webview não tem permissão de log).
 - Quando migrar para SQLite (mesma interface `ConversationHistory`): arquivo regularmente acima de alguns MB, busca no
   histórico, ou retenção por tempo.
 - Limitações: a timeline de um run em andamento está em memória (gravada ao terminar); o uso de um run só aparece depois
