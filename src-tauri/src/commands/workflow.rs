@@ -187,7 +187,7 @@ pub fn repair_workflow_routes(
 
 /// Starts a run of the workflow on a task. Returns at once with the run; its progress arrives
 /// as `workflow:*` events (and the steps' own `execution:progress` events).
-#[allow(clippy::needless_pass_by_value)]
+#[allow(clippy::needless_pass_by_value, clippy::too_many_arguments)]
 #[tauri::command]
 pub fn start_workflow<R: Runtime>(
     app: AppHandle<R>,
@@ -197,17 +197,22 @@ pub fn start_workflow<R: Runtime>(
     auto_approve_plans: Option<bool>,
     scope: Option<crate::domain::scope::ScopeRequest>,
     spec_id: Option<String>,
+    next_project_ids: Option<Vec<String>>,
 ) -> Result<WorkflowExecution, AppError> {
     let auto = auto_approve_plans.unwrap_or(false);
+    // The projects the task goes on to after the scope's, one run each (ADR 0043). None: one run.
+    let next = next_project_ids.unwrap_or_default();
     // A run started from an approved spec carries what it was given of it (ADR 0035); a run
     // started any other way is exactly what it always was.
     let execution = match spec_id {
-        Some(spec_id) => state
-            .spec_work
-            .start(&spec_id, &workflow_id, &task, auto, scope)?,
+        Some(spec_id) => {
+            state
+                .spec_work
+                .start(&spec_id, &workflow_id, &task, auto, scope, &next)?
+        }
         None => state
             .workflows
-            .start_scoped(&workflow_id, &task, auto, scope)?,
+            .start_chain(&workflow_id, &task, auto, scope, None, &next)?,
     };
     drive(&app, &state, execution.id.clone(), Drive::Fresh);
     Ok(execution)

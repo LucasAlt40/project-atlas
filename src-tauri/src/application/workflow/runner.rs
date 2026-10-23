@@ -165,6 +165,12 @@ pub trait StepRunner: Send + Sync {
         false
     }
 
+    /// The start of the diff of the run's worktree (at most about `max_bytes`), for the next run
+    /// of a chain to read. `None` when the worktree is gone or Git cannot say.
+    fn workspace_diff(&self, _primary_execution_id: &str, _max_bytes: usize) -> Option<String> {
+        None
+    }
+
     /// The run is over: decides what can be done with its code. Never applies it.
     fn close_workspace(&self, _primary_execution_id: &str, _end: RunEnd) -> Option<WorkspaceClose> {
         None

@@ -258,6 +258,13 @@ impl StepRunner for ChatStepRunner {
             .is_some_and(|worktrees| worktrees.can_reopen(primary_execution_id))
     }
 
+    fn workspace_diff(&self, primary_execution_id: &str, max_bytes: usize) -> Option<String> {
+        self.worktrees
+            .as_ref()?
+            .diff(primary_execution_id, None, max_bytes)
+            .ok()
+    }
+
     fn close_workspace(&self, primary_execution_id: &str, end: RunEnd) -> Option<WorkspaceClose> {
         let worktrees = self.worktrees.as_ref()?;
         let outcome = match end {

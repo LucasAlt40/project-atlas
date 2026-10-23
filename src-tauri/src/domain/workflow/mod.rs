@@ -1,6 +1,7 @@
 //! The declarative side of workflows: graph, nodes, edges, conditions, and the record of a run.
 //! Nothing here knows how a graph is drawn or how a step is executed.
 
+mod chain;
 mod condition;
 mod edge;
 mod execution;
@@ -11,6 +12,10 @@ mod template;
 #[allow(clippy::module_inception)]
 mod workflow;
 
+pub use chain::{
+    ChainProject, ChainStep, ProjectChain, MAX_CHAIN_DIFF_CHARS, MAX_CHAIN_FILES,
+    MAX_CHAIN_SUMMARY_CHARS,
+};
 pub use condition::{Condition, ConditionError, ConditionOperator, Facts};
 pub use edge::WorkflowEdge;
 pub use execution::{

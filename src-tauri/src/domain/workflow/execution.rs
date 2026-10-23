@@ -243,6 +243,9 @@ pub enum WorkflowEventKind {
     HandoffCreated,
     /// Where the run's code stands changed (changes available, applied, kept…).
     IntegrationChanged,
+    /// The run completed and the task goes on in the next project of its chain (ADR 0043), in a
+    /// run of its own; `metadata` has `nextExecutionId`.
+    ChainContinued,
     /// A guardrail took something out of a step's result before it was handed on (secrets);
     /// `metadata` has `stage`, `rule` and `lines`. Never the content.
     GuardrailTransformed,
@@ -395,6 +398,10 @@ pub struct WorkflowExecution {
     /// The approved spec this run implements, if it was started from one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub spec: Option<SpecLink>,
+    /// The task changes several projects, one run each (ADR 0043): this run is one of them, and
+    /// works in the chain's current project (`scope` says the same).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chain: Option<super::ProjectChain>,
     pub status: WorkflowExecutionStatus,
     #[serde(default)]
     pub failure: Option<WorkflowFailure>,
@@ -450,6 +457,7 @@ impl WorkflowExecution {
             auto_approve_plans: false,
             scope: None,
             spec: None,
+            chain: None,
             status: WorkflowExecutionStatus::Running,
             failure: None,
             cancel_requested: false,

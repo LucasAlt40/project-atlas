@@ -3237,3 +3237,159 @@ mod held_notes {
         assert!(memory.get(&id).unwrap().is_held_for_validator());
     }
 }
+
+// ---- a task over several projects (ADR 0043) -----------------------------------------------------
+
+impl Env {
+    /// Adds a project to the workspace, as the user would, and returns its id.
+    fn add_project(&self, id: &str, name: &str) -> String {
+        let project = crate::domain::workspace::WorkspaceProject {
+            id: id.to_owned(),
+            name: name.to_owned(),
+            path: format!("/{id}"),
+            role: None,
+            depends_on: Vec::new(),
+        };
+        self.config
+            .modify(|config| {
+                config.workspaces[0].projects.push(project.clone());
+                Ok(())
+            })
+            .unwrap();
+        id.to_owned()
+    }
+
+    fn primary_project(&self) -> String {
+        self.config.snapshot().workspaces[0].projects[0].id.clone()
+    }
+
+    fn review_workflow(&self) -> String {
+        self.declare_validation_outcomes();
+        self.service
+            .create_from_template(
+                &self.workspace_id,
+                "code_review",
+                None,
+                WorkflowMode::Custom,
+            )
+            .unwrap()
+            .workflow
+            .id
+    }
+}
+
+#[test]
+fn a_task_over_two_projects_runs_once_in_each_in_order_and_the_second_hears_of_the_first() {
+    let env = env();
+    let back = env.primary_project();
+    let front = env.add_project("front", "Web");
+    let docs = env.add_project("docs", "Docs");
+    let workflow = env.review_workflow();
+    let runner = Scripted::new();
+    runner.script("validator", vec![outcome("pass", ""), outcome("pass", "")]);
+    let first = env
+        .service
+        .start_chain(
+            &workflow,
+            "Add the orders screen",
+            false,
+            Some(crate::domain::scope::ScopeRequest {
+                working_project_id: Some(back.clone()),
+                read_project_ids: vec![docs.clone()],
+            }),
+            None,
+            std::slice::from_ref(&front),
+        )
+        .unwrap();
+    let observer = Arc::new(Collector::default());
+
+    env.orchestrator(&runner)
+        .run(&first.id, observer.clone())
+        .unwrap();
+
+    let runs = env.service.chain_runs(&first.id);
+    assert_eq!(runs.len(), 2, "one run per project");
+    assert!(runs
+        .iter()
+        .all(|r| r.status == WorkflowExecutionStatus::Completed));
+    let scopes: Vec<_> = runs
+        .iter()
+        .map(|r| r.scope.clone().unwrap().working_project_id.unwrap())
+        .collect();
+    assert_eq!(scopes, [back.clone(), front.clone()], "in the order asked");
+    assert_eq!(
+        runs[0].scope.as_ref().unwrap().read_project_ids,
+        [front.clone(), docs.clone()],
+        "the first consults the project it will not change and the chain's reads"
+    );
+    assert_eq!(
+        runs[1].scope.as_ref().unwrap().read_project_ids,
+        [back.clone(), docs.clone()]
+    );
+    let second = runs[1].chain.as_ref().unwrap();
+    assert_eq!(second.position, 1);
+    assert_eq!(second.earlier.len(), 1);
+    assert_eq!(second.earlier[0].execution_id, first.id);
+    assert_eq!(second.earlier[0].summary, "summary of the work");
+    assert!(observer
+        .kinds()
+        .contains(&WorkflowEventKind::ChainContinued));
+
+    let requests = runner.requests_for("validator");
+    assert_eq!(requests.len(), 2);
+    assert!(requests[0].instruction.contains("This run is 1 of 2"));
+    assert!(requests[0].instruction.contains("After this run: Web"));
+    assert!(requests[1].instruction.contains("This run is 2 of 2"));
+    assert!(requests[1].instruction.contains("summary of the work"));
+}
+
+#[test]
+fn the_chain_stops_at_a_run_that_does_not_complete() {
+    let env = env();
+    let front = env.add_project("front", "Web");
+    let workflow = env.review_workflow();
+    let runner = Scripted::new();
+    runner.script("validator", vec![fail("boom")]);
+    let first = env
+        .service
+        .start_chain(&workflow, "task", false, None, None, &[front])
+        .unwrap();
+
+    env.orchestrator(&runner)
+        .run(&first.id, Arc::new(Collector::default()))
+        .unwrap();
+
+    let runs = env.service.chain_runs(&first.id);
+    assert_eq!(runs.len(), 1, "the next project is not started");
+    assert_ne!(runs[0].status, WorkflowExecutionStatus::Completed);
+}
+
+#[test]
+#[allow(clippy::assert_is_empty)]
+fn a_chain_cannot_name_a_project_the_workspace_does_not_have() {
+    let env = env();
+    let workflow = env.review_workflow();
+
+    let refused = env
+        .service
+        .start_chain(&workflow, "task", false, None, None, &["ghost".to_owned()])
+        .unwrap_err();
+
+    assert!(refused.is(ErrorCode::ScopeInvalid));
+    assert!(env.service.executions(&env.workspace_id, None).is_empty());
+}
+
+#[test]
+fn a_chain_of_only_the_working_project_is_a_plain_run() {
+    let env = env();
+    let primary = env.primary_project();
+    let workflow = env.review_workflow();
+
+    let run = env
+        .service
+        .start_chain(&workflow, "task", false, None, None, &[primary])
+        .unwrap();
+
+    assert!(run.chain.is_none());
+    assert!(run.scope.is_none());
+}

@@ -18,7 +18,9 @@ use crate::application::support::{new_id, now_ms};
 use crate::application::workspace::WorkspaceService;
 use crate::domain::result_contract::ResultContract;
 use crate::domain::scope::ScopeRequest;
-use crate::domain::workflow::{CustomTemplate, SpecLink, ToolSuggestion};
+use crate::domain::workflow::{
+    ChainProject, ChainStep, CustomTemplate, ProjectChain, SpecLink, ToolSuggestion,
+};
 use crate::domain::workflow::{
     NodeState, RouteRepair, Viewport, Workflow, WorkflowEdge, WorkflowExecution,
     WorkflowExecutionStatus, WorkflowMode, WorkflowNode, WorkflowStatus,
@@ -555,7 +557,7 @@ impl WorkflowService {
     /// Fails if the workflow is unknown, invalid, already running, or the task is empty.
     #[cfg_attr(not(test), allow(dead_code))]
     pub fn start(&self, workflow_id: &str, task: &str) -> Result<WorkflowExecution, AppError> {
-        self.start_checked(workflow_id, task, true, false, None, None)
+        self.start_checked(workflow_id, task, true, false, None, None, &[])
     }
 
     /// As [`Self::start`], with the person's standing instruction about the plans the steps draw
@@ -571,7 +573,7 @@ impl WorkflowService {
         task: &str,
         auto_approve_plans: bool,
     ) -> Result<WorkflowExecution, AppError> {
-        self.start_checked(workflow_id, task, true, auto_approve_plans, None, None)
+        self.start_checked(workflow_id, task, true, auto_approve_plans, None, None, &[])
     }
 
     /// As [`Self::start_with_plans`], for a run that works in one project of the workspace and
@@ -580,6 +582,7 @@ impl WorkflowService {
     /// # Errors
     ///
     /// As [`Self::start`], and if the scope names a project the workspace does not have.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn start_scoped(
         &self,
         workflow_id: &str,
@@ -587,22 +590,34 @@ impl WorkflowService {
         auto_approve_plans: bool,
         scope: Option<ScopeRequest>,
     ) -> Result<WorkflowExecution, AppError> {
-        self.start_checked(workflow_id, task, true, auto_approve_plans, scope, None)
+        self.start_checked(
+            workflow_id,
+            task,
+            true,
+            auto_approve_plans,
+            scope,
+            None,
+            &[],
+        )
     }
 
-    /// As [`Self::start_scoped`], for a run that implements an approved spec (ADR 0035): the run
-    /// keeps what it was given of the spec.
+    /// As [`Self::start_scoped`] (with `spec`: for a run that implements an approved spec, ADR
+    /// 0035, which keeps what it was given of it), for a task that changes
+    /// several projects (ADR 0043): this run works in the scope's project, and when it completes
+    /// the orchestrator starts one run for each of `next_project_ids`, in order. Without any next
+    /// project it is exactly the run [`Self::start_scoped`] starts.
     ///
     /// # Errors
     ///
-    /// As [`Self::start_scoped`].
-    pub fn start_for_spec(
+    /// As [`Self::start_scoped`], and if a next project is not one of the workspace's.
+    pub fn start_chain(
         &self,
         workflow_id: &str,
         task: &str,
         auto_approve_plans: bool,
         scope: Option<ScopeRequest>,
-        spec: SpecLink,
+        spec: Option<SpecLink>,
+        next_project_ids: &[String],
     ) -> Result<WorkflowExecution, AppError> {
         self.start_checked(
             workflow_id,
@@ -610,8 +625,153 @@ impl WorkflowService {
             true,
             auto_approve_plans,
             scope,
-            Some(spec),
+            spec,
+            next_project_ids,
         )
+    }
+
+    /// Starts the run of the chain's next project, after `previous` completed and left `step`.
+    /// `None` when `previous` was the chain's last run (or not part of one). The run is saved but
+    /// not driven; consulted projects removed from the workspace since are left out.
+    ///
+    /// # Errors
+    ///
+    /// When the workflow is gone or invalid now, the next project was removed from the workspace,
+    /// or another run of the workflow is going.
+    pub fn start_next_in_chain(
+        &self,
+        previous: &WorkflowExecution,
+        step: ChainStep,
+    ) -> Result<Option<WorkflowExecution>, AppError> {
+        let Some(chain) = previous.chain.as_ref().and_then(|c| c.advanced(step)) else {
+            return Ok(None);
+        };
+        let Some(project) = chain.current().cloned() else {
+            return Ok(None);
+        };
+        let workflow = self
+            .get(&previous.workflow_id)
+            .ok_or_else(|| AppError::new(ErrorCode::WorkflowNotFound))?;
+        if !self.validate(&workflow).valid {
+            return Err(AppError::new(ErrorCode::WorkflowInvalid));
+        }
+        let workspace = self
+            .workspaces
+            .get(&workflow.workspace_id)
+            .ok_or_else(|| AppError::new(ErrorCode::WorkspaceNotFound))?;
+        if workspace.project(&project.id).is_none() {
+            return Err(AppError::new(ErrorCode::ScopeInvalid).with("project", project.id));
+        }
+        let scope = ScopeRequest {
+            working_project_id: Some(project.id),
+            read_project_ids: chain
+                .consulted_ids()
+                .into_iter()
+                .filter(|id| workspace.project(id).is_some())
+                .collect(),
+        };
+        let mut execution =
+            WorkflowExecution::new(new_id("wfx"), workflow, previous.task.clone(), now_ms());
+        execution.auto_approve_plans = previous.auto_approve_plans;
+        execution.scope = Some(scope);
+        execution.spec.clone_from(&previous.spec);
+        execution.chain = Some(chain);
+        self.insert_run(&execution)?;
+        Ok(Some(execution))
+    }
+
+    /// The runs of a chain that are still in the records, in the chain's order.
+    pub fn chain_runs(&self, chain_id: &str) -> Vec<WorkflowExecution> {
+        let mut runs: Vec<WorkflowExecution> = self.config.read(|c| {
+            c.workflow_executions
+                .iter()
+                .filter(|e| e.chain.as_ref().is_some_and(|chain| chain.id == chain_id))
+                .cloned()
+                .collect()
+        });
+        runs.sort_by_key(|e| (e.chain.as_ref().map_or(0, |c| c.position), e.started_at));
+        runs
+    }
+
+    /// The chain a first run begins, and the scope that run works with: `None` when the task
+    /// changes one project.
+    fn chain_of(
+        &self,
+        workspace_id: &str,
+        first_run_id: &str,
+        scope: Option<&ScopeRequest>,
+        next_project_ids: &[String],
+    ) -> Result<Option<(ScopeRequest, ProjectChain)>, AppError> {
+        if next_project_ids.is_empty() {
+            return Ok(None);
+        }
+        // Every id is checked against the workspace: a chain never names a project it lacks.
+        self.workspaces.resolve_scope(
+            workspace_id,
+            Some(&ScopeRequest {
+                working_project_id: scope.and_then(|s| s.working_project_id.clone()),
+                read_project_ids: next_project_ids.to_vec(),
+            }),
+        )?;
+        let working = self.workspaces.resolve_scope(workspace_id, scope)?.working;
+        let workspace = self
+            .workspaces
+            .get(workspace_id)
+            .ok_or_else(|| AppError::new(ErrorCode::WorkspaceNotFound))?;
+        let mut projects = vec![ChainProject {
+            id: working.id.clone(),
+            name: working.name.clone(),
+        }];
+        for id in next_project_ids {
+            if projects.iter().any(|p| p.id == *id) {
+                continue;
+            }
+            if let Some(project) = workspace.project(id) {
+                projects.push(ChainProject {
+                    id: project.id.clone(),
+                    name: project.name.clone(),
+                });
+            }
+        }
+        if projects.len() < 2 {
+            return Ok(None);
+        }
+        let read_project_ids = scope
+            .map(|s| s.read_project_ids.clone())
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|id| !projects.iter().any(|p| p.id == *id))
+            .collect();
+        let chain = ProjectChain {
+            id: first_run_id.to_owned(),
+            projects,
+            position: 0,
+            read_project_ids,
+            earlier: Vec::new(),
+        };
+        let scope = ScopeRequest {
+            working_project_id: Some(working.id),
+            read_project_ids: chain.consulted_ids(),
+        };
+        Ok(Some((scope, chain)))
+    }
+
+    /// Saves a new run, unless another run of its workflow is going.
+    fn insert_run(&self, execution: &WorkflowExecution) -> Result<(), AppError> {
+        let stored = execution.clone();
+        self.config.modify(|config| {
+            // One run at a time per workflow: a second would fight the first for its agents.
+            if config
+                .workflow_executions
+                .iter()
+                .any(|e| e.workflow_id == stored.workflow_id && e.status.is_active())
+            {
+                return Err(AppError::new(ErrorCode::WorkflowRunning));
+            }
+            config.workflow_executions.push(stored.clone());
+            prune(&mut config.workflow_executions, &stored.workspace_id);
+            Ok(())
+        })
     }
 
     /// Starts without validating: only tests use it, to watch the engine on a definition
@@ -622,9 +782,10 @@ impl WorkflowService {
         workflow_id: &str,
         task: &str,
     ) -> Result<WorkflowExecution, AppError> {
-        self.start_checked(workflow_id, task, false, false, None, None)
+        self.start_checked(workflow_id, task, false, false, None, None, &[])
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn start_checked(
         &self,
         workflow_id: &str,
@@ -633,6 +794,7 @@ impl WorkflowService {
         auto_approve_plans: bool,
         scope: Option<ScopeRequest>,
         spec: Option<SpecLink>,
+        next_project_ids: &[String],
     ) -> Result<WorkflowExecution, AppError> {
         let workflow = self
             .get(workflow_id)
@@ -651,24 +813,24 @@ impl WorkflowService {
                 .resolve_scope(&workflow.workspace_id, Some(requested))?;
         }
         let now = now_ms();
-        let mut execution = WorkflowExecution::new(new_id("wfx"), workflow, task.to_owned(), now);
+        let id = new_id("wfx");
+        let chain = self.chain_of(
+            &workflow.workspace_id,
+            &id,
+            scope.as_ref(),
+            next_project_ids,
+        )?;
+        let mut execution = WorkflowExecution::new(id, workflow, task.to_owned(), now);
         execution.auto_approve_plans = auto_approve_plans;
-        execution.scope = scope.filter(|s| *s != ScopeRequest::default());
-        execution.spec = spec;
-        let stored = execution.clone();
-        self.config.modify(|config| {
-            // One run at a time per workflow: a second would fight the first for its agents.
-            if config
-                .workflow_executions
-                .iter()
-                .any(|e| e.workflow_id == stored.workflow_id && e.status.is_active())
-            {
-                return Err(AppError::new(ErrorCode::WorkflowRunning));
+        match chain {
+            Some((first, chain)) => {
+                execution.scope = Some(first);
+                execution.chain = Some(chain);
             }
-            config.workflow_executions.push(stored.clone());
-            prune(&mut config.workflow_executions, &stored.workspace_id);
-            Ok(())
-        })?;
+            None => execution.scope = scope.filter(|s| *s != ScopeRequest::default()),
+        }
+        execution.spec = spec;
+        self.insert_run(&execution)?;
         Ok(execution)
     }
 

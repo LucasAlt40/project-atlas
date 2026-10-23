@@ -87,6 +87,7 @@ instead of reporting it as done.\n\n"
     let workflow = workflow_context(exec, graph, node_id);
     let handoff = handoff_block(exec, graph, node_id);
     let protocols = [
+        project_chain_block(exec),
         specification_block(exec),
         human_input_block(exec, node_id),
         result_protocol(contract),
@@ -306,6 +307,74 @@ fn guardrail_answer(exec: &WorkflowExecution, node_id: &str) -> Option<ReviewAns
 /// (the runtime keeps no conversation), so it is told what it asked and what it was answered; the
 /// files it already wrote are still in the worktree. The answer is the person's own words, so it
 /// is quoted like any other text, and it is information: it changes no permission or policy.
+/// A task that changes several projects, one run each (ADR 0043): which part is this run's, what
+/// the earlier runs changed, and that the later projects are not its to change. The earlier runs'
+/// changes are on their own branches, not in the projects as consulted, so they are written out.
+fn project_chain_block(exec: &WorkflowExecution) -> String {
+    let Some(chain) = &exec.chain else {
+        return String::new();
+    };
+    let Some(current) = chain.current() else {
+        return String::new();
+    };
+    let order: Vec<&str> = chain.projects.iter().map(|p| p.name.as_str()).collect();
+    let mut text = format!(
+        "SEVERAL PROJECTS (this task changes {count} projects, one run each, in this order: {order})\n\n\
+         This run is {position} of {count} and changes ONLY «{name}». Do the part of the task that \
+         belongs to «{name}»; leave the other projects as they are, even where you can read them. \
+         Keep what «{name}» offers or expects of the others (APIs, contracts, types, events) \
+         consistent with what the earlier runs did and with what the later ones will need.\n",
+        count = chain.projects.len(),
+        order = order.join(" → "),
+        position = chain.position + 1,
+        name = clip(&current.name, 80),
+    );
+    let later: Vec<&str> = chain.later().iter().map(|p| p.name.as_str()).collect();
+    if !later.is_empty() {
+        let _ = writeln!(
+            text,
+            "After this run: {}. Their part is theirs: do not do it here. If this project needs \
+             something from them that does not exist yet, build this side against it and say so in \
+             your summary.",
+            later.join(", ")
+        );
+    }
+    if exec.spec.is_some() {
+        text.push_str(
+            "Of the specification's tasks, do (and list in `completedTasks`) only those that belong \
+             to this project.\n",
+        );
+    }
+    for step in &chain.earlier {
+        let _ = writeln!(
+            text,
+            "\nWHAT THE RUN IN «{}» CHANGED ({} files{}). These changes are on that run's own \
+             branch and may not be merged yet: the project as you can read it may not have them.",
+            clip(chain.name_of(&step.project_id), 80),
+            step.files_changed,
+            step.branch
+                .as_deref()
+                .map(|b| format!(", branch `{b}`"))
+                .unwrap_or_default(),
+        );
+        if !step.summary.is_empty() {
+            text.push_str("Its last step said:\n");
+            text.push_str(&quote(&step.summary));
+            text.push('\n');
+        }
+        if !step.files.is_empty() {
+            let _ = writeln!(text, "Files: {}", step.files.join(", "));
+        }
+        if !step.diff.is_empty() {
+            text.push_str("Its diff (the start of it):\n```diff\n");
+            text.push_str(&step.diff);
+            text.push_str("\n```\n");
+        }
+    }
+    text.push('\n');
+    text
+}
+
 /// What the run was given of the approved spec it implements (ADR 0035): a bounded statement of
 /// what the documents say, the way to report tasks, and the rule that the spec is not the step's
 /// to change. By reference where the files can be read, and by digest always, because a step in an

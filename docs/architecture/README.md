@@ -428,3 +428,4 @@ ou um estado compartilhado precise deles.
 - [0037 — Memória](adr/0037-memory.md) — lições curtas entre sessões, propostas pelo agente e decididas pela pessoa; escopos usuário/workspace/agente, desligada por padrão; M1–M3 feitas, M4 pendente
 - [0038 — Sandbox do macOS para os runtimes](adr/0038-macos-sandbox.md) — o processo inteiro da CLI sob um perfil do sistema; `off`/`auto`/`required`, desligado por padrão; o que não confina
 - [0039 — GitHub Copilot CLI como runtime](adr/0039-github-copilot-cli.md) — sexto runtime: execução, permissões, MCP e modelos medidos com o CLI real; limites conhecidos
+- [0043 — Uma tarefa em vários projetos](adr/0043-tarefas-em-varios-projetos.md) — uma execução por projeto, em sequência, com alerta ao rodar e sugestão de 1 projeto quando há muitos

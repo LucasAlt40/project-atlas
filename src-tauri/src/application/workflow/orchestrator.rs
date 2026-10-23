@@ -38,9 +38,9 @@ use crate::domain::interaction::{
 use crate::domain::orchestration::ArtifactType;
 use crate::domain::result_contract::{ContractKind, ResultContract};
 use crate::domain::workflow::{
-    FailureCode, IntegrationStatus, RecoveryKind, RecoveryPlan, RecoveryProblem, WorkflowEvent,
-    WorkflowEventKind, WorkflowExecution, WorkflowExecutionStatus, WorkflowFailure,
-    WorkflowIntegration,
+    ChainStep, FailureCode, IntegrationStatus, RecoveryKind, RecoveryPlan, RecoveryProblem,
+    WorkflowEvent, WorkflowEventKind, WorkflowExecution, WorkflowExecutionStatus, WorkflowFailure,
+    WorkflowIntegration, MAX_CHAIN_DIFF_CHARS, MAX_CHAIN_FILES, MAX_CHAIN_SUMMARY_CHARS,
 };
 
 /// What the user can ask of a run in progress.
@@ -397,8 +397,118 @@ impl Orchestrator {
     /// # Errors
     ///
     /// Fails if the run is unknown or cannot be saved.
+    ///
+    /// A run that is one of a chain (ADR 0043) and completed starts the run of the chain's next
+    /// project, which is then driven here too, until the chain ends or one of its runs does not
+    /// complete (a failed run picked up again goes on with the chain when it completes).
     #[allow(clippy::needless_pass_by_value)] // the run owns its observer: its step threads share it
     pub fn run(
+        &self,
+        execution_id: &str,
+        observer: Arc<dyn WorkflowObserver>,
+    ) -> Result<(), AppError> {
+        let mut current = execution_id.to_owned();
+        loop {
+            self.run_one(&current, observer.clone())?;
+            match self.continue_chain(&current, observer.as_ref()) {
+                Some(next) => current = next,
+                None => return Ok(()),
+            }
+        }
+    }
+
+    /// Starts the run of the next project of `execution_id`'s chain, if it has one and completed.
+    /// Its id, to be driven; `None` when there is nothing to go on with.
+    fn continue_chain(
+        &self,
+        execution_id: &str,
+        observer: &dyn WorkflowObserver,
+    ) -> Option<String> {
+        let exec = self.workflows.execution(execution_id)?;
+        if exec.status != WorkflowExecutionStatus::Completed {
+            return None;
+        }
+        exec.chain.as_ref()?.next()?;
+        let step = self.chain_step(&exec);
+        match self.workflows.start_next_in_chain(&exec, step) {
+            Ok(Some(next)) => {
+                let at = now_ms();
+                // Read again: the person may have decided about its code since it was read above.
+                let mut previous = self.workflows.execution(execution_id).unwrap_or(exec);
+                let event = previous.record(
+                    WorkflowEventKind::ChainContinued,
+                    None,
+                    "The task goes on in the next project, in a run of its own",
+                    BTreeMap::from([("nextExecutionId".to_owned(), next.id.clone())]),
+                    at,
+                );
+                let _ = self.workflows.save_execution(&previous);
+                announce(observer, &[event]);
+                Some(next.id)
+            }
+            Ok(None) => None,
+            Err(error) => {
+                eprintln!("the chain of run {execution_id} could not go on: {error}");
+                None
+            }
+        }
+    }
+
+    /// What a completed run of a chain leaves for the next: by Git, not by what the agents said,
+    /// except for the summary, which is the last step's own words.
+    fn chain_step(&self, exec: &WorkflowExecution) -> ChainStep {
+        let project_id = exec
+            .chain
+            .as_ref()
+            .and_then(|c| c.current())
+            .map(|p| p.id.clone())
+            .unwrap_or_default();
+        let (files, files_changed) = exec.changes.as_ref().map_or_else(
+            || (Vec::new(), 0),
+            |changes| {
+                let files = changes
+                    .files
+                    .iter()
+                    .map(|f| f.path.clone())
+                    .chain(changes.uncommitted.iter().cloned())
+                    .take(MAX_CHAIN_FILES)
+                    .collect();
+                (files, changes.files_changed)
+            },
+        );
+        let diff = exec
+            .integration
+            .worktree_execution_id
+            .as_deref()
+            .and_then(|primary| {
+                self.runner
+                    .workspace_diff(primary, MAX_CHAIN_DIFF_CHARS * 2)
+            })
+            .map(|diff| clip_chars(&diff, MAX_CHAIN_DIFF_CHARS))
+            .unwrap_or_default();
+        let summary = exec
+            .nodes
+            .values()
+            .flat_map(|state| state.attempts.iter())
+            .filter(|a| a.summary.as_deref().is_some_and(|s| !s.trim().is_empty()))
+            .max_by_key(|a| a.completed_at.unwrap_or(a.started_at))
+            .and_then(|a| a.summary.as_deref())
+            .map(|s| clip_chars(s.trim(), MAX_CHAIN_SUMMARY_CHARS))
+            .unwrap_or_default();
+        ChainStep {
+            project_id,
+            execution_id: exec.id.clone(),
+            status: exec.status,
+            branch: exec.integration.branch.clone(),
+            files,
+            files_changed,
+            diff,
+            summary,
+        }
+    }
+
+    #[allow(clippy::needless_pass_by_value)] // the run owns its observer: its step threads share it
+    fn run_one(
         &self,
         execution_id: &str,
         observer: Arc<dyn WorkflowObserver>,
@@ -1291,4 +1401,14 @@ fn next_attempt(exec: &WorkflowExecution, node_id: &str) -> (u32, u32) {
             },
         )
     })
+}
+
+/// At most `max` characters of `text`, cut on a character boundary, marked when cut.
+fn clip_chars(text: &str, max: usize) -> String {
+    if text.chars().count() <= max {
+        return text.to_owned();
+    }
+    let mut cut: String = text.chars().take(max).collect();
+    cut.push_str("\n[cut]");
+    cut
 }

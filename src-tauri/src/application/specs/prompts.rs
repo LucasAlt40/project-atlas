@@ -34,6 +34,23 @@ pub struct StepPrompt {
     pub display_task: String,
 }
 
+/// For a workspace of several projects (ADR 0043): a spec may be implemented in each of them, one
+/// run per project, so its tasks say which project each belongs to. Empty for one project.
+pub fn workspace_projects_note(names: &[String]) -> String {
+    if names.len() < 2 {
+        return String::new();
+    }
+    format!(
+        "\n\nSEVERAL PROJECTS. This workspace has {count} projects: {list}. The change may touch \
+         more than one of them; it can then be implemented in each, one run per project. Say which \
+         projects the change touches and what each one must offer the others (APIs, contracts, \
+         types). In the task list, group the tasks under a heading per project (`## <project>`), so \
+         that each run can tell its own tasks apart; leave out the projects the change does not touch.",
+        count = names.len(),
+        list = names.join(", "),
+    )
+}
+
 fn label(kind: ArtifactKind) -> &'static str {
     match kind {
         ArtifactKind::Proposal => "proposal",

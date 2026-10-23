@@ -340,6 +340,29 @@ impl SpecService {
             .unwrap_or_default()
     }
 
+    /// The names of the workspace's projects, the spec's own first, each with its role if it has one.
+    pub fn workspace_project_names(&self, spec: &Spec) -> Vec<String> {
+        let Some(workspace) = self.workspaces.get(&spec.workspace_id) else {
+            return Vec::new();
+        };
+        let mut projects: Vec<_> = workspace.projects.iter().collect();
+        projects.sort_by_key(|p| p.id != spec.project_id);
+        projects
+            .into_iter()
+            .map(|p| match p.role {
+                Some(role) => format!(
+                    "{} ({})",
+                    p.name,
+                    serde_json::to_value(role)
+                        .ok()
+                        .and_then(|v| v.as_str().map(str::to_owned))
+                        .unwrap_or_default()
+                ),
+                None => p.name.clone(),
+            })
+            .collect()
+    }
+
     pub fn project_specs(&self, spec: &Spec) -> ProjectSpecs {
         ProjectSpecs {
             capabilities: self

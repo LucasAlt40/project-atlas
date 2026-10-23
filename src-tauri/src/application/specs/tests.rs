@@ -134,6 +134,7 @@ impl SpecEvents for RecordedEvents {
 }
 
 struct World {
+    config: Arc<ConfigRepository>,
     specs: Arc<SpecService>,
     runner: SpecRunner,
     store: Arc<MemorySpecStore>,
@@ -233,7 +234,7 @@ fn world() -> World {
         executions,
         workspaces.clone(),
         ledger.clone(),
-        Arc::new(ConversationHistory::new(config)),
+        Arc::new(ConversationHistory::new(config.clone())),
     );
     let store = Arc::new(MemorySpecStore::default());
     let files = Arc::new(MemoryProjectFiles::default());
@@ -258,6 +259,7 @@ fn world() -> World {
     let runner = SpecRunner::new(specs.clone(), chat, Arc::new(SessionRegistry::default()));
     let work = SpecImplementation::new(specs.clone(), workflows.clone());
     World {
+        config,
         workflows,
         work,
         ledger,
@@ -2208,7 +2210,7 @@ fn a_ready_spec_starts_a_workflow_that_carries_what_it_was_given_of_it() {
     let id = ready(&w);
     let workflow = workflow_in(&w, &w.workspace_id);
 
-    let run = w.work.start(&id, &workflow, "", false, None).unwrap();
+    let run = w.work.start(&id, &workflow, "", false, None, &[]).unwrap();
 
     let link = run.spec.as_ref().expect("the run keeps its spec");
     assert_eq!(link.spec_id, id);
@@ -2240,7 +2242,10 @@ fn a_spec_that_is_not_ready_cannot_start_a_workflow_and_nothing_is_started() {
     all_documents(&w, &id);
     let workflow = workflow_in(&w, &w.workspace_id);
 
-    let refused = w.work.start(&id, &workflow, "", false, None).unwrap_err();
+    let refused = w
+        .work
+        .start(&id, &workflow, "", false, None, &[])
+        .unwrap_err();
 
     assert!(refused.is(ErrorCode::SpecNotReady));
     assert!(w.workflows.executions(&w.workspace_id, None).is_empty());
@@ -2262,13 +2267,17 @@ fn a_workflow_of_another_workspace_is_not_started_from_this_spec() {
     w.workspaces.add_agent(&other.id, &w.agent_id).unwrap();
     let workflow = workflow_in(&w, &other.id);
 
-    let refused = w.work.start(&id, &workflow, "", false, None).unwrap_err();
+    let refused = w
+        .work
+        .start(&id, &workflow, "", false, None, &[])
+        .unwrap_err();
 
     assert!(refused.is(ErrorCode::SpecNotFound));
 }
 
 #[test]
-fn the_run_works_in_the_specs_project_and_in_no_other() {
+#[allow(clippy::assert_is_empty)]
+fn the_run_cannot_work_in_a_project_the_workspace_does_not_have() {
     let w = world();
     let id = ready(&w);
     let workflow = workflow_in(&w, &w.workspace_id);
@@ -2279,10 +2288,51 @@ fn the_run_works_in_the_specs_project_and_in_no_other() {
     };
     let refused = w
         .work
-        .start(&id, &workflow, "", false, Some(elsewhere))
+        .start(&id, &workflow, "", false, Some(elsewhere), &[])
         .unwrap_err();
 
-    assert_eq!(refused.params["reason"], "project_mismatch");
+    assert!(refused.is(ErrorCode::ScopeInvalid));
+    assert!(w.workflows.executions(&w.workspace_id, None).is_empty());
+}
+
+#[test]
+fn a_spec_implemented_in_two_projects_starts_a_chain_that_carries_the_spec() {
+    let w = world();
+    let id = ready(&w);
+    let workflow = workflow_in(&w, &w.workspace_id);
+    let front = crate::domain::workspace::WorkspaceProject {
+        id: "front".to_owned(),
+        name: "Web".to_owned(),
+        path: "/front".to_owned(),
+        role: None,
+        depends_on: Vec::new(),
+    };
+    w.config
+        .modify(|config| {
+            config.workspaces[0].projects.push(front.clone());
+            Ok(())
+        })
+        .unwrap();
+
+    let run = w
+        .work
+        .start(&id, &workflow, "", false, None, &["front".to_owned()])
+        .unwrap();
+
+    let chain = run.chain.as_ref().expect("a chain over both projects");
+    assert_eq!(chain.projects.len(), 2);
+    assert_eq!(
+        chain.projects[0].id, w.project_id,
+        "the spec's project first"
+    );
+    assert_eq!(chain.projects[1].id, "front");
+    assert!(run.spec.is_some());
+    let progress = w.work.progress(&id).unwrap();
+    assert_eq!(progress.len(), 1, "only the first run exists yet");
+    assert_eq!(
+        progress[0].project_name.as_deref(),
+        Some(chain.projects[0].name.as_str())
+    );
 }
 
 #[test]
@@ -2305,7 +2355,7 @@ fn the_progress_of_an_implementation_follows_the_run_and_the_spec() {
     let w = world();
     let id = ready(&w);
     let workflow = workflow_in(&w, &w.workspace_id);
-    let run = w.work.start(&id, &workflow, "", false, None).unwrap();
+    let run = w.work.start(&id, &workflow, "", false, None, &[]).unwrap();
 
     let before = w.work.progress(&id).unwrap();
 
@@ -2451,7 +2501,7 @@ fn the_archive_moves_the_change_with_the_command_and_keeps_the_spec_and_its_hist
     let id = ready(&w);
     let run = {
         let workflow = workflow_in(&w, &w.workspace_id);
-        w.work.start(&id, &workflow, "", false, None).unwrap()
+        w.work.start(&id, &workflow, "", false, None, &[]).unwrap()
     };
     w.specs.publish(&id, None).unwrap();
     w.files.put(

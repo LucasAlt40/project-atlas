@@ -269,6 +269,12 @@ impl SpecRunner {
             &self.specs.integration_notes(&spec),
         )
         .ok_or_else(|| AppError::new(ErrorCode::SpecArtifactNotFound))?;
+        let mut prompt = prompt;
+        prompt
+            .instruction
+            .push_str(&prompts::workspace_projects_note(
+                &self.specs.workspace_project_names(&spec),
+            ));
         let (execution_id, pending) = self.step(&spec, &agent, prompt)?;
         // If the spec changed under us, the turn is dropped before it ever starts.
         self.specs

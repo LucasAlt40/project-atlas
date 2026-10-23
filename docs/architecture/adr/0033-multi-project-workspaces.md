@@ -3,7 +3,8 @@
 Status: aceito. Baseia-se na [ADR 0009](0009-git-worktree-isolation.md) (worktrees), na
 [ADR 0010](0010-project-harness.md) e na [ADR 0012](0012-task-aware-context.md) (Harness, contexto ciente da tarefa), e
 nas [ADR 0013](0013-workflow-engine-and-orchestrator.md) e [ADR 0014](0014-handoff-shared-worktree-and-code-integration.md)
-(workflows, worktree compartilhado); não muda nenhuma das suas invariantes.
+(workflows, worktree compartilhado); não muda nenhuma das suas invariantes. A
+[ADR 0043](0043-tarefas-em-varios-projetos.md) encadeia uma execução por projeto para uma tarefa em vários.
 
 ## Contexto
 

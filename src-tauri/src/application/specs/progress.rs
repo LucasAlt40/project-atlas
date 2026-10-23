@@ -34,6 +34,10 @@ pub struct TaskProgress {
 pub struct ImplementationProgress {
     pub workflow_execution_id: String,
     pub workflow_name: String,
+    /// The project the run worked in, when the spec is implemented in several, one run each
+    /// (ADR 0043). `None` for a run of one project.
+    #[serde(default)]
+    pub project_name: Option<String>,
     /// `None` when the run is no longer in Atlas's records.
     pub status: Option<WorkflowExecutionStatus>,
     /// The spec's documents changed since this run was given them.
@@ -80,6 +84,10 @@ pub fn of_link(
     ImplementationProgress {
         workflow_execution_id: link.workflow_execution_id.clone(),
         workflow_name: link.workflow_name.clone(),
+        project_name: execution
+            .and_then(|e| e.chain.as_ref())
+            .and_then(|c| c.current())
+            .map(|p| p.name.clone()),
         status: execution.map(|e| e.status),
         spec_changed: link.revisions != spec.current_revisions(),
         reported: count(
