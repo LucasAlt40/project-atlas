@@ -1,4 +1,4 @@
-use tauri_build::{AppManifest, Attributes};
+use tauri_build::{AppManifest, Attributes, WindowsAttributes};
 
 /// Every command the frontend may call must be listed here. Tauri then generates an
 /// `allow-<command>` permission for it, and the command is unreachable from the webview
@@ -174,6 +174,27 @@ const COMMANDS: &[&str] = &[
 ];
 
 fn main() {
-    tauri_build::try_build(Attributes::new().app_manifest(AppManifest::new().commands(COMMANDS)))
-        .expect("failed to run tauri-build");
+    let mut attributes = Attributes::new().app_manifest(AppManifest::new().commands(COMMANDS));
+    if embed_windows_manifest() {
+        attributes = attributes.windows_attributes(WindowsAttributes::new_without_app_manifest());
+    }
+    tauri_build::try_build(attributes).expect("failed to run tauri-build");
+}
+
+/// On Windows (MSVC) the application manifest goes in through the linker, not as tauri-build's
+/// resource: that one is linked into the app only, and the test executable then starts without
+/// the Common Controls v6 dependency the dialog plugin needs (`STATUS_ENTRYPOINT_NOT_FOUND`).
+/// Same manifest as tauri-build's default, now in every executable.
+fn embed_windows_manifest() -> bool {
+    let windows = std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows");
+    let msvc = std::env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc");
+    if !(windows && msvc) {
+        return false;
+    }
+    let manifest =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("windows-app-manifest.xml");
+    println!("cargo:rerun-if-changed={}", manifest.display());
+    println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
+    println!("cargo:rustc-link-arg=/MANIFESTINPUT:{}", manifest.display());
+    true
 }
