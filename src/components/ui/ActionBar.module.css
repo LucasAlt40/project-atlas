@@ -7,13 +7,25 @@
   gap: var(--space-2) var(--space-3);
   min-width: 0;
 }
+/* On a page: fixed at the bottom of the scrolling area and spanning all of it, edge to edge, like the
+   frame's own bars. It undoes the padding of the area around it (24px; 16px in a narrow window). */
 .bar[data-variant='page'] {
   position: sticky;
-  bottom: 0;
+  bottom: calc(var(--space-5) * -1);
   z-index: 5;
+  margin-inline: calc((100% - 100cqw) / 2 - var(--space-5));
+  margin-bottom: calc(var(--space-5) * -1);
   padding: var(--space-3) var(--space-5);
   border-top: 1px solid var(--border-subtle);
   background: var(--surface-base);
+}
+@media (max-width: 1023px) {
+  .bar[data-variant='page'] {
+    bottom: calc(var(--space-4) * -1);
+    margin-inline: calc((100% - 100cqw) / 2 - var(--space-4));
+    margin-bottom: calc(var(--space-4) * -1);
+    padding-inline: var(--space-4);
+  }
 }
 .start,
 .end {

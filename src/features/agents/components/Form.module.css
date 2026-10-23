@@ -230,29 +230,6 @@
   border-top: 1px solid var(--border-subtle);
 }
 
-/* On the agents screen the footer spans the whole content area and stays at its bottom. */
-.agentForm[data-variant='page'] .footer {
-  position: sticky;
-  bottom: calc(var(--space-5) * -1);
-  z-index: 5;
-  margin-inline: calc((100% - 100cqw) / 2 - var(--space-5));
-  margin-bottom: calc(var(--space-5) * -1);
-}
-.agentForm[data-variant='page'] .footer > * {
-  position: static;
-  padding-inline: var(--space-5);
-}
-@media (max-width: 1023px) {
-  .agentForm[data-variant='page'] .footer {
-    bottom: calc(var(--space-4) * -1);
-    margin-inline: calc((100% - 100cqw) / 2 - var(--space-4));
-    margin-bottom: calc(var(--space-4) * -1);
-  }
-  .agentForm[data-variant='page'] .footer > * {
-    padding-inline: var(--space-4);
-  }
-}
-
 /* The personality form inside the drawer: the instructions take the height that is left. */
 .panelForm {
   display: flex;
@@ -266,4 +243,9 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
   line-height: 1.6;
+}
+
+/* The footer's bar sticks to the scrolling area, not to this wrapper. */
+.footer {
+  display: contents;
 }
