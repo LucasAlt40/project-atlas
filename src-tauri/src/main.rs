@@ -1,7 +1,7 @@
 // Prevents an extra console window on Windows in release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-/// WebKitGTK renders a blank window on many Linux setups (NVIDIA, Wayland, VMs) when its
+/// `WebKitGTK` renders a blank window on many Linux setups (NVIDIA, Wayland, VMs) when its
 /// DMABUF renderer or accelerated compositing is active. Disable them unless the user opted in.
 #[cfg(target_os = "linux")]
 fn apply_linux_webkit_workarounds() {

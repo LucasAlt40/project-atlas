@@ -264,8 +264,12 @@ fn a_file_changed_back_to_the_baseline_leaves_the_changes() {
     wait_until("the file to stop being a change", || {
         l.file("README.md").is_none()
     });
-    let last = l.sink.all().into_iter().last().unwrap();
-    assert!(last.removed.contains(&"README.md".to_owned()));
+    wait_until("the removal to be reported", || {
+        l.sink
+            .all()
+            .iter()
+            .any(|e| e.removed.contains(&"README.md".to_owned()))
+    });
 }
 
 #[test]

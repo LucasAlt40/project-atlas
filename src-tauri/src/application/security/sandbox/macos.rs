@@ -451,6 +451,7 @@ mod tests {
         )
     }
 
+    #[cfg(target_os = "macos")]
     fn run(prepared: &Prepared) -> String {
         let spec = &prepared.spec;
         let mut command = Command::new(&spec.program);
