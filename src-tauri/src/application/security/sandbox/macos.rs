@@ -43,14 +43,14 @@ impl MacosSandbox {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     #[must_use]
     pub fn with_tool(mut self, tool: PathBuf) -> Self {
         self.tool = tool;
         self
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     #[must_use]
     pub fn with_home(mut self, home: PathBuf) -> Self {
         self.home = Some(home);
