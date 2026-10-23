@@ -533,6 +533,28 @@ impl GitWorktreeManager {
         Ok(Snapshot { head, dirty })
     }
 
+    /// Whether `file` really differs from HEAD. `git status` can still list a file whose only
+    /// difference is the line endings Git itself wrote (`core.autocrlf`, the Windows default):
+    /// `git diff` compares the content as Git stores it. Read-only. A file HEAD does not have
+    /// differs as long as it is there.
+    fn differs_from_head(&self, toplevel: &Path, file: &str) -> Result<bool, WorktreeError> {
+        let in_head = format!("HEAD:{file}");
+        if !self
+            .run(toplevel, ["cat-file", "-e", in_head.as_str()], None)?
+            .ok()
+        {
+            return Ok(true);
+        }
+        let same = self
+            .run(
+                toplevel,
+                ["diff", "--quiet", "--no-ext-diff", "HEAD", "--", file],
+                None,
+            )?
+            .ok();
+        Ok(!same)
+    }
+
     fn ref_exists(&self, cwd: &Path, reference: &str) -> Result<bool, WorktreeError> {
         Ok(self
             .run(cwd, ["rev-parse", "--verify", "--quiet", reference], None)?
@@ -1513,10 +1535,12 @@ impl WorktreeManager for GitWorktreeManager {
         }
         let dirty: std::collections::HashSet<&str> =
             after.dirty.iter().map(String::as_str).collect();
-        if let Some(left) = files.iter().find(|f| dirty.contains(f.as_str())) {
-            return Err(WorktreeError::Git(format!(
-                "taken back, but {left} still differs from the commit"
-            )));
+        for left in files.iter().filter(|f| dirty.contains(f.as_str())) {
+            if self.differs_from_head(toplevel, left)? {
+                return Err(WorktreeError::Git(format!(
+                    "taken back, but {left} still differs from the commit"
+                )));
+            }
         }
         Ok(ApplyOutcome::Applied { files })
     }
