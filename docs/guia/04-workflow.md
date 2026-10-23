@@ -357,6 +357,9 @@ validation passed" quando uma validação posterior do mesmo passo passou. Mostr
 - Fechar o app durante um run: nada é retomado nem dado por terminado — no próximo início o run fica `interrupted`,
   tentativas em voo são `interrupted`, e o usuário escolhe **resume** (passos cortados recomeçam como novas tentativas do
   mesmo pass), **restart**, **cancel** ou inspeção.
+- Run **falho** pode ser retomado do ponto de recuperação (passos concluídos não rodam de novo; o passo retomado recebe
+  no brief o bloco `EARLIER ATTEMPT` com o motivo da parada). Um loop que bateu no limite de passagens ganha **mais uma
+  rodada** ao retomar (`NodeState.extra_iterations` soma o limite do loop de novo); não é preciso editar o workflow.
 
 ## Eventos
 

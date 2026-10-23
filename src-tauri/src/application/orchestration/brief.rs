@@ -14,14 +14,14 @@ use crate::domain::interaction::{
     DetectionSource, InteractionKind, InteractionStatus, PendingInteraction, PLAN_REDO, PLAN_REVISE,
 };
 use crate::domain::optimization::BriefParts;
-use crate::domain::orchestration::{Finding, ResultStatus};
+use crate::domain::orchestration::{Finding, ResultStatus, ValidationEntry};
 use crate::domain::result_contract::ResultContract;
 use crate::domain::workflow::{
-    AgentHandoff, HandoffKind, NodeKind, ProjectChain, WorkflowExecution,
+    AgentHandoff, AttemptStatus, HandoffKind, NodeKind, ProjectChain, WorkflowExecution,
 };
 use crate::domain::worktree::{FileChange, FileChangeStatus};
 
-const MAX_CONTEXT_CHARS: usize = 4_500;
+const MAX_CONTEXT_CHARS: usize = 6_000;
 const MAX_ARTIFACTS: usize = 8;
 const MAX_DECISIONS: usize = 10;
 const MAX_VERDICTS: usize = 3;
@@ -92,6 +92,7 @@ instead of reporting it as done.\n\n"
         project_chain_block(exec),
         specification_block(exec),
         human_input_block(exec, node_id),
+        earlier_attempt_block(exec, node_id),
         result_protocol(contract),
         interaction_protocol(),
     ]
@@ -138,11 +139,14 @@ fn workflow_context(exec: &WorkflowExecution, graph: &Graph<'_>, node_id: &str) 
             } else {
                 step.iterations + 1
             },
-            policy.max_iterations
+            step.iteration_limit(policy.max_iterations)
         );
     }
     let _ = writeln!(text, "{current}");
 
+    // The steps that hand over to this one are shown in the handoff, summary and all; the others
+    // are told here by what they last reported, which is all a later step sees of them.
+    let handing_over = latest_handoffs(exec, node_id);
     let done: Vec<String> = state
         .completed_nodes
         .iter()
@@ -153,19 +157,36 @@ fn workflow_context(exec: &WorkflowExecution, graph: &Graph<'_>, node_id: &str) 
                 .node(id)
                 .is_some_and(|n| matches!(n.kind, NodeKind::Agent(_)))
         })
-        .map(|id| label_of(id))
+        .map(|id| {
+            if handing_over.iter().any(|h| &h.from_node_id == id) {
+                return format!("{} (handed over to you, below)", label_of(id));
+            }
+            match last_report(exec, id) {
+                Some(report) => format!("{}: {}", label_of(id), clip(report, 240)),
+                None => label_of(id),
+            }
+        })
         .collect();
     if !done.is_empty() {
         let _ = writeln!(text, "\nPrevious completed steps:");
-        for label in done {
-            let _ = writeln!(text, "- {label}");
+        for line in done {
+            let _ = writeln!(text, "- {line}");
         }
     }
 
-    if !state.artifacts.is_empty() {
-        let _ = writeln!(text, "\nArtifacts from earlier steps:");
-        let skip = state.artifacts.len().saturating_sub(MAX_ARTIFACTS);
-        for artifact in state.artifacts.iter().skip(skip) {
+    // A step's summary is recorded as an artifact when it described none; it is said above.
+    let artifacts: Vec<_> = state
+        .artifacts
+        .iter()
+        .filter(|a| a.metadata.get("source").map(String::as_str) != Some("summary"))
+        .collect();
+    if !artifacts.is_empty() {
+        let _ = writeln!(
+            text,
+            "\nArtifacts from earlier steps (read them where they help):"
+        );
+        let skip = artifacts.len().saturating_sub(MAX_ARTIFACTS);
+        for artifact in artifacts.into_iter().skip(skip) {
             let place = artifact
                 .path
                 .as_ref()
@@ -198,22 +219,36 @@ fn workflow_context(exec: &WorkflowExecution, graph: &Graph<'_>, node_id: &str) 
         }
     }
 
-    let verdicts: Vec<_> = state
-        .validation_results
-        .iter()
+    // Only what each step said last counts: a FAIL that a later pass of the same step turned into
+    // a PASS has been dealt with and is not to be acted on again.
+    let mut latest: Vec<&ValidationEntry> = Vec::new();
+    for verdict in &state.validation_results {
+        latest.retain(|v| v.node_id != verdict.node_id);
+        latest.push(verdict);
+    }
+    let verdicts: Vec<_> = latest
+        .into_iter()
         .filter(|v| {
             v.node_id != node_id && (v.status != ResultStatus::Pass || !v.findings.is_empty())
         })
         .collect();
     if !verdicts.is_empty() {
-        let _ = writeln!(text, "\nReports to act on:");
+        let _ = writeln!(
+            text,
+            "\nReports to act on (the latest from each step that checked the work):"
+        );
         let skip = verdicts.len().saturating_sub(MAX_VERDICTS);
         for verdict in verdicts.into_iter().skip(skip) {
             let _ = writeln!(
                 text,
-                "- {} — status {}: {}",
+                "- {} — status {}{}: {}",
                 label_of(&verdict.node_id),
                 verdict.status.as_str().to_ascii_uppercase(),
+                verdict
+                    .outcome
+                    .as_deref()
+                    .map(|o| format!(", outcome {}", one_line(o, 60)))
+                    .unwrap_or_default(),
                 clip(&verdict.summary, 240)
             );
             for finding in verdict.findings.iter().take(MAX_FINDINGS) {
@@ -236,8 +271,11 @@ fn workflow_context(exec: &WorkflowExecution, graph: &Graph<'_>, node_id: &str) 
         );
         let _ = writeln!(
             text,
-            "- outcome {} — {}",
-            earlier.outcome.as_deref().unwrap_or("none"),
+            "- {} — {}",
+            earlier.outcome.as_deref().map_or_else(
+                || format!("status {}", earlier.status.as_str().to_ascii_uppercase()),
+                |o| format!("outcome {}", one_line(o, 60))
+            ),
             clip(&earlier.summary, 240)
         );
         for finding in earlier.findings.iter().take(MAX_FINDINGS) {
@@ -245,28 +283,102 @@ fn workflow_context(exec: &WorkflowExecution, graph: &Graph<'_>, node_id: &str) 
         }
     }
 
-    let next: Vec<String> = graph
+    // Where the work goes next, said after any trimming: it is what keeps the step in its lane.
+    let mut tail = String::new();
+    let targets: Vec<&str> = graph
         .out_links(node_id)
         .filter(|l| l.target != node_id)
-        .map(|l| label_of(&l.target))
+        .map(|l| l.target.as_str())
+        .collect();
+    let next: Vec<String> = targets
+        .iter()
+        .filter(|id| {
+            graph
+                .workflow
+                .node(id)
+                .is_none_or(|n| !matches!(n.kind, NodeKind::End(_)))
+        })
+        .map(|id| label_of(id))
         .collect();
     if !next.is_empty() {
         let _ = writeln!(
-            text,
-            "\nNext steps (they are not yours to do): {}",
-            next.join(", ")
+            tail,
+            "\nNext steps (they are not yours to do): {}{}",
+            next.join(", "),
+            if next.len() < targets.len() {
+                ", or the workflow ends, depending on your result"
+            } else {
+                ""
+            }
+        );
+    } else if !targets.is_empty() {
+        let _ = writeln!(
+            tail,
+            "\nNo step comes after yours: the workflow can end here."
         );
     }
     let _ = writeln!(
-        text,
+        tail,
         "\nStay within this step's responsibility. Other steps own the rest of the task."
     );
     if text.chars().count() > MAX_CONTEXT_CHARS {
         text = text.chars().take(MAX_CONTEXT_CHARS).collect();
         text.push_str("\n[workflow context trimmed]\n");
     }
+    text.push_str(&tail);
     text.push('\n');
     text
+}
+
+/// What a step last said of its work: the summary of its latest result.
+fn last_report<'e>(exec: &'e WorkflowExecution, node_id: &str) -> Option<&'e str> {
+    exec.state
+        .artifacts
+        .iter()
+        .rfind(|a| {
+            a.producer_node_id == node_id
+                && a.metadata.get("source").map(String::as_str) == Some("summary")
+        })
+        .map(|a| a.summary.as_str())
+        .or_else(|| {
+            exec.state
+                .validation_results
+                .iter()
+                .rfind(|v| v.node_id == node_id)
+                .map(|v| v.summary.as_str())
+        })
+        .filter(|s| !s.trim().is_empty())
+}
+
+/// For each step that leads here, the latest handoff it gave this one, in the order they came,
+/// leaving out what this step was already given in an earlier pass: it has acted on that, and
+/// the worktree holds what came of it.
+fn latest_handoffs<'e>(exec: &'e WorkflowExecution, node_id: &str) -> Vec<&'e AgentHandoff> {
+    let state = exec.node_state(node_id);
+    let pass = state.map_or(1, |s| {
+        if s.continuing {
+            s.iterations
+        } else {
+            s.iterations + 1
+        }
+    });
+    let seen_until = state
+        .into_iter()
+        .flat_map(|s| s.attempts.iter())
+        .filter(|a| a.iteration < pass)
+        .map(|a| a.started_at)
+        .max();
+    let mut latest: Vec<&AgentHandoff> = Vec::new();
+    for handoff in exec.handoffs.iter().filter(|h| h.to_node_id == node_id) {
+        latest.retain(|h| h.from_node_id != handoff.from_node_id);
+        latest.push(handoff);
+    }
+    // Times are in milliseconds: on a tie the handoff is kept, as showing one again does less harm
+    // than hiding a new one.
+    if let Some(seen_until) = seen_until {
+        latest.retain(|h| h.created_at >= seen_until);
+    }
+    latest
 }
 
 /// What a person answered when Atlas's own guardrail asked about this pass through the step. It
@@ -536,6 +648,53 @@ fn specification_block(exec: &WorkflowExecution) -> String {
     text
 }
 
+/// What the step is told when it starts again after an attempt that did not finish (a failure
+/// picked up again by the person, a retry, an interruption): where it stopped and why. The runtime
+/// keeps no conversation, so this and the worktree are all it has of the earlier attempt.
+fn earlier_attempt_block(exec: &WorkflowExecution, node_id: &str) -> String {
+    let Some(state) = exec.node_state(node_id).filter(|s| s.continuing) else {
+        return String::new();
+    };
+    let Some(attempt) = state
+        .last_attempt()
+        .filter(|a| matches!(a.status, AttemptStatus::Failed | AttemptStatus::Interrupted))
+    else {
+        return String::new();
+    };
+    let mut text = String::from(
+        "EARLIER ATTEMPT\n\n\
+         This step ran before and did not finish. Go on from where it stopped: what it already \
+         wrote is still in the worktree, so check it and do not redo what is done.\n",
+    );
+    let ended = if attempt.status == AttemptStatus::Failed {
+        "with a failure"
+    } else {
+        "cut short by an interruption"
+    };
+    let _ = writeln!(text, "It ended {ended}.");
+    // The node's own reason is a stable code; for an interruption it says nothing more.
+    let reason = attempt
+        .failure
+        .as_deref()
+        .or(state
+            .reason
+            .as_deref()
+            .filter(|_| attempt.status == AttemptStatus::Failed))
+        .filter(|r| !r.trim().is_empty());
+    if let Some(reason) = reason {
+        let _ = writeln!(text, "Why it stopped:\n{}", quote(&clip(reason, 600)));
+    }
+    if let Some(summary) = attempt.summary.as_deref().filter(|s| !s.trim().is_empty()) {
+        let _ = writeln!(
+            text,
+            "What it reported before stopping:\n{}",
+            quote(&clip(summary, 600))
+        );
+    }
+    text.push('\n');
+    text
+}
+
 fn human_input_block(exec: &WorkflowExecution, node_id: &str) -> String {
     let iteration = exec.node_state(node_id).map_or(0, |s| s.iterations);
     let answered: Vec<&PendingInteraction> = exec
@@ -622,10 +781,7 @@ fn interaction_protocol() -> String {
          permission; options are optional suggestions for a clarification):\n\n\
          ```{INTERACTION_FENCE}\n\
          {{\"type\":\"clarification\",\"question\":\"…\",\"context\":\"…\",\"options\":[\"…\"]}}\n\
-         ```\n\
-         A plan or analysis you ask about follows the plans rule above (written in full, and saved \
-         as a file if you can create files). Do not end with a signature or a sign-off after the \
-         block or the question.\n\
+         ```\n\n\
          PLANS. Whenever you draw up a plan (an approach, a design or a list of steps for work \
          that is still to be done, by you or by others), do not carry it out yet: write it in \
          full, then end your message with this block and stop, without the result block. The \
@@ -634,6 +790,9 @@ fn interaction_protocol() -> String {
          ```{INTERACTION_FENCE}\n\
          {{\"type\":\"plan\",\"context\":\"one line on what the plan covers\"}}\n\
          ```\n\
+         A plan or analysis you ask about follows the plans rule above (written in full, and saved \
+         as a file if you can create files). Do not end with a signature or a sign-off after \
+         either block.\n\n\
          The person's answer is given back to you and you go on. Their approval lets you continue \
          in this workflow's own worktree; it never applies anything to the main project and does \
          not change what you are allowed to do.\n"
@@ -649,7 +808,16 @@ fn result_protocol(contract: &ResultContract) -> String {
          anything or change the workflow.\n\n\
          ```{RESULT_FENCE}\n\
          {{\"status\":\"success\",{outcome}\"summary\":\"…\",\"artifacts\":[{{\"type\":\"implementation_summary\",\"name\":\"…\",\"path\":\"relative/path\",\"summary\":\"…\"}}],\"decisions\":[{{\"title\":\"…\",\"decision\":\"…\",\"rationale\":\"…\"}}],\"findings\":[{{\"severity\":\"high\",\"category\":\"…\",\"title\":\"…\",\"description\":\"…\",\"file\":\"relative/path\",\"line\":1,\"evidence\":\"…\",\"recommendation\":\"…\"}}],\"touchedFiles\":[\"relative/path\"],\"touchedAreas\":[\"area\"],\"nextAction\":\"…\"}}\n\
-         ```\n",
+         ```\n\
+         The next steps do not see this conversation: this block is all they get of your work, \
+         with the files in the worktree. So:\n\
+         - `summary` says concretely what you did or found and what is left: files, endpoints, \
+         names, commands you ran and what they showed. Not just \"done\".\n\
+         - `status`: success when you finished your part; pass, fail or warning when you checked work \
+         (with fail, list each problem in `findings`, with file and line when you know them).\n\
+         - `decisions` are choices the later steps must respect; `artifacts` are files you wrote \
+         for others to read; `nextAction` is only a suggestion. Leave out what you have nothing \
+         for.\n",
         outcome = if contract.requires_outcome() {
             "\"outcome\":\"<one allowed outcome>\","
         } else {
@@ -759,11 +927,7 @@ fn change_line(change: &FileChange) -> String {
 /// the transition to this one. Clearly delimited, and said to be context, not authority.
 #[allow(clippy::too_many_lines)]
 fn handoff_block(exec: &WorkflowExecution, graph: &Graph<'_>, node_id: &str) -> String {
-    let mut latest: Vec<&AgentHandoff> = Vec::new();
-    for handoff in exec.handoffs.iter().filter(|h| h.to_node_id == node_id) {
-        latest.retain(|h| h.from_node_id != handoff.from_node_id);
-        latest.push(handoff);
-    }
+    let latest = latest_handoffs(exec, node_id);
     let shared = exec.integration.worktree_execution_id.is_some();
     if latest.is_empty() && !shared {
         return String::new();
@@ -804,31 +968,27 @@ fn handoff_block(exec: &WorkflowExecution, graph: &Graph<'_>, node_id: &str) -> 
         if let Some(failure) = &handoff.failure {
             let _ = write!(text, "Failure:\n{}\n", quote(&clip(failure, 400)));
         }
-        if !handoff.decisions.is_empty() {
-            text.push_str("Decisions:\n");
-            for d in handoff.decisions.iter().take(MAX_DECISIONS) {
-                let _ = writeln!(
-                    text,
-                    "- {}: {}",
-                    one_line(&d.title, 120),
-                    one_line(&d.decision, 240)
-                );
-            }
-        }
-        if !handoff.artifacts.is_empty() {
-            text.push_str("Artifacts:\n");
-            for a in handoff.artifacts.iter().take(MAX_ARTIFACTS) {
-                let path = a
-                    .path
-                    .as_ref()
-                    .map_or(String::new(), |p| format!(" ({})", one_line(p, 160)));
-                let _ = writeln!(
-                    text,
-                    "- {}{path}: {}",
-                    one_line(&a.name, 120),
-                    one_line(&a.summary, 240)
-                );
-            }
+        // Its decisions and artifacts are in the workflow context with everyone else's.
+        let mut produced: Vec<String> = handoff
+            .decisions
+            .iter()
+            .take(MAX_DECISIONS)
+            .map(|d| one_line(&d.title, 80))
+            .collect();
+        produced.extend(
+            handoff
+                .artifacts
+                .iter()
+                .filter(|a| a.path.is_some())
+                .take(MAX_ARTIFACTS)
+                .map(|a| one_line(&a.name, 80)),
+        );
+        if !produced.is_empty() {
+            let _ = writeln!(
+                text,
+                "It left (see the workflow context): {}",
+                produced.join(", ")
+            );
         }
         if !handoff.changed_files.is_empty() {
             text.push_str("Changed files (measured by Git in the shared worktree):\n");
@@ -849,15 +1009,22 @@ fn handoff_block(exec: &WorkflowExecution, graph: &Graph<'_>, node_id: &str) -> 
             let _ = writeln!(text, "Not committed yet: {}", listed.join(", "));
         }
         if let Some(v) = &handoff.validation {
+            // Its findings are listed once, under "Reports to act on".
+            let said = if v.summary.trim() == handoff.summary.trim() {
+                String::new()
+            } else {
+                format!(" — {}", one_line(&v.summary, 300))
+            };
             let _ = writeln!(
                 text,
-                "Validation: {} — {}",
+                "Validation: {}{said}{}",
                 v.status.as_str(),
-                one_line(&v.summary, 300)
+                if v.findings.is_empty() {
+                    ""
+                } else {
+                    " (findings under Reports to act on)"
+                }
             );
-            for f in v.findings.iter().take(MAX_FINDINGS) {
-                let _ = writeln!(text, "  * {}", finding_line(f));
-            }
         }
         if let Some(next) = &handoff.instructions {
             let _ = writeln!(
@@ -1210,5 +1377,58 @@ mod tests {
         assert!(!brief.description.contains("```atlas-result\n{}"));
         assert_eq!(brief.description.matches("## WORKFLOW HANDOFF").count(), 0);
         assert!(brief.description.contains("workflow-handoff"));
+    }
+
+    #[test]
+    fn a_step_picked_up_after_a_failure_is_told_where_it_stopped_and_why() {
+        use crate::domain::workflow::NodeAttempt;
+        let mut exec = run();
+        let state = exec.nodes.get_mut("dev").expect("node state");
+        state.continuing = true;
+        state.attempts.push(NodeAttempt {
+            attempt: 1,
+            iteration: 1,
+            execution_id: "exec-1".to_owned(),
+            status: AttemptStatus::Failed,
+            started_at: 1,
+            completed_at: Some(2),
+            summary: Some("Wrote the migration".to_owned()),
+            outcome: None,
+            failure: Some("cargo test failed: 2 tests".to_owned()),
+        });
+
+        let text = brief_of(&exec).description;
+
+        assert!(text.contains("EARLIER ATTEMPT"));
+        assert!(text.contains("cargo test failed: 2 tests"));
+        assert!(text.contains("Wrote the migration"));
+    }
+
+    #[test]
+    fn a_step_that_never_ran_has_no_earlier_attempt_to_be_told_about() {
+        assert!(!brief_of(&run()).description.contains("EARLIER ATTEMPT"));
+    }
+
+    #[test]
+    fn a_fail_that_a_later_pass_turned_into_a_pass_is_not_reported_to_act_on() {
+        use crate::domain::orchestration::ValidationEntry;
+        let mut exec = run();
+        let verdict = |status: ResultStatus, summary: &str| ValidationEntry {
+            node_id: "qa".to_owned(),
+            execution_id: "exec-qa".to_owned(),
+            status,
+            outcome: None,
+            summary: summary.to_owned(),
+            findings: Vec::new(),
+        };
+        exec.state.validation_results = vec![
+            verdict(ResultStatus::Fail, "Expired tokens are accepted"),
+            verdict(ResultStatus::Pass, "All good now"),
+        ];
+
+        let text = brief_of(&exec).description;
+
+        assert!(!text.contains("Reports to act on"));
+        assert!(!text.contains("Expired tokens are accepted"));
     }
 }

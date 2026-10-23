@@ -606,6 +606,10 @@ fn the_full_flow_with_a_qa_failure_and_a_bug_fix_runs_end_to_end() {
     assert!(runner.requests_for("qa")[1]
         .instruction
         .contains("pass 2 of at most 3"));
+    // ...and is handed what is new since its first pass: the fixer's work.
+    assert!(runner.requests_for("qa")[1]
+        .instruction
+        .contains("Previous agent: fixer"));
 
     // Each attempt kept its own execution id and the run announced itself in order.
     let ids: HashSet<_> = exec
@@ -716,7 +720,7 @@ fn a_steps_brief_layout_matches_the_instruction_it_describes() {
 }
 
 #[test]
-fn the_context_engine_finds_what_a_real_brief_says_twice_and_keeps_every_fact() {
+fn a_real_brief_says_each_fact_once_and_the_context_engine_keeps_every_one() {
     use crate::application::optimization::context::{optimize_prompt_inputs, ContextInputs};
     use crate::application::prompt::Prompt;
     use crate::domain::context::{ExecutionBudget, ModelLimits};
@@ -757,37 +761,28 @@ fn the_context_engine_finds_what_a_real_brief_says_twice_and_keeps_every_fact() 
         budget: &ExecutionBudget::resolve(ModelLimits::unknown("rt", "m"), &[]),
     });
 
-    assert!(
-        outcome.changed,
-        "the same artifact and decision are said twice"
-    );
+    // The brief says the artifact and the decision once (in the workflow context; the handoff
+    // only names them), so the Context Engine finds no copy to drop and every fact reaches the
+    // agent whole.
     let before = step.instruction.trim();
-    let after = &outcome.task_description;
-    assert!(after.len() < before.len());
-    // Every fact is still there once: the workflow context keeps them (it is required)...
     for fact in [
-        "architecture.md",
         "docs/architecture.md",
         "POST /password-reset, 15m token",
         "Use JWT for the reset token",
         "The project already uses JWT",
     ] {
-        assert!(after.contains(fact), "lost: {fact}");
+        assert_eq!(
+            before.matches(fact).count(),
+            1,
+            "said more than once: {fact}"
+        );
+        assert!(outcome.task_description.contains(fact), "lost: {fact}");
     }
-    // ...and what only the handoff says (who handed over, how it ended) is untouched.
-    assert!(after.contains("Previous agent:"));
-    assert!(after.contains("Execution status:"));
-    // The protocols and the task are byte for byte what they were.
-    assert!(after.ends_with(step.brief_parts.protocols.trim_end()));
-    assert!(after.starts_with(&before[..before.find("WORKFLOW CONTEXT").unwrap()]));
-    let metrics = outcome.metrics(&format!("{}{}", combined, ""));
-    assert!(metrics.deduplicated_lines >= 2, "{metrics:?}");
-    eprintln!(
-        "REAL BRIEF: {} -> {} bytes, {} duplicate lines",
-        before.len(),
-        after.len(),
-        metrics.deduplicated_lines
-    );
+    assert!(before.contains("It left (see the workflow context): JWT, architecture.md"));
+    assert!(outcome.task_description.contains("Previous agent:"));
+    assert!(outcome
+        .task_description
+        .ends_with(step.brief_parts.protocols.trim_end()));
 }
 
 #[test]

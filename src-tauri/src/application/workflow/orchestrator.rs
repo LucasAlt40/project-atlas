@@ -1535,7 +1535,9 @@ fn can_begin(exec: &WorkflowExecution, node: &crate::domain::workflow::WorkflowN
         return false;
     };
     match &node.loop_policy {
-        Some(policy) if !state.continuing => state.iterations < policy.max_iterations,
+        Some(policy) if !state.continuing => {
+            state.iterations < state.iteration_limit(policy.max_iterations)
+        }
         _ => true,
     }
 }

@@ -150,6 +150,10 @@ pub struct NodeState {
     /// interruption) instead of beginning a new iteration.
     #[serde(default)]
     pub continuing: bool,
+    /// Passes the person allowed beyond the node's loop limit when they picked a run up again
+    /// after it stopped at that limit.
+    #[serde(default)]
+    pub extra_iterations: u32,
 }
 
 impl NodeState {
@@ -166,11 +170,17 @@ impl NodeState {
             routed: false,
             unrouted: false,
             continuing: false,
+            extra_iterations: 0,
         }
     }
 
     pub fn last_attempt(&self) -> Option<&NodeAttempt> {
         self.attempts.last()
+    }
+
+    /// How many passes the node may start: its loop limit and what the person added to it.
+    pub fn iteration_limit(&self, max_iterations: u32) -> u32 {
+        max_iterations.saturating_add(self.extra_iterations)
     }
 }
 
