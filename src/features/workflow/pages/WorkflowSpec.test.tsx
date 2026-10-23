@@ -1,6 +1,13 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { agent, mockBackend, navigate, renderWithProviders, workspace } from '@/test/fixtures';
+import {
+  agent,
+  mockBackend,
+  navigate,
+  renderWithProviders,
+  workspace,
+  workspaceWithProjects,
+} from '@/test/fixtures';
 import { summary } from '@/test/specFixtures';
 import { passwordRecovery, run, templates } from '@/test/workflowFixtures';
 import {
@@ -34,11 +41,18 @@ vi.mock('../services/liveWorkspaceService', async () =>
   (await import('@/test/liveWorkspaceMock')).liveWorkspaceMock(),
 );
 
-function show(options: { ready?: ReturnType<typeof summary>[] }) {
+function show(options: {
+  ready?: ReturnType<typeof summary>[];
+  projects?: [id: string, name: string, path: string][];
+}) {
   const workflow = passwordRecovery();
   mockBackend({
     agents: [agent('a-architect', 'Architect agent')],
-    workspaces: [workspace('w1', 'ERP', '/dev/erp', ['a-architect'])],
+    workspaces: [
+      options.projects
+        ? workspaceWithProjects('w1', 'ERP', options.projects, ['a-architect'])
+        : workspace('w1', 'ERP', '/dev/erp', ['a-architect']),
+    ],
     selectedWorkspaceId: 'w1',
   });
   vi.mocked(listWorkflows).mockResolvedValue([workflow]);
@@ -226,5 +240,91 @@ describe('starting a workflow: vibe coding or a spec', () => {
     expect(within(form).getByRole('radio', { name: /Vibe coding/ })).toBeChecked();
     await user.click(within(form).getByRole('radio', { name: /From an approved spec/ }));
     expect(within(form).getByLabelText('Spec')).toHaveValue('s1');
+  });
+});
+
+describe('running in a workspace of several projects (ADR 0043)', () => {
+  const fullstack: [string, string, string][] = [
+    ['back', 'api', '/dev/api'],
+    ['front', 'web', '/dev/web'],
+  ];
+
+  it('says what will be changed before running, and runs once per project in order', async () => {
+    show({ projects: fullstack });
+    vi.mocked(startWorkflow).mockResolvedValue(run(passwordRecovery(), 'running', {}));
+    const user = userEvent.setup();
+    renderWithProviders(<WorkflowPage />);
+
+    await screen.findByText(/The workflow is valid and can run/, {}, { timeout: 5000 });
+    await user.type(await screen.findByLabelText('Task'), 'Add the orders screen');
+    await user.click(screen.getByRole('button', { name: 'Run' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Confirm the projects of this run' });
+    expect(
+      within(dialog).getByText('Changes, in order (one run per project):'),
+    ).toBeInTheDocument();
+    expect(startWorkflow).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole('button', { name: 'Run 2 runs' }));
+
+    expect(startWorkflow).toHaveBeenCalledWith(
+      'wf-1',
+      'Add the orders screen',
+      false,
+      { workingProjectId: 'back', readProjectIds: [] },
+      undefined,
+      ['front'],
+    );
+  });
+
+  it('runs in one project and consults the other when the person chose so', async () => {
+    show({ projects: fullstack });
+    vi.mocked(startWorkflow).mockResolvedValue(run(passwordRecovery(), 'running', {}));
+    const user = userEvent.setup();
+    renderWithProviders(<WorkflowPage />);
+
+    await screen.findByText(/The workflow is valid and can run/, {}, { timeout: 5000 });
+    await user.type(await screen.findByLabelText('Task'), 'Fix the API');
+    await user.click(screen.getByRole('button', { name: /^Projects of the run/ }));
+    const front = screen.getByRole('group', { name: 'Use of web' });
+    await user.click(within(front).getByRole('button', { name: 'Consults' }));
+    await user.click(screen.getByRole('button', { name: 'Run' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Confirm the projects of this run' });
+    expect(within(dialog).getByText(/Only api will be changed/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Run' }));
+
+    expect(startWorkflow).toHaveBeenCalledWith('wf-1', 'Fix the API', false, {
+      workingProjectId: 'back',
+      readProjectIds: ['front'],
+    });
+  });
+
+  it('suggests changing one project when the workspace has many, and the person may keep all', async () => {
+    show({
+      projects: [
+        ['a', 'a', '/a'],
+        ['b', 'b', '/b'],
+        ['c', 'c', '/c'],
+        ['d', 'd', '/d'],
+      ],
+    });
+    vi.mocked(startWorkflow).mockResolvedValue(run(passwordRecovery(), 'running', {}));
+    const user = userEvent.setup();
+    renderWithProviders(<WorkflowPage />);
+
+    await screen.findByText(/The workflow is valid and can run/, {}, { timeout: 5000 });
+    await user.type(await screen.findByLabelText('Task'), 'Rename the field');
+    // By default only one project is changed; the person asks for all of them.
+    await user.click(screen.getByRole('button', { name: /^Projects of the run/ }));
+    await user.click(screen.getByRole('button', { name: 'Change all' }));
+    await user.click(screen.getByRole('button', { name: 'Run' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Confirm the projects of this run' });
+    expect(within(dialog).getByText('A workspace of 4 projects')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Change only a' }));
+
+    expect(startWorkflow).toHaveBeenCalledWith('wf-1', 'Rename the field', false, {
+      workingProjectId: 'a',
+      readProjectIds: ['b', 'c', 'd'],
+    });
   });
 });

@@ -276,6 +276,12 @@ export function useWorkflows(workspaceId: string | undefined) {
     (event: WorkflowEvent) => {
       if (event.workspaceId !== workspaceId) return;
       pending.current.add(event.executionId);
+      // The task went on in the chain's next project: the screen follows it there.
+      const next = event.metadata.nextExecutionId;
+      if (event.kind === 'chain_continued' && next) {
+        pending.current.add(next);
+        setShownRunId((shown) => (shown === event.executionId ? next : shown));
+      }
       timer.current ??= setTimeout(refreshRuns, 40);
     },
     [workspaceId, refreshRuns],
@@ -510,7 +516,13 @@ export function useWorkflows(workspaceId: string | undefined) {
   }, [selectedId, workflows, guard]);
 
   const run = useCallback(
-    async (task: string, autoApprovePlans = false, scope?: ScopeRequestDto, specId?: string) => {
+    async (
+      task: string,
+      autoApprovePlans = false,
+      scope?: ScopeRequestDto,
+      specId?: string,
+      nextProjectIds?: string[],
+    ) => {
       if (!draft) return undefined;
       return guard(async () => {
         // What is run is what is saved: unsaved edits are saved first.
@@ -520,11 +532,14 @@ export function useWorkflows(workspaceId: string | undefined) {
           upsert(workflow);
           dispatch({ type: 'saved', workflow });
         }
-        const started = specId
-          ? await startWorkflow(workflow.id, task, autoApprovePlans, scope, specId)
-          : scope
-            ? await startWorkflow(workflow.id, task, autoApprovePlans, scope)
-            : await startWorkflow(workflow.id, task, autoApprovePlans);
+        const next = nextProjectIds && nextProjectIds.length > 0 ? nextProjectIds : undefined;
+        const started = next
+          ? await startWorkflow(workflow.id, task, autoApprovePlans, scope, specId, next)
+          : specId
+            ? await startWorkflow(workflow.id, task, autoApprovePlans, scope, specId)
+            : scope
+              ? await startWorkflow(workflow.id, task, autoApprovePlans, scope)
+              : await startWorkflow(workflow.id, task, autoApprovePlans);
         setRuns((current) => [started, ...current.filter((r) => r.id !== started.id)]);
         setShownRunId(started.id);
         return started;

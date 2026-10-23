@@ -223,6 +223,47 @@ export const enUS = {
   'scope.with': 'Works in {working}; consults {others}.',
   'scope.badge': '{working} + {count}',
   'scope.projectRole': '{name} ({role})',
+  'runPlan.label': 'Projects of the run',
+  'runPlan.summary.chain': 'Changes in order: {order}; one run per project.',
+  'runPlan.summary.one': 'Changes only {name}.',
+  'runPlan.badge.chain': '{count} projects',
+  'runPlan.badge.one': 'Only {name}',
+  'runPlan.many':
+    'This workspace has {count} projects. The suggestion is to change 1 and only consult the others; you choose.',
+  'runPlan.useOf': 'Use of {name}',
+  'runPlan.use.work': 'Changes',
+  'runPlan.use.work.hint':
+    'A run for this project alone, in its worktree, with its own review and merge',
+  'runPlan.use.read': 'Consults',
+  'runPlan.use.read.hint': 'Agents may read it, never change it',
+  'runPlan.use.none': 'Out',
+  'runPlan.earlier': 'Run {name} earlier',
+  'runPlan.later': 'Run {name} later',
+  'runPlan.allWork': 'Change all',
+  'runPlan.oneWorks': 'Change only 1',
+  'runPlan.hint':
+    'Each project changed is a run, in the order above; the next starts when the one before completes and is told what it changed.',
+  'runPlan.confirm.title': 'Confirm the projects of this run',
+  'runPlan.confirm.intro': 'This workspace has {count} projects. Check what the task will change.',
+  'runPlan.confirm.introSpec':
+    'This workspace has {count} projects. Check where the spec will be implemented.',
+  'runPlan.confirm.changesChain': 'Changes, in order (one run per project):',
+  'runPlan.confirm.changesOne': 'Changes:',
+  'runPlan.confirm.reads': 'Only consults:',
+  'runPlan.confirm.untouched': 'Left out:',
+  'runPlan.confirm.chainNote':
+    'Each project has its own worktree, review and merge. The next run starts when the one before completes and is told what it changed; if one fails or is cancelled, the later ones do not start.',
+  'runPlan.confirm.oneNote':
+    'Only {name} will be changed. The other projects are only consulted (or left out), as you chose.',
+  'runPlan.confirm.manyTitle': 'A workspace of {count} projects',
+  'runPlan.confirm.many':
+    'Changing {count} projects is {count} runs in a row, each with its own cost and review. Atlas suggests changing only {name} and consulting the rest.',
+  'runPlan.confirm.useSuggestion': 'Change only {name}',
+  'runPlan.confirm.run': 'Run',
+  'runPlan.confirm.runChain': 'Run {count} runs',
+  'runPlan.chain.label': 'Projects of this task',
+  'runPlan.chain.position': 'Project {position} of {count}:',
+  'runPlan.chain.waiting': 'waiting',
 
   // Project Harness
   'harness.title': 'Harness',

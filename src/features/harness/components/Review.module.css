@@ -1497,3 +1497,48 @@
     opacity: 0.2;
   }
 }
+
+/* A finding in two lines: the name with its checkbox, then what it rests on. A long file path can
+   no longer squeeze the name into nothing. */
+.finding {
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    'check value'
+    '. meta';
+  align-items: start;
+  row-gap: var(--space-1);
+}
+.finding > input[type='checkbox'] {
+  grid-area: check;
+  margin-top: 0.2rem;
+}
+.findingValue {
+  grid-area: value;
+}
+.findingName {
+  display: -webkit-box;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.findingMeta {
+  grid-area: meta;
+  justify-content: flex-start;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+}
+.findingSource {
+  flex: 1 1 10rem;
+  min-width: 0;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+.findingSource:hover {
+  color: var(--text-high);
+  text-decoration: underline;
+}

@@ -111,6 +111,7 @@ export function startWorkflow(
   autoApprovePlans = false,
   scope?: ScopeRequestDto,
   specId?: string,
+  nextProjectIds?: string[],
 ): Promise<WorkflowRun> {
   return invokeCommand('start_workflow', {
     workflowId,
@@ -118,6 +119,7 @@ export function startWorkflow(
     ...(autoApprovePlans ? { autoApprovePlans } : {}),
     ...(scope ? { scope } : {}),
     ...(specId ? { specId } : {}),
+    ...(nextProjectIds && nextProjectIds.length > 0 ? { nextProjectIds } : {}),
   });
 }
 

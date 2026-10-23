@@ -220,6 +220,48 @@ export const ptBR: Record<TranslationKey, string> = {
   'scope.with': 'Trabalha em {working}; consulta {others}.',
   'scope.badge': '{working} + {count}',
   'scope.projectRole': '{name} ({role})',
+  'runPlan.label': 'Projetos da execução',
+  'runPlan.summary.chain': 'Altera em sequência: {order}; uma execução por projeto.',
+  'runPlan.summary.one': 'Altera só {name}.',
+  'runPlan.badge.chain': '{count} projetos',
+  'runPlan.badge.one': 'Só {name}',
+  'runPlan.many':
+    'Este workspace tem {count} projetos. A sugestão é alterar 1 e só consultar os outros; você escolhe.',
+  'runPlan.useOf': 'Uso de {name}',
+  'runPlan.use.work': 'Altera',
+  'runPlan.use.work.hint':
+    'Uma execução só para este projeto, no seu worktree, com revisão e merge próprios',
+  'runPlan.use.read': 'Consulta',
+  'runPlan.use.read.hint': 'Os agentes podem ler, nunca alterar',
+  'runPlan.use.none': 'Fora',
+  'runPlan.earlier': 'Rodar {name} antes',
+  'runPlan.later': 'Rodar {name} depois',
+  'runPlan.allWork': 'Alterar todos',
+  'runPlan.oneWorks': 'Alterar só 1',
+  'runPlan.hint':
+    'Cada projeto alterado é uma execução, na ordem acima; a seguinte começa quando a anterior conclui e recebe o que ela mudou.',
+  'runPlan.confirm.title': 'Confirmar os projetos desta execução',
+  'runPlan.confirm.intro':
+    'Este workspace tem {count} projetos. Confira o que a tarefa vai alterar.',
+  'runPlan.confirm.introSpec':
+    'Este workspace tem {count} projetos. Confira onde a spec vai ser implementada.',
+  'runPlan.confirm.changesChain': 'Altera, em sequência (uma execução por projeto):',
+  'runPlan.confirm.changesOne': 'Altera:',
+  'runPlan.confirm.reads': 'Só consulta:',
+  'runPlan.confirm.untouched': 'Fica de fora:',
+  'runPlan.confirm.chainNote':
+    'Cada projeto tem seu worktree, sua revisão e seu merge. A próxima execução começa quando a anterior conclui e recebe o que ela mudou; se uma falhar ou for cancelada, as seguintes não começam.',
+  'runPlan.confirm.oneNote':
+    'Só {name} será alterado. Os outros projetos ficam só para consulta (ou de fora), como você escolheu.',
+  'runPlan.confirm.manyTitle': 'Workspace com {count} projetos',
+  'runPlan.confirm.many':
+    'Alterar {count} projetos são {count} execuções seguidas, cada uma com seu custo e sua revisão. O Atlas sugere alterar só {name} e consultar o resto.',
+  'runPlan.confirm.useSuggestion': 'Alterar só {name}',
+  'runPlan.confirm.run': 'Rodar',
+  'runPlan.confirm.runChain': 'Rodar {count} execuções',
+  'runPlan.chain.label': 'Projetos desta tarefa',
+  'runPlan.chain.position': 'Projeto {position} de {count}:',
+  'runPlan.chain.waiting': 'aguardando',
 
   // Project Harness
   'harness.title': 'Harness',

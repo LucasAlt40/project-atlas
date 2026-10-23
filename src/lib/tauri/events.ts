@@ -44,6 +44,7 @@ export const WORKFLOW_EVENT_NAMES: readonly WorkflowEventName[] = [
   'workflow:overlap_detected',
   'workflow:handoff_created',
   'workflow:integration_changed',
+  'workflow:chain_continued',
 ];
 
 /**

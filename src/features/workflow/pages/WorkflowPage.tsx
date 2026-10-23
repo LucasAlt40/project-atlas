@@ -12,19 +12,23 @@ import { useCatalog } from '@/features/agents/hooks/useCatalog';
 import { ExportDialog, ImportDialog } from '@/features/portability';
 import { ExecutionInspector } from '@/features/workspace/components/ExecutionInspector';
 import { useWorkspace } from '@/features/workspace/hooks/WorkspaceProvider';
-import { ScopePicker } from '@/features/workspace/components/ScopePicker';
+import { RunProjectsPicker } from '@/features/workspace/components/RunProjectsPicker';
 import {
-  normalizeChoice,
-  toScopeRequest,
-  type ScopeChoice,
-} from '@/features/workspace/model/scope';
+  loadRunPlan,
+  normalizePlan,
+  saveRunPlan,
+  toStartRequest,
+  type RunPlan,
+} from '@/features/workspace/model/runPlan';
 import { runKey } from '@/features/workspace/model/agentRuns';
 import type { StoredExecution } from '@/features/workspace/types';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { TranslationKey } from '@/i18n';
 import { errorMessage } from '@/i18n/messages';
 import type { ImportReportDto, PositionDto } from '@/lib/tauri/commands';
+import { ChainBar } from '../components/ChainBar';
 import { ChangesModal } from '../components/ChangesModal';
+import { RunPlanConfirm } from '../components/RunPlanConfirm';
 import { InteractionPanel } from '../components/InteractionPanel';
 import { LiveWorkspacePanel } from '../components/LiveWorkspacePanel';
 import { ReviewWorkspace } from '../components/ReviewWorkspace';
@@ -82,8 +86,10 @@ export function WorkflowPage() {
 
   const [selection, setSelection] = useState<Selection>(null);
   const [task, setTask] = useState('');
-  // Where the next run works and what it may consult; the primary project alone until chosen.
-  const [runScope, setRunScope] = useState<ScopeChoice | undefined>(undefined);
+  // Which projects the next run changes (one run each) and consults, per workspace (ADR 0043);
+  // every project, or one when there are many, until the person chooses.
+  const [plans, setPlans] = useState<Record<string, RunPlan>>({});
+  const [confirmingPlan, setConfirmingPlan] = useState(false);
   // The person's standing choice about plans: kept between sessions, given to each new run.
   const [autoPlans, setAutoPlans] = useState(loadAutoPlans);
   const [connecting, setConnecting] = useState(false);
@@ -373,6 +379,34 @@ export function WorkflowPage() {
         ]
       : []),
   ];
+  const runPlan = normalizePlan(plans[active.id] ?? loadRunPlan(active.id), active);
+  const choosePlan = (plan: RunPlan) => {
+    setPlans((current) => ({ ...current, [active.id]: plan }));
+    saveRunPlan(active.id, plan);
+  };
+  const startRun = (plan: RunPlan) => {
+    const { scope, nextProjectIds } = toStartRequest(plan, active);
+    if (startFrom.kind === 'spec') {
+      // Always said for a spec: without a scope the run would work in the spec's own project,
+      // which may not be the one the person was shown.
+      const first = plan.workingProjectIds[0];
+      const explicit =
+        scope ??
+        (first && active.projects.length > 1
+          ? { workingProjectId: first, readProjectIds: plan.readProjectIds }
+          : undefined);
+      void space
+        .run(task.trim(), autoPlans, explicit, startFrom.specId, nextProjectIds)
+        .then((started) => {
+          // A spec is built from on purpose, not by leaving the choice where it was.
+          if (started) setStartFrom(VIBE);
+        });
+    } else if (nextProjectIds) {
+      void space.run(task.trim(), autoPlans, scope, undefined, nextProjectIds);
+    } else if (scope) void space.run(task.trim(), autoPlans, scope);
+    else void space.run(task.trim(), autoPlans);
+  };
+
   const runMenu = [
     ...(runStatus === 'interrupted' && shownRun
       ? [
@@ -380,12 +414,24 @@ export function WorkflowPage() {
             label: t('workflow.restart'),
             icon: 'refresh' as const,
             onSelect: () => {
+              // A run of a chain starts again with the projects that were still to come.
+              const later = shownRun.chain
+                ? shownRun.chain.projects.slice(shownRun.chain.position + 1).map((p) => p.id)
+                : [];
               void space
                 .cancel()
                 .then(() =>
-                  shownRun.scope
-                    ? space.run(shownRun.task, shownRun.autoApprovePlans, shownRun.scope)
-                    : space.run(shownRun.task, shownRun.autoApprovePlans),
+                  later.length > 0
+                    ? space.run(
+                        shownRun.task,
+                        shownRun.autoApprovePlans,
+                        shownRun.scope,
+                        undefined,
+                        later,
+                      )
+                    : shownRun.scope
+                      ? space.run(shownRun.task, shownRun.autoApprovePlans, shownRun.scope)
+                      : space.run(shownRun.task, shownRun.autoApprovePlans),
                 );
             },
           },
@@ -614,11 +660,7 @@ export function WorkflowPage() {
               }}
             />
             {active.projects.length > 1 && (
-              <ScopePicker
-                projects={active.projects}
-                choice={normalizeChoice(runScope, active)}
-                onChange={setRunScope}
-              />
+              <RunProjectsPicker projects={active.projects} plan={runPlan} onChange={choosePlan} />
             )}
             <AutoPlansToggle
               checked={autoPlans}
@@ -630,16 +672,9 @@ export function WorkflowPage() {
             <Button
               disabled={!canRun}
               onClick={() => {
-                const scope = toScopeRequest(runScope, active);
-                if (startFrom.kind === 'spec') {
-                  void space
-                    .run(task.trim(), autoPlans, scope, startFrom.specId)
-                    .then((started) => {
-                      // A spec is built from on purpose, not by leaving the choice where it was.
-                      if (started) setStartFrom(VIBE);
-                    });
-                } else if (scope) void space.run(task.trim(), autoPlans, scope);
-                else void space.run(task.trim(), autoPlans);
+                // With several projects the person always sees what will be changed first.
+                if (active.projects.length > 1) setConfirmingPlan(true);
+                else startRun(runPlan);
               }}
             >
               <Icon name="play" size={14} />
@@ -652,6 +687,34 @@ export function WorkflowPage() {
           <p role="alert" className={styles.failure}>
             {errorMessage(t, space.error)}
           </p>
+        )}
+        {confirmingPlan && (
+          <RunPlanConfirm
+            projects={active.projects}
+            plan={runPlan}
+            fromSpec={startFrom.kind === 'spec'}
+            onCancel={() => {
+              setConfirmingPlan(false);
+            }}
+            onConfirm={() => {
+              setConfirmingPlan(false);
+              startRun(runPlan);
+            }}
+            onUseSuggestion={(plan) => {
+              setConfirmingPlan(false);
+              choosePlan(plan);
+              startRun(plan);
+            }}
+          />
+        )}
+        {shownRun?.chain && (
+          <ChainBar
+            run={shownRun}
+            runs={space.runs}
+            onShow={(runId) => {
+              space.showRun(runId);
+            }}
+          />
         )}
         {shownRun?.spec && (
           <SpecRunPanel

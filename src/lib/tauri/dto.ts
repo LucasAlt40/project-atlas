@@ -333,6 +333,11 @@ export interface CommandMap {
       scope?: ScopeRequestDto;
       /** Start from an approved spec (ADR 0035); absent: exactly as before. */
       specId?: string;
+      /**
+       * The projects the task goes on to after the scope's, one run each, in order (ADR 0043).
+       * Absent: one run.
+       */
+      nextProjectIds?: string[];
     };
     result: WorkflowExecutionDto;
   };
@@ -2996,6 +3001,8 @@ export type WorkflowEventKindDto =
   | 'overlap_detected'
   | 'handoff_created'
   | 'integration_changed'
+  /** The run completed and the task goes on in the chain's next project (`nextExecutionId`). */
+  | 'chain_continued'
   /** A guardrail took secrets out of a step's result before it was handed on. */
   | 'guardrail_transformed';
 
@@ -3009,6 +3016,30 @@ export interface WorkflowEventDto {
   message: string;
   timestamp: number;
   metadata: Record<string, string>;
+}
+
+/** Mirrors `domain::workflow::ChainStep`: what an earlier run of a chain left. */
+export interface ChainStepDto {
+  projectId: string;
+  executionId: string;
+  status: WorkflowExecutionStatusDto;
+  branch: string | null;
+  files: string[];
+  filesChanged: number;
+  diff: string;
+  summary: string;
+}
+
+/** Mirrors `domain::workflow::ProjectChain`: the runs of one task over several projects. */
+export interface ProjectChainDto {
+  /** The id of the chain's first run. */
+  id: string;
+  /** In the order they are worked in. */
+  projects: { id: string; name: string }[];
+  /** Which of them this run works in. */
+  position: number;
+  readProjectIds: string[];
+  earlier: ChainStepDto[];
 }
 
 /** One run of a workflow, with the snapshot of the definition it started from. */
@@ -3025,6 +3056,8 @@ export interface WorkflowExecutionDto {
   scope?: ScopeRequestDto;
   /** The approved spec this run implements, if it was started from one. */
   spec?: SpecLinkDto;
+  /** The task changes several projects, one run each (ADR 0043): this run is one of them. */
+  chain?: ProjectChainDto;
   status: WorkflowExecutionStatusDto;
   failure: WorkflowFailureDto | null;
   cancelRequested: boolean;
@@ -3833,6 +3866,8 @@ export type SpecTaskStateDto = 'pending' | 'reported' | 'confirmed';
 export interface SpecProgressDto {
   workflowExecutionId: string;
   workflowName: string;
+  /** The project the run worked in, when the spec is implemented in several. */
+  projectName?: string | null;
   status: WorkflowExecutionStatusDto | null;
   specChanged: boolean;
   tasks: { id: string; text: string; state: SpecTaskStateDto }[];

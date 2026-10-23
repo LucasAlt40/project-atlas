@@ -2616,3 +2616,55 @@
 .resultBody[hidden] {
   display: none;
 }
+
+/* What a run in a workspace of several projects will change and consult (ADR 0043). */
+.planConfirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  color: var(--text-standard);
+  font-size: var(--font-size-sm);
+}
+.planConfirm p {
+  margin: 0;
+}
+.planHeading {
+  margin: 0 0 var(--space-1);
+  color: var(--text-high);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+.planSteps {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--text-high);
+}
+.chainBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-standard);
+  font-size: var(--font-size-sm);
+}
+.chainStep {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-standard);
+  font: inherit;
+  line-height: var(--control-height-sm);
+  cursor: pointer;
+}
+.chainStep[aria-current='true'] {
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  color: var(--accent-soft);
+}
+.chainStep:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
