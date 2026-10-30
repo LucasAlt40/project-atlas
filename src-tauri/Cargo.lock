@@ -255,7 +255,7 @@ version = "0.4.0"
 dependencies = [
  "bytes",
  "dunce",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "http-body-util",
  "hyper",
  "hyper-util",
