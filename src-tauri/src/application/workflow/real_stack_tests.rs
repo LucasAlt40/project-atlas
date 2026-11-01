@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use super::chat_runner::ChatStepRunner;
-use super::orchestrator::Orchestrator;
+use super::orchestrator::{Control, Orchestrator};
 use super::runner::WorkflowObserver;
 use super::service::{NewWorkflow, WorkflowService};
 use super::test_support::{agent, edge, end, when, with_loop};
@@ -1214,7 +1214,13 @@ struct TemplateRun {
     failure: Option<String>,
     /// The run's branch, to take its whole tree out and run it.
     branch: Option<String>,
+    /// What a step asked the person when the run stopped to wait for an answer nobody gives in a
+    /// test (only plans are answered on their own): the run is cancelled and the questions kept.
+    asked: Vec<String>,
 }
+
+/// How long a run may wait for a person before the test cancels it.
+const WAIT_FOR_PERSON: Duration = Duration::from_secs(60);
 
 fn git_out(project: &std::path::Path, args: &[&str]) -> Option<String> {
     let out = std::process::Command::new("git")
@@ -1302,7 +1308,46 @@ fn run_template(
         .unwrap();
     let observer = Arc::new(Collector::default());
     let began = std::time::Instant::now();
-    s.orchestrator.run(&run.id, observer.clone()).unwrap();
+    // Nobody answers a question in a test: a run that waits for a person longer than
+    // `WAIT_FOR_PERSON` is cancelled, and what was asked is kept for the report.
+    let asked = Mutex::new(Vec::new());
+    let finished = std::sync::atomic::AtomicBool::new(false);
+    std::thread::scope(|scope| {
+        scope.spawn(|| {
+            let mut waiting_since: Option<std::time::Instant> = None;
+            while !finished.load(std::sync::atomic::Ordering::SeqCst) {
+                std::thread::sleep(Duration::from_millis(500));
+                let Some(exec) = s.workflows.execution(&run.id) else {
+                    continue;
+                };
+                if exec.status != WorkflowExecutionStatus::WaitingForInput {
+                    waiting_since = None;
+                    continue;
+                }
+                if waiting_since
+                    .get_or_insert_with(std::time::Instant::now)
+                    .elapsed()
+                    < WAIT_FOR_PERSON
+                {
+                    continue;
+                }
+                let questions: Vec<String> = exec
+                    .interactions
+                    .iter()
+                    .filter(|i| i.is_pending())
+                    .map(|i| format!("{} ({}): {}", i.step_id, i.kind.as_str(), i.question))
+                    .collect();
+                println!("the run waited for a person; cancelled. Asked: {questions:?}");
+                asked.lock().unwrap().extend(questions);
+                let _ = s
+                    .orchestrator
+                    .control(&run.id, Control::Cancel, observer.as_ref());
+                break;
+            }
+        });
+        s.orchestrator.run(&run.id, observer.clone()).unwrap();
+        finished.store(true, std::sync::atomic::Ordering::SeqCst);
+    });
     let done = s.workflows.execution(&run.id).unwrap();
 
     let started: Vec<String> = observer
@@ -1364,6 +1409,7 @@ fn run_template(
         changed,
         failure,
         branch,
+        asked: asked.into_inner().unwrap(),
     };
     (s, result)
 }
@@ -1932,4 +1978,117 @@ fn an_agent_that_writes_into_the_project_checkout_is_named_by_the_run() {
         done.integration.checkout_changed,
         vec!["ESCAPED.txt".to_owned()]
     );
+}
+
+/// Every file under `root` (relative path, content), for a benchmark fixture.
+fn fixture_files(root: &Path) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(dir) = pending.pop() {
+        for entry in fs::read_dir(&dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                pending.push(path);
+            } else {
+                let relative = path
+                    .strip_prefix(root)
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned();
+                out.push((relative, fs::read_to_string(&path).unwrap()));
+            }
+        }
+    }
+    out.sort();
+    out
+}
+
+/// The benchmark's Atlas arm (`bench/run.mjs`): one task through one product template on a real
+/// runtime, with what it consumed, how long it took, the run's tree and what the agents said
+/// written to `ATLAS_BENCH_OUT`. Grading happens outside, on that tree. Real model calls: run by
+/// its exact name only.
+#[test]
+#[ignore = "benchmark: real model calls, driven by bench/run.mjs"]
+fn bench_atlas_task() {
+    let var = |name: &str| std::env::var(name).unwrap_or_else(|_| panic!("{name} is required"));
+    let runtime = var("ATLAS_BENCH_RUNTIME");
+    let model = var("ATLAS_BENCH_MODEL");
+    let template = var("ATLAS_BENCH_TEMPLATE");
+    let fixture = std::path::PathBuf::from(var("ATLAS_BENCH_FIXTURE"));
+    let task = fs::read_to_string(var("ATLAS_BENCH_TASK")).unwrap();
+    let out = std::path::PathBuf::from(var("ATLAS_BENCH_OUT"));
+    fs::create_dir_all(&out).unwrap();
+
+    let files = fixture_files(&fixture);
+    let refs: Vec<(&str, &str)> = files
+        .iter()
+        .map(|(p, c)| (p.as_str(), c.as_str()))
+        .collect();
+    let began = std::time::Instant::now();
+    let (s, run) = run_template(&runtime, &model, &template, &refs, task.trim(), &[]);
+    let elapsed_ms = began.elapsed().as_millis();
+
+    // The run's branch when it committed anything, else the fixture as it was (nothing changed).
+    let source = run
+        .branch
+        .clone()
+        .filter(|b| git_out(&s.project, &["rev-parse", "--verify", "--quiet", b]).is_some())
+        .unwrap_or_else(|| "main".to_owned());
+    let target = out.join("tree");
+    fs::create_dir_all(&target).unwrap();
+    let exported = std::process::Command::new("sh")
+        .arg("-c")
+        .arg("git archive --format=tar \"$1\" | tar -x -C \"$2\"")
+        .arg("sh")
+        .arg(&source)
+        .arg(&target)
+        .current_dir(&s.project)
+        .status()
+        .unwrap();
+    assert!(exported.success(), "export of {source}");
+    let mut transcript = String::new();
+    for m in s.chat.messages(Some(&s.workspace_id), None) {
+        use std::fmt::Write as _;
+        let _ = writeln!(transcript, "--- {:?} {}\n{}", m.role, m.agent_id, m.content);
+    }
+    fs::write(out.join("transcript.txt"), transcript).unwrap();
+
+    let roles: std::collections::BTreeMap<&str, &str> = s
+        .agents
+        .iter()
+        .map(|(role, id)| (id.as_str(), *role))
+        .collect();
+    let snapshot = s.config.snapshot();
+    // What each execution's runtime reported about where its output went (thinking, text, tool
+    // input), keyed by execution: the chat keeps the executions of a test in memory.
+    let stored = s.chat.executions(Some(&s.workspace_id), None);
+    let facts: std::collections::BTreeMap<&str, &std::collections::BTreeMap<String, String>> =
+        stored
+            .iter()
+            .map(|e| (e.id.as_str(), &e.metadata))
+            .collect();
+    let usage: Vec<serde_json::Value> = snapshot
+        .usage
+        .iter()
+        .map(|r| {
+            let mut value = serde_json::to_value(r).unwrap();
+            value["role"] = serde_json::json!(roles.get(r.agent_id.as_str()));
+            value["runtimeFacts"] = serde_json::json!(facts.get(r.execution_id.as_str()));
+            value
+        })
+        .collect();
+    let report = serde_json::json!({
+        "status": format!("{:?}", run.status),
+        "failure": run.failure,
+        "started": run.started,
+        "changed": run.changed,
+        "elapsedMs": elapsed_ms,
+        "asked": run.asked,
+        "usage": usage,
+    });
+    fs::write(
+        out.join("atlas.json"),
+        serde_json::to_string_pretty(&report).unwrap(),
+    )
+    .unwrap();
 }

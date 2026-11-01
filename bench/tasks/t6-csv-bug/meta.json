@@ -1,0 +1,3 @@
+{ "id": "t6-csv-bug", "kind": "bugfix-hard", "template": "bug_fix",
+  "title": "Bug difícil: parser de CSV com defeitos entrelaçados",
+  "allowed": ["src/csv.js", "test/"] }

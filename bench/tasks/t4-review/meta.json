@@ -1,0 +1,56 @@
+{
+  "id": "t4-review",
+  "kind": "review",
+  "template": "code_review",
+  "title": "Revisão: achar 3 defeitos plantados sem alterar nada",
+  "allowed": [],
+  "defects": [
+    {
+      "id": "pagination-off-by-one",
+      "label": "paginate pula a 1ª página (1-based tratado como 0-based)",
+      "any": [
+        "off-by-one",
+        "off by one",
+        "first page",
+        "page 1",
+        "1-based",
+        "one-based",
+        "(page - 1)",
+        "page - 1",
+        "skips",
+        "skipped"
+      ]
+    },
+    {
+      "id": "age-before-birthday",
+      "label": "isAdult ignora mês/dia do aniversário",
+      "any": [
+        "birthday",
+        "month",
+        "day of",
+        "getmonth",
+        "has not yet",
+        "hasn't",
+        "not yet had",
+        "only the year",
+        "only compares the year",
+        "year difference"
+      ]
+    },
+    {
+      "id": "escape-first-only",
+      "label": "escapeHtml troca só a 1ª ocorrência (XSS) e não escapa aspas",
+      "any": [
+        "first occurrence",
+        "only the first",
+        "replaceall",
+        "/g",
+        "global",
+        "xss",
+        "every occurrence",
+        "all occurrences",
+        "only replaces the first"
+      ]
+    }
+  ]
+}

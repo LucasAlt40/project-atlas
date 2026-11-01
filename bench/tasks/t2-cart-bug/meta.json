@@ -1,0 +1,7 @@
+{
+  "id": "t2-cart-bug",
+  "kind": "bugfix",
+  "template": "bug_fix",
+  "title": "Bug a partir de sintoma: total do carrinho",
+  "allowed": ["src/cart.js", "test/"]
+}

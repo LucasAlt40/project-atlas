@@ -1,0 +1,3 @@
+{ "id": "t7-order-cancel", "kind": "feature-multifile-hard", "template": "software_feature",
+  "title": "Feature difícil em 3 arquivos: cancelar pedido (estoque, evento, relatórios)",
+  "allowed": ["src/orders.js", "src/inventory.js", "src/reports.js", "src/events.js", "test/"] }
