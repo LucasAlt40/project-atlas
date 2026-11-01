@@ -1,0 +1,98 @@
+{
+  "status": "Completed",
+  "failure": null,
+  "started": [
+    "architect",
+    "developer",
+    "validator",
+    "qa"
+  ],
+  "changed": [
+    "src/format.js",
+    "src/store.js",
+    "test/store.test.js"
+  ],
+  "elapsedMs": 127431,
+  "usage": [
+    {
+      "executionId": "exec-2",
+      "workspaceId": "ws-1793469162917-1",
+      "agentId": "agent-1793469162917-6",
+      "runtimeId": "codex",
+      "modelId": "gpt-5.6-luna",
+      "startedAt": 1793469163106,
+      "completedAt": 1793469185046,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 64273,
+        "outputTokens": 2149,
+        "totalTokens": 66422,
+        "cachedInputTokens": 46720,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      "role": "architect"
+    },
+    {
+      "executionId": "exec-3",
+      "workspaceId": "ws-1793469162917-1",
+      "agentId": "agent-1793469162917-3",
+      "runtimeId": "codex",
+      "modelId": "gpt-5.6-luna",
+      "startedAt": 1793469185130,
+      "completedAt": 1793469221944,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 146586,
+        "outputTokens": 3017,
+        "totalTokens": 149603,
+        "cachedInputTokens": 128128,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      "role": "developer"
+    },
+    {
+      "executionId": "exec-4",
+      "workspaceId": "ws-1793469162917-1",
+      "agentId": "agent-1793469162917-7",
+      "runtimeId": "codex",
+      "modelId": "gpt-5.6-luna",
+      "startedAt": 1793469222132,
+      "completedAt": 1793469258784,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 124048,
+        "outputTokens": 1955,
+        "totalTokens": 126003,
+        "cachedInputTokens": 95488,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      "role": "validator"
+    },
+    {
+      "executionId": "exec-5",
+      "workspaceId": "ws-1793469162917-1",
+      "agentId": "agent-1793469162917-4",
+      "runtimeId": "codex",
+      "modelId": "gpt-5.6-luna",
+      "startedAt": 1793469258865,
+      "completedAt": 1793469289943,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 146081,
+        "outputTokens": 3150,
+        "totalTokens": 149231,
+        "cachedInputTokens": 133504,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      "role": "qa"
+    }
+  ]
+}

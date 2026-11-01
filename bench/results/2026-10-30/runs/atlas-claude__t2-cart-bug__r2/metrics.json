@@ -1,0 +1,46 @@
+{
+  "ok": true,
+  "exitCode": 0,
+  "status": "Completed",
+  "failure": null,
+  "elapsedMs": 76672,
+  "inputTokens": 104823,
+  "cachedInputTokens": 80188,
+  "outputTokens": 14050,
+  "costUsd": 0.012752280000000001,
+  "agentRuns": 2,
+  "steps": ["bug-fixer", "qa"],
+  "perStep": [
+    {
+      "role": "fixer",
+      "ms": 31523,
+      "ok": true,
+      "inputTokens": 65038,
+      "outputTokens": 5786,
+      "totalTokens": 70824,
+      "cachedInputTokens": 53094,
+      "cost": 0.00581174,
+      "currency": "USD",
+      "source": "runtime_reported"
+    },
+    {
+      "role": "qa",
+      "ms": 44373,
+      "ok": true,
+      "inputTokens": 39785,
+      "outputTokens": 8264,
+      "totalTokens": 48049,
+      "cachedInputTokens": 27094,
+      "cost": 0.00694054,
+      "currency": "USD",
+      "source": "runtime_reported"
+    }
+  ],
+  "id": "atlas-claude__t2-cart-bug__r2",
+  "arm": "atlas-claude",
+  "task": "t2-cart-bug",
+  "rep": 2,
+  "runtime": "claude",
+  "model": "haiku",
+  "template": "bug_fix"
+}

@@ -1,0 +1,190 @@
+--- User agent-1793469040597-6
+Analyze and plan: Add priorities to the todo store in this project (src/store.js and src/format.js).  - store.add(title, options): options.priority is 'low', 'n…
+--- Assistant agent-1793469040597-6
+Size: moderate
+
+## Architecture analysis and plan: todo priorities
+
+**Scope.** Add a `priority` (`low` | `normal` | `high`) to todos. Changes: `store.add`, `store.list`, `formatList`, and tests. Out of scope: `complete`, the todo id scheme, the README (optional one-line note), and any CLI, since the repo has none.
+
+### What the project looks like today
+- `src/store.js`: `createStore()` closes over a private `todos` array and `nextId`. `add(title)` validates and pushes `{id, title, done}`. `list()` returns shallow copies in insertion order. There are no dependencies.
+- `src/format.js`: `formatList(todos)` renders `[x] title` / `[ ] title`, one per line, in the order it receives.
+- `test/store.test.js`: four tests using `node:test` and `assert`. The `format` test passes plain objects with no `priority` field, so a missing priority must render as normal.
+- Baseline: `npm test` passes 4 of 4.
+
+### Architectural impact
+- The module boundary stays the same. The store owns data and ordering; the formatter only renders. Priority rules belong in the store, and the formatter reads only the `priority` field.
+- The public contract grows in a backward-compatible way: `add` gets an optional second argument, and every todo gets one new field. Nothing existing breaks, provided no caller compares whole todo objects with deep equality (none in this repo).
+
+### Decisions the Developer must follow
+1. **Priority set in one place.** In `store.js`, define a single constant of the valid priorities and a rank map (`high` 0, `normal` 1, `low` 2). Use it for validation and sorting. Do not export it, and do not add a new module, because the task doesn't need one.
+2. **`add(title, options = {})`.** Keep the title check first (`TypeError`). Then, if `options.priority` is `undefined`, use `'normal'`. Any other value that is not in the set throws `RangeError`. That includes `null`, `'HIGH'` and `'urgent'`. Stored todo: `{id, title, done, priority}`.
+3. **`list(filter = {})`.**
+   - With `filter.priority` set: return the todos with that priority, in insertion order. If the filter value is not a valid priority, throw `RangeError` (this is my choice; the spec is silent, and throwing avoids a silently empty list).
+   - Without the filter: return a stable sort by rank, high first, then normal, then low. Insertion order is kept within each rank.
+   - Sort a copy, never the internal `todos` array. The internal order is the insertion order and must stay that way.
+   - Keep the copy-on-return behaviour (`{ ...t }`).
+4. **`formatList`.** Render `high` todos as `[ ] !title` (and `[x] !title` when done). Render `normal`, `low`, and todos with no priority field exactly as before. Do not sort inside `formatList`; it renders in the order it is given.
+5. **`complete` is unchanged.**
+
+### Files and contracts to change
+- `src/store.js`: `add` signature and validation, `list` filter and sort, and the `priority` field on each todo.
+- `src/format.js`: the `!` prefix for `high`.
+- `test/store.test.js`: keep the four existing tests unchanged, and add new tests (below).
+- `README.md`: optional. One line noting that todos have priorities is enough.
+
+### Tests to add (in `test/store.test.js`)
+- `add` without options gives `priority: 'normal'`.
+- Each valid priority is stored as given.
+- Invalid priorities (`'urgent'`, `'HIGH'`, `null`, `42`) throw `RangeError`.
+- `list({ priority: 'high' })` returns only high todos, in insertion order.
+- An invalid filter priority throws `RangeError`.
+- `list()` sorts high, normal, low. Within a rank the order is insertion order. Use a mixed insertion sequence such as low, high, normal, high, low to show stability.
+- `list()` does not reorder the store: a later `list()` after an add still matches insertion order within each rank.
+- `formatList` renders `'[ ] !Pay rent'` for high, plain `[ ] title` for normal and low, and `[x] !title` for a done high todo.
+- `formatList` on todos without a priority field renders as before (the existing `format` test covers this; add an explicit assertion too).
+
+### Risks
+- A consumer that deep-equals whole todo objects will now see the extra `priority` field. None exist in this repo.
+- Stability of `Array.prototype.sort` is guaranteed by ES2019, so the sort is safe on the Node version this repo uses. The stability test guards it.
+- Sorting the internal array by accident would silently change insertion order for later calls. The copy-then-sort rule and the store-order test guard against this.
+
+### Verification
+- Run `npm test`. All four existing tests must still pass unchanged, plus the new ones.
+- Read the diff against the list above to confirm that `complete`, ids and the copy-on-return behaviour are untouched.
+
+## Result
+
+Analysis is complete and the plan is above. Implementation belongs to the next step, so I made no edits. The baseline `npm test` passes 4 of 4.
+
+```atlas-result
+{"status":"success","outcome":"approved","summary":"Moderate change: add a validated priority (low/normal/high, default normal) to todos in src/store.js, make list() filter and stably sort by priority, and render high todos with a '!' prefix in src/format.js. Existing tests stay untouched; new tests go in test/store.test.js. Baseline npm test: 4 pass, 0 fail.","artifacts":[{"type":"implementation_summary","name":"Priority plan","path":"src/store.js","summary":"Plan for store.add(title, options), store.list(filter) with stable rank sort on a copy, and formatList '!' prefix for high priority, with tests listed in the plan."}],"decisions":[{"title":"Single priority constant in store.js","decision":"Define the valid priorities and rank map once, in store.js, unexported.","rationale":"Keeps validation and sorting in one place without adding a module."},{"title":"Invalid list filter throws RangeError","decision":"list({priority}) with an invalid value throws RangeError instead of returning an empty list.","rationale":"The spec is silent on this; throwing matches add() and avoids silently empty results. Chosen by me, can be reversed."},{"title":"Sort a copy, not the store","decision":"list() sorts a copy by rank with insertion order kept within a rank; the internal array is never reordered.","rationale":"Preserves insertion order for later calls and keeps copy-on-return semantics."},{"title":"null priority is invalid","decision":"Only undefined means default to normal; null and other values throw RangeError.","rationale":"Matches the spec's 'any other value throws' wording."}],"findings":[{"severity":"low","category":"compatibility","title":"Extra priority field on todos","description":"list() output gains a priority field. Any consumer deep-comparing whole todo objects would see a difference.","file":"src/store.js","line":12,"evidence":"const todo = { id: nextId++, title: title.trim(), done: false };","recommendation":"Acceptable; none in this repo deep-compare todos. Keep the existing title-only assertions unchanged."}],"touchedFiles":[],"touchedAreas":["store","format","tests"],"nextAction":"Implement the plan in src/store.js, src/format.js and test/store.test.js, then run npm test."}
+```
+--- User agent-1793469040597-3
+Implement: Add priorities to the todo store in this project (src/store.js and src/format.js).  - store.add(title, options): options.priority is 'low', 'normal' …
+--- Assistant agent-1793469040597-3
+Priorities are in place in `src/store.js` and `src/format.js`, with new tests in `test/store.test.js`. `npm test` passes: 10 of 10, up from the 4-test baseline.
+
+**What changed**
+- **`src/store.js`:** One unexported rank map, `{ high: 0, normal: 1, low: 2 }`, and one validator.
+  - `add(title, options = {})` defaults `undefined` to `'normal'` and throws `RangeError` for any other value, `null` included.
+  - `list(filter = {})` validates `filter.priority` if it is given, then filters, copies, and stable-sorts by rank. The internal array is never reordered.
+- **`src/format.js`:** Prints `!` before the title when `priority === 'high'`. Other priorities render as before.
+- **`test/store.test.js`:** Six new tests appended. The four existing tests are unchanged.
+
+**Choices I made beyond the spec**
+- `list({ priority })` with an invalid value throws `RangeError`, the same as `add()`. It does not return an empty list. This was one of the decisions handed over from the plan.
+- `list()` also throws on an invalid filter even when no todos exist.
+
+**Test run**
+```
+✔ add and list
+✔ complete
+✔ empty title rejected
+✔ format
+✔ priority defaults to normal and is stored
+✔ invalid priority rejected
+✔ list filters by priority
+✔ list rejects invalid priority filter
+✔ list sorts high, normal, low and keeps insertion order within a priority
+✔ formatList marks high priority with !
+ℹ tests 10
+ℹ pass 10
+ℹ fail 0
+```
+
+**Checked by running:** the full test suite, after the change.
+**Checked by writing tests:** defaulting, validation of bad values, filtering, sort order with insertion order kept within a priority, and the `!` prefix.
+**Not verified:** nothing beyond the project's own test command. I did not run a linter, since the project has none.
+
+**Remaining risks**
+- Each todo object now carries a `priority` field, so `list()` output differs from before. Nothing in the repo deep-compares todos.
+- The sort relies on `Array.prototype.sort` being stable, which holds in current Node versions.
+
+```atlas-result
+{"status":"success","outcome":"implemented","summary":"Added validated priorities (low/normal/high, default normal) to store.add, priority filter and stable high-to-low sort in store.list, and '!' prefix for high-priority todos in formatList. npm test: 10 pass, 0 fail (4 existing, 6 new).","artifacts":[{"type":"implementation_summary","name":"Priority support in todo store and formatter","path":"src/store.js","summary":"add(title, options) validates priority via a single PRIORITY_RANK map and throws RangeError on invalid values; list(filter) validates and filters by priority and returns a stable rank-sorted copy."}],"decisions":[{"title":"Invalid list filter throws RangeError","decision":"list({priority}) with an invalid value throws RangeError instead of returning an empty list.","rationale":"Matches add() and avoids silently empty results; follows the handed-over decision."},{"title":"Sort a copy, not the store","decision":"list() filters and sorts a copy; the internal array keeps insertion order.","rationale":"Keeps copy-on-return semantics and insertion order for later calls."},{"title":"null priority is invalid","decision":"Only undefined defaults to normal; null and other values throw RangeError.","rationale":"Matches the spec's 'any other value throws' wording."}],"findings":[{"severity":"low","category":"compatibility","title":"Todos gain a priority field","description":"list() and add() return objects with an extra priority property.","file":"src/store.js","line":12,"evidence":"const todo = { id: nextId++, title: title.trim(), done: false, priority };","recommendation":"Acceptable; no repo code deep-compares todos."}],"touchedFiles":["src/store.js","src/format.js","test/store.test.js"],"touchedAreas":["store","format","tests"],"nextAction":"Review the change."}
+```
+--- User agent-1793469040597-7
+Review the change: Add priorities to the todo store in this project (src/store.js and src/format.js).  - store.add(title, options): options.priority is 'low', '…
+--- Assistant agent-1793469040597-7
+## Architecture & Code Validation: priorities in the todo store
+
+**Verdict: pass.** The change is inside the project's conventions and matches the plan and decisions. I found no failing problems. Two low-severity observations are noted for the person to decide on.
+
+I could not run `npm test` or `git diff`, because Bash is disabled in this session. The test expectations were checked by hand against the code, and the diff stats come from the handoff.
+
+### Checks against the plan and project rules
+
+- **Conventions:** The project is CommonJS with no dependencies and uses `node --test` (`package.json:1`, `README.md:2`). The change adds no dependency and keeps `module.exports` style. No other harness or architecture document exists in the worktree.
+- **Layering and placement:** Validation and ranking live in one unexported constant and helper in `src/store.js:2-8`. `src/format.js` only does rendering. The three files the plan named are the only ones changed.
+- **Decisions respected:**
+  - `undefined` defaults to `'normal'`, while `null` and other values throw `RangeError` (`src/store.js:21-22`).
+  - An invalid `list` filter throws `RangeError` (`src/store.js:41`).
+  - `list()` filters and sorts a copy (`src/store.js:42-45`). The internal array keeps insertion order.
+- **Sort order:** `Array.prototype.sort` is stable in supported Node versions, so insertion order is kept within a rank. The test at `test/store.test.js:62-73` expects `c, e, b, f, a, d`. That matches the ranks: high `c, e`, normal `b, f`, low `a, d`.
+- **Scope:** Only the existing tests are extended. The four original tests (`test/store.test.js:6-28`) are unchanged.
+- **Security:** No new input reaches a sink. The priority is checked against a fixed set of keys before it is used as an index into `PRIORITY_RANK`.
+
+### Findings
+
+1. **Low, Robustness.** `src/store.js:17` and `src/store.js:40`. The defaults `options = {}` and `filter = {}` apply only to `undefined`. Calling `add('a', null)` or `list(null)` throws a raw `TypeError` from property access, not a clear error. Nothing in the task covers `null` options, so this is outside the contract. Recommendation: only if you want it hardened, normalize with `options ?? {}` and `filter ?? {}`.
+2. **Low, Maintainability.** `src/format.js:3` hardcodes the string `'high'`, while the valid priorities are defined in `src/store.js:2`. This is a minor duplication of the vocabulary. It is acceptable for one check. Recommendation: leave it, or export a `isHighPriority` helper if more priority-based rendering is added later.
+
+Neither finding is a failure. The task asked for the `!` prefix and validation, and both are implemented and tested.
+
+```atlas-result
+{"status":"success","outcome":"pass","summary":"Priorities are implemented in src/store.js and src/format.js as specified, within the project's CommonJS and node --test conventions. Validation throws RangeError, list() filters and stably sorts a copy, and formatList prefixes high-priority todos with '!'. The change is in scope, and the new tests match the code by hand-check. Two low-severity observations are non-blocking. Tests were not executed because Bash is disabled in this session.","artifacts":[{"type":"review_report","name":"Architecture and conventions review","path":"src/store.js","summary":"Pass. Layering, conventions, decisions and scope match the plan. Two low findings: null options/filter robustness, and hardcoded 'high' in format.js."}],"decisions":[{"title":"Review verdict","decision":"pass","rationale":"No finding is a failure under the step rules. Behaviour matches the task, and no security problem or regression was found."}],"findings":[{"severity":"low","category":"Robustness","title":"null options or filter throws raw TypeError","description":"Defaults apply only to undefined, so add(title, null) and list(null) fail on property access instead of a clear error. This input is outside the stated contract.","file":"src/store.js","line":17,"evidence":"add(title, options = {}) { ... options.priority ... } and list(filter = {}) { if (filter.priority !== undefined) ... }","recommendation":"Optional: normalize with options ?? {} and filter ?? {}, or leave as is."},{"severity":"low","category":"Maintainability","title":"Priority vocabulary duplicated in format.js","description":"format.js hardcodes 'high', while valid priorities are defined in store.js. Acceptable for a single check, but the knowledge is split across modules.","file":"src/format.js","line":3,"evidence":"t.priority === 'high' ? '!' : ''","recommendation":"Leave as is, or export a small helper from store.js if more priority rendering is added."}],"touchedFiles":["src/store.js","src/format.js","test/store.test.js"],"touchedAreas":["todo store","formatter","tests"],"nextAction":"Proceed to Check behaviour. Run npm test, since it was not executed in this read-only review."}
+```
+--- User agent-1793469040597-4
+Check behaviour: Add priorities to the todo store in this project (src/store.js and src/format.js).  - store.add(title, options): options.priority is 'low', 'no…
+--- Assistant agent-1793469040597-4
+## QA check: priorities in the todo store
+
+**Verdict: pass.** I checked this by reading the code and tests only. The session is read-only with no shell, so I did not run `npm test`. Every claim below is from reading the files.
+
+### Evidence
+
+- **Read:** `src/store.js` (lines 2–8, 17–25, 40–46), `src/format.js` (line 3), `test/store.test.js` (lines 30–84), `package.json` (`"test": "node --test"`).
+
+### Main path (traced by reading)
+
+- `add('a')` gives `priority: 'normal'` (`src/store.js:21`). `add` throws `RangeError` before the id is consumed and before the push, so a rejected add leaves no id gap and no todo.
+- `list({priority})` filters on a copy (`store.js:41–43`), then sorts with `PRIORITY_RANK` (`store.js:45`). `Array.prototype.sort` is stable in Node ≥ 12, so insertion order holds within a rank. The internal array is never reordered.
+- `formatList` prefixes `!` only when `priority === 'high'` (`format.js:3`). Todos without a priority field render as before, so the existing `format` test still holds.
+
+### Edge cases (traced by reading)
+
+- Invalid add values (`'urgent'`, `'HIGH'`, `''`, `null`, `0`): `checkPriority` throws. Covered by test lines 38–44.
+- Invalid filter value: `list({priority:'urgent'})` throws `RangeError`. Covered by test lines 57–60.
+- `list({priority: null})`: `null !== undefined`, so it is checked and throws `RangeError`. Not tested, but the code path is clear.
+- Explicit `add(t, {priority: undefined})`: defaults to `normal`. Not tested, but the code path is clear.
+- `Object.keys(PRIORITY_RANK).includes(...)` does not match inherited keys such as `'toString'`. Not tested, and not reachable through the stated contract.
+- Sort order and copy semantics: covered by test lines 62–73, which also checks that a second `list()` call is unchanged.
+
+### Would the new tests fail without the change? (reasoned, not executed)
+
+- Old `add` ignores `options`, so the default and storage test (line 30) and the invalid-value test (line 38) fail.
+- Old `list` ignores the filter and sort, so lines 46–73 fail.
+- Old `formatList` has no `!` prefix, so line 75 fails.
+
+Each new test would fail against the old code.
+
+### Regression check
+
+- The only existing-behaviour change is the extra `priority` field on returned todos. No existing test deep-compares whole todos, and `complete()` is untouched. I found no regression by reading.
+
+### Findings
+
+- **Low / robustness (`src/store.js:17`, `:40`):** `add(title, null)` and `list(null)` throw a raw `TypeError` on property access. This is outside the stated contract. Evidence: `options = {}` and `filter = {}` defaults apply only to `undefined`. Optional fix: `options ?? {}` and `filter ?? {}`.
+- **Low / maintainability (`src/format.js:3`):** `'high'` is hardcoded in `format.js`, while the valid set lives in `store.js`. Acceptable for one check.
+- **Low / test gaps (not failures):** no test covers explicit `priority: undefined`, `list({priority: null})`, or a rejected add not consuming an id. Each is covered by the code, but none is asserted.
+
+### What I could not check
+
+- I did not run `npm test`, so the "10 pass" figure from the Implement step is unverified here.
+- I did not check git history, so I could not confirm whether `list()` returned copies before this change.
+
+```atlas-result
+{"status":"pass","outcome":"pass","summary":"Read-only review by reading the code and tests (npm test not executed; no shell). Main path (default normal, validated add, priority filter, stable high/normal/low sort on a copy, '!' prefix for high) traced correctly. Invalid add and filter values throw RangeError. New tests would fail against the old code. Only low-severity findings remain.","artifacts":[{"type":"implementation_summary","name":"QA behaviour check (read-only)","path":"test/store.test.js","summary":"Traced src/store.js and src/format.js against the 10 tests; edge cases and failure paths reasoned from code; no test executed."}],"decisions":[{"title":"Verdict","decision":"pass","rationale":"Behaviour matches the task; no failing or missing required coverage; no regression or security issue found by reading."}],"findings":[{"severity":"low","category":"robustness","title":"null options or filter throws raw TypeError","description":"Defaults apply only to undefined, so add(title, null) and list(null) fail on property access. Outside the stated contract.","file":"src/store.js","line":17,"evidence":"add(title, options = {}) reads options.priority; list(filter = {}) reads filter.priority (read, not executed)","recommendation":"Optional: options ?? {} and filter ?? {}."},{"severity":"low","category":"maintainability","title":"Priority vocabulary split across modules","description":"format.js hardcodes 'high' while valid priorities live in store.js.","file":"src/format.js","line":3,"evidence":"t.priority === 'high' ? '!' : '' (read, not executed)","recommendation":"Leave as is, or export a helper from store.js if more rendering is added."},{"severity":"low","category":"test-coverage","title":"Untested edge cases","description":"No test for explicit priority undefined, list({priority:null}), or a rejected add not consuming an id. Covered by code reading only.","file":"test/store.test.js","line":38,"evidence":"Tests at lines 30-44 and 57-60 do not cover these inputs (read, not executed)","recommendation":"Optional extra assertions."}],"touchedFiles":[],"touchedAreas":["store","format","tests"],"nextAction":"Run npm test to confirm the 10 tests pass, since this review did not execute them."}
+```

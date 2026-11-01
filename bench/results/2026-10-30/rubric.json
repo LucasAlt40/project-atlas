@@ -1,0 +1,258 @@
+{
+  "claude-pure__t1-slugify__r1": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 2,
+    "tests": 2,
+    "score": 10,
+    "note": "Correto e enxuto; 12 testes próprios cobrindo as 6 regras."
+  },
+  "claude-pure__t1-slugify__r2": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 2,
+    "tests": 2,
+    "score": 10,
+    "note": "Corte por maxLength em 3 linhas, o mais limpo de todos; 11 testes."
+  },
+  "codex-pure__t1-slugify__r1": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 2,
+    "tests": 1,
+    "score": 9,
+    "note": "Correto, usa \\p{M} (mais abrangente); só 5 testes."
+  },
+  "codex-pure__t1-slugify__r2": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 2,
+    "tests": 1,
+    "score": 9,
+    "note": "Correto; 5 testes."
+  },
+  "atlas-claude__t1-slugify__r1": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 1,
+    "tests": 2,
+    "score": 9,
+    "note": "Correto e valida maxLength (RangeError, além do pedido); criou docs/plans/slugify.md apesar de 'touch no other file'."
+  },
+  "atlas-claude__t1-slugify__r2": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 2,
+    "tests": 2,
+    "score": 10,
+    "note": "Correto, comentado, 12 testes; sem arquivo de plano desta vez."
+  },
+  "atlas-codex__t1-slugify__r1": {
+    "correct": 2,
+    "readable": 2,
+    "scope": 1,
+    "tests": 0,
+    "score": 5,
+    "note": "Laço validador→corretor 3×; o corretor (proibido de rodar testes) piorou o código: corta no meio da palavra. Deixou um teste próprio falhando. Workflow terminou em MaxIterationsReached."
+  },
+  "atlas-codex__t1-slugify__r2": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 1,
+    "tests": 1,
+    "score": 8,
+    "note": "Correto, versão por palavras bem legível; docs/plans fora do escopo; 6 testes."
+  },
+  "claude-pure__t2-cart-bug__r1": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 2,
+    "tests": 2,
+    "score": 10,
+    "note": "Melhor solução: soma em centavos inteiros e protege chaves de protótipo (Object.hasOwn); 7 testes."
+  },
+  "claude-pure__t2-cart-bug__r2": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 2,
+    "tests": 2,
+    "score": 10,
+    "note": "Correto, hasOwnProperty, arredonda no fim; testes de regressão."
+  },
+  "codex-pure__t2-cart-bug__r1": {
+    "correct": 3,
+    "readable": 2,
+    "scope": 2,
+    "tests": 1,
+    "score": 8,
+    "note": "Centavos inteiros, mas COUPONS[code] sem hasOwn: cupom 'toString' dá NaN. 1 teste de regressão."
+  },
+  "codex-pure__t2-cart-bug__r2": {
+    "correct": 3,
+    "readable": 2,
+    "scope": 2,
+    "tests": 1,
+    "score": 8,
+    "note": "Igual à r1 (mesmo ponto do 'toString')."
+  },
+  "atlas-claude__t2-cart-bug__r1": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 2,
+    "tests": 2,
+    "score": 10,
+    "note": "Correto, hasOwnProperty, comentário explicando o arredondamento; 5 testes de regressão."
+  },
+  "atlas-claude__t2-cart-bug__r2": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 2,
+    "tests": 2,
+    "score": 10,
+    "note": "Correto, idem r1."
+  },
+  "atlas-codex__t2-cart-bug__r1": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 2,
+    "tests": 1,
+    "score": 9,
+    "note": "Correto (Number.EPSILON no arredondamento); 1 teste de regressão."
+  },
+  "atlas-codex__t2-cart-bug__r2": {
+    "correct": 0,
+    "readable": 0,
+    "scope": 0,
+    "tests": 0,
+    "score": 0,
+    "note": "Não fez nada: entendeu 'you cannot run commands' como proibição de ler arquivos (no Codex a leitura é pelo shell) e terminou bloqueado em 15 s."
+  },
+  "claude-pure__t3-todo-priority__r1": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 2,
+    "tests": 2,
+    "score": 10,
+    "note": "Correto, filter→sort→map sem mutar o estado; 10 testes."
+  },
+  "claude-pure__t3-todo-priority__r2": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 2,
+    "tests": 2,
+    "score": 10,
+    "note": "Correto; criou test/priority.test.js separado sem mexer nos testes antigos."
+  },
+  "codex-pure__t3-todo-priority__r1": {
+    "correct": 3,
+    "readable": 2,
+    "scope": 2,
+    "tests": 1,
+    "score": 8,
+    "note": "Errou um detalhe do pedido: '! ' com espaço em vez de '!' colado ao título."
+  },
+  "codex-pure__t3-todo-priority__r2": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 2,
+    "tests": 1,
+    "score": 9,
+    "note": "Correto, ordenação estável explícita por índice; 5 testes."
+  },
+  "atlas-claude__t3-todo-priority__r1": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 1,
+    "tests": 2,
+    "score": 9,
+    "note": "Correto, valida também o filtro; docs/plans/priorities.md fora do escopo."
+  },
+  "atlas-claude__t3-todo-priority__r2": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 1,
+    "tests": 2,
+    "score": 9,
+    "note": "Correto; docs/plans fora do escopo."
+  },
+  "atlas-codex__t3-todo-priority__r1": {
+    "correct": 4,
+    "readable": 1,
+    "scope": 1,
+    "tests": 1,
+    "score": 7,
+    "note": "Correto; recria o mapa de ranking a cada comparação; docs/plans fora do escopo."
+  },
+  "atlas-codex__t3-todo-priority__r2": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 1,
+    "tests": 1,
+    "score": 8,
+    "note": "Correto, ordenação estável por índice; docs/plans fora do escopo."
+  },
+  "claude-pure__t4-review__r1": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 2,
+    "tests": 2,
+    "score": 10,
+    "note": "3/3 com exemplos de entrada e correções em código. (rubrica de revisão: corretude=defeitos achados, testes=correções concretas)"
+  },
+  "claude-pure__t4-review__r2": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 2,
+    "tests": 2,
+    "score": 10,
+    "note": "3/3 com exemplos de entrada e correções em código. (rubrica de revisão: corretude=defeitos achados, testes=correções concretas)"
+  },
+  "codex-pure__t4-review__r1": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 2,
+    "tests": 1,
+    "score": 9,
+    "note": "3/3, curto; correções descritas sem código; links com caminho temporário absoluto. (rubrica de revisão: corretude=defeitos achados, testes=correções concretas)"
+  },
+  "codex-pure__t4-review__r2": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 2,
+    "tests": 1,
+    "score": 9,
+    "note": "3/3, curto; correções descritas sem código; links com caminho temporário absoluto. (rubrica de revisão: corretude=defeitos achados, testes=correções concretas)"
+  },
+  "atlas-claude__t4-review__r1": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 2,
+    "tests": 2,
+    "score": 10,
+    "note": "3/3 com veredito, severidade, arquivo:linha e correção em código; aponta também falta de testes. (rubrica de revisão: corretude=defeitos achados, testes=correções concretas)"
+  },
+  "atlas-claude__t4-review__r2": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 2,
+    "tests": 2,
+    "score": 10,
+    "note": "3/3 com veredito, severidade, arquivo:linha e correção em código; aponta também falta de testes. (rubrica de revisão: corretude=defeitos achados, testes=correções concretas)"
+  },
+  "atlas-codex__t4-review__r1": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 2,
+    "tests": 2,
+    "score": 10,
+    "note": "3/3 com severidade e correções; aponta falta de testes. (rubrica de revisão: corretude=defeitos achados, testes=correções concretas)"
+  },
+  "atlas-codex__t4-review__r2": {
+    "correct": 4,
+    "readable": 2,
+    "scope": 2,
+    "tests": 2,
+    "score": 10,
+    "note": "3/3 com severidade e correções; aponta falta de testes. (rubrica de revisão: corretude=defeitos achados, testes=correções concretas)"
+  }
+}

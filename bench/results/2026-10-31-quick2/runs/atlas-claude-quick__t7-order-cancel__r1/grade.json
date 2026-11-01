@@ -1,0 +1,27 @@
+{
+  "id": "atlas-claude-quick__t7-order-cancel__r1",
+  "task": "t7-order-cancel",
+  "kind": "feature-multifile-hard",
+  "changed": [
+    "src/inventory.js",
+    "src/orders.js",
+    "src/reports.js",
+    "test/shop.test.js"
+  ],
+  "added": 76,
+  "removed": 4,
+  "outOfScope": [],
+  "hasTree": true,
+  "ownTestFiles": 1,
+  "ownTests": {
+    "pass": 8,
+    "fail": 0,
+    "failed": []
+  },
+  "hidden": {
+    "pass": 10,
+    "fail": 0,
+    "failed": []
+  },
+  "hiddenScore": 1
+}

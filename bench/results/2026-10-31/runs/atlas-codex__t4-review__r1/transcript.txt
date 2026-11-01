@@ -1,0 +1,27 @@
+--- User agent-1793417235681-7
+Review code and architecture: Review src/users.js for correctness and security. Report each defect you find as a finding with the file, the line, why it is wron…
+--- Assistant agent-1793417235681-7
+Verdict: **fail**. `src/users.js` contains two correctness defects and one high-severity XSS vulnerability. No files were changed.
+
+1. **High — Security:** incomplete HTML escaping  
+   **File:** `src/users.js:18-20, 24-25`  
+   `escapeHtml` replaces only the first occurrence of each character. A name such as `< > <img src=x onerror=alert(1)>` produces a live `<img>` element in `userRow`, enabling HTML/script injection.  
+   **Recommendation:** escape all occurrences using global replacements or `replaceAll`; keep the value in a text-only DOM API where possible.
+
+2. **Medium — Conventions:** `isAdult` ignores the birthday month and day  
+   **File:** `src/users.js:11-12`  
+   The implementation compares only calendar years, so someone born on December 1, 2008 is considered 18 on November 30, 2026.  
+   **Recommendation:** subtract one when today is before the birthday this year, or compare dates against the calculated anniversary.
+
+3. **Medium — Conventions:** pagination contradicts its documented one-based contract  
+   **File:** `src/users.js:3-6`  
+   The comment states that page 1 is the first page, but `start = page * size` makes page 1 return the second page.  
+   **Recommendation:** calculate `start` as `(page - 1) * size` and validate positive integer page/size inputs.
+
+Verification: `npm test` passed but discovered zero tests. The targeted read-only probes confirmed all three behaviors above.
+
+Not reviewed: broader application integration, browser configuration, deployment behavior, and modules outside `src/users.js`.
+
+```atlas-result
+{"status":"fail","outcome":"fail","summary":"Review failed: src/users.js has an exploitable incomplete HTML escaping implementation, birthday-insensitive age calculation, and an off-by-one pagination contract defect. npm test ran with zero tests.","artifacts":[],"decisions":[],"findings":[{"severity":"high","category":"Security","title":"Incomplete HTML escaping permits HTML injection","description":"escapeHtml replaces only the first occurrence of each special character, allowing crafted user names to leave live HTML in userRow output.","file":"src/users.js","line":18,"evidence":"userRow inserts escapeHtml(user.name) into HTML; payload '< > <img src=x onerror=alert(1)>' remains with a live img element.","recommendation":"Escape every occurrence with global replacements or replaceAll, preferably avoiding raw HTML construction for user-controlled text."},{"severity":"medium","category":"Conventions","title":"isAdult ignores birthday month and day","description":"Age is calculated from year difference alone, so a person is treated as an adult before their birthday in the current year.","file":"src/users.js","line":11,"evidence":"new Date('2008-12-01') evaluated against new Date('2026-11-30') returns true.","recommendation":"Compare today with the birthday anniversary and subtract one when the anniversary has not occurred."},{"severity":"medium","category":"Conventions","title":"Page-one pagination is off by one","description":"The documented one-based page contract is implemented as zero-based indexing.","file":"src/users.js","line":5,"evidence":"paginate(['a','b','c'], 1, 2) returns ['c'] instead of the first two items.","recommendation":"Use (page - 1) * size for the start index and validate page and size inputs."}],"touchedFiles":[],"touchedAreas":["src/users.js"],"nextAction":"Fix the three findings and add behavioral tests for pagination, birthday boundaries, and HTML escaping."}
+```

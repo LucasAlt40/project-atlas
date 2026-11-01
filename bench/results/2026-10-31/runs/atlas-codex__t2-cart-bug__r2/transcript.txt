@@ -1,0 +1,87 @@
+--- User agent-1793417666183-5
+Investigate and fix: Bug report from customers about src/cart.js:  - A cart with 3 units of a product at 19.90 shows a total of 19.9 instead of 59.7. - With the…
+--- Assistant agent-1793417666183-5
+Implemented and verified the cart fix.
+
+Root cause confirmed in `src/cart.js`:
+
+- Quantity was ignored.
+- Percentage coupons returned the discount instead of discounted total.
+- Fixed coupons could produce negatives.
+- Floating-point results were not rounded.
+
+Changes:
+
+- Updated `src/cart.js` to calculate quantities, apply discounts correctly, clamp at zero, and round to cents.
+- Added regression coverage in `test/cart.test.js` for all reported cases and unknown coupons.
+
+Verification:
+
+- `npm test`: 3 passed.
+- Direct scenarios returned `59.7`, `0`, `80`, `0.3`, and `10`.
+- `git diff --check`: clean.
+
+Residual risk: none identified within the existing numeric input API.
+
+```atlas-result
+{"status":"success","outcome":"fixed","summary":"Fixed cart quantity calculation, coupon application, non-negative totals, and cent rounding; added regression coverage. All tests pass.","artifacts":[{"type":"implementation_summary","name":"Cart total fix","path":"src/cart.js","summary":"Calculates item quantities, applies percentage discounts correctly, clamps totals at zero, and rounds to cents."},{"type":"regression_test","name":"Cart total regression coverage","path":"test/cart.test.js","summary":"Covers reported quantity, fixed coupon, percentage coupon, floating-point, and unknown coupon cases."}],"decisions":[{"title":"Percentage coupon semantics","decision":"Apply the percentage as a discount to the subtotal","rationale":"A 20% coupon on 100 must return 80, not the 20 discount amount."},{"title":"Rounding and floor","decision":"Clamp at zero before rounding to two decimals","rationale":"Totals must never be negative and must be represented to cents."}],"findings":[],"touchedFiles":["src/cart.js","test/cart.test.js"],"touchedAreas":["cart total calculation","cart regression tests"],"nextAction":"Run the workflow verification step."}
+```
+--- User agent-1793417666183-4
+Verify the fix: Bug report from customers about src/cart.js:  - A cart with 3 units of a product at 19.90 shows a total of 19.9 instead of 59.7. - With the coup…
+--- Assistant agent-1793417666183-4
+Validation failed due to an uncovered edge case.
+
+Root cause fixed for reported cases: quantity multiplication, percentage discount semantics, zero floor, and cent rounding are correct. The CommonJS API remains unchanged, and existing consumers are limited to the test file.
+
+Evidence:
+
+- **Executed:** `rtk npm test` — 3 tests passed.
+- **Executed:** Reported scenarios — all returned expected values.
+- **Executed:** Prototype coupon cases — `toString`, `constructor`, and `__proto__` return `NaN`.
+- **Read:** `src/cart.js:18` uses `COUPONS[couponCode]`, allowing inherited properties.
+- **Read:** Regression test covers `UNKNOWN` but not prototype-property names.
+
+Unknown coupons must be ignored for all strings; the lookup should restrict matches to own coupon properties. No further side effects were found. Malformed item inputs and external consumers remain unverified.
+
+```atlas-result
+{"status":"fail","outcome":"fail","summary":"Reported cart bugs are fixed and normal tests pass, but inherited prototype coupon names produce NaN instead of being ignored.","artifacts":[{"type":"implementation_summary","name":"Cart total fix","path":"src/cart.js","summary":"Calculates quantities, applies percentage discounts correctly, clamps totals at zero, and rounds to cents."},{"type":"implementation_summary","name":"Cart total regression coverage","path":"test/cart.test.js","summary":"Covers reported quantity, fixed coupon, percentage coupon, floating-point, and unknown coupon cases."}],"decisions":[{"title":"Unknown coupon handling","decision":"Unknown coupon codes must be ignored, including prototype-property names.","rationale":"The current inherited-property lookup violates the stated unknown-coupon contract and returns NaN."}],"findings":[{"severity":"medium","category":"correctness","title":"Prototype coupon names are not ignored","description":"Coupon lookup can resolve inherited Object prototype properties; those values enter the coupon branch and make the total NaN.","file":"src/cart.js","line":18,"evidence":"Executed total([{price:10,qty:1}], 'toString'), 'constructor', and '__proto__'; each returned NaN instead of 10.","recommendation":"Use an own-property check or a null-prototype coupon map before applying a coupon, and add regression coverage for prototype-property names."}],"touchedFiles":[],"touchedAreas":["cart total calculation","coupon handling","regression tests"],"nextAction":"Harden coupon lookup against inherited properties and add a regression test, then rerun the test suite."}
+```
+--- User agent-1793417666183-5
+Investigate again and fix: Bug report from customers about src/cart.js:  - A cart with 3 units of a product at 19.90 shows a total of 19.9 instead of 59.7. - Wi…
+--- Assistant agent-1793417666183-5
+Fixed the inherited-coupon lookup bug.
+
+Earlier reasoning incorrectly assumed a truthy lookup meant the coupon was known; inherited properties like `toString` entered discount logic and produced `NaN`.
+
+Changes:
+- `src/cart.js`: require coupons to be own properties.
+- `test/cart.test.js`: added regression coverage for `toString`, `constructor`, and `__proto__`.
+
+Validation: `npm test` passes all 4 tests; prototype coupon names now return `10`.
+
+Residual risk: none identified within the existing API and coupon behavior.
+
+```atlas-result
+{"status":"success","outcome":"fixed","summary":"Hardened coupon lookup against inherited Object.prototype properties and added regression coverage. All tests pass.","artifacts":[{"type":"implementation_summary","name":"Coupon lookup hardening","path":"src/cart.js","summary":"Only own coupon keys are applied."},{"type":"regression_test","name":"Prototype coupon regression","path":"test/cart.test.js","summary":"Verifies inherited coupon names are ignored."}],"decisions":[{"title":"Unknown coupon handling","decision":"Use an own-property check before applying coupons.","rationale":"Inherited properties were incorrectly treated as coupons and produced NaN."}],"findings":[],"touchedFiles":["src/cart.js","test/cart.test.js"],"touchedAreas":["cart total calculation","coupon validation","regression tests"],"nextAction":"Verify the fix."}
+```
+--- User agent-1793417666183-4
+Verify the fix: Bug report from customers about src/cart.js:  - A cart with 3 units of a product at 19.90 shows a total of 19.9 instead of 59.7. - With the coup…
+--- Assistant agent-1793417666183-4
+Validation passed.
+
+Root cause was confirmed: coupon lookup inherited `Object.prototype` properties, causing `NaN` for codes such as `toString`. The fix uses an own-property check before applying coupons. Quantity handling, percentage discounts, zero-flooring, and cent rounding are also present and consistent with the API.
+
+Evidence:
+
+- Read: `src/cart.js` implementation and `test/cart.test.js`.
+- Read: commit diff showing the hardening and regression test.
+- Executed: `npm test` — 4 passed, 0 failed.
+- Read: no other production call sites of `total`.
+- Read: working tree is clean.
+- The prototype regression would have failed against the prior implementation, as demonstrated by the commit diff and previous failure report.
+
+Remaining limits: invalid item shapes, non-numeric prices, and negative quantities are not specified or covered.
+
+```atlas-result
+{"status":"success","outcome":"pass","summary":"Cart total fix is validated: reported bugs and inherited-prototype coupon lookup are corrected, regression coverage passes, and no additional callers or architectural side effects were found.","artifacts":[{"type":"implementation_summary","name":"Cart total fix","path":"src/cart.js","summary":"Calculates quantities, applies fixed and percentage coupons correctly, ignores inherited coupon names, clamps totals at zero, and rounds to cents."},{"type":"regression_tests","name":"Cart total regression coverage","path":"test/cart.test.js","summary":"Covers quantity totals, fixed and percentage coupons, flooring, floating-point rounding, unknown coupons, and inherited Object.prototype coupon names."}],"decisions":[{"title":"Coupon lookup","decision":"Apply coupons only when the code is an own property of the coupon map.","rationale":"Prevents inherited Object.prototype names from being treated as coupons and producing NaN."},{"title":"Percentage semantics","decision":"Apply the percentage as a discount to the subtotal.","rationale":"A 20% coupon on 100 must return 80."},{"title":"Rounding and floor","decision":"Clamp at zero before rounding to two decimals.","rationale":"Totals must never be negative and must be represented to cents."}],"findings":[],"touchedFiles":["src/cart.js","test/cart.test.js"],"touchedAreas":["cart total calculation","coupon handling","regression tests"],"nextAction":"No further validation is required for the stated contract."}
+```

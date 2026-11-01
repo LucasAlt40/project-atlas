@@ -1,0 +1,19 @@
+{
+  "ok": true,
+  "exitCode": 0,
+  "elapsedMs": 21234,
+  "inputTokens": 87535,
+  "cachedInputTokens": 68224,
+  "outputTokens": 1359,
+  "reasoningTokens": 327,
+  "costUsd": null,
+  "turns": 1,
+  "agentRuns": 1,
+  "id": "codex-pure__t2-cart-bug__r1",
+  "arm": "codex-pure",
+  "task": "t2-cart-bug",
+  "rep": 1,
+  "runtime": "codex",
+  "model": "gpt-5.6-luna",
+  "template": null
+}

@@ -1,0 +1,75 @@
+{
+  "ok": true,
+  "exitCode": 0,
+  "status": "Completed",
+  "failure": null,
+  "elapsedMs": 150270,
+  "inputTokens": 566471,
+  "cachedInputTokens": 497152,
+  "outputTokens": 12880,
+  "costUsd": null,
+  "agentRuns": 4,
+  "steps": [
+    "architect",
+    "developer",
+    "validator",
+    "qa"
+  ],
+  "perStep": [
+    {
+      "role": "architect",
+      "ms": 31417,
+      "ok": true,
+      "inputTokens": 80594,
+      "outputTokens": 2198,
+      "totalTokens": 82792,
+      "cachedInputTokens": 73216,
+      "cost": null,
+      "currency": null,
+      "source": "runtime_reported"
+    },
+    {
+      "role": "developer",
+      "ms": 48111,
+      "ok": true,
+      "inputTokens": 147785,
+      "outputTokens": 4577,
+      "totalTokens": 152362,
+      "cachedInputTokens": 124672,
+      "cost": null,
+      "currency": null,
+      "source": "runtime_reported"
+    },
+    {
+      "role": "validator",
+      "ms": 38831,
+      "ok": true,
+      "inputTokens": 190246,
+      "outputTokens": 3086,
+      "totalTokens": 193332,
+      "cachedInputTokens": 174720,
+      "cost": null,
+      "currency": null,
+      "source": "runtime_reported"
+    },
+    {
+      "role": "qa",
+      "ms": 30520,
+      "ok": true,
+      "inputTokens": 147846,
+      "outputTokens": 3019,
+      "totalTokens": 150865,
+      "cachedInputTokens": 124544,
+      "cost": null,
+      "currency": null,
+      "source": "runtime_reported"
+    }
+  ],
+  "id": "atlas-codex__t3-todo-priority__r2",
+  "arm": "atlas-codex",
+  "task": "t3-todo-priority",
+  "rep": 2,
+  "runtime": "codex",
+  "model": "gpt-5.6-luna",
+  "template": "software_feature"
+}

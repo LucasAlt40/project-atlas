@@ -1,0 +1,33 @@
+--- Assistant
+I found three defects in `src/users.js`. I read the file but did not run it, so these come from reading the code. I made no changes.
+
+**1. `escapeHtml` does not escape all occurrences (lines 18–20). Security, high severity.**
+`String.prototype.replace` with a string pattern replaces only the first match. A name such as `<<img src=x onerror=alert(1)>` becomes `&lt;<img src=x onerror=alert(1)&gt;`. The second `<` is still live, so `userRow` (line 25) emits an executable `<img>` tag. Any `<` or `>` after the first one passes through, and `&` is escaped only once.
+*Fix:* use global regular expressions and keep `&` first:
+```js
+return String(text)
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;');
+```
+The quote escapes are not needed for the current text-content use in `userRow`. They make the helper safe if its output is ever placed inside an attribute.
+
+**2. `paginate` skips the first page (line 5). Correctness, high severity.**
+The doc comment says `page` is 1-based, but `start = page * size` treats it as 0-based. With `size = 10`, page 1 returns items 10–19 and items 0–9 are never shown. Page 0 returns the first page, which contradicts the comment.
+*Fix:* `const start = (page - 1) * size;`. If page 0 can reach this function, validate `page >= 1` and throw or clamp.
+
+**3. `isAdult` ignores month and day (lines 11–12). Correctness, medium severity.**
+It subtracts only the birth year, so someone born on 31 December 2008 counts as 18 on 1 January 2026, when they are 17. It is also wrong for anyone whose birthday has not yet occurred this year.
+*Fix:* subtract one year if the birthday has not yet occurred on `today`:
+```js
+let age = today.getFullYear() - birthDate.getFullYear();
+const beforeBirthday =
+  today.getMonth() < birthDate.getMonth() ||
+  (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate());
+if (beforeBirthday) age -= 1;
+return age >= 18;
+```
+
+`userRow` itself is fine as long as `escapeHtml` is fixed. `user.name` is escaped, and `isAdmin` is a boolean with no user-controlled text.

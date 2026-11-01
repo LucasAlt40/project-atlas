@@ -1,0 +1,155 @@
+{
+  "duration_api_ms": 39588,
+  "stop_reason": "end_turn",
+  "session_id": "0fd889f7-fffc-4d70-bb63-146205d1bb93",
+  "total_cost_usd": 0.013758790000000002,
+  "usage": {
+    "input_tokens": 22,
+    "cache_creation_input_tokens": 26902,
+    "cache_read_input_tokens": 450469,
+    "output_tokens": 7743,
+    "output_tokens_details": { "thinking_tokens": 2955 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": { "ephemeral_1h_input_tokens": 26902, "ephemeral_5m_input_tokens": 0 },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 1100,
+        "cache_read_input_tokens": 48200,
+        "cache_creation_input_tokens": 144,
+        "cache_creation": { "ephemeral_5m_input_tokens": 0, "ephemeral_1h_input_tokens": 144 },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-haiku-5-5": {
+      "inputTokens": 22,
+      "outputTokens": 7743,
+      "cacheReadInputTokens": 450469,
+      "cacheCreationInputTokens": 26902,
+      "webSearchRequests": 0,
+      "costUSD": 0.013758790000000002,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 2955,
+      "canonicalModel": "claude-haiku-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01AbsypEjTposBNvFNnCs5sW",
+      "tool_input": {
+        "command": "rtk git status --short && find . -path ./node_modules -prune -o -type f -print | rtk grep -v '^./.git/' && rtk read package.json 2>/dev/null; echo ---; rtk read src/store.js; echo ---; rtk read src/format.js; echo ---; rtk ls test; echo ---; rtk read test/*",
+        "description": "Inspect project files and tests"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01SECdKanHBZShcVyCDcEjTY",
+      "tool_input": {
+        "command": "rtk ls -la /private/var/folders/r3/gtmdzdhn7138rqntsg15l6980000gn/T/atlas-bench-t3-todo-priority-TTTq3f /private/var/folders/r3/gtmdzdhn7138rqntsg15l6980000gn/T/atlas-bench-t3-todo-priority-TTTq3f/test",
+        "description": "List project and test directory contents"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01VV3h2SAB6pGmVGdTftkxsE",
+      "tool_input": {
+        "command": "rtk find /private/var/folders/r3/gtmdzdhn7138rqntsg15l6980000gn/T/atlas-bench-t3-todo-priority-TTTq3f -not -path '*/.git/*' -not -path '*/.git'",
+        "description": "Find all project files"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01AWh7QKEWfk17UB2E8XVmWL",
+      "tool_input": {
+        "command": "npm test 2>&1 | tail -40",
+        "description": "Run the project test suite"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01Df5XbK4pcUTMF2F3nfumxW",
+      "tool_input": {
+        "command": "npm test 2>&1 | tail -40",
+        "description": "Run the project test suite",
+        "dangerouslyDisableSandbox": false
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01VybPzCijQvqnPQv6j3c9qx",
+      "tool_input": { "command": "npm test", "description": "Run the project test suite" }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 18,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added priorities to the store and formatter and wrote tests for them, but I could not run the test suite. Every Bash command, including a plain `npm test`, was refused with \"requires approval\", so the tests are unverified. Running `npm test` is the first thing to do.\n\n**Changes**\n\n- **`src/store.js`**\n  - `add(title, options = {})` takes `options.priority`, which must be `'low'`, `'normal'` or `'high'`. It defaults to `'normal'`, and any other value (including `null`) throws a `RangeError` without adding the todo. The priority is stored on the todo.\n  - `list(filter = {})` returns copies sorted high, normal, low. The sort is stable, so ties keep insertion order. With `filter.priority`, only todos of that priority are returned.\n- **`src/format.js`**: a high-priority todo is rendered as `[ ] !Pay rent`. Other priorities, and todos with no priority field, render as before.\n- **`test/store.test.js`**: I added tests for the default and stored priority, the `RangeError` cases, sort order with stable ties, filtering, copy semantics, and the `!` marker in `formatList`. The existing tests are unchanged.\n\n**Judgement calls**\n\n- An invalid `filter.priority` in `list()` is not validated. It simply matches nothing. The spec didn't say, so I left it lenient.\n- Sorting happens on every `list()` call, including filtered ones. For a filtered list that is a no-op, since all items share one priority.\n\n**Compatibility**: for existing callers, todos without a priority still format the same, and `list()` on all-normal todos still returns insertion order. Both of those are covered by the existing tests, but again, I have not run them.",
+  "ttft_ms": 1849,
+  "type": "result",
+  "duration_ms": 42184,
+  "uuid": "209a3ee7-c06e-42b1-a9c3-8682f46e0124",
+  "ttft_stream_ms": 1770,
+  "time_to_request_ms": 75,
+  "time_to_request_phases_ms": {
+    "other": 13,
+    "system_prompt": 9,
+    "resume_other": 0,
+    "process_user_input": 1,
+    "input_attachments": 8,
+    "input_hooks": 1,
+    "transcript_persist": 22,
+    "tool_pool_refresh": 2,
+    "init_message": 2,
+    "engine_pickup": 1,
+    "message_prep": 1,
+    "model_config_wait": 1,
+    "autocompact": 1,
+    "query_setup": 0,
+    "model_gates": 0,
+    "tool_schema_build": 4,
+    "message_normalization": 1,
+    "client_creation": 3,
+    "request_build": 5
+  },
+  "turn_start_resume_kind": "none",
+  "process_turn_index": 0,
+  "time_to_request_loop_lag_ms": 25,
+  "time_to_request_cpu_ms": 105,
+  "time_to_request_major_faults": 219,
+  "input_attachments_detail": {
+    "slowest_producer": "queued_commands",
+    "slowest_producer_ms": 5,
+    "cpu_ms": 10,
+    "major_faults": 28
+  },
+  "first_content_frame_ms": 1770,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

@@ -1,0 +1,2228 @@
+[
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "asked": [],
+    "elapsedMs": 73672,
+    "inputTokens": 205849,
+    "cachedInputTokens": 160819,
+    "outputTokens": 11990,
+    "costUsd": 0.016606990000000002,
+    "agentRuns": 3,
+    "steps": [
+      "architect",
+      "developer",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 18408,
+        "ok": true,
+        "inputTokens": 48107,
+        "outputTokens": 2500,
+        "totalTokens": 50607,
+        "cachedInputTokens": 31628,
+        "cost": 0.00486148,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 1090,
+        "textChars": 2629,
+        "toolInputChars": 446,
+        "reasoningTokens": null
+      },
+      {
+        "role": "developer",
+        "ms": 30178,
+        "ok": true,
+        "inputTokens": 98304,
+        "outputTokens": 5661,
+        "totalTokens": 103965,
+        "cachedInputTokens": 84005,
+        "cost": 0.006529350000000001,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 2210,
+        "textChars": 3113,
+        "toolInputChars": 4511,
+        "reasoningTokens": null
+      },
+      {
+        "role": "qa",
+        "ms": 23979,
+        "ok": true,
+        "inputTokens": 59438,
+        "outputTokens": 3829,
+        "totalTokens": 63267,
+        "cachedInputTokens": 45186,
+        "cost": 0.005216160000000001,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 1855,
+        "textChars": 4370,
+        "toolInputChars": 379,
+        "reasoningTokens": null
+      }
+    ],
+    "id": "atlas-claude-quick__t1-slugify__r1",
+    "arm": "atlas-claude-quick",
+    "task": "t1-slugify",
+    "rep": 1,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "feature_basic",
+    "grade": {
+      "id": "atlas-claude-quick__t1-slugify__r1",
+      "task": "t1-slugify",
+      "kind": "feature",
+      "changed": [
+        "src/slugify.js",
+        "test/slugify.test.js"
+      ],
+      "added": 101,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 14,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "asked": [],
+    "elapsedMs": 89871,
+    "inputTokens": 187732,
+    "cachedInputTokens": 145890,
+    "outputTokens": 15429,
+    "costUsd": 0.0175398,
+    "agentRuns": 3,
+    "steps": [
+      "architect",
+      "developer",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 14893,
+        "ok": true,
+        "inputTokens": 48385,
+        "outputTokens": 1858,
+        "totalTokens": 50243,
+        "cachedInputTokens": 37123,
+        "cost": 0.0035520300000000003,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 900,
+        "textChars": 1764,
+        "toolInputChars": 323,
+        "reasoningTokens": null
+      },
+      {
+        "role": "developer",
+        "ms": 27147,
+        "ok": true,
+        "inputTokens": 53216,
+        "outputTokens": 4977,
+        "totalTokens": 58193,
+        "cachedInputTokens": 40103,
+        "cost": 0.005511530000000001,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 2114,
+        "textChars": 2853,
+        "toolInputChars": 3748,
+        "reasoningTokens": null
+      },
+      {
+        "role": "qa",
+        "ms": 46783,
+        "ok": true,
+        "inputTokens": 86131,
+        "outputTokens": 8594,
+        "totalTokens": 94725,
+        "cachedInputTokens": 68664,
+        "cost": 0.00847624,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 5828,
+        "textChars": 5596,
+        "toolInputChars": 807,
+        "reasoningTokens": null
+      }
+    ],
+    "id": "atlas-claude-quick__t1-slugify__r2",
+    "arm": "atlas-claude-quick",
+    "task": "t1-slugify",
+    "rep": 2,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "feature_basic",
+    "grade": {
+      "id": "atlas-claude-quick__t1-slugify__r2",
+      "task": "t1-slugify",
+      "kind": "feature",
+      "changed": [
+        "src/slugify.js",
+        "test/slugify.test.js"
+      ],
+      "added": 87,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 11,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 14,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "asked": [],
+    "elapsedMs": 105436,
+    "inputTokens": 322319,
+    "cachedInputTokens": 277333,
+    "outputTokens": 17544,
+    "costUsd": 0.020539130000000003,
+    "agentRuns": 3,
+    "steps": [
+      "architect",
+      "developer",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 33567,
+        "ok": true,
+        "inputTokens": 66422,
+        "outputTokens": 5575,
+        "totalTokens": 71997,
+        "cachedInputTokens": 53941,
+        "cost": 0.005822310000000001,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 2143,
+        "textChars": 7249,
+        "toolInputChars": 1038,
+        "reasoningTokens": null
+      },
+      {
+        "role": "developer",
+        "ms": 33116,
+        "ok": true,
+        "inputTokens": 118308,
+        "outputTokens": 5899,
+        "totalTokens": 124207,
+        "cachedInputTokens": 101649,
+        "cost": 0.007296590000000001,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 1387,
+        "textChars": 3236,
+        "toolInputChars": 6319,
+        "reasoningTokens": null
+      },
+      {
+        "role": "qa",
+        "ms": 37569,
+        "ok": true,
+        "inputTokens": 137589,
+        "outputTokens": 6070,
+        "totalTokens": 143659,
+        "cachedInputTokens": 121743,
+        "cost": 0.007420230000000001,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 2897,
+        "textChars": 6153,
+        "toolInputChars": 999,
+        "reasoningTokens": null
+      }
+    ],
+    "id": "atlas-claude-quick__t3-todo-priority__r1",
+    "arm": "atlas-claude-quick",
+    "task": "t3-todo-priority",
+    "rep": 1,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "feature_basic",
+    "grade": {
+      "id": "atlas-claude-quick__t3-todo-priority__r1",
+      "task": "t3-todo-priority",
+      "kind": "feature-multifile",
+      "changed": [
+        "src/format.js",
+        "src/store.js",
+        "test/store.test.js"
+      ],
+      "added": 76,
+      "removed": 8,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 10,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "asked": [],
+    "elapsedMs": 89485,
+    "inputTokens": 280456,
+    "cachedInputTokens": 236479,
+    "outputTokens": 14610,
+    "costUsd": 0.01846219,
+    "agentRuns": 3,
+    "steps": [
+      "architect",
+      "developer",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 30636,
+        "ok": true,
+        "inputTokens": 70025,
+        "outputTokens": 5362,
+        "totalTokens": 75387,
+        "cachedInputTokens": 55217,
+        "cost": 0.00619397,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 2012,
+        "textChars": 6500,
+        "toolInputChars": 1164,
+        "reasoningTokens": null
+      },
+      {
+        "role": "developer",
+        "ms": 28100,
+        "ok": true,
+        "inputTokens": 116376,
+        "outputTokens": 4741,
+        "totalTokens": 121117,
+        "cachedInputTokens": 101934,
+        "cost": 0.006277040000000001,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 436,
+        "textChars": 2858,
+        "toolInputChars": 6801,
+        "reasoningTokens": null
+      },
+      {
+        "role": "qa",
+        "ms": 29452,
+        "ok": true,
+        "inputTokens": 94055,
+        "outputTokens": 4507,
+        "totalTokens": 98562,
+        "cachedInputTokens": 79328,
+        "cost": 0.00599118,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 1729,
+        "textChars": 5276,
+        "toolInputChars": 1051,
+        "reasoningTokens": null
+      }
+    ],
+    "id": "atlas-claude-quick__t3-todo-priority__r2",
+    "arm": "atlas-claude-quick",
+    "task": "t3-todo-priority",
+    "rep": 2,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "feature_basic",
+    "grade": {
+      "id": "atlas-claude-quick__t3-todo-priority__r2",
+      "task": "t3-todo-priority",
+      "kind": "feature-multifile",
+      "changed": [
+        "src/format.js",
+        "src/store.js",
+        "test/store.test.js"
+      ],
+      "added": 111,
+      "removed": 8,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 13,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": false,
+    "exitCode": 0,
+    "status": "Failed",
+    "failure": "WorkflowFailure { code: EndedInFailure, node_id: None, detail: None }",
+    "asked": [],
+    "elapsedMs": 121313,
+    "inputTokens": 192547,
+    "cachedInputTokens": 150853,
+    "outputTokens": 22466,
+    "costUsd": 0.02107833,
+    "agentRuns": 3,
+    "steps": [
+      "architect",
+      "developer",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 28018,
+        "ok": true,
+        "inputTokens": 31990,
+        "outputTokens": 5025,
+        "totalTokens": 37015,
+        "cachedInputTokens": 20960,
+        "cost": 0.0049277,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 2462,
+        "textChars": 6127,
+        "toolInputChars": 213,
+        "reasoningTokens": null
+      },
+      {
+        "role": "developer",
+        "ms": 39707,
+        "ok": true,
+        "inputTokens": 121139,
+        "outputTokens": 7685,
+        "totalTokens": 128824,
+        "cachedInputTokens": 104769,
+        "cost": 0.00816299,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 2474,
+        "textChars": 4029,
+        "toolInputChars": 7967,
+        "reasoningTokens": null
+      },
+      {
+        "role": "qa",
+        "ms": 52416,
+        "ok": true,
+        "inputTokens": 39418,
+        "outputTokens": 9756,
+        "totalTokens": 49174,
+        "cachedInputTokens": 25124,
+        "cost": 0.00798764,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 6747,
+        "textChars": 7079,
+        "toolInputChars": 379,
+        "reasoningTokens": null
+      }
+    ],
+    "id": "atlas-claude-quick__t5-rate-limiter__r1",
+    "arm": "atlas-claude-quick",
+    "task": "t5-rate-limiter",
+    "rep": 1,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "feature_basic",
+    "grade": {
+      "id": "atlas-claude-quick__t5-rate-limiter__r1",
+      "task": "t5-rate-limiter",
+      "kind": "feature-hard",
+      "changed": [
+        "src/limiter.js",
+        "test/limiter.test.js"
+      ],
+      "added": 224,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 18,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "asked": [],
+    "elapsedMs": 133948,
+    "inputTokens": 254212,
+    "cachedInputTokens": 202578,
+    "outputTokens": 25484,
+    "costUsd": 0.02509218,
+    "agentRuns": 3,
+    "steps": [
+      "architect",
+      "developer",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 33281,
+        "ok": true,
+        "inputTokens": 49023,
+        "outputTokens": 5340,
+        "totalTokens": 54363,
+        "cachedInputTokens": 37412,
+        "cost": 0.005365720000000001,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 3378,
+        "textChars": 4226,
+        "toolInputChars": 395,
+        "reasoningTokens": null
+      },
+      {
+        "role": "developer",
+        "ms": 65351,
+        "ok": true,
+        "inputTokens": 141740,
+        "outputTokens": 13961,
+        "totalTokens": 155701,
+        "cachedInputTokens": 119067,
+        "cost": 0.012704569999999998,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 8804,
+        "textChars": 4010,
+        "toolInputChars": 7813,
+        "reasoningTokens": null
+      },
+      {
+        "role": "qa",
+        "ms": 34471,
+        "ok": true,
+        "inputTokens": 63449,
+        "outputTokens": 6183,
+        "totalTokens": 69632,
+        "cachedInputTokens": 46099,
+        "cost": 0.007021889999999999,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 3259,
+        "textChars": 6639,
+        "toolInputChars": 598,
+        "reasoningTokens": null
+      }
+    ],
+    "id": "atlas-claude-quick__t5-rate-limiter__r2",
+    "arm": "atlas-claude-quick",
+    "task": "t5-rate-limiter",
+    "rep": 2,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "feature_basic",
+    "grade": {
+      "id": "atlas-claude-quick__t5-rate-limiter__r2",
+      "task": "t5-rate-limiter",
+      "kind": "feature-hard",
+      "changed": [
+        "src/limiter.js",
+        "test/limiter.test.js"
+      ],
+      "added": 216,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 14,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": false,
+    "exitCode": 0,
+    "status": "Failed",
+    "failure": "WorkflowFailure { code: EndedInFailure, node_id: None, detail: None }",
+    "asked": [],
+    "elapsedMs": 105186,
+    "inputTokens": 278184,
+    "cachedInputTokens": 229433,
+    "outputTokens": 18397,
+    "costUsd": 0.02124023,
+    "agentRuns": 3,
+    "steps": [
+      "architect",
+      "developer",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 31189,
+        "ok": true,
+        "inputTokens": 50968,
+        "outputTokens": 5230,
+        "totalTokens": 56198,
+        "cachedInputTokens": 37779,
+        "cost": 0.00562999,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 1701,
+        "textChars": 7783,
+        "toolInputChars": 858,
+        "reasoningTokens": null
+      },
+      {
+        "role": "developer",
+        "ms": 33984,
+        "ok": true,
+        "inputTokens": 143813,
+        "outputTokens": 6218,
+        "totalTokens": 150031,
+        "cachedInputTokens": 126932,
+        "cost": 0.00775312,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 1060,
+        "textChars": 4882,
+        "toolInputChars": 6204,
+        "reasoningTokens": null
+      },
+      {
+        "role": "qa",
+        "ms": 38951,
+        "ok": true,
+        "inputTokens": 83403,
+        "outputTokens": 6949,
+        "totalTokens": 90352,
+        "cachedInputTokens": 64722,
+        "cost": 0.00785712,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 3629,
+        "textChars": 5718,
+        "toolInputChars": 1465,
+        "reasoningTokens": null
+      }
+    ],
+    "id": "atlas-claude-quick__t7-order-cancel__r1",
+    "arm": "atlas-claude-quick",
+    "task": "t7-order-cancel",
+    "rep": 1,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "feature_basic",
+    "grade": {
+      "id": "atlas-claude-quick__t7-order-cancel__r1",
+      "task": "t7-order-cancel",
+      "kind": "feature-multifile-hard",
+      "changed": [
+        "src/inventory.js",
+        "src/orders.js",
+        "src/reports.js",
+        "test/shop.test.js"
+      ],
+      "added": 80,
+      "removed": 4,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 8,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 10,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "asked": [],
+    "elapsedMs": 90845,
+    "inputTokens": 231657,
+    "cachedInputTokens": 188074,
+    "outputTokens": 15909,
+    "costUsd": 0.01854944,
+    "agentRuns": 3,
+    "steps": [
+      "architect",
+      "developer",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 28478,
+        "ok": true,
+        "inputTokens": 50424,
+        "outputTokens": 5171,
+        "totalTokens": 55595,
+        "cachedInputTokens": 36609,
+        "cost": 0.00571399,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 1431,
+        "textChars": 7153,
+        "toolInputChars": 1405,
+        "reasoningTokens": null
+      },
+      {
+        "role": "developer",
+        "ms": 26679,
+        "ok": true,
+        "inputTokens": 121753,
+        "outputTokens": 5082,
+        "totalTokens": 126835,
+        "cachedInputTokens": 106154,
+        "cost": 0.00672114,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 524,
+        "textChars": 3547,
+        "toolInputChars": 5970,
+        "reasoningTokens": null
+      },
+      {
+        "role": "qa",
+        "ms": 34403,
+        "ok": true,
+        "inputTokens": 59480,
+        "outputTokens": 5656,
+        "totalTokens": 65136,
+        "cachedInputTokens": 45311,
+        "cost": 0.00611431,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 2815,
+        "textChars": 5364,
+        "toolInputChars": 1143,
+        "reasoningTokens": null
+      }
+    ],
+    "id": "atlas-claude-quick__t7-order-cancel__r2",
+    "arm": "atlas-claude-quick",
+    "task": "t7-order-cancel",
+    "rep": 2,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "feature_basic",
+    "grade": {
+      "id": "atlas-claude-quick__t7-order-cancel__r2",
+      "task": "t7-order-cancel",
+      "kind": "feature-multifile-hard",
+      "changed": [
+        "src/inventory.js",
+        "src/orders.js",
+        "src/reports.js",
+        "test/shop.test.js"
+      ],
+      "added": 72,
+      "removed": 4,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 8,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 10,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "asked": [],
+    "elapsedMs": 132124,
+    "inputTokens": 367286,
+    "cachedInputTokens": 307222,
+    "outputTokens": 21301,
+    "costUsd": 0.02573172,
+    "agentRuns": 4,
+    "steps": [
+      "architect",
+      "developer",
+      "validator",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 31488,
+        "ok": true,
+        "inputTokens": 64381,
+        "outputTokens": 4890,
+        "totalTokens": 69271,
+        "cachedInputTokens": 53206,
+        "cost": 0.0052112600000000005,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 2704,
+        "textChars": 4851,
+        "toolInputChars": 328,
+        "reasoningTokens": null
+      },
+      {
+        "role": "developer",
+        "ms": 32197,
+        "ok": true,
+        "inputTokens": 115135,
+        "outputTokens": 5583,
+        "totalTokens": 120718,
+        "cachedInputTokens": 100961,
+        "cost": 0.00663471,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 1911,
+        "textChars": 3705,
+        "toolInputChars": 4427,
+        "reasoningTokens": null
+      },
+      {
+        "role": "validator",
+        "ms": 35386,
+        "ok": true,
+        "inputTokens": 127976,
+        "outputTokens": 5632,
+        "totalTokens": 133608,
+        "cachedInputTokens": 108694,
+        "cost": 0.007758140000000001,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 3128,
+        "textChars": 3874,
+        "toolInputChars": 1366,
+        "reasoningTokens": null
+      },
+      {
+        "role": "qa",
+        "ms": 31912,
+        "ok": true,
+        "inputTokens": 59794,
+        "outputTokens": 5196,
+        "totalTokens": 64990,
+        "cachedInputTokens": 44361,
+        "cost": 0.00612761,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 2634,
+        "textChars": 5519,
+        "toolInputChars": 444,
+        "reasoningTokens": null
+      }
+    ],
+    "id": "atlas-claude__t1-slugify__r1",
+    "arm": "atlas-claude",
+    "task": "t1-slugify",
+    "rep": 1,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "software_feature",
+    "grade": {
+      "id": "atlas-claude__t1-slugify__r1",
+      "task": "t1-slugify",
+      "kind": "feature",
+      "changed": [
+        "src/slugify.js",
+        "test/slugify.test.js"
+      ],
+      "added": 100,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 14,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "asked": [],
+    "elapsedMs": 123518,
+    "inputTokens": 259866,
+    "cachedInputTokens": 204580,
+    "outputTokens": 21430,
+    "costUsd": 0.0238152,
+    "agentRuns": 4,
+    "steps": [
+      "architect",
+      "developer",
+      "validator",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 39271,
+        "ok": true,
+        "inputTokens": 48518,
+        "outputTokens": 7257,
+        "totalTokens": 55775,
+        "cachedInputTokens": 37130,
+        "cost": 0.006276800000000001,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 4523,
+        "textChars": 5952,
+        "toolInputChars": 393,
+        "reasoningTokens": null
+      },
+      {
+        "role": "developer",
+        "ms": 30500,
+        "ok": true,
+        "inputTokens": 115967,
+        "outputTokens": 5127,
+        "totalTokens": 121094,
+        "cachedInputTokens": 101872,
+        "cost": 0.00640002,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 1579,
+        "textChars": 3735,
+        "toolInputChars": 4181,
+        "reasoningTokens": null
+      },
+      {
+        "role": "validator",
+        "ms": 24662,
+        "ok": true,
+        "inputTokens": 57931,
+        "outputTokens": 4193,
+        "totalTokens": 62124,
+        "cachedInputTokens": 41054,
+        "cost": 0.00588184,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 1997,
+        "textChars": 3641,
+        "toolInputChars": 931,
+        "reasoningTokens": null
+      },
+      {
+        "role": "qa",
+        "ms": 28170,
+        "ok": true,
+        "inputTokens": 37450,
+        "outputTokens": 4853,
+        "totalTokens": 42303,
+        "cachedInputTokens": 24524,
+        "cost": 0.0052565400000000005,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 2626,
+        "textChars": 5046,
+        "toolInputChars": 379,
+        "reasoningTokens": null
+      }
+    ],
+    "id": "atlas-claude__t1-slugify__r2",
+    "arm": "atlas-claude",
+    "task": "t1-slugify",
+    "rep": 2,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "software_feature",
+    "grade": {
+      "id": "atlas-claude__t1-slugify__r2",
+      "task": "t1-slugify",
+      "kind": "feature",
+      "changed": [
+        "src/slugify.js",
+        "test/slugify.test.js"
+      ],
+      "added": 100,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 11,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 14,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "asked": [],
+    "elapsedMs": 113985,
+    "inputTokens": 365089,
+    "cachedInputTokens": 304045,
+    "outputTokens": 18818,
+    "costUsd": 0.02465445,
+    "agentRuns": 4,
+    "steps": [
+      "architect",
+      "developer",
+      "validator",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 29011,
+        "ok": true,
+        "inputTokens": 49581,
+        "outputTokens": 4659,
+        "totalTokens": 54240,
+        "cachedInputTokens": 37313,
+        "cost": 0.00515563,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 1552,
+        "textChars": 6929,
+        "toolInputChars": 792,
+        "reasoningTokens": null
+      },
+      {
+        "role": "developer",
+        "ms": 28170,
+        "ok": true,
+        "inputTokens": 139221,
+        "outputTokens": 5894,
+        "totalTokens": 145115,
+        "cachedInputTokens": 124080,
+        "cost": 0.007214600000000001,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 430,
+        "textChars": 5308,
+        "toolInputChars": 6810,
+        "reasoningTokens": null
+      },
+      {
+        "role": "validator",
+        "ms": 30514,
+        "ok": true,
+        "inputTokens": 95479,
+        "outputTokens": 4758,
+        "totalTokens": 100237,
+        "cachedInputTokens": 76839,
+        "cost": 0.00687439,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 2420,
+        "textChars": 4513,
+        "toolInputChars": 822,
+        "reasoningTokens": null
+      },
+      {
+        "role": "qa",
+        "ms": 25088,
+        "ok": true,
+        "inputTokens": 80808,
+        "outputTokens": 3507,
+        "totalTokens": 84315,
+        "cachedInputTokens": 65813,
+        "cost": 0.00540983,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 1149,
+        "textChars": 4791,
+        "toolInputChars": 754,
+        "reasoningTokens": null
+      }
+    ],
+    "id": "atlas-claude__t3-todo-priority__r1",
+    "arm": "atlas-claude",
+    "task": "t3-todo-priority",
+    "rep": 1,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "software_feature",
+    "grade": {
+      "id": "atlas-claude__t3-todo-priority__r1",
+      "task": "t3-todo-priority",
+      "kind": "feature-multifile",
+      "changed": [
+        "src/format.js",
+        "src/store.js",
+        "test/store.test.js"
+      ],
+      "added": 91,
+      "removed": 7,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "asked": [],
+    "elapsedMs": 123571,
+    "inputTokens": 353242,
+    "cachedInputTokens": 291708,
+    "outputTokens": 21133,
+    "costUsd": 0.025786780000000002,
+    "agentRuns": 4,
+    "steps": [
+      "architect",
+      "developer",
+      "validator",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 26058,
+        "ok": true,
+        "inputTokens": 49371,
+        "outputTokens": 4588,
+        "totalTokens": 53959,
+        "cachedInputTokens": 37206,
+        "cost": 0.005098459999999999,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 1508,
+        "textChars": 6557,
+        "toolInputChars": 792,
+        "reasoningTokens": null
+      },
+      {
+        "role": "developer",
+        "ms": 28375,
+        "ok": true,
+        "inputTokens": 100164,
+        "outputTokens": 5497,
+        "totalTokens": 105661,
+        "cachedInputTokens": 85262,
+        "cost": 0.006580519999999999,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 700,
+        "textChars": 5271,
+        "toolInputChars": 5706,
+        "reasoningTokens": null
+      },
+      {
+        "role": "validator",
+        "ms": 28303,
+        "ok": true,
+        "inputTokens": 99208,
+        "outputTokens": 4369,
+        "totalTokens": 103577,
+        "cachedInputTokens": 81067,
+        "cost": 0.006622370000000001,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 1619,
+        "textChars": 4964,
+        "toolInputChars": 1155,
+        "reasoningTokens": null
+      },
+      {
+        "role": "qa",
+        "ms": 39643,
+        "ok": true,
+        "inputTokens": 104499,
+        "outputTokens": 6679,
+        "totalTokens": 111178,
+        "cachedInputTokens": 88173,
+        "cost": 0.00748543,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 3318,
+        "textChars": 7210,
+        "toolInputChars": 1035,
+        "reasoningTokens": null
+      }
+    ],
+    "id": "atlas-claude__t3-todo-priority__r2",
+    "arm": "atlas-claude",
+    "task": "t3-todo-priority",
+    "rep": 2,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "software_feature",
+    "grade": {
+      "id": "atlas-claude__t3-todo-priority__r2",
+      "task": "t3-todo-priority",
+      "kind": "feature-multifile",
+      "changed": [
+        "src/format.js",
+        "src/store.js",
+        "test/store.test.js"
+      ],
+      "added": 81,
+      "removed": 6,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 10,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "asked": [],
+    "elapsedMs": 197062,
+    "inputTokens": 404472,
+    "cachedInputTokens": 331499,
+    "outputTokens": 36787,
+    "costUsd": 0.03629929,
+    "agentRuns": 4,
+    "steps": [
+      "architect",
+      "developer",
+      "validator",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 53324,
+        "ok": true,
+        "inputTokens": 48499,
+        "outputTokens": 9892,
+        "totalTokens": 58391,
+        "cachedInputTokens": 37180,
+        "cost": 0.007580999999999999,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 6578,
+        "textChars": 8038,
+        "toolInputChars": 393,
+        "reasoningTokens": null
+      },
+      {
+        "role": "developer",
+        "ms": 43089,
+        "ok": true,
+        "inputTokens": 143615,
+        "outputTokens": 8606,
+        "totalTokens": 152221,
+        "cachedInputTokens": 124711,
+        "cost": 0.00932951,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 3176,
+        "textChars": 2751,
+        "toolInputChars": 9363,
+        "reasoningTokens": null
+      },
+      {
+        "role": "validator",
+        "ms": 52425,
+        "ok": true,
+        "inputTokens": 115242,
+        "outputTokens": 9611,
+        "totalTokens": 124853,
+        "cachedInputTokens": 93766,
+        "cost": 0.01003736,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 6916,
+        "textChars": 5261,
+        "toolInputChars": 939,
+        "reasoningTokens": null
+      },
+      {
+        "role": "qa",
+        "ms": 46993,
+        "ok": true,
+        "inputTokens": 97116,
+        "outputTokens": 8678,
+        "totalTokens": 105794,
+        "cachedInputTokens": 75842,
+        "cost": 0.00935142,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 6056,
+        "textChars": 5894,
+        "toolInputChars": 530,
+        "reasoningTokens": null
+      }
+    ],
+    "id": "atlas-claude__t5-rate-limiter__r1",
+    "arm": "atlas-claude",
+    "task": "t5-rate-limiter",
+    "rep": 1,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "software_feature",
+    "grade": {
+      "id": "atlas-claude__t5-rate-limiter__r1",
+      "task": "t5-rate-limiter",
+      "kind": "feature-hard",
+      "changed": [
+        "src/limiter.js",
+        "test/limiter.test.js"
+      ],
+      "added": 248,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 20,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "asked": [],
+    "elapsedMs": 178528,
+    "inputTokens": 330236,
+    "cachedInputTokens": 254469,
+    "outputTokens": 33987,
+    "costUsd": 0.03468839,
+    "agentRuns": 4,
+    "steps": [
+      "architect",
+      "developer",
+      "validator",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 36289,
+        "ok": true,
+        "inputTokens": 65016,
+        "outputTokens": 5470,
+        "totalTokens": 70486,
+        "cachedInputTokens": 53616,
+        "cost": 0.005550360000000001,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 2332,
+        "textChars": 7203,
+        "toolInputChars": 431,
+        "reasoningTokens": null
+      },
+      {
+        "role": "developer",
+        "ms": 48107,
+        "ok": true,
+        "inputTokens": 132023,
+        "outputTokens": 10866,
+        "totalTokens": 142889,
+        "cachedInputTokens": 111518,
+        "cost": 0.01064798,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 5635,
+        "textChars": 2489,
+        "toolInputChars": 9072,
+        "reasoningTokens": null
+      },
+      {
+        "role": "validator",
+        "ms": 37054,
+        "ok": true,
+        "inputTokens": 63541,
+        "outputTokens": 6895,
+        "totalTokens": 70436,
+        "cachedInputTokens": 42460,
+        "cost": 0.0080877,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 4557,
+        "textChars": 5234,
+        "toolInputChars": 532,
+        "reasoningTokens": null
+      },
+      {
+        "role": "qa",
+        "ms": 56143,
+        "ok": true,
+        "inputTokens": 69656,
+        "outputTokens": 10756,
+        "totalTokens": 80412,
+        "cachedInputTokens": 46875,
+        "cost": 0.01040235,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 7758,
+        "textChars": 7237,
+        "toolInputChars": 377,
+        "reasoningTokens": null
+      }
+    ],
+    "id": "atlas-claude__t5-rate-limiter__r2",
+    "arm": "atlas-claude",
+    "task": "t5-rate-limiter",
+    "rep": 2,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "software_feature",
+    "grade": {
+      "id": "atlas-claude__t5-rate-limiter__r2",
+      "task": "t5-rate-limiter",
+      "kind": "feature-hard",
+      "changed": [
+        "src/limiter.js",
+        "test/limiter.test.js"
+      ],
+      "added": 244,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 19,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "asked": [],
+    "elapsedMs": 158329,
+    "inputTokens": 556284,
+    "cachedInputTokens": 481265,
+    "outputTokens": 26861,
+    "costUsd": 0.03324175,
+    "agentRuns": 4,
+    "steps": [
+      "architect",
+      "developer",
+      "validator",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 27669,
+        "ok": true,
+        "inputTokens": 72525,
+        "outputTokens": 5173,
+        "totalTokens": 77698,
+        "cachedInputTokens": 57258,
+        "cost": 0.006211680000000001,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 1489,
+        "textChars": 7383,
+        "toolInputChars": 1148,
+        "reasoningTokens": null
+      },
+      {
+        "role": "developer",
+        "ms": 36301,
+        "ok": true,
+        "inputTokens": 145222,
+        "outputTokens": 6623,
+        "totalTokens": 151845,
+        "cachedInputTokens": 127511,
+        "cost": 0.00812741,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 916,
+        "textChars": 4351,
+        "toolInputChars": 7386,
+        "reasoningTokens": null
+      },
+      {
+        "role": "validator",
+        "ms": 38380,
+        "ok": true,
+        "inputTokens": 169424,
+        "outputTokens": 5495,
+        "totalTokens": 174919,
+        "cachedInputTokens": 149102,
+        "cost": 0.008301320000000001,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 2850,
+        "textChars": 4328,
+        "toolInputChars": 1249,
+        "reasoningTokens": null
+      },
+      {
+        "role": "qa",
+        "ms": 55092,
+        "ok": true,
+        "inputTokens": 169113,
+        "outputTokens": 9570,
+        "totalTokens": 178683,
+        "cachedInputTokens": 147394,
+        "cost": 0.01060134,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 5959,
+        "textChars": 6395,
+        "toolInputChars": 1629,
+        "reasoningTokens": null
+      }
+    ],
+    "id": "atlas-claude__t7-order-cancel__r1",
+    "arm": "atlas-claude",
+    "task": "t7-order-cancel",
+    "rep": 1,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "software_feature",
+    "grade": {
+      "id": "atlas-claude__t7-order-cancel__r1",
+      "task": "t7-order-cancel",
+      "kind": "feature-multifile-hard",
+      "changed": [
+        "src/inventory.js",
+        "src/orders.js",
+        "src/reports.js",
+        "test/shop.test.js"
+      ],
+      "added": 81,
+      "removed": 4,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 8,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 10,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "asked": [],
+    "elapsedMs": 124718,
+    "inputTokens": 427206,
+    "cachedInputTokens": 359639,
+    "outputTokens": 21844,
+    "costUsd": 0.028027589999999998,
+    "agentRuns": 4,
+    "steps": [
+      "architect",
+      "developer",
+      "validator",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 27917,
+        "ok": true,
+        "inputTokens": 51711,
+        "outputTokens": 5391,
+        "totalTokens": 57102,
+        "cachedInputTokens": 38212,
+        "cost": 0.00577682,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 1710,
+        "textChars": 7422,
+        "toolInputChars": 1108,
+        "reasoningTokens": null
+      },
+      {
+        "role": "developer",
+        "ms": 30652,
+        "ok": true,
+        "inputTokens": 171701,
+        "outputTokens": 5862,
+        "totalTokens": 177563,
+        "cachedInputTokens": 153963,
+        "cost": 0.00801663,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 727,
+        "textChars": 3205,
+        "toolInputChars": 7105,
+        "reasoningTokens": null
+      },
+      {
+        "role": "validator",
+        "ms": 34140,
+        "ok": true,
+        "inputTokens": 117894,
+        "outputTokens": 5007,
+        "totalTokens": 122901,
+        "cachedInputTokens": 98356,
+        "cost": 0.00739346,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 2531,
+        "textChars": 4389,
+        "toolInputChars": 922,
+        "reasoningTokens": null
+      },
+      {
+        "role": "qa",
+        "ms": 30932,
+        "ok": true,
+        "inputTokens": 85900,
+        "outputTokens": 5584,
+        "totalTokens": 91484,
+        "cachedInputTokens": 69108,
+        "cost": 0.00684068,
+        "currency": "USD",
+        "source": "runtime_reported",
+        "thinkingTokens": 2036,
+        "textChars": 6350,
+        "toolInputChars": 1548,
+        "reasoningTokens": null
+      }
+    ],
+    "id": "atlas-claude__t7-order-cancel__r2",
+    "arm": "atlas-claude",
+    "task": "t7-order-cancel",
+    "rep": 2,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "software_feature",
+    "grade": {
+      "id": "atlas-claude__t7-order-cancel__r2",
+      "task": "t7-order-cancel",
+      "kind": "feature-multifile-hard",
+      "changed": [
+        "src/inventory.js",
+        "src/orders.js",
+        "src/reports.js",
+        "test/orders-cancel.test.js"
+      ],
+      "added": 86,
+      "removed": 4,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 2,
+      "ownTests": {
+        "pass": 9,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 10,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 25546,
+    "inputTokens": 162252,
+    "cachedInputTokens": 140205,
+    "outputTokens": 4789,
+    "costUsd": 0.00820515,
+    "turns": 6,
+    "agentRuns": 1,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 8,
+        "outputTokens": 4789,
+        "cacheReadInputTokens": 140205,
+        "cacheCreationInputTokens": 22039,
+        "webSearchRequests": 0,
+        "costUSD": 0.00820515,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 2273,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "id": "claude-pure__t1-slugify__r1",
+    "arm": "claude-pure",
+    "task": "t1-slugify",
+    "rep": 1,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": null,
+    "grade": {
+      "id": "claude-pure__t1-slugify__r1",
+      "task": "t1-slugify",
+      "kind": "feature",
+      "changed": [
+        "src/slugify.js",
+        "test/slugify.test.js"
+      ],
+      "added": 97,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 14,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 31077,
+    "inputTokens": 205985,
+    "cachedInputTokens": 183203,
+    "outputTokens": 5049,
+    "costUsd": 0.008911930000000002,
+    "turns": 7,
+    "agentRuns": 1,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 10,
+        "outputTokens": 5049,
+        "cacheReadInputTokens": 183203,
+        "cacheCreationInputTokens": 22772,
+        "webSearchRequests": 0,
+        "costUSD": 0.008911930000000002,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 2664,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "id": "claude-pure__t1-slugify__r2",
+    "arm": "claude-pure",
+    "task": "t1-slugify",
+    "rep": 2,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": null,
+    "grade": {
+      "id": "claude-pure__t1-slugify__r2",
+      "task": "t1-slugify",
+      "kind": "feature",
+      "changed": [
+        "src/slugify.js",
+        "test/slugify.test.js"
+      ],
+      "added": 78,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 11,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 14,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 43520,
+    "inputTokens": 477393,
+    "cachedInputTokens": 450469,
+    "outputTokens": 7743,
+    "costUsd": 0.013758790000000002,
+    "turns": 18,
+    "agentRuns": 1,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 22,
+        "outputTokens": 7743,
+        "cacheReadInputTokens": 450469,
+        "cacheCreationInputTokens": 26902,
+        "webSearchRequests": 0,
+        "costUSD": 0.013758790000000002,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 2955,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "id": "claude-pure__t3-todo-priority__r1",
+    "arm": "claude-pure",
+    "task": "t3-todo-priority",
+    "rep": 1,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": null,
+    "grade": {
+      "id": "claude-pure__t3-todo-priority__r1",
+      "task": "t3-todo-priority",
+      "kind": "feature-multifile",
+      "changed": [
+        "src/format.js",
+        "src/store.js",
+        "test/store.test.js"
+      ],
+      "added": 76,
+      "removed": 7,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 10,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 42047,
+    "inputTokens": 399052,
+    "cachedInputTokens": 371613,
+    "outputTokens": 7477,
+    "costUsd": 0.012940630000000002,
+    "turns": 15,
+    "agentRuns": 1,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 18,
+        "outputTokens": 7477,
+        "cacheReadInputTokens": 371613,
+        "cacheCreationInputTokens": 27421,
+        "webSearchRequests": 0,
+        "costUSD": 0.012940630000000002,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 3031,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "id": "claude-pure__t3-todo-priority__r2",
+    "arm": "claude-pure",
+    "task": "t3-todo-priority",
+    "rep": 2,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": null,
+    "grade": {
+      "id": "claude-pure__t3-todo-priority__r2",
+      "task": "t3-todo-priority",
+      "kind": "feature-multifile",
+      "changed": [
+        "src/format.js",
+        "src/store.js",
+        "test/priority.test.js"
+      ],
+      "added": 85,
+      "removed": 8,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 2,
+      "ownTests": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 49506,
+    "inputTokens": 388324,
+    "cachedInputTokens": 341589,
+    "outputTokens": 8443,
+    "costUsd": 0.016982590000000002,
+    "turns": 10,
+    "agentRuns": 1,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 18,
+        "outputTokens": 8443,
+        "cacheReadInputTokens": 341589,
+        "cacheCreationInputTokens": 46717,
+        "webSearchRequests": 0,
+        "costUSD": 0.016982590000000002,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 3671,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "id": "claude-pure__t5-rate-limiter__r1",
+    "arm": "claude-pure",
+    "task": "t5-rate-limiter",
+    "rep": 1,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": null,
+    "grade": {
+      "id": "claude-pure__t5-rate-limiter__r1",
+      "task": "t5-rate-limiter",
+      "kind": "feature-hard",
+      "changed": [
+        "src/limiter.js",
+        "test/limiter.test.js"
+      ],
+      "added": 224,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 17,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 59218,
+    "inputTokens": 309735,
+    "cachedInputTokens": 280708,
+    "outputTokens": 11508,
+    "costUsd": 0.014365080000000002,
+    "turns": 10,
+    "agentRuns": 1,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 14,
+        "outputTokens": 11508,
+        "cacheReadInputTokens": 280708,
+        "cacheCreationInputTokens": 29013,
+        "webSearchRequests": 0,
+        "costUSD": 0.014365080000000002,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 6109,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "id": "claude-pure__t5-rate-limiter__r2",
+    "arm": "claude-pure",
+    "task": "t5-rate-limiter",
+    "rep": 2,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": null,
+    "grade": {
+      "id": "claude-pure__t5-rate-limiter__r2",
+      "task": "t5-rate-limiter",
+      "kind": "feature-hard",
+      "changed": [
+        "src/limiter.js",
+        "test/limiter.test.js"
+      ],
+      "added": 237,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 20,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 45908,
+    "inputTokens": 572733,
+    "cachedInputTokens": 543008,
+    "outputTokens": 7782,
+    "costUsd": 0.015263480000000003,
+    "turns": 25,
+    "agentRuns": 1,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 26,
+        "outputTokens": 7782,
+        "cacheReadInputTokens": 543008,
+        "cacheCreationInputTokens": 29699,
+        "webSearchRequests": 0,
+        "costUSD": 0.015263480000000003,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 1798,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "id": "claude-pure__t7-order-cancel__r1",
+    "arm": "claude-pure",
+    "task": "t7-order-cancel",
+    "rep": 1,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": null,
+    "grade": {
+      "id": "claude-pure__t7-order-cancel__r1",
+      "task": "t7-order-cancel",
+      "kind": "feature-multifile-hard",
+      "changed": [
+        "src/inventory.js",
+        "src/orders.js",
+        "src/reports.js",
+        "test/cancel.test.js"
+      ],
+      "added": 84,
+      "removed": 4,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 2,
+      "ownTests": {
+        "pass": 8,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 10,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 39039,
+    "inputTokens": 386806,
+    "cachedInputTokens": 360724,
+    "outputTokens": 6536,
+    "costUsd": 0.01208984,
+    "turns": 19,
+    "agentRuns": 1,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 18,
+        "outputTokens": 6536,
+        "cacheReadInputTokens": 360724,
+        "cacheCreationInputTokens": 26064,
+        "webSearchRequests": 0,
+        "costUSD": 0.01208984,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 1127,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "id": "claude-pure__t7-order-cancel__r2",
+    "arm": "claude-pure",
+    "task": "t7-order-cancel",
+    "rep": 2,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": null,
+    "grade": {
+      "id": "claude-pure__t7-order-cancel__r2",
+      "task": "t7-order-cancel",
+      "kind": "feature-multifile-hard",
+      "changed": [
+        "src/inventory.js",
+        "src/orders.js",
+        "src/reports.js",
+        "test/cancel.test.js"
+      ],
+      "added": 117,
+      "removed": 4,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 2,
+      "ownTests": {
+        "pass": 10,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 10,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  }
+]

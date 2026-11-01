@@ -1,0 +1,75 @@
+{
+  "ok": true,
+  "exitCode": 0,
+  "status": "Completed",
+  "failure": null,
+  "elapsedMs": 122442,
+  "inputTokens": 294241,
+  "cachedInputTokens": 237323,
+  "outputTokens": 20562,
+  "costUsd": 0.024034430000000002,
+  "agentRuns": 4,
+  "steps": [
+    "architect",
+    "developer",
+    "validator",
+    "qa"
+  ],
+  "perStep": [
+    {
+      "role": "architect",
+      "ms": 35753,
+      "ok": true,
+      "inputTokens": 85252,
+      "outputTokens": 5497,
+      "totalTokens": 90749,
+      "cachedInputTokens": 70847,
+      "cost": 0.00633697,
+      "currency": "USD",
+      "source": "runtime_reported"
+    },
+    {
+      "role": "developer",
+      "ms": 29130,
+      "ok": true,
+      "inputTokens": 101054,
+      "outputTokens": 5591,
+      "totalTokens": 106645,
+      "cachedInputTokens": 85939,
+      "cost": 0.00667689,
+      "currency": "USD",
+      "source": "runtime_reported"
+    },
+    {
+      "role": "validator",
+      "ms": 27732,
+      "ok": true,
+      "inputTokens": 62336,
+      "outputTokens": 4408,
+      "totalTokens": 66744,
+      "cachedInputTokens": 47580,
+      "cost": 0.0056302,
+      "currency": "USD",
+      "source": "runtime_reported"
+    },
+    {
+      "role": "qa",
+      "ms": 28517,
+      "ok": true,
+      "inputTokens": 45599,
+      "outputTokens": 5066,
+      "totalTokens": 50665,
+      "cachedInputTokens": 32957,
+      "cost": 0.00539037,
+      "currency": "USD",
+      "source": "runtime_reported"
+    }
+  ],
+  "id": "atlas-claude__t3-todo-priority__r2",
+  "arm": "atlas-claude",
+  "task": "t3-todo-priority",
+  "rep": 2,
+  "runtime": "claude",
+  "model": "haiku",
+  "template": "software_feature"
+}

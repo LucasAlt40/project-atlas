@@ -1,0 +1,163 @@
+{
+  "status": "Completed",
+  "failure": null,
+  "started": [
+    "architect",
+    "developer",
+    "validator",
+    "qa"
+  ],
+  "changed": [
+    "src/format.js",
+    "src/store.js",
+    "test/store.test.js"
+  ],
+  "elapsedMs": 113985,
+  "asked": [],
+  "usage": [
+    {
+      "executionId": "exec-2",
+      "workspaceId": "ws-1793479986781-1",
+      "agentId": "agent-1793479986781-6",
+      "runtimeId": "claude",
+      "modelId": "haiku",
+      "startedAt": 1793479986948,
+      "completedAt": 1793480015959,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 49581,
+        "outputTokens": 4659,
+        "totalTokens": 54240,
+        "cachedInputTokens": 37313,
+        "cost": 0.00515563,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      "role": "architect",
+      "runtimeFacts": {
+        "autoMemoryPath": "/Users/lucasalt/.claude/projects/-private-var-folders-r3-gtmdzdhn7138rqntsg15l6980000gn-T-atlas-workflow-real-87481-0-project/memory/",
+        "costUsd": "0.00515563",
+        "durationMs": "27674",
+        "mcpServers": "",
+        "mcpStatus": "",
+        "pluginSources": "atlassian@claude-plugins-official,figma@claude-plugins-official,cc-plugin-agents-md@builtin,cc-plugin-telemetry@builtin,cc-plugin-plugin-authoring@builtin",
+        "pluginsLoaded": "5",
+        "skillsLoaded": "0",
+        "slashCommands": "0",
+        "textChars": "6929",
+        "thinkingTokens": "1552",
+        "toolInputChars": "792",
+        "toolsExposed": "Bash,Edit,Glob,Grep,Read,Write",
+        "turns": "7"
+      }
+    },
+    {
+      "executionId": "exec-3",
+      "workspaceId": "ws-1793479986781-1",
+      "agentId": "agent-1793479986781-3",
+      "runtimeId": "claude",
+      "modelId": "haiku",
+      "startedAt": 1793480016027,
+      "completedAt": 1793480044197,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 139221,
+        "outputTokens": 5894,
+        "totalTokens": 145115,
+        "cachedInputTokens": 124080,
+        "cost": 0.007214600000000001,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      "role": "developer",
+      "runtimeFacts": {
+        "autoMemoryPath": "/Users/lucasalt/.claude/projects/-private-var-folders-r3-gtmdzdhn7138rqntsg15l6980000gn-T-atlas-workflow-real-87481-0-project/memory/",
+        "costUsd": "0.007214600000000001",
+        "durationMs": "26684",
+        "mcpServers": "",
+        "mcpStatus": "",
+        "pluginSources": "atlassian@claude-plugins-official,figma@claude-plugins-official,cc-plugin-agents-md@builtin,cc-plugin-telemetry@builtin,cc-plugin-plugin-authoring@builtin",
+        "pluginsLoaded": "5",
+        "skillsLoaded": "0",
+        "slashCommands": "0",
+        "textChars": "5308",
+        "thinkingTokens": "430",
+        "toolInputChars": "6810",
+        "toolsExposed": "Bash,Edit,Glob,Grep,Read,Write",
+        "turns": "12"
+      }
+    },
+    {
+      "executionId": "exec-4",
+      "workspaceId": "ws-1793479986781-1",
+      "agentId": "agent-1793479986781-7",
+      "runtimeId": "claude",
+      "modelId": "haiku",
+      "startedAt": 1793480044349,
+      "completedAt": 1793480074863,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 95479,
+        "outputTokens": 4758,
+        "totalTokens": 100237,
+        "cachedInputTokens": 76839,
+        "cost": 0.00687439,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      "role": "validator",
+      "runtimeFacts": {
+        "autoMemoryPath": "/Users/lucasalt/.claude/projects/-private-var-folders-r3-gtmdzdhn7138rqntsg15l6980000gn-T-atlas-workflow-real-87481-0-project/memory/",
+        "costUsd": "0.00687439",
+        "durationMs": "29254",
+        "mcpServers": "",
+        "mcpStatus": "",
+        "pluginSources": "atlassian@claude-plugins-official,figma@claude-plugins-official,cc-plugin-agents-md@builtin,cc-plugin-telemetry@builtin,cc-plugin-plugin-authoring@builtin",
+        "pluginsLoaded": "5",
+        "skillsLoaded": "0",
+        "slashCommands": "0",
+        "textChars": "4513",
+        "thinkingTokens": "2420",
+        "toolInputChars": "822",
+        "toolsExposed": "Bash,Glob,Grep,Read",
+        "turns": "10"
+      }
+    },
+    {
+      "executionId": "exec-5",
+      "workspaceId": "ws-1793479986781-1",
+      "agentId": "agent-1793479986781-4",
+      "runtimeId": "claude",
+      "modelId": "haiku",
+      "startedAt": 1793480074929,
+      "completedAt": 1793480100017,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 80808,
+        "outputTokens": 3507,
+        "totalTokens": 84315,
+        "cachedInputTokens": 65813,
+        "cost": 0.00540983,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      "role": "qa",
+      "runtimeFacts": {
+        "autoMemoryPath": "/Users/lucasalt/.claude/projects/-private-var-folders-r3-gtmdzdhn7138rqntsg15l6980000gn-T-atlas-workflow-real-87481-0-project/memory/",
+        "costUsd": "0.00540983",
+        "durationMs": "23797",
+        "mcpServers": "",
+        "mcpStatus": "",
+        "pluginSources": "atlassian@claude-plugins-official,figma@claude-plugins-official,cc-plugin-agents-md@builtin,cc-plugin-telemetry@builtin,cc-plugin-plugin-authoring@builtin",
+        "pluginsLoaded": "5",
+        "skillsLoaded": "0",
+        "slashCommands": "0",
+        "textChars": "4791",
+        "thinkingTokens": "1149",
+        "toolInputChars": "754",
+        "toolsExposed": "Bash,Glob,Grep,Read",
+        "turns": "7"
+      }
+    }
+  ]
+}

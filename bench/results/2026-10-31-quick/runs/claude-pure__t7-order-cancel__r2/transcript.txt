@@ -1,0 +1,19 @@
+--- Assistant
+I added `orders.cancel(orderId, reason)` and made reports skip cancelled orders. I could not run the test suite: Bash was denied for this session, so `npm test` has not been run. I checked the code and test arithmetic by reading it.
+
+**Changes**
+- **`src/inventory.js`**: new `restock(sku, qty)` that adds stock back. It is separate from `take`, which still rejects overdrafts.
+- **`src/orders.js`**: `cancel(orderId, reason)`:
+  - Throws a `TypeError` for a non-string or empty reason, before looking up the order.
+  - Throws an `Error` containing "not found" for an unknown id.
+  - Throws an `Error` containing "already cancelled" for a repeat cancel.
+  - Otherwise restocks every item, sets `status: 'cancelled'` and `reason`, emits one `order.cancelled` event with `{ orderId, reason }`, and returns a copy of the order.
+- **`src/reports.js`**: `revenue()` and `unitsSold(sku)` now count only orders whose status is not `'cancelled'`.
+- **`test/cancel.test.js`** (new): covers the return value, restocking, the event, both error cases with no side effects, invalid reasons, and report exclusion. It uses `node:test` and `node:assert/strict`, which `npm test` already runs. I could not see the existing tests, so I could not match their style.
+
+**Choices I made**
+- A whitespace-only reason (`'   '`) counts as empty and throws `TypeError`. The spec said "non-empty", and I read that as not blank.
+- The reason is stored only on cancelled orders. Placed orders keep their existing shape, so any existing deep-equality assertions on them should still pass.
+
+**To verify**
+Run `npm test` in the project. The existing tests and the new `test/cancel.test.js` should both pass. If anything fails, paste the output and I'll look at it.

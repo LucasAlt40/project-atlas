@@ -1,0 +1,78 @@
+--- User agent-1793477000351-6
+Analyze and plan: Add priorities to the todo store in this project (src/store.js and src/format.js).  - store.add(title, options): options.priority is 'low', 'n…
+--- Assistant agent-1793477000351-6
+Size: moderate
+
+## Plan
+
+### Goals
+
+- Add validated `low`, `normal`, and `high` priorities to todos.
+- Support priority filtering and required default ordering.
+- Render high-priority todos with `!`.
+- Preserve all existing behavior and tests.
+
+### Scope
+
+In scope:
+
+- `src/store.js`: `add(title, options)`, priority storage, filtering, sorting.
+- `src/format.js`: high-priority marker.
+- `test/store.test.js`: defaults, validation, ordering, filtering, and formatting.
+
+Out of scope:
+
+- Persistence, UI changes, new dependencies, public modules, or unrelated documentation.
+
+### Architecture and dependencies
+
+- `src/store.js` is the sole in-memory state boundary and uses only JavaScript built-ins.
+- `src/format.js` is a pure presentation function with no store dependency.
+- `test/store.test.js` uses Node’s built-in test runner.
+- No other consumers or priority-related code exist.
+
+The architectural impact is localized: each stored todo gains a `priority` field, and `list()` changes its default presentation order while retaining insertion order within equal priorities.
+
+### Decisions Developer must follow
+
+1. `add(title)` remains valid and defaults priority to `normal`.
+2. Invalid priorities must throw `RangeError` and must not add a todo.
+3. `list(filter)` should match `filter.priority` exactly when supplied.
+4. An unfiltered list must order `high`, `normal`, then `low`, without mutating internal storage; equal-priority todos retain insertion order.
+5. `formatList` adds `!` only for `priority === 'high'`; missing or other priorities retain the existing output for compatibility with current callers.
+6. Preserve existing title validation, IDs, completion behavior, shallow-copy behavior, and CommonJS exports.
+7. Do not introduce a new abstraction or dependency for the three-value priority model.
+
+### Verification
+
+Run `npm test` and confirm all existing and new tests pass. Tests must cover default priority, valid priorities, `RangeError` validation, stable ordering, filtering, and high-priority formatting. No implementation was made in this step.
+
+```atlas-result
+{"status":"success","outcome":"approved","summary":"Architecture and implementation plan completed. The change is localized to the in-memory store, formatter, and existing test file; baseline tests currently pass.","artifacts":[],"decisions":[{"title":"Priority defaults and validation","decision":"Keep add(title) compatible, default omitted priority to normal, and throw RangeError for any other priority without mutating the store.","rationale":"Preserves the existing API while enforcing the requested three-value contract."},{"title":"List ordering","decision":"Filter exact priority when requested; otherwise return a non-mutating copy ordered high, normal, low while preserving insertion order within each priority.","rationale":"Matches the requested behavior and protects internal store order."},{"title":"Formatting compatibility","decision":"Render ! only when priority is high; treat missing priority as non-high so existing formatList callers remain unchanged.","rationale":"Adds the new presentation rule without breaking the current formatter contract."}],"findings":[{"severity":"low","category":"architecture","title":"Sorting must not mutate storage","description":"The store currently owns insertion order in its internal todos array, so default list sorting must operate on a copy.","file":"src/store.js","line":27,"evidence":"list currently maps todos to copies and returns them in storage order.","recommendation":"Sort the returned copies or another derived array, never the internal todos array."}],"touchedFiles":[],"touchedAreas":["in-memory todo store","todo list ordering and filtering","plain-text formatting","Node test coverage"],"nextAction":"Implement the approved changes in src/store.js, src/format.js, and test/store.test.js, then run npm test."}
+```
+--- User agent-1793477000351-3
+Implement: Add priorities to the todo store in this project (src/store.js and src/format.js).  - store.add(title, options): options.priority is 'low', 'normal' …
+--- Assistant agent-1793477000351-3
+Implemented todo priorities in `src/store.js`, `src/format.js`, and `test/store.test.js`.
+
+Verified with `npm test`: 6 passed, 0 failed. `git diff --check` also passed. No known unverified items.
+
+```atlas-result
+{"status":"success","outcome":"implemented","summary":"Added low/normal/high priorities with normal as the default, RangeError validation, priority filtering and ordering, and ! formatting for high-priority todos. Added tests covering all new behavior and invalid-input non-mutation.","artifacts":[{"type":"implementation_summary","name":"Todo priorities","path":"src/store.js","summary":"Stores validated priorities and supports priority-aware listing."},{"type":"implementation_summary","name":"Priority formatting and tests","path":"src/format.js","summary":"Marks high-priority todos with ! and tests the complete behavior."}],"decisions":[{"title":"Priority ordering","decision":"Default lists return high, normal, then low while preserving insertion order within each priority.","rationale":"Matches the approved plan without mutating internal storage."}],"findings":[],"touchedFiles":["src/store.js","src/format.js","test/store.test.js"],"touchedAreas":["todo store","todo formatting","automated tests"],"nextAction":"Review the implementation."}
+```
+--- User agent-1793477000351-7
+Review the change: Add priorities to the todo store in this project (src/store.js and src/format.js).  - store.add(title, options): options.priority is 'low', '…
+--- Assistant agent-1793477000351-7
+Validation passed. The implementation matches the priority contract, preserves existing behavior, and all six tests pass. No concrete findings.
+
+```atlas-result
+{"status":"success","outcome":"pass","summary":"Reviewed the priority implementation against the task, decisions, conventions, tests, and scope. No actionable problems found.","artifacts":[{"type":"review_summary","name":"Priority implementation review","path":"src/store.js","summary":"Store validation, filtering, ordering, and non-mutating copies are correct; formatter and tests are compatible."}],"decisions":[{"title":"Review verdict","decision":"Accept the change.","rationale":"Requested behavior is implemented, existing tests pass, new behavior is tested, and scope is limited to the expected files."}],"findings":[],"touchedFiles":["src/store.js","src/format.js","test/store.test.js"],"touchedAreas":["todo store","todo formatting","priority tests"],"nextAction":"Proceed to the next workflow step."}
+```
+--- User agent-1793477000351-4
+Check behaviour: Add priorities to the todo store in this project (src/store.js and src/format.js).  - store.add(title, options): options.priority is 'low', 'no…
+--- Assistant agent-1793477000351-4
+Validation passed. All 6 tests and additional edge-case probes executed successfully. No behavior failures found. Failure-without-change was assessed by reading assertions; files were not modified or reverted. No browser check was applicable.
+
+```atlas-result
+{"status":"success","outcome":"pass","summary":"Read src/store.js, src/format.js, and test/store.test.js; executed npm test with 6/6 passing and an additional mixed-priority edge-case probe. Main behavior, validation, ordering, filtering, formatting, and non-mutation paths are correct. No browser integration applied.","artifacts":[{"type":"implementation_summary","name":"Priority behavior validation","path":"src/store.js","summary":"Priority validation, storage, filtering, and high-first ordering match the requested behavior; formatter and tests cover the new functionality."}],"decisions":[{"title":"Validation verdict","decision":"Pass","rationale":"No task-required behavior is wrong or missing; existing behavior remains compatible and all executed checks pass."}],"findings":[],"touchedFiles":[],"touchedAreas":["todo store","todo formatting","Node tests"],"nextAction":"Proceed to the next workflow step."}
+```

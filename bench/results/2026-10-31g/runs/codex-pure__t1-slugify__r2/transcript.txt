@@ -1,0 +1,13 @@
+--- Assistant
+I’ll inspect the repository guidance and existing layout, then add only `src/slugify.js` and `test/slugify.test.js` and run the focused test file.
+--- Assistant
+The project is a minimal CommonJS package with no existing source or test files. I’ll implement Unicode NFD accent removal, separator collapsing/trimming, and the specified word-aware length limit, with tests covering examples and edge cases.
+--- Assistant
+The first test run exposed a boundary nuance: when `maxLength` ends exactly at the end of a complete word (`hello-big`), the implementation was discarding that word. I’m correcting the cutoff to preserve a complete prefix, while still trimming a separator or backing up when the limit falls inside a word.
+--- Assistant
+Implemented:
+
+- [src/slugify.js](/private/var/folders/r3/gtmdzdhn7138rqntsg15l6980000gn/T/atlas-bench-t1-slugify-iW1Jpu/src/slugify.js)
+- [test/slugify.test.js](/private/var/folders/r3/gtmdzdhn7138rqntsg15l6980000gn/T/atlas-bench-t1-slugify-iW1Jpu/test/slugify.test.js)
+
+All 5 tests pass with `npm test`.

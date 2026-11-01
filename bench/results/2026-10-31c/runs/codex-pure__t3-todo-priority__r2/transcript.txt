@@ -1,0 +1,17 @@
+--- Assistant
+I’ll inspect the existing store, formatter, and test conventions, then implement priorities with focused regression tests and run the full test suite.
+--- Assistant
+The current implementation is small and has one test file. I’ll keep the API backward-compatible (`add(title)` and `list()`), default missing priorities to `normal`, and make formatting tolerate older todo-shaped objects that lack a `priority` field.
+--- Assistant
+The implementation and tests are in place. I’m running the full suite now and checking the diff for unintended changes.
+--- Assistant
+Implemented todo priorities.
+
+- Added `priority` to todos, defaulting to `normal`.
+- Added validation with `RangeError` for invalid priorities.
+- Sorted unfiltered lists by high → normal → low while preserving insertion order within each priority.
+- Added priority filtering.
+- High-priority formatting now uses `!`.
+- Added regression tests.
+
+All 5 tests pass.

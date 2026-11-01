@@ -1,0 +1,32 @@
+{
+  "status": "Completed",
+  "failure": null,
+  "started": [
+    "validator"
+  ],
+  "changed": [],
+  "elapsedMs": 29477,
+  "asked": [],
+  "usage": [
+    {
+      "executionId": "exec-2",
+      "workspaceId": "ws-1793473059488-1",
+      "agentId": "agent-1793473059488-7",
+      "runtimeId": "claude",
+      "modelId": "haiku",
+      "startedAt": 1793473059671,
+      "completedAt": 1793473088183,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 33051,
+        "outputTokens": 5021,
+        "totalTokens": 38072,
+        "cachedInputTokens": 24173,
+        "cost": 0.00452723,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      "role": "validator"
+    }
+  ]
+}

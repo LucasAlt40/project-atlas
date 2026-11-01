@@ -1,0 +1,167 @@
+--- User agent-1793468720374-6
+Analyze and plan: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  R…
+--- Assistant agent-1793468720374-6
+Size: moderate
+
+## Analysis and plan
+
+### Goals
+
+Add a standalone CommonJS `slugify(text, options)` utility and focused Node built-in tests without changing existing project files.
+
+### Scope
+
+In scope:
+
+- Create `src/slugify.js`.
+- Create `test/slugify.test.js`.
+- Support lowercase conversion, diacritic removal, separator normalization, trimming, and `maxLength`.
+- Throw `TypeError` when `text` is not a string.
+- Export exactly `module.exports = { slugify }`.
+
+Out of scope:
+
+- Dependencies, package configuration changes, README changes, browser integration, or behavior for unspecified invalid `options.maxLength` values.
+
+### Modules and dependencies
+
+The project currently has one boundary:
+
+- `src/`: production CommonJS utilities.
+- `test/`: Node test-runner tests.
+- `package.json`: declares `"type": "commonjs"` and runs `node --test`.
+
+There are no source modules, test modules, or runtime dependencies yet. The implementation should therefore remain a pure function with no added abstraction or dependency.
+
+### Architectural impact
+
+The change is isolated and low-risk. It adds one stateless utility module with no side effects and one test module. The only contract boundary is the exported object:
+
+```js
+module.exports = { slugify };
+```
+
+Tests should consume that public export rather than internal helpers.
+
+### Decisions the Developer must follow
+
+- Use CommonJS syntax consistently with the package configuration.
+- Normalize Unicode text to remove combining diacritics, then lowercase and replace every non-ASCII-alphanumeric run with one hyphen.
+- Trim leading and trailing hyphens after normalization.
+- Apply `maxLength` after slug construction:
+  - If the full slug fits, return it.
+  - Otherwise use the last hyphen that fits, preserving whole words.
+  - If no hyphen permits a result within the limit, hard-cut the first word at `maxLength`.
+  - Ensure the result never ends with a hyphen.
+- Treat only the documented positive-integer `maxLength` contract as required; unspecified invalid option values do not need additional behavior.
+- Do not modify `README.md`, `package.json`, or any other file.
+
+### Files and contracts to change
+
+- `src/slugify.js`
+  - New public module.
+  - Input: string plus optional options object.
+  - Output: normalized slug string.
+  - Error: `TypeError` for non-string text.
+  - Export: `{ slugify }`.
+
+- `test/slugify.test.js`
+  - New tests using `node:test` and `node:assert`.
+  - Cover the supplied examples plus representative edge cases: whitespace/punctuation collapsing, accents and diacritics, trimming, type errors, word-boundary truncation, hard truncation, and exact-length results.
+
+No existing files require modification.
+
+### Verification
+
+Run:
+
+```sh
+npm test
+```
+
+The tests should verify the public CommonJS export and all stated rules, including:
+
+- `Olá, Mundo!` → `ola-mundo`
+- `Ação & Reação` → `acao-reacao`
+- `maxLength: 9` → `hello-big`
+- `maxLength: 8` → `hello`
+- hard truncation of `supercalifragilistic` to `super`
+- no leading/trailing hyphens
+- `TypeError` for non-string input
+
+The working tree is currently clean, and no implementation has been made in this analysis step.
+
+```atlas-result
+{"status":"success","outcome":"approved","summary":"Analyzed the minimal CommonJS project and defined the isolated slugify module and test contracts. No implementation changes were made.","artifacts":[{"type":"implementation_summary","name":"slugify utility plan","path":"src/slugify.js","summary":"Planned standalone CommonJS slugify implementation with Unicode normalization, separator handling, and maxLength rules."},{"type":"implementation_summary","name":"slugify test plan","path":"test/slugify.test.js","summary":"Planned node:test and node:assert coverage for normalization, errors, truncation, and supplied examples."}],"decisions":[{"title":"Module boundary","decision":"Keep slugify as a pure standalone utility under src with tests under test.","rationale":"The project has no existing source modules or dependencies, so an isolated function preserves the current architecture."},{"title":"Public export","decision":"Use exactly module.exports = { slugify }.","rationale":"This is the requested CommonJS contract and matches the package's type configuration."},{"title":"Length handling","decision":"Apply maxLength after slug generation, preferring the last fitting hyphen and hard-cutting only when the first word itself is too long.","rationale":"This directly implements the specified no-word-splitting behavior while preserving the no-trailing-hyphen invariant."}],"findings":[],"touchedFiles":[],"touchedAreas":["architecture","src module boundary","test boundary"],"nextAction":"Implement src/slugify.js and test/slugify.test.js according to the stated contracts, then run npm test."}
+```
+--- User agent-1793468720374-3
+Implement: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  Rules:  …
+--- Assistant agent-1793468720374-3
+Implemented the slugify utility and tests.
+
+Changed:
+- `src/slugify.js`
+- `test/slugify.test.js`
+
+Verified:
+- Ran `npm test`
+- 5 tests passed, 0 failed
+- Confirmed only `src/` and `test/` are untracked changes
+- No remaining verification gaps identified
+
+```atlas-result
+{"status":"success","outcome":"implemented","summary":"Added the CommonJS slugify utility with diacritic removal, separator normalization, maxLength handling, and comprehensive node:test coverage.","artifacts":[{"type":"implementation_summary","name":"slugify utility","path":"src/slugify.js","summary":"Exports exactly module.exports = { slugify } and implements the requested slugification behavior."},{"type":"test_summary","name":"slugify tests","path":"test/slugify.test.js","summary":"Covers normalization, separators, invalid input, word-boundary truncation, and hard-cut truncation."}],"decisions":[{"title":"Length handling","decision":"Prefer the last fitting hyphen and hard-cut only when the first word exceeds maxLength.","rationale":"Matches the specified behavior and preserves valid slug boundaries."}],"findings":[],"touchedFiles":["src/slugify.js","test/slugify.test.js"],"touchedAreas":["slugify utility","automated tests"],"nextAction":"Review the change"}
+```
+--- User agent-1793468720374-7
+Review the change: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  …
+--- Assistant agent-1793468720374-7
+Verdict: fail.
+
+The implementation is architecturally correct and all existing tests pass. However, the required preservation of digits (`0-9`) is not covered by a test, so acceptance criteria are incomplete.
+
+Finding:
+
+- High — Testing: `test/slugify.test.js:6-11` does not assert that digits are preserved, despite `src/slugify.js:10` explicitly supporting them. Add a case such as `slugify('Room 42') === 'room-42'`.
+
+```atlas-result
+{"status":"fail","outcome":"fail","summary":"Implementation and architecture are correct, but digit preservation required by the contract lacks test coverage.","artifacts":[{"type":"implementation_summary","name":"Slugify utility review","path":"src/slugify.js","summary":"CommonJS slugify implementation reviewed; export, normalization, separators, and maxLength behavior are correct."}],"decisions":[{"title":"Module boundary","decision":"Accepted standalone utility under src with tests under test.","rationale":"Matches the project architecture and requested scope."},{"title":"Export contract","decision":"Accepted exact module.exports = { slugify } shape.","rationale":"Matches the specified CommonJS public API."}],"findings":[{"severity":"high","category":"Testing","title":"Digit preservation is untested","description":"The contract requires 0-9 to remain valid slug characters, but the test suite has no assertion for digit preservation.","file":"test/slugify.test.js","line":6,"evidence":"Existing normalization tests cover letters and separators only; src/slugify.js:10 allows digits.","recommendation":"Add a test such as slugify('Room 42') === 'room-42'."}],"touchedFiles":["src/slugify.js","test/slugify.test.js"],"touchedAreas":["slugify utility","slugify tests"],"nextAction":"Add digit-preservation coverage and rerun the test suite."}
+```
+--- User agent-1793468720374-5
+Fix review findings: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.…
+--- Assistant agent-1793468720374-5
+Fixed the reported coverage gap by adding digit-preservation coverage:
+
+- Changed: `test/slugify.test.js`
+- Added assertion: `slugify('Room 42') === 'room-42'`
+- Production code unchanged.
+- Validation: `npm test` — 5 passed, 0 failed.
+- Residual risk: none identified for the reported issue.
+
+```atlas-result
+{"status":"success","outcome":"fixed","summary":"Added explicit digit-preservation coverage and verified all tests pass.","artifacts":[{"type":"implementation_summary","name":"Digit preservation test","path":"test/slugify.test.js","summary":"Added Room 42 => room-42 assertion."}],"decisions":[],"findings":[],"touchedFiles":["test/slugify.test.js"],"touchedAreas":["slugify tests"],"nextAction":"Review the change"}
+```
+--- User agent-1793468720374-7
+Review the change: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  …
+--- Assistant agent-1793468720374-7
+Verdict: PASS.
+
+The implementation conforms to the requested CommonJS export, slugification rules, `maxLength` behavior, module boundary, and test conventions. The prior digit-coverage issue is fixed. All 5 tests pass, and no unrelated files or formatting issues were found.
+
+```atlas-result
+{"status":"success","outcome":"pass","summary":"Slugify implementation and tests satisfy the contract and project conventions; all tests pass.","artifacts":[{"type":"implementation_summary","name":"Slugify utility","path":"src/slugify.js","summary":"Standalone CommonJS slugify implementation with normalization, separators, validation, and maxLength handling."},{"type":"test_summary","name":"Slugify tests","path":"test/slugify.test.js","summary":"node:test coverage for normalization, digits, errors, separators, and truncation."}],"decisions":[{"title":"Module boundary","decision":"Keep the utility under src with tests under test.","rationale":"Matches the requested architecture and project scope."},{"title":"Export contract","decision":"Use exactly module.exports = { slugify }.","rationale":"Matches the required CommonJS API."}],"findings":[],"touchedFiles":["src/slugify.js","test/slugify.test.js"],"touchedAreas":["slugify utility","slugify tests"],"nextAction":"Proceed to behavior verification."}
+```
+--- User agent-1793468720374-4
+Check behaviour: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  Ru…
+--- Assistant agent-1793468720374-4
+Validation passed.
+
+- Executed `npm test`: 5/5 tests passed.
+- Executed additional edge checks: exact length boundaries, hard cuts, empty input, mixed separators, and `TypeError` failures all passed.
+- Read `src/slugify.js`: export, normalization, separator collapsing, trimming, and truncation logic satisfy the contract.
+- Read `test/slugify.test.js`: covers accents, lowercase output, digits, separators, invalid text, word-boundary truncation, and hard-cut behavior.
+- No browser validation was applicable; this is a standalone CommonJS utility.
+- Invalid `options.maxLength` behavior was not checked because the task only specifies positive integers.
+
+```atlas-result
+{"status":"success","outcome":"pass","summary":"Slugify implementation and tests satisfy the requested behavior; project tests and additional edge scenarios passed.","artifacts":[{"type":"implementation_summary","name":"Slugify utility and tests","path":"src/slugify.js","summary":"CommonJS slugify implementation with node:test coverage in test/slugify.test.js."}],"decisions":[{"title":"Validation outcome","decision":"Pass","rationale":"All specified behavior was traced and verified by reading and execution."}],"findings":[],"touchedFiles":[],"touchedAreas":["slugification behavior","CommonJS export","automated tests"],"nextAction":"Proceed to the next workflow step."}
+```

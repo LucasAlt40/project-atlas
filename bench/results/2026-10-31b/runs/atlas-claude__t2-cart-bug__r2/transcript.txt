@@ -1,0 +1,101 @@
+--- User agent-1793466316455-5
+Investigate and fix: Bug report from customers about src/cart.js:  - A cart with 3 units of a product at 19.90 shows a total of 19.9 instead of 59.7. - With the…
+--- Assistant agent-1793466316455-5
+The cart bugs are fixed, and all 7 tests pass (2 existing, 5 new regression tests), including the 5 new ones that failed before the fix.
+
+## Problem and what correct means
+
+Totals must be numbers rounded to cents, never negative. Unknown coupons are ignored. The examples from the report are 3 × 19.90 → 59.7, TENOFF on 5.00 → 0, OFF20 on 100 → 80, and no float noise.
+
+## Root causes (phase 1, all from reading the code; I ran the baseline and then the regression tests)
+
+Each cause below is confirmed by the failing test output.
+
+1. **Quantity ignored**, `src/cart.js:16`: `sum += item.price` never uses `item.qty`. So 3 × 19.90 gives 19.9. Confirmed.
+2. **Negative totals**, `src/cart.js:23`: the fixed coupon subtracts with no floor, so 5 − 10 = −5. Confirmed.
+3. **Percent coupons return the discount amount, not the price after discount**, `src/cart.js:21`: `sum * value / 100` is the amount off, so 100 with OFF20 gives 20. HALF had the same bug. Confirmed.
+4. **Float noise**, `src/cart.js:26`: nothing rounds the result, so you get 0.30000000000000004. Confirmed.
+5. **Extra defect, same function**, `src/cart.js:18`: `COUPONS[couponCode]` also reads inherited object properties. A code like `constructor` picked up `Object`, giving NaN instead of being ignored. This breaks the "unknown coupons are ignored" rule. Confirmed by the test output (`NaN !== 10`).
+
+Root cause: confirmed.
+
+## Fix (phase 2)
+
+- `src/cart.js:16`: `sum += item.price * item.qty`.
+- `src/cart.js:18`: look up coupons only as own properties, via `Object.prototype.hasOwnProperty.call(COUPONS, couponCode)`.
+- `src/cart.js:21`: percent coupons are now `sum - (sum * value) / 100`, which is the price after discount.
+- `src/cart.js:26-27`: `return Math.round(Math.max(0, sum) * 100) / 100`, which clamps at zero and rounds to cents.
+- The `module.exports = { total }` API is unchanged.
+
+## Tests
+
+`test/cart.test.js` has 5 new tests: quantity multiplication, the fixed coupon never going negative, percent coupons returning the price after discount, cent rounding, and unknown coupons being ignored (including `constructor` and `__proto__`). The two original tests are unchanged.
+
+## Commands run
+
+- `npm test` before any edits: 2 pass, 0 fail.
+- `npm test` after adding the regression tests and before the fix: 5 fail, with `19.9 !== 59.7`, `-5 !== 0`, `20 !== 80`, `0.30000000000000004 !== 0.3`, and `NaN !== 10`.
+- `npm test` after the fix: 7 pass, 0 fail.
+
+## Files changed
+
+- `src/cart.js`
+- `test/cart.test.js`
+
+## Residual risk
+
+- Rounding uses `Math.round` on a binary float, so exact half-cent cases can round down. For example, `1.005` may come out as 1.00. Percent coupons can produce fractional cents, and those are rounded once at the end, not per line item. A decimal-safe rounding helper would fix this if it matters for the business.
+- A line item with no `qty` gives NaN. The spec doesn't cover that case, and I didn't add a default.
+- I did not run anything outside the project's own test command, so the checks above are the only verification.
+
+```atlas-result
+{"status":"success","outcome":"fixed","summary":"Fixed cart total bugs in src/cart.js: quantity was ignored, percent coupons returned the discount instead of the discounted price, fixed coupons could make totals negative, totals were not rounded to cents, and inherited object keys were accepted as coupons. Added 5 regression tests; all 7 tests pass.","artifacts":[{"type":"implementation_summary","name":"cart total fix","path":"src/cart.js","summary":"total() multiplies price by qty, applies percent coupons as price minus discount, looks up coupons with hasOwnProperty, clamps at zero and rounds to cents."}],"decisions":[{"title":"Round final total with Math.round to cents","decision":"Return Math.round(Math.max(0, sum) * 100) / 100 once at the end","rationale":"Removes float noise such as 0.30000000000000004 while keeping the existing number return type and API."},{"title":"Guard coupon lookup with hasOwnProperty","decision":"Only own properties of COUPONS count as coupons","rationale":"Inherited keys such as constructor returned NaN; the spec requires unknown coupons to be ignored."}],"findings":[{"severity":"high","category":"logic","title":"Quantity ignored in total","description":"Line items summed price without multiplying by qty, so 3 units at 19.90 totalled 19.9.","file":"src/cart.js","line":16,"evidence":"npm test before fix: 19.9 !== 59.7","recommendation":"Multiply price by qty (applied)."},{"severity":"high","category":"logic","title":"Percent coupon returned discount amount","description":"OFF20 and HALF returned sum*value/100 (the amount off), so 100 with OFF20 gave 20 instead of 80.","file":"src/cart.js","line":21,"evidence":"npm test before fix: 20 !== 80","recommendation":"Subtract the discount from the sum (applied)."},{"severity":"high","category":"logic","title":"Fixed coupon allowed negative totals","description":"TENOFF subtracted 10 with no floor, so a 5.00 cart gave -5.","file":"src/cart.js","line":23,"evidence":"npm test before fix: -5 !== 0","recommendation":"Clamp total at zero (applied)."},{"severity":"medium","category":"precision","title":"Totals not rounded to cents","description":"Result was returned unrounded, giving binary float noise.","file":"src/cart.js","line":26,"evidence":"npm test before fix: 0.30000000000000004 !== 0.3","recommendation":"Round to 2 decimals (applied)."},{"severity":"medium","category":"validation","title":"Inherited object keys treated as coupons","description":"COUPONS[couponCode] matched inherited properties such as constructor, producing NaN instead of ignoring the coupon.","file":"src/cart.js","line":18,"evidence":"npm test before fix: NaN !== 10 for coupon 'constructor'","recommendation":"Use hasOwnProperty lookup (applied)."}],"touchedFiles":["src/cart.js","test/cart.test.js"],"touchedAreas":["cart","tests"],"nextAction":"Verify the fix: run npm test in the worktree and confirm 7 pass, 0 fail. Optionally review decimal rounding for half-cent edge cases."}
+```
+--- User agent-1793466316455-4
+Verify the fix: Bug report from customers about src/cart.js:  - A cart with 3 units of a product at 19.90 shows a total of 19.9 instead of 59.7. - With the coup…
+--- Assistant agent-1793466316455-4
+I've read `src/cart.js` and `test/cart.test.js`. I couldn't run `npm test`: this is read-only mode, so I'm verifying by tracing the code and checking each test's expected value by hand.
+
+**Tracing the fix against the reported bugs**
+
+- **Quantity (3 × 19.90):** line 16 now uses `item.price * item.qty`. 19.9 × 3 = 59.699999999999996, and line 27 rounds it to 59.7. Matches the test at `test/cart.test.js:14`.
+- **OFF20 (100 → 80):** line 21 computes `sum - sum*value/100`, so 100 becomes 80. The old code returned the discount (20). Matches the test at line 24.
+- **TENOFF (5.00 → 0):** line 23 subtracts 10, giving -5. Line 27's `Math.max(0, sum)` floors it to 0. Matches line 19. The 30 → 20 case at line 20 also checks that the fixed discount still applies normally.
+- **Float noise:** 0.1 + 0.2 = 0.30000000000000004, and line 27 gives 0.3. Matches line 29.
+- **Inherited keys:** `COUPONS['constructor']` and `COUPONS['__proto__']` are inherited, so the old code got a non-coupon object and produced NaN. Line 18 uses `hasOwnProperty`, so both are ignored. Matches lines 34–35.
+
+**Cause versus symptom**
+
+Each reported symptom has its cause removed in `total()`. Nothing patched only the output. Rounding happens once, at the end, which is correct for the reported cases.
+
+**Would the regression tests fail without the fix?**
+
+Yes. Against the original code, these assertions fail: 59.7 (got 19.9), 80 (got 20), 0 (got -5), 0.3 (got 0.30000000000000004), and the `constructor` case (got NaN). Those are the failures the earlier step recorded. I checked the expected values by hand. They match the code, but I have not confirmed by execution that they pass.
+
+**Side effects and callers**
+
+- `grep` for "cart" in the worktree finds only `test/cart.test.js`. No other module in the repo requires `src/cart.js`, so the API change risk is low. The export is still `module.exports = { total }`.
+- The signature and return type are unchanged: a number.
+- The empty-cart path returns 0 (`Math.round(0)/100`).
+
+**Gaps and edge cases, by severity**
+
+1. **Medium — NaN can still be returned.** `total([{ price: undefined, qty: 1 }])` gives NaN. `Math.max(0, NaN)` is NaN, so the function returns NaN. The spec says totals "must be numbers". Repro: call with a missing `price` or `qty`, or with a non-numeric string such as `'abc'`. Suggested fix: validate inputs, or check `Number.isFinite(sum)` before returning.
+2. **Medium — no test covers the percent-coupon rounding path.** Every percent test uses a round number. A case such as 9.99 with OFF20 gives 7.992, which should round to 7.99. The rounding code runs, but nothing asserts it. Add one.
+3. **Low — half-cent rounding is binary-inexact.** `Math.round(x * 100)` is off for values like 1.005 (returns 1.00) and 2.675 (returns 2.67). If the business expects round-half-up, this is wrong. The spec does not name a rounding mode, so this needs a decision.
+4. **Low — negative line items offset the total.** `total([{ price: -5, qty: 1 }, { price: 10, qty: 1 }])` returns 5. The clamp only applies to the final sum. Whether negative prices are valid input is not specified.
+5. **Low — no test for `qty` of 0 or a percent coupon combined with qty.** These paths are simple, but nothing guards them.
+
+**What I traced and could not verify**
+
+- Traced: all four reported bugs and the inherited-key bug, from the source to the expected values in each test.
+- Not verified: actual test execution (`npm test`), so "7 pass, 0 fail" is unconfirmed. The hand-computed values are consistent with that result.
+- Not verified: whether the business wants half-cent rounding up, and how negative or non-numeric inputs should behave.
+
+**Verdict**
+
+The fix removes the causes of the reported bugs, and the regression tests would have caught them. Nothing reported is still reachable. The medium and low findings are real edge cases outside the reported bugs and do not block this step. I'm passing the step, with the caveat that the tests were read, not executed.
+
+```atlas-result
+{"status":"pass","outcome":"pass","summary":"Traced the fix in src/cart.js against the four reported bugs and the inherited-key bug. Each cause is removed in total(), and the regression tests in test/cart.test.js would fail against the original code. Tests were read and their expected values checked by hand, not executed (read-only mode). Open edge cases: NaN can be returned for missing or non-numeric price or qty; no test covers percent rounding; half-cent rounding uses Math.round(x*100) and is binary-inexact; negative line items can offset the total.","artifacts":[{"type":"implementation_summary","name":"Verification review of cart total fix","path":"src/cart.js","summary":"Read-only review: quantity multiplication, percent-as-price-after-discount, fixed-coupon floor at zero, cent rounding, and hasOwnProperty coupon lookup all trace to the reported symptoms."}],"decisions":[{"title":"Pass verification without executing tests","decision":"Passed the step on read-only tracing; execution of npm test left unverified","rationale":"Read-only mode forbids commands that may change state; hand-checked expected values match the code."}],"findings":[{"severity":"medium","category":"validation","title":"NaN returned for missing or non-numeric input","description":"Math.max(0, NaN) is NaN, so total() returns NaN when a price or qty is undefined or non-numeric. The spec requires totals to be numbers.","file":"src/cart.js","line":27,"evidence":"total([{ price: undefined, qty: 1 }]) returns NaN","recommendation":"Validate items, or return 0 / throw when the sum is not finite."},{"severity":"medium","category":"test-coverage","title":"Percent coupon rounding not tested","description":"All percent-coupon tests use round results. No test asserts rounding after a percentage discount.","file":"test/cart.test.js","line":24,"evidence":"Add total([{price: 9.99, qty: 1}], 'OFF20') expecting 7.99 (raw value 7.992)","recommendation":"Add a regression test for a non-round percent discount."},{"severity":"low","category":"precision","title":"Half-cent rounding is binary-inexact","description":"Math.round(x*100) rounds half values down when the float is slightly below .5, e.g. 1.005 gives 1.00 and 2.675 gives 2.67.","file":"src/cart.js","line":27,"evidence":"Math.round(1.005*100)/100 === 1","recommendation":"Decide the rounding mode; if half-up is required, use integer-cent arithmetic or a small epsilon."},{"severity":"low","category":"validation","title":"Negative line items offset the total","description":"The clamp applies only to the final sum, so a negative price can reduce other line items.","file":"src/cart.js","line":16,"evidence":"total([{price:-5,qty:1},{price:10,qty:1}]) returns 5","recommendation":"Confirm whether negative prices are valid input; reject or clamp per line if not."}],"touchedFiles":[],"touchedAreas":["cart total","coupon lookup","rounding"],"nextAction":"Run npm test in the worktree to confirm 7 pass and 0 fail; optionally add the percent-rounding test and decide on the rounding mode and NaN handling."}
+```

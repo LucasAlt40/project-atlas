@@ -1,0 +1,133 @@
+--- User agent-1793494921229-6
+Architect: Add order cancellation to this shop (src/orders.js, src/inventory.js, src/reports.js; src/events.js is the event bus).  - orders.cancel(orderId, reas…
+--- Assistant agent-1793494921229-6
+Size: moderate
+
+**What:** Add `orders.cancel(orderId, reason)` with the stock restore, status and reason, event, and error rules from the task, and make `reports.revenue()` and `reports.unitsSold()` skip cancelled orders.
+
+**Where:** `src/orders.js`, `src/inventory.js`, `src/reports.js`, `test/shop.test.js`. `src/shop.js` and `src/events.js` stay as they are.
+
+**How it will be checked:** `npm test` (`node --test`) must pass the three existing tests unchanged plus the new cancellation tests.
+
+## Plan: order cancellation
+
+### Goals
+- Cancel a placed order: restore its stock, set `status: 'cancelled'`, store `reason`, emit `order.cancelled` once with `{ orderId, reason }`, and return the cancelled order.
+- Reject bad input before anything changes.
+- Keep reports consistent: cancelled orders do not count toward revenue or units sold.
+- Keep all existing behaviour and tests.
+
+### Out of scope
+- Refunds, partial cancellation, re-placing a cancelled order, and cancelling in other states (no other states exist today).
+- Changes to `shop.js` wiring: `createShop` already passes `inventory`, `bus` and `orders` through, so no wiring change is needed.
+
+### Current structure and dependencies
+- `createOrders({ inventory, bus, prices })` (`src/orders.js`) owns the order map and calls `inventory.take` and `bus.emit`. It is the only writer of order state.
+- `createInventory` (`src/inventory.js`) exposes only `quantity` and `take`. There is no way to put stock back.
+- `createReports({ orders })` (`src/reports.js`) reads `orders.all()` and sums every order. It knows nothing about status.
+- `orders.get` and `orders.all` return copies. Cancel must return a copy as well, so callers cannot mutate internal state.
+
+### Decisions the Developer must follow
+1. **Inventory gets an inverse of `take`.** Add `add(sku, qty)` to `createInventory`: `stock.set(sku, (stock.get(sku) ?? 0) + qty)`. Do not reuse `take` with negative numbers, because `take`'s guard would reject them.
+2. **Validation order in `cancel`:**
+   1. `reason` is not a non-empty string → `TypeError`. A whitespace-only string counts as empty (`reason.trim() === ''`). This is my reading of "non-empty"; flag it if you want otherwise.
+   2. Order not in the map → `Error` containing `not found`.
+   3. `status === 'cancelled'` → `Error` containing `already cancelled`.
+   4. Only after all checks pass: call `inventory.add` for each item, set `status` and `reason` on the stored order, emit `order.cancelled`, and return a copy.
+   Doing all checks before any mutation is what makes "changes nothing" hold.
+3. **Status values.** `place` keeps `'placed'`. `cancel` is the only transition to `'cancelled'`. Do not add a `reason` field in `place`; it is set only on cancel.
+4. **Where the "counts as a sale" rule lives.** Put the filter in `reports.js`: both `revenue` and `unitsSold` skip orders with `status === 'cancelled'`. Do not add a flag to `orders.all()`. Reports already owns what counts, and this avoids growing the orders API.
+5. **Event ordering.** Emit after the state change, matching how `place` emits after `take`. The bus is synchronous, so a throwing handler would leave the order cancelled and stock restored. This is the same existing risk as `place`; do not fix it in this change, but mention it.
+6. **Keys.** Order IDs are numbers (`nextId`). `cancel('1')` will report "not found". Do not coerce; this matches `get`.
+
+### Files and contracts to change
+- `src/inventory.js`: new `add(sku, qty)`. Existing `quantity` and `take` unchanged.
+- `src/orders.js`: new `cancel(orderId, reason)`. Returns `{ ...order, items: copies }` in the same shape as `get`. Event payload `{ orderId, reason }`. `place`, `get` and `all` unchanged.
+- `src/reports.js`: `revenue` and `unitsSold` filter out cancelled orders. Result shape unchanged.
+- `test/shop.test.js`: append new tests using the existing `setup()` helper and `node:test` style. Do not change the existing three tests.
+
+### Tests to add
+- Cancel restores stock: `pen` goes from 8 back to 10 after cancelling a pen+cup order.
+- Cancel returns the order with `status: 'cancelled'` and the `reason`, and `get(id)` reflects the same.
+- Cancel emits exactly one `order.cancelled` with `{ orderId, reason }`, and nothing else is emitted.
+- Unknown id throws `Error` matching `/not found/`.
+- Cancelling twice throws `Error` matching `/already cancelled/`. Stock and the event count do not change on the second attempt.
+- Empty string, whitespace-only string and a non-string `reason` each throw `TypeError`, and stock, status and events are unchanged.
+- Reports: after placing two orders and cancelling one, `revenue()` and `unitsSold(sku)` count only the remaining order.
+
+### Risks
+- **Partial state if a handler throws** (see decision 5). Pre-existing pattern; not fixed here.
+- **Reports coupling.** `reports.js` now depends on the status string. If more statuses appear, the filter must be updated in one place. Acceptable at this size.
+- **Input type drift.** Numeric IDs only; string IDs will be "not found".
+
+### Verification
+- Run `npm test`. All existing tests and the new ones must pass.
+- Check the diff: `src/shop.js` and `src/events.js` should be untouched.
+
+I did not implement anything; this step only designs the change. Files read: `src/orders.js`, `src/inventory.js`, `src/reports.js`, `src/events.js`, `src/shop.js`, `test/shop.test.js`, `package.json`.
+
+```atlas-result
+{"status":"success","outcome":"approved","summary":"Moderate change: add cancel(orderId, reason) to orders, an add() inverse to inventory, and status filtering in reports, with tests appended to test/shop.test.js. Validation runs before any mutation so failed cancels change nothing.","artifacts":[{"type":"implementation_summary","name":"Order cancellation design","path":"src/orders.js","summary":"Design for cancel(orderId, reason), Inventory.add, and cancelled-order filtering in reports, with the validation order and test list in the message above."}],"decisions":[{"title":"Validation order in cancel","decision":"Check reason (TypeError), then existence (not found), then already cancelled, then mutate.","rationale":"Ensures failed cancels leave stock, status and events unchanged."},{"title":"Restore stock via inventory.add","decision":"Add an add(sku, qty) method instead of reusing take with negative quantities.","rationale":"take guards against overdraw and would reject negative quantities."},{"title":"Cancelled filter lives in reports","decision":"revenue and unitsSold skip orders with status 'cancelled'; orders.all() is unchanged.","rationale":"Reports owns the definition of a counted sale, and the orders API stays small."},{"title":"Whitespace reason is empty","decision":"reason.trim() === '' is rejected with TypeError.","rationale":"Interpretation of 'non-empty'; to be confirmed by the user."}],"findings":[{"severity":"medium","category":"reliability","title":"Synchronous emit after mutation","description":"The bus calls handlers synchronously after state changes. A throwing order.cancelled handler leaves the order cancelled with stock restored. Same pattern already exists in place.","file":"src/orders.js","line":24,"evidence":"bus.emit('order.placed', ...) is called after inventory.take in place()","recommendation":"Keep the pattern for this change; consider isolating handler errors in events.js in a separate change."}],"touchedFiles":[],"touchedAreas":["orders","inventory","reports","tests"],"nextAction":"Developer implements the design: add inventory.add, orders.cancel, the reports filter, and the new tests in test/shop.test.js, then runs npm test."}
+```
+--- User agent-1793494921229-3
+Developer: Add order cancellation to this shop (src/orders.js, src/inventory.js, src/reports.js; src/events.js is the event bus).  - orders.cancel(orderId, reas…
+--- Assistant agent-1793494921229-3
+Order cancellation is implemented and all 8 tests pass (the 3 existing ones plus 5 new ones).
+
+- **`src/inventory.js`**: added `add(sku, qty)`, the inverse of `take`.
+- **`src/orders.js`**: added `cancel(orderId, reason)`. It checks the reason first (`TypeError`, whitespace-only counts as empty), then existence (`not found`), then already-cancelled. Only then does it restore stock, set `status` and `reason`, emit `order.cancelled` with `{ orderId, reason }`, and return the cancelled order.
+- **`src/reports.js`**: `revenue()` and `unitsSold(sku)` now skip orders with status `'cancelled'`. `orders.all()` is unchanged.
+- **`test/shop.test.js`**: appended tests for the success path, unknown order, double cancel, invalid reasons (`''`, `'   '`, `undefined`, `null`, `42`), and report exclusion. Each failure test also checks that stock, status and events are unchanged.
+
+`npm test` output:
+
+```
+✔ place takes stock and announces
+✔ not enough stock takes nothing
+✔ reports
+✔ cancel restores stock, keeps the reason and announces once
+✔ cancel of an unknown order throws not found and changes nothing
+✔ cancelling twice throws already cancelled and changes nothing
+✔ cancel rejects an empty or non-string reason and changes nothing
+✔ reports skip cancelled orders
+ℹ tests 8
+ℹ pass 8
+ℹ fail 0
+```
+
+Remaining risks:
+- The `order.cancelled` event is emitted after the state change. A throwing handler leaves the order cancelled with stock restored. This matches `place`, as the Architect decided, and I did not change it.
+- Whitespace-only reasons are rejected as empty. This is the Architect's reading of "non-empty" and still needs the user's confirmation.
+
+```atlas-result
+{"status":"success","outcome":"implemented","summary":"Added orders.cancel, inventory.add and cancelled-order filtering in reports, with 5 new tests. npm test: 8 pass, 0 fail.","artifacts":[{"type":"implementation_summary","name":"Order cancellation","path":"src/orders.js","summary":"cancel(orderId, reason) validates reason, existence and status before restoring stock, setting status/reason and emitting order.cancelled; reports exclude cancelled orders; inventory.add restores stock."}],"decisions":[{"title":"Validation order in cancel","decision":"Reason check (TypeError), then not found, then already cancelled, then mutate.","rationale":"Failed cancels leave stock, status and events unchanged."},{"title":"Whitespace-only reason","decision":"reason.trim() === '' is rejected with TypeError.","rationale":"Architect's reading of non-empty; still to be confirmed by the user."}],"findings":[{"severity":"medium","category":"reliability","title":"Event emitted after mutation","description":"A throwing order.cancelled handler leaves the order cancelled with stock restored. Same pattern as place().","file":"src/orders.js","line":46,"evidence":"bus.emit('order.cancelled', ...) runs after inventory.add and status change","recommendation":"Keep for this change; isolate handler errors in events.js in a separate change."}],"touchedFiles":["src/inventory.js","src/orders.js","src/reports.js","test/shop.test.js"],"touchedAreas":["orders","inventory","reports","tests"],"nextAction":"QA to review the cancellation tests and confirm the whitespace-reason interpretation."}
+```
+--- User agent-1793494921229-4
+QA: Add order cancellation to this shop (src/orders.js, src/inventory.js, src/reports.js; src/events.js is the event bus).  - orders.cancel(orderId, reason): ca…
+--- Assistant agent-1793494921229-4
+The code is correct and the suite passes, but one of the new tests would pass even without the feature, so I'm failing this step on that gap.
+
+**What I checked**
+
+- The change is committed in `dd13fce`, not in the working tree. I reviewed `git diff 81007be dd13fce` (read).
+- `npm test` ran 8 tests, 8 passed, 0 failed (**executed**).
+- Trace of `orders.cancel` (read): reason check, then existence, then already-cancelled, then `inventory.add` per item, then status and reason set, then one `order.cancelled` emit. Failed cancels return before any mutation. The reports filter excludes `status === 'cancelled'`.
+
+**Key finding**
+
+The test `cancel rejects an empty or non-string reason` (`test/shop.test.js:67-78`) uses `assert.throws(..., TypeError)`. If `cancel` did not exist, calling it would throw a `TypeError` ("is not a function"), and the state checks (status `placed`, stock 8, no events) would also hold. So the test passes without the change (read, not executed). The reason-validation behaviour the task asked for is therefore not covered by a test that would fail without the change. A one-line fix is to match the message, for example `/non-empty string/`.
+
+**Other findings**
+
+- **Whitespace-only reason (low, decision for you):** `'   '` is rejected. The task says "non-empty string", which `'   '` literally satisfies. The current reading is stricter than the literal spec; please confirm which you want.
+- **Validation order untested (low):** nothing checks that a bad reason on an unknown order (`cancel(999, '')`) throws the TypeError before "not found". The code does that order.
+- **Handler failure after mutation (low):** if an `order.cancelled` handler throws, the order stays cancelled and stock stays restored. This matches the existing `place()` pattern and was already deferred by earlier steps.
+- **`inventory.add` has no direct test (low):** it is only exercised through cancel.
+
+**Not verified**
+
+I did not run a mutation check by removing the feature, because I was not going to edit the shared worktree. The "would fail without the change" results above come from reading the code.
+
+```atlas-result
+{"status":"fail","outcome":"fail","summary":"The cancellation code matches the task and all 8 tests pass (npm test, executed). Failing because the reason-validation test passes without the feature (read: assert.throws(..., TypeError) is satisfied by 'cancel is not a function'), so that requirement has no test that would fail without the change.","artifacts":[],"decisions":[{"title":"Whitespace-only reason rejected","decision":"reason.trim() === '' raises TypeError (src/orders.js:19)","rationale":"Stricter than the literal 'non-empty string'; the person must confirm."}],"findings":[{"severity":"medium","category":"test-coverage","title":"Reason-validation test passes without the change","description":"The test 'cancel rejects an empty or non-string reason and changes nothing' accepts any TypeError. With cancel missing, the call throws 'is not a function', a TypeError, and the state checks still hold, so the test passes without the feature. It does not confirm the reason check exists or what it says.","file":"test/shop.test.js","line":67,"evidence":"Read: assert.throws(() => shop.orders.cancel(order.id, reason), TypeError) at test/shop.test.js:73; the production check is at src/orders.js:19. Not executed.","recommendation":"Match the message in assert.throws, e.g. /non-empty string/, so the test fails when the check is absent."},{"severity":"low","category":"interpretation","title":"Whitespace-only reason is rejected","description":"'   ' is a non-empty string in the literal sense, but cancel rejects it with TypeError.","file":"src/orders.js","line":19,"evidence":"Read: reason.trim() === '' check; test/shop.test.js:72 asserts rejection of '   '.","recommendation":"Confirm the intended reading; drop trim() if literal non-empty is wanted."},{"severity":"low","category":"test-coverage","title":"Validation order not tested","description":"No test checks that an invalid reason on a missing order throws TypeError rather than 'not found'.","file":"test/shop.test.js","line":45,"evidence":"Read: no test calls cancel(999, '') or similar.","recommendation":"Add one assertion for the order of checks."},{"severity":"low","category":"robustness","title":"Handler error after mutation leaves cancelled state","description":"If an order.cancelled handler throws, the order is already cancelled and stock restored. Same as place().","file":"src/orders.js","line":28,"evidence":"Read: bus.emit runs after inventory.add and status change (src/orders.js:25-28); events.js has no error isolation.","recommendation":"Defer to a separate change, as earlier steps decided."},{"severity":"low","category":"test-coverage","title":"inventory.add has no direct test","description":"add() is only exercised through cancel.","file":"src/inventory.js","line":13,"evidence":"Read: add() at src/inventory.js:13-15; no test calls it directly.","recommendation":"Optional unit test for add on an unknown SKU and on an existing SKU."}],"touchedFiles":[],"touchedAreas":["orders","inventory","reports","tests"],"nextAction":"Developer: tighten the reason-validation assertion in test/shop.test.js so it fails without the change; the person confirms the whitespace-reason reading."}
+```

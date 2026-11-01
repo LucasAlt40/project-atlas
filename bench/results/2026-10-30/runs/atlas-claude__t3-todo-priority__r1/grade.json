@@ -1,0 +1,22 @@
+{
+  "id": "atlas-claude__t3-todo-priority__r1",
+  "task": "t3-todo-priority",
+  "kind": "feature-multifile",
+  "changed": ["docs/plans/priorities.md", "src/format.js", "src/store.js", "test/store.test.js"],
+  "added": 166,
+  "removed": 6,
+  "outOfScope": ["docs/plans/priorities.md"],
+  "hasTree": true,
+  "ownTestFiles": 1,
+  "ownTests": {
+    "pass": 12,
+    "fail": 0,
+    "failed": []
+  },
+  "hidden": {
+    "pass": 12,
+    "fail": 0,
+    "failed": []
+  },
+  "hiddenScore": 1
+}

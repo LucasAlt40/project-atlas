@@ -1,0 +1,130 @@
+--- User agent-1793476865084-6
+Analyze and plan: Add priorities to the todo store in this project (src/store.js and src/format.js).  - store.add(title, options): options.priority is 'low', 'n…
+--- Assistant agent-1793476865084-6
+Size: moderate
+
+## Plan: todo priorities in `src/store.js` and `src/format.js`
+
+**Baseline:** `npm test` passes 4/4 on the untouched code.
+
+### Goals
+- `store.add(title, options)` accepts `options.priority` of `'low' | 'normal' | 'high'`, defaulting to `'normal'`. Anything else throws `RangeError`.
+- `store.list(filter)` returns only todos matching `filter.priority` when given. Without a filter, it returns high, then normal, then low, with insertion order kept within each priority.
+- `formatList` renders high-priority todos as `[ ] !Title`. Other priorities render as before.
+- All existing tests keep passing, and new tests cover the new behaviour.
+
+### Out of scope
+- No changes to `complete`, the id scheme, or the `title` validation.
+- No change to `README.md` beyond an optional one-line mention.
+- No new modules, classes, or config.
+
+### Architectural impact
+The change stays inside one closed module, `createStore`, plus the pure function `formatList`. Neither has external dependencies, and `format.js` does not import `store.js`, so the dependency direction stays the same. The `list()` return shape changes only by one new field (`priority`) and by ordering. The `list()` ordering change is the only behaviour change visible to existing callers.
+
+### Decisions for the Developer
+1. **One rank table in `store.js`.** Define `const PRIORITY_RANK = { high: 0, normal: 1, low: 2 };` at module level. Use `Object.hasOwn(PRIORITY_RANK, p)` (or `in`) to validate, and use the same table to sort. Do not duplicate the list in `format.js`; `formatList` only compares against `'high'`.
+2. **Defaulting.** `options` defaults to `{}`. Only `undefined` means "not given" and falls back to `'normal'`. Any other value, including `null`, `'High'`, or `'urgent'`, throws `RangeError`. This matches the spec's "any other value throws".
+3. **Validate the filter too.** `list(filter = {})` throws `RangeError` when `filter.priority` is set to an unknown value. The spec is silent here. Silently returning `[]` would hide typos, so I recommend throwing. This is a judgement call; flag it if the user prefers an empty result.
+4. **Sorting.** Sort a copy of the array, not the stored `todos`. Use `Array.prototype.sort` with the comparator `PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority]`. The sort is stable (ES2019), so insertion order survives within each priority. Apply the filter first, then the sort.
+5. **Storage.** Store `priority` as a plain string field on the todo object, next to `id`, `title`, and `done`. `list()` keeps returning shallow copies, so the new field flows through with no extra code.
+6. **Formatting.** `formatList` prefixes `!` only when `t.priority === 'high'`. Todos without a `priority` field (as in the existing format test) render exactly as before.
+
+### Files and contracts
+- **`src/store.js`**: add the rank table, extend `add(title, options = {})` with validation and the `priority` field, and extend `list(filter = {})` with filtering and sorting.
+- **`src/format.js`**: change the line prefix to `${t.priority === 'high' ? '!' : ''}${t.title}`.
+- **`test/store.test.js`**: add tests (below). Keep the existing file and style; do not create new test files.
+- **Contract**: `add` returns `{ id, title, done, priority }`. `list` returns copies sorted by priority, optionally filtered. `formatList` output is unchanged for non-high todos.
+
+### Verification
+Add these tests to `test/store.test.js`:
+- `add` without options gives `priority: 'normal'`.
+- `add` with each of `low`, `normal`, `high` stores that value.
+- `add` with `'urgent'`, `'High'`, `null` throws `RangeError`.
+- `list({ priority: 'low' })` returns only low todos, in insertion order.
+- `list({ priority: 'urgent' })` throws `RangeError`.
+- `list()` with mixed priorities added in the order low, high, normal, high returns high, high, normal, low. The two highs keep their insertion order.
+- `list()` does not reorder the underlying store: a second call returns the same order.
+- `formatList` on `[{title:'Pay rent', done:false, priority:'high'}, {title:'b', done:true, priority:'low'}]` gives `'[ ] !Pay rent\n[x] b'`.
+
+Run `npm test`; expect the 4 existing tests plus the new ones to pass.
+
+### Risks
+- **Silent ordering change.** Existing callers of `list()` that relied on insertion order will now see high-priority items first. It is the spec's requirement, but the Developer should mention it in the final summary.
+- **Shared-reference bug.** If the sort were applied in place to `todos`, `list()` would reorder the store. The copy in decision 4 prevents this.
+- **Validation gaps.** The `filter` argument might be given as `null`. `list(null)` would fail on `filter.priority`. Handle with `filter = {}` plus a `filter ?? {}` guard, or document that `null` is not accepted.
+
+### Not verified
+I did not implement the change, as the step requires. The test commands above have not been run against the new code.
+
+```atlas-result
+{"status":"success","outcome":"approved","summary":"Plan for todo priorities: moderate size, changes limited to createStore add/list and formatList plus tests in test/store.test.js. Baseline npm test passes 4/4.","artifacts":[{"type":"implementation_summary","name":"Priority implementation plan","path":"src/store.js","summary":"Rank table, add() priority validation and default, list() filter and stable sort on a copy; formatList prefixes '!' for high priority."}],"decisions":[{"title":"Unknown filter priority","decision":"list() throws RangeError for an unknown filter.priority","rationale":"Silent empty results would hide typos; the spec is silent on this case."},{"title":"Single rank table","decision":"PRIORITY_RANK in store.js is the only priority list; format.js only checks for 'high'","rationale":"Avoids duplicating the valid values across modules."},{"title":"Sort a copy","decision":"list() sorts a filtered copy, never the stored array","rationale":"Keeps insertion order in the store and prevents reordering side effects."}],"findings":[{"severity":"low","category":"behaviour-change","title":"list() ordering changes for existing callers","description":"Callers that relied on insertion order from list() will now see high-priority todos first. This is required by the spec.","file":"src/store.js","line":26,"evidence":"list() currently returns todos.map(...) in insertion order.","recommendation":"Call out the ordering change in the implementation summary."}],"touchedFiles":[],"touchedAreas":["store","format","tests"],"nextAction":"Implement the plan in src/store.js, src/format.js and test/store.test.js, then run npm test."}
+```
+--- User agent-1793476865083-3
+Implement: Add priorities to the todo store in this project (src/store.js and src/format.js).  - store.add(title, options): options.priority is 'low', 'normal' …
+--- Assistant agent-1793476865083-3
+Priorities are implemented in `src/store.js` and `src/format.js`, and `npm test` passes 12/12: the 4 original tests and 8 new ones.
+
+**Behaviour change for existing callers:** `list()` now returns high-priority todos first, then normal, then low. Anything that relied on pure insertion order will see a different order. The spec requires this.
+
+**Choices I made:**
+- `add()` treats an `undefined` priority as `'normal'`. Any other value, including `null`, throws `RangeError`.
+- `list()` throws `RangeError` for an unknown `filter.priority` rather than returning an empty list, so typos surface.
+- The stored array is never reordered. `list()` sorts a filtered copy, and the sort is stable.
+- `format.js` only checks for `'high'`. The valid priority names live only in `PRIORITY_RANK` in `store.js`.
+
+**Checked by running:** `npm test` printed `tests 12 / pass 12 / fail 0`.
+
+**Checked by reading:** the diff against the spec, including the stable sort and the copy-on-sort behaviour.
+
+**Not verified:** I did not run a linter, and I did not check the Node version against `Object.hasOwn`, which needs Node 16.9 or later.
+
+**Risk:** low. Callers that depend on insertion order from `list()` will see a different order.
+
+Files changed:
+- `src/store.js`
+- `src/format.js`
+- `test/store.test.js`
+
+```atlas-result
+{"status":"success","outcome":"implemented","summary":"Added priorities to the todo store: add() takes options.priority (default normal, RangeError on unknown values), list(filter) filters by priority and returns a stable high/normal/low sorted copy, and formatList prefixes high-priority titles with '!'. npm test passes 12/12.","artifacts":[{"type":"implementation_summary","name":"Todo priorities","path":"src/store.js","summary":"PRIORITY_RANK table, checkPriority helper, add() priority validation and default, list() filter and sorted copy."}],"decisions":[{"title":"Unknown filter priority throws","decision":"list() throws RangeError for an unknown filter.priority","rationale":"Silent empty results would hide typos; the spec is silent on this case."},{"title":"Single priority table","decision":"PRIORITY_RANK in store.js is the only list of priorities; format.js only checks for 'high'","rationale":"Avoids duplicating valid values across modules."},{"title":"Sort a copy","decision":"list() sorts a filtered copy and never the stored array","rationale":"Keeps insertion order in the store and avoids reordering side effects."}],"findings":[{"severity":"low","category":"behaviour-change","title":"list() ordering changed","description":"Callers relying on insertion order from list() now get high-priority todos first, then normal, then low. Required by the spec.","file":"src/store.js","line":38,"evidence":"npm test: tests 12, pass 12, fail 0","recommendation":"Call out the ordering change when reviewing."}],"touchedFiles":["src/store.js","src/format.js","test/store.test.js"],"touchedAreas":["store","format","tests"],"nextAction":"Review the change, then merge."}
+```
+--- User agent-1793476865084-7
+Review the change: Add priorities to the todo store in this project (src/store.js and src/format.js).  - store.add(title, options): options.priority is 'low', '…
+--- Assistant agent-1793476865084-7
+The tests pass (12/12). I'll finish with the verdict. The one finding is a low-severity input-handling point, so the outcome is pass with a warning status.
+
+Architecture and Architecture & Code Validation: **pass**. The change matches the plan and the decisions. `PRIORITY_RANK` in `src/store.js` is the only priority list, `format.js` only checks for `'high'`, `list()` sorts a filtered copy, and an unknown filter priority throws `RangeError`. `npm test` runs 12/12 with no failures. The ordering change in `list()` is the one the spec requires, and the earlier steps already reported it, so I did not repeat it as a finding.
+
+What I could not verify:
+- I could not run `git diff` or `git status`, because shell commands other than the project's test command are refused in this read-only role. The scope check is based on the three files named in the handoff and their contents, which show nothing unrelated.
+- I could not see the original `add`/`list` signatures, so I cannot tell whether `add(title, null)` or `list(null)` worked before this change. The finding below is written with that uncertainty.
+
+The one finding is a low-severity hardening point. It is not a failure, because the documented contract is an options object (`options = {}` in `src/store.js:17`), and the decision is yours.
+
+```atlas-result
+{"status":"warning","outcome":"pass","summary":"Reviewed src/store.js, src/format.js and test/store.test.js against the plan and decisions. The change follows the single PRIORITY_RANK table, sorts a copy in list(), throws RangeError for unknown add and filter priorities, and prefixes high-priority titles with '!'. npm test passes 12/12. One low-severity hardening note on null arguments; no blocking findings. Could not run git diff or git status in this read-only role, so the scope check relies on the handoff's file list and the file contents.","artifacts":[{"type":"implementation_summary","name":"Todo priorities review","path":"src/store.js","summary":"Architecture and conventions review of the priority change: PRIORITY_RANK as single source, checkPriority helper, add() default and validation, list() filter and stable sorted copy, formatList '!' prefix for high priority."}],"decisions":[{"title":"Verdict","decision":"pass with one low-severity warning","rationale":"No requirement of the task is unmet and no test is missing for the new behaviour; the null-argument point is outside the documented options-object contract."}],"findings":[{"severity":"low","category":"Conventions","title":"null passed as options or filter throws TypeError","description":"add(title, options = {}) and list(filter = {}) only default undefined. Passing null makes options.priority or filter.priority throw a TypeError instead of being treated as no options. The documented contract is an object, so this is outside it. If the original add/list accepted null, this would be a regression, which I could not verify without git history.","file":"src/store.js","line":17,"evidence":"src/store.js:17 `add(title, options = {})` reads `options.priority` at line 21; src/store.js:40-41 `list(filter = {})` reads `filter.priority` at line 41.","recommendation":"Optionally normalise with `const { priority = 'normal' } = options ?? {}` and `filter?.priority`, or leave as is and document that options and filter must be objects. Decide whether the pre-change signatures accepted null."}],"touchedFiles":[],"touchedAreas":["todo store","formatting","tests"],"nextAction":"Proceed to merge. Decide whether to harden null handling for options and filter arguments."}
+```
+--- User agent-1793476865083-4
+Check behaviour: Add priorities to the todo store in this project (src/store.js and src/format.js).  - store.add(title, options): options.priority is 'low', 'no…
+--- Assistant agent-1793476865083-4
+Validation passes. I read the store, formatter and tests, and ran `npm test`, which passed 12/12. The task's behaviour is implemented and covered, and the only findings are low-severity.
+
+**Evidence (executed):** `npm test`: 12 pass, 0 fail, including the five new priority tests.
+
+**Evidence (read):**
+- `add()` defaults to `normal`, stores `priority` on the todo, and throws `RangeError` for any value outside `PRIORITY_RANK` (`src/store.js:21-22`). `null`, `''`, `1`, `'High'` and `'urgent'` are all rejected by `Object.hasOwn` (tested at `test/store.test.js:38-44`).
+- `list(filter)` filters by priority and sorts a copy with `Array.prototype.sort`, which is stable in Node, so insertion order is kept within each priority (`src/store.js:40-47`). The stored array is not reordered (tested at `test/store.test.js:60-68`).
+- `formatList` prefixes `!` only for `priority === 'high'` (`src/format.js:4`). Todos without a `priority` field print as before, so the existing `format` test still holds.
+- The new tests would fail on the original code: the sort test, the filter test, the invalid-priority test and the `!` format test all depend on behaviour that did not exist before.
+- No other code in the repo calls `list()` or `formatList` (grep), so the ordering change has no in-repo callers to break.
+
+**Not checked:** `git diff` and `git status` (read-only role, so I could not confirm the change touches only the expected files). The change is a pure-logic module with no browser or UI, so no page was opened.
+
+**Low-severity findings (not failures):**
+1. `null` passed as `options` or `filter` throws a `TypeError` (`src/store.js:21`, `src/store.js:41`) rather than being treated as no options. This is outside the stated object contract. Harden with `options ?? {}` and `filter?.priority` if you want it, or document it.
+2. `formatList` has no test for a todo without a `priority` field. The code handles it correctly by reading (`src/format.js:4`), but a test would lock in backward compatibility.
+3. The ordering change to `list()` (high first) is intentional per the spec, but it is a visible behaviour change for any future caller that expects insertion order. Call it out in the summary.
+
+```atlas-result
+{"status":"success","outcome":"pass","summary":"Priorities are implemented as specified: add() defaults and validates priority, list(filter) filters and sorts a stable copy, and formatList prefixes high-priority titles with '!'. npm test passes 12/12 (executed). Behaviour traced by reading; the new tests would fail on the original code. Not checked: git diff/status (read-only role) and null-argument handling beyond the documented object contract.","artifacts":[{"type":"implementation_summary","name":"Behaviour check of todo priorities","path":"test/store.test.js","summary":"Executed npm test (12/12 pass). Traced add defaults and validation, list filter and stable sort, and formatList '!' prefix; no in-repo callers of list() or formatList beyond the tests."}],"decisions":[{"title":"Verdict","decision":"pass","rationale":"All task requirements are implemented and covered by tests; remaining items are low-severity hardening and documentation points."}],"findings":[{"severity":"low","category":"robustness","title":"null options or filter throws TypeError","description":"add(title, null) and list(null) throw TypeError when reading .priority, instead of being treated as no options. Outside the documented object contract.","file":"src/store.js","line":21,"evidence":"read: src/store.js:21 reads options.priority; src/store.js:41 reads filter.priority. Repro: createStore().add('a', null) throws TypeError.","recommendation":"Use options ?? {} and filter?.priority, or document that options and filter must be objects."},{"severity":"low","category":"test-coverage","title":"No test for formatList on todos without a priority field","description":"Backward compatibility for legacy todo objects (no priority) is correct by reading but not asserted by any test.","file":"test/store.test.js","line":27,"evidence":"read: src/format.js:4 emits no '!' when priority is undefined; existing 'format' test at test/store.test.js:26-28 covers this only indirectly.","recommendation":"Optionally add an assertion that a todo with no priority renders as '[ ] title'."},{"severity":"low","category":"behaviour-change","title":"list() now returns high-priority todos first","description":"Callers that relied on insertion order from list() see a different order. Required by the spec; no in-repo callers are affected.","file":"src/store.js","line":46,"evidence":"read: src/store.js:46 sorts by PRIORITY_RANK; no non-test callers of list() found by grep.","recommendation":"Mention the ordering change in the change summary."}],"touchedFiles":[],"touchedAreas":["todo store","todo formatting","tests"],"nextAction":"Proceed to merge. Decide whether to harden null handling for options and filter, and whether to add the legacy-todo formatting test."}
+```

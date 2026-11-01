@@ -1,0 +1,88 @@
+{
+  "ok": true,
+  "exitCode": 0,
+  "status": "Completed",
+  "failure": null,
+  "elapsedMs": 131841,
+  "inputTokens": 368210,
+  "cachedInputTokens": 305617,
+  "outputTokens": 22418,
+  "costUsd": 0.026779370000000004,
+  "agentRuns": 5,
+  "steps": [
+    "architect",
+    "architect",
+    "developer",
+    "validator",
+    "qa"
+  ],
+  "perStep": [
+    {
+      "role": "architect",
+      "ms": 30173,
+      "ok": true,
+      "inputTokens": 85527,
+      "outputTokens": 4644,
+      "totalTokens": 90171,
+      "cachedInputTokens": 71330,
+      "cost": 0.005873699999999999,
+      "currency": "USD",
+      "source": "runtime_reported"
+    },
+    {
+      "role": "architect",
+      "ms": 29829,
+      "ok": true,
+      "inputTokens": 133651,
+      "outputTokens": 6241,
+      "totalTokens": 139892,
+      "cachedInputTokens": 118571,
+      "cost": 0.00732081,
+      "currency": "USD",
+      "source": "runtime_reported"
+    },
+    {
+      "role": "developer",
+      "ms": 16317,
+      "ok": true,
+      "inputTokens": 74487,
+      "outputTokens": 2657,
+      "totalTokens": 77144,
+      "cachedInputTokens": 61225,
+      "cost": 0.00459235,
+      "currency": "USD",
+      "source": "runtime_reported"
+    },
+    {
+      "role": "validator",
+      "ms": 20733,
+      "ok": true,
+      "inputTokens": 36727,
+      "outputTokens": 3124,
+      "totalTokens": 39851,
+      "cachedInputTokens": 25507,
+      "cost": 0.00406047,
+      "currency": "USD",
+      "source": "runtime_reported"
+    },
+    {
+      "role": "qa",
+      "ms": 33757,
+      "ok": true,
+      "inputTokens": 37818,
+      "outputTokens": 5752,
+      "totalTokens": 43570,
+      "cachedInputTokens": 28984,
+      "cost": 0.00493204,
+      "currency": "USD",
+      "source": "runtime_reported"
+    }
+  ],
+  "id": "atlas-claude__t3-todo-priority__r1",
+  "arm": "atlas-claude",
+  "task": "t3-todo-priority",
+  "rep": 1,
+  "runtime": "claude",
+  "model": "haiku",
+  "template": "software_feature"
+}

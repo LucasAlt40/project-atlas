@@ -1,0 +1,64 @@
+--- User agent-1793481381831-5
+Investigate and fix: Bug reports about parseCsv in src/csv.js, which must follow RFC 4180: - "Lisbon, Portugal" (a quoted field with a comma inside) is split in…
+--- Assistant agent-1793481381831-5
+All five reported bugs are fixed in `src/csv.js`, along with the empty-input and unclosed-quote requirements. `npm test` now passes 11 of 11, up from 2 passing before the change.
+
+**Root causes (confirmed by reading the code, and reproduced by the new tests failing on the old code):**
+- **Commas inside quotes split fields.** `split(',')` ignored quoting.
+- **Doubled quotes were not unescaped.** The old code only stripped the outer quotes.
+- **Line-based splitting caused three bugs.** `split('\n')` produced an extra row for a trailing newline, split quoted fields that contain line breaks, and left `\r` on the last field of CRLF rows.
+- **Empty input** returned `[['']]` instead of `[]`.
+- **Unclosed quotes** were never detected, so no `SyntaxError` was thrown.
+
+**Fix:** I replaced the function body with a single left-to-right pass that tracks whether it is inside quotes. Quotes only open a quoted field at the start of a field, so `a"b` stays literal as before. The export is unchanged: `module.exports = { parseCsv }`.
+
+**Files changed:**
+- `src/csv.js`: the `parseCsv` body was rewritten.
+- `test/csv.test.js`: 9 regression tests were added. Seven cover the reported bugs and the two requirements above. The other two (empty fields, unquoted quote kept literally) guard behavior that must not change. The original 2 tests are untouched.
+
+**Verification:** `npm test` printed `pass 11, fail 0`. Before the fix it printed `pass 4, fail 7`, and the seven failures matched the reported bugs. I could not run any other commands in this step.
+
+**Residual risks:**
+- Text after a closing quote is appended literally, so `"ab"c` becomes `abc`. This is lenient, not strict RFC 4180, and I did not add an error for it because the task did not ask for one.
+- A lone `\r` not followed by `\n` is kept as field data.
+- Files with a UTF-8 BOM are not handled specially, so the BOM stays at the start of the first field. This is unchanged from before.
+
+```atlas-result
+{"status":"success","outcome":"fixed","summary":"parseCsv now follows RFC 4180 via a single-pass state machine. All five reported bugs plus the empty-input and unclosed-quote requirements are fixed. npm test: 11 pass, 0 fail (was 4 pass, 7 fail before the fix).","artifacts":[{"type":"implementation_summary","name":"parseCsv RFC 4180 fix","path":"src/csv.js","summary":"Replaced line/comma split logic with a character-level state machine handling quoted fields, doubled quotes, CRLF/LF row endings, embedded newlines, empty input, and unclosed-quote SyntaxError."}],"decisions":[{"title":"Rewrite parseCsv as a state machine","decision":"Replaced the split-based function body with a single left-to-right character pass.","rationale":"All reported defects stem from line-based and comma-based splitting with no quote state; patching each symptom separately would be fragile."},{"title":"Lenient handling of junk after a closing quote","decision":"Characters after a closing quote are appended to the field literally rather than throwing.","rationale":"The task only required SyntaxError for unclosed quotes; adding stricter errors was not requested."}],"findings":[{"severity":"low","category":"robustness","title":"Lenient parsing of text after closing quote","description":"Input such as \"ab\"c yields abc without error.","file":"src/csv.js","line":1,"evidence":"Code path: inQuotes=false after closing quote, subsequent chars fall to the default branch and are appended.","recommendation":"Decide whether malformed quoted fields should throw SyntaxError."}],"touchedFiles":["src/csv.js","test/csv.test.js"],"touchedAreas":["csv parsing","tests"],"nextAction":"Verify the fix: rerun npm test and confirm 11 passing tests; optionally review the lenient behavior after closing quotes."}
+```
+--- User agent-1793481381831-4
+Verify the fix: Bug reports about parseCsv in src/csv.js, which must follow RFC 4180: - "Lisbon, Portugal" (a quoted field with a comma inside) is split into tw…
+--- Assistant agent-1793481381831-4
+## Verification report: parseCsv fix (src/csv.js)
+
+**Verdict: pass.** The fix removes the causes, the existing and new tests pass, and I found no regression. The findings below are hardening or ambiguity items for you to decide.
+
+**Root cause (read from `git show d848ae1:src/csv.js`).** The original parser split on `\n`, then on `,`, then stripped a leading and trailing `"` from each field. It had no quote state, so each reported bug follows from that:
+- Commas inside quotes split fields.
+- `""` was never unescaped.
+- `split('\n')` produced a trailing empty row.
+- `\r` survived in the last field.
+- Line breaks inside quotes started new rows.
+- Unclosed quotes were never detected.
+
+**Fix applied (commit `29f2f19`).** The split-based body is replaced by one left-to-right character pass with an `inQuotes` state. Doubled quotes are unescaped, CRLF and LF are row terminators, and a trailing row is emitted only if the row is open. An unclosed quote throws `SyntaxError`. The export is still `module.exports = { parseCsv }`. This removes the cause, not a symptom.
+
+**Evidence**
+- *Executed:* `npm test` gives 11 pass, 0 fail. The project's test command runs the whole file, so the regression tests are included.
+- *Read:* Against the original code, the 9 added regression tests fail, except the empty-field and quote-in-unquoted cases, which the original already handled. I traced this by reading and did not execute the original code. It matches the handoff's count of 4 passing and 7 failing before the fix.
+- *Read:* Traced cases that give the RFC result: `""` gives `['']`, `a,` gives `['a','']`, `"a"""` gives `a"`, `"` alone throws, `a,b\r\n` gives no `\r`, and `a,b\n` gives no extra row.
+- *Read:* Dependents. `parseCsv` is used only in `test/csv.test.js`. The README and package.json don't document parser behavior. No other callers exist.
+
+**Discrepancy.** The handoff listed the changes as uncommitted (`M`). In the worktree they are already committed in `29f2f19`, and the tree is clean. The content matches the handoff.
+
+**Not verified**
+- I could not run ad-hoc probes (for example `node -e`), because only the project's test commands and Git reads are allowed here. Every edge case above is from reading, not execution.
+- I did not re-run the original code against the new tests.
+
+**Decisions for you**
+1. Malformed text after a closing quote is accepted silently: `"ab"c` gives `abc` and `"a"b"` gives `ab"`. The earlier step chose this. Turn it into a `SyntaxError` only if you want stricter validation.
+2. Blank lines produce rows with one empty field. `a\n\nb` gives `[['a'],[''],['b']]`, and `a\n\n` ends with an extra `['']` row. RFC 4180's grammar allows this, but it looks like the reported "extra row" symptom if your files end with a blank line.
+
+```atlas-result
+{"status":"pass","outcome":"pass","summary":"Fix commit 29f2f19 removes the split-based root causes with a single-pass state machine. npm test: 11 pass, 0 fail (executed). Original-code failures and edge cases were traced by reading only. No other callers of parseCsv exist. Open items are lenient parsing after a closing quote, a blank-line row ambiguity, and untested edge cases.","artifacts":[],"decisions":[],"findings":[{"severity":"low","category":"robustness","title":"Malformed text after a closing quote is accepted silently","description":"After a closing quote, inQuotes is false and following characters fall through to the default branch and are appended to the field. The earlier step chose this on purpose.","file":"src/csv.js","line":17,"evidence":"Read: '\"ab\"c' gives 'abc'; '\"a\"b\"' gives 'ab\"' with no error.","recommendation":"Decide whether malformed quoted fields should throw SyntaxError. Outcome is pass; this is for the person to decide."},{"severity":"low","category":"ambiguity","title":"Blank lines produce rows containing one empty field","description":"An empty line becomes a row [''], so a trailing blank line adds an extra row with one empty field. RFC 4180's grammar allows this, but it matches the reported symptom if files end with a blank line.","file":"src/csv.js","line":29,"evidence":"Read: 'a\\n\\nb' gives [['a'],[''],['b']]; 'a\\n\\n' gives [['a'],['']].","recommendation":"Decide whether blank lines should be skipped or kept as ['']. Add a test for the chosen behavior."},{"severity":"low","category":"edge-case","title":"Lone trailing CR at end of input stays in the last field","description":"A '\\r' with no following '\\n' at end of input is treated as data, so the reported stray-CR symptom remains for this input.","file":"src/csv.js","line":29,"evidence":"Read: 'a,b\\r' gives [['a','b\\r']].","recommendation":"Optionally treat a '\\r' at end of input as a row terminator. Low priority."},{"severity":"low","category":"robustness","title":"UTF-8 BOM is kept in the first field","description":"Files saved from Windows tools often start with a BOM. It is not in the reported bugs, and the original code did not handle it either.","file":"src/csv.js","line":5,"evidence":"Read: '\\uFEFFa,b' gives first field '\\uFEFFa'.","recommendation":"Hardening only. Strip a leading BOM if the parser should accept such files."},{"severity":"low","category":"test-coverage","title":"Edge cases without regression tests","description":"Not covered: an empty quoted field '\"\"', a trailing comma 'a,', '\"a\"\"\"' (escaped quote at field end), a lone '\"' at EOF throwing, a CRLF inside a quoted field, a quoted field followed by a trailing newline, and a space before an opening quote.","file":"test/csv.test.js","line":1,"evidence":"Read: the test file has 11 tests; none of these inputs appear.","recommendation":"Add tests for these cases to lock in the RFC behavior."}],"touchedFiles":[],"touchedAreas":["csv parsing","tests"],"nextAction":"Decide on the two open behaviors (closing-quote strictness and blank-line rows). Optionally add the listed edge-case tests. No code change is required to accept the fix."}
+```

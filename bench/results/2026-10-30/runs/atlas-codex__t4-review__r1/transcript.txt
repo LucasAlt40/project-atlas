@@ -1,0 +1,34 @@
+--- User agent-1793405656673-7
+Review code and architecture: Review src/users.js for correctness and security. Report each defect you find as a finding with the file, the line, why it is wron…
+--- Assistant agent-1793405656673-7
+Verdict: **fail**. The module contains correctness bugs and an exploitable incomplete HTML escaping implementation. Findings are based on source inspection; no code was executed.
+
+1. **High — Security — incomplete HTML escaping**
+
+   - **File:** `src/users.js:16-20`
+   - **Why:** `.replace('&', ...)`, `.replace('<', ...)`, and `.replace('>', ...)` replace only the first occurrence of each character. A name containing multiple tag delimiters can leave later markup unescaped, enabling XSS through `userRow`.
+   - **Fix:** Replace globally, preferably with a character-class callback covering `&`, `<`, `>`, `"`, and `'`; or use a vetted HTML escaping library.
+
+2. **Medium — Correctness — pagination skips the first page**
+
+   - **File:** `src/users.js:3-6`
+   - **Why:** The comment defines page `1` as the first page, but `start = page * size` makes page 1 start at index `size`, returning the second page.
+   - **Fix:** Use `const start = (page - 1) * size`, with validation for positive integer page and size values if those are externally supplied.
+
+3. **Medium — Correctness — age calculation ignores birthday month and day**
+
+   - **File:** `src/users.js:10-12`
+   - **Why:** Someone whose 18th birthday is later in the current year is incorrectly considered an adult. The calculation only subtracts years.
+   - **Fix:** Subtract one when today’s month/day precedes the birth month/day, or compare the birthday shifted forward by 18 years against `today`.
+
+4. **Warning — Testing — no tests cover the exported helpers**
+
+   - **Evidence:** `package.json:1` defines `node --test`, but the repository contains no test files.
+   - **Why:** The pagination boundary, pre-birthday age case, and repeated-character XSS case are all unverified.
+   - **Fix:** Add focused tests for page 1 and invalid boundaries, birthdays before/after the cutoff, and repeated/special HTML characters.
+
+Not examined: browser integration, external callers, dependency vulnerabilities, runtime performance, and concurrency behavior, because no additional application code or dependencies are present.
+
+```atlas-result
+{"status":"success","outcome":"fail","summary":"Review failed: src/users.js has an incomplete HTML escaping implementation that permits markup injection, an off-by-one pagination bug, and an inaccurate age calculation. No tests are present to cover these behaviors.","artifacts":[{"type":"implementation_summary","name":"Architecture and correctness review","path":"src/users.js","summary":"Read-only review of the users helper module, package metadata, README, repository history, and available test files."}],"decisions":[{"title":"Review basis","decision":"Static source inspection only","rationale":"The workflow explicitly prohibits running code and the repository contains no callers or tests."},{"title":"Verdict","decision":"Fail acceptance","rationale":"The HTML escaping defect is security-relevant and the pagination and age helpers violate their documented behavior."}],"findings":[{"severity":"high","category":"Security","title":"HTML escaping replaces only the first occurrence","description":"escapeHtml uses non-global string replacements, so later &, <, or > characters remain unescaped and userRow can emit attacker-controlled markup.","file":"src/users.js","line":16,"evidence":"Lines 18-20 call replace with string patterns rather than global replacements.","recommendation":"Implement complete HTML text escaping with a global character-class callback or a vetted escaping library, including quotes where the helper's contract is broad."},{"severity":"medium","category":"Correctness","title":"Page 1 skips the first page","description":"The documented one-based page number is multiplied directly by size, causing page 1 to begin at index size.","file":"src/users.js","line":5,"evidence":"The comment says page 1 is first, but start is calculated as page * size.","recommendation":"Calculate start as (page - 1) * size and validate page and size inputs."},{"severity":"medium","category":"Correctness","title":"Adult status ignores the birthday cutoff","description":"The year difference alone marks a person as adult before their birthday in the current year.","file":"src/users.js","line":11,"evidence":"age is computed only from getFullYear values.","recommendation":"Compare month/day or compare today with birthDate shifted forward by 18 years."},{"severity":"warning","category":"Testing","title":"Exported helpers have no automated tests","description":"The test script exists but no test files are present, leaving the identified boundary and security cases unverified.","file":"package.json","line":1,"evidence":"The repository contains no test/spec files while package.json defines only node --test.","recommendation":"Add focused tests for pagination boundaries, birthday cutoffs, and repeated special characters in HTML escaping."}],"touchedFiles":[],"touchedAreas":["src/users.js","package.json"],"nextAction":"Fix the three source defects and add regression tests before acceptance."}
+```

@@ -1,0 +1,114 @@
+{
+  "status": "Completed",
+  "failure": null,
+  "started": ["architect", "architect", "developer", "validator", "qa"],
+  "changed": [
+    "docs/plans/todo-priorities.md",
+    "src/format.js",
+    "src/store.js",
+    "test/store.test.js"
+  ],
+  "elapsedMs": 164147,
+  "usage": [
+    {
+      "executionId": "exec-2",
+      "workspaceId": "ws-1793405404251-1",
+      "agentId": "agent-1793405404252-6",
+      "runtimeId": "codex",
+      "modelId": "gpt-5.6-luna",
+      "startedAt": 1793405404429,
+      "completedAt": 1793405448446,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 138989,
+        "outputTokens": 4178,
+        "totalTokens": 143167,
+        "cachedInputTokens": 115840,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      "role": "architect"
+    },
+    {
+      "executionId": "exec-3",
+      "workspaceId": "ws-1793405404251-1",
+      "agentId": "agent-1793405404252-6",
+      "runtimeId": "codex",
+      "modelId": "gpt-5.6-luna",
+      "startedAt": 1793405448624,
+      "completedAt": 1793405472413,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 67716,
+        "outputTokens": 2072,
+        "totalTokens": 69788,
+        "cachedInputTokens": 58880,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      "role": "architect"
+    },
+    {
+      "executionId": "exec-4",
+      "workspaceId": "ws-1793405404251-1",
+      "agentId": "agent-1793405404252-3",
+      "runtimeId": "codex",
+      "modelId": "gpt-5.6-luna",
+      "startedAt": 1793405472485,
+      "completedAt": 1793405516637,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 138860,
+        "outputTokens": 5220,
+        "totalTokens": 144080,
+        "cachedInputTokens": 123520,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      "role": "developer"
+    },
+    {
+      "executionId": "exec-5",
+      "workspaceId": "ws-1793405404251-1",
+      "agentId": "agent-1793405404252-7",
+      "runtimeId": "codex",
+      "modelId": "gpt-5.6-luna",
+      "startedAt": 1793405516809,
+      "completedAt": 1793405541406,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 111164,
+        "outputTokens": 1959,
+        "totalTokens": 113123,
+        "cachedInputTokens": 98432,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      "role": "validator"
+    },
+    {
+      "executionId": "exec-6",
+      "workspaceId": "ws-1793405404251-1",
+      "agentId": "agent-1793405404252-4",
+      "runtimeId": "codex",
+      "modelId": "gpt-5.6-luna",
+      "startedAt": 1793405541482,
+      "completedAt": 1793405568030,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 125879,
+        "outputTokens": 2193,
+        "totalTokens": 128072,
+        "cachedInputTokens": 99456,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      "role": "qa"
+    }
+  ]
+}

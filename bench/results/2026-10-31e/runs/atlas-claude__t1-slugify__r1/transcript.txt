@@ -1,0 +1,109 @@
+--- User agent-1793476424651-6
+Analyze and plan: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  R…
+--- Assistant agent-1793476424651-6
+Size: moderate
+
+The task is a single-file, dependency-free module plus one test file, but the `maxLength` cut rules interact with each other, so I've planned it in full. I read `package.json` (`"type": "commonjs"`, `"test": "node --test"`) and `README.md`. The repo has only `README.md` and `package.json`; `src/` and `test/` do not exist yet.
+
+# Plan: `slugify(text, options)`
+
+**Goal:** add a CommonJS slug utility at `src/slugify.js` with tests at `test/slugify.test.js`, runnable with `npm test`.
+
+**In scope:** `src/slugify.js` (new), `test/slugify.test.js` (new).
+**Out of scope:** `package.json`, `README.md`, any other file, any dependency, any change to the existing `"type": "commonjs"` setup.
+
+## Architecture impact
+- A leaf module with no imports and no I/O. Nothing else in the project depends on it.
+- The test runner is the built-in `node --test`, which picks up `test/*.test.js` by default. No config changes are needed.
+
+## Decisions the Developer must follow
+1. **Export shape:** `module.exports = { slugify };` with a named `function slugify(text, options)` declaration.
+2. **Type check first:** `if (typeof text !== 'string') throw new TypeError(...)`. This covers `null`, `undefined`, numbers and arrays.
+3. **Pipeline, in this order:**
+   - `text.toLowerCase()`
+   - `.normalize('NFD').replace(/[\u0300-\u036f]/g, '')` to strip diacritics (`é→e`, `ç→c`, `ã→a`, `ü→u`)
+   - `.replace(/[^a-z0-9]+/g, '-')` so each run of other characters becomes one `-`
+   - strip leading and trailing `-` with `.replace(/^-+|-+$/g, '')`
+4. **Non-decomposable letters** (`ß`, `ø`, `æ`, `œ`) are not in `a-z`, so they become `-` under rule 3. This is the literal reading of the spec. `'straße'` becomes `'stra-e'`.
+5. **`maxLength` handling:**
+   - If `options` is absent, or `maxLength` is `undefined`, no truncation happens.
+   - If `slug.length <= maxLength`, return the slug unchanged.
+   - Otherwise, let `i = slug.slice(0, maxLength + 1).lastIndexOf('-')`. If `i > 0`, return `slug.slice(0, i)`. If `i` is `-1`, return `slug.slice(0, maxLength)`.
+   - This never ends with `-`: the prefix before a found `-` has no `-` in it, and the hard cut contains no `-` by construction.
+6. **Invalid `maxLength`:** the spec does not say what happens. I recommend throwing `TypeError` for a non-integer and `RangeError` for an integer below 1. This is my decision, not the spec's, so the Developer should keep it and say so in the summary.
+7. **Style:** match the existing project style. There is no existing code yet, so use 2-space indentation, single quotes and semicolons. Keep comments minimal; one short comment on the truncation rule is enough.
+
+## Files to change
+- **Create** `src/slugify.js`, about 25 lines.
+- **Create** `test/slugify.test.js`, using `const { test } = require('node:test')` and `const assert = require('node:assert/strict')`.
+
+## Test cases
+- The five examples from the spec: `' Olá, Mundo! '`→`'ola-mundo'`, `'Ação & Reação'`→`'acao-reacao'`, and the three `maxLength` cases (9→`'hello-big'`, 8→`'hello'`, and `'supercalifragilistic'` with 5→`'super'`).
+- Lowercasing, and each accent example (`é`, `ç`, `ã`, `ü`).
+- A run of symbols collapses to one `-`, and leading or trailing punctuation is trimmed.
+- Empty string returns `''`. A whitespace-only string returns `''`.
+- `maxLength` edge cases:
+  - a hard cut when the first word does not fit (`'hello big world'`, 3→`'hel'`)
+  - a cut where the character at `maxLength` is `-` (`'hello big'`, 5→`'hello'`)
+  - a result never ends with `-` across several lengths
+  - a `maxLength` at or above the slug length returns it unchanged
+- Throws `TypeError` for `null`, `undefined`, `42`, and `['a']`.
+- If decision 6 is kept: throws for `maxLength` of `0`, `-1`, `2.5`, and `'5'`.
+
+## Verification
+- Run `npm test` from the worktree root. All tests must pass, and the output must show the `slugify` tests run.
+- Confirm by reading that only the two new files are touched (`git status` should list only them).
+- The Developer should check each spec example by hand as well as through the tests.
+
+## Risks
+- **Rule 3 vs. transliteration:** users may expect `ß→ss` or `ø→o`. The spec does not ask for that, so I have not added it.
+- **Mixed decomposition:** `normalize('NFD')` handles precomposed input. Decomposed input also works, since the combining marks are stripped the same way.
+- **Test discovery:** `node --test` discovers `test/*.test.js` under Node's default patterns. If `npm test` runs zero tests, the Developer should check the Node version and pass the file path explicitly.
+
+Nothing in this step is implemented. The Implement step owns the two files above.
+
+```atlas-result
+{"status":"success","outcome":"approved","summary":"Plan written for a moderate-sized change: a new CommonJS module src/slugify.js and tests in test/slugify.test.js, with no other files touched.","artifacts":[{"type":"implementation_summary","name":"slugify plan","path":"package.json","summary":"Pipeline (lowercase, NFD accent strip, non-alnum runs to '-', trim), maxLength cut at last fitting '-' with hard-cut fallback, TypeError on non-string, and test coverage with node:test."}],"decisions":[{"title":"Invalid maxLength handling","decision":"Throw TypeError for non-integer and RangeError for integer below 1.","rationale":"The spec says maxLength is a positive integer but does not define behaviour for invalid values; failing loudly avoids silent truncation."},{"title":"Non-decomposable letters","decision":"Characters such as ß, ø, æ, œ become '-' under the literal rule 3 with no transliteration.","rationale":"The spec defines the output set as a-z and 0-9 and asks for no transliteration table."}],"findings":[],"touchedFiles":[],"touchedAreas":["src/slugify.js","test/slugify.test.js"],"nextAction":"Implement src/slugify.js and test/slugify.test.js as specified, then run npm test."}
+```
+--- User agent-1793476424651-3
+Implement: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  Rules:  …
+--- Assistant agent-1793476424651-3
+I added `src/slugify.js` and `test/slugify.test.js`, and `npm test` passes all 14 tests.
+
+- **Module:** `slugify(text, options)` follows the six rules. A non-string throws `TypeError`. Per the earlier decision, a non-integer `maxLength` throws `TypeError` and one below 1 throws `RangeError`. Letters with no decomposition (ß, ø) become `-`.
+- **Tests:** they cover the spec examples, accent stripping, dash collapsing, digits, trimming, empty results, the `maxLength` cut rules, a loop checking every limit from 1 to the input length, and the error cases.
+- **Not run:** I did not run any other shell command, and I did not check the git diff. The file list is from the Write results.
+
+```atlas-result
+{"status":"success","outcome":"implemented","summary":"Added src/slugify.js (CommonJS, exports { slugify }) and test/slugify.test.js (node:test + node:assert). npm test: 14 tests, 14 pass, 0 fail.","artifacts":[{"type":"implementation_summary","name":"slugify module","path":"src/slugify.js","summary":"Normalize NFD, strip combining marks, lowercase, collapse non-[a-z0-9] runs to '-', trim; maxLength cuts at last fitting '-' with hard-cut fallback; TypeError for non-string text and non-integer maxLength; RangeError for maxLength < 1."},{"type":"implementation_summary","name":"slugify tests","path":"test/slugify.test.js","summary":"14 node:test cases covering spec examples, accents, separators, edge inputs, maxLength cuts, and invalid inputs."}],"decisions":[{"title":"Invalid maxLength handling","decision":"TypeError for non-integer values (including NaN and strings), RangeError for integers below 1.","rationale":"Follows the earlier plan decision; failing loudly avoids silent truncation."}],"findings":[],"touchedFiles":["src/slugify.js","test/slugify.test.js"],"touchedAreas":["text-utils slugify module","tests"],"nextAction":"Review the change; no further implementation steps needed."}
+```
+--- User agent-1793476424651-7
+Review the change: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  …
+--- Assistant agent-1793476424651-7
+Verdict: pass. The implementation matches the spec, the project tests pass (14/14), and the two findings below are low severity and do not block acceptance.
+
+```atlas-result
+{"status":"pass","outcome":"pass","summary":"Reviewed src/slugify.js and test/slugify.test.js against the six rules and the handoff decisions. npm test runs 14 tests, 14 pass, 0 fail. No failing findings. Git status could not be run in this read-only session, so the changed-file list is taken from the handoff and not independently verified.","artifacts":[{"type":"implementation_summary","name":"slugify module","path":"src/slugify.js","summary":"CommonJS slugify(text, options) exporting { slugify }; NFD accent strip, lowercase, non-alnum runs to '-', trim, maxLength cut at last fitting '-' with hard-cut fallback, TypeError/RangeError validation."},{"type":"implementation_summary","name":"slugify tests","path":"test/slugify.test.js","summary":"14 node:test cases covering spec examples, accents, separators, digits, edge inputs, maxLength cuts, and invalid inputs."}],"decisions":[{"title":"Architecture review of slugify change","decision":"Pass; no layering, dependency or scope violations found.","rationale":"Two new files only; package.json is commonjs with node --test; no new dependencies."}],"findings":[{"severity":"low","category":"Testing","title":"Exact-boundary maxLength case not covered","description":"No test exercises a cut where the character at index maxLength is the '-' separator (e.g. 'hello big world' with maxLength 5 should give 'hello'). The code handles it correctly by reading head = slice(0, maxLength+1), but a regression there would go unnoticed.","file":"test/slugify.test.js","line":40,"evidence":"Existing maxLength tests use 9, 8, 11, 15, 100, 5, 2, 3, 6; none lands the separator exactly at index maxLength.","recommendation":"Optionally add assert.strictEqual(slugify('hello big world', { maxLength: 5 }), 'hello')."},{"severity":"low","category":"Maintainability","title":"null options gives a native TypeError rather than a module message","description":"The default `options = {}` applies only to undefined. Passing null reaches the destructuring on line 7, which throws a TypeError from the JS engine. The error type matches the contract, but the message is not the module's. This input is outside the stated contract, so it is not a failure.","file":"src/slugify.js","line":7,"evidence":"const { maxLength } = options; with options = null. Not executed in this review (the sandbox allows only project test commands).","recommendation":"If wanted, guard with `options ?? {}` or validate options explicitly, so the error message is the module's own."}],"touchedFiles":["src/slugify.js","test/slugify.test.js"],"touchedAreas":["slugify module","slugify tests"],"nextAction":"Accept the change. Optionally address the two low-severity findings at the person's discretion."}
+```
+--- User agent-1793476424651-4
+Check behaviour: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  Ru…
+--- Assistant agent-1793476424651-4
+The project suite ran and all 14 tests pass. I traced the remaining edge cases by reading the code, since the sandbox only allows test commands.
+
+**Executed:** `npm test` gave 14 pass, 0 fail, including the spec examples, accent stripping, dash collapsing, the maxLength cuts and the TypeError/RangeError cases.
+
+**Read and traced (not executed):**
+- **Separator exactly at index maxLength:** the handoff's first low finding says this is untested. It is covered: `test/slugify.test.js:39` with maxLength 9 on `hello-big-world` puts the `-` at index 9, and the expected `hello-big` would fail if the `slice(0, maxLength + 1)` read were off by one. The handoff's suggested `maxLength: 5` case would pass under that off-by-one too, so it adds little.
+- **Hard cut never ends in `-`:** if no `-` is in the first `maxLength + 1` characters, the cut cannot end in one. Traced OK.
+- **Uppercase accents and `İ`:** NFD runs before `toLowerCase`, so `İ` becomes `i` without a stray combining mark. Traced OK.
+- **Regex cost:** the dash collapse runs before the trim, so the trim regex never sees a run of dashes. No backtracking risk.
+- **`options = null`:** the default only applies to `undefined`, so destructuring `null` throws a native TypeError. The type is right but the message is the engine's. Outside the stated contract.
+- **Other inputs outside the contract:** `maxLength: null` and `Infinity` both throw the module's TypeError. Non-object options such as a string are read without error.
+
+**Could not check:** I did not run any extra edge-case scripts; only the project's test command was allowed. The combining-mark range in `src/slugify.js:10` is confirmed only by the accent tests passing, not by inspecting its code points. The test suite passes against the change, but it was not run against the pre-change code, which did not exist.
+
+No findings are severe. Both are low: the `null` options message, and the optional test gaps for invalid options.
+
+```atlas-result
+{"status":"pass","outcome":"pass","summary":"npm test ran 14 tests: 14 pass, 0 fail. The main path, maxLength boundary and hard-cut paths, and the TypeError/RangeError paths were traced. Only low-severity findings remain.","artifacts":[{"type":"implementation_summary","name":"Behaviour check of slugify","path":"src/slugify.js","summary":"Executed: npm test, 14/14 pass. Read and traced: separator at index maxLength (covered by test/slugify.test.js:39), hard cut never ending in '-', uppercase/İ accent handling, regex cost, invalid options inputs. Not executed: extra edge-case scripts (read-only sandbox)."}],"decisions":[{"title":"Outcome of behaviour check","decision":"pass","rationale":"All six rules are met on the executed suite and the traced edge cases. Only low-severity findings were raised, which do not fail the step."}],"findings":[{"severity":"low","category":"testing","title":"null options gives the engine's TypeError message","description":"The default options = {} applies only to undefined. Passing null reaches the destructuring and throws a native TypeError, which matches the type but not the module's message. Not in the stated contract.","file":"src/slugify.js","line":7,"evidence":"Read: const { maxLength } = options; with options = null. Not executed (read-only sandbox).","recommendation":"Optionally use options ?? {} or validate options explicitly, and add a test for null options."},{"severity":"low","category":"testing","title":"Invalid options shapes are not tested","description":"Tests cover invalid maxLength values but not null options, a non-object options value, or maxLength null/Infinity. The module handles these with a TypeError or by ignoring them, but no test pins that down.","file":"test/slugify.test.js","line":75,"evidence":"Read: the maxLength TypeError tests at lines 75-79 cover 2.5, '5' and NaN only. Behaviour traced by reading the code.","recommendation":"Optionally add tests for null and Infinity maxLength and for null options so the chosen behaviour is pinned."}],"touchedFiles":[],"touchedAreas":["slugify module","slugify tests"],"nextAction":"Accept the change. The two low findings are optional and at the person's discretion."}
+```

@@ -1,0 +1,65 @@
+[
+ {
+  "finding": "FEITO (ADR 0044): os textos dos passos remetem às regras do Atlas em vez de dizer 'you cannot run commands'. Atlas+Codex foi de 6/8 para 8/8 concluídas e de 90% para 100% nos testes ocultos (o Codex puro tem 99%). A T2 r2, que ontem desistiu em 15 s sem ler nada, concluiu.",
+  "fix": "Feito. Acompanhar: os templates salvos pela pessoa antes desta versão ainda têm o texto antigo.",
+  "metric": "Concluiu 75%→100%; nota 90%→100%",
+  "priority": "Feito",
+  "effort": "—"
+ },
+ {
+  "finding": "FEITO (ADR 0044): o Claude roda só os comandos de teste do projeto (npm test, cargo test…), no sandbox da própria CLI (escrita só no worktree, sem rede, sem fallback). Nas 6 execuções de código o Desenvolvedor/Corretor rodou os testes e relatou a saída real.",
+  "fix": "Feito. Pendente: medir com o sandbox do Atlas ligado (troca por analogia ao Codex) e decidir sobre Linux/Windows.",
+  "metric": "Execuções com teste executado: 0/6→6/6",
+  "priority": "Feito",
+  "effort": "—"
+ },
+ {
+  "finding": "FEITO (ADR 0044): o plano fica na mensagem e não vira docs/plans/*.md no worktree. Fora do escopo: 7→0 nos braços do Atlas.",
+  "fix": "Feito. Harness gerados antes ainda têm o texto antigo até a pessoa regenerar.",
+  "metric": "Fora do escopo 7→0",
+  "priority": "Feito",
+  "effort": "—"
+ },
+ {
+  "finding": "Agora o maior custo variável: QA e Validador reprovam por casos além do pedido (new String('high') como prioridade, cupom 'toString', marcas combinantes fora de U+0300–U+036F) e abrem uma volta de correção: 3 no Claude e 5 no Codex em 8 execuções. Os achados são reais, mas a tarefa não os pedia, e cada volta custa 2 passos.",
+  "fix": "Manter. Para tarefas pequenas, considerar marcar achados fora do pedido como 'warning' (não reprova) e deixar a pessoa decidir, em vez de sempre abrir o laço de correção.",
+  "metric": "Laços de correção por execução vs. defeitos reais achados",
+  "priority": "Alta",
+  "effort": "Baixo"
+ },
+ {
+  "finding": "Validador e QA no Claude são passos só de leitura, então continuam sem rodar testes ('Not executed', dito honestamente). No Codex eles rodam (o sandbox read-only deixa executar).",
+  "fix": "Dar aos passos que julgam os mesmos comandos de teste num sandbox que não deixa escrever nem no worktree (ou num diretório temporário), para o veredito vir de execução.",
+  "metric": "Vereditos de QA baseados em execução",
+  "priority": "Alta",
+  "effort": "Médio"
+ },
+ {
+  "finding": "FEITO (ADR 0044, decisão 4): com a aprovação automática de planos o passo não pede mais aprovação. O Arquiteto passou a rodar 1× por execução (Codex 8→4, Claude 6→4 vezes em 8 execuções); a entrada do passo do Arquiteto caiu 54% no Claude e 48% no Codex.",
+  "fix": "Feito para a aprovação automática. Com aprovação manual o passo ainda roda de novo do zero depois do 'sim': retomar a sessão da CLI resolveria.",
+  "metric": "Arquiteto por execução 2→1",
+  "priority": "Feito",
+  "effort": "—"
+ },
+ {
+  "finding": "O Atlas+Codex ficou 4,8× a entrada do Codex puro (469 mil contra 98 mil) e 4,4× o tempo. Cada passo relê o repositório pelo shell e recebe o brief inteiro.",
+  "fix": "Handoff com os trechos já lidos; ligar e medir o Context Engine nos passos de workflow; pular Validador/QA quando o Arquiteto marca 'trivial' e o teste executado passou.",
+  "metric": "Entrada Atlas+Codex/puro 4,8×→<2×",
+  "priority": "Média",
+  "effort": "Médio"
+ },
+ {
+  "finding": "Saída 3,4× no Claude (16 mil contra 4,8 mil) e 5,3× no Codex: narração, relatórios longos e o bloco atlas-result em todo passo.",
+  "fix": "Relatórios intermediários curtos; narração só onde a pessoa acompanha.",
+  "metric": "Tokens de saída; custo Atlas/puro (Claude 1,8×)",
+  "priority": "Média",
+  "effort": "Baixo"
+ },
+ {
+  "finding": "PONTO A FAVOR: o isolamento do Claude segue cortando o contexto por chamada (revisão: 32 mil contra 98 mil do Claude puro). E agora, com teste executado e QA que reprova o que acha, o Atlas entrega código mais robusto que o runtime puro na mesma nota oculta.",
+  "fix": "Usar como argumento; próximo benchmark com tarefas maiores e ambíguas e com sonnet, onde planejar e verificar deve abrir distância.",
+  "metric": "Nota oculta em tarefas difíceis",
+  "priority": "Média",
+  "effort": "Médio"
+ }
+]

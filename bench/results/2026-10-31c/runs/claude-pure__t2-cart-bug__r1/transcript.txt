@@ -1,0 +1,20 @@
+--- Assistant
+I fixed `src/cart.js` and added regression tests, but I could not run the test suite. Both attempts to run `node --test` were blocked with "requires approval", so the checks below are by hand, not from a run.
+
+**Root causes**
+1. **Quantity ignored:** the loop added `item.price` and never multiplied by `item.qty`. Three units at 19.90 came out as 19.9.
+2. **Percent coupon inverted:** `sum * value / 100` returned the discount itself (20 off 100 became 20), not the amount left to pay (80).
+3. **No floor at zero:** a fixed coupon larger than the cart (TENOFF on 5.00) gave -5.
+4. **No rounding:** plain float arithmetic produced values like 0.30000000000000004.
+5. **Unknown coupons:** `COUPONS[couponCode]` also matched inherited keys such as `constructor`, which could produce NaN. Unknown codes are now ignored by checking own properties only.
+
+**The fix** (`src/cart.js`) sums in integer cents, applies the coupon in cents, clamps at zero, and divides by 100 once at the end. The export is still `module.exports = { total }`.
+
+**Regression tests** (`test/cart.test.js`), added after the two existing tests, which I did not change:
+- multiplies price by quantity (19.9 × 3 → 59.7)
+- percent coupon subtracts the discount (OFF20 on 100 → 80)
+- fixed coupon never makes the total negative (TENOFF on 5 → 0)
+- totals are rounded to cents (0.1 + 0.2 → 0.3)
+- unknown and inherited coupon codes are ignored (`NOPE` and `constructor` on 10 → 10)
+
+By hand, each existing and new assertion evaluates to its expected value. Please run `npm test` to confirm.

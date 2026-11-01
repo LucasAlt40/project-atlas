@@ -1,0 +1,29 @@
+--- Assistant
+I rewrote the parser in `src/csv.js` and added regression tests, but I could not run them. Every Bash command, including `npm test` and a direct `node --test`, was blocked on approval in this session. Please run `npm test` to confirm.
+
+**Root causes in the old code**
+
+- It split every line on `,` and every text on `\n`, so quoted commas and line breaks broke rows and fields.
+- It removed quotes only when a field both started and ended with one. It never unescaped `""`.
+- `text.split('\n')` produced an empty last row for a trailing newline, and it left `\r` on CRLF lines.
+- It had no error for an unterminated quote.
+
+**The fix**
+
+`parseCsv` is now a character-level state machine. The exports are unchanged.
+
+- A quote opens a quoted field only at the start of a field. Inside quotes, `""` becomes `"`, and a single `"` closes the field.
+- Commas end fields. `\n` ends a row. A `\r` directly before `\n` is skipped.
+- A newline inside quotes is kept as field content.
+- A trailing newline adds no row, and empty input returns `[]`.
+- An unclosed quote throws `SyntaxError`.
+
+**Tests added to `test/csv.test.js`**
+
+Ten new cases cover each reported bug, plus empty fields, an empty quoted field, empty input and the unterminated-quote error. I traced the key cases by hand against the new code, including the `"say ""hi"""` case, the CRLF case, and the embedded-newline case, and they should pass.
+
+**Choices I made beyond the bug list**
+
+- A quote that appears in the middle of an unquoted field, such as `ab"c`, is kept as a literal character. RFC 4180 calls that malformed, and I chose not to throw on it.
+- Text after a closing quote, such as `"a"b`, is appended to the field rather than rejected.
+- A bare `\r` that is not followed by `\n` is kept as content.

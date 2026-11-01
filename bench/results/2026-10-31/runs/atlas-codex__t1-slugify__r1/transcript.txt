@@ -1,0 +1,248 @@
+--- User agent-1793416472039-6
+Analyze and plan: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  R…
+--- Assistant agent-1793416472039-6
+Size: moderate
+
+## Plan: Add isolated CommonJS slugification utility
+
+### Goals
+
+- Add `slugify(text, options)` as a CommonJS utility.
+- Normalize case and Unicode diacritics.
+- Collapse non-alphanumeric runs into one hyphen and trim boundary hyphens.
+- Enforce `options.maxLength` without splitting words where possible.
+- Add focused tests using Node’s built-in `node:test` and `node:assert`.
+
+### Scope
+
+In scope:
+
+- `src/slugify.js`
+- `test/slugify.test.js`
+- Input validation for non-string `text`.
+- Unicode normalization and max-length behavior described by the task.
+
+Out of scope:
+
+- Changes to `package.json`, `README.md`, or other project files.
+- New dependencies or abstractions.
+- Browser/frontend integration.
+- Defining behavior for invalid `options.maxLength` values outside the stated positive-integer contract.
+
+### Modules and dependencies
+
+- The project is a minimal CommonJS package (`"type": "commonjs"`).
+- `src/slugify.js` will be a standalone module with no runtime dependencies.
+- Its public contract will be exactly:
+
+  ```js
+  module.exports = { slugify };
+  ```
+
+- `test/slugify.test.js` will import the named export and use only `node:test` and `node:assert`.
+
+### Design decisions
+
+1. Convert text to lowercase.
+2. Apply Unicode NFD normalization and remove combining marks, allowing examples such as `é → e`, `ç → c`, `ã → a`, and `ü → u`.
+3. Replace each run matching `[^a-z0-9]+` with `-`.
+4. Remove leading and trailing hyphens.
+5. Apply `maxLength` after slug construction:
+   - If the full slug fits, return it.
+   - Otherwise, use the last hyphen whose position allows the result to fit.
+   - If no complete word fits, hard-cut at `maxLength`.
+   - Ensure the result does not end with a hyphen.
+6. Throw `TypeError` when `text` is not a string.
+
+### Files and contracts to change
+
+- `src/slugify.js`
+  - Define the `slugify` function.
+  - Export only `{ slugify }`.
+  - Preserve the stated input and truncation contract.
+
+- `test/slugify.test.js`
+  - Cover normalization, punctuation collapsing, trimming, empty/punctuation-only input, `TypeError`, word-boundary truncation, hard truncation, and exact-fit behavior.
+
+### Architectural impact
+
+This is a leaf utility with no dependencies on other project modules, so it introduces no coupling or boundary changes. The main maintainability concern is keeping normalization and truncation as clear sequential transformations rather than adding a generic text-processing abstraction the project does not need.
+
+### Risks
+
+- Unicode normalization removes combining marks but does not transliterate every non-Latin character into ASCII; the specified contract only requires the stated accent/diacritic behavior.
+- Truncation must distinguish a valid word boundary from a hard cut, especially when the first word exceeds `maxLength`.
+- Tests should avoid depending on filesystem-wide test discovery beyond the existing `node --test` script.
+
+### Verification
+
+- Run `npm test`.
+- Confirm the module loads through `require('./src/slugify')`.
+- Verify all supplied examples and edge cases through `test/slugify.test.js`.
+- Confirm only the two requested files are added or modified.
+
+```atlas-interaction
+{"type":"plan","context":"Analysis complete: the project is a dependency-free CommonJS package, and the implementation is scoped to a standalone slugify module plus its Node built-in tests."}
+```
+--- User agent-1793416472039-6
+Analyze and plan: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  R…
+--- Assistant agent-1793416472039-6
+Size: moderate
+
+## Scope
+
+In scope:
+
+- Create `src/slugify.js` as the sole production module.
+- Create `test/slugify.test.js` covering normalization, separators, trimming, length limits, hard cuts, and `TypeError`.
+- Preserve the existing CommonJS setup and built-in test runner.
+
+Out of scope:
+
+- Changes to `package.json` or `README.md`.
+- Dependencies, build tooling, browser/frontend integration, or broader text utilities.
+- Behavior not specified for invalid `options.maxLength` values.
+
+## Architecture
+
+This is a deliberately small project:
+
+- `package.json:1` defines `"type": "commonjs"` and runs tests with `node --test`.
+- `README.md:2` confirms there are no dependencies and that Node’s built-in runner is the project convention.
+- No existing source or test modules exist, so `slugify` will establish the initial `src`/`test` boundary.
+
+The production module should remain a pure, dependency-free function. The test module should import it through CommonJS and use only `node:test` and `node:assert`.
+
+## Developer decisions
+
+Implement exactly:
+
+- `module.exports = { slugify }`.
+- Reject non-string `text` with `TypeError`.
+- Normalize using lowercase and Unicode decomposition/removal of combining marks.
+- Convert every run outside `[a-z0-9]` into one hyphen, then trim boundary hyphens.
+- Apply `maxLength` after slug construction:
+  - Keep the longest complete hyphen-delimited prefix that fits.
+  - If the first word itself exceeds the limit, hard-cut that word.
+  - Never return a trailing hyphen.
+- Avoid introducing helpers, dependencies, package changes, or undocumented fallback behavior.
+
+## Files and contracts
+
+Files to create:
+
+- `src/slugify.js`
+  - Contract: CommonJS export `{ slugify }`.
+  - API: `slugify(text, options?) -> string`.
+- `test/slugify.test.js`
+  - Contract: executable by `npm test` / `node --test`.
+  - Must cover the supplied examples and edge cases around accents, repeated separators, boundaries, maximum lengths, and invalid input.
+
+No files have been modified during this analysis step.
+
+## Verification
+
+The implementation step should run:
+
+```sh
+rtk npm test
+```
+
+Verification should confirm all supplied examples, Unicode accent removal, separator collapsing, boundary trimming, complete-word truncation, hard-cut fallback, and `TypeError` behavior. The final diff should contain only `src/slugify.js` and `test/slugify.test.js`.
+
+```atlas-result
+{"status":"success","outcome":"approved","summary":"Repository analysis complete. The project is a dependency-free CommonJS package with Node's built-in test runner; implementation should add only src/slugify.js and test/slugify.test.js while preserving the exact requested API and behavior.","artifacts":[{"type":"implementation_summary","name":"Slugify architecture and implementation contract","path":"src/slugify.js","summary":"Planned pure CommonJS slugify module with no dependencies; implementation remains for the next workflow step."},{"type":"implementation_summary","name":"Slugify test contract","path":"test/slugify.test.js","summary":"Planned node:test and node:assert coverage for normalization, separators, truncation, and TypeError behavior."}],"decisions":[{"title":"Module boundary","decision":"Use one pure utility module at src/slugify.js with tests isolated in test/slugify.test.js.","rationale":"The repository has no existing source modules, no dependencies, and explicitly requests these two files."},{"title":"Runtime and export format","decision":"Use CommonJS and export exactly module.exports = { slugify }.","rationale":"package.json declares type commonjs and the task specifies the exact export contract."},{"title":"Length handling","decision":"Construct the normalized slug first, then retain the longest complete-word prefix within maxLength, hard-cutting only when the first word cannot fit.","rationale":"This directly matches the specified maxLength semantics and prevents trailing hyphens."}],"findings":[],"touchedFiles":[],"touchedAreas":["architecture","slugification utility","Node test boundary"],"nextAction":"Implement the two planned files and run npm test."}
+```
+--- User agent-1793416472039-3
+Implement: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  Rules:  …
+--- Assistant agent-1793416472039-3
+Implemented the planned CommonJS slugify utility and tests.
+
+Changed:
+- `src/slugify.js`
+- `test/slugify.test.js`
+
+Checked:
+- Read repository instructions and `package.json`.
+- Ran `rtk npm test`: 5 passed, 0 failed.
+- Verified only `src/` and `test/` are untracked/changed.
+- Tests cover normalization, separators, truncation, hard cuts, and `TypeError`.
+
+Remaining risk: invalid `maxLength` values are ignored because behavior was unspecified.
+
+```atlas-result
+{"status":"success","outcome":"implemented","summary":"Implemented slugify with diacritic removal, separator normalization, word-aware maxLength truncation, hard-cut fallback, and TypeError validation. Added node:test coverage.","artifacts":[{"type":"implementation_summary","name":"Slugify utility and tests","path":"src/slugify.js","summary":"CommonJS slugify implementation with tests in test/slugify.test.js."}],"decisions":[{"title":"Length handling","decision":"Preserve complete words when truncating and hard-cut only when the first word exceeds maxLength.","rationale":"Matches the specified maxLength semantics."}],"findings":[],"touchedFiles":["src/slugify.js","test/slugify.test.js"],"touchedAreas":["slugification utility","Node built-in tests"],"nextAction":"Review the change"}
+```
+--- User agent-1793416472039-7
+Review the change: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  …
+--- Assistant agent-1793416472039-7
+Verdict: **PASS**
+
+No concrete problems found.
+
+- `src/slugify.js`: correct pure CommonJS utility and exact export.
+- `test/slugify.test.js`: uses `node:test` and `node:assert` with required behavior coverage.
+- Scope: only requested files are present.
+- Verification: all 5 tests pass via `npm test`.
+
+```atlas-result
+{"status":"success","outcome":"pass","summary":"Validation passed; implementation conforms to the architecture, contract, conventions, and requested scope.","artifacts":[{"type":"implementation_summary","name":"Slugify utility and tests","path":"src/slugify.js","summary":"Pure CommonJS slugify implementation with node:test coverage in test/slugify.test.js."}],"decisions":[{"title":"Architecture compliance","decision":"Pass","rationale":"Uses the requested isolated utility module, CommonJS export, and dedicated tests."}],"findings":[],"touchedFiles":["src/slugify.js","test/slugify.test.js"],"touchedAreas":["slugify utility","unit tests"],"nextAction":"Check behaviour"}
+```
+--- User agent-1793416472039-4
+Check behaviour: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  Ru…
+--- Assistant agent-1793416472039-4
+Validation failed due to incomplete diacritic handling.
+
+Evidence:
+
+- Executed `rtk npm test`: all 5 tests passed.
+- Executed focused boundary/export checks: passed.
+- Read `src/slugify.js`: main normalization, truncation, and TypeError paths are correct for covered cases.
+- Executed Unicode probe: `slugify('a\u1AB0b')` returns `a-b`, but U+1AB0 is a combining accent and should be removed, yielding `ab`.
+- Read test coverage: this Unicode edge case is not covered.
+- Executed parent-revision check: `src/slugify.js` was absent, so the added tests would fail to load without the implementation. The baseline test suite itself was not run.
+
+```atlas-result
+{"status":"fail","outcome":"fail","summary":"Standard tests and focused boundary checks pass, but the implementation does not remove combining diacritics outside U+0300–U+036F.","artifacts":[{"type":"implementation_summary","name":"Slugify utility and tests","path":"src/slugify.js","summary":"CommonJS slugify implementation with node:test coverage in test/slugify.test.js."}],"decisions":[{"title":"Behavior validation","decision":"Fail validation","rationale":"A valid combining diacritic is converted to a hyphen instead of being removed."}],"findings":[{"severity":"medium","category":"correctness","title":"Combining diacritics outside U+0300–U+036F are not removed","description":"The implementation only strips combining marks in the U+0300–U+036F range. For input containing U+1AB0, slugify('a\\u1AB0b') returns 'a-b' instead of 'ab'.","file":"src/slugify.js","line":8,"evidence":"Executed probe returned {\"out\":\"a-b\"} for input a᪰b; test/slugify.test.js has no equivalent coverage.","recommendation":"Handle Unicode combining marks broadly, such as with the Unicode mark property, and add a regression test."}],"touchedFiles":["src/slugify.js","test/slugify.test.js"],"touchedAreas":["slug normalization","Unicode diacritics","length truncation","CommonJS export"],"nextAction":"Fix broad combining-diacritic removal and add a regression test."}
+```
+--- User agent-1793416472039-5
+Fix behaviour problems: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify…
+--- Assistant agent-1793416472039-5
+Fixed the reported combining-diacritic bug.
+
+Changed:
+
+- `src/slugify.js`: replaced the narrow range with Unicode mark matching via `/\p{M}/gu`.
+- `test/slugify.test.js`: added regression coverage for U+1AB0.
+
+Verification:
+
+- Probe now prints `{"out":"ab"}`.
+- `rtk node --test test/slugify.test.js` passed all 5 tests.
+- Only the two requested files changed.
+
+Residual risk: Unicode property escapes require a modern Node.js runtime.
+
+```atlas-result
+{"status":"success","outcome":"fixed","summary":"Broad Unicode combining marks are removed and regression coverage was added; all tests pass.","artifacts":[{"type":"implementation_summary","name":"Unicode combining mark fix","path":"src/slugify.js","summary":"Uses Unicode mark property matching to remove combining diacritics broadly."},{"type":"test_update","name":"Combining mark regression test","path":"test/slugify.test.js","summary":"Covers U+1AB0 removal between ASCII letters."}],"decisions":[{"title":"Unicode mark handling","decision":"Use /\\p{M}/gu after NFD normalization","rationale":"Removes combining marks beyond U+0300-U+036F without changing unrelated slug behavior."}],"findings":[],"touchedFiles":["src/slugify.js","test/slugify.test.js"],"touchedAreas":["slug normalization","diacritic regression coverage"],"nextAction":"Proceed to the next behaviour check."}
+```
+--- User agent-1793416472039-4
+Check behaviour: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  Ru…
+--- Assistant agent-1793416472039-4
+Validation passed.
+
+Executed:
+- `npm test`: 5/5 tests passed.
+- Boundary probes passed for truncation, separator limits, oversized words, punctuation-only input, broad combining marks, and `TypeError`.
+- Direct export and runtime behavior verified.
+
+Read:
+- `src/slugify.js` satisfies normalization, separator, trimming, length, and export requirements.
+- `test/slugify.test.js` covers all requested examples plus the U+1AB0 regression.
+- The new combining-mark test would fail against the prior implementation, which only removed U+0300–U+036F marks.
+
+No browser integration was provided; no browser check was applicable. No material untested risk found within the specified contract.
+
+```atlas-result
+{"status":"success","outcome":"pass","summary":"Implementation and tests satisfy the slugify contract; all automated tests and focused boundary probes passed.","artifacts":[{"type":"implementation_summary","name":"Slugify utility and tests","path":"src/slugify.js","summary":"CommonJS slugify implementation with broad Unicode combining-mark removal and maxLength handling."},{"type":"test_summary","name":"Slugify regression coverage","path":"test/slugify.test.js","summary":"node:test coverage for normalization, separators, truncation, TypeError behavior, and U+1AB0 marks."}],"decisions":[{"title":"Behavior validation","decision":"Pass","rationale":"Executed tests and focused probes confirm the requested behavior and prior combining-mark defect is fixed."}],"findings":[],"touchedFiles":[],"touchedAreas":["slugification behavior","Unicode normalization","length truncation","regression tests"],"nextAction":"Proceed to the next workflow step."}
+```
