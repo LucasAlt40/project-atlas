@@ -146,7 +146,7 @@ const ENTRIES: [Entry; 8] = [
         recommended: false,
         featured: false,
         name: "Quick change",
-        description: "Architect, then Developer, then QA: the quick way for a small change.",
+        description: "Architect, then Developer, then QA; when QA rejects, the Developer fixes it once.",
     },
     Entry {
         id: "feature_with_validation",
@@ -550,6 +550,12 @@ impl<'a> Builder<'a> {
         }
     }
 
+    fn no_commands(&mut self, id: &str) {
+        if let Some(step) = self.agent_mut(id) {
+            step.execution_policy.no_commands = true;
+        }
+    }
+
     fn agent_mut(&mut self, id: &str) -> Option<&mut AgentNode> {
         self.nodes
             .iter_mut()
@@ -653,6 +659,37 @@ impl<'a> Builder<'a> {
         self.on(from, rejected, problem);
     }
 
+    /// A judge whose rejection is corrected once: on to `ok_to` when it accepts; when it rejects,
+    /// a fixing step (the Developer, so the template needs no other agent) corrects it and the
+    /// judge runs again. The fixer may start once (its loop limit), so a second rejection ends the
+    /// run as failed instead of looping. Without that, a rejection in a quick template ended the run
+    /// as failed with correct code in the worktree (2 of 8 benchmarked runs, `bench/`, 2026-10-31).
+    /// A judge that declares no verdict (a general agent) keeps the plain route, and no fixer is
+    /// made: a node nothing leads to is a broken workflow.
+    fn fix_once_gate(&mut self, from: &str, ok_to: &str, fixer: &str, instructions: &str) {
+        let declared = self.declared(from);
+        let has = |o: &str| declared.iter().any(|d| d.eq_ignore_ascii_case(o));
+        let pair = if has("pass") && has("fail") {
+            Some(("pass", "fail"))
+        } else if has("approved") && has("changes_requested") {
+            Some(("approved", "changes_requested"))
+        } else {
+            None
+        };
+        let Some((ok, problem)) = pair else {
+            self.then(from, ok_to);
+            return;
+        };
+        self.step(fixer, "Fix QA findings", Role::Developer, instructions)
+            .loop_policy = Some(LoopPolicy {
+            loop_id: format!("{from}_fix"),
+            max_iterations: 1,
+        });
+        self.on(from, ok_to, ok);
+        self.on(from, fixer, problem);
+        self.then(fixer, from);
+    }
+
     /// A step that fixes: on to `ok_to` when it says it fixed, to `blocked_to` when it says it
     /// could not. An agent that does not declare that pair (a general one) goes on to `ok_to`
     /// whatever it says, so the template is never born with a route its agent cannot take.
@@ -716,7 +753,7 @@ pub fn instantiate(
             b.end("done", "Done");
             b.then("architect", "developer");
             b.then("developer", "qa");
-            b.verdict_gate("qa", "done");
+            b.fix_once_gate("qa", "done", "fix", text::IMPL_FIXER);
         }
         "feature_with_validation" => {
             b.step("architect", "Architect", Role::Architect, text::ARCHITECT);
@@ -938,6 +975,9 @@ pub fn instantiate(
             b.end("done", "Done");
             b.done_when("validator", text::REVIEW_AUDIT_DONE);
             b.read_only("validator");
+            // An audit answers from the code: running the tests only confirmed what reading showed
+            // and made the review 40% dearer (`bench/`, 2026-10-31d).
+            b.no_commands("validator");
             b.suggest(
                 "validator",
                 ToolCapability::Issues,

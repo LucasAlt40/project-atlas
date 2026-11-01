@@ -191,7 +191,9 @@ fn no_template_asks_an_agent_to_run_what_it_cannot_and_the_ones_that_matter_say_
             }
         }
     }
-    // Where a step would be tempted to report a test run, it says plainly that it cannot.
+    // Where a step would be tempted to report a test run, it says what to do on a runtime that
+    // runs commands (Codex) and on one that cannot, deferring to the run's Atlas rules: an
+    // unconditional "you cannot run commands" made Codex read nothing (`bench/`, 2026-10-30).
     for words in [
         text::IMPL_DEVELOPER,
         text::IMPL_QA,
@@ -199,9 +201,62 @@ fn no_template_asks_an_agent_to_run_what_it_cannot_and_the_ones_that_matter_say_
         text::DEBUG_FIXER,
         text::DEBUG_VERIFY,
         text::REVIEW_AUDIT,
+        text::DEVELOPER,
+        text::QA,
     ] {
+        assert!(
+            words.contains("If your Atlas rules let you run commands"),
+            "{words}"
+        );
         assert!(words.contains("cannot run"), "{words}");
     }
+    // No step tells an agent, unconditionally, that it cannot run commands.
+    for info in templates::list() {
+        for step in &info.steps {
+            assert!(
+                !step.instructions.contains("You cannot run commands"),
+                "{}/{}",
+                info.id,
+                step.id
+            );
+        }
+    }
+}
+
+#[test]
+fn a_step_that_can_send_work_back_fails_only_for_what_the_task_asked_and_reports_the_rest() {
+    // Each of these routes a fail to a fixer: a finding beyond the task must not open that loop.
+    for words in [
+        text::IMPL_VALIDATOR,
+        text::IMPL_QA,
+        text::DEBUG_VERIFY,
+        text::QA,
+    ] {
+        assert!(words.contains("low-severity finding"), "{words}");
+        assert!(words.contains("outcome pass"), "{words}");
+    }
+    // The reviewer reports everything: it sends nothing back, so it is not held to this.
+    assert!(!text::REVIEW_AUDIT.contains("keep the outcome pass"));
+}
+
+#[test]
+fn only_the_audit_is_kept_from_running_commands() {
+    let env = env();
+    env.declare_validation_outcomes();
+    let policy_of = |template: &str, node: &str| {
+        build(&env, template)
+            .nodes
+            .iter()
+            .find(|n| n.id == node)
+            .and_then(|n| n.agent())
+            .map(|step| step.execution_policy)
+            .unwrap()
+    };
+
+    assert!(policy_of("code_review", "validator").no_commands);
+    // The Implementer's reviewers confirm by running the tests.
+    assert!(!policy_of("software_feature", "validator").no_commands);
+    assert!(!policy_of("software_feature", "qa").no_commands);
 }
 
 #[test]
@@ -685,16 +740,16 @@ fn seat_as_the_form_does(env: &Env) {
     }
 }
 
-/// The quick templates have no fixer: a judge's rejection must end the run as failed, never as a
-/// success, and an agent that declares no verdict keeps the plain route it always had.
+/// "Feature with validation" has no fixer, and "Quick change" fixes only once: a judge's final
+/// rejection must end the run as failed, never as a success, and an agent that declares no
+/// verdict keeps the plain route it always had.
 #[test]
 fn a_quick_template_ends_failed_when_its_judge_rejects_and_completed_when_all_accept() {
     use crate::domain::workflow::WorkflowExecutionStatus::{Completed, Failed};
-    let cases: [(&str, &str, &str, _); 5] = [
+    let cases: [(&str, &str, &str, _); 4] = [
         ("feature_with_validation", "fail", "pass", Failed),
         ("feature_with_validation", "pass", "fail", Failed),
         ("feature_with_validation", "pass", "pass", Completed),
-        ("feature_basic", "", "fail", Failed),
         ("feature_basic", "", "pass", Completed),
     ];
     for (template, validator, qa, expected) in cases {
@@ -723,6 +778,39 @@ fn a_quick_template_ends_failed_when_its_judge_rejects_and_completed_when_all_ac
                 usize::from(validator != "fail")
             );
         }
+    }
+}
+
+/// "Quick change" corrects a rejection once: the Developer fixes and QA runs again; a second
+/// rejection ends the run as failed, without a second fix.
+#[test]
+fn the_quick_change_fixes_a_rejection_once_and_fails_on_the_second() {
+    use crate::domain::workflow::WorkflowExecutionStatus::{Completed, Failed};
+    for (qa, expected, qa_runs) in [
+        (vec!["fail", "pass"], Completed, 2),
+        (vec!["fail", "fail"], Failed, 2),
+    ] {
+        let env = env();
+        seat_as_the_form_does(&env);
+        let workflow = build(&env, "feature_basic");
+        assert!(env.service.validate(&workflow).valid);
+        let runner = Scripted::new();
+        runner.script("architect", vec![declared("approved", "")]);
+        runner.script("developer", vec![declared("implemented", "")]);
+        runner.script("fix", vec![declared("implemented", "")]);
+        runner.script("qa", qa.iter().map(|o| declared(o, "")).collect());
+
+        let (exec, _) = env.run(&runner, &workflow.id);
+
+        assert_eq!(exec.status, expected, "qa={qa:?}");
+        assert_eq!(runner.requests_for("qa").len(), qa_runs, "qa={qa:?}");
+        // Exactly one correction, by the Developer's agent.
+        let fixes = runner.requests_for("fix");
+        assert_eq!(fixes.len(), 1, "qa={qa:?}");
+        assert_eq!(
+            fixes[0].agent_id,
+            runner.requests_for("developer")[0].agent_id
+        );
     }
 }
 

@@ -562,6 +562,7 @@ export const ptBR: Record<TranslationKey, string> = {
   'agent.composer.label': 'Mensagem para {name}',
   'agent.composer.hint': 'Responder ao {name} ou solicitar alteração',
   'agent.elapsed': 'Tempo decorrido: {time}',
+  'agent.silent': 'Sem saída há {time}',
   'agent.composer.send': 'Enviar',
   'agent.conversation': 'Conversa',
   'agent.activity': 'Atividade',
@@ -1321,7 +1322,7 @@ export const ptBR: Record<TranslationKey, string> = {
   'workflow.templateHelp.software_feature':
     'Constrói uma funcionalidade ou mudança: planeja, implementa, revisa e confere.',
   'workflow.templateHelp.feature_basic':
-    'Arquiteto, Desenvolvedor e QA: o caminho rápido para uma mudança pequena e local.',
+    'Arquiteto, Desenvolvedor e QA: o caminho rápido para uma mudança pequena e local. Se o QA reprovar, o Desenvolvedor corrige uma vez.',
   'workflow.templateHelp.feature_with_validation':
     'Arquiteto, Desenvolvedor, um validador de código e QA.',
   'workflow.templateHelp.feature_with_bug_fix_loop':

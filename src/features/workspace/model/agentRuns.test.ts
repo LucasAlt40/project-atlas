@@ -1,6 +1,8 @@
 import {
   conversationsReducer,
   initialConversations,
+  SILENT_AFTER_MS,
+  silentFor,
   type ConversationAction,
   type ConversationsState,
 } from './agentRuns';
@@ -429,5 +431,46 @@ describe('conversationsReducer', () => {
         'worktree_finalized',
       ]);
     });
+  });
+});
+
+describe('a run that has gone quiet', () => {
+  const started = event({ kind: 'started', timestamp: 1_000 });
+  const chunk = (timestamp: number) => event({ kind: 'output_chunk', message: 'x', timestamp });
+
+  it('is silent only after two minutes without any event', () => {
+    const run = apply({ type: 'event', event: started }).runs['w/a'];
+    if (!run) throw new Error('no run');
+    expect(silentFor(run, 1_000 + SILENT_AFTER_MS - 1)).toBeNull();
+    expect(silentFor(run, 1_000 + SILENT_AFTER_MS)).toBe(SILENT_AFTER_MS);
+  });
+
+  it('counts streamed text as activity, at most every ten seconds', () => {
+    const state = apply(
+      { type: 'event', event: started },
+      { type: 'event', event: chunk(2_000) },
+      { type: 'event', event: chunk(5_000) },
+      { type: 'event', event: chunk(13_000) },
+    );
+    expect(state.runs['w/a']?.lastEventAt).toBe(13_000);
+    // A token inside the ten seconds leaves the run as it was: no re-render per token.
+    const before = apply({ type: 'event', event: started }, { type: 'event', event: chunk(2_000) });
+    const after = conversationsReducer(before, { type: 'event', event: chunk(4_000) });
+    expect(after.runs['w/a']).toBe(before.runs['w/a']);
+  });
+
+  it('is not silent while it waits for the person or after it ended', () => {
+    const waiting = apply(
+      { type: 'event', event: started },
+      { type: 'event', event: event({ kind: 'interaction_detected', timestamp: 2_000 }) },
+    ).runs['w/a'];
+    const done = apply(
+      { type: 'event', event: started },
+      { type: 'event', event: event({ kind: 'completed', timestamp: 2_000 }) },
+    ).runs['w/a'];
+    if (!waiting || !done) throw new Error('no run');
+    const later = 2_000 + 10 * SILENT_AFTER_MS;
+    expect(silentFor(waiting, later)).toBeNull();
+    expect(silentFor(done, later)).toBeNull();
   });
 });

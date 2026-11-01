@@ -302,7 +302,7 @@ pub fn run_in_terminal(
         }
         match reap(&shared, child.as_mut()) {
             Ok(Some(status)) => break Ok(status),
-            Ok(None) if Instant::now() >= deadline => break Err(ProcessError::Timeout),
+            Ok(None) if Instant::now() >= deadline => break Err(timed_out(&output, spec)),
             Ok(None) => {}
             Err(error) => break Err(ProcessError::Io(error.to_string())),
         }
@@ -416,11 +416,18 @@ fn take_text(bytes: &mut Vec<u8>) -> String {
 
 /// What the process wrote, as the runtimes read it: the raw text goes to the terminal view,
 /// the cleaned text (no control sequences, no carriage returns) to line events and the result.
+/// The idle limit ended the process: what it last printed goes with the error.
+fn timed_out(output: &Output, spec: &ProcessSpec) -> ProcessError {
+    ProcessError::Timeout(output.recent.silence(spec.timeout))
+}
+
 #[derive(Default)]
 struct Output {
     text: String,
     partial_line: String,
     stripper: AnsiStripper,
+    /// The last lines, kept apart from `text` (which stops growing at its limit) for a timeout.
+    recent: crate::application::process::RecentLines,
 }
 
 impl Output {
@@ -440,6 +447,7 @@ impl Output {
         self.partial_line.push_str(&clean);
         while let Some(end) = self.partial_line.find('\n') {
             let line: String = self.partial_line.drain(..=end).collect();
+            self.recent.push(&line);
             on_event(ProcessEvent::StdoutLine(
                 line.trim_end_matches('\n').to_owned(),
             ));
@@ -808,6 +816,27 @@ mod process_tests {
     }
 
     #[test]
+    fn a_timeout_in_a_terminal_keeps_the_last_lines_it_printed() {
+        let (registry, _) = registry();
+
+        let result = start(
+            &registry,
+            spec(
+                "e1",
+                "echo before; echo still here; sleep 30",
+                Duration::from_millis(600),
+            ),
+        )
+        .join()
+        .unwrap();
+
+        let Err(ProcessError::Timeout(silence)) = result else {
+            panic!("{result:?}");
+        };
+        assert!(silence.last_output.ends_with("still here"), "{silence:?}");
+    }
+
+    #[test]
     fn a_process_that_exceeds_its_timeout_is_killed() {
         let (registry, _) = registry();
         let started = Instant::now();
@@ -823,7 +852,10 @@ mod process_tests {
         .join()
         .unwrap();
 
-        assert_eq!(result, Err(ProcessError::Timeout));
+        assert!(
+            matches!(result, Err(ProcessError::Timeout(_))),
+            "{result:?}"
+        );
         assert!(started.elapsed() < Duration::from_secs(10));
         assert!(!is_live(&registry, "e1"));
     }

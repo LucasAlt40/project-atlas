@@ -53,6 +53,11 @@ pub struct ExecutionPolicy {
     /// does not govern what an MCP tool does: that is what the step's grants are for.
     #[serde(default)]
     pub read_only: bool,
+    /// The step is given no commands to run (tests, Git's reading commands), whatever its
+    /// runtime and its agent's policy could allow: an analysis that answers from the code alone.
+    /// It can only narrow, like `read_only`.
+    #[serde(default)]
+    pub no_commands: bool,
 }
 
 fn announce_by_default() -> bool {
@@ -65,6 +70,7 @@ impl Default for ExecutionPolicy {
             isolation: IsolationMode::default(),
             announce_integrations: true,
             read_only: false,
+            no_commands: false,
         }
     }
 }

@@ -162,13 +162,72 @@ pub struct ProcessOutput {
     pub stderr: String,
 }
 
+/// What a process that went silent left behind when its idle limit ended it: how long it had been
+/// quiet and its last lines, so a step that stopped can be diagnosed afterwards (a stuck CLI left
+/// nothing to read before this, `bench/`, 2026-10-31).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Silence {
+    pub idle_secs: u64,
+    pub last_output: String,
+}
+
+impl Silence {
+    /// The technical details of a timeout, for a person to read.
+    pub fn describe(&self) -> String {
+        let (minutes, seconds) = (self.idle_secs / 60, self.idle_secs % 60);
+        let quiet = if minutes > 0 {
+            format!("No output for {minutes} min {seconds} s.")
+        } else {
+            format!("No output for {seconds} s.")
+        };
+        if self.last_output.trim().is_empty() {
+            format!("{quiet} It printed nothing before that.")
+        } else {
+            format!("{quiet} Its last output:\n{}", self.last_output)
+        }
+    }
+}
+
+/// The last lines a process printed, bounded: a few short lines, never the whole output.
+#[derive(Debug, Default)]
+pub struct RecentLines(std::collections::VecDeque<String>);
+
+impl RecentLines {
+    const LINES: usize = 10;
+    const LINE_CHARS: usize = 300;
+
+    pub fn push(&mut self, line: &str) {
+        let line = line.trim_end();
+        if line.is_empty() {
+            return;
+        }
+        let mut kept: String = line.chars().take(Self::LINE_CHARS).collect();
+        if line.chars().count() > Self::LINE_CHARS {
+            kept.push('…');
+        }
+        if self.0.len() == Self::LINES {
+            self.0.pop_front();
+        }
+        self.0.push_back(kept);
+    }
+
+    /// What the process left, for a timeout after `idle` without output.
+    pub fn silence(&self, idle: Duration) -> Silence {
+        Silence {
+            idle_secs: idle.as_secs(),
+            last_output: self.0.iter().cloned().collect::<Vec<_>>().join("\n"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProcessError {
     /// The security layer refused to start the process (it never started).
     PermissionDenied(Reason),
     NotFound,
     Spawn(String),
-    Timeout,
+    /// The process printed nothing for its whole idle limit and was ended.
+    Timeout(Silence),
     Io(String),
 }
 
@@ -240,5 +299,44 @@ pub mod fake {
             }
             result
         }
+    }
+}
+
+#[cfg(test)]
+mod silence_tests {
+    use super::{RecentLines, Silence};
+    use std::time::Duration;
+
+    #[test]
+    fn only_the_last_short_lines_are_kept() {
+        let mut recent = RecentLines::default();
+        for n in 0..15 {
+            recent.push(&format!("line {n}"));
+        }
+        recent.push("");
+        recent.push(&"x".repeat(1000));
+        let silence = recent.silence(Duration::from_secs(900));
+
+        let lines: Vec<&str> = silence.last_output.lines().collect();
+        assert_eq!(lines.len(), 10);
+        assert_eq!(lines[0], "line 6");
+        assert_eq!(lines[9].chars().count(), 301); // 300 and the mark that it was cut
+        assert_eq!(silence.idle_secs, 900);
+    }
+
+    #[test]
+    fn the_details_say_how_long_and_what_came_last() {
+        let silence = Silence {
+            idle_secs: 905,
+            last_output: "{\"type\":\"system\",\"subtype\":\"api_retry\"}".to_owned(),
+        };
+        assert_eq!(
+            silence.describe(),
+            "No output for 15 min 5 s. Its last output:\n{\"type\":\"system\",\"subtype\":\"api_retry\"}"
+        );
+        assert_eq!(
+            Silence::default().describe(),
+            "No output for 0 s. It printed nothing before that."
+        );
     }
 }

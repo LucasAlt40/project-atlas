@@ -192,6 +192,7 @@ fn every_adapter_hands_its_process_exactly_the_payload_it_hashes() {
         scope: ExecutionScope::for_tests(),
         text_only: false,
         allow_edits: false,
+        granted_commands: Vec::new(),
         mcp: None,
     };
     let spy = |program: &str| {
@@ -650,6 +651,7 @@ fn no_adapter_claims_a_system_channel_it_does_not_use() {
         scope: ExecutionScope::for_tests(),
         text_only: false,
         allow_edits: false,
+        granted_commands: Vec::new(),
         mcp: None,
     };
     let runner: Arc<FakeProcessRunner> = Arc::new(FakeProcessRunner::new(&[], |_| ok("")));

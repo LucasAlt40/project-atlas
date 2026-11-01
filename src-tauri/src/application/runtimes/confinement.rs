@@ -26,6 +26,51 @@ impl RuntimeConfinement for ClaudeConfinement {
             tmp_dirs: &["/private/tmp/claude-{uid}"],
         }
     }
+
+    /// A run given the project's test commands carries the CLI's own sandbox in its `--settings`
+    /// (`claude::command_settings`). That sandbox is Seatbelt too, and a second Seatbelt profile is
+    /// refused inside ours (measured for Codex, not yet for Claude), so inside Atlas's profile it
+    /// is turned off: Atlas's profile confines the whole process and every command it starts.
+    /// The permission rules stay, so `Bash` still runs the test commands and nothing else. What
+    /// is lost is the CLI's network block: Atlas's profile leaves the network open (ADR 0038),
+    /// as it does for Codex.
+    fn adapt(&self, args: &mut [String]) -> Adapted {
+        let Some(at) = args.iter().position(|a| a == "--settings") else {
+            return Adapted::default();
+        };
+        let Some(value) = args.get_mut(at + 1) else {
+            return Adapted::default();
+        };
+        let Ok(mut settings) = serde_json::from_str::<serde_json::Value>(value) else {
+            return Adapted::default();
+        };
+        let Some(sandbox) = settings
+            .get_mut("sandbox")
+            .and_then(serde_json::Value::as_object_mut)
+        else {
+            return Adapted::default();
+        };
+        if sandbox.get("enabled") != Some(&serde_json::Value::Bool(true)) {
+            return Adapted::default();
+        }
+        // A run that only reads had its folders refused for writing by the CLI's sandbox; Atlas's
+        // profile must then keep the worktree unwritable, because nothing else will.
+        let read_only = sandbox
+            .get("filesystem")
+            .and_then(|f| f.get("denyWrite"))
+            .and_then(serde_json::Value::as_array)
+            .is_some_and(|dirs| !dirs.is_empty());
+        sandbox.insert("enabled".to_owned(), serde_json::Value::Bool(false));
+        sandbox.insert(
+            "failIfUnavailable".to_owned(),
+            serde_json::Value::Bool(false),
+        );
+        *value = settings.to_string();
+        Adapted {
+            read_only,
+            note: Some("sandbox:replaces_cli_sandbox:claude".to_owned()),
+        }
+    }
 }
 
 struct OpenCodeConfinement;
@@ -163,6 +208,39 @@ mod tests {
 
     fn args(list: &[&str]) -> Vec<String> {
         list.iter().map(|a| (*a).to_owned()).collect()
+    }
+
+    #[test]
+    fn inside_atlas_sandbox_claude_gives_up_its_own_and_keeps_its_permission_rules() {
+        let registry = default_confinements();
+        let claude = registry.find("claude").unwrap();
+        let settings = r#"{"permissions":{"allow":["Bash(npm test)"]},"sandbox":{"enabled":true,"failIfUnavailable":true,"allowUnsandboxedCommands":false}}"#;
+        let mut launch = args(&["-p", "--settings", settings, "--model", "haiku"]);
+
+        let adapted = claude.adapt(&mut launch);
+
+        assert_eq!(
+            adapted.note.as_deref(),
+            Some("sandbox:replaces_cli_sandbox:claude")
+        );
+        assert!(!adapted.read_only);
+        let now: serde_json::Value = serde_json::from_str(&launch[2]).unwrap();
+        assert_eq!(now["sandbox"]["enabled"], false);
+        assert_eq!(now["sandbox"]["failIfUnavailable"], false);
+        assert_eq!(now["sandbox"]["allowUnsandboxedCommands"], false);
+        assert_eq!(now["permissions"]["allow"][0], "Bash(npm test)");
+        assert_eq!(launch[3..], args(&["--model", "haiku"]));
+
+        // A run that only reads had its folders refused for writing: Atlas's profile must then
+        // keep the worktree unwritable.
+        let reading = r#"{"sandbox":{"enabled":true,"filesystem":{"denyWrite":["/wt"]}}}"#;
+        let mut launch = args(&["-p", "--settings", reading]);
+        assert!(claude.adapt(&mut launch).read_only);
+
+        // A launch without the test settings is left alone.
+        let mut plain = args(&["-p", "--tools", "Read,Grep,Glob"]);
+        assert_eq!(claude.adapt(&mut plain), Adapted::default());
+        assert_eq!(plain, args(&["-p", "--tools", "Read,Grep,Glob"]));
     }
 
     #[test]

@@ -177,7 +177,7 @@ pub fn execute(
         .map_err(|error| match error {
             ProcessError::PermissionDenied(reason) => RuntimeError::PermissionDenied(reason),
             ProcessError::NotFound => RuntimeError::NotInstalled,
-            ProcessError::Timeout => RuntimeError::Timeout,
+            ProcessError::Timeout(silence) => RuntimeError::Timeout(silence),
             ProcessError::Spawn(details) | ProcessError::Io(details) => {
                 RuntimeError::ExecutionFailed(details)
             }

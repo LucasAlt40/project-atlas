@@ -209,3 +209,10 @@
   font-size: var(--font-size-2xs);
   overflow-wrap: anywhere;
 }
+
+/* A running process that has sent nothing for minutes: it may be stuck. */
+.silent {
+  color: var(--warning);
+  font-size: var(--font-size-2xs);
+  white-space: nowrap;
+}

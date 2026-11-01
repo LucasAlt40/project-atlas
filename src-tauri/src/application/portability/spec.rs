@@ -273,6 +273,10 @@ pub struct AgentStepSpec {
     pub read_only: bool,
     #[serde(default = "yes")]
     pub announce_integrations: bool,
+    /// The step is given no commands to run. Written only when set, so a file without it (and
+    /// every file exported before it existed) reads the same.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub no_commands: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -486,6 +490,7 @@ pub fn graph_to_spec(
                     },
                     read_only: step.execution_policy.read_only,
                     announce_integrations: step.execution_policy.announce_integrations,
+                    no_commands: step.execution_policy.no_commands,
                 }),
                 NodeKind::Condition(step) => StepSpec::Condition(ConditionStepSpec {
                     label: step.label.clone(),
@@ -549,6 +554,7 @@ pub fn graph_to_domain(
                     execution_policy: ExecutionPolicy {
                         read_only: step.read_only,
                         announce_integrations: step.announce_integrations,
+                        no_commands: step.no_commands,
                         ..ExecutionPolicy::default()
                     },
                 }),
@@ -670,5 +676,27 @@ pub fn reason_of(error: &AppError) -> &'static str {
         ErrorCode::PermissionProfileInvalid => "permission_profile_invalid",
         ErrorCode::ResultContractInvalid => "contract_invalid",
         _ => "invalid",
+    }
+}
+
+#[cfg(test)]
+mod no_commands_tests {
+    use super::AgentStepSpec;
+
+    #[test]
+    fn a_step_kept_from_commands_says_so_and_files_without_it_read_the_same() {
+        let old: AgentStepSpec = serde_json::from_str(r#"{"label":"Audit"}"#).unwrap();
+        assert!(!old.no_commands);
+        // Not written when off: an export from before the field is byte for byte the same.
+        assert!(!serde_json::to_string(&old).unwrap().contains("noCommands"));
+
+        let audit = AgentStepSpec {
+            no_commands: true,
+            ..old
+        };
+        let text = serde_json::to_string(&audit).unwrap();
+        assert!(text.contains(r#""noCommands":true"#));
+        let back: AgentStepSpec = serde_json::from_str(&text).unwrap();
+        assert!(back.no_commands);
     }
 }

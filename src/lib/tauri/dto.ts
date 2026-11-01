@@ -2596,6 +2596,8 @@ export interface ExecutionPolicyDto {
   announceIntegrations: boolean;
   /** The step may not change files, whatever its agent's profile allows. It only narrows. */
   readOnly: boolean;
+  /** The step is given no commands to run (tests, Git's reading commands). It only narrows. */
+  noCommands?: boolean;
 }
 
 export interface LoopPolicyDto {

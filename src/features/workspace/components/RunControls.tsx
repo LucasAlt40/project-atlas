@@ -3,8 +3,9 @@ import type { RuntimeCapabilitiesDto } from '@/lib/tauri/commands';
 import { useT } from '@/i18n/I18nProvider';
 import { errorMessage } from '@/i18n/messages';
 import { useProcessControls } from '../hooks/useProcessControls';
+import { formatDuration } from '@/features/usage/model/format';
 import { activityLabel } from '../model/activity';
-import type { AgentRun, ProcessState } from '../model/agentRuns';
+import { silentFor, type AgentRun, type ProcessState } from '../model/agentRuns';
 import styles from './Terminal.module.css';
 
 interface Props {
@@ -43,6 +44,8 @@ export function RunControls({
   }, []);
   const seconds = Math.max(0, Math.floor((now - run.startedAt) / 1000));
   const elapsed = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+  // A run with no event for minutes may be stuck: say so, instead of a spinner that looks busy.
+  const silent = silentFor(run, now);
   return (
     <div className={styles.runBar}>
       <span className={styles.spinner} aria-hidden="true" />
@@ -50,6 +53,11 @@ export function RunControls({
         {process.status === 'running' && last ? activityLabel(t, last) : t('agent.status.stopping')}
       </span>
       <span className={styles.elapsed}>{t('agent.elapsed', { time: elapsed })}</span>
+      {silent !== null && (
+        <span className={styles.silent} role="status">
+          {t('agent.silent', { time: formatDuration(silent) })}
+        </span>
+      )}
       {(capabilities?.interactiveTerminal ?? true) && (
         <button type="button" className={styles.tool} onClick={onOpenTerminal}>
           {t('terminal.open')}

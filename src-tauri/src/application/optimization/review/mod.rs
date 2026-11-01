@@ -24,7 +24,10 @@ use super::context::text::preview;
 use super::context::{ContextItem, Priority};
 use crate::application::harness::secrets::redact_secrets;
 use crate::application::orchestration::result_parser::RESULT_FENCE;
-use crate::application::prompt::{ATLAS_RULES, ATLAS_RULES_EDITING, ATLAS_RULES_EDITING_COMMANDS};
+use crate::application::prompt::{
+    ATLAS_RULES, ATLAS_RULES_EDITING, ATLAS_RULES_EDITING_COMMANDS, ATLAS_RULES_GRANTED_AFTER,
+    ATLAS_RULES_GRANTED_BEFORE, ATLAS_RULES_READ_GRANTED_AFTER, ATLAS_RULES_READ_GRANTED_BEFORE,
+};
 use crate::domain::context::ContextAuthority;
 use crate::domain::guardrail::{
     ContextHealth, ContextReviewResult, IssueCode, IssueSeverity, ReviewIssue, SourceSummary,
@@ -149,14 +152,19 @@ fn check_required(input: &ReviewInput<'_>, issues: &mut Vec<ReviewIssue>) {
             .map_or("", |i| i.content.as_str())
     };
     let system = text_of("system");
-    if ![
+    let fixed_rules = [
         ATLAS_RULES,
         ATLAS_RULES_EDITING,
         ATLAS_RULES_EDITING_COMMANDS,
     ]
     .iter()
-    .any(|rules| system.contains(rules))
-    {
+    .any(|rules| system.contains(rules));
+    // The variant for a run given test commands names them between two fixed parts.
+    let test_rules = (system.contains(ATLAS_RULES_GRANTED_BEFORE)
+        && system.contains(ATLAS_RULES_GRANTED_AFTER))
+        || (system.contains(ATLAS_RULES_READ_GRANTED_BEFORE)
+            && system.contains(ATLAS_RULES_READ_GRANTED_AFTER));
+    if !fixed_rules && !test_rules {
         issues.push(issue(
             IssueCode::MissingRequired,
             IssueSeverity::Blocking,

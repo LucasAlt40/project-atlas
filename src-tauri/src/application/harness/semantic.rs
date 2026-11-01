@@ -603,6 +603,7 @@ impl SemanticModel for RuntimeSemanticModel {
             },
             text_only: self.text_only,
             allow_edits: false,
+            granted_commands: Vec::new(),
             mcp: None,
         };
         runtime

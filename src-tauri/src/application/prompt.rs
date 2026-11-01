@@ -34,6 +34,61 @@ touch anything outside your working directory. What you write stays in the workt
 there, handed to the next steps of your workflow and reviewed by the user before it reaches the \
 project.";
 
+/// As [`ATLAS_RULES_EDITING`], for a runtime given the project's test commands alone
+/// (`RuntimeRequest::granted_commands`): [`rules_editing_with_commands`] puts the commands between
+/// these two fixed parts, so the context review can still check the required text is intact. A
+/// step's text tells an agent whose rules let it run commands to run the tests and report what
+/// they printed, so this is where the "may" is decided.
+pub(crate) const ATLAS_RULES_GRANTED_BEFORE: &str = "You are running inside Atlas, in an isolated \
+Git worktree of the project (your working directory). You may create and edit files in it with \
+your file tools. You may also run commands, but only the project's own test commands and Git's \
+reading commands, with your Bash tool, from your working directory: ";
+pub(crate) const ATLAS_RULES_GRANTED_AFTER: &str = " (each may be followed by its arguments). Run \
+each one on its own: not after `cd`, not chained with `&&` or `;`, not piped. They run in a \
+sandbox: they can write only inside your working directory and cannot reach the network. Any \
+other shell command is refused, so do not try one; do not use the network or touch anything \
+outside your working directory. What you write stays in the worktree: it is saved there, handed \
+to the next steps of your workflow and reviewed by the user before it reaches the project.";
+
+/// As [`ATLAS_RULES`], for a run that only reads and is given the project's test commands (a
+/// reviewer that confirms by running). The commands go between the two fixed parts, as for
+/// [`ATLAS_RULES_GRANTED_BEFORE`].
+pub(crate) const ATLAS_RULES_READ_GRANTED_BEFORE: &str =
+    "You are running inside Atlas in read-only \
+mode. Do not modify files. You may run commands, but only the project's own test commands and \
+Git's reading commands, with your Bash tool, from your working directory: ";
+pub(crate) const ATLAS_RULES_READ_GRANTED_AFTER: &str =
+    " (each may be followed by its arguments). \
+Run each one on its own: not after `cd`, not chained with `&&` or `;`, not piped. They run in a \
+sandbox that cannot write anywhere in your working directory nor reach the network, \
+so a test that needs to write there fails: say so instead of working around it. Any other shell \
+command is refused, so do not try one.";
+
+/// The Atlas rules for a run given test commands: the editing variant or the reading one.
+fn rules_with_commands(can_edit: bool, commands: &[String]) -> String {
+    if can_edit {
+        rules_editing_with_commands(commands)
+    } else {
+        format!(
+            "{ATLAS_RULES_READ_GRANTED_BEFORE}{}{ATLAS_RULES_READ_GRANTED_AFTER}",
+            command_list(commands)
+        )
+    }
+}
+
+fn command_list(commands: &[String]) -> String {
+    commands
+        .iter()
+        .map(|c| format!("`{c}`"))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn rules_editing_with_commands(commands: &[String]) -> String {
+    let list = command_list(commands);
+    format!("{ATLAS_RULES_GRANTED_BEFORE}{list}{ATLAS_RULES_GRANTED_AFTER}")
+}
+
 /// Applied to every agent, whatever its personality (built-in or custom), so the live response
 /// shows each step as it happens. It only shapes the real-time response: the final answer is
 /// the concluding message, which must stand on its own.
@@ -44,14 +99,17 @@ the complete final answer as a last message that stands on its own, without rely
 Your working directory path can contain spaces: always quote paths in shell commands.";
 
 /// Applied to every agent, implicitly: a plan is a document the person reads and decides on, so
-/// it is never only chat. Atlas shows the message in full (and in the notification), and the
-/// file is what stays with the project.
+/// it is never a one-line summary. Atlas shows the message in full (and in the notification) and
+/// keeps it with the run, so the plan is not also written into the worktree: a
+/// `docs/plans/<name>.md` there became part of the change the person reviews, against tasks that
+/// said to touch no other file (7 of 12 benchmarked runs, `bench/`, 2026-10-30).
 const PLAN_RULE: &str = "PLANS ARE MANDATORY DOCUMENTS. Whenever you propose, are asked for, or \
-need approval of a plan, a design or an analysis before implementing, you MUST (1) write it in \
-full in your message as Markdown (a title, goals, steps, files to change, risks, how it will be \
-verified), because Atlas shows that message to the person, highlighted, to read and approve, and \
-(2) if you can create files, also save it as `docs/plans/<short-name>.md` in your working \
-directory. Never reduce a plan to a one-line summary or ask for approval without it.";
+need approval of a plan, a design or an analysis before implementing, you MUST write it in full in \
+your message as Markdown (a title, goals, steps, files to change, risks, how it will be verified): \
+Atlas shows that message to the person, highlighted, to read and approve, and keeps it with the \
+run. Do not also save the plan as a file in your working directory unless the task or the \
+project's conventions ask for one. Never reduce a plan to a one-line summary or ask for approval \
+without it.";
 
 /// The three separate concerns of a prompt. Providers that support a system prompt can
 /// send `system` on its own; the others receive [`Prompt::combined`].
@@ -276,6 +334,10 @@ pub struct PromptBuilder<'a> {
     pub can_edit: bool,
     /// The runtime's tools are commands it runs (see [`ATLAS_RULES_EDITING_COMMANDS`]).
     pub tools_are_commands: bool,
+    /// The commands the execution may run, and only those (`RuntimeRequest::granted_commands`):
+    /// the project's tests and Git's reading commands. Empty: the agent is told it cannot run
+    /// commands, as before.
+    pub granted_commands: &'a [String],
     pub harness: Option<&'a str>,
     pub skills: Option<&'a str>,
     /// The recovered memories, already rendered (see `application::memory`). `None`: none.
@@ -339,6 +401,7 @@ impl PromptBuilder<'_> {
             task_aware,
             can_edit,
             tools_are_commands,
+            granted_commands,
             harness,
             skills,
             memories,
@@ -349,11 +412,13 @@ impl PromptBuilder<'_> {
             other_projects,
         } = *self;
         let atlas_rules = if can_edit && tools_are_commands {
-            ATLAS_RULES_EDITING_COMMANDS
+            ATLAS_RULES_EDITING_COMMANDS.to_owned()
+        } else if !granted_commands.is_empty() {
+            rules_with_commands(can_edit, granted_commands)
         } else if can_edit {
-            ATLAS_RULES_EDITING
+            ATLAS_RULES_EDITING.to_owned()
         } else {
-            ATLAS_RULES
+            ATLAS_RULES.to_owned()
         };
         let personality_text = personality.system_instructions.trim();
         let system =
@@ -400,7 +465,7 @@ impl PromptBuilder<'_> {
 
         let layout = PromptLayout {
             personality: TextSize::of(personality_text),
-            atlas_rules: TextSize::of(atlas_rules),
+            atlas_rules: TextSize::of(&atlas_rules),
             live_narration: TextSize::of(LIVE_NARRATION),
             plan_rule: TextSize::of(PLAN_RULE),
             memory_rule,
@@ -486,6 +551,7 @@ mod tests {
             task_aware: false,
             can_edit,
             tools_are_commands,
+            granted_commands: &[],
             harness: None,
             skills: None,
             memories: None,
@@ -546,7 +612,9 @@ mod tests {
         assert!(prompt.system.contains("Narrate your work"));
         // Every agent, whatever its personality or instructions, is held to the plan rule.
         assert!(prompt.system.contains("PLANS ARE MANDATORY DOCUMENTS"));
-        assert!(prompt.system.contains("docs/plans/<short-name>.md"));
+        // ... and the plan stays in the message: it is not written into the worktree.
+        assert!(prompt.system.contains("keeps it with the run"));
+        assert!(!prompt.system.contains("docs/plans"));
         assert_eq!(
             prompt.context,
             "Project: Project Atlas\nPath: /atlas\nDetected technologies:\n- Tauri 2\n- Rust"

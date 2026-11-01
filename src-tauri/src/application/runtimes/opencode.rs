@@ -469,6 +469,7 @@ mod tests {
             scope: crate::application::process::ExecutionScope::for_tests(),
             text_only: false,
             allow_edits: false,
+            granted_commands: Vec::new(),
             mcp: None,
         }
     }
@@ -493,7 +494,9 @@ mod tests {
     fn reports_failed_discovery_instead_of_inventing_models() {
         let fake = Arc::new(FakeProcessRunner::new(&["opencode"], |spec| {
             if spec.args[0] == "models" {
-                Err(ProcessError::Timeout)
+                Err(ProcessError::Timeout(
+                    crate::application::process::Silence::default(),
+                ))
             } else {
                 ok("1.0\n")
             }
@@ -634,7 +637,12 @@ mod tests {
             })),
             Err(RuntimeError::UnexpectedResponse(_))
         ));
-        assert_eq!(run(Err(ProcessError::Timeout)), Err(RuntimeError::Timeout));
+        assert!(matches!(
+            run(Err(ProcessError::Timeout(
+                crate::application::process::Silence::default()
+            ))),
+            Err(RuntimeError::Timeout(_))
+        ));
         assert_eq!(
             run(Err(ProcessError::Spawn("bad cwd".to_owned()))),
             Err(RuntimeError::ExecutionFailed("bad cwd".to_owned()))

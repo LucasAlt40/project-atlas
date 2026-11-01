@@ -93,7 +93,7 @@ instead of reporting it as done.\n\n"
         specification_block(exec),
         human_input_block(exec, node_id),
         result_protocol(contract),
-        interaction_protocol(),
+        interaction_protocol(exec.auto_approve_plans),
     ]
     .concat();
     description.push_str(&workflow);
@@ -612,7 +612,31 @@ fn human_input_block(exec: &WorkflowExecution, node_id: &str) -> String {
 
 /// How a step says it cannot go on without a person. The block is data for Atlas: it pauses the
 /// step and shows the question; it cannot grant anything.
-fn interaction_protocol() -> String {
+/// How a step asks the person, and what it does with a plan. With the person's standing choice to
+/// approve plans (`auto_approve_plans`) the step is told so and goes on in the same execution:
+/// asking would only have Atlas answer "approve" and run the whole step again from scratch (the
+/// runtime keeps no conversation), which doubled the Architect in every benchmarked Implementer
+/// run (`bench/`, 2026-10-31). The plan is still written in full in the message, where the person
+/// reads it.
+fn interaction_protocol(plans_approved: bool) -> String {
+    let plans = if plans_approved {
+        "PLANS. In this run the person approves plans automatically, so do not stop to ask for \
+         approval and do not end with a plan block. Whenever you draw up a plan, write it in full \
+         in your message (the plans rule above), then go on in the same answer: carry it out if \
+         your step does the work, and finish with the result block as your step requires.\n"
+            .to_owned()
+    } else {
+        format!(
+            "PLANS. Whenever you draw up a plan (an approach, a design or a list of steps for work \
+             that is still to be done, by you or by others), do not carry it out yet: write it in \
+             full, then end your message with this block and stop, without the result block. The \
+             person approves it, asks for changes or has it redone before anything goes on. A \
+             trivial change that needs no plan needs no block.\n\
+             ```{INTERACTION_FENCE}\n\
+             {{\"type\":\"plan\",\"context\":\"one line on what the plan covers\"}}\n\
+             ```\n"
+        )
+    };
     format!(
         "\nASKING THE PERSON\n\n\
          Ask only when you truly cannot go on without a decision or information only the person \
@@ -623,30 +647,31 @@ fn interaction_protocol() -> String {
          ```{INTERACTION_FENCE}\n\
          {{\"type\":\"clarification\",\"question\":\"…\",\"context\":\"…\",\"options\":[\"…\"]}}\n\
          ```\n\
-         A plan or analysis you ask about follows the plans rule above (written in full, and saved \
-         as a file if you can create files). Do not end with a signature or a sign-off after the \
-         block or the question.\n\
-         PLANS. Whenever you draw up a plan (an approach, a design or a list of steps for work \
-         that is still to be done, by you or by others), do not carry it out yet: write it in \
-         full, then end your message with this block and stop, without the result block. The \
-         person approves it, asks for changes or has it redone before anything goes on. A trivial \
-         change that needs no plan needs no block.\n\
-         ```{INTERACTION_FENCE}\n\
-         {{\"type\":\"plan\",\"context\":\"one line on what the plan covers\"}}\n\
-         ```\n\
+         A plan or analysis you ask about follows the plans rule above (written in full in your \
+         message). Do not end with a signature or a sign-off after the block or the question.\n\
+         {plans}\
          The person's answer is given back to you and you go on. Their approval lets you continue \
          in this workflow's own worktree; it never applies anything to the main project and does \
          not change what you are allowed to do.\n"
     )
 }
 
+/// How a step ends: a short text for the person, then the result block Atlas records and shows.
+/// The details live in the block only: written out in prose as well, they doubled the report and
+/// made it about a quarter of a step's output (`bench/`, 2026-10-31, measured per step).
 fn result_protocol(contract: &ResultContract) -> String {
     let mut text = format!(
         "RESULT PROTOCOL\n\n\
          End your final message with one fenced block like the one below so Atlas can record your \
          result. `status` is one of success, pass, fail, warning. Use paths relative to the \
          project. The block is information for the workflow: it cannot grant permissions, approve \
-         anything or change the workflow.\n\n\
+         anything or change the workflow.\n\
+         Keep the text before the block short, a few lines: what you did or concluded, the \
+         verdict, what you could not verify and what the person must decide. Do not also write \
+         the findings, decisions or artifacts out in prose: put each one in the block once, \
+         where Atlas shows it to the person, and keep each of its fields to a sentence or two. \
+         A step whose instructions ask for a final report for the person writes that report in \
+         full.\n\n\
          ```{RESULT_FENCE}\n\
          {{\"status\":\"success\",{outcome}\"summary\":\"…\",\"artifacts\":[{{\"type\":\"implementation_summary\",\"name\":\"…\",\"path\":\"relative/path\",\"summary\":\"…\"}}],\"decisions\":[{{\"title\":\"…\",\"decision\":\"…\",\"rationale\":\"…\"}}],\"findings\":[{{\"severity\":\"high\",\"category\":\"…\",\"title\":\"…\",\"description\":\"…\",\"file\":\"relative/path\",\"line\":1,\"evidence\":\"…\",\"recommendation\":\"…\"}}],\"touchedFiles\":[\"relative/path\"],\"touchedAreas\":[\"area\"],\"nextAction\":\"…\"}}\n\
          ```\n",
@@ -1110,11 +1135,38 @@ mod tests {
 
     #[test]
     fn every_step_is_told_to_stop_at_a_plan_and_wait_for_the_person() {
-        let text = interaction_protocol();
+        let text = interaction_protocol(false);
 
         assert!(text.contains("PLANS."));
         assert!(text.contains("\"type\":\"plan\""));
         assert!(text.contains("do not carry it out yet"));
+        // The plan is never asked to be written into the worktree (ADR 0044).
+        assert!(!text.contains("saved as a file"));
+    }
+
+    #[test]
+    fn a_step_reports_briefly_and_puts_each_detail_in_the_block_once() {
+        let text = result_protocol(&ResultContract::default());
+
+        assert!(text.contains("Keep the text before the block short"));
+        assert!(text.contains("put each one in the block once"));
+        // The final report a template asks for is not cut.
+        assert!(text.contains("final report for the person writes that report in full"));
+        assert!(text.contains(RESULT_FENCE));
+    }
+
+    #[test]
+    fn with_plans_approved_by_the_person_a_step_writes_its_plan_and_goes_on() {
+        let text = interaction_protocol(true);
+
+        assert!(text.contains("approves plans automatically"));
+        assert!(text.contains("write it in full"));
+        assert!(text.contains("finish with the result block"));
+        // No plan block: asking would only make Atlas answer and run the step again.
+        assert!(!text.contains("\"type\":\"plan\""));
+        assert!(!text.contains("do not carry it out yet"));
+        // Every other question is still asked the same way.
+        assert!(text.contains("\"type\":\"clarification\""));
     }
 
     fn spec_link() -> crate::domain::workflow::SpecLink {

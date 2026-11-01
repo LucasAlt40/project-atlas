@@ -327,6 +327,7 @@ impl ProcessRunner for SystemProcessRunner {
             .as_ref()
             .map(|(sessions, id)| PipedAlive::new(sessions.clone(), id.clone()));
         let mut input_reported = false;
+        let mut recent = crate::application::process::RecentLines::default();
         let status = loop {
             if !input_reported && written_rx.try_recv().is_ok() {
                 input_reported = true;
@@ -344,6 +345,7 @@ impl ProcessRunner for SystemProcessRunner {
                         input_reported = true;
                         on_event(ProcessEvent::InputSent);
                     }
+                    recent.push(&line);
                     on_event(ProcessEvent::StdoutLine(line));
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => {}
@@ -360,7 +362,7 @@ impl ProcessRunner for SystemProcessRunner {
                 Ok(Some(status)) => break status,
                 Ok(None) if Instant::now() >= deadline => {
                     kill(&mut child);
-                    return Err(ProcessError::Timeout);
+                    return Err(ProcessError::Timeout(recent.silence(spec.timeout)));
                 }
                 Ok(None) => {}
                 Err(error) => {
@@ -604,6 +606,27 @@ mod tests {
     }
 
     #[test]
+    fn a_timeout_keeps_how_long_it_was_quiet_and_what_it_printed_last() {
+        let result = SystemProcessRunner::new().run(
+            &spec(
+                "sh",
+                &["-c", "echo first; echo last words; sleep 30"],
+                None,
+                Duration::from_millis(400),
+            ),
+            &|_| {},
+        );
+
+        let Err(ProcessError::Timeout(silence)) = result else {
+            panic!("{result:?}");
+        };
+        assert_eq!(silence.last_output, "first\nlast words");
+        assert!(silence
+            .describe()
+            .contains("Its last output:\nfirst\nlast words"));
+    }
+
+    #[test]
     fn kills_processes_that_exceed_the_timeout() {
         let started = Instant::now();
 
@@ -612,7 +635,10 @@ mod tests {
             &|_| {},
         );
 
-        assert_eq!(result, Err(ProcessError::Timeout));
+        assert!(
+            matches!(result, Err(ProcessError::Timeout(_))),
+            "{result:?}"
+        );
         assert!(started.elapsed() < Duration::from_secs(5));
     }
 
@@ -665,7 +691,10 @@ mod tests {
             &|_| {},
         );
 
-        assert_eq!(result, Err(ProcessError::Timeout));
+        assert!(
+            matches!(result, Err(ProcessError::Timeout(_))),
+            "{result:?}"
+        );
         assert!(gone(pid_in(&file)), "the grandchild outlived the timeout");
     }
 

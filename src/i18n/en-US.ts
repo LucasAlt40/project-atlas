@@ -561,6 +561,7 @@ export const enUS = {
   'agent.composer.label': 'Message {name}',
   'agent.composer.hint': 'Reply to {name} or request a change',
   'agent.elapsed': 'Elapsed: {time}',
+  'agent.silent': 'No output for {time}',
   'agent.composer.send': 'Send',
   'agent.conversation': 'Conversation',
   'agent.activity': 'Activity',
@@ -1310,7 +1311,7 @@ export const enUS = {
   'workflow.templateHelp.software_feature':
     'Builds a feature or change: plans it, implements it, reviews it and checks it.',
   'workflow.templateHelp.feature_basic':
-    'Architect, Developer and QA: the quick path for a small, local change.',
+    'Architect, Developer and QA: the quick path for a small, local change. If QA rejects it, the Developer fixes it once.',
   'workflow.templateHelp.feature_with_validation': 'Architect, Developer, a code validator and QA.',
   'workflow.templateHelp.feature_with_bug_fix_loop':
     'Architect, Developer and QA, with a Bug Fixer when QA fails.',

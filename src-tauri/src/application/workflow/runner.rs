@@ -35,6 +35,8 @@ pub struct StepRequest {
     pub announce_integrations: bool,
     /// The node's setting: the step reads and does not edit, whatever its agent could do.
     pub read_only: bool,
+    /// The node's setting: the step is given no commands to run.
+    pub no_commands: bool,
     /// The projects the run works in and may consult: the run's, the same for every step.
     pub scope: Option<ScopeRequest>,
 }
