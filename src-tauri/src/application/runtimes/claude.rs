@@ -1056,7 +1056,13 @@ mod tests {
         assert!(!run.args.join(" ").contains("hunter2"));
         assert!(!run.stdin.clone().unwrap_or_default().contains("hunter2"));
         // The terminal case puts the prompt last, after `--`, so a variadic option never takes it.
-        assert_eq!(run.args[run.args.len() - 2], "--");
+        // On Windows it runs through pipes and the prompt is on stdin, out of the arguments.
+        if cfg!(windows) {
+            assert!(run.stdin.is_some());
+            assert!(!run.args.contains(&"--".to_owned()));
+        } else {
+            assert_eq!(run.args[run.args.len() - 2], "--");
+        }
     }
 
     #[test]
