@@ -26,11 +26,7 @@ jobs:
       - name: Known vulnerabilities in the Rust dependencies (RustSec)
         run: |
           cargo install cargo-audit --locked
-          # Ignored: zip 4.x extraction issues (RUSTSEC-2026-0367/0368/0369). Only
-          # tauri-plugin-updater uses it, on Windows, and it extracts a package only after its
-          # minisign signature checks out against our key; no 2.x of the plugin moves to zip 9 yet.
-          cargo audit --file src-tauri/Cargo.lock \
-            --ignore RUSTSEC-2026-0367 --ignore RUSTSEC-2026-0368 --ignore RUSTSEC-2026-0369
+          cargo audit --file src-tauri/Cargo.lock
 
   check:
     strategy:
