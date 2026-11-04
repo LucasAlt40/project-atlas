@@ -126,7 +126,18 @@ function statusAfter(current: AgentRun['status'], event: ExecutionEvent): AgentR
   }
 }
 
+/**
+ * A Harness analysis runs the agent's CLI under its own execution id (`semantic-…`, from the
+ * core's `new_id("semantic")`). Its terminal and permission events arrive on the same channel as
+ * a conversation's, but it is not one: it never sends `completed`/`failed`/`cancelled`, and its
+ * progress is shown by the analysis screen. Taken for a run, it would stay "running" forever.
+ */
+export function isAnalysisExecution(executionId: string): boolean {
+  return executionId.startsWith('semantic-');
+}
+
 function applyEvent(run: AgentRun | undefined, event: ExecutionEvent): AgentRun | undefined {
+  if (isAnalysisExecution(event.executionId)) return run;
   const sameExecution = run?.executionId === event.executionId;
   if (event.kind === 'output_chunk') {
     // Streamed text only means something inside the execution it belongs to, and only until

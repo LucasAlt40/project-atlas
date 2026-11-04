@@ -419,6 +419,28 @@ describe('conversationsReducer', () => {
       expect(state.runs['w/a']?.status).toBe('running');
     });
 
+    it('never takes a Harness analysis for a run of the agent', () => {
+      const analysis = 'semantic-1700000000000-3';
+      const state = apply(
+        at('terminal_connected', analysis),
+        at('permission', analysis),
+        at('process_exited', analysis),
+      );
+
+      expect(state.runs['w/a']).toBeUndefined();
+    });
+
+    it('leaves the agent run as it was when a Harness analysis reports', () => {
+      const state = apply(
+        at('started'),
+        at('completed'),
+        at('terminal_connected', 'semantic-1700000000000-3'),
+      );
+
+      expect(state.runs['w/a']?.status).toBe('completed');
+      expect(state.runs['w/a']?.activity.map((e) => e.kind)).toEqual(['started', 'completed']);
+    });
+
     it('shows a worktree event after completion as part of the same, finished execution', () => {
       const state = apply(at('started'), at('completed'), at('worktree_finalized'));
 
