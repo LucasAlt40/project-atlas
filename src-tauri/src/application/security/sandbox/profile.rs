@@ -214,6 +214,7 @@ mod tests {
             .any(|(_, v)| v == "/work/wt"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn git_is_narrow_the_worktrees_own_dir_the_objects_and_the_atlas_branches_only() {
         let profile = build(&input()).unwrap();

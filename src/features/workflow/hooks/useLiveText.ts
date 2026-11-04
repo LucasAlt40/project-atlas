@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 
 export type Text<T> =
   { status: 'loading' } | { status: 'error'; error: unknown } | { status: 'ready'; data: T };
@@ -24,21 +24,24 @@ export function useLiveText<T>(
   const [entry, setEntry] = useState<Entry<T> | null>(null);
   const enabled = load !== null;
 
-  useEffect(() => {
+  // `load` is made fresh each render; `key` says when it would answer differently.
+  const read = useEffectEvent((isCancelled: () => boolean) => {
     if (!load) return;
-    let cancelled = false;
     load()
       .then((data) => {
-        if (!cancelled) setEntry({ key, subject, value: { status: 'ready', data } });
+        if (!isCancelled()) setEntry({ key, subject, value: { status: 'ready', data } });
       })
       .catch((error: unknown) => {
-        if (!cancelled) setEntry({ key, subject, value: { status: 'error', error } });
+        if (!isCancelled()) setEntry({ key, subject, value: { status: 'error', error } });
       });
+  });
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    read(() => cancelled);
     return () => {
       cancelled = true;
     };
-    // `load` is made fresh each render; `key` says when it would answer differently.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, enabled]);
 
   if (!enabled) return { text: { status: 'loading' }, refreshing: false };

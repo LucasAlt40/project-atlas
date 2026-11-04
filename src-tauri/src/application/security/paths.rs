@@ -232,7 +232,8 @@ pub fn resolve_physical(path: &Path, base: &Path) -> Result<PathBuf, PathError> 
                 current.push(name);
                 match fs::symlink_metadata(&current) {
                     Ok(meta) if meta.file_type().is_symlink() => {
-                        current = fs::canonicalize(&current).map_err(|_| PathError::BrokenLink)?;
+                        current =
+                            dunce::canonicalize(&current).map_err(|_| PathError::BrokenLink)?;
                     }
                     Ok(_) => {}
                     // Nothing exists here (or below), so no symlink can hide in the rest.
@@ -255,7 +256,7 @@ fn canonicalize_existing_part(path: &Path) -> io::Result<PathBuf> {
     let mut tail = Vec::new();
     let mut probe = path.to_path_buf();
     loop {
-        match fs::canonicalize(&probe) {
+        match dunce::canonicalize(&probe) {
             Ok(mut real) => {
                 real.extend(tail.iter().rev());
                 return Ok(real);

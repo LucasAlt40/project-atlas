@@ -1102,7 +1102,7 @@ fn a_technical_failure_is_retried_on_the_same_step_and_nothing_else_runs_again()
 }
 
 #[test]
-fn a_loop_that_reached_its_limit_resumes_only_when_the_limit_was_raised() {
+fn a_loop_that_reached_its_limit_resumes_with_another_round_of_passes() {
     let mut sim = Sim::new(routed_fail());
     sim.run(|node, _| match node {
         "validator" => concluded("fail"),
@@ -1113,23 +1113,38 @@ fn a_loop_that_reached_its_limit_resumes_only_when_the_limit_was_raised() {
         FailureCode::MaxIterationsReached
     );
     assert_eq!(count(&sim, "validator"), 3);
-    assert_eq!(
-        sim.resume(|_, _| concluded("pass")).unwrap_err(),
-        crate::domain::workflow::RecoveryProblem::LoopLimit
-    );
 
-    for node in &mut sim.workflow.nodes {
-        if let Some(policy) = node.loop_policy.as_mut() {
-            policy.max_iterations = 5;
-        }
-    }
     sim.resume(|node, _| match node {
         "validator" => concluded("pass"),
         _ => concluded("fixed"),
     })
-    .expect("room for another pass");
+    .expect("another round of passes");
+
     assert_eq!(sim.ended(), WorkflowExecutionStatus::Completed);
     assert_eq!(count(&sim, "architect"), 1);
+    assert_eq!(count(&sim, "validator"), 4);
+}
+
+#[test]
+fn a_loop_resumed_past_its_limit_stops_again_after_the_extra_round() {
+    fn always_fail(node: &str, _: usize) -> StepCompletion {
+        match node {
+            "validator" => concluded("fail"),
+            _ => concluded("fixed"),
+        }
+    }
+    let mut sim = Sim::new(routed_fail());
+    sim.run(always_fail);
+    sim.resume(always_fail).expect("another round of passes");
+
+    assert_eq!(sim.ended(), WorkflowExecutionStatus::Failed);
+    assert_eq!(
+        sim.exec.failure.as_ref().unwrap().code,
+        FailureCode::MaxIterationsReached
+    );
+    assert_eq!(count(&sim, "validator"), 6);
+    // Still something the person can pick up again.
+    sim.resume(|_, _| concluded("pass")).expect("and again");
 }
 
 #[test]

@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::errors::AppError;
 use crate::domain::agent::Agent;
+use crate::domain::app_info::ConfigNotice;
 use crate::domain::conversation::Message;
 use crate::domain::execution::StoredExecution;
 use crate::domain::personality::PersonalityProfile;
@@ -33,6 +34,10 @@ pub struct AppSettings {
     /// Discord Rich Presence: what the person shares about what Atlas is doing. Off by default.
     #[serde(default)]
     pub presence: crate::domain::presence::PresenceSettings,
+    /// How long a question an agent asks during a workflow run waits for a person before it
+    /// lapses and its step fails. `None` (the default): for as long as it takes.
+    #[serde(default)]
+    pub question_timeout_minutes: Option<u32>,
 }
 
 /// Which parts of the Optimization Layer are on. Phase 0 has only the metrics, and they only
@@ -107,6 +112,7 @@ impl Default for AppSettings {
             optimization: OptimizationSettings::default(),
             sandbox: crate::domain::security::SandboxSettings::default(),
             presence: crate::domain::presence::PresenceSettings::default(),
+            question_timeout_minutes: None,
         }
     }
 }
@@ -181,12 +187,18 @@ pub trait ConfigStore: Send + Sync {
     ///
     /// Fails with a readable message if the data cannot be written.
     fn save(&self, config: &UserConfig) -> Result<(), String>;
+
+    /// What happened at `load` when the stored data could not be read as it was.
+    fn notice(&self) -> Option<ConfigNotice> {
+        None
+    }
 }
 
 /// In-memory copy of the user config that writes through to the store on every change.
 pub struct ConfigRepository {
     store: Box<dyn ConfigStore>,
     config: Mutex<UserConfig>,
+    notice: Option<ConfigNotice>,
 }
 
 /// Agents saved before permission profiles could be chosen have none, which reads as the most
@@ -269,20 +281,27 @@ fn route_edges_on_declared_outcomes(config: &mut UserConfig) -> bool {
 impl ConfigRepository {
     pub fn load(store: Box<dyn ConfigStore>) -> Self {
         let mut config = store.load().unwrap_or_else(|error| {
-            eprintln!("could not load user config, starting empty: {error}");
+            log::error!("could not load user config, starting empty: {error}");
             UserConfig::default()
         });
         let outcomes_routed = route_edges_on_declared_outcomes(&mut config);
         let projects_registered = register_the_project_of_each_workspace(&mut config);
         if grant_developer_to_unset_agents(&mut config) || outcomes_routed || projects_registered {
             if let Err(error) = store.save(&config) {
-                eprintln!("could not save the migrated agent permissions: {error}");
+                log::warn!("could not save the migrated agent permissions: {error}");
             }
         }
+        let notice = store.notice();
         Self {
             store,
             config: Mutex::new(config),
+            notice,
         }
+    }
+
+    /// What happened to the stored config at start, when it could not be read as it was.
+    pub fn notice(&self) -> Option<ConfigNotice> {
+        self.notice.clone()
     }
 
     pub fn agents(&self) -> Vec<Agent> {

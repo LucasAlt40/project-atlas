@@ -1,6 +1,6 @@
 use tauri::State;
 
-use crate::application::errors::AppError;
+use crate::application::errors::{AppError, ErrorCode};
 use crate::application::mcp::config_io::ConfigDialect;
 use crate::application::mcp::registry::RegistryPage;
 use crate::application::mcp::{
@@ -103,9 +103,10 @@ pub async fn probe_mcp_connection(
 ) -> Result<McpConnection, AppError> {
     let mcp = state.mcp.clone();
     // Starting a server can take as long as its runtime waits for it: never on the window's thread.
-    tauri::async_runtime::spawn_blocking(move || mcp.probe(&connection_id, &runtime_id))
-        .await
-        .map_err(|error| AppError::storage(error.to_string()))?
+    super::off_window(ErrorCode::StorageFailed, move || {
+        mcp.probe(&connection_id, &runtime_id)
+    })
+    .await?
 }
 
 /// Lets an agent (optionally in one workflow, optionally in one of its steps) use a connection:
@@ -242,7 +243,8 @@ pub async fn search_mcp_registry(
     cursor: Option<String>,
 ) -> Result<RegistryPage, AppError> {
     let mcp = state.mcp.clone();
-    tauri::async_runtime::spawn_blocking(move || mcp.search_registry(&query, cursor.as_deref()))
-        .await
-        .map_err(|error| AppError::storage(error.to_string()))?
+    super::off_window(ErrorCode::StorageFailed, move || {
+        mcp.search_registry(&query, cursor.as_deref())
+    })
+    .await?
 }

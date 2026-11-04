@@ -150,6 +150,10 @@ pub struct NodeState {
     /// interruption) instead of beginning a new iteration.
     #[serde(default)]
     pub continuing: bool,
+    /// Passes the person allowed beyond the node's loop limit when they picked a run up again
+    /// after it stopped at that limit.
+    #[serde(default)]
+    pub extra_iterations: u32,
 }
 
 impl NodeState {
@@ -166,11 +170,17 @@ impl NodeState {
             routed: false,
             unrouted: false,
             continuing: false,
+            extra_iterations: 0,
         }
     }
 
     pub fn last_attempt(&self) -> Option<&NodeAttempt> {
         self.attempts.last()
+    }
+
+    /// How many passes the node may start: its loop limit and what the person added to it.
+    pub fn iteration_limit(&self, max_iterations: u32) -> u32 {
+        max_iterations.saturating_add(self.extra_iterations)
     }
 }
 
@@ -231,6 +241,9 @@ pub enum WorkflowEventKind {
     InteractionRejected,
     /// The question lapsed because the run was cancelled (`interaction.cancelled`).
     InteractionCancelled,
+    /// Nobody answered the question in the time the person set; the step fails
+    /// (`interaction.expired`). `metadata` has `interactionId`.
+    InteractionExpired,
     NodeCompleted,
     NodeFailed,
     NodeBlocked,
@@ -249,6 +262,9 @@ pub enum WorkflowEventKind {
     /// A project of the chain is not run: the run before it said it needs nothing for the task;
     /// `metadata` has `projectId`.
     ChainSkipped,
+    /// The run of the chain's next project could not be started, so the chain ends here;
+    /// `metadata` has `projectId` and `code`.
+    ChainStopped,
     /// A guardrail took something out of a step's result before it was handed on (secrets);
     /// `metadata` has `stage`, `rule` and `lines`. Never the content.
     GuardrailTransformed,

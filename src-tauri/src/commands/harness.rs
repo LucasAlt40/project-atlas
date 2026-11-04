@@ -1,6 +1,6 @@
 use tauri::{AppHandle, Emitter, Runtime, State};
 
-use crate::application::errors::AppError;
+use crate::application::errors::{AppError, ErrorCode};
 use crate::application::harness::workspace_context::{
     WorkspaceContextInfo, WorkspaceHarnessOverview, WorkspaceInitReport,
 };
@@ -24,11 +24,10 @@ pub async fn analyze_project(
 ) -> Result<ProjectAnalysis, AppError> {
     let harness = state.harness.clone();
     // An agent exploring a project can take minutes: never on the thread that serves the window.
-    tauri::async_runtime::spawn_blocking(move || {
+    super::off_window(ErrorCode::StorageFailed, move || {
         harness.analyze_in(&workspace_id, project_id.as_deref(), semantic.as_ref())
     })
-    .await
-    .map_err(|error| AppError::storage(error.to_string()))?
+    .await?
 }
 
 /// Creates or updates `.atlas/` from a fresh analysis and the user's review.
@@ -135,20 +134,19 @@ pub async fn initialize_workspace_harness<R: Runtime>(
 ) -> Result<WorkspaceInitReport, AppError> {
     let harness = state.harness.clone();
     // Reading many projects takes a while: never on the thread that serves the window.
-    tauri::async_runtime::spawn_blocking(move || {
+    super::off_window(ErrorCode::StorageFailed, move || {
         harness.initialize_workspace(
             &workspace_id,
             project_ids.as_deref(),
             ignore_in_git.unwrap_or(true),
             &|update| {
                 if let Err(error) = app.emit("harness:workspace-progress", update) {
-                    eprintln!("failed to emit harness:workspace-progress: {error}");
+                    log::warn!("failed to emit harness:workspace-progress: {error}");
                 }
             },
         )
     })
-    .await
-    .map_err(|error| AppError::storage(error.to_string()))?
+    .await?
 }
 
 /// Rebuilds the generated part of the workspace's context from the projects' Harnesses. The

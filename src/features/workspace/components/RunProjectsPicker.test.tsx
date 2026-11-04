@@ -87,3 +87,20 @@ describe('choosing the order of the runs', () => {
     expect(order()).toEqual(['api', 'admin']);
   });
 });
+
+describe('waiting for each delivery', () => {
+  it('is offered for a chain and kept when the projects change', async () => {
+    const user = userEvent.setup();
+    const onPlan = vi.fn<(plan: RunPlan) => void>();
+    renderWithProviders(<Harness onPlan={onPlan} />);
+    await user.click(await screen.findByRole('button', { name: /^Projetos da execução/ }));
+
+    await user.click(screen.getByRole('checkbox', { name: /Esperar o código de cada projeto/ }));
+    expect(onPlan).toHaveBeenLastCalledWith(expect.objectContaining({ waitForDelivery: true }));
+
+    await user.click(screen.getByRole('button', { name: 'Só o principal' }));
+    expect(onPlan).toHaveBeenLastCalledWith(expect.objectContaining({ waitForDelivery: true }));
+    // With one project there is no chain, so nothing to wait for.
+    expect(screen.queryByRole('checkbox', { name: /Esperar o código de cada projeto/ })).toBeNull();
+  });
+});

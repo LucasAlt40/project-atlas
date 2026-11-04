@@ -43,14 +43,14 @@ impl MacosSandbox {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     #[must_use]
     pub fn with_tool(mut self, tool: PathBuf) -> Self {
         self.tool = tool;
         self
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     #[must_use]
     pub fn with_home(mut self, home: PathBuf) -> Self {
         self.home = Some(home);
@@ -351,9 +351,10 @@ fn git_layout(worktree: &Path) -> (Option<GitLayout>, Vec<PathBuf>) {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use std::os::unix::fs::PermissionsExt;
+    #[cfg(target_os = "macos")]
     use std::process::Command;
 
     use super::*;

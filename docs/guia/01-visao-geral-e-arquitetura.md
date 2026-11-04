@@ -117,6 +117,7 @@ src/i18n/         en-US.ts, pt-BR.ts
 ## Estratégia multiplataforma
 
 Nada assume shell, separador de caminho ou SO. Código que difere fica em `platform/` atrás de um port. Caminhos usam
-`Path`/`PathBuf`; nunca se inicia `sh -c`/`cmd /c`/`powershell`. Validado em **macOS**; Linux usa os mesmos caminhos
-POSIX (não executado); Windows tem ramos `cfg(windows)` mas **não foi compilado nem executado**
+`Path`/`PathBuf`; nunca se inicia `sh -c`/`cmd /c`/`powershell`. Validado em **macOS**; Linux e Windows são
+compilados, passam no lint e nos testes no CI (`ubuntu-22.04`, `windows-latest`) e geram instaladores, mas o app ainda **não
+foi usado de verdade** neles (PTY/ConPTY, detecção das CLIs e encerramento de processos)
 ([ADR 0007](../architecture/adr/0007-live-shell-and-process-control.md)).

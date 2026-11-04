@@ -1,3 +1,4 @@
+import { ExternalLink } from '@/components/ui/ExternalLink';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -89,9 +90,9 @@ function PresetRow({
           <strong>{t(`integrations.preset.${preset.id}.name` as TranslationKey)}</strong>
           <Badge tone="danger">{t('integrations.riskHigh')}</Badge>
         </span>
-        <a href={preset.sourceUrl} target="_blank" rel="noreferrer" className={styles.link}>
-          {t('integrations.source')} <Icon name="externalLink" size={12} />
-        </a>
+        <ExternalLink href={preset.sourceUrl} className={styles.link}>
+          {t('integrations.source')}
+        </ExternalLink>
       </div>
       <p className={styles.muted}>
         {t(`integrations.preset.${preset.id}.about` as TranslationKey)}
@@ -515,9 +516,9 @@ function RegistryDetail({
   return (
     <div className={styles.stack}>
       {server.repositoryUrl && (
-        <a href={server.repositoryUrl} target="_blank" rel="noreferrer" className={styles.link}>
+        <ExternalLink href={server.repositoryUrl} className={styles.link}>
           {t('integrations.source')}
-        </a>
+        </ExternalLink>
       )}
       {!install && (
         <p className={styles.callout}>

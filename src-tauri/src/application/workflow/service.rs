@@ -2,6 +2,7 @@
 //! same config store as everything else (atomic writes, no new database) but in separate lists,
 //! and a run holds a snapshot of the definition it started from.
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use serde::Deserialize;
@@ -747,6 +748,8 @@ impl WorkflowService {
             read_project_ids,
             earlier: Vec::new(),
             skipped: Vec::new(),
+            stopped: None,
+            wait_for_delivery: false,
         };
         let scope = ScopeRequest {
             working_project_id: Some(working.id),
@@ -937,6 +940,28 @@ impl WorkflowService {
     /// # Errors
     ///
     /// Fails if the run is unknown or saving fails.
+    /// Has the chain a run begins wait for each run's code to be applied or kept before the next
+    /// project runs (ADR 0043). Set by the person when the chain starts; a run without a chain
+    /// is left as it is.
+    ///
+    /// # Errors
+    ///
+    /// If the run is unknown or cannot be saved.
+    pub fn set_chain_wait_for_delivery(
+        &self,
+        execution_id: &str,
+        wait: bool,
+    ) -> Result<WorkflowExecution, AppError> {
+        let mut execution = self
+            .execution(execution_id)
+            .ok_or_else(|| AppError::new(ErrorCode::WorkflowExecutionNotFound))?;
+        if let Some(chain) = execution.chain.as_mut() {
+            chain.wait_for_delivery = wait;
+            self.save_execution(&execution)?;
+        }
+        Ok(execution)
+    }
+
     pub fn save_execution(&self, execution: &WorkflowExecution) -> Result<(), AppError> {
         self.config.modify(|config| {
             let slot = config
@@ -963,11 +988,14 @@ impl WorkflowService {
             Ok(())
         });
         if let Err(error) = result {
-            eprintln!("could not mark interrupted workflow runs: {error}");
+            log::warn!("could not mark interrupted workflow runs: {error}");
         }
     }
 }
 
+/// Keeps the newest [`KEPT_FINISHED_RUNS`] finished runs of a workspace and forgets older ones.
+/// A chain (ADR 0043) goes as a whole: its first run is the one a spec links to, and the later
+/// ones are found through it, so a chain is forgotten only when every run of it would be.
 fn prune(executions: &mut Vec<WorkflowExecution>, workspace_id: &str) {
     let finished: Vec<usize> = executions
         .iter()
@@ -975,24 +1003,109 @@ fn prune(executions: &mut Vec<WorkflowExecution>, workspace_id: &str) {
         .filter(|(_, e)| e.workspace_id == workspace_id && e.status.is_final())
         .map(|(i, _)| i)
         .collect();
-    if finished.len() > KEPT_FINISHED_RUNS {
-        let drop: std::collections::BTreeSet<usize> = finished
-            .into_iter()
-            .take(finished_len_excess(executions, workspace_id))
-            .collect();
-        let mut index = 0;
-        executions.retain(|_| {
-            let keep = !drop.contains(&index);
-            index += 1;
-            keep
-        });
+    let excess = finished.len().saturating_sub(KEPT_FINISHED_RUNS);
+    if excess == 0 {
+        return;
     }
+    let mut drop: BTreeSet<usize> = finished.into_iter().take(excess).collect();
+    let chain_of = |e: &WorkflowExecution| e.chain.as_ref().map(|c| c.id.clone());
+    let kept_chains: BTreeSet<String> = executions
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| !drop.contains(i))
+        .filter_map(|(_, e)| chain_of(e))
+        .collect();
+    drop.retain(|&i| chain_of(&executions[i]).is_none_or(|id| !kept_chains.contains(&id)));
+    let mut index = 0;
+    executions.retain(|_| {
+        let keep = !drop.contains(&index);
+        index += 1;
+        keep
+    });
 }
 
-fn finished_len_excess(executions: &[WorkflowExecution], workspace_id: &str) -> usize {
-    executions
-        .iter()
-        .filter(|e| e.workspace_id == workspace_id && e.status.is_final())
-        .count()
-        .saturating_sub(KEPT_FINISHED_RUNS)
+#[cfg(test)]
+mod prune_tests {
+    use super::*;
+    use crate::application::workflow::test_support::{end, workflow};
+    use crate::domain::workflow::{ChainProject, EndOutcome, ProjectChain};
+
+    fn finished(id: &str, chain: Option<&str>) -> WorkflowExecution {
+        let mut run = WorkflowExecution::new(
+            id.to_owned(),
+            workflow(vec![end("done", EndOutcome::Done)], Vec::new()),
+            "task".to_owned(),
+            0,
+        );
+        run.workspace_id = "ws-1".to_owned();
+        run.status = WorkflowExecutionStatus::Completed;
+        run.chain = chain.map(|id| ProjectChain {
+            id: id.to_owned(),
+            projects: vec![
+                ChainProject {
+                    id: "back".to_owned(),
+                    name: "API".to_owned(),
+                },
+                ChainProject {
+                    id: "front".to_owned(),
+                    name: "Web".to_owned(),
+                },
+            ],
+            position: 0,
+            read_project_ids: Vec::new(),
+            earlier: Vec::new(),
+            skipped: Vec::new(),
+            stopped: None,
+            wait_for_delivery: false,
+        });
+        run
+    }
+
+    fn ids(runs: &[WorkflowExecution]) -> Vec<&str> {
+        runs.iter().map(|r| r.id.as_str()).collect()
+    }
+
+    #[test]
+    fn the_oldest_finished_runs_are_forgotten() {
+        let mut runs: Vec<_> = (0..=KEPT_FINISHED_RUNS)
+            .map(|n| finished(&format!("r{n}"), None))
+            .collect();
+
+        prune(&mut runs, "ws-1");
+
+        assert_eq!(runs.len(), KEPT_FINISHED_RUNS);
+        assert_eq!(runs[0].id, "r1");
+    }
+
+    #[test]
+    fn a_chain_is_kept_whole_while_any_run_of_it_is_kept() {
+        // The chain's first run is the oldest one; its second run is among the newest.
+        let mut runs = vec![finished("first", Some("first"))];
+        runs.extend((0..KEPT_FINISHED_RUNS - 1).map(|n| finished(&format!("r{n}"), None)));
+        runs.push(finished("second", Some("first")));
+
+        prune(&mut runs, "ws-1");
+
+        assert!(
+            ids(&runs).contains(&"first"),
+            "the spec still finds the chain"
+        );
+        assert!(ids(&runs).contains(&"second"));
+        assert_eq!(runs.len(), KEPT_FINISHED_RUNS + 1);
+    }
+
+    #[test]
+    fn a_chain_all_of_whose_runs_are_old_goes_as_a_whole() {
+        let mut runs = vec![
+            finished("first", Some("first")),
+            finished("second", Some("first")),
+        ];
+        runs.extend((0..KEPT_FINISHED_RUNS).map(|n| finished(&format!("r{n}"), None)));
+
+        prune(&mut runs, "ws-1");
+
+        assert!(!ids(&runs).contains(&"first"));
+        assert!(!ids(&runs).contains(&"second"));
+        assert_eq!(runs.len(), KEPT_FINISHED_RUNS);
+    }
 }

@@ -77,7 +77,7 @@ impl ProjectScanner for FsProjectScanner {
         if !path.is_absolute() || path.components().any(|c| matches!(c, Component::ParentDir)) {
             return Err(AppError::new(ErrorCode::UnsafeProjectPath).with("path", project_path));
         }
-        let root = match fs::canonicalize(path) {
+        let root = match dunce::canonicalize(path) {
             Ok(root) => root,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                 return Err(AppError::new(ErrorCode::ProjectNotFound).with("path", project_path));
@@ -176,7 +176,7 @@ impl ProjectScanner for FsProjectScanner {
 
     fn exists(&self, project_path: &str, relative: &str) -> bool {
         let relative = relative.trim_end_matches('/');
-        let Ok(root) = fs::canonicalize(project_path) else {
+        let Ok(root) = dunce::canonicalize(project_path) else {
             return false;
         };
         let safe = !relative.is_empty()
@@ -193,7 +193,7 @@ impl ProjectScanner for FsProjectScanner {
         paths: &[String],
         max_bytes: usize,
     ) -> Vec<(String, String)> {
-        let Ok(root) = fs::canonicalize(project_path) else {
+        let Ok(root) = dunce::canonicalize(project_path) else {
             return Vec::new();
         };
         paths
@@ -295,7 +295,7 @@ mod tests {
             fs::create_dir_all(path.parent().unwrap()).unwrap();
             fs::write(path, content).unwrap();
         }
-        fs::canonicalize(dir).unwrap()
+        dunce::canonicalize(dir).unwrap()
     }
 
     fn scan(dir: &Path) -> ScanSnapshot {
@@ -439,7 +439,10 @@ mod tests {
             code(&format!("{}/../etc", dir.display())),
             ErrorCode::UnsafeProjectPath
         );
-        assert_eq!(code("/definitely/not/here"), ErrorCode::ProjectNotFound);
+        assert_eq!(
+            code(&dir.join("definitely/not/here").to_string_lossy()),
+            ErrorCode::ProjectNotFound
+        );
         assert_eq!(
             code(&dir.join("file.txt").to_string_lossy()),
             ErrorCode::ProjectNotDirectory
@@ -519,7 +522,7 @@ mod read_tests {
             fs::create_dir_all(path.parent().unwrap()).unwrap();
             fs::write(path, content).unwrap();
         }
-        fs::canonicalize(dir).unwrap()
+        dunce::canonicalize(dir).unwrap()
     }
 
     fn read(dir: &Path, paths: &[&str], max: usize) -> Vec<(String, String)> {

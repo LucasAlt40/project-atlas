@@ -182,13 +182,7 @@ impl ModelRuntime for CodexRuntime {
             ]
             .map(str::to_owned),
         );
-        let delivery = cli::deliver_prompt(
-            self.runner.as_ref(),
-            PROGRAM,
-            args,
-            self.delivery(request).into_payload(),
-            false,
-        );
+        let delivery = cli::deliver_prompt(args, self.delivery(request).into_payload(), false);
         let spec = ProcessSpec {
             program: PROGRAM.to_owned(),
             args: delivery.args,
@@ -351,7 +345,7 @@ mod tests {
     use super::*;
     use crate::application::mcp::McpLaunch;
     use crate::application::process::fake::{ok, FakeProcessRunner};
-    use crate::application::process::{ProcessError, TerminalRequest};
+    use crate::application::process::ProcessError;
     use crate::application::prompt::Prompt;
     use crate::application::runtimes::inspect;
     use crate::domain::runtime::{Availability, ModelDiscovery};
@@ -462,6 +456,8 @@ mod tests {
     }
 
     #[test]
+    // Windows runs CLIs through pipes (see `cli::RUNS_IN_TERMINAL`).
+    #[cfg(not(windows))]
     fn runs_read_only_in_a_sandbox_with_the_prompt_after_the_options() {
         let fake = runner(output(0, SUCCESS));
 
@@ -494,7 +490,10 @@ mod tests {
                 &request("m").prompt.combined(),
             ]
         );
-        assert_eq!(run.terminal, Some(TerminalRequest::new(false)));
+        assert_eq!(
+            run.terminal,
+            Some(crate::application::process::TerminalRequest::new(false))
+        );
         assert!(!run.args.iter().any(|a| a.contains("dangerously")));
     }
 

@@ -198,6 +198,7 @@ pub fn start_workflow<R: Runtime>(
     scope: Option<crate::domain::scope::ScopeRequest>,
     spec_id: Option<String>,
     next_project_ids: Option<Vec<String>>,
+    wait_for_delivery: Option<bool>,
 ) -> Result<WorkflowExecution, AppError> {
     let auto = auto_approve_plans.unwrap_or(false);
     // The projects the task goes on to after the scope's, one run each (ADR 0043). None: one run.
@@ -213,6 +214,14 @@ pub fn start_workflow<R: Runtime>(
         None => state
             .workflows
             .start_chain(&workflow_id, &task, auto, scope, None, &next)?,
+    };
+    // Said before the run is driven, so its chain never goes on before it is known.
+    let execution = if wait_for_delivery.unwrap_or(false) {
+        state
+            .workflows
+            .set_chain_wait_for_delivery(&execution.id, true)?
+    } else {
+        execution
     };
     drive(&app, &state, execution.id.clone(), Drive::Fresh);
     Ok(execution)
@@ -384,6 +393,59 @@ pub fn list_workflow_executions(
         .executions(&workspace_id, workflow_id.as_deref())
 }
 
+/// The person's "continue" on a completed run of a chain (ADR 0043): starts the run of the next
+/// project that needs one, as the run would have on its own (the app was closed in between, the
+/// next run could not be started then, or the chain waited for the code to be delivered).
+///
+/// # Errors
+///
+/// While the chain waits for the code, when nothing is left to go on with, or why the next run
+/// could not be started.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command]
+pub async fn continue_workflow_chain<R: Runtime>(
+    app: AppHandle<R>,
+    state: State<'_, AppState>,
+    execution_id: String,
+) -> Result<(), AppError> {
+    let orchestrator = state.orchestrator.clone();
+    let observer = TauriWorkflowObserver { app: app.clone() };
+    // What the run leaves for the next is read from Git: not on the thread that serves the window.
+    let next = super::off_window(ErrorCode::WorkflowStateInvalid, move || {
+        orchestrator.go_on_with_chain(&execution_id, &observer)
+    })
+    .await??;
+    drive(&app, &state, next, Drive::Fresh);
+    Ok(())
+}
+
+/// After the person decided about a run's code: a chain that waited for it goes on (or, for
+/// discarded code, ends and says why). Nothing happens for a run that is not waiting.
+fn go_on_after_delivery<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &State<'_, AppState>,
+    execution: &WorkflowExecution,
+) {
+    let waits = execution
+        .chain
+        .as_ref()
+        .is_some_and(|c| c.wait_for_delivery);
+    if !waits || execution.status != WorkflowExecutionStatus::Completed {
+        return;
+    }
+    let orchestrator = state.orchestrator.clone();
+    let observer = Arc::new(TauriWorkflowObserver { app: app.clone() });
+    let id = execution.id.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let result = orchestrator
+            .go_on_with_chain(&id, observer.as_ref())
+            .and_then(|next| orchestrator.run(&next, observer));
+        if let Err(error) = result {
+            log::info!("the chain of run {id} did not go on after its code was decided: {error}");
+        }
+    });
+}
+
 #[derive(Clone, Copy)]
 enum Drive {
     Fresh,
@@ -408,7 +470,7 @@ fn drive<R: Runtime>(
             Drive::Fresh => orchestrator.run(&execution_id, observer),
         };
         if let Err(error) = result {
-            eprintln!("workflow run {execution_id} could not be driven: {error}");
+            log::error!("workflow run {execution_id} could not be driven: {error}");
         }
     });
 }
@@ -450,7 +512,9 @@ pub fn apply_workflow_changes<R: Runtime>(
     state: State<'_, AppState>,
     execution_id: String,
 ) -> Result<WorkflowExecution, AppError> {
-    Ok(announce(&app, state.integration.apply(&execution_id)?))
+    let execution = announce(&app, state.integration.apply(&execution_id)?);
+    go_on_after_delivery(&app, &state, &execution);
+    Ok(execution)
 }
 
 /// The user's decision to leave the changes in the worktree.
@@ -461,7 +525,9 @@ pub fn keep_workflow_changes<R: Runtime>(
     state: State<'_, AppState>,
     execution_id: String,
 ) -> Result<WorkflowExecution, AppError> {
-    Ok(announce(&app, state.integration.keep(&execution_id)?))
+    let execution = announce(&app, state.integration.keep(&execution_id)?);
+    go_on_after_delivery(&app, &state, &execution);
+    Ok(execution)
 }
 
 /// The user's confirmed decision to discard the worktree (its branch is kept).
@@ -472,7 +538,9 @@ pub fn discard_workflow_changes<R: Runtime>(
     state: State<'_, AppState>,
     execution_id: String,
 ) -> Result<WorkflowExecution, AppError> {
-    Ok(announce(&app, state.integration.discard(&execution_id)?))
+    let execution = announce(&app, state.integration.discard(&execution_id)?);
+    go_on_after_delivery(&app, &state, &execution);
+    Ok(execution)
 }
 
 /// The editors Atlas can open a worktree in, found on this machine.

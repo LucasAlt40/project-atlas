@@ -225,6 +225,17 @@ impl Fx {
         headers: &[(&str, &str)],
         body: Option<&str>,
     ) -> Reply {
+        self.try_send(method, path, headers, body).await.unwrap()
+    }
+
+    /// [`Self::send`], with a refused or reset connection as an error instead of a panic.
+    async fn try_send(
+        &self,
+        method: &str,
+        path: &str,
+        headers: &[(&str, &str)],
+        body: Option<&str>,
+    ) -> std::io::Result<Reply> {
         let mut text = format!("{method} {path} HTTP/1.1\r\n");
         if !headers.iter().any(|(n, _)| n.eq_ignore_ascii_case("host")) {
             let _ = write!(text, "Host: 127.0.0.1:{}\r\n", self.port);
@@ -237,14 +248,13 @@ impl Fx {
         }
         text.push_str("Connection: close\r\n\r\n");
         text.push_str(body.unwrap_or(""));
-        let mut stream = TcpStream::connect(("127.0.0.1", self.port)).await.unwrap();
-        stream.write_all(text.as_bytes()).await.unwrap();
+        let mut stream = TcpStream::connect(("127.0.0.1", self.port)).await?;
+        stream.write_all(text.as_bytes()).await?;
         let mut raw = Vec::new();
         tokio::time::timeout(Duration::from_secs(15), stream.read_to_end(&mut raw))
             .await
-            .expect("the server answered")
-            .unwrap();
-        Reply::parse(&String::from_utf8_lossy(&raw))
+            .expect("the server answered")?;
+        Ok(Reply::parse(&String::from_utf8_lossy(&raw)))
     }
 
     /// Opens the event stream and returns the socket to read frames from.
@@ -1314,9 +1324,10 @@ async fn one_address_cannot_take_every_connection() {
     drop(held);
     let mut served = false;
     for _ in 0..50 {
+        // Until the server has seen the others go, it may still turn this one away.
         let page =
-            tokio::time::timeout(Duration::from_secs(2), fx.send("GET", "/", &[], None)).await;
-        if page.is_ok_and(|p| p.status == 200) {
+            tokio::time::timeout(Duration::from_secs(2), fx.try_send("GET", "/", &[], None)).await;
+        if matches!(page, Ok(Ok(ref p)) if p.status == 200) {
             served = true;
             break;
         }

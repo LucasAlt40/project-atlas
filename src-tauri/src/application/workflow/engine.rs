@@ -382,6 +382,46 @@ impl<'a> WorkflowEngine<'a> {
         Ok(events)
     }
 
+    /// A question nobody answered in time lapses, and the step that asked fails without being
+    /// tried again: asking again would only wait again. Its failure route, if any, is taken.
+    /// Nothing for a question that is no longer pending.
+    pub fn expire_input(
+        &self,
+        exec: &mut WorkflowExecution,
+        interaction_id: &str,
+        at: u64,
+    ) -> Events {
+        let mut events = Vec::new();
+        let Some(index) = exec
+            .interactions
+            .iter()
+            .position(|i| i.id == interaction_id && i.is_pending())
+        else {
+            return events;
+        };
+        let node_id = exec.interactions[index].step_id.clone();
+        if exec
+            .node_state(&node_id)
+            .is_none_or(|s| s.status != NodeStatus::WaitingForInput)
+        {
+            return events;
+        }
+        exec.interactions[index].status = InteractionStatus::Expired;
+        let label = exec.interactions[index].step_label.clone();
+        events.push(exec.record(
+            WorkflowEventKind::InteractionExpired,
+            Some(&node_id),
+            format!("Nobody answered {label} in time"),
+            meta(&[("interactionId", interaction_id.to_owned())]),
+            at,
+        ));
+        self.step_failed(exec, &node_id, INTERACTION_EXPIRED, false, at, &mut events);
+        self.leave_waiting(exec);
+        self.refresh_shared(exec);
+        self.settle_into(exec, at, &mut events);
+        events
+    }
+
     /// An answer that was refused is part of the audit trail too.
     #[allow(clippy::unused_self)]
     pub fn reject_answer(
@@ -480,7 +520,7 @@ impl<'a> WorkflowEngine<'a> {
                 }
             }
             StepCompletion::Failed { message } => {
-                self.step_failed(exec, node_id, &message, at, &mut events);
+                self.step_failed(exec, node_id, &message, true, at, &mut events);
             }
             StepCompletion::NoValidOutcome { message } => {
                 let retry = !exec.cancel_requested && state.protocol_retries < MAX_PROTOCOL_RETRIES;
@@ -506,7 +546,7 @@ impl<'a> WorkflowEngine<'a> {
                         at,
                     ));
                 } else {
-                    self.step_failed(exec, node_id, &message, at, &mut events);
+                    self.step_failed(exec, node_id, &message, true, at, &mut events);
                 }
             }
             StepCompletion::Cancelled => {
@@ -779,19 +819,9 @@ impl<'a> WorkflowEngine<'a> {
                 }
             }
             FailureCode::MaxIterationsReached => {
-                let room = failure.node_id.as_deref().is_some_and(|id| {
-                    let used = exec.node_state(id).map_or(0, |s| s.iterations);
-                    self.graph
-                        .workflow
-                        .node(id)
-                        .and_then(|n| n.loop_policy.as_ref())
-                        .is_none_or(|p| used < p.max_iterations)
-                });
-                if room {
-                    plan.restart_node_ids = failure.node_id.iter().cloned().collect();
-                } else {
-                    plan.problem = Some(RecoveryProblem::LoopLimit);
-                }
+                // At the limit the person decides to go on: resuming gives the loop another round
+                // (see `resume_failed`), so a spent limit is no reason to refuse.
+                plan.restart_node_ids = failure.node_id.iter().cloned().collect();
             }
             _ => {}
         }
@@ -808,6 +838,7 @@ impl<'a> WorkflowEngine<'a> {
     /// # Errors
     ///
     /// Says why the run cannot go on (see [`RecoveryProblem`]); the run is left as it was.
+    #[allow(clippy::too_many_lines)]
     pub fn resume_failed(
         &self,
         exec: &mut WorkflowExecution,
@@ -831,6 +862,23 @@ impl<'a> WorkflowEngine<'a> {
         exec.status = WorkflowExecutionStatus::Running;
         exec.cancel_requested = false;
         exec.completed_at = None;
+        // A loop stopped at its limit gets another round of passes, as many as its limit says.
+        if let Some(failure) = failure
+            .as_ref()
+            .filter(|f| f.code == FailureCode::MaxIterationsReached)
+        {
+            if let Some(id) = failure.node_id.as_deref() {
+                let max = self
+                    .graph
+                    .workflow
+                    .node(id)
+                    .and_then(|n| n.loop_policy.as_ref())
+                    .map_or(0, |p| p.max_iterations);
+                if let Some(state) = exec.nodes.get_mut(id) {
+                    state.extra_iterations = state.extra_iterations.saturating_add(max);
+                }
+            }
+        }
         // What the failure left unreached waits for its turn again.
         for state in exec.nodes.values_mut() {
             if matches!(state.status, NodeStatus::Blocked | NodeStatus::Cancelled)
@@ -1064,11 +1112,14 @@ impl<'a> WorkflowEngine<'a> {
         }
     }
 
+    /// A step failed. With `retry`, it is tried again while its retry policy allows; without,
+    /// it fails at once (its failure route still applies).
     fn step_failed(
         &self,
         exec: &mut WorkflowExecution,
         node_id: &str,
         message: &str,
+        retry: bool,
         at: u64,
         events: &mut Events,
     ) {
@@ -1085,7 +1136,7 @@ impl<'a> WorkflowEngine<'a> {
             attempt.failure = Some(message.to_owned());
         }
         state.failed_attempts += 1;
-        if !cancelling && state.failed_attempts <= max_retries {
+        if retry && !cancelling && state.failed_attempts <= max_retries {
             state.status = NodeStatus::Ready;
             state.continuing = true;
             let next = state.attempts.len() + 1;
@@ -1141,7 +1192,8 @@ impl<'a> WorkflowEngine<'a> {
             return true;
         }
         if let Some(policy) = &node.loop_policy {
-            if state.iterations >= policy.max_iterations {
+            let limit = state.iteration_limit(policy.max_iterations);
+            if state.iterations >= limit {
                 state.status = NodeStatus::Blocked;
                 state.reason = Some(MAX_ITERATIONS.to_owned());
                 events.push(exec.record(
@@ -1150,7 +1202,7 @@ impl<'a> WorkflowEngine<'a> {
                     format!("{} reached its loop limit", node.label()),
                     meta(&[
                         ("loopId", policy.loop_id.clone()),
-                        ("max", policy.max_iterations.to_string()),
+                        ("max", limit.to_string()),
                     ]),
                     at,
                 ));
@@ -1572,6 +1624,8 @@ impl<'a> WorkflowEngine<'a> {
 
 /// Reasons recorded on nodes. Stable codes the UI words.
 pub const INTERRUPTED: &str = "interrupted";
+/// A question to a person lapsed before anyone answered it.
+pub const INTERACTION_EXPIRED: &str = "interaction_expired";
 pub const MAX_ITERATIONS: &str = "max_iterations";
 pub const DEPENDENCY_FAILED: &str = "dependency_failed";
 pub const SKIPPED_BY_ROUTE: &str = "skipped_by_route";

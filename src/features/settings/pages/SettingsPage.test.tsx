@@ -4,7 +4,7 @@ import { fetchAppInfo } from '@/features/home/services/appInfoService';
 import { agent, mockBackend, renderWithProviders } from '@/test/fixtures';
 import { exportConfigs } from '@/features/portability/services/portabilityService';
 import { listTemplates, listWorkflows } from '@/features/workflow/services/workflowService';
-import { setLanguage, setSpecsMaxTokens } from '../services/settingsService';
+import { setLanguage, setQuestionTimeout, setSpecsMaxTokens } from '../services/settingsService';
 import { checkForUpdate, installUpdate } from '../services/updateService';
 import { SettingsPage } from './SettingsPage';
 
@@ -28,6 +28,28 @@ beforeEach(() => {
 });
 
 describe('SettingsPage', () => {
+  it('sets how long a question waits for a person, with no limit by default', async () => {
+    const user = userEvent.setup();
+    mockBackend({ language: 'en-US' });
+    vi.mocked(setQuestionTimeout).mockImplementation((minutes) =>
+      Promise.resolve({
+        language: 'en-US',
+        selectedWorkspaceId: null,
+        questionTimeoutMinutes: minutes,
+      }),
+    );
+    renderWithProviders(<SettingsPage />);
+
+    const field = await screen.findByLabelText('Time to answer an agent’s question');
+    expect(field).toHaveDisplayValue('No limit');
+    await user.selectOptions(field, '4 h');
+    expect(setQuestionTimeout).toHaveBeenCalledWith(240);
+    expect(field).toHaveDisplayValue('4 h');
+
+    await user.selectOptions(field, 'No limit');
+    expect(setQuestionTimeout).toHaveBeenLastCalledWith(null);
+  });
+
   it('saves the token limit of a specification, and none when it is left empty', async () => {
     const user = userEvent.setup();
     mockBackend({ language: 'en-US' });

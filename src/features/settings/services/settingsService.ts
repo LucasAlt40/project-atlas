@@ -45,6 +45,11 @@ export function setSpecsMaxTokens(max: number | null): Promise<AppSettingsDto> {
   return invokeCommand('set_specs_max_tokens', { max });
 }
 
+/** How long a question in a workflow run waits for a person (`null`: no limit). */
+export function setQuestionTimeout(minutes: number | null): Promise<AppSettingsDto> {
+  return invokeCommand('set_question_timeout', { minutes });
+}
+
 /** What Atlas shares on the person's Discord profile (Rich Presence; off by default). */
 export function setPresenceSettings(presence: PresenceSettingsDto): Promise<AppSettingsDto> {
   return invokeCommand('set_presence_settings', { presence });

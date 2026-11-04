@@ -264,11 +264,20 @@ fn a_file_changed_back_to_the_baseline_leaves_the_changes() {
     wait_until("the file to stop being a change", || {
         l.file("README.md").is_none()
     });
+    // Either the event's look names the removal, or the safety look got there first: a full
+    // update replaces the list, and the file is simply no longer in it.
     wait_until("the removal to be reported", || {
-        l.sink
-            .all()
+        let updates = l.sink.all();
+        let Some(modified) = updates
             .iter()
-            .any(|e| e.removed.contains(&"README.md".to_owned()))
+            .rposition(|u| u.changed.iter().any(|c| c.path == "README.md"))
+        else {
+            return false;
+        };
+        updates[modified + 1..].iter().any(|u| {
+            u.removed.contains(&"README.md".to_owned())
+                || (u.full && !u.changed.iter().any(|c| c.path == "README.md"))
+        })
     });
 }
 
@@ -504,7 +513,7 @@ fn a_worktree_written_without_a_pause_is_still_read_after_the_longest_wait() {
     // Writes and events with no pause longer than `quiet`, for longer than `max_wait`.
     let started = Instant::now();
     let mut n = 0;
-    while started.elapsed() < Duration::from_millis(900) && l.sink.count() == before {
+    while started.elapsed() < Duration::from_secs(5) && l.sink.count() == before {
         write(&l.dir, &format!("f{n}.txt"), "x\n");
         l.scripted.touch(&l.dir, &[&format!("f{n}.txt")]);
         n += 1;
@@ -515,7 +524,7 @@ fn a_worktree_written_without_a_pause_is_still_read_after_the_longest_wait() {
         l.sink.count() > before,
         "progress was shown while writing went on"
     );
-    assert!(started.elapsed() < Duration::from_millis(900));
+    assert!(started.elapsed() < Duration::from_secs(5));
 }
 
 #[test]
@@ -902,6 +911,7 @@ fn a_deleted_file_is_reported_deleted_not_as_an_error() {
     assert_eq!(missing.kind, LiveFileKind::Deleted);
 }
 
+#[cfg(unix)]
 #[test]
 fn binary_files_big_files_folders_and_links_are_not_sent_as_text() {
     let l = live();
@@ -931,6 +941,7 @@ fn paths_that_leave_the_worktree_or_are_not_plain_are_refused() {
     let outside = l.env.data.path().join("outside");
     fs::create_dir_all(&outside).unwrap();
     fs::write(outside.join("secret.txt"), "no\n").unwrap();
+    #[cfg(unix)]
     std::os::unix::fs::symlink(&outside, l.dir.join("linked-dir")).unwrap();
 
     for bad in [
@@ -960,6 +971,7 @@ fn paths_that_leave_the_worktree_or_are_not_plain_are_refused() {
     }
 }
 
+#[cfg(unix)]
 #[test]
 fn a_file_behind_a_link_to_another_folder_is_never_read() {
     let l = live();

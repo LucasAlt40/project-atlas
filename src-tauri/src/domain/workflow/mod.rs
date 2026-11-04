@@ -13,8 +13,8 @@ mod template;
 mod workflow;
 
 pub use chain::{
-    ChainNote, ChainProject, ChainStep, ChainStepSummary, ProjectChain, MAX_CHAIN_DIFF_CHARS,
-    MAX_CHAIN_FILES, MAX_CHAIN_STEPS, MAX_CHAIN_SUMMARY_CHARS,
+    ChainNote, ChainProject, ChainStep, ChainStepSummary, ChainStop, ProjectChain,
+    MAX_CHAIN_DIFF_CHARS, MAX_CHAIN_FILES, MAX_CHAIN_STEPS, MAX_CHAIN_SUMMARY_CHARS,
 };
 pub use condition::{Condition, ConditionError, ConditionOperator, Facts};
 pub use edge::WorkflowEdge;
@@ -24,7 +24,7 @@ pub use execution::{
     WorkflowEventKind, WorkflowExecution, WorkflowExecutionStatus, WorkflowFailure,
 };
 pub use handoff::{AgentHandoff, HandoffArtifact, HandoffDecision, HandoffKind, HandoffValidation};
-pub use integration::{IntegrationStatus, WorkflowIntegration};
+pub use integration::{Delivery, IntegrationStatus, WorkflowIntegration};
 pub use node::{
     AgentNode, EndNode, EndOutcome, ExecutionPolicy, FailurePolicy, LoopPolicy, NodeKind,
     RetryPolicy, WorkflowNode,

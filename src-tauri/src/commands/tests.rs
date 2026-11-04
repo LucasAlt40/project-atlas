@@ -74,6 +74,7 @@ pub(super) fn app_window(
             super::settings::get_settings,
             super::settings::set_language,
             super::settings::set_specs_max_tokens,
+            super::settings::set_question_timeout,
             super::specs::raise_spec_budget,
             super::specs::set_spec_integrations,
             super::settings::select_workspace,
@@ -120,6 +121,7 @@ pub(super) fn app_window(
             super::workflow::set_auto_approve_plans,
             super::workflow::pause_workflow,
             super::workflow::resume_workflow,
+            super::workflow::continue_workflow_chain,
             super::workflow::cancel_workflow,
             super::workflow::answer_workflow_interaction,
             super::workflow::list_pending_interactions,
@@ -219,7 +221,15 @@ pub(super) fn invoke(
             cmd: cmd.into(),
             callback: CallbackFn(0),
             error: CallbackFn(1),
-            url: "tauri://localhost".parse().unwrap(),
+            // The app's own address, which is what the capabilities allow: Windows serves it
+            // over http.
+            url: if cfg!(windows) {
+                "http://tauri.localhost"
+            } else {
+                "tauri://localhost"
+            }
+            .parse()
+            .unwrap(),
             body: tauri::ipc::InvokeBody::Json(body),
             headers: tauri::http::HeaderMap::default(),
             invoke_key: INVOKE_KEY.to_string(),
@@ -561,6 +571,7 @@ fn settings_default_to_portuguese_and_persist_language_and_selected_workspace() 
             },
             "sandbox": { "mode": "off", "devCaches": true },
             "presence": { "enabled": false, "showNames": true },
+            "questionTimeoutMinutes": null,
         })
     );
     invoke(&window, "set_language", json!({ "language": "en-US" })).unwrap();

@@ -448,7 +448,11 @@ mod tests {
             ]
         );
         assert_eq!(run.stdin, None);
-        assert_eq!(run.terminal, Some(TerminalRequest::new(false)));
+        // A terminal everywhere but on Windows, where CLIs run through pipes.
+        assert_eq!(
+            run.terminal,
+            cfg!(not(windows)).then(|| TerminalRequest::new(false))
+        );
         assert!(!run.args.iter().any(|a| a == "--yolo" || a == "yolo"));
     }
 

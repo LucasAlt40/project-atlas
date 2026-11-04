@@ -426,7 +426,7 @@ fn an_isolated_agent_edits_a_worktree_of_the_repository_of_the_project_it_works_
         Some(repos.back_id.as_str())
     );
     let worktree = repos.worktrees.get(&record.execution.id).unwrap();
-    let back = std::fs::canonicalize(repos.back.path()).unwrap();
+    let back = dunce::canonicalize(repos.back.path()).unwrap();
     assert_eq!(std::path::Path::new(&worktree.repository_path), back);
     // The change went to that repository, and the other project was never touched.
     assert_eq!(worktree.merge_status, MergeStatus::Merged);

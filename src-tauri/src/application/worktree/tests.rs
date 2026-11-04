@@ -64,6 +64,9 @@ pub fn git_raw(dir: &Path, args: &[&str]) -> std::process::Output {
 /// A repository with one commit on `branch`.
 pub fn init_repo(dir: &Path, branch: &str) {
     git(dir, &["init", "--quiet", "-b", branch]);
+    // Line endings as written, whatever the machine's Git does (`core.autocrlf` is on by default
+    // on Windows). The tests that are about it turn it on themselves.
+    git(dir, &["config", "core.autocrlf", "false"]);
     fs::write(dir.join("README.md"), "# Project\n").unwrap();
     fs::write(dir.join("shared.txt"), "line 1\nline 2\nline 3\n").unwrap();
     git(dir, &["add", "--all"]);
@@ -1745,6 +1748,25 @@ mod shared {
     // ---- taking applied changes back out ("keep isolated" after apply) --------------------------
 
     use crate::application::worktree::UnapplyOutcome;
+
+    #[test]
+    fn changes_are_taken_back_out_where_git_writes_crlf_line_endings() {
+        let env = Env::new(Permission::Allowed);
+        git(env.project.path(), &["config", "core.autocrlf", "true"]);
+        finished_run(&env, &[("README.md", "# Project\nmore\n")]);
+        let head = env.main_branch_head();
+        env.service.merge("exec-1").unwrap();
+
+        let outcome = env.service.unapply("exec-1", &head).unwrap();
+
+        // `git status` may still list README.md (only its line endings changed); the content is
+        // the commit's.
+        assert!(
+            matches!(outcome, UnapplyOutcome::Reverted(_)),
+            "{outcome:?}"
+        );
+        assert_eq!(git(env.project.path(), &["diff", "HEAD", "--stat"]), "");
+    }
 
     #[test]
     fn applied_changes_can_be_taken_back_out_leaving_the_project_as_it_was_and_the_work_isolated() {

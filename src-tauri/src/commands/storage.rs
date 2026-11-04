@@ -7,19 +7,13 @@ use crate::application::errors::{AppError, ErrorCode};
 use crate::application::storage::{CleanupChoice, CleanupReport, StorageUsage};
 use crate::state::AppState;
 
-fn blocking_failed(error: &impl ToString) -> AppError {
-    AppError::new(ErrorCode::StorageFailed).with_detail(error.to_string())
-}
-
 /// The size of Atlas's data folder by part, and what can be cleaned. Walking big worktrees takes
 /// a moment: not on the thread that serves the window.
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command]
 pub async fn get_storage_usage(state: State<'_, AppState>) -> Result<StorageUsage, AppError> {
     let storage = state.storage.clone();
-    tauri::async_runtime::spawn_blocking(move || storage.usage())
-        .await
-        .map_err(|e| blocking_failed(&e))
+    super::off_window(ErrorCode::StorageFailed, move || storage.usage()).await
 }
 
 /// Cleans what the person chose (see `application::storage`).
@@ -30,7 +24,5 @@ pub async fn clean_storage(
     choice: CleanupChoice,
 ) -> Result<CleanupReport, AppError> {
     let storage = state.storage.clone();
-    tauri::async_runtime::spawn_blocking(move || storage.clean(choice))
-        .await
-        .map_err(|e| blocking_failed(&e))?
+    super::off_window(ErrorCode::StorageFailed, move || storage.clean(choice)).await?
 }
