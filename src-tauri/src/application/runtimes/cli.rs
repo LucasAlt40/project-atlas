@@ -62,20 +62,19 @@ pub struct PromptDelivery {
 }
 
 /// Decides how to run a CLI whose prompt is `prompt`: attached to a terminal, so the user can
-/// watch and control the live process, or (when that is not possible) through pipes as before.
+/// watch and control the live process, or (on Windows, see [`RUNS_IN_TERMINAL`]) through pipes,
+/// with the prompt on stdin.
 ///
 /// A terminal's input is the keyboard, and `claude -p` / `opencode run` do not read it, so in a
 /// terminal the prompt goes as the last argument, after `--` so that text starting with `-`
 /// is never taken for an option. `args` must not end with an option that takes several values.
 /// `terminal_input` is the runtime's own `terminal_input` capability.
 pub fn deliver_prompt(
-    runner: &dyn ProcessRunner,
-    program: &str,
     mut args: Vec<String>,
     prompt: String,
     terminal_input: bool,
 ) -> PromptDelivery {
-    if !terminal_fits(runner, program, &prompt) {
+    if !RUNS_IN_TERMINAL {
         return PromptDelivery {
             args,
             stdin: Some(prompt),
@@ -118,7 +117,7 @@ pub fn deliver_prompt_option(
             MAX_PROMPT_ARGUMENT_BYTES / 1000
         )));
     }
-    if !terminal_fits(runner, program, prompt) {
+    if cfg!(windows) && prompt.contains(['\n', '\r']) && is_cmd_shim(runner, program) {
         return Err(RuntimeError::Unavailable(format!(
             "{program} is an npm .cmd shim, which cannot take a multi-line prompt as an argument on Windows."
         )));
@@ -127,17 +126,21 @@ pub fn deliver_prompt_option(
     Ok(PromptDelivery {
         args,
         stdin: None,
-        terminal: Some(TerminalRequest::new(false)),
+        terminal: RUNS_IN_TERMINAL.then(|| TerminalRequest::new(false)),
     })
 }
 
-/// On Windows an npm `.cmd` shim runs through `cmd.exe`, which cannot take a multi-line
-/// argument; such a run keeps using pipes (it has no live terminal).
-fn terminal_fits(runner: &dyn ProcessRunner, program: &str, prompt: &str) -> bool {
-    if !cfg!(windows) || !prompt.contains(['\n', '\r']) {
-        return true;
-    }
-    !runner.locate(program).is_some_and(|path| {
+/// Whether a runtime's CLI runs attached to a terminal. Not on Windows: the pseudo-console
+/// (`ConPTY`) does not pass output through, it redraws it as a screen, so a line wider than the
+/// terminal arrives cut into pieces. The CLIs report in JSON lines far wider than that; cut, none
+/// of them parses, and the run is read from its raw text instead (where the quota event that
+/// Claude sends on every run looked like a rate limit). Pipes keep each line whole; the run has
+/// no live terminal view.
+const RUNS_IN_TERMINAL: bool = !cfg!(windows);
+
+/// An npm `.cmd` shim runs through `cmd.exe`, which cannot take a multi-line argument.
+fn is_cmd_shim(runner: &dyn ProcessRunner, program: &str) -> bool {
+    runner.locate(program).is_some_and(|path| {
         path.extension()
             .is_some_and(|ext| ext.eq_ignore_ascii_case("cmd") || ext.eq_ignore_ascii_case("bat"))
     })
@@ -376,11 +379,49 @@ mod tests {
 
         assert_eq!(delivery.args, ["-x", "--prompt=--help"]);
         assert_eq!(delivery.stdin, None);
-        assert_eq!(delivery.terminal, Some(TerminalRequest::new(false)));
+        // A terminal everywhere but on Windows, where CLIs run through pipes.
+        assert_eq!(
+            delivery.terminal,
+            cfg!(not(windows)).then(|| TerminalRequest::new(false))
+        );
         let huge = "x".repeat(MAX_PROMPT_ARGUMENT_BYTES + 1);
         assert!(matches!(
             deliver_prompt_option(&runner, "agy", "--prompt", Vec::new(), &huge),
             Err(RuntimeError::InvalidRequest(_))
+        ));
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn outside_windows_a_prompt_goes_after_the_options_and_the_cli_runs_in_a_terminal() {
+        let delivery = deliver_prompt(vec!["-p".to_owned()], "line 1\nline 2".to_owned(), true);
+
+        assert_eq!(delivery.args, ["-p", "--", "line 1\nline 2"]);
+        assert_eq!(delivery.stdin, None);
+        assert_eq!(delivery.terminal, Some(TerminalRequest::new(true)));
+    }
+
+    /// `ConPTY` cuts lines wider than the terminal, and every CLI reports in JSON lines: on Windows
+    /// a runtime is never attached to one.
+    #[cfg(windows)]
+    #[test]
+    fn on_windows_a_cli_runs_through_pipes_and_reads_its_prompt_from_stdin() {
+        use crate::application::process::fake::{ok, FakeProcessRunner};
+
+        let delivery = deliver_prompt(vec!["-p".to_owned()], "line 1\nline 2".to_owned(), true);
+        assert_eq!(delivery.args, ["-p"]);
+        assert_eq!(delivery.stdin.as_deref(), Some("line 1\nline 2"));
+        assert_eq!(delivery.terminal, None);
+
+        let runner = FakeProcessRunner::new(&["copilot", "gemini.cmd"], |_| ok(""));
+        let option =
+            deliver_prompt_option(&runner, "copilot", "--prompt", Vec::new(), "a\nb").unwrap();
+        assert_eq!(option.args, ["--prompt=a\nb"]);
+        assert_eq!(option.terminal, None);
+        // An npm shim still cannot take a multi-line argument, pipes or not.
+        assert!(matches!(
+            deliver_prompt_option(&runner, "gemini.cmd", "--prompt", Vec::new(), "a\nb"),
+            Err(RuntimeError::Unavailable(_))
         ));
     }
 
