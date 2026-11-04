@@ -418,7 +418,7 @@ mod tests {
 
     use super::*;
     use crate::application::process::fake::{ok, FakeProcessRunner};
-    use crate::application::process::{ProcessError, TerminalRequest};
+    use crate::application::process::ProcessError;
     use crate::application::prompt::Prompt;
     use crate::application::runtimes::inspect;
     use crate::domain::runtime::{Availability, ModelDiscovery};
@@ -560,7 +560,10 @@ mod tests {
         );
         assert_eq!(run.cwd, Some(PathBuf::from("/atlas")));
         assert_eq!(run.stdin, None);
-        assert_eq!(run.terminal, Some(TerminalRequest::new(false)));
+        assert_eq!(
+            run.terminal,
+            Some(crate::application::process::TerminalRequest::new(false))
+        );
         let prompt = run.args.last().unwrap();
         assert!(prompt.contains("SYS") && prompt.contains("CTX") && prompt.contains("INS"));
         assert!(!run.args.iter().any(|a| a == "--auto"));

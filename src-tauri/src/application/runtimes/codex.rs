@@ -345,7 +345,7 @@ mod tests {
     use super::*;
     use crate::application::mcp::McpLaunch;
     use crate::application::process::fake::{ok, FakeProcessRunner};
-    use crate::application::process::{ProcessError, TerminalRequest};
+    use crate::application::process::ProcessError;
     use crate::application::prompt::Prompt;
     use crate::application::runtimes::inspect;
     use crate::domain::runtime::{Availability, ModelDiscovery};
@@ -489,7 +489,10 @@ mod tests {
                 &request("m").prompt.combined(),
             ]
         );
-        assert_eq!(run.terminal, Some(TerminalRequest::new(false)));
+        assert_eq!(
+            run.terminal,
+            Some(crate::application::process::TerminalRequest::new(false))
+        );
         assert!(!run.args.iter().any(|a| a.contains("dangerously")));
     }
 
