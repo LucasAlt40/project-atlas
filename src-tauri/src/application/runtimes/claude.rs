@@ -628,7 +628,7 @@ mod tests {
     use super::*;
     use crate::application::mcp::{LaunchServer, McpLaunch};
     use crate::application::process::fake::{ok, FakeProcessRunner};
-    use crate::application::process::{ProcessError, TerminalRequest};
+    use crate::application::process::ProcessError;
     use crate::application::prompt::Prompt;
     use crate::application::runtimes::inspect;
     use crate::domain::mcp::McpServerStatus;
@@ -758,7 +758,10 @@ mod tests {
         assert_eq!(run.cwd, Some(PathBuf::from("/atlas")));
         // A terminal has no stdin channel for a prompt. It is read-only: `claude -p` ignores it.
         assert_eq!(run.stdin, None);
-        assert_eq!(run.terminal, Some(TerminalRequest::new(false)));
+        assert_eq!(
+            run.terminal,
+            Some(crate::application::process::TerminalRequest::new(false))
+        );
         let prompt = run.args.last().unwrap();
         assert!(prompt.contains("SYS") && prompt.contains("CTX") && prompt.contains("INS"));
     }
