@@ -462,7 +462,7 @@ fn run_worker(
         match transport.publish(want.published.as_ref()) {
             Ok(()) => shown = Some(want.published),
             Err(error) => {
-                eprintln!("discord presence: {error}");
+                log::warn!("discord presence: {error}");
                 shown = None;
                 timeout = Some(retry_after.min(timeout.unwrap_or(retry_after)));
             }

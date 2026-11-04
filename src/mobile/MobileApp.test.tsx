@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { detail, overview, question, summary } from './fixtures';
@@ -36,6 +36,9 @@ describe('the phone page', () => {
     document.title = '';
   });
   afterEach(() => {
+    // Unmounted first: an effect React still has to run would otherwise open a stream with the
+    // stand-in EventSource already gone (the global cleanup only runs after this hook).
+    cleanup();
     vi.unstubAllGlobals();
     vi.useRealTimers();
   });

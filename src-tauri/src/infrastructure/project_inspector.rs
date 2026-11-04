@@ -53,7 +53,7 @@ impl ProjectInspector for FsProjectInspector {
     }
 
     fn canonical(&self, path: &str) -> String {
-        fs::canonicalize(path).map_or_else(
+        dunce::canonicalize(path).map_or_else(
             |_| path.trim_end_matches(['/', '\\']).to_owned(),
             |resolved| {
                 let text = resolved.to_string_lossy().into_owned();

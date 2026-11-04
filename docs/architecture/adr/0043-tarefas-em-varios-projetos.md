@@ -46,7 +46,18 @@ Escolhido: **A**.
   nada. A execução do próximo (`WorkflowService::start_next_in_chain`) tem a mesma tarefa, a mesma spec e a definição
   atual do workflow, e é dirigida na mesma thread. Uma execução que falha ou é cancelada para a cadeia; retomada e
   concluída depois, a cadeia continua. O evento `workflow:chain_continued` leva a tela para a execução seguinte, que mostra
-  o que recebeu das anteriores.
+  o que recebeu das anteriores. Se a execução seguinte não puder ser criada (o projeto saiu do workspace, o workflow ficou
+  inválido), a cadeia termina ali **e diz por quê**: `ProjectChain.stopped` (projeto e código do erro) na execução que
+  concluiu, evento `workflow:chain_stopped`, e um alerta na barra da cadeia.
+- **Esperar a entrega (opcional).** No plano da execução, "esperar o código de cada projeto ser aplicado antes do
+  próximo" (`start_workflow { waitForDelivery }`, guardado em `ProjectChain.waitForDelivery` e herdado por toda a cadeia).
+  Com ele, uma execução que conclui com código pendente não segue: a cadeia anda quando a pessoa **aplica** ou **mantém**
+  o código (ou se não havia código). Se o código for **descartado**, a cadeia termina ali (`chain_changes_discarded`),
+  para o próximo projeto não ser construído sobre um trabalho jogado fora.
+- **Continuar à mão.** Uma execução concluída cuja cadeia não seguiu (o app fechou no meio, a próxima não pôde ser
+  criada, ou a espera acabou de ser atendida) mostra "Continuar em <projeto>" (`continue_workflow_chain`). A cadeia
+  segue **no máximo uma vez** por execução, quem quer que peça primeiro (o laço do run, a entrega ou o botão): um lock
+  serializa os pedidos e um run posterior (ou um projeto já pulado por esta execução) encerra o assunto.
 - **SDD.** A implementação pode começar em qualquer projeto do workspace (antes só no da spec) e encadear os outros;
   todas as execuções levam a mesma spec. Cada uma marca só as tarefas do seu projeto e o progresso da spec junta as
   execuções da cadeia. A escrita da spec, num workspace com vários projetos, pede as tarefas agrupadas por projeto.
@@ -56,6 +67,6 @@ Escolhido: **A**.
 - O merge continua por projeto. A execução seguinte não vê os arquivos do worktree da anterior, só o que lhe é escrito
   no prompt; se o diff for grande, só o começo.
 - As execuções são sequenciais (uma por vez por workflow, como antes). Não há execuções paralelas da cadeia.
-- Se o app fechar entre uma execução que concluiu e o início da próxima, a próxima não é criada sozinha: o usuário
-  roda de novo os projetos que faltam.
+- Se o app fechar entre uma execução que concluiu e o início da próxima, a próxima não é criada sozinha: o botão
+  "Continuar" da barra da cadeia a cria.
 - O chat de um agente (fora do workflow) continua com um projeto de trabalho e consultas.

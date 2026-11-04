@@ -5,6 +5,7 @@
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::Mutex;
+#[cfg(unix)]
 use std::time::Duration;
 
 use serde_json::{json, Value};
@@ -18,6 +19,7 @@ const OP_FRAME: u32 = 1;
 const OP_CLOSE: u32 = 2;
 /// Discord rejects lines shorter than 2 or longer than 128 characters.
 const MAX_LINE: usize = 128;
+#[cfg(unix)]
 const IO_TIMEOUT: Duration = Duration::from_secs(2);
 
 trait Stream: Read + Write + Send {}

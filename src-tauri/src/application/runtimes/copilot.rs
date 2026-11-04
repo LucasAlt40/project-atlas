@@ -623,7 +623,11 @@ mod tests {
                 &format!("--prompt={}", request("m").prompt.combined()),
             ]
         );
-        assert_eq!(run.terminal, Some(TerminalRequest::new(false)));
+        // A terminal everywhere but on Windows, where CLIs run through pipes.
+        assert_eq!(
+            run.terminal,
+            cfg!(not(windows)).then(|| TerminalRequest::new(false))
+        );
         assert!(!run
             .args
             .iter()

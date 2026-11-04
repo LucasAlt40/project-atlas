@@ -84,7 +84,8 @@ um agente sem o outcome é apontado pela validação antes da execução.
 
 ## Não feito
 
-- Sem timeout (o modelo tem `expired`; nada o define).
+- Timeout opcional, global (`AppSettings.questionTimeoutMinutes`, sem limite por padrão): a pergunta vira `expired`
+  e o passo falha sem nova tentativa (ver [guia 04](../../guia/04-workflow.md#humano-no-loop)).
 - No máximo uma pergunta pendente por passo.
 - Nenhum runtime informa ainda um evento estruturado de pergunta; o gancho existe.
 - Respostas de `permission`/`approval` são informação para o agente. O que uma ferramenta pode de fato fazer continua

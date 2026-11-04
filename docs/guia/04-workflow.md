@@ -252,7 +252,12 @@ continuam no worktree do run. Negar não é concluir: o agente é avisado e ence
 `fail`…). Responder **nunca** aplica código ao projeto nem muda política.
 
 Auditoria: `interaction_detected`, `node_waiting_for_input`, `interaction_answered`, `node_input_resolved`,
-`interaction_rejected`, `interaction_cancelled`. Ainda não há timeout (o modelo tem `expired`, nada o define).
+`interaction_rejected`, `interaction_cancelled`, `interaction_expired`.
+
+**Tempo para responder** (Configurações → Geral; padrão: sem limite; até 7 dias). Uma pergunta que ninguém responde nesse
+tempo vira `expired` e o passo **falha sem nova tentativa** (perguntar de novo só esperaria de novo); a rota de falha, se
+houver, é seguida, e sem ela o run falha e pode ser retomado. O tempo conta desde a pergunta; um run **pausado** mantém as
+perguntas; um run que ninguém dirige (app fechado) só as faz expirar quando é retomado.
 
 ## Código compartilhado: um worktree por run
 
@@ -352,6 +357,9 @@ validation passed" quando uma validação posterior do mesmo passo passou. Mostr
 - Fechar o app durante um run: nada é retomado nem dado por terminado — no próximo início o run fica `interrupted`,
   tentativas em voo são `interrupted`, e o usuário escolhe **resume** (passos cortados recomeçam como novas tentativas do
   mesmo pass), **restart**, **cancel** ou inspeção.
+- Run **falho** pode ser retomado do ponto de recuperação (passos concluídos não rodam de novo; o passo retomado recebe
+  no brief o bloco `EARLIER ATTEMPT` com o motivo da parada). Um loop que bateu no limite de passagens ganha **mais uma
+  rodada** ao retomar (`NodeState.extra_iterations` soma o limite do loop de novo); não é preciso editar o workflow.
 
 ## Eventos
 

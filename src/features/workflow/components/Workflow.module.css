@@ -2676,6 +2676,12 @@
 .chainStep[data-skipped] {
   text-decoration: line-through;
 }
+.chainWaiting {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
 .chainHandoff {
   color: var(--text-standard);
   font-size: var(--font-size-sm);

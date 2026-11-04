@@ -106,7 +106,7 @@ impl ApprovalBroker {
             slots = self
                 .changed
                 .wait_timeout(slots, remaining)
-                .expect("approvals lock poisoned")
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .0;
         }
     }

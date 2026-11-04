@@ -78,6 +78,10 @@ export function RunProjectsPicker({ projects, plan, onChange, disabled = false }
   const shown = drag ? movedTo(plan, drag.id, drag.over).workingProjectIds : working;
   const others = projects.filter((p) => !working.includes(p.id));
   const reorderable = working.length > 1;
+  // Every change of the projects keeps the person's choice about waiting for each delivery.
+  const change = (next: RunPlan) => {
+    onChange(plan.waitForDelivery ? { ...next, waitForDelivery: true } : next);
+  };
   const summary =
     working.length > 1
       ? t('runPlan.summary.chain', { order: working.map(name).join(' → ') })
@@ -109,7 +113,7 @@ export function RunProjectsPicker({ projects, plan, onChange, disabled = false }
       if (over !== drag.over) setDrag({ id, over });
     },
     onPointerUp: () => {
-      if (drag?.id === id) onChange(movedTo(plan, id, drag.over));
+      if (drag?.id === id) change(movedTo(plan, id, drag.over));
       setDrag(null);
     },
     onPointerCancel: () => {
@@ -118,7 +122,7 @@ export function RunProjectsPicker({ projects, plan, onChange, disabled = false }
     onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => {
       if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
         event.preventDefault();
-        onChange(moved(plan, id, event.key === 'ArrowUp' ? -1 : 1));
+        change(moved(plan, id, event.key === 'ArrowUp' ? -1 : 1));
       }
     },
   });
@@ -141,7 +145,7 @@ export function RunProjectsPicker({ projects, plan, onChange, disabled = false }
           { value: 'none', label: t('runPlan.use.none'), disabled: last },
         ]}
         onChange={(next) => {
-          onChange(withUse(plan, project.id, next, workspace));
+          change(withUse(plan, project.id, next, workspace));
         }}
       />
     );
@@ -191,7 +195,7 @@ export function RunProjectsPicker({ projects, plan, onChange, disabled = false }
                 type="button"
                 className={styles.planLink}
                 onClick={() => {
-                  onChange(allWorking(workspace));
+                  change(allWorking(workspace));
                 }}
               >
                 {t('runPlan.allWork')}
@@ -200,7 +204,7 @@ export function RunProjectsPicker({ projects, plan, onChange, disabled = false }
                 type="button"
                 className={styles.planLink}
                 onClick={() => {
-                  onChange(oneWorking(workspace, working[0]));
+                  change(oneWorking(workspace, working[0]));
                 }}
               >
                 {t('runPlan.oneWorks')}
@@ -256,6 +260,21 @@ export function RunProjectsPicker({ projects, plan, onChange, disabled = false }
           )}
           {hasManyProjects(workspace) && (
             <p className={styles.muted}>{t('runPlan.many', { count: projects.length })}</p>
+          )}
+          {working.length > 1 && (
+            <label className={styles.planOption}>
+              <input
+                type="checkbox"
+                checked={plan.waitForDelivery === true}
+                onChange={(event) => {
+                  onChange({ ...plan, waitForDelivery: event.target.checked });
+                }}
+              />
+              <span>
+                <span className={styles.planTitle}>{t('runPlan.waitForDelivery')}</span>
+                <span className={styles.muted}>{t('runPlan.waitForDelivery.hint')}</span>
+              </span>
+            </label>
           )}
           <p className={styles.planHint}>{t('runPlan.hint')}</p>
         </fieldset>

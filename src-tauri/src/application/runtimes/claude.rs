@@ -275,13 +275,7 @@ impl ModelRuntime for ClaudeRuntime {
         // The servers of this step, as the CLI takes them; the files live as long as `mcp`.
         let mcp = prepare_for(self.mcp.as_ref(), request)?;
         let args = launch_args(request, &mcp.args);
-        let delivery = cli::deliver_prompt(
-            self.runner.as_ref(),
-            PROGRAM,
-            args,
-            self.delivery(request).into_payload(),
-            false,
-        );
+        let delivery = cli::deliver_prompt(args, self.delivery(request).into_payload(), false);
         let spec = ProcessSpec {
             program: PROGRAM.to_owned(),
             args: delivery.args,
@@ -744,7 +738,7 @@ mod tests {
     use super::*;
     use crate::application::mcp::{LaunchServer, McpLaunch};
     use crate::application::process::fake::{ok, FakeProcessRunner};
-    use crate::application::process::{ProcessError, TerminalRequest};
+    use crate::application::process::ProcessError;
     use crate::application::prompt::Prompt;
     use crate::application::runtimes::inspect;
     use crate::domain::mcp::McpServerStatus;
@@ -838,6 +832,8 @@ mod tests {
     }
 
     #[test]
+    // Windows runs CLIs through pipes (see `cli::RUNS_IN_TERMINAL`).
+    #[cfg(not(windows))]
     fn runs_read_only_with_the_selected_model_in_a_terminal_with_the_prompt_as_the_last_argument() {
         let fake = runner(true, output(0, SUCCESS));
 
@@ -873,7 +869,10 @@ mod tests {
         assert_eq!(run.cwd, Some(PathBuf::from("/atlas")));
         // A terminal has no stdin channel for a prompt. It is read-only: `claude -p` ignores it.
         assert_eq!(run.stdin, None);
-        assert_eq!(run.terminal, Some(TerminalRequest::new(false)));
+        assert_eq!(
+            run.terminal,
+            Some(crate::application::process::TerminalRequest::new(false))
+        );
         let prompt = run.args.last().unwrap();
         assert!(prompt.contains("SYS") && prompt.contains("CTX") && prompt.contains("INS"));
     }
@@ -1173,7 +1172,13 @@ mod tests {
         assert!(!run.args.join(" ").contains("hunter2"));
         assert!(!run.stdin.clone().unwrap_or_default().contains("hunter2"));
         // The terminal case puts the prompt last, after `--`, so a variadic option never takes it.
-        assert_eq!(run.args[run.args.len() - 2], "--");
+        // On Windows it runs through pipes and the prompt is on stdin, out of the arguments.
+        if cfg!(windows) {
+            assert!(run.stdin.is_some());
+            assert!(!run.args.contains(&"--".to_owned()));
+        } else {
+            assert_eq!(run.args[run.args.len() - 2], "--");
+        }
     }
 
     #[test]

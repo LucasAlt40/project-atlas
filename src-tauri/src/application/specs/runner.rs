@@ -421,9 +421,10 @@ impl PreparedSpecRun {
         // A result that is not used (the run was superseded) or a save that failed is not the
         // agent's to answer for; the state says what it is.
         if let Err(error) = result {
-            eprintln!(
+            log::warn!(
                 "the result of run {} for spec {} was not recorded: {error}",
-                self.execution_id, self.spec_id
+                self.execution_id,
+                self.spec_id
             );
         }
     }

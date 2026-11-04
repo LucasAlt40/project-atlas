@@ -128,7 +128,7 @@ impl MemoryService {
     pub fn new(store: Arc<dyn MemoryStore>, probe: Arc<dyn ProjectProbe>) -> Self {
         let (mut items, unreadable) = store.load_all();
         for problem in unreadable {
-            eprintln!("a memory could not be read and was left as it is: {problem}");
+            log::warn!("a memory could not be read and was left as it is: {problem}");
         }
         items.sort_by(|a, b| a.created_at.cmp(&b.created_at).then(a.id.cmp(&b.id)));
         Self {

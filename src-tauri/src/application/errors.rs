@@ -88,6 +88,14 @@ pub enum ErrorCode {
     WorkflowExecutionNotFound,
     /// The run is not in a state that allows what was asked (pausing a finished run…).
     WorkflowStateInvalid,
+    /// The chain waits for the person to decide about the code of its last run (apply or keep it)
+    /// before the next project runs (ADR 0043).
+    ChainAwaitingDelivery,
+    /// The code of the chain's last run was discarded while the chain waited for it: the next
+    /// project is not run on work that was thrown away.
+    ChainChangesDiscarded,
+    /// The run has no project of its chain left to go on to, or the chain already went on.
+    ChainNothingToContinue,
     /// A failed run cannot be picked up again (`reason` says why: no route for its result, the
     /// loop limit, its worktree is gone…).
     WorkflowNotRecoverable,

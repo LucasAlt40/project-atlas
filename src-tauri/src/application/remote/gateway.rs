@@ -254,7 +254,7 @@ impl RemoteGateway {
         if !question.is_pending() {
             // A retry after a lost reply says the same thing again: that is not an error.
             return if says_the_same(question, &answer) {
-                Ok(self.answered(run_id, Applied::Already))
+                self.answered(run_id, Applied::Already)
             } else {
                 Err(RemoteError::AlreadyResolved)
             };
@@ -271,7 +271,7 @@ impl RemoteGateway {
             .answer_interaction(run_id, interaction_id, answer.clone(), observer)
             .map_err(|e| RemoteError::from_app(&e))?;
         if delivery == AnswerDelivery::Recorded {
-            return Ok(self.answered(run_id, Applied::Recorded));
+            return self.answered(run_id, Applied::Recorded);
         }
 
         // The answer went to the run's own loop. Wait for the loop to record it, then say what it
@@ -289,22 +289,24 @@ impl RemoteGateway {
             .ok_or(RemoteError::NotFound)?;
         let question = find(&current, interaction_id).ok_or(RemoteError::NotFound)?;
         if !settled {
-            return Ok(self.answered(run_id, Applied::Pending));
+            return self.answered(run_id, Applied::Pending);
         }
         if says_the_same(question, &answer) {
-            Ok(self.answered(run_id, Applied::Now))
+            self.answered(run_id, Applied::Now)
         } else {
             Err(RemoteError::AlreadyResolved)
         }
     }
 
-    fn answered(&self, run_id: &str, applied: Applied) -> Answered {
+    /// The run as it is after an answer. It was read a moment ago, but the computer may have
+    /// deleted it since: that is a lost run, not a reason to stop the app.
+    fn answered(&self, run_id: &str, applied: Applied) -> Result<Answered, RemoteError> {
         let run = self
             .workflows
             .execution(run_id)
             .map(|e| self.detail_of(&e))
-            .expect("the run was read a moment ago");
-        Answered { applied, run }
+            .ok_or(RemoteError::NotFound)?;
+        Ok(Answered { applied, run })
     }
 
     /// Pauses, resumes or cancels a run that is being driven. Cancelling must be confirmed in the

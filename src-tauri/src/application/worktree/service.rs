@@ -880,7 +880,7 @@ impl WorktreeService {
             Ok(())
         });
         if let Err(error) = result {
-            eprintln!("could not save recovered worktrees: {error:?}");
+            log::warn!("could not save recovered worktrees: {error:?}");
         }
     }
 

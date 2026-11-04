@@ -1,4 +1,11 @@
-import { Children, isValidElement, useState, type MouseEvent, type ReactNode } from 'react';
+import {
+  Children,
+  isValidElement,
+  useEffect,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useT } from '@/i18n/I18nProvider';
@@ -69,14 +76,22 @@ function CodeBlock({ children }: { children?: ReactNode }) {
   const clipboard = navigator.clipboard as Clipboard | undefined;
   const canCopy = clipboard !== undefined;
 
+  // The "copied" mark goes after a moment, and never fires on a block that is gone.
+  useEffect(() => {
+    if (!copied) return undefined;
+    const timer = setTimeout(() => {
+      setCopied(false);
+    }, 1500);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [copied]);
+
   function copy() {
     if (!clipboard) return;
     void clipboard.writeText(shown).then(
       () => {
         setCopied(true);
-        setTimeout(() => {
-          setCopied(false);
-        }, 1500);
       },
       () => undefined,
     );
@@ -118,6 +133,9 @@ export function Markdown({ children }: { children: string }) {
               href={href}
               title={href}
               onClick={(event: MouseEvent) => {
+                event.preventDefault();
+              }}
+              onAuxClick={(event: MouseEvent) => {
                 event.preventDefault();
               }}
             >

@@ -225,6 +225,7 @@ fn pty_size(size: TerminalSize) -> PtySize {
 
 /// Starts `executable` in a new PTY and runs it to completion, like the pipe runner, while
 /// publishing the live process as a session in `sessions` (when the spec has an execution).
+#[allow(clippy::too_many_lines)]
 pub fn run_in_terminal(
     executable: &Path,
     path: &OsStr,
@@ -288,13 +289,21 @@ pub fn run_in_terminal(
     let reader_thread = thread::spawn(move || read_chunks(reader, &chunks));
 
     let mut output = Output::default();
+    let mut cursor_query = CursorQuery::new(cfg!(windows));
+    let mut accept = |chunk: &str, output: &mut Output| {
+        let (text, answer) = cursor_query.filter(chunk);
+        if answer {
+            answer_cursor_query(&shared);
+        }
+        output.accept(&text, session.as_ref(), on_event);
+    };
     // An idle limit, not a wall-clock one: any output restarts it.
     let mut deadline = Instant::now() + spec.timeout;
     let outcome = loop {
         match received.recv_timeout(POLL_INTERVAL) {
             Ok(chunk) => {
                 deadline = Instant::now() + spec.timeout;
-                output.accept(&chunk, session.as_ref(), on_event);
+                accept(&chunk, &mut output);
             }
             Err(RecvTimeoutError::Timeout) => {}
             // Output ended (every holder of the terminal is gone); wait for the exit status.
@@ -329,10 +338,12 @@ pub fn run_in_terminal(
     let drain_until = Instant::now() + DRAIN_TIMEOUT;
     while let Some(left) = drain_until.checked_duration_since(Instant::now()) {
         match received.recv_timeout(left) {
-            Ok(chunk) => output.accept(&chunk, session.as_ref(), on_event),
+            Ok(chunk) => accept(&chunk, &mut output),
             Err(_) => break,
         }
     }
+    let held = cursor_query.finish();
+    output.accept(&held, session.as_ref(), on_event);
     output.finish(on_event);
     shared.release();
     let exit_code = status
@@ -348,6 +359,68 @@ pub fn run_in_terminal(
         // A terminal has one stream: the runtimes read their diagnostics from `stdout`.
         stderr: String::new(),
     })
+}
+
+/// What a terminal asks when it wants to know where the cursor is (Device Status Report).
+const CURSOR_QUERY: &str = "\u{1b}[6n";
+/// The answer: top-left corner. The terminal is new, so that is where the cursor is.
+const CURSOR_ANSWER: &[u8] = b"\x1b[1;1R";
+
+/// On Windows the pseudo-console (`ConPTY`) that `portable-pty` opens asks where the cursor is
+/// before it starts the program, and waits for the answer. Nobody else answers it: the terminal
+/// view is often read-only or not open at all. Without an answer the program never starts and
+/// the execution sits silent until its timeout. This answers the first query and removes it from
+/// the output, so the terminal view does not answer it a second time.
+struct CursorQuery {
+    pending: bool,
+    /// The end of the output so far, held while it could be the start of a query.
+    held: String,
+}
+
+impl CursorQuery {
+    fn new(enabled: bool) -> Self {
+        Self {
+            pending: enabled,
+            held: String::new(),
+        }
+    }
+
+    /// The output to pass on, and whether the query must be answered now.
+    fn filter(&mut self, raw: &str) -> (String, bool) {
+        if !self.pending {
+            return (raw.to_owned(), false);
+        }
+        self.held.push_str(raw);
+        if let Some(at) = self.held.find(CURSOR_QUERY) {
+            self.pending = false;
+            let mut text = std::mem::take(&mut self.held);
+            text.replace_range(at..at + CURSOR_QUERY.len(), "");
+            return (text, true);
+        }
+        // Hold back an end that could be a query cut in two. It is ASCII, so the cut is a
+        // character boundary.
+        let keep = (1..CURSOR_QUERY.len())
+            .rev()
+            .find(|n| self.held.ends_with(&CURSOR_QUERY[..*n]))
+            .unwrap_or(0);
+        let rest = self.held.split_off(self.held.len() - keep);
+        (std::mem::replace(&mut self.held, rest), false)
+    }
+
+    /// What is still held when the output ends.
+    fn finish(&mut self) -> String {
+        std::mem::take(&mut self.held)
+    }
+}
+
+fn answer_cursor_query(shared: &PtyShared) {
+    let mut writer = shared.writer.lock_or_recover();
+    if let Some(writer) = writer.as_mut() {
+        // A terminal that is already closed has nobody waiting for the answer.
+        let _ = writer
+            .write_all(CURSOR_ANSWER)
+            .and_then(|()| writer.flush());
+    }
 }
 
 fn reap(
@@ -522,6 +595,45 @@ impl AnsiStripper {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_first_cursor_query_is_answered_once_and_removed_from_the_output() {
+        let mut query = CursorQuery::new(true);
+
+        assert_eq!(
+            query.filter("\u{1b}[?25l\u{1b}[6nhello"),
+            ("\u{1b}[?25lhello".to_owned(), true)
+        );
+        // Later queries belong to the program and its terminal view.
+        assert_eq!(query.filter("\u{1b}[6n"), ("\u{1b}[6n".to_owned(), false));
+    }
+
+    #[test]
+    fn a_cursor_query_cut_in_two_is_still_found() {
+        let mut query = CursorQuery::new(true);
+
+        assert_eq!(query.filter("é\u{1b}["), ("é".to_owned(), false));
+        assert_eq!(query.filter("6"), (String::new(), false));
+        assert_eq!(query.filter("nok"), ("ok".to_owned(), true));
+    }
+
+    #[test]
+    fn output_that_only_looks_like_a_query_start_is_passed_on() {
+        let mut query = CursorQuery::new(true);
+
+        assert_eq!(query.filter("a\u{1b}"), ("a".to_owned(), false));
+        assert_eq!(query.filter("[0m"), ("\u{1b}[0m".to_owned(), false));
+        assert_eq!(query.filter("x\u{1b}["), ("x".to_owned(), false));
+        assert_eq!(query.finish(), "\u{1b}[");
+    }
+
+    #[test]
+    fn with_no_query_to_answer_the_output_is_untouched() {
+        let mut query = CursorQuery::new(false);
+
+        assert_eq!(query.filter("\u{1b}[6n"), ("\u{1b}[6n".to_owned(), false));
+        assert_eq!(query.finish(), "");
+    }
 
     #[test]
     fn strips_colours_cursor_codes_titles_and_carriage_returns() {
@@ -862,7 +974,7 @@ mod process_tests {
 
     #[test]
     fn the_working_directory_is_what_the_tool_sees_in_pwd() {
-        let dir = std::fs::canonicalize(std::env::temp_dir()).unwrap();
+        let dir = dunce::canonicalize(std::env::temp_dir()).unwrap();
         let (registry, _) = registry();
         let mut spec = spec("e1", "pwd -P; echo \"$PWD\"", Duration::from_secs(10));
         spec.cwd = Some(dir.clone());

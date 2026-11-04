@@ -32,6 +32,33 @@ pub enum IntegrationStatus {
     Failed,
 }
 
+/// What a chain that waits for delivery (ADR 0043) makes of where a run's code stands.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Delivery {
+    /// The code is in the project, kept on purpose, or there was none: the next project may run.
+    Done,
+    /// The person has not decided yet (or applying did not work): the next project waits.
+    Pending,
+    /// The code was thrown away: the next project must not run on it.
+    Discarded,
+}
+
+impl IntegrationStatus {
+    pub fn delivery(self) -> Delivery {
+        match self {
+            Self::NotApplicable | Self::NoChanges | Self::Integrated | Self::KeptIsolated => {
+                Delivery::Done
+            }
+            Self::Discarded => Delivery::Discarded,
+            Self::InProgress
+            | Self::ChangesAvailable
+            | Self::Conflicts
+            | Self::Blocked
+            | Self::Failed => Delivery::Pending,
+        }
+    }
+}
+
 /// The code side of a run: where it is, and what may be done with it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]

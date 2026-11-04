@@ -34,7 +34,7 @@ impl<R: Runtime> SpecEvents for TauriSpecEvents<R> {
         use tauri::Emitter;
         let payload = SpecChanged { spec_id, version };
         if let Err(error) = self.app.emit(SPEC_CHANGED_EVENT, payload) {
-            eprintln!("failed to emit {SPEC_CHANGED_EVENT}: {error}");
+            log::warn!("failed to emit {SPEC_CHANGED_EVENT}: {error}");
         }
     }
 }
