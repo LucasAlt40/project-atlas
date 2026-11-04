@@ -257,13 +257,7 @@ impl ModelRuntime for ClaudeRuntime {
         // The servers of this step, as the CLI takes them; the files live as long as `mcp`.
         let mcp = prepare_for(self.mcp.as_ref(), request)?;
         let args = launch_args(request, &mcp.args);
-        let delivery = cli::deliver_prompt(
-            self.runner.as_ref(),
-            PROGRAM,
-            args,
-            self.delivery(request).into_payload(),
-            false,
-        );
+        let delivery = cli::deliver_prompt(args, self.delivery(request).into_payload(), false);
         let spec = ProcessSpec {
             program: PROGRAM.to_owned(),
             args: delivery.args,
@@ -727,6 +721,8 @@ mod tests {
     }
 
     #[test]
+    // Windows runs CLIs through pipes (see `cli::RUNS_IN_TERMINAL`).
+    #[cfg(not(windows))]
     fn runs_read_only_with_the_selected_model_in_a_terminal_with_the_prompt_as_the_last_argument() {
         let fake = runner(true, output(0, SUCCESS));
 

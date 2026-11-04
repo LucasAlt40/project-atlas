@@ -182,13 +182,7 @@ impl ModelRuntime for CodexRuntime {
             ]
             .map(str::to_owned),
         );
-        let delivery = cli::deliver_prompt(
-            self.runner.as_ref(),
-            PROGRAM,
-            args,
-            self.delivery(request).into_payload(),
-            false,
-        );
+        let delivery = cli::deliver_prompt(args, self.delivery(request).into_payload(), false);
         let spec = ProcessSpec {
             program: PROGRAM.to_owned(),
             args: delivery.args,
@@ -461,6 +455,8 @@ mod tests {
     }
 
     #[test]
+    // Windows runs CLIs through pipes (see `cli::RUNS_IN_TERMINAL`).
+    #[cfg(not(windows))]
     fn runs_read_only_in_a_sandbox_with_the_prompt_after_the_options() {
         let fake = runner(output(0, SUCCESS));
 
