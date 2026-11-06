@@ -1,0 +1,26 @@
+--- Assistant
+I found three defects in `src/users.js`. I made no changes.
+
+1. **`src/users.js:5`: `paginate` is off by one page, and page 0 returns the wrong items.** The doc comment says `page` is 1-based, but the code computes `start = page * size`. Page 1 returns the second block of items, and page 0 returns the first block. Page 0 is also not rejected, so a bad input returns real data. **Fix:** `const start = (page - 1) * size;` and reject `page < 1` (throw, or clamp to 1).
+
+2. **`src/users.js:11-12`: `isAdult` compares only calendar years, so it is wrong near birthdays.** Someone born 2008-12-31 is 17 until 2026-12-31, but on 2026-01-01 the code computes `2026 - 2008 = 18` and returns `true`. Someone born 2008-06-15 is also counted as an adult on 2026-06-14, a day early. **Fix:** compute the full age, subtracting one if the birthday has not yet occurred this year:
+   ```js
+   let age = today.getFullYear() - birthDate.getFullYear();
+   const beforeBirthday =
+     today.getMonth() < birthDate.getMonth() ||
+     (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate());
+   if (beforeBirthday) age -= 1;
+   return age >= 18;
+   ```
+
+3. **`src/users.js:18-20`: `escapeHtml` replaces only the first occurrence of each character, and it does not escape quotes.** A JavaScript `.replace` with a string pattern changes only the first match, so `"a<b<c"` becomes `"a&lt;b<c"`. This is an XSS risk in `userRow`, since a name with several `<` or `>` characters passes through partly unescaped. Quotes are also not escaped, so the helper is unsafe if its output ever goes inside an attribute. **Fix:** use global regexes and escape the quotes too, keeping `&` first:
+   ```js
+   return String(text)
+     .replace(/&/g, '&amp;')
+     .replace(/</g, '&lt;')
+     .replace(/>/g, '&gt;')
+     .replace(/"/g, '&quot;')
+     .replace(/'/g, '&#39;');
+   ```
+
+`userRow` (lines 24-26) escapes the name correctly once `escapeHtml` is fixed, and its admin flag is a fixed string, so I found no separate defect there.

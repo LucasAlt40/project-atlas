@@ -1,0 +1,10 @@
+--- Assistant
+I added `src/limiter.js` and `test/limiter.test.js`, and touched no other file. I could not run the tests: every Node invocation was blocked by the permission check, so the suite is unverified. Run `npm test` to confirm.
+
+- **`src/limiter.js`** exports `module.exports = { createLimiter }` and implements the token bucket as specified. Invalid `capacity` or `refillPerSecond` throws a `RangeError`, and so does an invalid `n` (including `n > capacity`) in `tryRemove` and `msUntil`.
+- **Clock going backwards:** no tokens are added and none are lost, and the earlier time becomes the new reference.
+- **Float tolerance:** refill arithmetic is inexact, so comparisons allow a 1e-9 tolerance. Without it, `msUntil(n)` could report a wait after which `tryRemove(n)` still fails.
+- **Unstated choices:** the bucket starts with no reference time and takes its first `now()` reading on the first call. `reset()` only refills the bucket and keeps the existing reference. `msUntil` returns at least 1 ms when tokens are short.
+- **`test/limiter.test.js`** uses `node:test` and `node:assert` with an injected fake clock. It covers starting full, fractional rates, the capacity cap, flooring, exact `msUntil` rounding, a sweep checking that waiting `msUntil(n)` makes `tryRemove(n)` succeed, `reset`, the backwards clock, validation, and the `Date.now` default.
+
+While re-reading the tests by hand I corrected one wrong expectation in the backwards-clock test before reporting.

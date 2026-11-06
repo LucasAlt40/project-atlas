@@ -1,0 +1,20 @@
+--- Assistant
+I rewrote the parser in `src/csv.js` and added regression tests, but I could not run the test suite. Every shell command, including `npm test`, was refused for approval in this session. I checked each new test by tracing the code by hand, and I expect them to pass, but please run `npm test` to confirm.
+
+**Root causes.** The old parser split the whole input on `\n`, then split each line on `,`, and only then looked at quotes. That single cause explains most of the reports:
+
+- **Comma in quotes:** the comma split ran before quote handling, so `"Lisbon, Portugal"` was split.
+- **Doubled quote:** `""` was never unescaped.
+- **Quoted line break:** the newline split ran before quote handling, so a quoted newline cut the row in two.
+- **Trailing newline:** `text.split('\n')` produces a final empty element, which became a row with one empty field.
+- **CRLF:** `\r` was never stripped, so it stayed on the last field of each row.
+- **Unclosed quote:** nothing tracked quote state, so there was no error to raise.
+
+**The fix.** `parseCsv` is now a single pass over the characters with an `inQuotes` flag. It handles `""` escapes, commas and newlines inside quoted fields, `\r\n` line endings, and the trailing newline. If input ends while still inside quotes, it throws a `SyntaxError`. The export is still `module.exports = { parseCsv }`.
+
+**Tests.** I kept the two existing tests unchanged and added tests for: a comma in quotes, a doubled quote, a file ending in a newline, CRLF endings, a line break inside quotes, CRLF inside quotes (kept verbatim), empty fields, empty quoted fields, empty input, a final row without a newline, and unclosed quotes.
+
+**Choices I made that you may want to change:**
+- A quote only opens a quoted section at the start of a field. A stray quote in the middle of an unquoted field is kept as a literal character.
+- A lone `\r` that is not followed by `\n` is kept as a literal character, not treated as a line break.
+- A blank line in the middle of the input gives a row with one empty field, so `"a\n\nb"` becomes `[['a'], [''], ['b']]`. Only the final newline is dropped, as the bug report asked.

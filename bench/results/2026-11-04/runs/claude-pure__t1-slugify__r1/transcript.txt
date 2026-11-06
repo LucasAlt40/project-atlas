@@ -1,0 +1,15 @@
+--- Assistant
+I created `src/slugify.js` and `test/slugify.test.js`, but I could not run the tests. Every Bash call, including `npm test`, was refused with "This command requires approval", so the checks below are by reading the code, not by execution.
+
+**What I checked by hand:** each of the five examples from your spec, the diacritic and symbol-run cases, the non-string `TypeError`, and the `maxLength` cases (including the hard cut for `supercalifragilistic`). I also walked the loop over `maxLength` 1 to 20 to confirm the result never ends in `-`.
+
+**How it works:**
+- Diacritics are removed with NFD normalization followed by stripping the combining marks U+0300–U+036F, then lowercased.
+- Runs of anything outside `a-z0-9` become one `-`, and leading or trailing hyphens are trimmed.
+- With `maxLength`, a result that already fits is returned unchanged. Otherwise it cuts at the last `-` within the limit, or hard-cuts when there is none.
+
+**Choices I made that your spec did not cover:**
+- An invalid `maxLength` (zero, negative, non-integer, or a string) throws a `RangeError`. Say if you would rather it be ignored.
+- A non-object `options` such as `null` throws a plain `TypeError` from destructuring rather than a custom message.
+
+Nothing was committed, and no other file was touched. To confirm, run `npm test` in the project directory, which runs `node --test`.

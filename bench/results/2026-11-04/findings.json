@@ -1,0 +1,42 @@
+[
+  {
+    "headline": true,
+    "finding": "Qualidade: 39 de 40 execuções passaram 100% dos testes ocultos. A única que não passou foi do Claude puro, no bug real da Oficina (T8, rodada 2): entregou a correção com os próprios testes verdes (6/6), mas 2 dos 7 testes ocultos falham: a primeira cobrança cria um pagamento a mais e o apadrinhamento deixa de ser ativado. As 18 execuções do Atlas nessa e nas outras tarefas passaram todos.",
+    "fix": "Para a apresentação: é o caso que justifica o Atlas. O passo de QA roda os testes e revisa o comportamento; o Claude puro só confere o que ele mesmo testou.",
+    "metric": "Nota oculta",
+    "priority": "Alta",
+    "effort": "—"
+  },
+  {
+    "headline": true,
+    "finding": "Bug real (T8): o Atlas concluiu as 2 execuções (em 2026-11-01 uma tinha falhado depois de 4 correções). Tempo médio 683 s → 482 s (−30%) e tokens de entrada 3,9 mi → 2,6 mi (−33%). Uma das duas precisou de uma volta de correção depois do QA.",
+    "fix": "Efeito das correções que entraram pela main (retomada com contexto da falha, limite de ciclo, brief mais enxuto). Confirmar com mais rodadas antes de afirmar.",
+    "metric": "Concluiu, tempo, tokens",
+    "priority": "Alta",
+    "effort": "—"
+  },
+  {
+    "headline": true,
+    "finding": "Custo e tempo (média por tarefa): Claude puro US$ 0,0254 e 57 s; Atlas US$ 0,0450 (1,77×) e 164 s (2,9×). Contra 2026-11-01, o Atlas ficou 14% mais rápido (191 s → 164 s) e 8% mais barato (US$ 0,0487 → 0,0450). A razão piorou (1,40× → 1,77×) porque o Claude puro saiu mais barato nesta rodada (US$ 0,0348 → 0,0254, quase tudo no T8).",
+    "fix": "Ler a razão junto com os valores absolutos: com 2 rodadas por tarefa, a variação do braço puro mexe na razão tanto quanto o Atlas.",
+    "metric": "Custo, tempo",
+    "priority": "Média",
+    "effort": "—"
+  },
+  {
+    "headline": true,
+    "finding": "Quick (nas 4 features): mesma nota que o puro, 1,75× o custo e 2,6× o tempo; contra o Implement completo nas mesmas tarefas, custa 18% menos (US$ 0,0227 contra 0,0278). Não é mais barato que o Claude puro (a planilha de 11-01 sugeria isso por comparar conjuntos de tarefas diferentes).",
+    "fix": "Posicionar o Quick como o Atlas mais barato para features pequenas, não como mais barato que o puro.",
+    "metric": "Custo",
+    "priority": "Média",
+    "effort": "—"
+  },
+  {
+    "headline": false,
+    "finding": "Limites: haiku, 2 rodadas por tarefa, tarefas bem especificadas. O Codex não rodou (cota até 16/11). Diferenças de poucos segundos ou centavos entre rodadas podem ser ruído.",
+    "fix": "Rodar os braços do Codex depois de 16/11 (npm run bench -- --arms codex-pure,atlas-codex --out bench/results/2026-11-04 --skip-existing) e, para medir qualidade, tarefas mais ambíguas ou um modelo mais forte.",
+    "metric": "—",
+    "priority": "Baixa",
+    "effort": "Baixo"
+  }
+]
