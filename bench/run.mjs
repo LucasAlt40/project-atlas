@@ -13,8 +13,19 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mavenBin } from './maven.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+
+// Java tasks: every arm finds the same Maven on its PATH as the grader and runs it offline (the
+// agents' sandboxes have no network; the dependencies come from the local repository).
+{
+  const mvn = mavenBin();
+  if (mvn !== 'mvn' && !spawnSync('sh', ['-c', 'command -v mvn']).stdout.length) {
+    process.env.PATH = `${path.dirname(mvn)}:${process.env.PATH}`;
+  }
+  process.env.MAVEN_ARGS = process.env.MAVEN_ARGS ?? '-o';
+}
 const repo = path.resolve(here, '..');
 const TIMEOUT_MS = 20 * 60 * 1000;
 
@@ -48,27 +59,62 @@ const tasks = args.tasks
   : allTasks;
 
 fs.mkdirSync(path.join(out, 'runs'), { recursive: true });
-fs.writeFileSync(
-  path.join(out, 'config.json'),
-  JSON.stringify(
-    {
-      arms,
-      tasks,
-      reps,
-      models,
-      startedAt: new Date().toISOString(),
-      host: os.hostname(),
-      versions: { claude: version('claude'), codex: version('codex'), node: process.version },
-    },
-    null,
-    2,
-  ),
-);
 
 function version(cmd) {
   const r = spawnSync(cmd, ['--version'], { encoding: 'utf8' });
   return (r.stdout || r.stderr || '').trim();
 }
+
+/** The Atlas code being measured: its commit, and whether the tree had uncommitted changes. */
+function atlasVersion() {
+  const g = (...a) => spawnSync('git', a, { cwd: repo, encoding: 'utf8' }).stdout.trim();
+  return {
+    commit: g('rev-parse', '--short', 'HEAD'),
+    branch: g('rev-parse', '--abbrev-ref', 'HEAD'),
+    dirty: g('status', '--porcelain', '--', 'src-tauri', 'src').length > 0,
+  };
+}
+
+// One results folder can take several invocations (a resumed round, an arm added later): each is
+// kept, and the top level describes the whole folder, so the report never shows only the last one.
+{
+  const file = path.join(out, 'config.json');
+  const before = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
+  const now = {
+    arms,
+    tasks,
+    reps,
+    models,
+    startedAt: new Date().toISOString(),
+    host: os.hostname(),
+    versions: { claude: version('claude'), codex: version('codex'), node: process.version },
+    atlas: atlasVersion(),
+  };
+  const invocations = [...(before?.invocations ?? (before ? [before] : [])), now];
+  const union = (k) => [...new Set(invocations.flatMap((i) => i[k] ?? []))];
+  fs.writeFileSync(
+    file,
+    JSON.stringify(
+      {
+        ...now,
+        arms: union('arms'),
+        tasks: union('tasks').sort(),
+        reps: Math.max(...invocations.map((i) => i.reps ?? 1)),
+        startedAt: invocations[0].startedAt,
+        invocations,
+      },
+      null,
+      2,
+    ),
+  );
+}
+
+// A run that failed because of the account (quota, login), not the task: it is not recorded as a
+// result (no metrics.json, so grading skips it and --skip-existing retries it) and the remaining
+// runs of that runtime are skipped in this invocation instead of failing one after another.
+const ACCOUNT_FAILURE =
+  /usage limit|you've hit your|quota exceeded|insufficient_quota|not logged in|please run \/login|authentication_error|invalid api key|credit balance is too low/i;
+const blockedRuntimes = new Map();
 
 function run(cmd, argv, opts = {}) {
   return new Promise((resolve) => {
@@ -275,6 +321,17 @@ async function atlas(runtime, task, meta, dest) {
   };
 }
 
+/** The account error a failed run's raw output names, or null when it failed on the task. */
+function accountFailure(dest) {
+  for (const f of ['raw.json', 'raw.jsonl', 'cargo.log']) {
+    const p = path.join(dest, f);
+    if (!fs.existsSync(p)) continue;
+    const hit = fs.readFileSync(p, 'utf8').match(ACCOUNT_FAILURE);
+    if (hit) return hit[0];
+  }
+  return null;
+}
+
 for (let rep = 1; rep <= reps; rep++) {
   for (const task of tasks) {
     const meta = JSON.parse(fs.readFileSync(path.join(here, 'tasks', task, 'meta.json'), 'utf8'));
@@ -283,15 +340,21 @@ for (let rep = 1; rep <= reps; rep++) {
       const id = `${arm}__${task}__r${rep}`;
       const dest = path.join(out, 'runs', id);
       if (args['skip-existing'] && fs.existsSync(path.join(dest, 'metrics.json'))) continue;
-      fs.rmSync(dest, { recursive: true, force: true });
-      fs.mkdirSync(dest, { recursive: true });
-      process.stdout.write(`${new Date().toLocaleTimeString()} ${id} ... `);
       // `atlas-<runtime>` runs the task's template; `atlas-<runtime>-quick` runs the lighter
       // "Quick change" (feature_basic) instead of "Implement" for the feature tasks.
       const quick = arm.endsWith('-quick');
       const runtime = arm.startsWith('atlas-')
         ? arm.slice(6).replace(/-quick$/, '')
         : arm.replace('-pure', '');
+      // Quick only changes the feature tasks; on the others it would repeat the full arm.
+      if (quick && meta.template !== 'software_feature') continue;
+      if (blockedRuntimes.has(runtime)) {
+        console.log(`${id} skipped: ${blockedRuntimes.get(runtime)}`);
+        continue;
+      }
+      fs.rmSync(dest, { recursive: true, force: true });
+      fs.mkdirSync(dest, { recursive: true });
+      process.stdout.write(`${new Date().toLocaleTimeString()} ${id} ... `);
       const template =
         quick && meta.template === 'software_feature' ? 'feature_basic' : meta.template;
       const metrics =
@@ -309,6 +372,16 @@ for (let rep = 1; rep <= reps; rep++) {
         model: models[runtime],
         template: arm.startsWith('atlas-') ? template : null,
       });
+      const account = metrics.ok ? null : accountFailure(dest);
+      if (account) {
+        fs.writeFileSync(
+          path.join(dest, 'account-failure.json'),
+          JSON.stringify({ ...metrics, reason: account }, null, 2),
+        );
+        blockedRuntimes.set(runtime, account);
+        console.log(`NOT COUNTED (account: ${account})`);
+        continue;
+      }
       fs.writeFileSync(path.join(dest, 'metrics.json'), JSON.stringify(metrics, null, 2));
       console.log(
         `${metrics.ok ? 'ok' : 'FAILED'} ${(metrics.elapsedMs / 1000).toFixed(0)}s in=${metrics.inputTokens} out=${metrics.outputTokens}`,

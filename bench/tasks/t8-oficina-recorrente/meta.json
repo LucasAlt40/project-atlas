@@ -1,0 +1,7 @@
+{ "id": "t8-oficina-recorrente", "kind": "bugfix-real", "template": "bug_fix",
+  "title": "Bug real (Oficina das Meninas): doação recorrente sobrescreve o mês anterior",
+  "allowed": ["src/main/java/br/org/oficinadasmeninas/infra/paymentgateway/", "src/main/java/br/org/oficinadasmeninas/infra/payment/", "src/main/java/br/org/oficinadasmeninas/domain/payment/", "src/main/java/br/org/oficinadasmeninas/domain/paymentgateway/", "src/test/"],
+  "runner": "maven",
+  "hiddenPath": "src/test/java/br/org/oficinadasmeninas/benchhidden",
+  "hiddenTest": "RecurringDonationPaymentsHiddenTest",
+  "ownExclude": ["OficinadasmeninasApplicationTests"] }
