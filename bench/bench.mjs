@@ -157,7 +157,7 @@ if (sh('node', [path.join(here, 'grade.mjs'), out], { stdio: 'inherit' }).status
   die('grade.mjs parou com erro');
 
 // ---------------------------------------------------------------- 5. report
-say('5/5 Gerando a planilha');
+say('5/5 Gerando a planilha e o relatório');
 let baseline = opt('baseline', 'auto');
 if (baseline === 'auto') {
   // The latest earlier round in bench/results (folder names are dates, so they sort in time).
@@ -178,6 +178,10 @@ const reportArgs = [
 ];
 const rep = sh('python3', reportArgs, { stdio: 'inherit' });
 if (rep.status !== 0) die('report.py parou com erro');
+const page = sh('python3', [path.join(here, 'report_html.py'), ...reportArgs.slice(1)], {
+  stdio: 'inherit',
+});
+if (page.status !== 0) die('report_html.py parou com erro');
 
 // ---------------------------------------------------------------- summary
 const all = JSON.parse(fs.readFileSync(path.join(out, 'all.json'), 'utf8'));
@@ -202,7 +206,7 @@ if (lost.length)
     `\n${lost.length} execução(ões) não contaram por falha da conta (cota/login): rode de novo com --skip-existing quando a conta voltar.`,
   );
 console.log(
-  `\nPlanilha: ${path.join(out, 'benchmark-atlas.xlsx')}${baseline !== 'none' ? `\nComparada com: ${path.basename(baseline)}` : ''}`,
+  `\nRelatório: ${path.join(out, 'relatorio.html')}\nPlanilha: ${path.join(out, 'benchmark-atlas.xlsx')}${baseline !== 'none' ? `\nComparada com: ${path.basename(baseline)}` : ''}`,
 );
 if (check)
   console.log('\n--check ok: o encanamento funciona. Para a rodada real: node bench/bench.mjs');

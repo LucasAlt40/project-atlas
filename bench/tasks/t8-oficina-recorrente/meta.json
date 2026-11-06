@@ -1,7 +1,28 @@
-{ "id": "t8-oficina-recorrente", "kind": "bugfix-real", "template": "bug_fix",
+{
+  "id": "t8-oficina-recorrente",
+  "kind": "bugfix-real",
+  "template": "bug_fix",
   "title": "Bug real (Oficina das Meninas): doação recorrente sobrescreve o mês anterior",
-  "allowed": ["src/main/java/br/org/oficinadasmeninas/infra/paymentgateway/", "src/main/java/br/org/oficinadasmeninas/infra/payment/", "src/main/java/br/org/oficinadasmeninas/domain/payment/", "src/main/java/br/org/oficinadasmeninas/domain/paymentgateway/", "src/test/"],
+  "allowed": [
+    "src/main/java/br/org/oficinadasmeninas/infra/paymentgateway/",
+    "src/main/java/br/org/oficinadasmeninas/infra/payment/",
+    "src/main/java/br/org/oficinadasmeninas/domain/payment/",
+    "src/main/java/br/org/oficinadasmeninas/domain/paymentgateway/",
+    "src/test/"
+  ],
   "runner": "maven",
   "hiddenPath": "src/test/java/br/org/oficinadasmeninas/benchhidden",
   "hiddenTest": "RecurringDonationPaymentsHiddenTest",
-  "ownExclude": ["OficinadasmeninasApplicationTests"] }
+  "ownExclude": [
+    "OficinadasmeninasApplicationTests"
+  ],
+  "hiddenLabels": {
+    "theFirstChargeUpdatesTheCheckoutPaymentWithoutAddingOne": "a primeira cobrança atualiza o pagamento do checkout sem criar outro",
+    "theNextMonthsChargeIsANewPaymentAndLeavesTheEarlierOneAlone": "a cobrança do mês seguinte vira um pagamento novo e não mexe no anterior",
+    "threeMonthsMakeThreePayments": "três meses de assinatura são três pagamentos",
+    "aDeclinedMonthlyChargeIsRecordedWithoutTouchingThePaidOne": "uma cobrança recusada é registrada sem alterar o mês pago",
+    "aRepeatedNotificationInTheSameMonthAddsNothing": "uma notificação repetida no mesmo mês não cria nada",
+    "aOneTimeDonationNeverGetsASecondPayment": "uma doação única nunca ganha um segundo pagamento",
+    "theSponsorshipIsStillActivatedForARecurringCharge": "o apadrinhamento continua sendo ativado na cobrança recorrente"
+  }
+}

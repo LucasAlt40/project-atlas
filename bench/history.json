@@ -1,0 +1,50 @@
+{
+  "_doc": "Each round of bench/results that changed something in Atlas: what changed and the effect measured then. The report shows this next to Atlas's numbers on T1–T4 (the tasks every round has). Add an entry when a round measures a new change; 'round' is the folder name in bench/results.",
+  "rounds": [
+    {
+      "round": "2026-10-30",
+      "change": "Linha de base. Os textos dos passos diziam aos agentes que não podiam rodar comandos, e o plano era gravado como arquivo no projeto.",
+      "effect": "Atlas + Codex concluiu 6 de 8 e passou 90% dos testes ocultos; 7 das 12 execuções de código do Atlas alteraram arquivos fora do escopo."
+    },
+    {
+      "round": "2026-10-31",
+      "change": "ADR 0044: os passos que editam rodam os testes do projeto no sandbox da CLI; textos dos passos ajustados a cada runtime; o plano não vai mais para o diff.",
+      "effect": "Atlas + Codex 6/8 → 8/8 e 90% → 100% nos testes ocultos; execuções fora do escopo 7 → 0."
+    },
+    {
+      "round": "2026-10-31b",
+      "change": "Com aprovação automática de planos, o passo não pede aprovação e segue na mesma execução.",
+      "effect": "O Arquiteto passou a rodar uma vez por tarefa, não duas; entrada do Arquiteto −54% no Claude e −48% no Codex."
+    },
+    {
+      "round": "2026-10-31c",
+      "change": "O QA só reprova o que a tarefa pediu, regressões e problemas de segurança; o resto vira achado de baixa severidade.",
+      "effect": "Voltas de correção pedidas pelo QA: Claude 1 → 0, Codex 3 → 2."
+    },
+    {
+      "round": "2026-10-31d",
+      "change": "Os passos que só leem (QA, Validador) também rodam os testes, sem poder escrever.",
+      "effect": "Vereditos baseados em testes executados: 1 de 10 → 9 de 10, com o mesmo custo nas tarefas de código."
+    },
+    {
+      "round": "2026-10-31e",
+      "change": "Relatório curto: cada passo escreve poucas linhas e põe os detalhes uma vez no bloco de resultado.",
+      "effect": "Saída do Claude −13% e custo −8%, com a mesma qualidade."
+    },
+    {
+      "round": "2026-10-31g",
+      "change": "Git de leitura (status, diff, log, show) para os agentes; a revisão de código roda sem comandos.",
+      "effect": "Pedidos de comando recusados ~10 → 0; entrada da revisão −32%."
+    },
+    {
+      "round": "2026-11-01",
+      "change": "Quick change ganha uma volta de correção; diagnóstico de passo sem saída; tarefa T8 com o bug real da Oficina das Meninas (Java).",
+      "effect": "40 execuções, todas com 100% nos testes ocultos; o Atlas falhou uma vez no T8 depois de 4 correções."
+    },
+    {
+      "round": "2026-11-04",
+      "change": "Da main: retomada com o contexto da falha, limite de ciclo de correção e brief mais enxuto.",
+      "effect": "Atlas concluiu o T8 nas 2 execuções; no T8, tempo −30% e entrada −33%."
+    }
+  ]
+}

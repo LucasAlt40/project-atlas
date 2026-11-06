@@ -44,5 +44,10 @@ npm run bench         # rodada real: 5 braços × 8 tarefas × 2 rodadas em benc
 - `rubric.json` (nota manual por execução) e `findings.json` (melhorias) na pasta de resultados entram na planilha se
   existirem.
 
+O relatório para apresentar é `relatorio.html` (gerado por `report_html.py`, uma página sem dependências): veredito,
+resumo por braço, gráficos por tarefa, onde o código entregue estava errado, onde o Atlas gasta, a análise escrita
+(`findings.json`), a evolução (`bench/history.json`, uma entrada por rodada que mediu uma mudança no Atlas), a
+metodologia e todas as execuções. Só `findings.json` e `history.json` são escritos à mão; o resto vem dos dados.
+
 A planilha (`benchmark-atlas.xlsx`) tem Resumo, Por tarefa, Melhorias, Execuções, Passos Atlas, Qualidade e Metodologia.
 As médias são fórmulas sobre a aba Execuções.
