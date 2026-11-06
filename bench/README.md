@@ -25,15 +25,22 @@ ainda bem especificadas: em 2026-10-31 o Claude puro (haiku) acertou 100% delas 
 
 ## Rodar
 
+Um comando faz tudo: confere a máquina (CLIs logadas, Python com openpyxl, Maven e `~/.m2` para a tarefa Java),
+compila o Atlas uma vez, roda os braços, avalia e gera a planilha comparada com a rodada anterior.
+
 ```bash
-node bench/run.mjs --out bench/results/<data> --reps 2 --claude-model haiku --codex-model gpt-5.6-luna
-node bench/grade.mjs bench/results/<data>
-python3 bench/report.py bench/results/<data> [--baseline bench/results/<data anterior>]
+npm run bench:check   # grátis: modelo falso, T1, confere o encanamento de ponta a ponta
+npm run bench         # rodada real: 5 braços × 8 tarefas × 2 rodadas em bench/results/<hoje> (gasta tokens)
 ```
 
-- `--arms claude-pure,atlas-claude` e `--tasks t1,t3` restringem a matriz; `--skip-existing` retoma uma rodada parada.
-- Para checar o encanamento sem gastar nada, passe um modelo que não existe (`--claude-model not-a-real-model-xyz
---codex-model not-a-real-model-xyz`): as CLIs falham na primeira chamada.
+- Opções (depois de `npm run bench --`): `--arms claude-pure,atlas-claude`, `--tasks t1,t8`, `--reps 1`,
+  `--claude-model haiku`, `--codex-model gpt-5.6-luna`, `--out <pasta>`, `--baseline <pasta>|none`.
+- `--skip-existing` retoma uma rodada parada na mesma pasta; `config.json` guarda cada invocação.
+- Falha da conta (cota esgotada, login) não vira resultado: a execução fica em `account-failure.json`, o resto daquele
+  runtime é pulado e `--skip-existing` tenta de novo depois.
+- `config.json` registra o commit do Atlas medido (e se havia mudanças sem commit em `src`/`src-tauri`).
+- Os passos à mão continuam valendo: `node bench/run.mjs …`, `node bench/grade.mjs <pasta>`,
+  `python3 bench/report.py <pasta> [--baseline <pasta>]`.
 - `rubric.json` (nota manual por execução) e `findings.json` (melhorias) na pasta de resultados entram na planilha se
   existirem.
 

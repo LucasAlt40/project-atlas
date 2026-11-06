@@ -46,7 +46,74 @@ TASK_LABEL = {
     "t5-rate-limiter": "T5 Limitador de taxa",
     "t6-csv-bug": "T6 Bug CSV entrelaçado",
     "t7-order-cancel": "T7 Cancelar pedido (3 arquivos)",
+    "t8-oficina-recorrente": "T8 Bug real: doação recorrente (Oficina)",
 }
+
+present_arms = [a for a in ARMS if any(r["arm"] == a for r in rows)]
+present_tasks = sorted({r["task"] for r in rows})
+ran_codex = any(r["runtime"] == "codex" for r in rows)
+atlas_v = config.get("atlas") or {}
+atlas_desc = (
+    f"Atlas {atlas_v.get('commit')} ({atlas_v.get('branch')}{', com mudanças sem commit' if atlas_v.get('dirty') else ''})"
+    if atlas_v.get("commit") else "versão do Atlas não registrada"
+)
+# Runs lost to the account (quota, login): not results, but the report says how many.
+account_failures = sorted(p.parent.name for p in (results / "runs").glob("*/account-failure.json") if not (p.parent / "metrics.json").exists())
+
+
+def mean(xs):
+    xs = [x for x in xs if x is not None]
+    return sum(xs) / len(xs) if xs else None
+
+
+def measured(rows):
+    """Plain conclusions computed from the runs, so a fresh round has them without findings.json."""
+    out = []
+    by = {a: [r for r in rows if r["arm"] == a] for a in present_arms}
+    def avg(arm, f):
+        return mean([f(r) for r in by[arm]])
+    total = len(rows)
+    perfect = sum(1 for r in rows if r["grade"].get("hiddenScore", 0) >= 1)
+    out.append(f"Testes ocultos: {perfect} de {total} execuções passaram 100% (os testes que o agente nunca viu).")
+    for arm in present_arms:
+        runs = by[arm]
+        failed = [r["id"] for r in runs if not r["ok"]]
+        broken = sum(1 for r in runs if (r["grade"].get("ownTests") or {}).get("fail"))
+        score = avg(arm, lambda r: r["grade"].get("hiddenScore", 0))
+        cost = avg(arm, lambda r: r.get("costUsd"))
+        secs = avg(arm, lambda r: r["elapsedMs"] / 1000)
+        out.append(
+            f"{ARM_LABEL[arm]}: {len(runs)} execuções, nota oculta média {score:.0%}, "
+            f"tempo médio {secs:.0f} s" + (f", custo médio US$ {cost:.4f}" if cost is not None else "")
+            + f", teste próprio falhando em {broken}, não concluiu em {len(failed)}"
+            + (f" ({', '.join(failed[:3])})" if failed else "") + "."
+        )
+    for runtime, label in (("claude", "Claude"), ("codex", "Codex")):
+        pure = f"{runtime}-pure"
+        for atlas_arm in (f"atlas-{runtime}", f"atlas-{runtime}-quick"):
+            if pure not in by or atlas_arm not in by:
+                continue
+            # Only the tasks both arms ran: the Quick arm runs the feature tasks alone.
+            common = {r["task"] for r in by[atlas_arm]} & {r["task"] for r in by[pure]}
+            if not common:
+                continue
+            a_runs = [r for r in by[atlas_arm] if r["task"] in common]
+            p_runs = [r for r in by[pure] if r["task"] in common]
+            def ratio(f):
+                a, p = mean([f(r) for r in a_runs]), mean([f(r) for r in p_runs])
+                return a / p if a is not None and p else None
+            c = ratio(lambda r: r.get("costUsd"))
+            t = ratio(lambda r: r["elapsedMs"] / 1000)
+            d = mean([r["grade"].get("hiddenScore", 0) for r in a_runs]) - mean([r["grade"].get("hiddenScore", 0) for r in p_runs])
+            scope = "nas mesmas tarefas" if len(common) == len(present_tasks) else f"nas {len(common)} tarefas que os dois rodaram"
+            out.append(
+                f"{ARM_LABEL[atlas_arm]} comparado ao {label} puro ({scope}): nota oculta {d:+.0%}"
+                + (f", custo {c:.2f}×" if c else "") + (f", tempo {t:.2f}×" if t else "") + "."
+            )
+    if account_failures:
+        out.append(f"{len(account_failures)} execução(ões) não contaram por falha da conta (cota ou login): {', '.join(account_failures[:4])}.")
+    return out
+
 
 wb = Workbook()
 
@@ -160,8 +227,8 @@ rs = wb.create_sheet("Resumo", 0)
 title(
     rs,
     "Benchmark Atlas × Claude/Codex puros",
-    f"{len(rows)} execuções · Claude {config['models']['claude']} · Codex {config['models']['codex']} · {config['reps']} rodadas · "
-    f"{config['versions']['claude']} · {config['versions']['codex']} · iniciado {config['startedAt'][:16]}",
+    f"{len(rows)} execuções · Claude {config['models']['claude']}" + (f" · Codex {config['models']['codex']}" if ran_codex else "") + f" · {config['reps']} rodadas · "
+    f"{config['versions']['claude']}" + (f" · {config['versions']['codex']}" if ran_codex else "") + f" · {atlas_desc} · iniciado {config['startedAt'][:16]}",
 )
 heads = [
     ("Braço", 18), ("Execuções", 10), ("Concluiu", 10), ("Nota testes ocultos (média)", 13),
@@ -367,15 +434,15 @@ title(md, "Plano e metodologia", "Para reproduzir: node bench/run.mjs → node b
 lines = [
     ("Objetivo", "Medir se rodar uma tarefa pelo Atlas (workflow de agentes) entrega código melhor que usar o Claude Code ou o Codex direto, e a que custo em tokens e tempo."),
     ("Braços", "Claude puro: claude -p <tarefa> --model haiku --output-format json --permission-mode acceptEdits, numa cópia do projeto. Codex puro: codex exec --json --sandbox workspace-write --model gpt-5.6-luna <tarefa>. Atlas + Claude / Atlas + Codex: o mesmo texto da tarefa num template de produto do Atlas (backend real, CLI real, worktree isolado), todos os agentes no mesmo modelo."),
-    ("Templates do Atlas", "T1 e T3: 'Implement' (software_feature, o recomendado). T2: 'Debug & fix' (bug_fix). T4: 'Review & audit' (code_review). Planos aprovados automaticamente."),
-    ("Tarefas", "T1 slugify com 6 regras e bordas (14 testes ocultos). T2 bug descrito só por sintomas num carrinho com 3 defeitos (11 testes ocultos). T3 prioridades num store de todo em 2 arquivos, sem quebrar o existente (12 testes ocultos, 4 deles de regressão). T4 revisão de um módulo com 3 defeitos plantados (paginação off-by-one, idade sem aniversário, escapeHtml que só troca a 1ª ocorrência)."),
-    ("Testes ocultos", "Ficam fora do projeto que o agente vê e só são copiados para a árvore final na avaliação. Foram validados contra uma solução de referência (14/14, 11/11, 12/12) e falham no código original."),
+    ("Templates do Atlas", "Features (T1, T3, T5, T7): 'Implement' (software_feature); o braço Quick usa 'Quick change' (feature_basic). Bugs (T2, T6, T8): 'Debug & fix' (bug_fix). Revisão (T4): 'Review & audit' (code_review). Planos aprovados automaticamente."),
+    ("Tarefas", "T1 slugify com 6 regras e bordas (14 testes ocultos). T2 bug descrito só por sintomas num carrinho com 3 defeitos (11 testes ocultos). T3 prioridades num store de todo em 2 arquivos, sem quebrar o existente (12 testes ocultos, 4 deles de regressão). T4 revisão de um módulo com 3 defeitos plantados (paginação off-by-one, idade sem aniversário, escapeHtml que só troca a 1ª ocorrência). T5 limitador de taxa com relógio injetável (12 testes ocultos). T6 parser de CSV com 5 defeitos entrelaçados (12). T7 cancelamento de pedido em 3 arquivos (10). T8 bug REAL do backend Java/Spring da Oficina das Meninas: a cobrança mensal de uma doação recorrente sobrescreve o pagamento do mês anterior (7 testes ocultos JUnit/Mockito sobre o webhook do PagBank; 259 arquivos do repositório como fixture)."),
+    ("Testes ocultos", "Ficam fora do projeto que o agente vê e só são copiados para a árvore final na avaliação. Foram validados contra uma solução de referência (T1 14/14, T2 11/11, T3 12/12, T5 12/12, T6 12/12, T7 10/10, T8 7/7) e falham no código original (T8: 3/7). No T8 rodam com Maven offline (mvn -o test), com um serviço de pagamentos falso que responde pelo nome dos métodos, para julgar o comportamento mesmo se a correção mudar a interface."),
     ("Tokens", "Claude: input + cache_creation + cache_read e output do evento result (a mesma conta que o runtime do Atlas faz). Codex: soma dos turn.completed. Atlas: soma do ledger de uso de todos os agentes da execução."),
     ("Tempo", "Relógio de parede da execução inteira (Atlas: do início do workflow ao fim, incluindo a montagem do worktree)."),
     ("Escopo", "Arquivos alterados comparados aos permitidos pela tarefa (meta.json → allowed)."),
     ("Qualidade", "Principal: testes ocultos. Complementar: testes que o agente escreveu (quantos passam), tamanho do diff, escopo e rubrica manual 0–10."),
-    ("Ambiente", f"{config['versions']['claude']} · {config['versions']['codex']} · Node {config['versions']['node']} · macOS · projeto de teste fora do repositório (nenhum CLAUDE.md/AGENTS.md de projeto). O Claude puro carrega a configuração global do usuário (como no uso real); o Atlas isola o Claude (--strict-mcp-config, --disable-slash-commands, 5 ferramentas)."),
-    ("Limites", "Amostra pequena (2 rodadas × 4 tarefas): diferenças pequenas podem ser ruído. Tarefas pequenas favorecem quem tem menos overhead; o ganho de um workflow tende a aparecer em tarefas maiores. Modelos baratos (haiku, luna). Até a ADR 0044 (rodada de 2026-10-30) os agentes do Atlas no Claude não tinham Bash; desde ela (2026-10-31), os passos que editam rodam só os testes do projeto no sandbox da CLI, e os que julgam continuam só lendo. O Claude puro em -p não pode rodar Bash sem permissão; o Codex roda comandos no sandbox nos dois braços."),
+    ("Ambiente", f"{config['versions']['claude']} · {config['versions']['codex']} · Node {config['versions']['node']} · macOS · projeto de teste fora do repositório (nenhum CLAUDE.md/AGENTS.md de projeto). O Claude puro carrega a configuração global do usuário (como no uso real); o Atlas isola o Claude (--strict-mcp-config, --disable-slash-commands) e lhe dá Bash só para os comandos concedidos (testes e git de leitura), no sandbox da CLI. Java 21 e Maven 3.9 offline (MAVEN_ARGS=-o) no PATH de todos os braços. Código medido: " + atlas_desc + "." + ("" if ran_codex else " O Codex não rodou nesta rodada.") + (f" {len(account_failures)} execução(ões) perdida(s) por falha da conta (cota ou login) ficaram de fora: {', '.join(account_failures)}." if account_failures else "")),
+    ("Limites", f"Amostra pequena ({config['reps']} rodadas × {len(present_tasks)} tarefas): diferenças pequenas podem ser ruído. Tarefas pequenas favorecem quem tem menos overhead; o ganho de um workflow tende a aparecer em tarefas maiores. Modelos baratos (haiku, luna). Até a ADR 0044 (rodada de 2026-10-30) os agentes do Atlas no Claude não tinham Bash; desde ela (2026-10-31), os passos que editam rodam só os testes do projeto no sandbox da CLI, e os que julgam continuam só lendo. O Claude puro em -p não pode rodar Bash sem permissão; o Codex roda comandos no sandbox nos dois braços."),
     ("Nota sobre os arquivos", "Na rodada de 2026-10-30, depois da avaliação, um 'prettier --write' reformatou por engano as árvores salvas. As dos braços puros foram restauradas byte a byte (com verificação); nas do Atlas, os arquivos que o agente não tocou foram restaurados e os que ele escreveu ficaram só reformatados (espaçamento). Uma reavaliação deu nota oculta, escopo e testes idênticos nas 32 execuções; os números desta planilha são os de antes do acidente. bench/results agora fica fora do prettier."),
 ]
 for i, (k, v) in enumerate(lines):
@@ -415,7 +482,7 @@ if baseline is not None:
     eb.freeze_panes = "B5"
 
     ad = wb.create_sheet("Antes × Depois", 1)
-    title(ad, "Efeito das melhorias no Atlas (antes × depois)", f"Antes: {baseline.name}. Depois: {results.name}. Mesmas tarefas, modelos e número de rodadas; só os braços do Atlas rodaram de novo.")
+    title(ad, "Efeito das melhorias no Atlas (antes × depois)", f"Antes: {baseline.name}. Depois: {results.name}. Compara a média de cada braço do Atlas nas duas rodadas; confira na Metodologia de cada uma se as tarefas e modelos foram os mesmos.")
     def b(col):
         return f"'Execuções antes'!${col}$5:${col}${blast}"
     metrics = [
@@ -454,6 +521,55 @@ if baseline is not None:
         body(ad, row, row, 5)
         row += 3
     widths(ad, [30, 14, 14, 14, 16])
+
+# ---------------------------------------------------------------- Apresentação (first sheet)
+ap = wb.create_sheet("Apresentação", 0)
+title(ap, "Atlas × " + ("Claude e Codex puros" if ran_codex else "Claude puro") + ": o que os números mostram", f"{len(rows)} execuções · {config['models']['claude']}" + (f" · {config['models']['codex']}" if ran_codex else "") + f" · {config['startedAt'][:10]} · {atlas_desc} · cada número é uma fórmula sobre a aba Execuções.")
+ah = ["Braço", "Execuções", "Concluiu", "Testes ocultos", "Tempo médio (s)", "Custo médio US$", "Tokens saída", "Fora do escopo", "Rubrica (0–10)"]
+for i, h in enumerate(ah, start=1):
+    ap.cell(row=4, column=i, value=h)
+style_header(ap, 4, len(ah))
+present = present_arms
+for i, arm in enumerate(present):
+    r = 5 + i
+    a = f'"{ARM_LABEL[arm]}"'
+    ap.cell(row=r, column=1, value=ARM_LABEL[arm]).font = Font(name=FONT, bold=True)
+    for c, f, fmt in [
+        (2, f"=COUNTIF({R},{a})", "0"),
+        (3, f"=IFERROR(AVERAGEIFS({rng('G')},{R},{a}),\"\")", "0%"),
+        (4, f"=IFERROR(AVERAGEIFS({rng('H')},{R},{a}),\"\")", "0%"),
+        (5, f"=IFERROR(AVERAGEIFS({rng('N')},{R},{a}),\"\")", "0"),
+        (6, f"=IFERROR(AVERAGEIFS({rng('M')},{R},{a}),\"n/d\")", "$0.0000"),
+        (7, f"=IFERROR(AVERAGEIFS({rng('L')},{R},{a}),\"\")", "#,##0"),
+        (8, f"=COUNTIFS({R},{a},{rng('Q')},\">0\")", "0"),
+        (9, f"=IFERROR(AVERAGEIFS({rng('V')},{R},{a}),\"\")", "0.0"),
+    ]:
+        ap.cell(row=r, column=c, value=f).number_format = fmt
+    if arm.startswith("atlas"):
+        for c in range(1, len(ah) + 1):
+            ap.cell(row=r, column=c).fill = ATLAS
+body(ap, 5, 4 + len(present), len(ah))
+row = 6 + len(present)
+
+
+def paragraphs(heading, texts):
+    global row
+    ap.cell(row=row, column=1, value=heading).font = Font(name=FONT, bold=True, size=12, color="1F3A5F")
+    for n, text in enumerate(texts, start=1):
+        row += 1
+        c = ap.cell(row=row, column=1, value=f"{n}. {text}")
+        c.font = Font(name=FONT, size=10)
+        c.alignment = Alignment(wrap_text=True, vertical="top")
+        ap.merge_cells(start_row=row, start_column=1, end_row=row, end_column=len(ah))
+        ap.row_dimensions[row].height = max(30, 14 * (len(text) // 120 + 1))
+    row += 2
+
+
+# Computed every time, so a new round is readable before anyone writes findings.json.
+paragraphs("Números desta rodada (calculados)", measured(rows))
+if findings:
+    paragraphs("Conclusões (análise escrita, findings.json)", [f["finding"] for f in ([f for f in findings if f.get("headline")] or findings[:5])])
+widths(ap, [26, 10, 10, 12, 12, 13, 12, 12, 12])
 
 out = results / "benchmark-atlas.xlsx"
 # openpyxl writes no cached values: ask the spreadsheet app to compute every formula on open.

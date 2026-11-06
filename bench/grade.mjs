@@ -9,10 +9,47 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mavenBin } from './maven.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const results = path.resolve(process.argv[2] ?? '');
 const runsDir = path.join(results, 'runs');
+
+/** `mvn -o test` on `only` (a -Dtest value) in `cwd`: counts from the surefire reports. */
+function mavenTest(cwd, only) {
+  const reports = path.join(cwd, 'target', 'surefire-reports');
+  fs.rmSync(reports, { recursive: true, force: true });
+  const r = spawnSync(
+    mavenBin(),
+    ['-o', '-q', 'test', `-Dtest=${only}`, '-Dsurefire.failIfNoSpecifiedTests=false'],
+    { cwd, encoding: 'utf8', timeout: 300000 },
+  );
+  let pass = 0;
+  let fail = 0;
+  const failed = [];
+  if (fs.existsSync(reports)) {
+    for (const f of fs.readdirSync(reports).filter((n) => n.endsWith('.xml'))) {
+      const xml = fs.readFileSync(path.join(reports, f), 'utf8');
+      const head = xml.match(/<testsuite[^>]*>/)?.[0] ?? '';
+      const n = (k) => Number(head.match(new RegExp(`${k}="(\\d+)"`))?.[1] ?? 0);
+      const bad = n('failures') + n('errors');
+      fail += bad;
+      pass += n('tests') - bad - n('skipped');
+      for (const m of xml.matchAll(/<testcase name="([^"]+)"[^>]*>\s*<(failure|error)/g))
+        failed.push(m[1]);
+    }
+  }
+  // It did not even compile: every hidden test counts as failed.
+  const compiled = fs.existsSync(path.join(cwd, 'target', 'test-classes'));
+  return {
+    pass,
+    fail,
+    failed,
+    compiled,
+    exit: r.status,
+    tail: `${r.stdout}${r.stderr}`.slice(-2000),
+  };
+}
 
 function nodeTest(cwd, pattern) {
   const r = spawnSync('node', ['--test', '--test-reporter=tap', '--test-timeout=10000', pattern], {
@@ -105,6 +142,33 @@ for (const id of fs.readdirSync(runsDir).sort()) {
     g.defectsTotal = meta.defects.length;
     g.hiddenScore = g.defectsFound / g.defectsTotal;
     g.reviewChars = said.length;
+  } else if (hasTree && meta.runner === 'maven') {
+    const work = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-grade-'));
+    fs.cpSync(tree, work, { recursive: true });
+    fs.rmSync(path.join(work, 'target'), { recursive: true, force: true });
+    const own = files(work).filter((p) => p.startsWith('src/test/') && p.endsWith('Test.java'));
+    const exclude = (meta.ownExclude ?? []).map((t) => `!${t}`);
+    g.ownTestFiles = own.filter(
+      (p) => !(meta.ownExclude ?? []).some((t) => p.endsWith(`${t}.java`)),
+    ).length;
+    g.ownTests = g.ownTestFiles
+      ? mavenTest(work, ['**/*Test', ...exclude].join(','))
+      : { pass: 0, fail: 0, failed: [] };
+    fs.mkdirSync(path.join(work, meta.hiddenPath), { recursive: true });
+    for (const f of fs.readdirSync(path.join(taskDir, 'hidden')))
+      fs.copyFileSync(path.join(taskDir, 'hidden', f), path.join(work, meta.hiddenPath, f));
+    g.hidden = mavenTest(work, meta.hiddenTest);
+    if (!g.hidden.compiled || g.hidden.pass + g.hidden.fail === 0) {
+      // A tree that does not compile with the hidden test fails all of it.
+      const declared = (
+        fs
+          .readFileSync(path.join(taskDir, 'hidden', `${meta.hiddenTest}.java`), 'utf8')
+          .match(/@Test/g) ?? []
+      ).length;
+      g.hidden = { ...g.hidden, pass: 0, fail: declared, failed: ['(não compilou)'] };
+    }
+    const total = g.hidden.pass + g.hidden.fail;
+    g.hiddenScore = total ? g.hidden.pass / total : 0;
   } else if (hasTree) {
     const work = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-grade-'));
     fs.cpSync(tree, work, { recursive: true });
