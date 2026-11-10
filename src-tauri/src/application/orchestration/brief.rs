@@ -146,7 +146,7 @@ fn workflow_context(exec: &WorkflowExecution, graph: &Graph<'_>, node_id: &str) 
 
     // The steps that hand over to this one are shown in the handoff, summary and all; the others
     // are told here by what they last reported, which is all a later step sees of them.
-    let handing_over = latest_handoffs(exec, node_id);
+    let handing_over = latest_handoffs(exec, graph, node_id);
     let done: Vec<String> = state
         .completed_nodes
         .iter()
@@ -353,7 +353,27 @@ fn last_report<'e>(exec: &'e WorkflowExecution, node_id: &str) -> Option<&'e str
 /// For each step that leads here, the latest handoff it gave this one, in the order they came,
 /// leaving out what this step was already given in an earlier pass: it has acted on that, and
 /// the worktree holds what came of it.
-fn latest_handoffs<'e>(exec: &'e WorkflowExecution, node_id: &str) -> Vec<&'e AgentHandoff> {
+///
+/// A condition between two steps runs no agent and hands nothing over, so what the steps before
+/// it handed to the condition counts as handed to this step: a fixer after a join of two reviews
+/// gets both reviews' findings.
+fn latest_handoffs<'e>(
+    exec: &'e WorkflowExecution,
+    graph: &Graph<'_>,
+    node_id: &str,
+) -> Vec<&'e AgentHandoff> {
+    let mut receivers = vec![node_id];
+    receivers.extend(
+        graph
+            .in_links(node_id)
+            .filter(|l| {
+                graph
+                    .workflow
+                    .node(&l.source)
+                    .is_some_and(|n| matches!(n.kind, NodeKind::Condition(_)))
+            })
+            .map(|l| l.source.as_str()),
+    );
     let state = exec.node_state(node_id);
     let pass = state.map_or(1, |s| {
         if s.continuing {
@@ -369,7 +389,11 @@ fn latest_handoffs<'e>(exec: &'e WorkflowExecution, node_id: &str) -> Vec<&'e Ag
         .map(|a| a.started_at)
         .max();
     let mut latest: Vec<&AgentHandoff> = Vec::new();
-    for handoff in exec.handoffs.iter().filter(|h| h.to_node_id == node_id) {
+    for handoff in exec
+        .handoffs
+        .iter()
+        .filter(|h| receivers.contains(&h.to_node_id.as_str()))
+    {
         latest.retain(|h| h.from_node_id != handoff.from_node_id);
         latest.push(handoff);
     }
@@ -950,7 +974,7 @@ fn change_line(change: &FileChange) -> String {
 /// the transition to this one. Clearly delimited, and said to be context, not authority.
 #[allow(clippy::too_many_lines)]
 fn handoff_block(exec: &WorkflowExecution, graph: &Graph<'_>, node_id: &str) -> String {
-    let latest = latest_handoffs(exec, node_id);
+    let latest = latest_handoffs(exec, graph, node_id);
     let shared = exec.integration.worktree_execution_id.is_some();
     if latest.is_empty() && !shared {
         return String::new();

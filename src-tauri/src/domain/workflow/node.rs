@@ -108,11 +108,17 @@ pub struct AgentNode {
 
 /// Tests the result of the step that led here and records the answer (`result.matched`), which
 /// the edges leaving it can route on.
+///
+/// A *join* (`join: true`) waits for every step that leads into it, each time round, and matches
+/// only when the condition holds for each of them: two reviews that run side by side, say, go on
+/// only if both pass. Without it the node runs when the first link reaches it, as it always did.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConditionNode {
     pub label: String,
     pub condition: Condition,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub join: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]

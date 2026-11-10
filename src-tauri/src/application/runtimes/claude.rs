@@ -1,12 +1,13 @@
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::Value;
 
 use super::claude_mcp::{ClaudeMcpAdapter, CONFIG_PLACEHOLDER};
-use super::mcp_adapter::{prepare_for, McpAdapter, McpAdapterFactory, McpDialect};
+use super::mcp_adapter::{prepare_for, McpAdapter, McpAdapterFactory, McpDialect, McpPreparation};
 use super::{
     cli, Detection, ModelRuntime, RuntimeError, RuntimeEvent, RuntimeOutput, RuntimeRequest,
 };
@@ -41,6 +42,14 @@ const EDIT_AND_COMMAND_TOOLS: &str = "Read,Grep,Glob,Edit,Write,Bash";
 /// The reading tools plus `Bash`, for a run that only reads and is given the test commands: the
 /// sandbox of [`command_settings`] then refuses every write in the folders it can see.
 const READ_AND_COMMAND_TOOLS: &str = "Read,Grep,Glob,Bash";
+/// Moves the per-machine parts of the CLI's own system prompt (working directory, environment,
+/// memory paths, git status) into the first message. Each Atlas step runs in its own worktree and
+/// git status changes as soon as a step edits, so without it every step starts with a system
+/// prompt the provider has not cached; with it the system prompt is the same for every step and
+/// every execution, and is read from the cache. A CLI too old to know it refuses it while reading
+/// its arguments, before any model call: the run is then made again without it (see
+/// [`ClaudeRuntime::execute`]), and the flag is not passed again.
+const CACHE_FLAG: &str = "--exclude-dynamic-system-prompt-sections";
 
 /// Runtime for the Claude CLI (Claude Code), using the user's existing sign-in.
 ///
@@ -59,6 +68,8 @@ const READ_AND_COMMAND_TOOLS: &str = "Read,Grep,Glob,Bash";
 pub struct ClaudeRuntime {
     runner: Arc<dyn ProcessRunner>,
     mcp: Arc<dyn McpAdapter>,
+    /// Set once this CLI refused [`CACHE_FLAG`]: later runs go without it.
+    cache_flag_refused: AtomicBool,
 }
 
 impl ClaudeRuntime {
@@ -66,7 +77,16 @@ impl ClaudeRuntime {
         Self {
             runner,
             mcp: McpAdapterFactory::create(McpDialect::Claude),
+            cache_flag_refused: AtomicBool::new(false),
         }
+    }
+
+    fn launch_args(&self, request: &RuntimeRequest, mcp_args: &[String]) -> Vec<String> {
+        let mut args = launch_args(request, mcp_args);
+        if !self.cache_flag_refused.load(Ordering::Relaxed) {
+            args.push(CACHE_FLAG.to_owned());
+        }
+        args
     }
 
     fn authentication(&self) -> Authentication {
@@ -182,7 +202,7 @@ impl ModelRuntime for ClaudeRuntime {
     /// help says it loads them (a real model run would be needed to see whether they reach the
     /// model). Nothing here says the model received anything but the prompt.
     fn surface(&self, request: &RuntimeRequest) -> RuntimeSurface {
-        let args = launch_args(request, &display_mcp_args(request));
+        let args = self.launch_args(request, &display_mcp_args(request));
         let mut flags = Vec::new();
         let mut skip_next = false;
         for arg in &args {
@@ -274,7 +294,26 @@ impl ModelRuntime for ClaudeRuntime {
 
         // The servers of this step, as the CLI takes them; the files live as long as `mcp`.
         let mcp = prepare_for(self.mcp.as_ref(), request)?;
-        let args = launch_args(request, &mcp.args);
+        let output = self.run(request, &mcp, progress)?;
+        let output = if refused_cache_flag(&output) {
+            // An older CLI: nothing ran (it stopped at its arguments). Once more, without the flag.
+            self.cache_flag_refused.store(true, Ordering::Relaxed);
+            self.run(request, &mcp, progress)?
+        } else {
+            output
+        };
+        parse_run_output(&output, &request.model_id)
+    }
+}
+
+impl ClaudeRuntime {
+    fn run(
+        &self,
+        request: &RuntimeRequest,
+        mcp: &McpPreparation,
+        progress: &dyn Fn(RuntimeEvent),
+    ) -> Result<ProcessOutput, RuntimeError> {
+        let args = self.launch_args(request, &mcp.args);
         let delivery = cli::deliver_prompt(args, self.delivery(request).into_payload(), false);
         let spec = ProcessSpec {
             program: PROGRAM.to_owned(),
@@ -289,13 +328,20 @@ impl ModelRuntime for ClaudeRuntime {
             terminal: delivery.terminal,
         };
         let stream = ClaudeStream::default();
-        let output = cli::execute(self.runner.as_ref(), &spec, progress, &|line| {
+        cli::execute(self.runner.as_ref(), &spec, progress, &|line| {
             if let Some(event) = stream.event(line) {
                 progress(event);
             }
-        })?;
-        parse_run_output(&output, &request.model_id)
+        })
     }
+}
+
+/// Whether the CLI stopped at its arguments because it does not know [`CACHE_FLAG`].
+fn refused_cache_flag(output: &ProcessOutput) -> bool {
+    output.exit_code != Some(0)
+        && [&output.stderr, &output.stdout]
+            .iter()
+            .any(|text| text.contains("unknown option") && text.contains(CACHE_FLAG))
 }
 
 /// The arguments of a Claude run, without the prompt: the tools it gets, and nothing else around
@@ -862,6 +908,7 @@ mod tests {
                 "--no-session-persistence",
                 "--strict-mcp-config",
                 "--disable-slash-commands",
+                CACHE_FLAG,
                 "--",
                 &request("sonnet").prompt.combined(),
             ]
@@ -1051,6 +1098,38 @@ mod tests {
             (None, None)
         );
         assert_eq!(cost_only.cost, Some(0.5));
+    }
+
+    /// The flag that keeps the system prompt the same for every step (so the provider caches it)
+    /// goes on every run of a CLI that knows it, with no extra process. A CLI too old to know it
+    /// refuses it at its arguments: that run is made again without it, and so are the later ones.
+    #[test]
+    fn the_cache_flag_is_dropped_for_good_when_an_older_cli_refuses_it() {
+        let runs = |knows_flag: bool| {
+            let runner = Arc::new(FakeProcessRunner::new(&["claude"], move |spec| {
+                if spec.args.contains(&CACHE_FLAG.to_owned()) && !knows_flag {
+                    return Ok(ProcessOutput {
+                        exit_code: Some(1),
+                        stdout: String::new(),
+                        stderr: format!("error: unknown option '{CACHE_FLAG}'\n"),
+                    });
+                }
+                ok(SUCCESS)
+            }));
+            let runtime = ClaudeRuntime::new(runner.clone() as Arc<dyn ProcessRunner>);
+            let first = runtime.execute(&request("sonnet"), &|_| {});
+            let second = runtime.execute(&request("sonnet"), &|_| {});
+            assert!(first.is_ok() && second.is_ok());
+            let calls = runner.calls.lock().unwrap().clone();
+            calls
+                .iter()
+                .filter(|c| c.args.contains(&"--tools".to_owned()))
+                .map(|c| c.args.contains(&CACHE_FLAG.to_owned()))
+                .collect::<Vec<_>>()
+        };
+
+        assert_eq!(runs(true), vec![true, true]);
+        assert_eq!(runs(false), vec![true, false, false]);
     }
 
     /// The tools a run is launched with follow the request: read-only by default, files only when

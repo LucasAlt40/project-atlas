@@ -55,6 +55,7 @@ pub fn condition_node(id: &str, condition: Condition) -> WorkflowNode {
         kind: NodeKind::Condition(ConditionNode {
             label: id.to_owned(),
             condition,
+            join: false,
         }),
         priority: 0,
         loop_policy: None,

@@ -273,10 +273,10 @@ fn the_implementer_keeps_its_steps_and_routes_and_reads_before_it_judges() {
             "architect",
             "developer",
             "validator",
-            "bug-fixer-architecture",
             "qa",
-            "bug-fixer-qa",
-            "done"
+            "done",
+            "bug-fixer",
+            "verdicts"
         ]
     );
     // The two that judge only read, whatever their agents could do; the others are as before.
@@ -286,7 +286,74 @@ fn the_implementer_keeps_its_steps_and_routes_and_reads_before_it_judges() {
         .map(|n| n.id.as_str())
         .collect();
     assert_eq!(read_only, ["validator", "qa"]);
-    // Both loops are bounded.
+    // Both judges start from the change, side by side, and a join waits for the two.
+    let from = |node: &str| -> Vec<&str> {
+        let mut sources: Vec<&str> = workflow
+            .edges
+            .iter()
+            .filter(|e| e.target_node_id == node)
+            .map(|e| e.source_node_id.as_str())
+            .collect();
+        sources.sort_unstable();
+        sources
+    };
+    assert_eq!(from("validator"), ["bug-fixer", "developer"]);
+    assert_eq!(from("qa"), ["bug-fixer", "developer"]);
+    assert_eq!(from("verdicts"), ["qa", "validator"]);
+    assert!(matches!(
+        &workflow.node("verdicts").unwrap().kind,
+        NodeKind::Condition(c) if c.join && c.condition.value.as_deref() == Some("pass")
+    ));
+    // The fix loop is bounded: two fixes, as the two judges' loops allowed before.
+    assert_eq!(
+        workflow
+            .node("bug-fixer")
+            .unwrap()
+            .loop_policy
+            .as_ref()
+            .unwrap()
+            .max_iterations,
+        2
+    );
+    // The first step sizes the task, and the next ones are told to scale to that size.
+    let architect = workflow.node("architect").unwrap().agent().unwrap();
+    assert!(architect.instructions.contains("Size: trivial"));
+    assert!(workflow
+        .node("validator")
+        .unwrap()
+        .agent()
+        .unwrap()
+        .instructions
+        .contains("Scale the depth"));
+}
+
+#[test]
+fn the_implementer_keeps_its_judges_in_turn_when_they_declare_different_verdicts() {
+    let env = env();
+    env.declare_validation_outcomes();
+    // QA swapped for an agent that approves or asks for changes: one join cannot read both.
+    env.agent_service
+        .set_result_contract(
+            &env.agents["qa"],
+            ResultContract::preset(ContractKind::Review),
+        )
+        .unwrap();
+
+    let workflow = build(&env, "software_feature");
+
+    let ids: Vec<&str> = workflow.nodes.iter().map(|n| n.id.as_str()).collect();
+    assert_eq!(
+        ids,
+        [
+            "architect",
+            "developer",
+            "validator",
+            "qa",
+            "done",
+            "bug-fixer-architecture",
+            "bug-fixer-qa"
+        ]
+    );
     for id in ["validator", "qa"] {
         assert_eq!(
             workflow
@@ -299,16 +366,10 @@ fn the_implementer_keeps_its_steps_and_routes_and_reads_before_it_judges() {
             3
         );
     }
-    // The first step sizes the task, and the next ones are told to scale to that size.
-    let architect = workflow.node("architect").unwrap().agent().unwrap();
-    assert!(architect.instructions.contains("Size: trivial"));
     assert!(workflow
-        .node("validator")
-        .unwrap()
-        .agent()
-        .unwrap()
-        .instructions
-        .contains("Scale the depth"));
+        .edges
+        .iter()
+        .any(|e| e.source_node_id == "validator" && e.target_node_id == "qa"));
 }
 
 #[test]
