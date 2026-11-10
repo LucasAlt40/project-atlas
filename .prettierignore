@@ -12,3 +12,4 @@ bench/tasks
 bench/results
 # Local MCP configuration of the developer's own tools (not tracked)
 .mcp.json
+bench/.cache

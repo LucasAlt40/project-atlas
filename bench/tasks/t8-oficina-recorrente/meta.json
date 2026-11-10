@@ -24,5 +24,17 @@
     "aRepeatedNotificationInTheSameMonthAddsNothing": "uma notificação repetida no mesmo mês não cria nada",
     "aOneTimeDonationNeverGetsASecondPayment": "uma doação única nunca ganha um segundo pagamento",
     "theSponsorshipIsStillActivatedForARecurringCharge": "o apadrinhamento continua sendo ativado na cobrança recorrente"
+  },
+  "fixtureRepo": {
+    "url": "https://github.com/Oficina-das-Meninas/backend.git",
+    "commit": "0595cf28d4e71de5db1f45ec94b440ae4679ed8c",
+    "remove": [
+      ".idea",
+      ".settings",
+      "**/.DS_Store"
+    ],
+    "append": {
+      ".gitignore": "# Atlas: local project knowledge, kept out of Git\n.atlas/\n"
+    }
   }
 }

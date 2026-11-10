@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { fixtureDir, treeDir } from './fixture.mjs';
 import { mavenBin } from './maven.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -153,9 +154,15 @@ function git(cwd, ...argv) {
 }
 
 /** A fresh Git project holding the fixture, outside the repository (so no project CLAUDE.md/AGENTS.md leaks in). */
+/** The task's starting project (a folder of the task, or a repository at a fixed commit). */
+function taskFixture(task) {
+  const meta = JSON.parse(fs.readFileSync(path.join(here, 'tasks', task, 'meta.json'), 'utf8'));
+  return fixtureDir(task, meta);
+}
+
 function workdir(task) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `atlas-bench-${task}-`));
-  fs.cpSync(path.join(here, 'tasks', task, 'fixture'), dir, { recursive: true });
+  fs.cpSync(taskFixture(task), dir, { recursive: true });
   git(dir, 'init', '--quiet', '-b', 'main');
   git(dir, 'add', '--all');
   git(dir, 'commit', '--quiet', '-m', 'fixture');
@@ -281,7 +288,7 @@ async function atlas(runtime, task, meta, dest) {
         ATLAS_BENCH_RUNTIME: runtime,
         ATLAS_BENCH_MODEL: models[runtime],
         ATLAS_BENCH_TEMPLATE: meta.template,
-        ATLAS_BENCH_FIXTURE: path.join(here, 'tasks', task, 'fixture'),
+        ATLAS_BENCH_FIXTURE: taskFixture(task),
         ATLAS_BENCH_TASK: path.join(here, 'tasks', task, 'task.md'),
         ATLAS_BENCH_OUT: dest,
       },
@@ -381,6 +388,14 @@ for (let rep = 1; rep <= reps; rep++) {
         blockedRuntimes.set(runtime, account);
         console.log(`NOT COUNTED (account: ${account})`);
         continue;
+      }
+      const keep = treeDir(out, id, meta);
+      if (keep !== path.join(dest, 'tree') && fs.existsSync(path.join(dest, 'tree'))) {
+        fs.rmSync(keep, { recursive: true, force: true });
+        fs.mkdirSync(path.dirname(keep), { recursive: true });
+        // Copy, then remove: the results and the cache may be on different disks.
+        fs.cpSync(path.join(dest, 'tree'), keep, { recursive: true });
+        fs.rmSync(path.join(dest, 'tree'), { recursive: true, force: true });
       }
       fs.writeFileSync(path.join(dest, 'metrics.json'), JSON.stringify(metrics, null, 2));
       console.log(
