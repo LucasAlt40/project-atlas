@@ -46,6 +46,17 @@ impl UsageReporter {
         ))
     }
 
+    /// See [`UsageLedger::since`].
+    pub fn since(
+        &self,
+        since: u64,
+    ) -> (
+        Vec<crate::domain::usage::UsageRecord>,
+        std::collections::BTreeMap<String, crate::domain::usage::QuotaInfo>,
+    ) {
+        self.ledger.since(since)
+    }
+
     pub fn workspace_summary(
         &self,
         workspace_id: &str,

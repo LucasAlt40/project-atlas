@@ -1,10 +1,11 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::sync::Arc;
 
 use super::config::ConfigRepository;
 use super::errors::AppError;
 use crate::domain::usage::{
-    AgentUsageSummary, QuotaInfo, UsageRecord, UsageTotals, UsageWindows, WorkspaceUsageSummary,
+    AgentUsageSummary, QuotaInfo, UsageLabel, UsageRecord, UsageReport, UsageTotals, UsageWindows,
+    WorkspaceUsageSummary,
 };
 
 /// Executions older than this are dropped from the ledger when a new one is recorded.
@@ -73,6 +74,76 @@ impl UsageLedger {
 
     pub fn quota_of(&self, runtime_id: &str) -> Option<QuotaInfo> {
         self.config.snapshot().quotas.get(runtime_id).cloned()
+    }
+
+    /// The records that ended at or after `since`, and the last quota of every runtime.
+    pub fn since(&self, since: u64) -> (Vec<UsageRecord>, BTreeMap<String, QuotaInfo>) {
+        self.config.read(|config| {
+            (
+                config
+                    .usage
+                    .iter()
+                    .filter(|r| r.completed_at >= since)
+                    .cloned()
+                    .collect(),
+                config.quotas.clone(),
+            )
+        })
+    }
+}
+
+/// The newer of two readings of the same runtime's quota.
+pub fn newer(current: Option<QuotaInfo>, other: Option<QuotaInfo>) -> Option<QuotaInfo> {
+    match (current, other) {
+        (Some(a), Some(b)) => Some(if b.observed_at > a.observed_at { b } else { a }),
+        (a, b) => a.or(b),
+    }
+}
+
+/// The usage report for the records given: each id they refer to gets its name when `name_of`
+/// knows it. Records are kept in the order they were recorded.
+pub fn build_report(
+    connected: Vec<String>,
+    records: Vec<UsageRecord>,
+    quotas: BTreeMap<String, QuotaInfo>,
+    agent_name: impl Fn(&str) -> Option<String>,
+    workspace_name: impl Fn(&str) -> Option<String>,
+    runtime_name: impl Fn(&str) -> Option<String>,
+) -> UsageReport {
+    fn labels(ids: BTreeSet<&str>, name_of: impl Fn(&str) -> Option<String>) -> Vec<UsageLabel> {
+        ids.into_iter()
+            .filter_map(|id| {
+                name_of(id).map(|name| UsageLabel {
+                    id: id.to_owned(),
+                    name,
+                })
+            })
+            .collect()
+    }
+    let agents = labels(
+        records.iter().map(|r| r.agent_id.as_str()).collect(),
+        agent_name,
+    );
+    let workspaces = labels(
+        records.iter().map(|r| r.workspace_id.as_str()).collect(),
+        workspace_name,
+    );
+    let runtimes = labels(
+        records
+            .iter()
+            .map(|r| r.runtime_id.as_str())
+            .chain(quotas.keys().map(String::as_str))
+            .chain(connected.iter().map(String::as_str))
+            .collect(),
+        runtime_name,
+    );
+    UsageReport {
+        connected,
+        records,
+        agents,
+        workspaces,
+        runtimes,
+        quotas,
     }
 }
 
@@ -197,6 +268,28 @@ mod tests {
     }
 
     #[test]
+    fn the_report_names_what_it_knows_and_keeps_the_records_of_what_is_gone() {
+        let records = vec![
+            record("e1", "w1", "a1", NOW - 10, metrics(100, Some(0.5))),
+            record("e2", "w1", "gone", NOW - 5, None),
+        ];
+        let known = |id: &str| (id != "gone").then(|| format!("name of {id}"));
+
+        let report = build_report(vec![], records, BTreeMap::new(), known, known, known);
+
+        assert_eq!(report.records.len(), 2);
+        assert_eq!(
+            report.agents,
+            [UsageLabel {
+                id: "a1".to_owned(),
+                name: "name of a1".to_owned()
+            }]
+        );
+        assert_eq!(report.workspaces[0].name, "name of w1");
+        assert_eq!(report.runtimes[0].id, "rt");
+    }
+
+    #[test]
     fn a_workspaces_usage_counts_only_its_own_executions() {
         let records = [
             record("e1", "w1", "a1", NOW - 10, metrics(100, Some(0.5))),
@@ -290,6 +383,8 @@ mod tests {
             windows: vec![],
             source: UsageSource::ProviderReported,
             observed_at: 5,
+            origin: crate::domain::usage::QuotaOrigin::AtlasRun,
+            plan: None,
         };
 
         ledger

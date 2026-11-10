@@ -83,6 +83,7 @@ pub(super) fn app_window(
             super::chat::list_executions,
             super::usage::get_agent_usage,
             super::usage::get_workspace_usage,
+            super::usage::get_usage_report,
             super::security::get_workspace_security,
             super::security::get_agent_permissions,
             super::security::set_agent_permission_profile,
@@ -715,6 +716,17 @@ fn send_message_returns_at_once_the_answer_arrives_as_events_and_usage_is_unavai
         )
         .unwrap()["week"]["runs"],
         0
+    );
+    // The usage screen: every workspace, with names for what the records refer to.
+    let report = invoke(&window, "get_usage_report", json!({ "since": 0 })).unwrap();
+    assert_eq!(report["records"].as_array().unwrap().len(), 1);
+    assert_eq!(report["agents"][0]["id"], agent["id"]);
+    assert_eq!(report["agents"][0]["name"], agent["name"]);
+    assert_eq!(report["workspaces"][0]["id"], ws["id"]);
+    let later = invoke(&window, "get_usage_report", json!({ "since": u64::MAX })).unwrap();
+    assert_eq!(
+        later["records"].as_array().unwrap().as_slice(),
+        [] as [serde_json::Value; 0]
     );
 }
 

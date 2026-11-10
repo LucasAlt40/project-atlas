@@ -123,6 +123,10 @@ export interface CommandMap {
     args: { workspaceId: string; windows: UsageWindowsDto };
     result: WorkspaceUsageSummaryDto;
   };
+  get_usage_report: {
+    args: { since: number };
+    result: UsageReportDto;
+  };
   get_workspace_security: { args: { workspaceId: string }; result: WorkspaceSecurityDto };
   /** The workspace's MCP connections and who may use them. No secret is in them. */
   list_mcp_connections: { args: { workspaceId: string }; result: McpOverviewDto };
@@ -2254,6 +2258,10 @@ export interface QuotaInfoDto {
   windows: QuotaWindowDto[];
   source: UsageSourceDto;
   observedAt: number;
+  /** Sent with an Atlas run, or read from the CLI's own session log on this computer. */
+  origin: 'atlas_run' | 'cli_session';
+  /** The account's plan, when the source says (`free`, `plus`…). */
+  plan?: string;
 }
 
 /** Where "today", "this week" and "this month" start, in ms since the Unix epoch. */
@@ -2271,6 +2279,26 @@ export interface AgentUsageSummaryDto {
   week: UsageTotalsDto;
   month: UsageTotalsDto;
   quota: QuotaInfoDto | null;
+}
+
+/** Mirrors `domain::usage::UsageLabel`: a name for an id the report refers to. */
+export interface UsageLabelDto {
+  id: string;
+  name: string;
+}
+
+/**
+ * Mirrors `domain::usage::UsageReport`: every execution Atlas observed since a moment, names for
+ * its ids (an agent or workspace that no longer exists has none) and each runtime's last quota.
+ */
+export interface UsageReportDto {
+  /** The runtimes the agents use, shown even with no execution in the period. */
+  connected: string[];
+  records: UsageRecordDto[];
+  agents: UsageLabelDto[];
+  workspaces: UsageLabelDto[];
+  runtimes: UsageLabelDto[];
+  quotas: Record<string, QuotaInfoDto>;
 }
 
 /** Mirrors `domain::usage::WorkspaceUsageSummary`. */

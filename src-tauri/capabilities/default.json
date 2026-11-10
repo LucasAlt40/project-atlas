@@ -80,6 +80,7 @@
     "allow-list-executions",
     "allow-get-agent-usage",
     "allow-get-workspace-usage",
+    "allow-get-usage-report",
     "allow-get-workspace-security",
     "allow-get-agent-permissions",
     "allow-set-agent-permission-profile",

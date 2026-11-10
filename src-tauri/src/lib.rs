@@ -168,6 +168,7 @@ pub fn run() {
             commands::chat::list_executions,
             commands::usage::get_agent_usage,
             commands::usage::get_workspace_usage,
+            commands::usage::get_usage_report,
             commands::security::get_workspace_security,
             commands::mcp::list_mcp_connections,
             commands::mcp::add_mcp_connection,
