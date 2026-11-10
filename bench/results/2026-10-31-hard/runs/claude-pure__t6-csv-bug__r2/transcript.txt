@@ -1,0 +1,20 @@
+--- Assistant
+I've fixed `src/csv.js` and added regression tests, but I could not run the test suite. Running `node --test` needs approval in this session and was refused, so I checked the code by tracing each case by hand.
+
+**Root causes in the old parser**
+
+- **Comma inside quotes:** it called `split(',')` on each line, which ignores quoting, so `"Lisbon, Portugal"` split in two.
+- **Doubled quotes:** it only stripped outer quotes and never unescaped `""`, so `"say ""hi"""` came out with its quotes intact.
+- **Trailing newline:** `split('\n')` produced a final empty line, which became an extra row with one empty field.
+- **CRLF:** the `\r` stayed on the last field of each row.
+- **Line break inside quotes:** the split on `\n` ran before any quote handling, so a quoted field spanning lines was cut into two rows.
+
+**The fix**
+
+I replaced the line-based split with a single character scanner. It tracks whether it is inside quotes, unescapes `""`, treats `\r\n` as a row end, and only emits a final row when there is pending content. An unclosed quote throws `SyntaxError`. `module.exports = { parseCsv }` is unchanged.
+
+**Tests**
+
+I added regression tests to `test/csv.test.js` for each reported bug, plus empty fields, empty input, and the unterminated-quote error. The two existing tests are unchanged.
+
+I traced all of these cases through the new code by hand and they should pass. Please run `npm test` to confirm, since I have not executed it.

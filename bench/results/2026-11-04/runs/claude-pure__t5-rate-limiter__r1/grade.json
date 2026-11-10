@@ -1,0 +1,25 @@
+{
+  "id": "claude-pure__t5-rate-limiter__r1",
+  "task": "t5-rate-limiter",
+  "kind": "feature-hard",
+  "changed": [
+    "src/limiter.js",
+    "test/limiter.test.js"
+  ],
+  "added": 270,
+  "removed": 0,
+  "outOfScope": [],
+  "hasTree": true,
+  "ownTestFiles": 1,
+  "ownTests": {
+    "pass": 23,
+    "fail": 0,
+    "failed": []
+  },
+  "hidden": {
+    "pass": 12,
+    "fail": 0,
+    "failed": []
+  },
+  "hiddenScore": 1
+}

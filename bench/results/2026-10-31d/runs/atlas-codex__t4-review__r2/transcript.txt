@@ -1,0 +1,34 @@
+--- User agent-1793473089152-7
+Review code and architecture: Review src/users.js for correctness and security. Report each defect you find as a finding with the file, the line, why it is wron…
+--- Assistant agent-1793473089152-7
+## Verdict: fail
+
+I found three defects in `src/users.js`. The test command exits successfully but runs zero tests, so findings are confirmed by code inspection and focused runtime probes.
+
+1. **High — Security — incomplete HTML escaping**
+
+   - **File:** `src/users.js:18-20`
+   - **Evidence:** `escapeHtml()` uses non-global `String.replace()`, escaping only the first occurrence of each character.  
+     Input `x</td><script>alert(1)</script>&` produces `x&lt;/td&gt;<script>alert(1)</script>&amp;`.
+   - **Why wrong:** `userRow()` inserts the result into HTML, allowing a later `<script>` tag to execute.
+   - **Recommendation:** Escape all occurrences using global regexes or `replaceAll()` for `&`, `<`, and `>`. Add regression tests with multiple tags and ampersands.
+
+2. **Medium — Correctness — pagination is off by one**
+
+   - **File:** `src/users.js:5`
+   - **Evidence:** The documentation states page `1` is the first page, but `start = page * size`; page 1 of `['a','b','c','d']` with size 2 returns `['c','d']`.
+   - **Why wrong:** The first page is skipped.
+   - **Recommendation:** Use `(page - 1) * size`, with validation for page and size if required by the caller contract.
+
+3. **Medium — Correctness — adult status ignores the birthday**
+
+   - **File:** `src/users.js:11-12`
+   - **Evidence:** It compares only birth and current years. Someone born `2008-12-01` is reported underage on `2026-01-01` despite being 18 by the year-difference calculation.
+   - **Why wrong:** Legal age depends on whether the birthday has occurred in the current year.
+   - **Recommendation:** Subtract one when `today` is before the birthday, or compare the birth date against the 18th-anniversary date.
+
+No tests exist in the repository; `npm test` reports `0` tests. I did not inspect any broader application, integrations, deployment configuration, or performance/concurrency behavior because the requested scope was limited to `src/users.js`.
+
+```atlas-result
+{"status":"fail","outcome":"fail","summary":"Validation failed: src/users.js contains an HTML injection vulnerability, an off-by-one pagination defect, and incorrect age calculation; no tests cover the module.","artifacts":[],"decisions":[],"findings":[{"severity":"high","category":"Security","title":"Incomplete HTML escaping permits markup injection","description":"escapeHtml replaces only the first occurrence of each character, allowing later HTML tags to remain unescaped when userRow renders a name.","file":"src/users.js","line":18,"evidence":"escapeHtml('x</td><script>alert(1)</script>&') returns x&lt;/td&gt;<script>alert(1)</script>&amp;.","recommendation":"Escape every occurrence with global regexes or replaceAll, and add regression tests for repeated metacharacters and tags."},{"severity":"medium","category":"Correctness","title":"Pagination skips the first page","description":"The implementation treats page 1 as an offset of one full page even though the contract says page 1 is the first page.","file":"src/users.js","line":5,"evidence":"paginate(['a','b','c','d'], 1, 2) returns ['c','d'] instead of ['a','b'].","recommendation":"Calculate the offset as (page - 1) * size and validate inputs as required."},{"severity":"medium","category":"Correctness","title":"Age calculation ignores whether the birthday occurred","description":"Age is calculated only from year subtraction, producing incorrect adult status before the birthday in the current year.","file":"src/users.js","line":11,"evidence":"isAdult(new Date('2008-12-01'), new Date('2026-01-01')) returns false despite the year difference being 18; the implementation does not perform the birthday adjustment.","recommendation":"Compare the current date with the 18th anniversary or subtract one when today's date precedes the birthday."},{"severity":"low","category":"Testing","title":"No automated tests cover the module","description":"The configured test command runs zero tests, leaving the exported correctness and security behavior unverified.","file":"package.json","line":1,"evidence":"npm test reports tests 0, suites 0, pass 0, fail 0.","recommendation":"Add tests covering pagination boundaries, birthday boundaries, repeated HTML metacharacters, and userRow rendering."}],"touchedFiles":[],"touchedAreas":["src/users.js"],"nextAction":"Fix the three defects and add regression tests before acceptance."}
+```

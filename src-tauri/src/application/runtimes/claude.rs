@@ -1,17 +1,19 @@
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::Value;
 
 use super::claude_mcp::{ClaudeMcpAdapter, CONFIG_PLACEHOLDER};
-use super::mcp_adapter::{prepare_for, McpAdapter, McpAdapterFactory, McpDialect};
+use super::mcp_adapter::{prepare_for, McpAdapter, McpAdapterFactory, McpDialect, McpPreparation};
 use super::{
     cli, Detection, ModelRuntime, RuntimeError, RuntimeEvent, RuntimeOutput, RuntimeRequest,
 };
 use crate::application::mcp::{LaunchServer, McpProbe, ReportedMcpTool};
 use crate::application::process::{ProcessContext, ProcessOutput, ProcessRunner, ProcessSpec};
+use crate::application::security::sandbox::cli::SECRET_STORES;
 use crate::domain::context::{
     Observation, RuntimeSurface, SurfaceControl, SurfaceEntry, SurfaceKind,
 };
@@ -33,6 +35,21 @@ const READ_ONLY_TOOLS: &str = "Read,Grep,Glob";
 /// and that works in an isolated worktree (`RuntimeRequest::allow_edits`). Still no shell, no web:
 /// `Bash`, `WebFetch` and the rest stay off.
 const EDIT_TOOLS: &str = "Read,Grep,Glob,Edit,Write";
+/// Plus `Bash`, for an execution given the project's test commands (`RuntimeRequest::
+/// granted_commands`): which commands may run is set by the permission rules of
+/// [`command_settings`], and where they run by its sandbox.
+const EDIT_AND_COMMAND_TOOLS: &str = "Read,Grep,Glob,Edit,Write,Bash";
+/// The reading tools plus `Bash`, for a run that only reads and is given the test commands: the
+/// sandbox of [`command_settings`] then refuses every write in the folders it can see.
+const READ_AND_COMMAND_TOOLS: &str = "Read,Grep,Glob,Bash";
+/// Moves the per-machine parts of the CLI's own system prompt (working directory, environment,
+/// memory paths, git status) into the first message. Each Atlas step runs in its own worktree and
+/// git status changes as soon as a step edits, so without it every step starts with a system
+/// prompt the provider has not cached; with it the system prompt is the same for every step and
+/// every execution, and is read from the cache. A CLI too old to know it refuses it while reading
+/// its arguments, before any model call: the run is then made again without it (see
+/// [`ClaudeRuntime::execute`]), and the flag is not passed again.
+const CACHE_FLAG: &str = "--exclude-dynamic-system-prompt-sections";
 
 /// Runtime for the Claude CLI (Claude Code), using the user's existing sign-in.
 ///
@@ -51,6 +68,8 @@ const EDIT_TOOLS: &str = "Read,Grep,Glob,Edit,Write";
 pub struct ClaudeRuntime {
     runner: Arc<dyn ProcessRunner>,
     mcp: Arc<dyn McpAdapter>,
+    /// Set once this CLI refused [`CACHE_FLAG`]: later runs go without it.
+    cache_flag_refused: AtomicBool,
 }
 
 impl ClaudeRuntime {
@@ -58,7 +77,16 @@ impl ClaudeRuntime {
         Self {
             runner,
             mcp: McpAdapterFactory::create(McpDialect::Claude),
+            cache_flag_refused: AtomicBool::new(false),
         }
+    }
+
+    fn launch_args(&self, request: &RuntimeRequest, mcp_args: &[String]) -> Vec<String> {
+        let mut args = launch_args(request, mcp_args);
+        if !self.cache_flag_refused.load(Ordering::Relaxed) {
+            args.push(CACHE_FLAG.to_owned());
+        }
+        args
     }
 
     fn authentication(&self) -> Authentication {
@@ -174,7 +202,7 @@ impl ModelRuntime for ClaudeRuntime {
     /// help says it loads them (a real model run would be needed to see whether they reach the
     /// model). Nothing here says the model received anything but the prompt.
     fn surface(&self, request: &RuntimeRequest) -> RuntimeSurface {
-        let args = launch_args(request, &display_mcp_args(request));
+        let args = self.launch_args(request, &display_mcp_args(request));
         let mut flags = Vec::new();
         let mut skip_next = false;
         for arg in &args {
@@ -239,6 +267,16 @@ impl ModelRuntime for ClaudeRuntime {
         )
     }
 
+    /// On macOS the CLI's own sandbox (Seatbelt) runs each Bash command with writes kept to the
+    /// working directory (and its own temporary folder), the network closed and the credential
+    /// stores unreadable. Measured with `claude -p` (2.1.308, haiku, one run): a test that tried
+    /// to write in the home folder got `EPERM`, could not reach the network nor list `~/.ssh`,
+    /// and a command outside the allowed rules was refused. Elsewhere the CLI's sandbox needs
+    /// tools Atlas does not check for, so the agent keeps having no shell.
+    fn runs_granted_commands(&self) -> bool {
+        cfg!(target_os = "macos")
+    }
+
     fn accepts_extra_dirs(&self) -> bool {
         true
     }
@@ -256,7 +294,26 @@ impl ModelRuntime for ClaudeRuntime {
 
         // The servers of this step, as the CLI takes them; the files live as long as `mcp`.
         let mcp = prepare_for(self.mcp.as_ref(), request)?;
-        let args = launch_args(request, &mcp.args);
+        let output = self.run(request, &mcp, progress)?;
+        let output = if refused_cache_flag(&output) {
+            // An older CLI: nothing ran (it stopped at its arguments). Once more, without the flag.
+            self.cache_flag_refused.store(true, Ordering::Relaxed);
+            self.run(request, &mcp, progress)?
+        } else {
+            output
+        };
+        parse_run_output(&output, &request.model_id)
+    }
+}
+
+impl ClaudeRuntime {
+    fn run(
+        &self,
+        request: &RuntimeRequest,
+        mcp: &McpPreparation,
+        progress: &dyn Fn(RuntimeEvent),
+    ) -> Result<ProcessOutput, RuntimeError> {
+        let args = self.launch_args(request, &mcp.args);
         let delivery = cli::deliver_prompt(args, self.delivery(request).into_payload(), false);
         let spec = ProcessSpec {
             program: PROGRAM.to_owned(),
@@ -271,13 +328,20 @@ impl ModelRuntime for ClaudeRuntime {
             terminal: delivery.terminal,
         };
         let stream = ClaudeStream::default();
-        let output = cli::execute(self.runner.as_ref(), &spec, progress, &|line| {
+        cli::execute(self.runner.as_ref(), &spec, progress, &|line| {
             if let Some(event) = stream.event(line) {
                 progress(event);
             }
-        })?;
-        parse_run_output(&output, &request.model_id)
+        })
     }
+}
+
+/// Whether the CLI stopped at its arguments because it does not know [`CACHE_FLAG`].
+fn refused_cache_flag(output: &ProcessOutput) -> bool {
+    output.exit_code != Some(0)
+        && [&output.stderr, &output.stdout]
+            .iter()
+            .any(|text| text.contains("unknown option") && text.contains(CACHE_FLAG))
 }
 
 /// The arguments of a Claude run, without the prompt: the tools it gets, and nothing else around
@@ -303,9 +367,14 @@ fn display_mcp_args(request: &RuntimeRequest) -> Vec<String> {
 }
 
 fn launch_args(request: &RuntimeRequest, mcp_args: &[String]) -> Vec<String> {
+    let tests = commands_granted(request);
     let tools = if request.text_only {
         // An empty list turns every tool off: the model can only answer from the prompt.
         ""
+    } else if tests && request.allow_edits {
+        EDIT_AND_COMMAND_TOOLS
+    } else if tests {
+        READ_AND_COMMAND_TOOLS
     } else if request.allow_edits {
         EDIT_TOOLS
     } else {
@@ -345,7 +414,66 @@ fn launch_args(request: &RuntimeRequest, mcp_args: &[String]) -> Vec<String> {
         // inside the working directory (the isolated worktree) are what was granted.
         args.extend(["--permission-mode".to_owned(), "acceptEdits".to_owned()]);
     }
+    if tests {
+        // One value, never a list flag: `--allowedTools` takes several values and would swallow
+        // a prompt given as the last argument (a run attached to a terminal).
+        args.extend(["--settings".to_owned(), command_settings(request)]);
+    }
     args
+}
+
+/// Whether this launch is given `Bash` for the request's test commands.
+fn commands_granted(request: &RuntimeRequest) -> bool {
+    !request.text_only && !request.granted_commands.is_empty() && cfg!(target_os = "macos")
+}
+
+/// The settings that make `Bash` run the test commands and nothing else, in the CLI's sandbox:
+/// - `permissions.allow` names each command, bare or followed by arguments. Anything else would
+///   need asking, and a run that cannot ask is refused (`-p`), so it never runs.
+/// - the sandbox is on, does not approve a command just because it is sandboxed
+///   (`autoAllowBashIfSandboxed`), never retries one outside it (`allowUnsandboxedCommands`),
+///   and fails instead of running unconfined if it cannot start (`failIfUnavailable`).
+/// - no network domain is allowed, and the credential stores Atlas's own sandbox protects are
+///   unreadable.
+///
+/// - a run that only reads may write nowhere it can see: the working directory and every other
+///   folder it was given are refused (`denyWrite`), which the CLI's sandbox otherwise allows.
+///   Measured (`claude -p` 2.1.308, haiku): a test that wrote inside its working directory got
+///   `EPERM`.
+///
+/// - the user's own hooks are off (`disableAllHooks`) for this run only: a hook that rewrites
+///   commands (measured: one turned `git status` into `rtk git status`) makes a granted command
+///   miss its rule and be refused. A run given no commands keeps the user's hooks.
+///
+/// Passed with `--settings`, which sits above the user's settings files.
+fn command_settings(request: &RuntimeRequest) -> String {
+    let allow: Vec<String> = request
+        .granted_commands
+        .iter()
+        .flat_map(|c| [format!("Bash({c})"), format!("Bash({c} *)")])
+        .collect();
+    let deny_read: Vec<String> = SECRET_STORES.iter().map(|p| format!("~/{p}")).collect();
+    let mut filesystem = serde_json::json!({ "denyRead": deny_read });
+    if !request.allow_edits {
+        let deny_write: Vec<String> = std::iter::once(&request.working_dir)
+            .chain(&request.extra_dirs)
+            .map(|dir| dir.to_string_lossy().into_owned())
+            .collect();
+        filesystem["denyWrite"] = serde_json::json!(deny_write);
+    }
+    serde_json::json!({
+        "permissions": { "allow": allow },
+        "disableAllHooks": true,
+        "sandbox": {
+            "enabled": true,
+            "autoAllowBashIfSandboxed": false,
+            "allowUnsandboxedCommands": false,
+            "failIfUnavailable": true,
+            "network": { "allowedDomains": [] },
+            "filesystem": filesystem,
+        },
+    })
+    .to_string()
 }
 
 /// What the CLI says it loaded when it started (its `system`/`init` message): the tools the model
@@ -415,6 +543,33 @@ fn note_surface(metadata: &mut BTreeMap<String, String>, stdout: &str) {
     if let Some(path) = init["memory_paths"]["auto"].as_str() {
         metadata.insert("autoMemoryPath".to_owned(), path.to_owned());
     }
+}
+
+/// What the output tokens went to, as far as the CLI says: `thinkingTokens` (its own count of the
+/// model's reasoning), and the characters of the text the agent wrote (`textChars`: its
+/// narration and its final answer) and of what it passed to its tools (`toolInputChars`: file
+/// contents for `Write`/`Edit`, commands, searches). Facts for measuring where a run spends, not
+/// estimates of tokens.
+fn note_output_parts(metadata: &mut BTreeMap<String, String>, stdout: &str, result: &Value) {
+    if let Some(thinking) = result["usage"]["output_tokens_details"]["thinking_tokens"].as_u64() {
+        metadata.insert("thinkingTokens".to_owned(), thinking.to_string());
+    }
+    let (mut text, mut tool_input) = (0_usize, 0_usize);
+    for value in stdout
+        .lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+        .filter(|value| value["type"] == "assistant")
+    {
+        for block in value["message"]["content"].as_array().into_iter().flatten() {
+            match block["type"].as_str() {
+                Some("text") => text += block["text"].as_str().map_or(0, |t| t.chars().count()),
+                Some("tool_use") => tool_input += block["input"].to_string().chars().count(),
+                _ => {}
+            }
+        }
+    }
+    metadata.insert("textChars".to_owned(), text.to_string());
+    metadata.insert("toolInputChars".to_owned(), tool_input.to_string());
 }
 
 /// Turns Claude's `stream-json` lines into live events. Only what the CLI really streams is
@@ -543,6 +698,8 @@ fn quota_of(stdout: &str) -> Option<QuotaInfo> {
         windows,
         source: UsageSource::ProviderReported,
         observed_at: crate::application::support::now_ms(),
+        origin: crate::domain::usage::QuotaOrigin::AtlasRun,
+        plan: None,
     })
 }
 
@@ -603,6 +760,7 @@ fn parse_run_output(output: &ProcessOutput, model_id: &str) -> Result<RuntimeOut
             }
         }
     }
+    note_output_parts(&mut metadata, &output.stdout, &result);
     for (key, source) in [
         ("costUsd", "total_cost_usd"),
         ("durationMs", "duration_ms"),
@@ -675,6 +833,7 @@ mod tests {
             scope: crate::application::process::ExecutionScope::for_tests(),
             text_only: false,
             allow_edits: false,
+            granted_commands: Vec::new(),
             mcp: None,
         }
     }
@@ -751,6 +910,7 @@ mod tests {
                 "--no-session-persistence",
                 "--strict-mcp-config",
                 "--disable-slash-commands",
+                CACHE_FLAG,
                 "--",
                 &request("sonnet").prompt.combined(),
             ]
@@ -811,7 +971,12 @@ mod tests {
             run(Ok(ProcessOutput { exit_code: Some(2), stdout: String::new(), stderr: "boom".to_owned() })),
             Err(RuntimeError::ExecutionFailed(d)) if d == "boom"
         ));
-        assert_eq!(run(Err(ProcessError::Timeout)), Err(RuntimeError::Timeout));
+        assert!(matches!(
+            run(Err(ProcessError::Timeout(
+                crate::application::process::Silence::default()
+            ))),
+            Err(RuntimeError::Timeout(_))
+        ));
     }
 
     #[test]
@@ -935,6 +1100,38 @@ mod tests {
             (None, None)
         );
         assert_eq!(cost_only.cost, Some(0.5));
+    }
+
+    /// The flag that keeps the system prompt the same for every step (so the provider caches it)
+    /// goes on every run of a CLI that knows it, with no extra process. A CLI too old to know it
+    /// refuses it at its arguments: that run is made again without it, and so are the later ones.
+    #[test]
+    fn the_cache_flag_is_dropped_for_good_when_an_older_cli_refuses_it() {
+        let runs = |knows_flag: bool| {
+            let runner = Arc::new(FakeProcessRunner::new(&["claude"], move |spec| {
+                if spec.args.contains(&CACHE_FLAG.to_owned()) && !knows_flag {
+                    return Ok(ProcessOutput {
+                        exit_code: Some(1),
+                        stdout: String::new(),
+                        stderr: format!("error: unknown option '{CACHE_FLAG}'\n"),
+                    });
+                }
+                ok(SUCCESS)
+            }));
+            let runtime = ClaudeRuntime::new(runner.clone() as Arc<dyn ProcessRunner>);
+            let first = runtime.execute(&request("sonnet"), &|_| {});
+            let second = runtime.execute(&request("sonnet"), &|_| {});
+            assert!(first.is_ok() && second.is_ok());
+            let calls = runner.calls.lock().unwrap().clone();
+            calls
+                .iter()
+                .filter(|c| c.args.contains(&"--tools".to_owned()))
+                .map(|c| c.args.contains(&CACHE_FLAG.to_owned()))
+                .collect::<Vec<_>>()
+        };
+
+        assert_eq!(runs(true), vec![true, true]);
+        assert_eq!(runs(false), vec![true, false, false]);
     }
 
     /// The tools a run is launched with follow the request: read-only by default, files only when
@@ -1291,6 +1488,114 @@ mod tests {
         alone.extra_dirs = req.extra_dirs.clone();
         alone.text_only = true;
         assert!(!launch_args(&alone, &[]).contains(&"--add-dir".to_owned()));
+    }
+
+    #[test]
+    fn what_the_output_went_to_is_recorded_from_the_cli_report() {
+        let stdout = [
+            r#"{"type":"assistant","message":{"content":[{"type":"text","text":"Reading it."},{"type":"tool_use","name":"Read","input":{"file_path":"a.js"}}]}}"#,
+            r#"{"type":"assistant","message":{"content":[{"type":"thinking","thinking":""},{"type":"text","text":"Done."}]}}"#,
+            r#"{"type":"result","subtype":"success","is_error":false,"result":"Done.","usage":{"output_tokens":90,"output_tokens_details":{"thinking_tokens":40}}}"#,
+        ]
+        .join("\n");
+        let result: Value = serde_json::from_str(stdout.lines().last().unwrap()).unwrap();
+        let mut metadata = BTreeMap::new();
+
+        note_output_parts(&mut metadata, &stdout, &result);
+
+        assert_eq!(metadata["thinkingTokens"], "40");
+        assert_eq!(metadata["textChars"], "16"); // "Reading it." + "Done."
+        assert_eq!(
+            metadata["toolInputChars"],
+            r#"{"file_path":"a.js"}"#.len().to_string()
+        );
+    }
+
+    #[test]
+    fn a_run_given_test_commands_gets_bash_for_those_alone_inside_the_cli_sandbox() {
+        let mut req = request("haiku");
+        req.allow_edits = true;
+        req.granted_commands = vec!["npm test".to_owned(), "cargo test".to_owned()];
+        let args = launch_args(&req, &[]);
+        let at = |flag: &str| {
+            args.iter()
+                .position(|a| a == flag)
+                .map(|i| args[i + 1].clone())
+        };
+
+        if !cfg!(target_os = "macos") {
+            // Without the CLI's sandbox there is no shell, whatever the request says.
+            assert_eq!(at("--tools").as_deref(), Some(EDIT_TOOLS));
+            assert!(at("--settings").is_none());
+            return;
+        }
+        assert_eq!(at("--tools").as_deref(), Some(EDIT_AND_COMMAND_TOOLS));
+        let settings: Value = serde_json::from_str(&at("--settings").unwrap()).unwrap();
+        assert_eq!(
+            settings["permissions"]["allow"],
+            serde_json::json!([
+                "Bash(npm test)",
+                "Bash(npm test *)",
+                "Bash(cargo test)",
+                "Bash(cargo test *)"
+            ])
+        );
+        // The user's hooks cannot rewrite a granted command out of its rule.
+        assert_eq!(settings["disableAllHooks"], true);
+        let sandbox = &settings["sandbox"];
+        assert_eq!(sandbox["enabled"], true);
+        assert_eq!(sandbox["autoAllowBashIfSandboxed"], false);
+        assert_eq!(sandbox["allowUnsandboxedCommands"], false);
+        assert_eq!(sandbox["failIfUnavailable"], true);
+        assert_eq!(sandbox["network"]["allowedDomains"], serde_json::json!([]));
+        let deny = sandbox["filesystem"]["denyRead"].as_array().unwrap();
+        assert!(deny.contains(&Value::from("~/.ssh")));
+        assert!(deny.contains(&Value::from("~/.aws")));
+        // Edits are still accepted without asking; isolation from the user's setup is unchanged.
+        assert_eq!(at("--permission-mode").as_deref(), Some("acceptEdits"));
+        assert!(args.contains(&"--strict-mcp-config".to_owned()));
+
+        // An editing run may write in its working directory: nothing is refused there.
+        assert!(sandbox["filesystem"].get("denyWrite").is_none());
+
+        // A run that only reads gets Bash for the tests too, but may write nowhere it can see:
+        // its working directory and every other folder it was given are refused.
+        let mut reading = req.clone();
+        reading.allow_edits = false;
+        reading.extra_dirs = vec!["/shop/back".into()];
+        let args = launch_args(&reading, &[]);
+        let at = |flag: &str| {
+            args.iter()
+                .position(|a| a == flag)
+                .map(|i| args[i + 1].clone())
+        };
+        assert_eq!(at("--tools").as_deref(), Some(READ_AND_COMMAND_TOOLS));
+        assert!(at("--permission-mode").is_none(), "{args:?}");
+        let settings: Value = serde_json::from_str(&at("--settings").unwrap()).unwrap();
+        let deny_write = settings["sandbox"]["filesystem"]["denyWrite"].clone();
+        assert_eq!(
+            deny_write,
+            serde_json::json!([reading.working_dir.to_string_lossy(), "/shop/back"])
+        );
+        assert_eq!(settings["sandbox"]["allowUnsandboxedCommands"], false);
+
+        // Never for a run that only answers from the prompt.
+        let mut text_only = req.clone();
+        text_only.text_only = true;
+        let args = launch_args(&text_only, &[]);
+        assert!(!args.iter().any(|a| a.contains("Bash")), "{args:?}");
+        assert!(!args.contains(&"--settings".to_owned()));
+        // And an editing run with no test commands is launched exactly as before.
+        let mut plain = req.clone();
+        plain.granted_commands.clear();
+        let args = launch_args(&plain, &[]);
+        assert_eq!(
+            args.iter()
+                .position(|a| a == "--tools")
+                .map(|i| args[i + 1].as_str()),
+            Some(EDIT_TOOLS)
+        );
+        assert!(!args.contains(&"--settings".to_owned()));
     }
 
     #[test]

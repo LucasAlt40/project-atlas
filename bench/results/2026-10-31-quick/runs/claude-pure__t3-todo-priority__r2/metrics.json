@@ -1,0 +1,34 @@
+{
+  "ok": true,
+  "exitCode": 0,
+  "elapsedMs": 42047,
+  "inputTokens": 399052,
+  "cachedInputTokens": 371613,
+  "outputTokens": 7477,
+  "costUsd": 0.012940630000000002,
+  "turns": 15,
+  "agentRuns": 1,
+  "modelUsage": {
+    "claude-haiku-5-5": {
+      "inputTokens": 18,
+      "outputTokens": 7477,
+      "cacheReadInputTokens": 371613,
+      "cacheCreationInputTokens": 27421,
+      "webSearchRequests": 0,
+      "costUSD": 0.012940630000000002,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 3031,
+      "canonicalModel": "claude-haiku-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "id": "claude-pure__t3-todo-priority__r2",
+  "arm": "claude-pure",
+  "task": "t3-todo-priority",
+  "rep": 2,
+  "runtime": "claude",
+  "model": "haiku",
+  "template": null
+}

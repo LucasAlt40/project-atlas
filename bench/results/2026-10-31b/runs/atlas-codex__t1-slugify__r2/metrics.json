@@ -1,0 +1,101 @@
+{
+  "ok": true,
+  "exitCode": 0,
+  "status": "Completed",
+  "failure": null,
+  "elapsedMs": 190347,
+  "inputTokens": 649051,
+  "cachedInputTokens": 585728,
+  "outputTokens": 15041,
+  "costUsd": null,
+  "agentRuns": 6,
+  "steps": [
+    "architect",
+    "developer",
+    "validator",
+    "qa",
+    "bug-fixer-qa",
+    "qa"
+  ],
+  "perStep": [
+    {
+      "role": "architect",
+      "ms": 24963,
+      "ok": true,
+      "inputTokens": 62882,
+      "outputTokens": 2408,
+      "totalTokens": 65290,
+      "cachedInputTokens": 56576,
+      "cost": null,
+      "currency": null,
+      "source": "runtime_reported"
+    },
+    {
+      "role": "developer",
+      "ms": 28301,
+      "ok": true,
+      "inputTokens": 103549,
+      "outputTokens": 2864,
+      "totalTokens": 106413,
+      "cachedInputTokens": 94208,
+      "cost": null,
+      "currency": null,
+      "source": "runtime_reported"
+    },
+    {
+      "role": "validator",
+      "ms": 26843,
+      "ok": true,
+      "inputTokens": 98452,
+      "outputTokens": 1953,
+      "totalTokens": 100405,
+      "cachedInputTokens": 89472,
+      "cost": null,
+      "currency": null,
+      "source": "runtime_reported"
+    },
+    {
+      "role": "qa",
+      "ms": 45839,
+      "ok": true,
+      "inputTokens": 141046,
+      "outputTokens": 3381,
+      "totalTokens": 144427,
+      "cachedInputTokens": 130560,
+      "cost": null,
+      "currency": null,
+      "source": "runtime_reported"
+    },
+    {
+      "role": "fixer",
+      "ms": 24459,
+      "ok": true,
+      "inputTokens": 121789,
+      "outputTokens": 1855,
+      "totalTokens": 123644,
+      "cachedInputTokens": 105472,
+      "cost": null,
+      "currency": null,
+      "source": "runtime_reported"
+    },
+    {
+      "role": "qa",
+      "ms": 38865,
+      "ok": true,
+      "inputTokens": 121333,
+      "outputTokens": 2580,
+      "totalTokens": 123913,
+      "cachedInputTokens": 109440,
+      "cost": null,
+      "currency": null,
+      "source": "runtime_reported"
+    }
+  ],
+  "id": "atlas-codex__t1-slugify__r2",
+  "arm": "atlas-codex",
+  "task": "t1-slugify",
+  "rep": 2,
+  "runtime": "codex",
+  "model": "gpt-5.6-luna",
+  "template": "software_feature"
+}

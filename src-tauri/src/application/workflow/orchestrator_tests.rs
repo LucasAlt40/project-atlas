@@ -1853,23 +1853,25 @@ fn running_the_recommended_template_through_a_validator_failure_and_a_qa_failure
         "{:?}",
         exec.failure
     );
-    assert_eq!(
-        runner.started(),
-        [
-            "architect",
-            "developer",
-            "validator",
-            "bug-fixer-architecture",
-            "validator",
-            "qa",
-            "bug-fixer-qa",
-            "qa"
-        ]
-    );
-    let fixer = &runner.requests_for("bug-fixer-architecture")[0].instruction;
+    // The two judges run side by side after the change and again after the one fix; the order
+    // within a pair is the scheduler's.
+    let started = runner.started();
+    assert_eq!(started[..2], ["architect", "developer"]);
+    let pair = |from: usize| {
+        let mut two = started[from..from + 2].to_vec();
+        two.sort_unstable();
+        two
+    };
+    assert_eq!(pair(2), ["qa", "validator"]);
+    assert_eq!(started[4], "bug-fixer");
+    assert_eq!(pair(5), ["qa", "validator"]);
+    assert_eq!(started.len(), 7);
+    // The one fixer is handed both judges' reports, through the join.
+    let fixer = &runner.requests_for("bug-fixer")[0].instruction;
     assert!(fixer.contains("Handler talks to the database"));
-    assert_eq!(exec.state.iteration_count["architecture_fix"], 2);
-    assert_eq!(exec.state.iteration_count["qa_bug_fix"], 2);
+    assert!(fixer.contains("Previous agent: Review the change"));
+    assert!(fixer.contains("Previous agent: Check behaviour"));
+    assert_eq!(exec.state.iteration_count["review_fix"], 1);
 }
 
 #[test]
@@ -2464,7 +2466,7 @@ fn asking_a_person_runs_end_to_end_through_a_validator_failure_and_a_qa_pass() {
             outcome("pass", ""),
         ],
     );
-    runner.script("qa", vec![outcome("pass", "")]);
+    runner.script("qa", vec![outcome("pass", ""), outcome("pass", "")]);
     let run = env.drive(&runner, &built.id);
 
     // 1. The developer asks and the whole run is paused: nothing after it has started.
@@ -2472,7 +2474,7 @@ fn asking_a_person_runs_end_to_end_through_a_validator_failure_and_a_qa_pass() {
         env.run_of(&run.id).status == WorkflowExecutionStatus::WaitingForInput
     });
     let paused = env.run_of(&run.id);
-    for later in ["validator", "qa", "bug-fixer-architecture", "bug-fixer-qa"] {
+    for later in ["validator", "qa", "bug-fixer"] {
         assert_eq!(paused.nodes[later].status, NodeStatus::Pending, "{later}");
     }
     assert_eq!(runner.started(), ["architect", "developer"]);
@@ -2481,7 +2483,7 @@ fn asking_a_person_runs_end_to_end_through_a_validator_failure_and_a_qa_pass() {
     run.answer(&env, text_answer("OAuth with PKCE")).unwrap();
     run.thread.join().unwrap();
 
-    // 3. Validator FAIL -> Bug Fixer -> Validator PASS -> QA PASS -> DONE.
+    // 3. Validator FAIL beside QA PASS -> Bug Fixer -> both PASS -> DONE.
     let done = env.run_of(&run.id);
     assert_eq!(
         done.status,
@@ -2489,33 +2491,33 @@ fn asking_a_person_runs_end_to_end_through_a_validator_failure_and_a_qa_pass() {
         "{:?}",
         done.failure
     );
-    assert_eq!(
-        runner.started(),
-        [
-            "architect",
-            "developer",
-            "developer",
-            "validator",
-            "bug-fixer-architecture",
-            "validator",
-            "qa"
-        ]
-    );
+    let started = runner.started();
+    assert_eq!(started[..3], ["architect", "developer", "developer"]);
+    assert_eq!(started[5], "bug-fixer");
+    for pair in [&started[3..5], &started[6..8]] {
+        let mut pair = pair.to_vec();
+        pair.sort_unstable();
+        assert_eq!(pair, ["qa", "validator"]);
+    }
+    assert_eq!(started.len(), 8);
     assert_eq!(done.nodes["done"].status, NodeStatus::Completed);
     assert!(runner.requests_for("developer")[1]
         .instruction
         .contains("OAuth with PKCE"));
     // The validator's FAIL travelled to the bug fixer as a handoff: findings, not a transcript.
-    let fixer = &runner.requests_for("bug-fixer-architecture")[0].instruction;
+    let fixer = &runner.requests_for("bug-fixer")[0].instruction;
     assert!(fixer.contains("Handler reads the table"));
-    // The question stayed out of the handoffs: the developer's step only handed on once it ended.
+    // The question stayed out of the handoffs: the developer's step only handed on once it ended,
+    // once to each judge.
     let from_developer: Vec<_> = done
         .handoffs
         .iter()
         .filter(|h| h.from_node_id == "developer")
         .collect();
-    assert_eq!(from_developer.len(), 1);
-    assert!(from_developer[0].summary.contains("summary of the work"));
+    assert_eq!(from_developer.len(), 2);
+    assert!(from_developer
+        .iter()
+        .all(|h| h.summary.contains("summary of the work")));
 }
 
 #[test]

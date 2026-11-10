@@ -1,0 +1,203 @@
+--- User agent-1793465974341-6
+Analyze and plan: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  R…
+--- Assistant agent-1793465974341-6
+Size: moderate
+
+This is a small change, but the `maxLength` cut rule and the empty-result cases need explicit decisions, so I did not treat it as trivial. Nothing has been implemented: this step is analysis and planning only.
+
+## Analysis
+
+**Project context (read):**
+- `package.json`: `"type": "commonjs"`, no dependencies, `"test": "node --test"`. Node's built-in runner discovers `test/*.test.js`, so `npm test` will pick up the new file.
+- `README.md`: "A tiny CommonJS project. No dependencies. Tests use the built-in runner: `node --test`."
+- The tracked tree is only `README.md`, `package.json` and `.git`. There is no `src/` or `test/` directory yet, so there are no existing module conventions to match beyond the README.
+
+**Modules and dependencies:** none. The change adds one leaf module with no imports, and nothing else in the project depends on it. Architectural impact is zero. Keep it a single function with no helper modules, since the task does not need an abstraction.
+
+## Plan
+
+**Goal:** `src/slugify.js` exports `slugify(text, options)` as `module.exports = { slugify }`. `test/slugify.test.js` covers it with `node:test` and `node:assert`.
+
+**Scope in:** the slugify function, its options handling, and its tests.
+**Scope out:** `package.json`, `README.md`, any other file, transliteration tables for characters that do not decompose (ß, ø, ł, æ, đ), and any change to the test script.
+
+**Steps for the Developer:**
+1. Type check first: if `text` is not a string, `throw new TypeError(...)`.
+2. Normalise: `text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')`. NFD splits `é`, `ç`, `ã`, `ü` into base letter plus combining mark, and the regex strips the marks.
+3. Collapse separators: `.replace(/[^a-z0-9]+/g, '-')`, then trim edges with `.replace(/^-+|-+$/g, '')`.
+4. Apply `maxLength` if it is set. Given `slug` already clean:
+   - If `slug.length <= max`, return `slug`.
+   - Else if `slug[max] === '-'`, the first `max` characters end exactly at a word boundary: return `slug.slice(0, max)`.
+   - Else `const dash = slug.slice(0, max).lastIndexOf('-')`. If `dash > 0`, return `slug.slice(0, dash)`. Otherwise the first word does not fit, so return `slug.slice(0, max)` (hard cut).
+   - Because the slug has no leading dash and no runs of dashes, none of these branches can end with `-`.
+5. Options: `const max = options?.maxLength`. If it is `undefined`, there is no limit. Otherwise it must be an integer `>= 1`, else throw `RangeError`. The task does not specify this, so the choice is mine and is listed under decisions.
+6. Empty or punctuation-only input returns `''`. It does not throw.
+
+**Files:**
+- New: `src/slugify.js`, with `module.exports = { slugify };` and no other exports.
+- New: `test/slugify.test.js`, which does `require('../src/slugify')`, `require('node:test')`, `require('node:assert')`.
+
+**Test cases:**
+- The five examples from the task, including `' Olá, Mundo! '` → `ola-mundo`, `'Ação & Reação'` → `acao-reacao`, and the three `maxLength` cases (9 → `hello-big`, 8 → `hello`, 5 on `supercalifragilistic` → `super`).
+- Lowercasing (`'HeLLo'` → `hello`).
+- Each diacritic from rule 2: `é`, `ç`, `ã`, `ü`.
+- Runs of separators collapse to one `-`, and leading and trailing separators are removed.
+- `''` and `'!!!'` return `''`.
+- Non-string input (`undefined`, `null`, `42`) throws `TypeError`.
+- `maxLength` of `0`, `-1`, `1.5` or `'9'` throws `RangeError`.
+- A result never exceeds `maxLength` and never ends with `-`, checked on a few inputs.
+
+**Verification:** run `npm test` (the sandbox allows it). All tests must pass, and the Developer should report the output verbatim.
+
+## Decisions the Developer must follow
+
+- **Normalisation method:** NFD plus stripping `U+0300–U+036F`. Do not add a transliteration map. Characters like `ß`, `ø`, `æ` become separators. This is a known limitation and should be stated in the final report, not silently handled.
+- **Empty result:** return `''`, do not throw.
+- **Invalid `maxLength`:** `RangeError` (decision by me, since the task is silent). Missing `maxLength` means no limit.
+- **Test runner:** `node:test` and `node:assert`, as the task says. Do not add dependencies.
+- **Edit only the two new files.**
+
+## Risks
+
+- **Ambiguous `maxLength` validation:** the task does not say what happens on bad options. The chosen `RangeError` is a judgment call and is easy to change, but tests will lock it in.
+- **Non-ASCII letters:** a user expecting `ß` → `ss` will get `-`. This is per the spec's own rule 3 but may surprise users.
+- **Node version:** `node:test` needs Node 18 or later, and optional chaining needs Node 14 or later. The project declares no `engines` field, so this is an assumption to note.
+
+## Result
+
+Analysis and plan are complete. Implementation is the next step and has not been done here.
+
+```atlas-result
+{"status":"success","outcome":"approved","summary":"Size: moderate. Plan for a single zero-dependency CommonJS module src/slugify.js plus test/slugify.test.js run by npm test (node --test). No existing src/ or test/ directories; the only tracked files are README.md and package.json. Decisions: NFD plus stripping U+0300-U+036F for diacritics; empty input returns ''; invalid maxLength throws RangeError; missing maxLength means no limit. Non-decomposing letters (ß, ø, æ) become separators and are a documented limitation.","artifacts":[{"type":"implementation_summary","name":"slugify implementation plan","path":"README.md","summary":"Plan only; no files were created or edited in this step. The Developer creates src/slugify.js and test/slugify.test.js per the plan above."}],"decisions":[{"title":"Diacritic removal method","decision":"Use toLowerCase, then normalize('NFD') and strip U+0300-U+036F. No transliteration table.","rationale":"Satisfies rule 2 with no dependencies; characters that do not decompose (ß, ø, æ) fall under rule 3 and become separators."},{"title":"maxLength validation","decision":"Undefined means no limit; any value that is not a positive integer throws RangeError.","rationale":"The task does not specify invalid options; RangeError is idiomatic for out-of-range numeric arguments."},{"title":"Empty result","decision":"Empty or punctuation-only input returns an empty string and does not throw.","rationale":"Only non-string input is specified to throw."},{"title":"Cut algorithm","decision":"When maxLength falls on a dash, cut there; otherwise cut at the last dash within the limit; if no dash fits, hard-cut at maxLength.","rationale":"Matches all five examples and guarantees no trailing dash because the slug has no leading dash or dash runs."}],"findings":[{"severity":"low","category":"scope","title":"Unspecified options validation","description":"The task does not say how invalid maxLength values should behave; the plan picks RangeError and tests will lock it in.","file":"src/slugify.js","line":1,"evidence":"Task rules list maxLength as an optional positive integer with no error behaviour.","recommendation":"Keep RangeError unless the user specifies otherwise."},{"severity":"low","category":"compatibility","title":"Non-decomposing letters become separators","description":"Characters such as ß, ø, æ and đ are not transliterated and turn into '-'.","file":"src/slugify.js","line":1,"evidence":"Rule 3 maps every run of non a-z0-9 characters to '-'; rule 2 lists only accented letters that decompose.","recommendation":"Document the limitation; add a transliteration map only if the user asks for it."}],"touchedFiles":[],"touchedAreas":["text-utils/slugify"],"nextAction":"Developer implements src/slugify.js and test/slugify.test.js exactly as planned, then runs npm test and reports the output."}
+```
+--- User agent-1793465974341-3
+Implement: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  Rules:  …
+--- Assistant agent-1793465974341-3
+I added `src/slugify.js` and `test/slugify.test.js`. `npm test` passes all 15 tests.
+
+**Implementation** (`src/slugify.js`), following the plan's decisions:
+- Lowercases, then runs `normalize('NFD')` and strips U+0300–U+036F, so `é`, `ç`, `ã` and `ü` become plain letters.
+- Replaces each run of non-`a-z0-9` characters with one `-`, then trims a leading or trailing `-`.
+- With `maxLength`: returns the slug if it fits. If the character at `maxLength` is a dash, cuts there. Otherwise cuts at the last dash that fits, and hard-cuts at `maxLength` if no dash fits.
+- Throws `TypeError` for a non-string `text`. Throws `RangeError` for a `maxLength` that is present but not a positive integer. `null` as `maxLength` also throws `RangeError`.
+- Exports exactly `module.exports = { slugify }`.
+
+**Tests** (`test/slugify.test.js`, `node:test` and `node:assert`): the five task examples, lowercasing, accent removal, dash collapsing, no leading or trailing dash, empty and punctuation-only input, the `ß` limitation, no-limit behaviour, each cut rule, a loop over `maxLength` 1–15 checking length and no trailing dash, and the `TypeError` and `RangeError` cases.
+
+**`npm test` output (verbatim summary):**
+```
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+```
+
+**Checked:** the test run above. I also checked the code by reading it against the rules and the five examples.
+
+**Not verified:** no linter is configured in the project, so none was run. I did not run the module against inputs beyond the test cases.
+
+**Risks and limitations:**
+- Characters that do not decompose, such as `ß`, `ø`, `æ` and `đ`, become `-`. For example `straße` gives `stra-e`. This is the plan's documented limitation, and a transliteration table would be needed to change it.
+- An invalid `maxLength` throws `RangeError`. The task did not specify this, so the plan's choice stands unless you say otherwise.
+
+Only the two new files were created. `README.md` and `package.json` are unchanged.
+
+```atlas-result
+{"status":"success","outcome":"implemented","summary":"Added src/slugify.js (CommonJS slugify with diacritic removal, dash collapsing, maxLength cutting, and TypeError/RangeError validation) and test/slugify.test.js (15 node:test cases). npm test passes 15/15.","artifacts":[{"type":"implementation_summary","name":"slugify module","path":"src/slugify.js","summary":"Zero-dependency slugify(text, options) exported as module.exports = { slugify }."},{"type":"test_suite","name":"slugify tests","path":"test/slugify.test.js","summary":"15 node:test cases covering the task examples, rules 1-6, and validation errors."}],"decisions":[{"title":"Diacritic removal","decision":"toLowerCase, then normalize('NFD') and strip U+0300-U+036F; no transliteration table.","rationale":"Satisfies rule 2 with no dependencies, as planned."},{"title":"maxLength validation","decision":"Undefined means no limit; any other non-positive-integer value throws RangeError.","rationale":"Task does not specify invalid options; RangeError is idiomatic for out-of-range numbers."},{"title":"Cut algorithm","decision":"Cut at a dash exactly on the limit, otherwise at the last dash that fits, otherwise hard-cut at maxLength.","rationale":"Matches all five examples and never leaves a trailing dash."}],"findings":[{"severity":"low","category":"compatibility","title":"Non-decomposing letters become separators","description":"Characters such as ß, ø, æ and đ are not transliterated and turn into '-' (e.g. 'straße' -> 'stra-e').","file":"src/slugify.js","line":13,"evidence":"Rule 3 maps every non a-z0-9 run to '-'; NFD does not decompose these letters. Covered by a test.","recommendation":"Document the limitation; add a transliteration map only if requested."},{"severity":"low","category":"scope","title":"Invalid maxLength behaviour not specified by the task","description":"A present but non-positive-integer maxLength (including null) throws RangeError.","file":"src/slugify.js","line":11,"evidence":"Task only defines maxLength as an optional positive integer. Covered by a test.","recommendation":"Keep RangeError unless the requester specifies otherwise."}],"touchedFiles":["src/slugify.js","test/slugify.test.js"],"touchedAreas":["src","test"],"nextAction":"Review the change; then the workflow can merge the two new files."}
+```
+--- User agent-1793465974342-7
+Review the change: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  …
+--- Assistant agent-1793465974342-7
+Review of the slugify change: **pass**. The change matches the plan and the task rules, and I found one non-blocking observation.
+
+**Scope and placement.** The worktree holds only `src/slugify.js` and `test/slugify.test.js` as new work, plus the existing `README.md` and `package.json`. `package.json` is CommonJS and has `npm test` set to `node --test`, which matches the module and test layout. I could not run `git status` (Bash is disabled in this session), so the change set comes from the file listing and the handoff, not a git diff.
+
+**Contract and rules.**
+- `src/slugify.js:34` exports exactly `module.exports = { slugify }`.
+- Rule 6 is enforced at `src/slugify.js:5-7` with a `TypeError`.
+- Rules 1–4 are handled in the pipeline at `src/slugify.js:14-19`: lowercase, NFD with combining-mark removal, collapse of non-`a-z0-9` runs, and trimming of leading and trailing dashes.
+- The maxLength cut at `src/slugify.js:21-31` is correct. A dash exactly at `maxLength` is cut there. Otherwise `lastIndexOf('-', maxLength - 1)` finds the last dash that fits. The `lastDash > 0` guard is safe because the slug never starts with a dash. The hard cut only runs when no dash fits, so it cannot end in a dash.
+- `options || {}` at line 9 tolerates `null` options.
+
+**Decisions.** The two behaviours the handoff flags are the ones the plan records: `ß`, `ø`, `æ`, `đ` become separators (locked in by the test at `test/slugify.test.js:34-36`), and a present but invalid `maxLength` throws `RangeError` (`src/slugify.js:10-11`, tested at `test/slugify.test.js:76-80`). Both are documented decisions, not new defects, so I am not raising them again.
+
+**Tests.** `test/slugify.test.js` covers all five task examples, each rule, and both error types. It uses `node:test` and `node:assert` as specified. The loop at lines 62–68 checks the length and trailing-dash invariants across every `maxLength` from 1 to 15. I did not run the suite, since shell access is disabled; the handoff reports 15/15 passing.
+
+**Finding (non-blocking).** The combining-mark regex at `src/slugify.js:1` is written with literal invisible combining characters instead of escapes, so a reader cannot see that it means U+0300–U+036F, and an editor can silently alter it. Writing the range as escapes would make it self-documenting. This is a readability hazard, not a behavioural bug, so it does not block acceptance.
+
+```atlas-result
+{"status":"warning","outcome":"pass","summary":"The slugify change matches the task rules and the plan. Scope is limited to src/slugify.js and test/slugify.test.js. One non-blocking maintainability observation: the combining-mark regex uses literal invisible characters instead of \\u escapes.","artifacts":[{"type":"implementation_summary","name":"slugify module","path":"src/slugify.js","summary":"CommonJS slugify(text, options) exporting { slugify }, with TypeError for non-string input, RangeError for invalid maxLength, and the dash-aware maxLength cut."},{"type":"implementation_summary","name":"slugify tests","path":"test/slugify.test.js","summary":"15 node:test cases covering the task examples, rules 1-6, and validation errors."}],"decisions":[{"title":"Diacritic removal","decision":"toLowerCase, then NFD normalization and removal of combining marks; no transliteration table.","rationale":"Satisfies rule 2 with no dependencies, as planned."},{"title":"Invalid maxLength","decision":"Undefined means no limit; any other non-positive-integer value throws RangeError.","rationale":"The task does not specify invalid options; RangeError is idiomatic for out-of-range numbers."}],"findings":[{"severity":"low","category":"Maintainability","title":"Combining-mark range written as invisible literal characters","description":"The regex that strips diacritics is written with raw combining characters rather than escape sequences, so the U+0300-U+036F range is not visible in source and can be altered silently by an editor.","file":"src/slugify.js","line":1,"evidence":"Line 1: const COMBINING_MARKS = /[̀-ͯ]/g; the range appears as literal characters with no \\u escapes.","recommendation":"Write the range as escapes: const COMBINING_MARKS = /[\\u0300-\\u036f]/g;. Behaviour is unchanged."}],"touchedFiles":["src/slugify.js","test/slugify.test.js"],"touchedAreas":["slugify module","slugify tests"],"nextAction":"Accept the change. Optionally switch the combining-mark regex to \\u escapes. The test suite was not run in this step (Bash is disabled); the Implement step reports 15/15 passing."}
+```
+--- User agent-1793465974341-4
+Check behaviour: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  Ru…
+--- Assistant agent-1793465974341-4
+Outcome: the change meets the task rules on every path I traced. Nothing was executed. I could only read and grep, so the test suite was not run here. The findings below are low severity.
+
+## What I checked
+
+**Evidence labels:** everything below was **read** from the files or **grepped**. Nothing was executed. The Implement step reports 15/15 passing, but I did not re-run it.
+
+### Main path (read)
+- `src/slugify.js:14-19`: lowercase, then NFD, then strip combining marks, then collapse each run of `[^a-z0-9]` to one `-`, then strip one leading and one trailing `-`. Because runs are collapsed, at most one leading or trailing dash can occur, so the single strip is enough.
+- `'Olá, Mundo! '` → `'ola-mundo'`; `'Ação & Reação'` → `'acao-reacao'`. Both traced by hand and match the examples.
+- `src/slugify.js:21-31`: the cut.
+  - `'hello big world'`, maxLength 9: `slug[9] === '-'`, so the result is `'hello-big'`. Correct.
+  - maxLength 8: `slug[8]='g'`, `lastIndexOf('-',7)=5`, so the result is `'hello'`. Correct.
+  - `'supercalifragilistic'`, maxLength 5: no dash in range (`lastIndexOf` returns -1), so a hard cut gives `'super'`. Correct.
+  - `'ab-cdef'`, maxLength 3: `lastIndexOf('-',2)=2`, so the result is `'ab'`. Correct.
+  - A hard cut can never end in a dash, because the hard-cut branch only runs when no dash exists in the first `maxLength` characters.
+  - `lastDash > 0` is safe because the slug never starts with a dash.
+
+### Edge cases (read)
+- Empty string and punctuation-only input (`''`, `' !!! '`) return `''` without throwing. With maxLength, `''` returns early at `slug.length <= maxLength`.
+- Validation order: text is checked first (TypeError), then maxLength (RangeError). Non-object `options` such as `null` works because of `options || {}`.
+- maxLength `0`, `-1`, `1.5`, `NaN`, `'5'`, `null` all throw RangeError (`:10`). `Infinity` also throws. This is a design choice, not a stated rule.
+- `Object.keys(require('../src/slugify'))` is `['slugify']`, which matches `module.exports = { slugify }`.
+- `package.json:1` sets `"test": "node --test"`, so `test/slugify.test.js` is picked up by default discovery. I checked this by reading only. I did not confirm the Node version.
+
+### Regex literal (grepped)
+- `src/slugify.js:1`: the grep for a bracketed class holding two characters in the `\x{0300}-\x{036F}` block matched line 1. So the class contains combining characters, but the grep does not prove the exact endpoints. The source has no `\u` escapes, which is the maintainability concern from the Review step.
+
+### Tests (read)
+- The tests cover each task example, the no-trailing-dash loop for maxLength 1 to 15, all listed TypeError inputs, and all listed RangeError inputs.
+- A missing `src/slugify.js` would make every test fail, so the tests do exercise the module.
+
+## Findings, by severity
+
+1. **Low, behaviour (untested, product risk):** non-Latin scripts silently become `''`.
+   - Repro: `slugify('Привет')`, `slugify('한국어')`, `slugify('東京')`. Each returns `''` without throwing.
+   - Rule 3 requires this, so the code is correct to the spec. It is still a silent data-loss trap, and no test covers it.
+   - Recommendation: add a test that locks in the empty result, and document it.
+
+2. **Low, behaviour:** combining marks outside U+0300–U+036F are not stripped, so they become separators and split words.
+   - Repro: a letter followed by U+1AB0–U+1AFF, U+20D0–U+20FF, or U+FE20–U+FE2F. The mark turns into `-` in the middle of the word.
+   - Common Latin text is unaffected. Rare input can still produce a mid-word dash.
+   - Recommendation: document it, or widen the range if the spec intends that.
+
+3. **Low, maintainability:** `src/slugify.js:1` writes the combining-mark range as raw characters.
+   - Evidence: the grep result above, and the raw characters in the source. An editor or formatter can change them without a visible diff.
+   - Recommendation: `const COMBINING_MARKS = /[\u0300-\u036f]/g;`. Behaviour is unchanged.
+
+4. **Low, edge case (untested):** `new String('x')` is an object, so it throws TypeError. The rule says "not a string" and the code uses `typeof`. This is probably the intended reading, but no test pins it.
+   - Repro: `slugify(new String('abc'))`.
+
+5. **Low, test gap:** no test covers `slugify('x', null)` or `slugify('', { maxLength: 5 })`.
+   - Both are traced as correct, but neither is asserted.
+
+No high or medium findings.
+
+## What I could not check
+- I did not run `npm test` or `node --test`, so the 15/15 claim in the Implement step is unverified here.
+- I did not confirm the exact U+0300 and U+036F endpoints of the regex.
+- I did not check the Node version, so default test discovery is inferred from the script alone.
+- I did not check Unicode behaviour beyond the paths traced above, for example Vietnamese decompositions with several combining marks.
+
+## Suggested reproduction to run next
+`npm test`, then a one-off script that prints `slugify('Привет')`, `slugify('ab-cdef', {maxLength: 3})`, and `slugify('x\u1AB0y')` to confirm findings 1 and 2.
+
+```atlas-result
+{"status":"pass","outcome":"pass","summary":"The slugify implementation meets all six task rules on every path traced by reading. Main path, cut logic, validation, and the empty-input edge are correct. Tests were not executed (read/grep only). Findings are low severity: non-Latin input becomes empty silently, combining marks outside U+0300-U+036F split words, the regex uses raw characters, and a few edge cases are untested.","artifacts":[{"type":"verification_report","name":"slugify static QA review","path":"src/slugify.js","summary":"Read src/slugify.js, test/slugify.test.js and package.json; grepped the combining-mark regex. Traced the main path and edge cases by hand. No tests executed."}],"decisions":[{"title":"Evidence scope for this QA pass","decision":"Judged by reading and grep only; no test execution.","rationale":"Read-only mode allows no commands that run the suite; the Implement step reports 15/15 but this pass did not re-run it."}],"findings":[{"severity":"low","category":"behaviour","title":"Non-Latin scripts silently become empty string","description":"Cyrillic, Hangul, CJK and similar input has no a-z0-9 characters after NFD, so it collapses to ''. Spec-consistent but untested and easy to hit by mistake.","file":"src/slugify.js","line":14,"evidence":"Traced: 'Привет' -> NFD -> no Latin chars -> NON_SLUG_RUN -> '-' -> stripped -> ''. No test asserts this.","recommendation":"Add a test locking in the empty result and document the limitation."},{"severity":"low","category":"behaviour","title":"Combining marks outside U+0300-U+036F split words","description":"Marks in other blocks (U+1AB0-1AFF, U+20D0-20FF, U+FE20-FE2F) are not stripped and become '-', inserting a dash mid-word.","file":"src/slugify.js","line":1,"evidence":"COMBINING_MARKS only covers U+0300-U+036F. Read-only trace; not executed.","recommendation":"Document, or widen the range if the spec intends it."},{"severity":"low","category":"maintainability","title":"Combining-mark range written as raw characters","description":"The regex holds invisible literal characters, so the range is not visible in source and can change silently in an editor.","file":"src/slugify.js","line":1,"evidence":"Grep confirms bracketed combining characters on line 1; no \\u escapes present.","recommendation":"Use /[\\u0300-\\u036f]/g. Behaviour unchanged."},{"severity":"low","category":"test-gap","title":"new String() input and null options are not asserted","description":"typeof check throws TypeError for String objects, and options=null is handled by options || {}, but neither is tested.","file":"test/slugify.test.js","line":70,"evidence":"Read the TypeError test (lines 70-74) and the options tests; neither case appears.","recommendation":"Add assertions for slugify(new String('x')) and slugify('x', null), and decide the intended behaviour for String objects."}],"touchedFiles":[],"touchedAreas":["slugify module","slugify tests"],"nextAction":"Run npm test to confirm the 15/15 claim, then optionally switch line 1 to \\u escapes and add the two edge-case assertions."}
+```

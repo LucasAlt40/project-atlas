@@ -1,0 +1,7 @@
+{
+  "id": "t1-slugify",
+  "kind": "feature",
+  "template": "software_feature",
+  "title": "Feature nova: slugify com regras de borda",
+  "allowed": ["src/slugify.js", "test/"]
+}

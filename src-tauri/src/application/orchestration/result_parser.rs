@@ -45,9 +45,9 @@ pub struct ParsedResult {
 /// Contract-free: the outcome is left empty. See [`parse_with_contract`].
 #[cfg(test)]
 pub fn parse_agent_result(text: &str) -> AgentResult {
-    match block(text).and_then(|body| serde_json::from_str::<Value>(body).ok()) {
-        Some(value) if value.is_object() => from_value(&value),
-        _ => fallback(text),
+    match block(text).and_then(object) {
+        Some(value) => from_value(&value),
+        None => fallback(text),
     }
 }
 
@@ -55,9 +55,7 @@ pub fn parse_agent_result(text: &str) -> AgentResult {
 /// the `outcome` field of the structured block, and only a declared id is kept (as declared).
 /// Free text, however it is worded, is never an outcome.
 pub fn parse_with_contract(text: &str, contract: &ResultContract) -> ParsedResult {
-    let value = block(text)
-        .and_then(|body| serde_json::from_str::<Value>(body).ok())
-        .filter(Value::is_object);
+    let value = block(text).and_then(object);
     let mut result = value.as_ref().map_or_else(|| fallback(text), from_value);
     if !contract.requires_outcome() {
         return ParsedResult {
@@ -91,6 +89,59 @@ pub fn parse_with_contract(text: &str, contract: &ResultContract) -> ParsedResul
         }
     }
     ParsedResult { result, problem }
+}
+
+/// The block's JSON object. When it does not parse, the two slips small models make while closing
+/// it are mended and it is read again: a comma before a closing `}` or `]`, and a key begun and left
+/// open right before the final `}` (`…"last field":"value","}`). Nothing is added or guessed: only
+/// those characters are taken out, and anything else that does not parse is still no block. Each
+/// slip otherwise ran the whole step again for nothing (2 of 8 Implement runs, `bench/`,
+/// 2026-11-06).
+fn object(body: &str) -> Option<Value> {
+    let parsed = serde_json::from_str::<Value>(body)
+        .ok()
+        .or_else(|| serde_json::from_str::<Value>(&mended(body)).ok())?;
+    parsed.is_object().then_some(parsed)
+}
+
+/// `body` without a dangling `,"` before its final `}` and without commas that close a list or an
+/// object, outside strings.
+fn mended(body: &str) -> String {
+    let mut text = body.trim_end().to_owned();
+    if let Some(open) = text.strip_suffix('}').map(str::trim_end) {
+        if let Some(head) = open.strip_suffix('"').map(str::trim_end) {
+            if let Some(head) = head.strip_suffix(',') {
+                text = format!("{head}}}");
+            }
+        }
+    }
+    let mut out = String::with_capacity(text.len());
+    let mut in_string = false;
+    let mut escaped = false;
+    let chars: Vec<char> = text.chars().collect();
+    for (i, &c) in chars.iter().enumerate() {
+        if in_string {
+            out.push(c);
+            if escaped {
+                escaped = false;
+            } else if c == '\\' {
+                escaped = true;
+            } else if c == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+        if c == '"' {
+            in_string = true;
+        } else if c == ',' {
+            let next = chars[i + 1..].iter().find(|n| !n.is_whitespace());
+            if matches!(next, Some('}' | ']')) {
+                continue;
+            }
+        }
+        out.push(c);
+    }
+    out
 }
 
 /// The body of the last `atlas-result` block.
@@ -305,6 +356,46 @@ mod tests {
         }
         // The fallback summary leaves the broken block out.
         assert_eq!(parse_agent_result(&block("{nope")).summary, "Some work.");
+    }
+
+    #[test]
+    fn a_block_closed_with_a_dangling_key_is_mended_not_rerun() {
+        // The exact slip of two Implement runs (`bench/`, 2026-11-06): a key begun and left open
+        // before the final brace. The whole step ran again for it.
+        let body = r#"{"status":"success","outcome":"implemented","summary":"Added src/slugify.js and its tests.","touchedFiles":["src/slugify.js","test/slugify.test.js"],"nextAction":"Review the change.","}"#;
+        let contract = crate::domain::result_contract::ResultContract::preset(
+            crate::domain::result_contract::ContractKind::Implementation,
+        );
+        let parsed = parse_with_contract(&block(body), &contract);
+
+        assert_eq!(parsed.problem, None);
+        assert_eq!(parsed.result.outcome.as_deref(), Some("implemented"));
+        assert_eq!(parsed.result.summary, "Added src/slugify.js and its tests.");
+        assert_eq!(parsed.result.touched_files.len(), 2);
+    }
+
+    #[test]
+    fn trailing_commas_are_dropped_but_never_inside_a_string() {
+        let body = r#"{"status":"pass","summary":"Kept: a, } and a, ]","findings":[{"description":"x",},],}"#;
+        let result = parse_agent_result(&block(body));
+
+        assert!(result.structured);
+        assert_eq!(result.status, ResultStatus::Pass);
+        assert_eq!(result.summary, "Kept: a, } and a, ]");
+        assert_eq!(result.findings.len(), 1);
+    }
+
+    #[test]
+    fn a_block_broken_in_any_other_way_is_still_no_block() {
+        for json in [
+            r#"{"status":"pass""#,
+            r#"{"status": }"#,
+            r#"{"status":"pass" "outcome":"pass"}"#,
+            r#"{"status":"pass","#,
+        ] {
+            let result = parse_agent_result(&block(json));
+            assert!(!result.structured, "{json}");
+        }
     }
 
     #[test]

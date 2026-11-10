@@ -1,0 +1,7 @@
+{
+  "id": "t3-todo-priority",
+  "kind": "feature-multifile",
+  "template": "software_feature",
+  "title": "Feature multi-arquivo sem quebrar o existente: prioridades no todo",
+  "allowed": ["src/store.js", "src/format.js", "test/"]
+}

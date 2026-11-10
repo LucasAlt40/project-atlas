@@ -25,6 +25,27 @@ export interface AgentRun {
   receiving: boolean;
   /** The core asked the user to approve something and has not been answered yet. */
   pendingApprovalId: string | null;
+  /**
+   * When the last event of this execution arrived (milliseconds since the Unix epoch), to say a
+   * run has gone quiet. Streamed text moves it at most every few seconds. Absent: since it
+   * started.
+   */
+  lastEventAt?: number;
+}
+
+/** How long a run may stay without any event before the UI says it has had no output. */
+export const SILENT_AFTER_MS = 2 * 60 * 1000;
+/** Streamed text moves `lastEventAt` at most this often, so tokens do not re-render the app. */
+const ACTIVITY_RESOLUTION_MS = 10 * 1000;
+
+/**
+ * How long a running execution has had no event, once that is `SILENT_AFTER_MS` or more; `null`
+ * otherwise. A run that waits for the person is not silent: it is waiting.
+ */
+export function silentFor(run: AgentRun, now: number): number | null {
+  if (run.status !== 'running') return null;
+  const quiet = now - (run.lastEventAt ?? run.startedAt);
+  return quiet >= SILENT_AFTER_MS ? quiet : null;
 }
 
 /** The live answer of an execution that is still running. */
@@ -143,10 +164,21 @@ function applyEvent(run: AgentRun | undefined, event: ExecutionEvent): AgentRun 
     // Streamed text only means something inside the execution it belongs to, and only until
     // that execution has ended: a late piece never reopens it.
     if (!run || !sameExecution || run.status !== 'running') return run;
-    if (run.receiving) return run;
+    if (run.receiving) {
+      // Still the same stretch of text: only say it is alive, and not more than every few seconds.
+      const last = run.lastEventAt ?? run.startedAt;
+      return event.timestamp - last >= ACTIVITY_RESOLUTION_MS
+        ? { ...run, lastEventAt: event.timestamp }
+        : run;
+    }
     // The first piece of a stretch of text: note it once instead of once per token.
     const entry = toActivityEntry(event, run.activity.length);
-    return { ...run, receiving: true, activity: [...run.activity, { ...entry, metadata: {} }] };
+    return {
+      ...run,
+      receiving: true,
+      lastEventAt: event.timestamp,
+      activity: [...run.activity, { ...entry, metadata: {} }],
+    };
   }
   if (run && sameExecution) {
     // The same execution: append, and move to its final state on a terminal event.
@@ -159,6 +191,7 @@ function applyEvent(run: AgentRun | undefined, event: ExecutionEvent): AgentRun 
           : run.failureKind,
       receiving: false,
       pendingApprovalId: pendingAfter(run.pendingApprovalId, event),
+      lastEventAt: event.timestamp,
       activity: [...run.activity, toActivityEntry(event, run.activity.length)],
     };
   }
@@ -178,6 +211,7 @@ function applyEvent(run: AgentRun | undefined, event: ExecutionEvent): AgentRun 
     failureKind: failureKindOf(event),
     receiving: false,
     pendingApprovalId: pendingAfter(null, event),
+    lastEventAt: event.timestamp,
     activity: [toActivityEntry(event, 0)],
   };
 }

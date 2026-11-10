@@ -1,0 +1,89 @@
+--- User agent-1793474625462-5
+Investigate and fix: Bug report from customers about src/cart.js:  - A cart with 3 units of a product at 19.90 shows a total of 19.9 instead of 59.7. - With the…
+--- Assistant agent-1793474625462-5
+Phase 2 is done. All 7 tests pass, including the 5 regression tests that failed before the fix.
+
+## What was wrong
+
+All four reported symptoms, plus one latent bug, came from `src/cart.js` in `total()`:
+
+1. **Quantity ignored** (line 16). The loop added `item.price` and never used `item.qty`, so 3 × 19.90 gave 19.9.
+2. **Fixed coupon not floored** (line 23). `sum - coupon.value` could go negative, so 5.00 − 10 gave −5.
+3. **Percent coupon returned the discount** (line 21). `sum * value / 100` gives the amount off, not the amount to pay. For 100 with OFF20 it gave 20 instead of 80.
+4. **No rounding** (line 26). Float arithmetic produced values such as 0.30000000000000004.
+5. **Prototype keys matched as coupons** (line 18). `COUPONS[couponCode]` finds inherited properties, so a code like `toString` returned `NaN`. This breaks "unknown coupons are ignored". It was not in the customer reports.
+
+Causes 1–4 are confirmed by the code and the reports. Cause 5 was confirmed by the test run (`NaN !== 10`).
+
+## The fix
+
+- Items are summed in integer cents: `Math.round(price × 100) × qty`. This also removes float drift.
+- Percent coupons keep the payable share: `cents × (100 − value) / 100`, rounded to whole cents.
+- Fixed coupons subtract their value in cents.
+- The result is clamped with `Math.max(0, cents)` and divided by 100, so it is a plain number with at most 2 decimals.
+- Coupon lookup uses `Object.prototype.hasOwnProperty.call`, so only the codes in `COUPONS` apply.
+- The public API is unchanged: `module.exports = { total }`.
+
+## Tests
+
+`test/cart.test.js` gained five regression tests: quantity, TENOFF floor, OFF20 price, cent rounding (0.1 + 0.2 = 0.3), and unknown or prototype coupon codes. They were run before the fix (5 failing, with the failures above) and after it (all passing).
+
+## Commands run
+
+- Baseline `npm test`: 2 pass, 0 fail.
+- After adding the regression tests, `npm test`: 2 pass, 5 fail, with the expected assertion messages (19.9 !== 59.7, -5 !== 0, 20 !== 80, 0.30000000000000004 vs 0.3, NaN !== 10).
+- After the fix, `npm test`: `tests 7, pass 7, fail 0`.
+
+I could not run ad-hoc `node` commands, since Bash is limited to the project's test commands. The reproduction and verification therefore go through the test suite.
+
+## Files changed
+
+- `src/cart.js`
+- `test/cart.test.js`
+
+## Residual risk
+
+- Each line is rounded to cents before quantity is applied. If a price has sub-cent precision, that rounding happens per unit; the spec does not say which rounding rule to use, so this is an assumption.
+- Percent discounts use `Math.round`, so a half-cent rounds up. This is a choice, not something the spec fixed.
+- Input is not validated. A missing `qty` gives `NaN`, and negative prices or quantities are accepted. The reports did not cover these, so I left them alone.
+- The `HALF` coupon is still defined and is now computed correctly as 50% off. I did not add a test for it.
+
+```atlas-result
+{"status":"success","outcome":"fixed","summary":"Fixed total() in src/cart.js: quantity now multiplies price, percent coupons return the payable amount, fixed coupons are floored at zero, totals are computed in integer cents and rounded to 2 decimals, and only own-property coupon codes apply. Added 5 regression tests; npm test reports 7 pass, 0 fail.","artifacts":[{"type":"implementation_summary","name":"cart total fix","path":"src/cart.js","summary":"Integer-cents total with qty multiplication, correct OFF20 math, TENOFF clamp at 0, own-property coupon lookup."}],"decisions":[{"title":"Compute in integer cents","decision":"Sum price*qty in cents, apply coupons in cents, divide by 100 once at the end.","rationale":"Avoids float drift such as 0.30000000000000004 and gives 2-decimal results."},{"title":"Own-property coupon lookup","decision":"Use Object.prototype.hasOwnProperty.call(COUPONS, code) before reading the coupon.","rationale":"Prevents codes like toString or constructor from matching inherited properties and producing NaN."}],"findings":[{"severity":"high","category":"logic","title":"Quantity ignored in total","description":"total() added item.price without multiplying by item.qty.","file":"src/cart.js","line":16,"evidence":"Before fix: total([{price:19.9,qty:3}]) returned 19.9 (test 'quantity multiplies the price' failed with 19.9 !== 59.7).","recommendation":"Multiply price by qty (fixed)."},{"severity":"high","category":"logic","title":"Fixed coupon can make total negative","description":"Fixed-value coupons were subtracted without a floor at zero.","file":"src/cart.js","line":23,"evidence":"Before fix: total([{price:5,qty:1}],'TENOFF') returned -5 (-5 !== 0).","recommendation":"Clamp the result at 0 (fixed)."},{"severity":"high","category":"logic","title":"Percent coupon returned the discount, not the price","description":"OFF20 computed sum*20/100 (the amount off) instead of the amount payable.","file":"src/cart.js","line":21,"evidence":"Before fix: total([{price:100,qty:1}],'OFF20') returned 20 (20 !== 80).","recommendation":"Apply sum*(100-value)/100 (fixed)."},{"severity":"medium","category":"precision","title":"Totals not rounded to cents","description":"Float arithmetic leaked into totals.","file":"src/cart.js","line":26,"evidence":"Before fix: 0.1 + 0.2 returned 0.30000000000000004.","recommendation":"Compute in integer cents and round to 2 decimals (fixed)."},{"severity":"low","category":"robustness","title":"Prototype keys accepted as coupon codes","description":"COUPONS[couponCode] matched inherited properties, so codes such as toString were treated as coupons.","file":"src/cart.js","line":18,"evidence":"Before fix: total([{price:10,qty:1}],'toString') returned NaN (NaN !== 10).","recommendation":"Use an own-property check (fixed)."},{"severity":"low","category":"validation","title":"No input validation for qty or price","description":"A missing qty yields NaN; negative prices or quantities are accepted.","file":"src/cart.js","line":15,"evidence":"Not covered by the reports; code reads item.qty and item.price without checks.","recommendation":"Decide whether to validate or default qty; not changed in this fix."}],"touchedFiles":["src/cart.js","test/cart.test.js"],"touchedAreas":["cart totals","coupon handling","tests"],"nextAction":"Verify the fix: run npm test (expect 7 pass, 0 fail) and review the rounding choice (per-line cents, Math.round on percent discounts)."}
+```
+--- User agent-1793474625462-4
+Verify the fix: Bug report from customers about src/cart.js:  - A cart with 3 units of a product at 19.90 shows a total of 19.9 instead of 59.7. - With the coup…
+--- Assistant agent-1793474625462-4
+The suite passes and the only caller is the test file. I'll trace the reported cases by hand against the code, since I can't run ad-hoc scripts here.
+
+**Root cause (from the investigate step, confirmed by reading the code):** `total()` had four independent defects: it ignored `qty`, subtracted fixed coupons without a floor, returned the discount instead of the payable amount for percent coupons, and used float arithmetic with no rounding. It also looked coupon codes up through the prototype chain.
+
+**Fix (read in `src/cart.js:13-30`):** prices are converted to integer cents per line and multiplied by `qty`. The coupon is applied in cents, with a `Math.max(0, …)` floor. The result is divided by 100 once. Coupon lookup uses `hasOwnProperty.call`.
+
+**Hand-traced reported cases (read, not executed):**
+- `[{19.9,3}]`: `Math.round(1990.0000000000002)=1990`, ×3 = 5970 → **59.7** ✓
+- `[{5,1}]`, TENOFF: 500 − 1000 = −500 → floored → **0** ✓
+- `[{100,1}]`, OFF20: 10000 × 80 / 100 = 8000 → **80** ✓
+- `0.1 + 0.2`: 10 + 20 = 30 → **0.3** ✓
+- `'toString'` / `'constructor'`: not own properties → ignored → **10** ✓
+- `'NOPE'` / `undefined` / `null`: not own properties → ignored ✓
+
+Edge checks: empty cart → 0; the existing tests `single item` and `empty cart` are unchanged in the test file (the diff only adds tests). `HALF` still works through the percent branch.
+
+**Executed:** `npm test` → 7 tests, 7 pass, 0 fail (`node --test`).
+
+**Regression test sensitivity (read, reasoned; not re-executed):** against the pre-fix code, the `quantity`, `TENOFF`, `OFF20`, `rounding` and `prototype` tests each fail on the values the bug report gives (19.9, −5, 20, 0.30000000000000004, NaN). I could not revert the file to re-run them, because `git diff`/`git stash` and file writes are refused in this read-only mode. The pre-fix failures come from the previous step's recorded evidence.
+
+**Side effects:** `total` has no other callers in the repo (grep confirmed). The return type is still a number, and the API is still `module.exports = { total }`.
+
+**Findings (all low, outcome pass, for the owner to decide):**
+1. **Fractional quantities break the cents rule.** `[{price:0.99, qty:1.5}]` gives `99 × 1.5 = 148.5` cents → `1.485`, which is not 2 decimals. Only matters if qty can be fractional (e.g. weight-based items). Repro: call `total([{price:0.99,qty:1.5}])`.
+2. **Invalid inputs still pass through.** A missing `qty` gives `NaN` and `Math.max(0, NaN)` returns `NaN`. A negative price can offset other lines. This was out of the reported scope, as the investigate step noted. Repro: `total([{price:10}])` → NaN; `total([{price:-5,qty:1},{price:10,qty:1}])` → 5.
+3. **Sub-cent prices lose a cent.** `Math.round(1.005*100)` is 100, so `total([{price:1.005,qty:1}])` → 1.00 instead of 1.01. Only matters for prices that are not whole cents.
+4. **Test gaps.** No test covers a partial TENOFF on a cart above 10 (e.g. 25 → 15), which would catch a sign or ordering error. No test covers percent rounding on odd cent amounts, HALF, or a mixed cart with a coupon. No test covers a fractional qty.
+
+**Limits:** I could not revert the fix to watch the regression tests fail, could not run any ad-hoc input checks, and could not view `git diff`. The fractional-qty and sub-cent behaviour are from reading the code, not from execution.
+
+```atlas-result
+{"status":"pass","outcome":"pass","summary":"Fix removes the root cause in total(): qty multiplies price, percent coupons return the payable amount, fixed coupons are floored at 0, totals are computed in integer cents and rounded to 2 decimals, and coupon lookup is own-property only. npm test: 7 pass, 0 fail. Reported cases hand-traced to the expected values. Residual low-severity gaps: fractional qty, invalid qty/price inputs, sub-cent prices, and test coverage gaps.","artifacts":[{"type":"implementation_summary","name":"cart total fix verification","path":"src/cart.js","summary":"Read-only verification of the integer-cents total with qty, floored fixed coupon, percent payable math and own-property coupon lookup."}],"decisions":[{"title":"Verification outcome","decision":"pass with low-severity findings","rationale":"The reported bugs are fixed and the suite passes. The remaining items are hardening beyond the reported bug, which the instructions say to record as low-severity findings."}],"findings":[{"severity":"low","category":"precision","title":"Fractional quantity yields sub-cent totals","description":"total() multiplies integer cents by qty without rounding, so a fractional qty can produce a result with more than 2 decimals, violating the cents rule if qty can be fractional.","file":"src/cart.js","line":17,"evidence":"Read: 99 * 1.5 = 148.5 cents -> 1.485 returned for [{price:0.99,qty:1.5}]. Not executed.","recommendation":"Decide whether qty must be an integer; if fractional quantities are valid, round the line total to whole cents."},{"severity":"low","category":"validation","title":"Invalid qty or price passes through","description":"A missing qty yields NaN, and Math.max(0, NaN) returns NaN. Negative prices or quantities are accepted and can offset other lines.","file":"src/cart.js","line":17,"evidence":"Read: total([{price:10}]) -> NaN; total([{price:-5,qty:1},{price:10,qty:1}]) -> 5. Not executed. Out of the reported scope.","recommendation":"Decide whether to validate or reject bad inputs, or default qty to 1."},{"severity":"low","category":"precision","title":"Sub-cent prices lose a cent","description":"Math.round(price*100) truncates prices with fractions of a cent, e.g. 1.005 becomes 100 cents.","file":"src/cart.js","line":17,"evidence":"Read: Math.round(1.005*100) = 100, so total([{price:1.005,qty:1}]) -> 1.00. Not executed.","recommendation":"Reject sub-cent prices or document that prices are whole cents."},{"severity":"low","category":"test-coverage","title":"Regression tests miss partial fixed coupon and percent rounding","description":"No test covers TENOFF on a cart above 10, percent rounding on odd cent amounts, HALF, a mixed multi-line cart with a coupon, or fractional qty.","file":"test/cart.test.js","line":17,"evidence":"Read test/cart.test.js: the 7 tests cover single item, empty cart, qty 3, TENOFF on 5 (floored), OFF20 on 100, 0.1+0.2, and unknown/prototype codes.","recommendation":"Add tests for TENOFF on 25 → 15, OFF20 on an odd cent total, and a mixed cart with a coupon."}],"touchedFiles":[],"touchedAreas":["cart totals","coupon handling","rounding"],"nextAction":"Decide on the low findings (fractional qty, input validation, sub-cent prices, extra tests). The fix can be accepted as is."}
+```

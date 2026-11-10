@@ -1,0 +1,36 @@
+{
+  "ok": true,
+  "exitCode": 0,
+  "status": "Completed",
+  "failure": null,
+  "elapsedMs": 29588,
+  "inputTokens": 115920,
+  "cachedInputTokens": 102528,
+  "outputTokens": 3193,
+  "costUsd": null,
+  "agentRuns": 1,
+  "steps": [
+    "validator"
+  ],
+  "perStep": [
+    {
+      "role": "validator",
+      "ms": 28997,
+      "ok": true,
+      "inputTokens": 115920,
+      "outputTokens": 3193,
+      "totalTokens": 119113,
+      "cachedInputTokens": 102528,
+      "cost": null,
+      "currency": null,
+      "source": "runtime_reported"
+    }
+  ],
+  "id": "atlas-codex__t4-review__r1",
+  "arm": "atlas-codex",
+  "task": "t4-review",
+  "rep": 1,
+  "runtime": "codex",
+  "model": "gpt-5.6-luna",
+  "template": "code_review"
+}

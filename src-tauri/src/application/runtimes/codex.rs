@@ -401,6 +401,7 @@ mod tests {
             scope: crate::application::process::ExecutionScope::for_tests(),
             text_only: false,
             allow_edits: false,
+            granted_commands: Vec::new(),
             mcp: None,
         }
     }
@@ -563,7 +564,12 @@ mod tests {
             run(output(0, "not json")),
             Err(RuntimeError::ExecutionFailed(_) | RuntimeError::UnexpectedResponse(_))
         ));
-        assert_eq!(run(Err(ProcessError::Timeout)), Err(RuntimeError::Timeout));
+        assert!(matches!(
+            run(Err(ProcessError::Timeout(
+                crate::application::process::Silence::default()
+            ))),
+            Err(RuntimeError::Timeout(_))
+        ));
     }
 
     #[test]

@@ -1,0 +1,114 @@
+{
+  "status": "Completed",
+  "failure": null,
+  "started": ["architect", "architect", "developer", "validator", "qa"],
+  "changed": [
+    "docs/plans/todo-priorities.md",
+    "src/format.js",
+    "src/store.js",
+    "test/store.test.js"
+  ],
+  "elapsedMs": 165923,
+  "usage": [
+    {
+      "executionId": "exec-2",
+      "workspaceId": "ws-1793406231120-1",
+      "agentId": "agent-1793406231137-6",
+      "runtimeId": "claude",
+      "modelId": "haiku",
+      "startedAt": 1793406231349,
+      "completedAt": 1793406271338,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 51589,
+        "outputTokens": 8223,
+        "totalTokens": 59812,
+        "cachedInputTokens": 37655,
+        "cost": 0.007274050000000001,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      "role": "architect"
+    },
+    {
+      "executionId": "exec-3",
+      "workspaceId": "ws-1793406231120-1",
+      "agentId": "agent-1793406231137-6",
+      "runtimeId": "claude",
+      "modelId": "haiku",
+      "startedAt": 1793406271502,
+      "completedAt": 1793406306854,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 109987,
+        "outputTokens": 6420,
+        "totalTokens": 116407,
+        "cachedInputTokens": 96580,
+        "cost": 0.0068558,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      "role": "architect"
+    },
+    {
+      "executionId": "exec-4",
+      "workspaceId": "ws-1793406231120-1",
+      "agentId": "agent-1793406231136-3",
+      "runtimeId": "claude",
+      "modelId": "haiku",
+      "startedAt": 1793406307013,
+      "completedAt": 1793406325817,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 44473,
+        "outputTokens": 3053,
+        "totalTokens": 47526,
+        "cachedInputTokens": 32559,
+        "cost": 0.00423429,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      "role": "developer"
+    },
+    {
+      "executionId": "exec-5",
+      "workspaceId": "ws-1793406231120-1",
+      "agentId": "agent-1793406231137-7",
+      "runtimeId": "claude",
+      "modelId": "haiku",
+      "startedAt": 1793406325875,
+      "completedAt": 1793406357743,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 87302,
+        "outputTokens": 5855,
+        "totalTokens": 93157,
+        "cachedInputTokens": 70560,
+        "cost": 0.0069805,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      "role": "validator"
+    },
+    {
+      "executionId": "exec-6",
+      "workspaceId": "ws-1793406231120-1",
+      "agentId": "agent-1793406231137-4",
+      "runtimeId": "claude",
+      "modelId": "haiku",
+      "startedAt": 1793406357797,
+      "completedAt": 1793406395693,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 66395,
+        "outputTokens": 7140,
+        "totalTokens": 73535,
+        "cachedInputTokens": 52372,
+        "cost": 0.006897520000000001,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      "role": "qa"
+    }
+  ]
+}

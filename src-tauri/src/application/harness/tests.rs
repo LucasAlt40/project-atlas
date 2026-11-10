@@ -268,7 +268,8 @@ fn initializing_writes_generated_knowledge_and_the_users_own_files() {
     // The plan rule is written into every Harness, explicitly.
     let conventions = f.store.get("context/conventions.md").unwrap();
     assert!(conventions.contains("Plans are mandatory documents"));
-    assert!(conventions.contains("docs/plans/<short-name>.md"));
+    assert!(conventions.contains("keeps it with the run"));
+    assert!(!conventions.contains("docs/plans"));
     assert!(outcome.summary.stack.contains(&"Angular 18".to_owned()));
     for path in [
         "project.yaml",

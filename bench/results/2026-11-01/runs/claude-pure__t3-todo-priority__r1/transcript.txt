@@ -1,0 +1,19 @@
+--- Assistant
+I made the changes, but I could not run the test suite. Both `npm test` and `node --test` were blocked by a permission prompt in this non-interactive session, so I checked the code by reading it.
+
+**What changed**
+
+- **`src/store.js`**
+  - `add(title, options = {})` takes `options.priority`, defaulting to `'normal'`. Any other value, including `null`, throws a `RangeError`. The todo is only pushed after validation passes, so a rejected add leaves no trace.
+  - `list(filter = {})` returns a sorted copy: high, then normal, then low. Insertion order is kept within a priority because `Array.prototype.sort` is stable. With `filter.priority`, only todos of that priority are returned.
+- **`src/format.js`**: `formatList` puts `!` before the title for high-priority todos, so `[ ] !Pay rent`. Other priorities render as before, and todos without a `priority` field (like the existing test's objects) are unchanged.
+- **`test/store.test.js`**: I added tests for the default priority, storing a priority, rejecting invalid values, sort order with stability, filtering, and the `!` marker. The existing tests are untouched.
+
+**Choices I made**
+
+- `list` always sorts, including when a priority filter is given. With a single priority the sort changes nothing, so the result is the same either way.
+- An unknown `filter.priority` value returns an empty list rather than throwing, since the spec only covers the `add` side. Say if you'd rather it throw.
+
+**To verify**
+
+Run `npm test` in the project. I have not confirmed that the suite passes. I have not committed anything.

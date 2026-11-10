@@ -153,6 +153,7 @@ impl StepRunner for ChatStepRunner {
             shared_worktree: request.shared_worktree.clone(),
             announce_integrations: request.announce_integrations,
             read_only: request.read_only,
+            no_commands: request.no_commands,
             scope: request.scope,
         };
         match self.chat.send_workflow_step(step) {

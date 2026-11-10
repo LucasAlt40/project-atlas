@@ -1,0 +1,36 @@
+{
+  "ok": true,
+  "exitCode": 0,
+  "status": "Completed",
+  "failure": null,
+  "elapsedMs": 30324,
+  "inputTokens": 43326,
+  "cachedInputTokens": 34655,
+  "outputTokens": 4453,
+  "costUsd": 0.00430645,
+  "agentRuns": 1,
+  "steps": [
+    "validator"
+  ],
+  "perStep": [
+    {
+      "role": "validator",
+      "ms": 29784,
+      "ok": true,
+      "inputTokens": 43326,
+      "outputTokens": 4453,
+      "totalTokens": 47779,
+      "cachedInputTokens": 34655,
+      "cost": 0.00430645,
+      "currency": "USD",
+      "source": "runtime_reported"
+    }
+  ],
+  "id": "atlas-claude__t4-review__r2",
+  "arm": "atlas-claude",
+  "task": "t4-review",
+  "rep": 2,
+  "runtime": "claude",
+  "model": "haiku",
+  "template": "code_review"
+}

@@ -1,0 +1,127 @@
+{
+  "status": "Completed",
+  "failure": null,
+  "started": [
+    "architect",
+    "developer",
+    "qa"
+  ],
+  "changed": [
+    "src/inventory.js",
+    "src/orders.js",
+    "src/reports.js",
+    "test/shop.test.js"
+  ],
+  "elapsedMs": 90314,
+  "asked": [],
+  "usage": [
+    {
+      "executionId": "exec-2",
+      "workspaceId": "ws-1793991777793-1",
+      "agentId": "agent-1793991777793-6",
+      "runtimeId": "claude",
+      "modelId": "haiku",
+      "startedAt": 1793991777975,
+      "completedAt": 1793991803562,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 49874,
+        "outputTokens": 4508,
+        "totalTokens": 54382,
+        "cachedInputTokens": 37893,
+        "cost": 0.00502853,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      "role": "architect",
+      "runtimeFacts": {
+        "autoMemoryPath": "/Users/lucasalt/.claude/projects/-private-var-folders-r3-gtmdzdhn7138rqntsg15l6980000gn-T-atlas-workflow-real-25356-0-project/memory/",
+        "costUsd": "0.00502853",
+        "durationMs": "24272",
+        "mcpServers": "",
+        "mcpStatus": "",
+        "pluginSources": "atlassian@claude-plugins-official,figma@claude-plugins-official,cc-plugin-agents-md@builtin,cc-plugin-telemetry@builtin,cc-plugin-plugin-authoring@builtin",
+        "pluginsLoaded": "5",
+        "skillsLoaded": "0",
+        "slashCommands": "0",
+        "textChars": "6376",
+        "thinkingTokens": "1273",
+        "toolInputChars": "1108",
+        "toolsExposed": "Bash,Edit,Glob,Grep,Read,Write",
+        "turns": "9"
+      }
+    },
+    {
+      "executionId": "exec-3",
+      "workspaceId": "ws-1793991777793-1",
+      "agentId": "agent-1793991777793-3",
+      "runtimeId": "claude",
+      "modelId": "haiku",
+      "startedAt": 1793991803617,
+      "completedAt": 1793991835570,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 137830,
+        "outputTokens": 5798,
+        "totalTokens": 143628,
+        "cachedInputTokens": 120984,
+        "cost": 0.00747664,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      "role": "developer",
+      "runtimeFacts": {
+        "autoMemoryPath": "/Users/lucasalt/.claude/projects/-private-var-folders-r3-gtmdzdhn7138rqntsg15l6980000gn-T-atlas-workflow-real-25356-0-project/memory/",
+        "costUsd": "0.00747664",
+        "durationMs": "30525",
+        "mcpServers": "",
+        "mcpStatus": "",
+        "pluginSources": "atlassian@claude-plugins-official,figma@claude-plugins-official,cc-plugin-agents-md@builtin,cc-plugin-telemetry@builtin,cc-plugin-plugin-authoring@builtin",
+        "pluginsLoaded": "5",
+        "skillsLoaded": "0",
+        "slashCommands": "0",
+        "textChars": "3894",
+        "thinkingTokens": "997",
+        "toolInputChars": "6076",
+        "toolsExposed": "Bash,Edit,Glob,Grep,Read,Write",
+        "turns": "14"
+      }
+    },
+    {
+      "executionId": "exec-4",
+      "workspaceId": "ws-1793991777793-1",
+      "agentId": "agent-1793991777793-4",
+      "runtimeId": "claude",
+      "modelId": "haiku",
+      "startedAt": 1793991835717,
+      "completedAt": 1793991867622,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 95399,
+        "outputTokens": 5148,
+        "totalTokens": 100547,
+        "cachedInputTokens": 78994,
+        "cost": 0.006643940000000001,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      "role": "qa",
+      "runtimeFacts": {
+        "autoMemoryPath": "/Users/lucasalt/.claude/projects/-private-var-folders-r3-gtmdzdhn7138rqntsg15l6980000gn-T-atlas-workflow-real-25356-0-project/memory/",
+        "costUsd": "0.006643940000000001",
+        "durationMs": "30539",
+        "mcpServers": "",
+        "mcpStatus": "",
+        "pluginSources": "atlassian@claude-plugins-official,figma@claude-plugins-official,cc-plugin-agents-md@builtin,cc-plugin-telemetry@builtin,cc-plugin-plugin-authoring@builtin",
+        "pluginsLoaded": "5",
+        "skillsLoaded": "0",
+        "slashCommands": "0",
+        "textChars": "5437",
+        "thinkingTokens": "2147",
+        "toolInputChars": "1228",
+        "toolsExposed": "Bash,Edit,Glob,Grep,Read,Write",
+        "turns": "12"
+      }
+    }
+  ]
+}

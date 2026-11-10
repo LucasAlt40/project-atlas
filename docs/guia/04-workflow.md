@@ -58,6 +58,14 @@ Um nó fica pronto quando é **ativado** pelos links disparados até ele. Links 
 Links **dentro** de um ciclo são sempre alternativas — por isso um join espera dois ramos paralelos e
 `QA → Bug Fixer → QA` não trava.
 
+Uma condição com `join: true` é a exceção: espera **todos** os links que chegam nela, dentro ou fora de ciclo, a cada
+volta (entrar no nó limpa o que já tinha disparado), e só casa (`result.matched = true`) se a condição valer para o
+resultado de **cada** passo que chegou. É o que deixa dois juízes rodarem lado a lado dentro de um ciclo de correção:
+o template Implement roda Validador e QA em paralelo depois do Desenvolvedor, a junção `verdicts` espera os dois, e um
+único Corretor (limite de 2 voltas) recebe os achados dos dois antes de ambos julgarem de novo. Quando os dois agentes
+declaram pares de veredito diferentes, o template mantém a fila Validador → QA. Um passo depois de uma condição recebe
+os handoffs que os passos anteriores deram à condição, já que ela mesma não roda agente.
+
 Loops são permitidos, mas **todo ciclo é limitado**: nós com `loop_policy { loop_id, max_iterations }`; a validação
 remove-os e rejeita o grafo se sobrar ciclo. Estourar o limite falha o run com `max_iterations_reached`.
 

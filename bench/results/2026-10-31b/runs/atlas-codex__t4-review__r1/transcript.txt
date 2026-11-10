@@ -1,0 +1,35 @@
+--- User agent-1793465939073-7
+Review code and architecture: Review src/users.js for correctness and security. Report each defect you find as a finding with the file, the line, why it is wron…
+--- Assistant agent-1793465939073-7
+Verdict: **fail**. Three concrete defects were found.
+
+1. **High — Security — incomplete HTML escaping**
+
+   - **File:** `src/users.js:18-20`
+   - **Evidence:** `String.replace()` with string arguments replaces only the first occurrence.  
+     `escapeHtml('<b>x</b><i>y</i>')` returns `&lt;b&gt;x</b><i>y</i>`, allowing markup/script injection through `userRow`.
+   - **Recommendation:** Escape all occurrences using a character-mapping regex, including `&`, `<`, `>`, `"`, and `'`.
+
+2. **Medium — Functional correctness — pagination is off by one**
+
+   - **File:** `src/users.js:5`
+   - **Evidence:** The contract says page `1` is the first page, but `start` is calculated as `page * size`. Page 1 of four items with size 2 returns items 3–4 instead of 1–2.
+   - **Recommendation:** Calculate the offset as `(page - 1) * size`, with validation for page and size if external input is accepted.
+
+3. **Medium — Functional correctness — age calculation ignores birthday month/day**
+
+   - **File:** `src/users.js:11-12`
+   - **Evidence:** Someone born on December 31, 2008 is considered an adult on January 1, 2026, although their 18th birthday has not occurred.
+   - **Recommendation:** Compare the current date with the birthday in the current year, not just the year difference.
+
+4. **Low — Testing — no automated coverage**
+
+   - **File:** `package.json:1`
+   - **Evidence:** `npm test` succeeds with `0` tests, leaving pagination, age boundaries, and escaping unprotected.
+   - **Recommendation:** Add tests covering page indexing, birthdays before/after the cutoff, repeated special characters, and XSS payloads.
+
+The review covered `src/users.js`, `package.json`, `README.md`, repository history, and the available test command. No callers, browser integration, external architecture documentation, or dependency usage were present to inspect. No files were modified.
+
+```atlas-result
+{"status":"fail","outcome":"fail","summary":"Validation failed: src/users.js contains an HTML escaping vulnerability, off-by-one pagination, and incorrect birthday handling; the project also has no automated tests.","artifacts":[],"decisions":[{"title":"Review verdict","decision":"fail","rationale":"The escaping defect is security-relevant, and the pagination and age calculations violate their documented behavior."}],"findings":[{"severity":"high","category":"Security","title":"HTML escaping replaces only the first occurrence","description":"escapeHtml uses non-global string replacements, so repeated markup remains unescaped and userRow can emit executable HTML/script content.","file":"src/users.js","line":18,"evidence":"escapeHtml('<b>x</b><i>y</i>') returns '&lt;b&gt;x</b><i>y</i>'.","recommendation":"Use a global character-mapping escape routine covering &, <, >, double quote, and single quote."},{"severity":"medium","category":"Architecture","title":"Pagination contradicts its documented page contract","description":"Page 1 starts at index size rather than index 0.","file":"src/users.js","line":5,"evidence":"paginate(['a','b','c','d'], 1, 2) returns ['c','d'].","recommendation":"Use (page - 1) * size and validate page and size inputs where appropriate."},{"severity":"medium","category":"Functional correctness","title":"Adult calculation ignores month and day","description":"The implementation treats everyone born in the same year as having already reached the target age.","file":"src/users.js","line":11,"evidence":"A 2008-12-31 birth date is considered adult on 2026-01-01.","recommendation":"Compare today against the birthday occurring in the current year."},{"severity":"low","category":"Testing","title":"No automated tests exist","description":"The configured test command runs successfully but discovers zero tests, so the documented behavior and security boundary are unverified.","file":"package.json","line":1,"evidence":"npm test reports 0 tests, 0 pass, 0 fail.","recommendation":"Add focused tests for pagination, birthday boundaries, repeated escaping, and XSS payloads."}],"touchedFiles":[],"touchedAreas":["src/users.js"],"nextAction":"Fix the three implementation defects and add regression tests."}
+```

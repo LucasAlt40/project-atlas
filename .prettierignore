@@ -6,5 +6,10 @@ src-tauri/gen
 package-lock.json
 docs/design-review/*/stitch
 tmp
+# Benchmark: tasks are exact inputs (the prompt, fixtures, hidden tests) and results are what the
+# agents wrote; never reformat them.
+bench/tasks
+bench/results
 # Local MCP configuration of the developer's own tools (not tracked)
 .mcp.json
+bench/.cache

@@ -1,0 +1,16 @@
+--- Assistant
+I’ll inspect the repository instructions and the cart implementation/tests, then patch the calculation and add a focused regression test. I’ll run the relevant test suite afterward.
+--- Assistant
+The root cause is threefold: `qty` is ignored, percentage coupons return the discount amount instead of the remaining subtotal, and fixed discounts can drive the result below zero. I’ll calculate in integer cents, apply the coupon to the subtotal, clamp at zero, and round once at the end.
+--- Assistant
+Fixed `src/cart.js`:
+
+- Applies item quantities.
+- Correctly applies percentage discounts.
+- Prevents negative totals.
+- Calculates in cents to avoid floating-point artifacts.
+- Ignores unknown coupons.
+
+Added regression coverage in `test/cart.test.js`.
+
+All 3 tests pass.

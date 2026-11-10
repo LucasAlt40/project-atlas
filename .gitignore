@@ -85,3 +85,6 @@ $RECYCLE.BIN/
 .claude/worktrees/
 # Atlas: local project knowledge, kept out of Git
 .atlas/
+
+# Benchmark: fixtures fetched from public repositories (bench/fixture.mjs)
+bench/.cache/

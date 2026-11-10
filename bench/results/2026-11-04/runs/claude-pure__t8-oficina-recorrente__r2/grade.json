@@ -1,0 +1,34 @@
+{
+  "id": "claude-pure__t8-oficina-recorrente__r2",
+  "task": "t8-oficina-recorrente",
+  "kind": "bugfix-real",
+  "changed": [
+    "src/main/java/br/org/oficinadasmeninas/infra/paymentgateway/pagbank/service/PaymentGatewayService.java",
+    "src/test/java/br/org/oficinadasmeninas/infra/paymentgateway/pagbank/service/PaymentGatewayServiceNotifyPaymentTest.java"
+  ],
+  "added": 241,
+  "removed": 6,
+  "outOfScope": [],
+  "hasTree": true,
+  "ownTestFiles": 1,
+  "ownTests": {
+    "pass": 6,
+    "fail": 0,
+    "failed": [],
+    "compiled": true,
+    "exit": 0,
+    "tail": "Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3\nWARNING: A Java agent has been loaded dynamically (/Users/lucasalt/.m2/repository/net/bytebuddy/byte-buddy-agent/1.17.7/byte-buddy-agent-1.17.7.jar)\nWARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning\nWARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information\nWARNING: Dynamic loading of agents will be disallowed by default in a future release\n"
+  },
+  "hidden": {
+    "pass": 5,
+    "fail": 2,
+    "failed": [
+      "theFirstChargeUpdatesTheCheckoutPaymentWithoutAddingOne",
+      "theSponsorshipIsStillActivatedForARecurringCharge"
+    ],
+    "compiled": true,
+    "exit": 1,
+    "tail": "rayList.forEach(ArrayList.java:1596)\n\tat java.base/java.util.ArrayList.forEach(ArrayList.java:1596)\n\n[ERROR] Failures: \n[ERROR]   RecurringDonationPaymentsHiddenTest.theFirstChargeUpdatesTheCheckoutPaymentWithoutAddingOne:176 expected: <1> but was: <2>\n[ERROR]   RecurringDonationPaymentsHiddenTest.theSponsorshipIsStillActivatedForARecurringCharge:234 expected: <1> but was: <2>\n[ERROR] Tests run: 7, Failures: 2, Errors: 0, Skipped: 0\n[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.3:test (default-test) on project oficinadasmeninas: There are test failures.\n[ERROR] \n[ERROR] See /private/var/folders/r3/gtmdzdhn7138rqntsg15l6980000gn/T/atlas-grade-oE3RUB/target/surefire-reports for the individual test results.\n[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.\n[ERROR] -> [Help 1]\n[ERROR] \n[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.\n[ERROR] Re-run Maven using the -X switch to enable full debug logging.\n[ERROR] \n[ERROR] For more information about the errors and possible solutions, please read the following articles:\n[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException\nMockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3\nWARNING: A Java agent has been loaded dynamically (/Users/lucasalt/.m2/repository/net/bytebuddy/byte-buddy-agent/1.17.7/byte-buddy-agent-1.17.7.jar)\nWARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning\nWARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information\nWARNING: Dynamic loading of agents will be disallowed by default in a future release\n"
+  },
+  "hiddenScore": 0.7142857142857143
+}

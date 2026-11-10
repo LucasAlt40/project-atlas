@@ -1025,6 +1025,15 @@ impl<'a> WorkflowEngine<'a> {
         !link.failure_route && exec.node_state(&link.source).is_some_and(|s| s.routed)
     }
 
+    /// Whether `node` is a join: a condition that waits for every link into it, in or out of a
+    /// cycle, each time round (see [`ConditionNode`](crate::domain::workflow::ConditionNode)).
+    fn is_join(&self, node: &str) -> bool {
+        self.graph
+            .workflow
+            .node(node)
+            .is_some_and(|n| matches!(&n.kind, NodeKind::Condition(c) if c.join))
+    }
+
     /// Whether the links that have fired towards `node` activate it.
     fn satisfied(
         &self,
@@ -1033,6 +1042,13 @@ impl<'a> WorkflowEngine<'a> {
         activated: &BTreeSet<String>,
     ) -> bool {
         let ins: Vec<&Link> = self.graph.in_links(node).collect();
+        if self.is_join(node) {
+            // Every way in, since the join last ran (entering clears what had fired).
+            return ins
+                .iter()
+                .all(|l| activated.contains(&l.id) || Self::handed_to_failure_route(exec, l))
+                && ins.iter().any(|l| activated.contains(&l.id));
+        }
         if ins
             .iter()
             .any(|l| self.graph.is_internal(l) && activated.contains(&l.id))
@@ -1308,6 +1324,9 @@ impl<'a> WorkflowEngine<'a> {
             .map(|s| s.activated_edges.clone())
             .unwrap_or_default();
         let ins: Vec<&Link> = self.graph.in_links(node).collect();
+        if self.is_join(node) {
+            return ins.iter().all(|l| self.link_alive(exec, l, &activated));
+        }
         if ins
             .iter()
             .any(|l| self.graph.is_internal(l) && self.link_alive(exec, l, &activated))
@@ -1431,15 +1450,24 @@ impl<'a> WorkflowEngine<'a> {
         }
         match &node.kind {
             NodeKind::Condition(condition) => {
-                // The facts of the step that led here: the first activating link, in link order.
-                let upstream = self
+                // The facts of the steps that led here: the first activating link, in link order;
+                // for a join, every one of them, and the condition must hold for each.
+                let upstream: Vec<Facts> = self
                     .graph
                     .in_links(id)
-                    .find(|l| activated.contains(&l.id))
-                    .and_then(|l| exec.node_state(&l.source))
-                    .map(|s| s.facts.clone())
-                    .unwrap_or_default();
-                let matched = condition.condition.evaluate(&upstream);
+                    .filter(|l| activated.contains(&l.id))
+                    .take(if condition.join { usize::MAX } else { 1 })
+                    .map(|l| {
+                        exec.node_state(&l.source)
+                            .map(|s| s.facts.clone())
+                            .unwrap_or_default()
+                    })
+                    .collect();
+                let matched = if upstream.is_empty() {
+                    condition.condition.evaluate(&Facts::new())
+                } else {
+                    upstream.iter().all(|f| condition.condition.evaluate(f))
+                };
                 let mut facts = Facts::new();
                 facts.insert("result.matched".to_owned(), matched.to_string());
                 if let Some(state) = exec.nodes.get_mut(id) {

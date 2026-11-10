@@ -1,0 +1,48 @@
+[
+ {
+  "headline": true,
+  "finding": "Qualidade: os 40 códigos entregues passam 100% dos testes ocultos, inclusive no bug real da Oficina das Meninas (T8). Com o haiku e tarefas bem especificadas, o Claude puro resolve tudo sozinho: o Atlas não ganha na nota.",
+  "fix": "Para a apresentação: o argumento do Atlas não é 'acerta mais' nestas tarefas, e sim verificar o que entrega, isolar e auditar. Medir qualidade de verdade pede tarefas ambíguas ou maiores e modelos mais fortes.",
+  "metric": "Nota oculta",
+  "priority": "Alta",
+  "effort": "—"
+ },
+ {
+  "headline": true,
+  "finding": "Verificação: o Claude puro não pode rodar testes em modo -p e, no bug real, entregou um teste próprio QUEBRADO em 1 de 2 execuções. Nos braços do Atlas, os agentes rodaram os testes (npm test, mvn test) e nenhuma execução entregou teste falhando (0 de 24).",
+  "fix": "É a diferença mais clara a favor do Atlas: o que ele entrega foi executado, não só escrito.",
+  "metric": "Execuções com teste próprio falhando: puro 1/16, Atlas 0/24",
+  "priority": "Alta",
+  "effort": "—"
+ },
+ {
+  "headline": true,
+  "finding": "Custo e tempo (média por tarefa): Claude puro US$ 0.0348 e 63 s; Atlas Implement/Debug/Review US$ 0.0487 (1.4×) e 191 s (3.0×). Nas features, o Quick custa US$ 0.0203 contra US$ 0.0297 do Implement e US$ 0.0134 do puro.",
+  "fix": "Usar o Quick como padrão para mudanças pequenas e bem especificadas; o Implement para as complexas.",
+  "metric": "Custo Atlas/puro",
+  "priority": "Alta",
+  "effort": "Baixo"
+ },
+ {
+  "headline": true,
+  "finding": "Bug real (T8): uma execução do Atlas terminou como falha depois de 4 correções e 3 QA (981 s, 5,5 milhões de tokens de entrada) com o código correto no worktree. Duas causas do produto: (1) o QA roda só lendo e o sandbox de leitura nega escrita na pasta, então o Maven (que escreve em target/) não roda e o QA julga lendo, achando riscos novos a cada volta; (2) o sandbox do Claude impede o Mockito inline de se anexar à JVM, e o Corretor teve de contornar.",
+  "fix": "(1) Deixar os passos que julgam escreverem em pastas de build (target/, build/, .gradle) ou rodarem os testes numa cópia temporária; (2) liberar o carregamento de agente da JVM no sandbox (ou passar -XX:+EnableDynamicAgentLoading / Mockito como agente); (3) limitar as voltas de correção do Debug & fix por custo.",
+  "metric": "Execuções do Atlas que falham com código correto; tokens no T8",
+  "priority": "Alta",
+  "effort": "Médio"
+ },
+ {
+  "finding": "No projeto real o custo explode nos dois lados: o Claude puro leu ~1.7 milhão de tokens de entrada por execução no T8 (contra ~0,3 milhão nas sintéticas) e o Atlas ~3.9 milhões.",
+  "fix": "Contexto do projeto mais direcionado (Harness/Task Context do Atlas ligado, handoff com os arquivos já lidos) para não reler o repositório a cada passo.",
+  "metric": "Tokens de entrada no T8",
+  "priority": "Média",
+  "effort": "Médio"
+ },
+ {
+  "finding": "O Codex não foi medido nesta rodada: a cota da conta ChatGPT está esgotada até 16/11.",
+  "fix": "Rodar os braços do Codex depois de 16/11, com 1 rodada, para completar a comparação.",
+  "metric": "—",
+  "priority": "Média",
+  "effort": "Baixo"
+ }
+]

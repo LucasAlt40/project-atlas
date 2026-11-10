@@ -1,0 +1,18 @@
+--- Assistant
+Priorities are implemented in `src/store.js` and `src/format.js`, and the new tests are in `test/priority.test.js`. I could not run the test suite: `npm test` and `node --test` were both held for approval, which I can't grant in this session. The checks below are by reading the code, not by running it.
+
+**What changed**
+- **`src/store.js`**
+  - `add(title, options)` takes `options.priority`, defaults to `'normal'`, and throws a `RangeError` for any other value. The todo gets a `priority` field.
+  - `list(filter)` keeps only the todos with `filter.priority` when it's given. Otherwise it sorts high, then normal, then low. `Array.prototype.sort` is stable, so the insertion order is kept within each priority.
+- **`src/format.js`**: high-priority todos render as `[ ] !Pay rent`. Other priorities render as before.
+- **`test/priority.test.js`** (new): covers the default, explicit values, invalid values (including `null`), sort order, the filter, copy semantics, and the `!` marker for open and done todos.
+
+**Existing behaviour**
+- The existing tests in `test/store.test.js` use todos without a `priority` field. The `!` check only fires for `'high'`, so the format test is unaffected. The add/list test still gets insertion order because every todo defaults to `'normal'`.
+
+**Choices I made where the spec was silent**
+- `filter.priority` with an unknown value returns an empty list rather than throwing.
+- `null` as a priority throws, rather than falling back to the default. Only `undefined` gets the default.
+
+**To verify:** run `npm test` in the project. Once the approval is granted, I can run it and fix anything that fails.

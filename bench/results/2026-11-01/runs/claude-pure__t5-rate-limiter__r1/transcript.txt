@@ -1,0 +1,19 @@
+--- Assistant
+I added `src/limiter.js` and `test/limiter.test.js`, but I could not run the tests. Every Bash call, including `node --test`, was refused with "This command requires approval", so the suite is unverified. I checked the test expectations by hand, and that turned up one wrong value, which I fixed (see below).
+
+**To run them:** `node --test test/limiter.test.js` from the repo root, or `npm test`.
+
+**What's in `src/limiter.js`**
+- Exports `{ createLimiter }`. Options are validated up front, and bad `capacity` or `refillPerSecond` values throw `RangeError`.
+- The bucket starts full. Refill is continuous and capped at `capacity`. `now` defaults to `Date.now`.
+- If the clock goes backwards, nothing is added and the earlier time becomes the reference.
+- `n` must be a positive integer, and `n > capacity` throws in both `tryRemove` and `msUntil`. The spec only stated that for `tryRemove`, but `msUntil` says it follows the same rules.
+- `available()` floors the token count. `msUntil()` rounds up.
+- I added a 1e-9 tolerance on token comparisons, so float drift from the fractional refill cannot make a bucket that should hold exactly `n` tokens report slightly fewer.
+
+**What's in `test/limiter.test.js`**
+- Uses `node:test` and `node:assert`, with a hand-advanced fake clock.
+- Covers validation, starting full, `tryRemove` success and failure, refill timing (including fractional rates), the capacity cap, `msUntil` rounding, `reset`, and the clock-going-backwards case.
+- While checking by hand, I found that one `msUntil` expectation was wrong (1.5 missing tokens at 2/s is 750 ms, not 1000). I corrected it before finishing.
+
+No other files were touched.

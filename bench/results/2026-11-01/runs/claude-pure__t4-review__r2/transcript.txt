@@ -1,0 +1,26 @@
+--- Assistant
+I reviewed `src/users.js` and changed nothing. I found three defects, all of which are real and reproducible by reading the code.
+
+**1. `paginate`, line 5: page numbering is off by one (correctness)**
+- **Why it's wrong:** The doc comment says page 1 is the first page, but `start = page * size` treats the input as zero-based. `paginate(items, 1, 10)` returns items 10–19, so the first page is never shown. `paginate(items, 0, 10)` returns the first page even though 0 is not a valid page.
+- **Fix:** `const start = (page - 1) * size;`. If 0 should stay valid, document that instead, but the current comment contradicts the code.
+
+**2. `isAdult`, lines 11–12: ignores month and day (correctness)**
+- **Why it's wrong:** It subtracts only the birth year, so it returns the wrong answer near each birthday. On 2026-11-01, someone born 2008-12-01 is 17, but the code computes 18 and returns `true`.
+- **Fix:** Subtract one if the birthday has not yet occurred on `today`:
+  ```js
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const beforeBirthday =
+    today.getMonth() < birthDate.getMonth() ||
+    (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate());
+  if (beforeBirthday) age -= 1;
+  return age >= 18;
+  ```
+
+**3. `escapeHtml`, lines 18–20: only the first occurrence is escaped (security)**
+- **Why it's wrong:** `String.prototype.replace` with a string pattern replaces only the first match. `escapeHtml('<a><b>')` returns `&lt;a><b>`, so the remaining `<` and `>` pass through unescaped. This is an XSS risk wherever the output is inserted as HTML, including `userRow` on line 25 when a name contains several special characters.
+- **Fix:** Use global regexes: `.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')`. The `&` replacement must stay first. Also add `.replace(/"/g, '&quot;').replace(/'/g, '&#39;')`, because the function is not safe inside attribute values without them. Consider a test covering multiple occurrences of each character.
+
+**Minor, lower priority:**
+- `escapeHtml(null)` and `escapeHtml(undefined)` return the literal strings `"null"` and `"undefined"`, which would show up in the table if `name` is missing. Consider defaulting missing values to `''`.
+- `paginate` does not handle non-integer, negative, or `NaN` inputs. `slice` with a negative `start` counts from the end, so a negative page returns surprising results.

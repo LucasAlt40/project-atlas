@@ -1,0 +1,31 @@
+{
+  "id": "claude-pure__t8-oficina-recorrente__r1",
+  "task": "t8-oficina-recorrente",
+  "kind": "bugfix-real",
+  "changed": [
+    "src/main/java/br/org/oficinadasmeninas/infra/paymentgateway/pagbank/service/PaymentGatewayService.java",
+    "src/test/java/br/org/oficinadasmeninas/infra/paymentgateway/pagbank/service/PaymentGatewayServiceNotifyPaymentTest.java"
+  ],
+  "added": 276,
+  "removed": 3,
+  "outOfScope": [],
+  "hasTree": true,
+  "ownTestFiles": 1,
+  "ownTests": {
+    "pass": 7,
+    "fail": 0,
+    "failed": [],
+    "compiled": true,
+    "exit": 0,
+    "tail": "Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3\nWARNING: A Java agent has been loaded dynamically (/Users/lucasalt/.m2/repository/net/bytebuddy/byte-buddy-agent/1.17.7/byte-buddy-agent-1.17.7.jar)\nWARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning\nWARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information\nWARNING: Dynamic loading of agents will be disallowed by default in a future release\n"
+  },
+  "hidden": {
+    "pass": 7,
+    "fail": 0,
+    "failed": [],
+    "compiled": true,
+    "exit": 0,
+    "tail": "Standard Commons Logging discovery in action with spring-jcl: please remove commons-logging.jar from classpath in order to avoid potential conflicts\nMockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3\nWARNING: A Java agent has been loaded dynamically (/Users/lucasalt/.m2/repository/net/bytebuddy/byte-buddy-agent/1.17.7/byte-buddy-agent-1.17.7.jar)\nWARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning\nWARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information\nWARNING: Dynamic loading of agents will be disallowed by default in a future release\n"
+  },
+  "hiddenScore": 1
+}

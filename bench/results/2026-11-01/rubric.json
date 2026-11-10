@@ -1,0 +1,322 @@
+{
+ "atlas-claude-quick__t1-slugify__r1": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (14/14 ocultos), dentro do escopo, 10 testes próprios passando; testes rodados pelos agentes."
+ },
+ "atlas-claude-quick__t1-slugify__r2": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (14/14 ocultos), dentro do escopo, 10 testes próprios passando; testes rodados pelos agentes."
+ },
+ "atlas-claude-quick__t3-todo-priority__r1": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (12/12 ocultos), dentro do escopo, 11 testes próprios passando; testes rodados pelos agentes."
+ },
+ "atlas-claude-quick__t3-todo-priority__r2": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (12/12 ocultos), dentro do escopo, 12 testes próprios passando; testes rodados pelos agentes."
+ },
+ "atlas-claude-quick__t5-rate-limiter__r1": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (12/12 ocultos), dentro do escopo, 23 testes próprios passando; testes rodados pelos agentes."
+ },
+ "atlas-claude-quick__t5-rate-limiter__r2": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (12/12 ocultos), dentro do escopo, 16 testes próprios passando; testes rodados pelos agentes."
+ },
+ "atlas-claude-quick__t7-order-cancel__r1": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (10/10 ocultos), dentro do escopo, 8 testes próprios passando; testes rodados pelos agentes."
+ },
+ "atlas-claude-quick__t7-order-cancel__r2": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (10/10 ocultos), dentro do escopo, 8 testes próprios passando; testes rodados pelos agentes."
+ },
+ "atlas-claude__t1-slugify__r1": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (14/14 ocultos), dentro do escopo, 11 testes próprios passando; testes rodados pelos agentes."
+ },
+ "atlas-claude__t1-slugify__r2": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (14/14 ocultos), dentro do escopo, 11 testes próprios passando; testes rodados pelos agentes."
+ },
+ "atlas-claude__t2-cart-bug__r1": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (11/11 ocultos), dentro do escopo, 9 testes próprios passando; testes rodados pelos agentes."
+ },
+ "atlas-claude__t2-cart-bug__r2": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (11/11 ocultos), dentro do escopo, 7 testes próprios passando; testes rodados pelos agentes."
+ },
+ "atlas-claude__t3-todo-priority__r1": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (12/12 ocultos), dentro do escopo, 10 testes próprios passando; testes rodados pelos agentes."
+ },
+ "atlas-claude__t3-todo-priority__r2": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (12/12 ocultos), dentro do escopo, 12 testes próprios passando; testes rodados pelos agentes; 1 volta(s) de correção."
+ },
+ "atlas-claude__t4-review__r1": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "3/3 defeitos com severidade e correção."
+ },
+ "atlas-claude__t4-review__r2": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "3/3 defeitos com severidade e correção."
+ },
+ "atlas-claude__t5-rate-limiter__r1": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (12/12 ocultos), dentro do escopo, 19 testes próprios passando; testes rodados pelos agentes."
+ },
+ "atlas-claude__t5-rate-limiter__r2": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (12/12 ocultos), dentro do escopo, 22 testes próprios passando; testes rodados pelos agentes."
+ },
+ "atlas-claude__t6-csv-bug__r1": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (12/12 ocultos), dentro do escopo, 11 testes próprios passando; testes rodados pelos agentes."
+ },
+ "atlas-claude__t6-csv-bug__r2": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (12/12 ocultos), dentro do escopo, 10 testes próprios passando; testes rodados pelos agentes."
+ },
+ "atlas-claude__t7-order-cancel__r1": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (10/10 ocultos), dentro do escopo, 8 testes próprios passando; testes rodados pelos agentes."
+ },
+ "atlas-claude__t7-order-cancel__r2": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (10/10 ocultos), dentro do escopo, 9 testes próprios passando; testes rodados pelos agentes."
+ },
+ "atlas-claude__t8-oficina-recorrente__r1": {
+  "correct": 4,
+  "readable": 1,
+  "scope": 1,
+  "tests": 2,
+  "score": 8,
+  "note": "Correção certa (pagamento do mês/checkout é atualizado, senão cria; repetida ignorada), 8 testes próprios passando e rodados. Mas faz uma consulta extra ao banco para saber se é recorrente, deixou um arquivo de contorno do Mockito (só um comentário, inofensivo) e a execução terminou FALHA após 4 correções e 3 QA (981 s, 5,5 mi tokens): o QA não conseguia rodar o Maven no sandbox de leitura e reprovou por riscos lidos."
+ },
+ "atlas-claude__t8-oficina-recorrente__r2": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correção certa e limpa (savePayment/findPaymentToUpdate com javadoc), 6 testes próprios passando e rodados pelo Corretor; uma passada de QA aprovou. 386 s."
+ },
+ "claude-pure__t1-slugify__r1": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (14/14 ocultos), dentro do escopo, 12 testes próprios passando; sem poder rodar os testes (Bash negado em -p)."
+ },
+ "claude-pure__t1-slugify__r2": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (14/14 ocultos), dentro do escopo, 12 testes próprios passando; sem poder rodar os testes (Bash negado em -p)."
+ },
+ "claude-pure__t2-cart-bug__r1": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 1,
+  "score": 9,
+  "note": "Correto (11/11 ocultos), dentro do escopo, 3 testes próprios passando; sem poder rodar os testes (Bash negado em -p)."
+ },
+ "claude-pure__t2-cart-bug__r2": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 1,
+  "score": 9,
+  "note": "Correto (11/11 ocultos), dentro do escopo, 3 testes próprios passando; sem poder rodar os testes (Bash negado em -p)."
+ },
+ "claude-pure__t3-todo-priority__r1": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (12/12 ocultos), dentro do escopo, 10 testes próprios passando; sem poder rodar os testes (Bash negado em -p)."
+ },
+ "claude-pure__t3-todo-priority__r2": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (12/12 ocultos), dentro do escopo, 11 testes próprios passando; sem poder rodar os testes (Bash negado em -p)."
+ },
+ "claude-pure__t4-review__r1": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "3/3 defeitos com severidade e correção."
+ },
+ "claude-pure__t4-review__r2": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "3/3 defeitos com severidade e correção."
+ },
+ "claude-pure__t5-rate-limiter__r1": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (12/12 ocultos), dentro do escopo, 18 testes próprios passando; sem poder rodar os testes (Bash negado em -p)."
+ },
+ "claude-pure__t5-rate-limiter__r2": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (12/12 ocultos), dentro do escopo, 20 testes próprios passando; sem poder rodar os testes (Bash negado em -p)."
+ },
+ "claude-pure__t6-csv-bug__r1": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (12/12 ocultos), dentro do escopo, 10 testes próprios passando; sem poder rodar os testes (Bash negado em -p)."
+ },
+ "claude-pure__t6-csv-bug__r2": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (12/12 ocultos), dentro do escopo, 11 testes próprios passando; sem poder rodar os testes (Bash negado em -p)."
+ },
+ "claude-pure__t7-order-cancel__r1": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (10/10 ocultos), dentro do escopo, 8 testes próprios passando; sem poder rodar os testes (Bash negado em -p)."
+ },
+ "claude-pure__t7-order-cancel__r2": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correto (10/10 ocultos), dentro do escopo, 9 testes próprios passando; sem poder rodar os testes (Bash negado em -p)."
+ },
+ "claude-pure__t8-oficina-recorrente__r1": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 2,
+  "score": 10,
+  "note": "Correção certa e bem documentada (javadoc em português): atualiza o checkout WAITING, depois o pagamento do mês; ignora repetida no mês; senão cria um novo. 7 testes próprios passando. Não pôde rodar os testes (Bash negado em -p), mas eles passam."
+ },
+ "claude-pure__t8-oficina-recorrente__r2": {
+  "correct": 4,
+  "readable": 2,
+  "scope": 2,
+  "tests": 0,
+  "score": 8,
+  "note": "Correção mais robusta das quatro: trata WAITING, ACTIVE e IN_ANALYSIS como cobrança em andamento. Mas entregou um teste próprio QUEBRADO (recurringChargeKeepsUpdatingMethodCardBrandAndFee): sem poder rodar mvn test, não percebeu."
+ }
+}

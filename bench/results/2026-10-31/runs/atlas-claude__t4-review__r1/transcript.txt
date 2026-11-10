@@ -1,0 +1,41 @@
+--- User agent-1793417205080-7
+Review code and architecture: Review src/users.js for correctness and security. Report each defect you find as a finding with the file, the line, why it is wron…
+--- Assistant agent-1793417205080-7
+Read the file, README, and package.json. There are no tests and no callers in the repo, so I'm reviewing `src/users.js` on its own.
+
+## Verdict: fail
+
+`src/users.js` has two defects that must be fixed before acceptance: the HTML escaper only escapes the first occurrence of each character, which is an XSS risk, and the pagination offset contradicts its own docstring. The age check is also wrong near birthdays. All findings below rest on reading alone; I did not execute the code.
+
+## Findings (most severe first)
+
+**1. High · Security · `src/users.js:16-21` (`escapeHtml`)**
+- **Why it's wrong:** `String.prototype.replace` with a string pattern replaces only the first match. `<`, `>` and `&` are escaped only once per string. Any later `<` or `>` passes through raw, so the escaper does not make text safe for HTML, although its docstring says it does.
+- **Example (by reasoning):** `escapeHtml("<script>alert(1)</script>")` yields `&lt;script&gt;alert(1)</script>`. The closing tag's `<` is still raw, and `userRow` interpolates the result straight into a `<td>`, so a user name containing a second tag can inject markup.
+- **Recommendation:** use global regexes, e.g. `.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')`. Keep `&` first. Consider also escaping `"` and `'` (`&quot;`, `&#39;`) so the helper stays safe if it is ever used in an attribute.
+
+**2. High · Correctness · `src/users.js:3-7` (`paginate`)**
+- **Why it's wrong:** the docstring says page 1 is the first page, but `start = page * size` makes page 1 skip the first `size` items. Page 1 returns items `size..2*size-1`, and the first page is unreachable through the documented API. Page 0 returns the first page, which contradicts the docstring.
+- **Evidence:** line 3 (docstring) vs line 5 (`const start = page * size;`).
+- **Recommendation:** `const start = (page - 1) * size;`, and reject `page < 1` or non-integer `size` (throw a `RangeError`, or clamp deliberately). Without that check, a negative page gives a negative `start`, which `slice` treats as an index from the end and returns the wrong rows silently.
+
+**3. Medium · Correctness · `src/users.js:9-13` (`isAdult`)**
+- **Why it's wrong:** the age is the difference of calendar years only. Someone born 2008-12-31 is treated as 18 on 2026-01-01 when they are actually 17. The check ignores month and day, so it is off by one for part of every year.
+- **Recommendation:** compute the year difference, then subtract one if the birthday has not happened yet on `today`: compare `today.getMonth()` and `today.getDate()` with `birthDate`'s values, or compute `age` from `today` and `birthDate` as full years.
+
+**4. Low · Maintainability / Testing · whole file**
+- **Why it matters:** `package.json:1` declares `"test": "node --test"`, but there is no test file in the repo (the glob returned only `src/users.js`, `package.json`, `README.md`). None of the defects above would be caught.
+- **Recommendation:** add `test/users.test.js` covering: page 1 returns the first `size` items; `escapeHtml` escapes every occurrence; `isAdult` on the day before and the day of an 18th birthday.
+
+**5. Low · Security (latent) · `src/users.js:16-21`**
+- **Why it matters:** the helper is documented as "safe to put inside HTML", but it does not escape quotes. That is only safe in text content. Any future use inside an attribute value would be injectable. There is no attribute usage in this file today.
+- **Recommendation:** fix together with finding 1 (escape `"` and `'`), or narrow the docstring to "safe as HTML text content".
+
+## Not examined
+- Callers and the page template that consumes `userRow`/`paginate` (not in this repo), so I could not confirm whether any caller already passes 0-based pages or pre-escapes input.
+- Git history beyond the two commit messages (`initial`, `fixture`); I did not read the diffs.
+- Runtime behaviour: nothing was executed, so all findings are from reading the code.
+
+```atlas-result
+{"status":"success","outcome":"fail","summary":"Review of src/users.js found an incomplete HTML escaper (XSS risk, only first occurrence replaced), a pagination offset that contradicts its docstring, an off-by-one-year age check, and no test coverage. Findings rest on reading alone.","artifacts":[{"type":"implementation_summary","name":"Review of src/users.js","path":"src/users.js","summary":"Read-only architecture and correctness review; 5 findings, verdict fail."}],"decisions":[{"title":"Review verdict","decision":"fail","rationale":"escapeHtml does not escape repeated <, >, & characters, which is a security defect; paginate skips the first page under its documented contract."}],"findings":[{"severity":"high","category":"Security","title":"escapeHtml only replaces the first occurrence of each character","description":"String.replace with a string pattern affects only the first match, so later <, > and & are not escaped. Output from userRow is inserted into HTML, allowing markup injection.","file":"src/users.js","line":16,"evidence":"src/users.js:17-20: .replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')","recommendation":"Use global regexes: .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); keep & first; also escape \" and ' if the helper may be used in attributes."},{"severity":"high","category":"Correctness","title":"paginate skips the first page under its 1-based contract","description":"Docstring says page 1 is the first page, but start = page * size makes page 1 start at index size. Page 0 returns the first page, and negative pages produce negative slice starts.","file":"src/users.js","line":5,"evidence":"src/users.js:3 docstring '(1 is the first page)' vs src/users.js:5 'const start = page * size;'","recommendation":"Use (page - 1) * size and validate page >= 1 and size as a positive integer, throwing RangeError on invalid input."},{"severity":"medium","category":"Correctness","title":"isAdult ignores month and day","description":"Age is computed from the calendar-year difference only, so people are counted as adults up to 364 days early.","file":"src/users.js","line":11,"evidence":"src/users.js:11-12: const age = today.getFullYear() - birthDate.getFullYear(); return age >= 18;","recommendation":"Subtract one when today's month/day is before the birth month/day, or compute full years from both dates."},{"severity":"low","category":"Testing","title":"No tests despite a configured test script","description":"package.json declares 'node --test' but the repo has no test files, so the defects above are not covered.","file":"package.json","line":1,"evidence":"package.json:1 \"test\": \"node --test\"; glob finds only src/users.js, package.json, README.md","recommendation":"Add test/users.test.js covering first-page pagination, all-occurrence escaping, and the birthday boundary for isAdult."},{"severity":"low","category":"Security","title":"escapeHtml does not escape quotes","description":"Output is only safe in text content; using it inside an attribute would be injectable. Not currently used that way.","file":"src/users.js","line":16,"evidence":"src/users.js:15 docstring 'Text safe to put inside HTML.'; no quote escaping in lines 17-20","recommendation":"Escape \" and ' as part of the fix for finding 1, or narrow the docstring to text content."}],"touchedFiles":[],"touchedAreas":["src/users.js"],"nextAction":"Fix escapeHtml and paginate, correct isAdult, and add tests; then re-review. Callers were not in the repo and were not checked."}
+```

@@ -62,7 +62,8 @@ quando o processo _é_ confinado; sem confinamento o Codex mantém o dele. A aud
 `sandbox:replaces_cli_sandbox:codex`. O mesmo vale, em princípio, para qualquer ferramenta que se confine sozinha.
 
 **Ferramentas por runtime sob o Atlas** (o que o teste real precisa respeitar): o Claude recebe só `Read, Grep, Glob, Edit,
-Write` (sem shell), o agy aceita edições e recusa shell em modo headless, o OpenCode e o Codex têm shell.
+Write` (sem shell; desde a [ADR 0044](0044-comandos-de-teste-e-textos-por-runtime.md), `Bash` só para os comandos de teste do
+projeto, no sandbox da própria CLI), o agy aceita edições e recusa shell em modo headless, o OpenCode e o Codex têm shell.
 
 ### 4. Perfil gerado, não escrito à mão
 

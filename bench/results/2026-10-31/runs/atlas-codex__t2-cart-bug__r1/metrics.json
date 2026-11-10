@@ -1,0 +1,75 @@
+{
+  "ok": true,
+  "exitCode": 0,
+  "status": "Completed",
+  "failure": null,
+  "elapsedMs": 123784,
+  "inputTokens": 549337,
+  "cachedInputTokens": 491776,
+  "outputTokens": 11870,
+  "costUsd": null,
+  "agentRuns": 4,
+  "steps": [
+    "bug-fixer",
+    "qa",
+    "bug-fixer-retry",
+    "qa"
+  ],
+  "perStep": [
+    {
+      "role": "fixer",
+      "ms": 31139,
+      "ok": true,
+      "inputTokens": 144714,
+      "outputTokens": 3384,
+      "totalTokens": 148098,
+      "cachedInputTokens": 128896,
+      "cost": null,
+      "currency": null,
+      "source": "runtime_reported"
+    },
+    {
+      "role": "qa",
+      "ms": 34728,
+      "ok": true,
+      "inputTokens": 153834,
+      "outputTokens": 3091,
+      "totalTokens": 156925,
+      "cachedInputTokens": 144000,
+      "cost": null,
+      "currency": null,
+      "source": "runtime_reported"
+    },
+    {
+      "role": "fixer",
+      "ms": 23897,
+      "ok": true,
+      "inputTokens": 104638,
+      "outputTokens": 2019,
+      "totalTokens": 106657,
+      "cachedInputTokens": 95232,
+      "cost": null,
+      "currency": null,
+      "source": "runtime_reported"
+    },
+    {
+      "role": "qa",
+      "ms": 32991,
+      "ok": true,
+      "inputTokens": 146151,
+      "outputTokens": 3376,
+      "totalTokens": 149527,
+      "cachedInputTokens": 123648,
+      "cost": null,
+      "currency": null,
+      "source": "runtime_reported"
+    }
+  ],
+  "id": "atlas-codex__t2-cart-bug__r1",
+  "arm": "atlas-codex",
+  "task": "t2-cart-bug",
+  "rep": 1,
+  "runtime": "codex",
+  "model": "gpt-5.6-luna",
+  "template": "bug_fix"
+}

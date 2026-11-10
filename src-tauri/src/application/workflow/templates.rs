@@ -12,9 +12,9 @@ use serde::Serialize;
 use super::template_text as text;
 use crate::domain::mcp::ToolSelection;
 use crate::domain::workflow::{
-    AgentNode, Condition, CustomTemplate, EndNode, EndOutcome, ExecutionPolicy, FailurePolicy,
-    LoopPolicy, NodeKind, RetryPolicy, SuggestionTarget, ToolCapability, ToolSuggestion, Workflow,
-    WorkflowEdge, WorkflowMode, WorkflowNode, WorkflowStatus,
+    AgentNode, Condition, ConditionNode, CustomTemplate, EndNode, EndOutcome, ExecutionPolicy,
+    FailurePolicy, LoopPolicy, NodeKind, RetryPolicy, SuggestionTarget, ToolCapability,
+    ToolSuggestion, Workflow, WorkflowEdge, WorkflowMode, WorkflowNode, WorkflowStatus,
 };
 
 /// The kinds of work Automatic mode chooses between.
@@ -146,7 +146,7 @@ const ENTRIES: [Entry; 8] = [
         recommended: false,
         featured: false,
         name: "Quick change",
-        description: "Architect, then Developer, then QA: the quick way for a small change.",
+        description: "Architect, then Developer, then QA; when QA rejects, the Developer fixes it once.",
     },
     Entry {
         id: "feature_with_validation",
@@ -550,6 +550,12 @@ impl<'a> Builder<'a> {
         }
     }
 
+    fn no_commands(&mut self, id: &str) {
+        if let Some(step) = self.agent_mut(id) {
+            step.execution_policy.no_commands = true;
+        }
+    }
+
     fn agent_mut(&mut self, id: &str) -> Option<&mut AgentNode> {
         self.nodes
             .iter_mut()
@@ -653,6 +659,37 @@ impl<'a> Builder<'a> {
         self.on(from, rejected, problem);
     }
 
+    /// A judge whose rejection is corrected once: on to `ok_to` when it accepts; when it rejects,
+    /// a fixing step (the Developer, so the template needs no other agent) corrects it and the
+    /// judge runs again. The fixer may start once (its loop limit), so a second rejection ends the
+    /// run as failed instead of looping. Without that, a rejection in a quick template ended the run
+    /// as failed with correct code in the worktree (2 of 8 benchmarked runs, `bench/`, 2026-10-31).
+    /// A judge that declares no verdict (a general agent) keeps the plain route, and no fixer is
+    /// made: a node nothing leads to is a broken workflow.
+    fn fix_once_gate(&mut self, from: &str, ok_to: &str, fixer: &str, instructions: &str) {
+        let declared = self.declared(from);
+        let has = |o: &str| declared.iter().any(|d| d.eq_ignore_ascii_case(o));
+        let pair = if has("pass") && has("fail") {
+            Some(("pass", "fail"))
+        } else if has("approved") && has("changes_requested") {
+            Some(("approved", "changes_requested"))
+        } else {
+            None
+        };
+        let Some((ok, problem)) = pair else {
+            self.then(from, ok_to);
+            return;
+        };
+        self.step(fixer, "Fix QA findings", Role::Developer, instructions)
+            .loop_policy = Some(LoopPolicy {
+            loop_id: format!("{from}_fix"),
+            max_iterations: 1,
+        });
+        self.on(from, ok_to, ok);
+        self.on(from, fixer, problem);
+        self.then(fixer, from);
+    }
+
     /// A step that fixes: on to `ok_to` when it says it fixed, to `blocked_to` when it says it
     /// could not. An agent that does not declare that pair (a general one) goes on to `ok_to`
     /// whatever it says, so the template is never born with a route its agent cannot take.
@@ -669,6 +706,59 @@ impl<'a> Builder<'a> {
             self.on(from, blocked_to, "blocked");
         } else {
             self.then(from, ok_to);
+        }
+    }
+
+    /// The verdict pair a judging step's agent declares in full, if it declares one.
+    fn verdict_pair(&self, from: &str) -> Option<(&'static str, &'static str)> {
+        let declared = self.declared(from);
+        let has = |o: &str| declared.iter().any(|d| d.eq_ignore_ascii_case(o));
+        if has("pass") && has("fail") {
+            Some(("pass", "fail"))
+        } else if has("approved") && has("changes_requested") {
+            Some(("approved", "changes_requested"))
+        } else {
+            None
+        }
+    }
+
+    /// A join: waits for every one of `judges`, each time round, and matches only when each of
+    /// them ended with `ok`. Its two ways out are `matched_to` and `otherwise_to`.
+    fn join(
+        &mut self,
+        id: &str,
+        label: &str,
+        judges: &[&str],
+        ok: &str,
+        matched_to: &str,
+        otherwise_to: &str,
+    ) {
+        self.nodes.push(WorkflowNode {
+            id: id.to_owned(),
+            kind: NodeKind::Condition(ConditionNode {
+                label: label.to_owned(),
+                condition: Condition::equals("result.outcome", ok),
+                join: true,
+            }),
+            priority: 0,
+            loop_policy: None,
+            position: None,
+        });
+        for judge in judges {
+            self.then(judge, id);
+        }
+        for (to, matched) in [(matched_to, "true"), (otherwise_to, "false")] {
+            self.edges.push(WorkflowEdge {
+                id: format!("{id}->{to}:{matched}"),
+                source_node_id: id.to_owned(),
+                target_node_id: to.to_owned(),
+                condition: Some(Condition::equals("result.matched", matched)),
+                label: if matched == "true" {
+                    ok.to_owned()
+                } else {
+                    "findings".to_owned()
+                },
+            });
         }
     }
 
@@ -716,7 +806,7 @@ pub fn instantiate(
             b.end("done", "Done");
             b.then("architect", "developer");
             b.then("developer", "qa");
-            b.verdict_gate("qa", "done");
+            b.fix_once_gate("qa", "done", "fix", text::IMPL_FIXER);
         }
         "feature_with_validation" => {
             b.step("architect", "Architect", Role::Architect, text::ARCHITECT);
@@ -746,8 +836,12 @@ pub fn instantiate(
             b.then("bug-fixer", "qa");
         }
         "software_feature" => {
-            // The Implementer: analysis and a plan sized to the task, the change, a read-only review
-            // that sends problems to a fixer, and a behaviour check that does the same.
+            // The Implementer: analysis and a plan sized to the task, the change, then a read-only
+            // review and a behaviour check. When both judges declare the same verdict pair (Atlas's
+            // own agents do), they run side by side and a join waits for both: about a quarter of
+            // an Implement run was the review waiting for nothing (`bench/`, 2026-11-04). One fixer
+            // gets every finding and both judges look again. Otherwise they run one after the other,
+            // each with its own fixer, as before.
             b.step(
                 "architect",
                 "Analyze and plan",
@@ -760,42 +854,80 @@ pub fn instantiate(
                 Role::Developer,
                 text::IMPL_DEVELOPER,
             );
-            b.looped(
+            b.step(
                 "validator",
                 "Review the change",
                 Role::Validator,
                 text::IMPL_VALIDATOR,
-                "architecture_fix",
             );
-            b.step(
-                "bug-fixer-architecture",
-                "Fix review findings",
-                Role::BugFixer,
-                text::IMPL_FIXER,
-            );
-            b.looped(
-                "qa",
-                "Check behaviour",
-                Role::Qa,
-                text::IMPL_QA,
-                "qa_bug_fix",
-            );
-            b.step(
-                "bug-fixer-qa",
-                "Fix behaviour problems",
-                Role::BugFixer,
-                text::IMPL_FIXER,
-            );
+            b.step("qa", "Check behaviour", Role::Qa, text::IMPL_QA);
+            let shared = b
+                .verdict_pair("validator")
+                .filter(|pair| b.verdict_pair("qa") == Some(*pair));
             b.end("done", "Done");
+            b.then("architect", "developer");
+            let fixers: &[&str] = if let Some((ok, _)) = shared {
+                b.step(
+                    "bug-fixer",
+                    "Fix the findings",
+                    Role::BugFixer,
+                    text::IMPL_FIXER,
+                )
+                .loop_policy = Some(LoopPolicy {
+                    loop_id: "review_fix".to_owned(),
+                    max_iterations: 2,
+                });
+                b.then("developer", "validator");
+                b.then("developer", "qa");
+                b.join(
+                    "verdicts",
+                    "Both checks pass",
+                    &["validator", "qa"],
+                    ok,
+                    "done",
+                    "bug-fixer",
+                );
+                b.then("bug-fixer", "validator");
+                b.then("bug-fixer", "qa");
+                &["bug-fixer"]
+            } else {
+                for (judge, loop_id) in [("validator", "architecture_fix"), ("qa", "qa_bug_fix")] {
+                    if let Some(node) = b.nodes.iter_mut().find(|n| n.id == judge) {
+                        node.loop_policy = Some(LoopPolicy {
+                            loop_id: loop_id.to_owned(),
+                            max_iterations: 3,
+                        });
+                    }
+                }
+                b.step(
+                    "bug-fixer-architecture",
+                    "Fix review findings",
+                    Role::BugFixer,
+                    text::IMPL_FIXER,
+                );
+                b.step(
+                    "bug-fixer-qa",
+                    "Fix behaviour problems",
+                    Role::BugFixer,
+                    text::IMPL_FIXER,
+                );
+                b.then("developer", "validator");
+                b.gate("validator", "qa", "bug-fixer-architecture");
+                b.then("bug-fixer-architecture", "validator");
+                b.gate("qa", "done", "bug-fixer-qa");
+                b.then("bug-fixer-qa", "qa");
+                &["bug-fixer-architecture", "bug-fixer-qa"]
+            };
             for (id, criteria) in [
                 ("architect", text::IMPL_ARCHITECT_DONE),
                 ("developer", text::IMPL_DEVELOPER_DONE),
                 ("validator", text::IMPL_VALIDATOR_DONE),
-                ("bug-fixer-architecture", text::IMPL_FIXER_DONE),
                 ("qa", text::IMPL_QA_DONE),
-                ("bug-fixer-qa", text::IMPL_FIXER_DONE),
             ] {
                 b.done_when(id, criteria);
+            }
+            for fixer in fixers {
+                b.done_when(fixer, text::IMPL_FIXER_DONE);
             }
             b.read_only("validator");
             b.read_only("qa");
@@ -819,12 +951,6 @@ pub fn instantiate(
                 ToolCapability::Browser,
                 "Open the page to see the behaviour when the change is a web interface.",
             );
-            b.then("architect", "developer");
-            b.then("developer", "validator");
-            b.gate("validator", "qa", "bug-fixer-architecture");
-            b.then("bug-fixer-architecture", "validator");
-            b.gate("qa", "done", "bug-fixer-qa");
-            b.then("bug-fixer-qa", "qa");
         }
         "full_development" | "refactoring" => {
             let split = template_id == "full_development";
@@ -938,6 +1064,9 @@ pub fn instantiate(
             b.end("done", "Done");
             b.done_when("validator", text::REVIEW_AUDIT_DONE);
             b.read_only("validator");
+            // An audit answers from the code: running the tests only confirmed what reading showed
+            // and made the review 40% dearer (`bench/`, 2026-10-31d).
+            b.no_commands("validator");
             b.suggest(
                 "validator",
                 ToolCapability::Issues,

@@ -7,6 +7,7 @@ import { formatDuration } from '@/features/usage/model/format';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useWorkspace } from '../hooks/WorkspaceProvider';
 import { agentStatus } from '../model/agentStatus';
+import { silentFor } from '../model/agentRuns';
 import { HeaderChip, headerPopover } from '@/components/layout/HeaderChip';
 
 /**
@@ -81,6 +82,12 @@ export function ActiveExecutions() {
                 <span className={headerPopover.meta}>
                   {t(`agent.status.${status}`)} · {formatDuration(now - run.startedAt)} ·{' '}
                   {owner.name}
+                  {(() => {
+                    const silent = silentFor(run, now);
+                    return silent === null
+                      ? null
+                      : ` · ${t('agent.silent', { time: formatDuration(silent) })}`;
+                  })()}
                 </span>
               </button>
             </li>

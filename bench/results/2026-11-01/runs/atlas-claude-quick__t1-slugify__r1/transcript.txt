@@ -1,0 +1,75 @@
+--- User agent-1793555559600-6
+Architect: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  Rules:  …
+--- Assistant agent-1793555559600-6
+Size: trivial
+
+- **What:** Add `src/slugify.js` exporting `slugify(text, options)` as `module.exports = { slugify }`, plus `test/slugify.test.js` using `node:test` and `node:assert` for the six rules and the given examples. Nothing else changes.
+- **Where:** Only those two new files. The existing `package.json` already has `"type": "commonjs"` and `"test": "node --test"`, so it stays as is.
+- **How it is checked:** Run `npm test` from the worktree. All tests should pass, covering the examples, the `maxLength` cut rules, and the TypeError for non-string input.
+
+```atlas-result
+{"status":"success","outcome":"approved","summary":"Trivial task: add src/slugify.js and test/slugify.test.js in the worktree. The project is CommonJS with node --test, so no config changes are needed.","artifacts":[{"type":"implementation_summary","name":"slugify plan","path":"src/slugify.js","summary":"Single-function CommonJS module plus node:test suite; no other files touched."}],"decisions":[{"title":"Accent removal","decision":"Normalize with NFD and strip combining marks (\\p{Mn}) before replacing non [a-z0-9] runs with '-'.","rationale":"Covers é, ç, ã, ü without a lookup table, using built-in Unicode support."},{"title":"maxLength cut","decision":"Cut at the last '-' whose prefix fits within maxLength; if the first word alone exceeds it, cut hard at maxLength. Strip any trailing '-' after the cut.","rationale":"Matches rule 5 and the examples; no word is split unless it cannot fit."},{"title":"Scope","decision":"Only src/slugify.js and test/slugify.test.js are created; package.json is unchanged.","rationale":"Task says to touch no other file and the existing config already fits."}],"findings":[],"touchedFiles":[],"touchedAreas":["src","test"],"nextAction":"Developer implements src/slugify.js and test/slugify.test.js per this plan, then runs npm test."}
+```
+--- User agent-1793555559599-3
+Developer: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  Rules:  …
+--- Assistant agent-1793555559599-3
+I added `src/slugify.js` and `test/slugify.test.js`. `npm test` passes: 10 of 10 tests, with the output shown in full below.
+
+Choices I made that you may want to change:
+- The cut uses `lastIndexOf('-', maxLength)`, which finds the last hyphen at or before the limit. Because of that, the hard-cut branch can never end in `-`, so I did not add the extra trailing-hyphen strip the plan mentioned.
+- I did not validate `maxLength` (negative or non-integer values are not rejected). The spec only says it is a positive integer, so I left it as written.
+
+Test output:
+```
+✔ lowercases and joins words with hyphens (0.631375ms)
+✔ removes accents and diacritics (0.061375ms)
+✔ collapses runs of other characters into a single hyphen (0.044083ms)
+✔ never starts or ends with a hyphen (0.044834ms)
+✔ keeps digits (0.044958ms)
+✔ maxLength cuts at the last hyphen that fits (0.041291ms)
+✔ maxLength cuts hard when the first word does not fit (0.439291ms)
+✔ maxLength result never exceeds the limit or ends with a hyphen (0.0625ms)
+✔ maxLength leaves short slugs unchanged (0.057375ms)
+✔ throws a TypeError when text is not a string (0.218ms)
+ℹ tests 10
+ℹ pass 10
+ℹ fail 0
+```
+
+Files changed: `src/slugify.js` (new), `test/slugify.test.js` (new). `package.json` is unchanged.
+
+Checked by running: the test suite above, which includes all five spec examples.
+Not verified: lint and any behaviour outside the spec, such as invalid `maxLength` values or `options` set to `null` (this throws).
+
+Remaining risks: low. The accent handling only covers characters that decompose under NFD. Characters such as `ß` or `ø` become `-`, which follows rule 3 but may not be what you want.
+
+```atlas-result
+{"status":"success","outcome":"implemented","summary":"Added src/slugify.js (CommonJS slugify with NFD accent stripping, hyphen collapsing, and maxLength word-boundary cut) and test/slugify.test.js (node:test suite). npm test passes 10/10.","artifacts":[{"type":"implementation_summary","name":"slugify module","path":"src/slugify.js","summary":"Exports { slugify }; throws TypeError for non-strings; cuts at last hyphen within maxLength, else hard cut."},{"type":"implementation_summary","name":"slugify tests","path":"test/slugify.test.js","summary":"10 node:test cases covering spec examples, accents, hyphen rules, maxLength, and TypeError."}],"decisions":[{"title":"No trailing-hyphen strip after maxLength cut","decision":"Use lastIndexOf('-', maxLength) so the cut never ends with '-' and no extra strip is needed.","rationale":"Makes the plan's extra strip redundant; same behaviour with less code."},{"title":"No maxLength validation","decision":"Do not reject negative or non-integer maxLength values.","rationale":"Spec only describes a positive integer; avoids unrequested behaviour."}],"findings":[],"touchedFiles":["src/slugify.js","test/slugify.test.js"],"touchedAreas":["text-utils"],"nextAction":"QA should review the slugify module and tests, and run npm test."}
+```
+--- User agent-1793555559599-4
+QA: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  Rules:  1. The …
+--- Assistant agent-1793555559599-4
+**QA verdict: pass.** The module meets every rule and example in the task, and the suite passes. Edge cases below were checked by reading only.
+
+**Executed**
+- `npm test`: 10 of 10 pass, 0 fail. This includes all five spec examples.
+
+**Read and traced (not executed)**
+- Main path (`src/slugify.js:6-11`): NFD, strip `\p{Mn}`, lowercase, collapse `[^a-z0-9]+` runs to `-`, trim edge hyphens. Matches rules 1–4.
+- `maxLength` (`src/slugify.js:14-17`): `lastIndexOf('-', maxLength)` gives the last hyphen whose prefix fits. A hyphen at index `maxLength` is correctly used as the cut point, e.g. `'abc-def'` with 3 gives `'abc'`. With no hyphen in range, the hard cut `slice(0, maxLength)` cannot end in `-`. Matches rule 5.
+- TypeError (`src/slugify.js:2-4`): covers numbers, null, undefined and arrays. Matches rule 6.
+- The tests would fail without the module, since it does not exist before the change.
+
+**Low-severity observations (outside the stated contract, not failures)**
+- Non-positive or non-integer `maxLength` gives odd output. `-3` cuts characters from the end via `slice`, `null` gives `''`, and `NaN` disables the cut. The spec only defines positive integers, and the Developer chose not to validate.
+- Letters with no NFD decomposition (ø, ß, ł, ı, æ) become `-`. For example `'Søren'` gives `'s-ren'`. Rule 2 only covers accents that decompose.
+- `options: null` throws a generic destructuring TypeError instead of the module's message.
+- Test gaps: no case where `maxLength` equals the slug length exactly (no cut), no case with a cut at a hyphen on the exact boundary alone, and no case for `new String(...)` (which correctly throws).
+
+**Could not check**
+- I could not run ad-hoc Node snippets for the edge cases, since only the project's test commands are allowed. Those findings rest on reading the code.
+- `git status` reports a detached state ("No branch"), and the files are already committed, so I reviewed the files as they stand rather than a diff against `main`.
+
+```atlas-result
+{"status":"success","outcome":"pass","summary":"Executed npm test: 10/10 pass. Read-based review confirms the module meets all six rules and the five spec examples. Only low-severity edge-case and test-gap observations remain.","artifacts":[{"type":"implementation_summary","name":"QA review of slugify module and tests","path":"src/slugify.js","summary":"Pass. Main path, maxLength word-boundary cut, hard cut and TypeError traced by reading; npm test executed with 10/10 passing."}],"decisions":[],"findings":[{"severity":"low","category":"input-validation","title":"Out-of-contract maxLength values give odd output","description":"Negative maxLength makes slice(0, -n) drop trailing characters; null yields an empty string; NaN disables the cut. The spec only defines positive integers, so this is not a failure.","file":"src/slugify.js","line":14,"evidence":"Read: lines 14-17 use slug.length > maxLength and slice(0, maxLength) with no validation. Not executed.","recommendation":"Optionally reject non-positive or non-integer maxLength with a RangeError, or document the accepted range."},{"severity":"low","category":"unicode-coverage","title":"Non-decomposable letters are replaced by hyphens","description":"Characters such as ø, ß, ł, ı and æ do not decompose under NFD, so they become '-' (e.g. 'Søren' gives 's-ren'). Rule 2 only requires accent removal, so this is outside the stated contract.","file":"src/slugify.js","line":6,"evidence":"Read: lines 6-10 only strip \\p{Mn} after NFD. Not executed.","recommendation":"Decide whether a small transliteration map for ø, ß, ł, ı, æ is wanted; otherwise leave as is."},{"severity":"low","category":"test-coverage","title":"Some boundary cases are untested","description":"No test covers maxLength equal to the slug length (no cut), a cut where the character at maxLength is a hyphen with no earlier hyphen, null options, or a String object input.","file":"test/slugify.test.js","line":31,"evidence":"Read: the maxLength tests at lines 31-51 do not include an equal-length or null-options case. Not executed.","recommendation":"Add a few boundary assertions, e.g. slugify('ab-cd', { maxLength: 5 }) === 'ab-cd'."}],"touchedFiles":[],"touchedAreas":["slugify"],"nextAction":"Developer may optionally add boundary tests and decide on out-of-contract maxLength handling; no blocking fixes required."}
+```

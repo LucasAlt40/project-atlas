@@ -1,0 +1,22 @@
+{
+  "id": "codex-pure__t3-todo-priority__r2",
+  "task": "t3-todo-priority",
+  "kind": "feature-multifile",
+  "changed": ["src/format.js", "src/store.js", "test/store.test.js"],
+  "added": 32,
+  "removed": 6,
+  "outOfScope": [],
+  "hasTree": true,
+  "ownTestFiles": 1,
+  "ownTests": {
+    "pass": 5,
+    "fail": 0,
+    "failed": []
+  },
+  "hidden": {
+    "pass": 12,
+    "fail": 0,
+    "failed": []
+  },
+  "hiddenScore": 1
+}

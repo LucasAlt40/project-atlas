@@ -1,3 +1,4 @@
+pub(crate) mod granted_commands;
 mod guardrails;
 
 use std::cell::RefCell;
@@ -106,6 +107,7 @@ struct RunFlags {
 /// How a workflow step differs from a message: where its Task Context comes from, the worktree it
 /// shares, and whether an answer that is a request for a person pauses it instead of ending it.
 #[derive(Debug, Clone)]
+#[allow(clippy::struct_excessive_bools)] // independent settings of one step
 pub struct StepOptions<'a> {
     /// The text the Task Context is selected for, when it differs from the instruction itself.
     pub context_query: Option<&'a str>,
@@ -131,6 +133,8 @@ pub struct StepOptions<'a> {
     pub announce_integrations: bool,
     /// The step's node may not change files, whatever the agent's policy says (it only narrows).
     pub read_only: bool,
+    /// The step's node is given no commands to run, whatever the runtime and the policy allow.
+    pub no_commands: bool,
 }
 
 impl Default for StepOptions<'_> {
@@ -147,6 +151,7 @@ impl Default for StepOptions<'_> {
             // On unless a node turns it off.
             announce_integrations: true,
             read_only: false,
+            no_commands: false,
         }
     }
 }
@@ -369,6 +374,32 @@ impl ExecutionService {
         Self::decide_edit(runtime_can_edit, policy_allows, agent.worktree_isolation)
     }
 
+    /// The test commands this agent's policy lets an execution run (`granted_commands::granted`).
+    /// Nothing when there are no policies or the scope does not resolve: unknown is a no.
+    fn granted_commands(
+        &self,
+        execution: &Execution,
+        agent: &crate::domain::agent::Agent,
+        task_id: &str,
+    ) -> Vec<String> {
+        let Some(policies) = &self.policies else {
+            return Vec::new();
+        };
+        let scope = ExecutionScope {
+            workspace_id: execution.workspace_id.clone(),
+            agent_id: agent.id.clone(),
+            execution_id: execution.id.clone(),
+            task_id: task_id.to_owned(),
+            runtime_access: ToolAccess::NONE,
+            isolated: agent.worktree_isolation,
+            project_id: None,
+        };
+        policies
+            .resolve(&scope)
+            .map(|resolved| granted_commands::granted(&resolved.agent_policy))
+            .unwrap_or_default()
+    }
+
     /// The agent's resolved policies as text, for what an approval is bound to: the policy the
     /// workspace and the profile resolve to now, not the files they came from.
     fn policy_digest(
@@ -502,6 +533,7 @@ impl ExecutionService {
             task_rules: &[],
             announce_integrations: true,
             read_only: false,
+            no_commands: false,
         };
         self.run_step(id, request, options, observer)
     }
@@ -530,6 +562,7 @@ impl ExecutionService {
             task_rules,
             announce_integrations,
             read_only,
+            no_commands,
         } = options;
         // Read once: a run is measured entirely or not at all.
         let measuring = self
@@ -709,6 +742,19 @@ impl ExecutionService {
             emitter.log("The agent may edit files, but its runtime does not support file editing");
         }
         let can_edit = access == EditAccess::Allowed;
+        // The project's test commands, for a runtime that can be given those alone: only for an
+        // agent that works in an isolated worktree, and only what its policy runs. A run that only
+        // reads gets them too (a reviewer confirms by running): the runtime's sandbox then keeps
+        // every folder it can see unwritable (`claude::command_settings`).
+        let granted_commands = if !no_commands
+            && agent.worktree_isolation
+            && runtime.runs_granted_commands()
+            && !runtime.runs_commands()
+        {
+            self.granted_commands(&execution, &agent, &task.id)
+        } else {
+            Vec::new()
+        };
         // The projects consulted besides the one worked in. A runtime that edits cannot be given
         // other folders without being able to edit them too, so they are opened only for a run
         // that reads: an agent that edits is told about the others through their Harness.
@@ -819,6 +865,7 @@ impl ExecutionService {
                 task_aware,
                 can_edit,
                 tools_are_commands: runtime.runs_commands(),
+                granted_commands: &granted_commands,
                 harness: inputs.harness.as_deref(),
                 skills: inputs.skills_text().as_deref(),
                 memories: inputs.memories_text().as_deref(),
@@ -984,9 +1031,11 @@ impl ExecutionService {
             task_id: task.id.clone(),
             // What the runtime's tools can do *as launched for this execution*: file edits only
             // when they were granted above, which the guard checks against the policy again.
-            runtime_access: if can_edit {
+            runtime_access: if can_edit || !granted_commands.is_empty() {
                 ToolAccess {
-                    filesystem_write: true,
+                    filesystem_write: can_edit,
+                    // Test commands are processes: the guard checks them against the policy too.
+                    process_execution: !granted_commands.is_empty(),
                     ..ToolAccess::NONE
                 }
             } else {
@@ -1012,6 +1061,7 @@ impl ExecutionService {
             scope,
             text_only: false,
             allow_edits: can_edit,
+            granted_commands,
             mcp: mcp_launch,
         };
         // What the adapter will hand to its process, hashed from that same value, before it does.

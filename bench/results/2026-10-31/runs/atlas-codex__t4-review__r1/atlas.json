@@ -1,0 +1,31 @@
+{
+  "status": "Completed",
+  "failure": null,
+  "started": [
+    "validator"
+  ],
+  "changed": [],
+  "elapsedMs": 46897,
+  "usage": [
+    {
+      "executionId": "exec-2",
+      "workspaceId": "ws-1793417235680-1",
+      "agentId": "agent-1793417235681-7",
+      "runtimeId": "codex",
+      "modelId": "gpt-5.6-luna",
+      "startedAt": 1793417235875,
+      "completedAt": 1793417282199,
+      "succeeded": true,
+      "metrics": {
+        "inputTokens": 98859,
+        "outputTokens": 3714,
+        "totalTokens": 102573,
+        "cachedInputTokens": 79744,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      "role": "validator"
+    }
+  ]
+}

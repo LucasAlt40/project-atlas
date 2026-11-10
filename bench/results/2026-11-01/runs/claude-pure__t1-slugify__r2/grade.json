@@ -1,0 +1,25 @@
+{
+  "id": "claude-pure__t1-slugify__r2",
+  "task": "t1-slugify",
+  "kind": "feature",
+  "changed": [
+    "src/slugify.js",
+    "test/slugify.test.js"
+  ],
+  "added": 106,
+  "removed": 0,
+  "outOfScope": [],
+  "hasTree": true,
+  "ownTestFiles": 1,
+  "ownTests": {
+    "pass": 12,
+    "fail": 0,
+    "failed": []
+  },
+  "hidden": {
+    "pass": 14,
+    "fail": 0,
+    "failed": []
+  },
+  "hiddenScore": 1
+}

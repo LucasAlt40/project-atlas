@@ -388,6 +388,19 @@ fn git_fixture_with(
     repository: bool,
     file_edit: bool,
 ) -> GitFixture {
+    let fake = FakeRuntime::new("rt-a", answer).with_work(work);
+    git_fixture_on(
+        if file_edit {
+            fake.with_file_edit()
+        } else {
+            fake
+        },
+        repository,
+    )
+}
+
+/// As [`git_fixture`], with this runtime (its id must be `rt-a`).
+fn git_fixture_on(fake: FakeRuntime, repository: bool) -> GitFixture {
     let project = TempDir::new("exec project");
     if repository {
         init_repo(project.path(), "main");
@@ -395,12 +408,7 @@ fn git_fixture_with(
     let data = TempDir::new("exec data");
     let config = Arc::new(ConfigRepository::load(Box::<MemoryStore>::default()));
     let personalities = Arc::new(PersonalityService::new(config.clone()));
-    let fake = FakeRuntime::new("rt-a", answer).with_work(work);
-    let runtime = Arc::new(if file_edit {
-        fake.with_file_edit()
-    } else {
-        fake
-    });
+    let runtime = Arc::new(fake);
     let registry = Arc::new(RuntimeRegistry::new(vec![runtime.clone() as Arc<_>]));
     let agents = Arc::new(AgentService::new(
         config.clone(),
@@ -3146,6 +3154,141 @@ fn edit_tools_granted_in_an_isolated_worktree_are_recorded_and_the_grant_that_ca
         .contains(&"rule:write.runtime_capability".to_owned()));
     // Denying the grant did not stop the execution: it runs read-only.
     assert_eq!(record.execution.status, ExecutionStatus::Completed);
+}
+
+#[test]
+#[allow(clippy::too_many_lines)] // one fixture, every case of the grant in turn
+fn granted_commands_reach_a_runtime_that_can_confine_them_only_when_the_policy_runs_them() {
+    // A runtime that edits and can be given the test commands alone (Claude on macOS).
+    let fixture = |granted_commands: bool| {
+        let fake = FakeRuntime::new("rt-a", Ok("done")).with_file_edit();
+        let f = git_fixture_on(
+            if granted_commands {
+                fake.with_granted_commands()
+            } else {
+                fake
+            },
+            true,
+        );
+        let policies = Arc::new(crate::application::security::SecurityService::new(
+            f.config.clone(),
+        ));
+        GitFixture {
+            service: f
+                .service
+                .with_policies(policies)
+                .with_optimization(Arc::new(guarded())),
+            ..f
+        }
+    };
+    let sent = |f: &GitFixture| f.runtime.requests.lock().unwrap()[0].clone();
+
+    // The developer profile runs npm, cargo…: their test commands are given, named in the
+    // prompt, and the run declares it starts processes so the guard checks them too.
+    let f = fixture(true);
+    let agent = developer_agent(&f, true);
+    let record = run_git(&f, &agent, &Collector::default());
+    // The context review recognises these rules as the required Atlas rules.
+    assert_eq!(record.execution.status, ExecutionStatus::Completed);
+    let request = sent(&f);
+    assert!(request.allow_edits);
+    assert!(request.granted_commands.contains(&"npm test".to_owned()));
+    assert!(request.granted_commands.contains(&"cargo test".to_owned()));
+    assert!(request.granted_commands.contains(&"git diff".to_owned()));
+    assert!(request.scope.runtime_access.process_execution);
+    let rules = request.prompt.system_channel_text();
+    assert!(
+        rules.contains("only the project's own test commands"),
+        "{rules}"
+    );
+    assert!(rules.contains("`npm test`"));
+    assert!(!rules.contains("You cannot run shell commands"));
+
+    // A step held to reading (a reviewer) gets them too, with the reading rules, and the context
+    // review accepts those as the Atlas rules.
+    let f = fixture(true);
+    let agent = developer_agent(&f, true);
+    let record = f
+        .service
+        .run_step(
+            f.service.next_execution_id(),
+            RunAgentRequest {
+                task_id: "task-1".to_owned(),
+                workspace_id: f.workspace_id.clone(),
+                agent_id: agent.clone(),
+                description: "review it".to_owned(),
+                scope: None,
+            },
+            StepOptions {
+                read_only: true,
+                ..StepOptions::default()
+            },
+            &Collector::default(),
+        )
+        .unwrap();
+    assert_eq!(record.execution.status, ExecutionStatus::Completed);
+    let request = sent(&f);
+    assert!(!request.allow_edits);
+    assert!(request.granted_commands.contains(&"npm test".to_owned()));
+    assert!(request.scope.runtime_access.process_execution);
+    assert!(!request.scope.runtime_access.filesystem_write);
+    let rules = request.prompt.system_channel_text();
+    assert!(rules.contains("read-only mode"), "{rules}");
+    assert!(rules.contains("cannot write anywhere in your working directory"));
+
+    // A node that wants no commands (an audit) gets none, even reading in its worktree.
+    let f = fixture(true);
+    let agent = developer_agent(&f, true);
+    f.service
+        .run_step(
+            f.service.next_execution_id(),
+            RunAgentRequest {
+                task_id: "task-1".to_owned(),
+                workspace_id: f.workspace_id.clone(),
+                agent_id: agent.clone(),
+                description: "audit it".to_owned(),
+                scope: None,
+            },
+            StepOptions {
+                read_only: true,
+                no_commands: true,
+                ..StepOptions::default()
+            },
+            &Collector::default(),
+        )
+        .unwrap();
+    let request = sent(&f);
+    assert_eq!(request.granted_commands, Vec::<String>::new());
+    assert!(!request.scope.runtime_access.process_execution);
+
+    // Not isolated: no test commands, whatever the step does.
+    let f = fixture(true);
+    let agent = developer_agent(&f, false);
+    run_git(&f, &agent, &Collector::default());
+    let request = sent(&f);
+    assert_eq!(request.granted_commands, Vec::<String>::new());
+    assert!(!request.scope.runtime_access.process_execution);
+
+    // A profile that runs no process: none.
+    let f = fixture(true);
+    let agent = developer_agent(&f, true);
+    f.agents
+        .set_permission_profile(&agent, "read_only")
+        .unwrap();
+    run_git(&f, &agent, &Collector::default());
+    assert_eq!(sent(&f).granted_commands, Vec::<String>::new());
+
+    // A runtime that cannot confine them is never given any, and is told it has no shell.
+    let f = fixture(false);
+    let agent = developer_agent(&f, true);
+    run_git(&f, &agent, &Collector::default());
+    let request = sent(&f);
+    assert!(request.allow_edits);
+    assert_eq!(request.granted_commands, Vec::<String>::new());
+    assert!(request
+        .prompt
+        .system_channel_text()
+        .contains("You cannot run shell commands"));
 }
 
 #[test]

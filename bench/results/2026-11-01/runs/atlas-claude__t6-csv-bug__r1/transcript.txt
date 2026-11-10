@@ -1,0 +1,64 @@
+--- User agent-1793552278683-5
+Investigate and fix: Bug reports about parseCsv in src/csv.js, which must follow RFC 4180: - "Lisbon, Portugal" (a quoted field with a comma inside) is split in…
+--- Assistant agent-1793552278683-5
+The parser is fixed and all 11 tests pass. Root cause was confirmed by reading the code and by the new tests failing on the original code.
+
+**Root cause (confirmed):** `parseCsv` in `src/csv.js` was line-based and not quote-aware. It split on `\n` and then on `,` before looking at any quotes, so every reported symptom follows from that. The fix replaces it with a single character-level RFC 4180 scanner.
+
+**Regression tests:** I added eight tests to `test/csv.test.js`, one per reported bug (comma in quotes, doubled quote, trailing newline, CRLF, embedded newline, embedded CRLF, empty input, unclosed quote). Run against the original code, all eight failed, each showing its bug. Run against the fix, all 11 pass, including the two original tests.
+
+**Test output after the fix:**
+```
+ℹ tests 11
+ℹ pass 11
+ℹ fail 0
+```
+
+**Residual risks:**
+- A lone `\r` (classic Mac line ending) is kept as data, not treated as a row break. The spec only mentioned CRLF.
+- Lenient handling of malformed input: a quote in the middle of an unquoted field stays literal, and text after a closing quote is appended to the field. Strict RFC rejection was not requested.
+- Blank lines in the middle of a file still produce a row `['']`, as before. Only a trailing newline at end of file was specified to add no row.
+- Verification was run with `npm test` only. I did not run a separate standalone reproduction script.
+
+```atlas-result
+{"status":"success","outcome":"fixed","summary":"parseCsv was line-based and not quote-aware, which caused all five reported bugs plus the missing unclosed-quote error. Replaced it with a character-level RFC 4180 scanner and added eight regression tests. npm test: 11 pass, 0 fail.","artifacts":[{"type":"implementation_summary","name":"csv parser RFC 4180 fix","path":"src/csv.js","summary":"Rewrote parseCsv as a quote-aware scanner handling commas and newlines in quoted fields, doubled quotes, CRLF, trailing newline, empty input, and throwing SyntaxError on an unclosed quote."}],"decisions":[{"title":"Single-pass state machine instead of regex or split","decision":"parseCsv scans characters once, tracking inQuotes and quoted state.","rationale":"Only a character-level scan can handle quotes that contain commas and line breaks, which split-based logic cannot do."},{"title":"Lone CR is not a row break","decision":"Only CRLF is treated as a line ending; a bare \\r is kept as field data.","rationale":"The reported bug concerns CRLF only; treating lone CR as a break was not requested and would change existing behaviour."}],"findings":[{"severity":"high","category":"correctness","title":"parseCsv was not quote-aware","description":"Splitting on newline and comma before handling quotes caused comma-in-quotes, doubled-quote, embedded-newline, CRLF and trailing-newline bugs.","file":"src/csv.js","line":4,"evidence":"Original code: text.split('\\n') then line.split(','); eight new tests failed on the original code with the reported symptoms.","recommendation":"Fixed by the character-level scanner in src/csv.js."},{"severity":"medium","category":"validation","title":"Unclosed quote not reported","description":"An unterminated quoted field was silently accepted instead of raising an error.","file":"src/csv.js","line":41,"evidence":"parseCsv('\"abc,def') returned rows instead of throwing SyntaxError before the fix.","recommendation":"Fixed: the scanner throws SyntaxError when input ends inside quotes."}],"touchedFiles":["src/csv.js","test/csv.test.js"],"touchedAreas":["csv parsing","tests"],"nextAction":"Verify the fix: run npm test in the worktree and confirm 11 passing tests; optionally review the lenient handling of mid-field quotes."}
+```
+--- User agent-1793552278683-4
+Verify the fix: Bug reports about parseCsv in src/csv.js, which must follow RFC 4180: - "Lisbon, Portugal" (a quoted field with a comma inside) is split into tw…
+--- Assistant agent-1793552278683-4
+## QA verdict: pass
+
+The fix removes the cause. The original parser split on `\n` and then on `,`, so it could not see quotes spanning those characters. The new code in `src/csv.js` scans characters once and tracks quote state, so it handles all five reported bugs and the unclosed-quote error. `npm test` passes 11/11. I found no high or medium issues. The remaining items are low severity and listed below for you to decide.
+
+**Root cause.** `parseCsv` was line-based and not quote-aware. The original code (`git show 0f02d75:src/csv.js`) did `text.split('\n')`, then `line.split(',')`, then stripped quotes only when a field both started and ended with `"`. That produced the comma split, the doubled-quote bug, the extra row from a trailing newline, the leftover `\r` from CRLF, the cut at embedded line breaks, and the silent acceptance of an unclosed quote.
+
+**Fix applied (commit b78f9a7, `Atlas: step exec-2`).** `src/csv.js` is now a single-pass state machine.
+- Quotes open a field only at its start (`:20`). Inside quotes, `""` becomes `"` (`:12`).
+- Commas and LF end a field and a row (`:23`, `:27`). CRLF is treated as a row end, and a bare `\r` before a non-LF is kept as data (`:33`).
+- An input that ends inside quotes throws `SyntaxError` (`:41`).
+- A final row is kept only if it has content, a field, or a quoted marker (`:45`). This avoids a phantom row after a trailing newline and keeps `""` as one empty field.
+- `module.exports = { parseCsv }` is unchanged.
+
+The working tree is clean, so the diff is in the commit, not the index.
+
+**Validation evidence**
+- *Executed:* `npm test` gives 11 pass, 0 fail. This includes the 8 new regression tests and the 2 original ones.
+- *Read:* I traced the 8 regression tests against the original code at `0f02d75`. Tests 3–8 (comma, doubled quote, trailing newline, CRLF, embedded LF, embedded CRLF), 10 (empty input) and 11 (unclosed quote) each fail there. Tests 1, 2 and 9 pass on both versions; test 9 is a guard.
+- *Read:* I traced edge inputs by hand against the new code. `""` gives `[['']]`. `a,"b"""` gives `a,b"`. `"a""` throws. `\n` gives `[['']]`, the same as before. `a,b\n` gives no extra row.
+- *Read:* `parseCsv` has no other callers in the repo (grep). The README only describes `node --test`.
+
+**Not verified**
+- I could not run the new tests against the original code. That would need a checkout or file edits, which read-only mode does not allow. The "fails on original" result is from reading the code.
+- I could not run ad-hoc Node scripts for edge cases, so those results come from reading the code, not execution.
+- I could not run a regression test in isolation. `npm test` runs the whole suite, which is fine for this project.
+
+**Low-severity findings (outcome stays pass)**
+- *Coverage:* No test for `""` as the whole input, which should give `[['']]` and depends on the `quoted` flag at `:45`. Removing that flag would not fail any current test.
+- *Behaviour:* A quote after other text is literal (`ab"c"` gives `ab"c"`). Text after a closing quote is appended (`"a"b` gives `ab`). Both are lenient, not RFC-strict. This matches the handoff's note.
+- *Behaviour:* Blank lines give `['']` rows, as the original did. RFC 4180 does not define them. You may want them skipped.
+- *Hardening:* A UTF-8 BOM at the start of a Windows-saved file makes a leading quoted header field keep its quotes (`\uFEFF"Name"`). This is outside the reported bugs.
+- *Behaviour:* A trailing lone `\r` at end of input stays in the last field. This follows the documented decision that only CRLF is a line break, and no test covers it.
+
+```atlas-result
+{"status":"pass","outcome":"pass","summary":"Fix in src/csv.js (commit b78f9a7) removes the root cause: the split-based parser is replaced by a quote-aware character scanner. npm test passes 11/11. The 8 regression tests fail on the original code by reading. No high or medium findings. Items not verified: running the regression tests against the original code (read-only mode) and ad-hoc edge-case execution.","artifacts":[{"type":"implementation_summary","name":"csv parser RFC 4180 fix","path":"src/csv.js","summary":"Single-pass quote-aware scanner handling commas and newlines in quoted fields, doubled quotes, CRLF, trailing newline, empty input, and SyntaxError on an unclosed quote. Committed in b78f9a7."}],"decisions":[{"title":"Single-pass state machine","decision":"parseCsv scans characters once, tracking inQuotes and quoted state.","rationale":"Only a character-level scan can handle quotes containing commas and line breaks."},{"title":"Lone CR is not a row break","decision":"Only CRLF ends a row; a bare \\r is kept as field data.","rationale":"The reported bug concerns CRLF only; treating lone CR as a break would change existing behaviour."}],"findings":[{"severity":"low","category":"coverage","title":"No test for a lone empty quoted field at end of input","description":"parseCsv('\"\"') should return [['']]; the result depends on the quoted flag in the final-row condition, and no current test would fail if that flag were removed.","file":"src/csv.js","line":45,"evidence":"Traced by reading: '\"\"' yields [['']] only because quoted is true at line 45; test/csv.test.js has no such case.","recommendation":"Add a regression test for parseCsv('\"\"') expecting [['']]."},{"severity":"low","category":"behaviour","title":"Lenient handling of quotes after field start","description":"A quote mid-field is literal (ab\"c\" gives ab\"c\"), and text after a closing quote is appended ('\"a\"b' gives 'ab'). RFC 4180 treats these as malformed.","file":"src/csv.js","line":20,"evidence":"Traced by reading the open-quote condition (field === '' && !quoted) and the default append branch.","recommendation":"Accept as-is, or decide whether to throw SyntaxError on malformed quoting."},{"severity":"low","category":"behaviour","title":"Blank lines produce [''] rows","description":"An empty line between records yields a row containing one empty field. This matches the original behaviour and RFC 4180 does not define blank lines.","file":"src/csv.js","line":27,"evidence":"Traced by reading: '\\n' pushes row [''] at line 27.","recommendation":"Decide whether blank lines should be skipped."},{"severity":"low","category":"hardening","title":"UTF-8 BOM not stripped","description":"A file saved on Windows with a BOM starts with \\uFEFF, so a leading quoted header field keeps its quotes and BOM.","file":"src/csv.js","line":20,"evidence":"Traced by reading: the BOM becomes field data, so the open-quote check at line 20 fails.","recommendation":"Optionally strip a leading \\uFEFF before scanning. Outside the reported bugs."}],"touchedFiles":["src/csv.js","test/csv.test.js"],"touchedAreas":["csv parsing","tests"],"nextAction":"Decide on the low-severity items; optionally add a test for parseCsv('\"\"'). No blocking work remains."}
+```

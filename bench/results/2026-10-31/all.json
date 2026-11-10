@@ -1,0 +1,2382 @@
+[
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "elapsedMs": 126261,
+    "inputTokens": 279545,
+    "cachedInputTokens": 228523,
+    "outputTokens": 22310,
+    "costUsd": 0.02364123,
+    "agentRuns": 4,
+    "steps": [
+      "architect",
+      "developer",
+      "validator",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 18927,
+        "ok": true,
+        "inputTokens": 48300,
+        "outputTokens": 2611,
+        "totalTokens": 50911,
+        "cachedInputTokens": 37017,
+        "cost": 0.00393167,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      {
+        "role": "developer",
+        "ms": 35187,
+        "ok": true,
+        "inputTokens": 132414,
+        "outputTokens": 6424,
+        "totalTokens": 138838,
+        "cachedInputTokens": 117388,
+        "cost": 0.007389679999999999,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      {
+        "role": "validator",
+        "ms": 24322,
+        "ok": true,
+        "inputTokens": 54252,
+        "outputTokens": 3938,
+        "totalTokens": 58190,
+        "cachedInputTokens": 42586,
+        "cost": 0.0047272600000000005,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      {
+        "role": "qa",
+        "ms": 46417,
+        "ok": true,
+        "inputTokens": 44579,
+        "outputTokens": 9337,
+        "totalTokens": 53916,
+        "cachedInputTokens": 31532,
+        "cost": 0.00759262,
+        "currency": "USD",
+        "source": "runtime_reported"
+      }
+    ],
+    "id": "atlas-claude__t1-slugify__r1",
+    "arm": "atlas-claude",
+    "task": "t1-slugify",
+    "rep": 1,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "software_feature",
+    "grade": {
+      "id": "atlas-claude__t1-slugify__r1",
+      "task": "t1-slugify",
+      "kind": "feature",
+      "changed": [
+        "src/slugify.js",
+        "test/slugify.test.js"
+      ],
+      "added": 105,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 14,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 14,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "elapsedMs": 122028,
+    "inputTokens": 219633,
+    "cachedInputTokens": 174740,
+    "outputTokens": 21321,
+    "costUsd": 0.021383700000000002,
+    "agentRuns": 4,
+    "steps": [
+      "architect",
+      "developer",
+      "validator",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 26534,
+        "ok": true,
+        "inputTokens": 48339,
+        "outputTokens": 3544,
+        "totalTokens": 51883,
+        "cachedInputTokens": 36980,
+        "cost": 0.004413,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      {
+        "role": "developer",
+        "ms": 28508,
+        "ok": true,
+        "inputTokens": 91999,
+        "outputTokens": 5658,
+        "totalTokens": 97657,
+        "cachedInputTokens": 78234,
+        "cost": 0.00636334,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      {
+        "role": "validator",
+        "ms": 23049,
+        "ok": true,
+        "inputTokens": 54462,
+        "outputTokens": 3879,
+        "totalTokens": 58341,
+        "cachedInputTokens": 42615,
+        "cost": 0.004734250000000001,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      {
+        "role": "qa",
+        "ms": 43050,
+        "ok": true,
+        "inputTokens": 24833,
+        "outputTokens": 8240,
+        "totalTokens": 33073,
+        "cachedInputTokens": 16911,
+        "cost": 0.005873110000000001,
+        "currency": "USD",
+        "source": "runtime_reported"
+      }
+    ],
+    "id": "atlas-claude__t1-slugify__r2",
+    "arm": "atlas-claude",
+    "task": "t1-slugify",
+    "rep": 2,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "software_feature",
+    "grade": {
+      "id": "atlas-claude__t1-slugify__r2",
+      "task": "t1-slugify",
+      "kind": "feature",
+      "changed": [
+        "src/slugify.js",
+        "test/slugify.test.js"
+      ],
+      "added": 99,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 14,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "elapsedMs": 83341,
+    "inputTokens": 151575,
+    "cachedInputTokens": 122257,
+    "outputTokens": 14629,
+    "costUsd": 0.014398870000000001,
+    "agentRuns": 2,
+    "steps": [
+      "bug-fixer",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "fixer",
+        "ms": 43430,
+        "ok": true,
+        "inputTokens": 96889,
+        "outputTokens": 7900,
+        "totalTokens": 104789,
+        "cachedInputTokens": 79220,
+        "cost": 0.008275,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      {
+        "role": "qa",
+        "ms": 38999,
+        "ok": true,
+        "inputTokens": 54686,
+        "outputTokens": 6729,
+        "totalTokens": 61415,
+        "cachedInputTokens": 43037,
+        "cost": 0.006123870000000001,
+        "currency": "USD",
+        "source": "runtime_reported"
+      }
+    ],
+    "id": "atlas-claude__t2-cart-bug__r1",
+    "arm": "atlas-claude",
+    "task": "t2-cart-bug",
+    "rep": 1,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "bug_fix",
+    "grade": {
+      "id": "atlas-claude__t2-cart-bug__r1",
+      "task": "t2-cart-bug",
+      "kind": "bugfix",
+      "changed": [
+        "src/cart.js",
+        "test/cart.test.js"
+      ],
+      "added": 32,
+      "removed": 6,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 7,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 11,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "elapsedMs": 76566,
+    "inputTokens": 185586,
+    "cachedInputTokens": 153940,
+    "outputTokens": 14545,
+    "costUsd": 0.015139099999999999,
+    "agentRuns": 2,
+    "steps": [
+      "bug-fixer",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "fixer",
+        "ms": 38878,
+        "ok": true,
+        "inputTokens": 145088,
+        "outputTokens": 7517,
+        "totalTokens": 152605,
+        "cachedInputTokens": 125607,
+        "cost": 0.00890937,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      {
+        "role": "qa",
+        "ms": 36958,
+        "ok": true,
+        "inputTokens": 40498,
+        "outputTokens": 7028,
+        "totalTokens": 47526,
+        "cachedInputTokens": 28333,
+        "cost": 0.00622973,
+        "currency": "USD",
+        "source": "runtime_reported"
+      }
+    ],
+    "id": "atlas-claude__t2-cart-bug__r2",
+    "arm": "atlas-claude",
+    "task": "t2-cart-bug",
+    "rep": 2,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "bug_fix",
+    "grade": {
+      "id": "atlas-claude__t2-cart-bug__r2",
+      "task": "t2-cart-bug",
+      "kind": "bugfix",
+      "changed": [
+        "src/cart.js",
+        "test/cart.test.js"
+      ],
+      "added": 25,
+      "removed": 4,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 7,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 11,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "elapsedMs": 131841,
+    "inputTokens": 368210,
+    "cachedInputTokens": 305617,
+    "outputTokens": 22418,
+    "costUsd": 0.026779370000000004,
+    "agentRuns": 5,
+    "steps": [
+      "architect",
+      "architect",
+      "developer",
+      "validator",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 30173,
+        "ok": true,
+        "inputTokens": 85527,
+        "outputTokens": 4644,
+        "totalTokens": 90171,
+        "cachedInputTokens": 71330,
+        "cost": 0.005873699999999999,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      {
+        "role": "architect",
+        "ms": 29829,
+        "ok": true,
+        "inputTokens": 133651,
+        "outputTokens": 6241,
+        "totalTokens": 139892,
+        "cachedInputTokens": 118571,
+        "cost": 0.00732081,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      {
+        "role": "developer",
+        "ms": 16317,
+        "ok": true,
+        "inputTokens": 74487,
+        "outputTokens": 2657,
+        "totalTokens": 77144,
+        "cachedInputTokens": 61225,
+        "cost": 0.00459235,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      {
+        "role": "validator",
+        "ms": 20733,
+        "ok": true,
+        "inputTokens": 36727,
+        "outputTokens": 3124,
+        "totalTokens": 39851,
+        "cachedInputTokens": 25507,
+        "cost": 0.00406047,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      {
+        "role": "qa",
+        "ms": 33757,
+        "ok": true,
+        "inputTokens": 37818,
+        "outputTokens": 5752,
+        "totalTokens": 43570,
+        "cachedInputTokens": 28984,
+        "cost": 0.00493204,
+        "currency": "USD",
+        "source": "runtime_reported"
+      }
+    ],
+    "id": "atlas-claude__t3-todo-priority__r1",
+    "arm": "atlas-claude",
+    "task": "t3-todo-priority",
+    "rep": 1,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "software_feature",
+    "grade": {
+      "id": "atlas-claude__t3-todo-priority__r1",
+      "task": "t3-todo-priority",
+      "kind": "feature-multifile",
+      "changed": [
+        "src/format.js",
+        "src/store.js",
+        "test/store.test.js"
+      ],
+      "added": 87,
+      "removed": 7,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 11,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "elapsedMs": 131597,
+    "inputTokens": 369304,
+    "cachedInputTokens": 307275,
+    "outputTokens": 21718,
+    "costUsd": 0.02633315,
+    "agentRuns": 5,
+    "steps": [
+      "architect",
+      "architect",
+      "developer",
+      "validator",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 26048,
+        "ok": true,
+        "inputTokens": 66600,
+        "outputTokens": 4315,
+        "totalTokens": 70915,
+        "cachedInputTokens": 54061,
+        "cost": 0.00520511,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      {
+        "role": "architect",
+        "ms": 31505,
+        "ok": true,
+        "inputTokens": 112343,
+        "outputTokens": 5244,
+        "totalTokens": 117587,
+        "cachedInputTokens": 98181,
+        "cost": 0.00643501,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      {
+        "role": "developer",
+        "ms": 17808,
+        "ok": true,
+        "inputTokens": 92604,
+        "outputTokens": 2661,
+        "totalTokens": 95265,
+        "cachedInputTokens": 79443,
+        "cost": 0.00475613,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      {
+        "role": "validator",
+        "ms": 29321,
+        "ok": true,
+        "inputTokens": 54525,
+        "outputTokens": 4974,
+        "totalTokens": 59499,
+        "cachedInputTokens": 42741,
+        "cost": 0.00527041,
+        "currency": "USD",
+        "source": "runtime_reported"
+      },
+      {
+        "role": "qa",
+        "ms": 25910,
+        "ok": true,
+        "inputTokens": 43232,
+        "outputTokens": 4524,
+        "totalTokens": 47756,
+        "cachedInputTokens": 32849,
+        "cost": 0.004666490000000001,
+        "currency": "USD",
+        "source": "runtime_reported"
+      }
+    ],
+    "id": "atlas-claude__t3-todo-priority__r2",
+    "arm": "atlas-claude",
+    "task": "t3-todo-priority",
+    "rep": 2,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "software_feature",
+    "grade": {
+      "id": "atlas-claude__t3-todo-priority__r2",
+      "task": "t3-todo-priority",
+      "kind": "feature-multifile",
+      "changed": [
+        "src/format.js",
+        "src/store.js",
+        "test/store.test.js"
+      ],
+      "added": 72,
+      "removed": 7,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 9,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "elapsedMs": 30439,
+    "inputTokens": 32558,
+    "cachedInputTokens": 24286,
+    "outputTokens": 5352,
+    "costUsd": 0.00457266,
+    "agentRuns": 1,
+    "steps": [
+      "validator"
+    ],
+    "perStep": [
+      {
+        "role": "validator",
+        "ms": 29867,
+        "ok": true,
+        "inputTokens": 32558,
+        "outputTokens": 5352,
+        "totalTokens": 37910,
+        "cachedInputTokens": 24286,
+        "cost": 0.00457266,
+        "currency": "USD",
+        "source": "runtime_reported"
+      }
+    ],
+    "id": "atlas-claude__t4-review__r1",
+    "arm": "atlas-claude",
+    "task": "t4-review",
+    "rep": 1,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "code_review",
+    "grade": {
+      "id": "atlas-claude__t4-review__r1",
+      "task": "t4-review",
+      "kind": "review",
+      "changed": [],
+      "added": 0,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "defects": [
+        {
+          "id": "pagination-off-by-one",
+          "found": true
+        },
+        {
+          "id": "age-before-birthday",
+          "found": true
+        },
+        {
+          "id": "escape-first-only",
+          "found": true
+        }
+      ],
+      "defectsFound": 3,
+      "defectsTotal": 3,
+      "hiddenScore": 1,
+      "reviewChars": 7531
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "elapsedMs": 30583,
+    "inputTokens": 32487,
+    "cachedInputTokens": 24284,
+    "outputTokens": 5347,
+    "costUsd": 0.00455634,
+    "agentRuns": 1,
+    "steps": [
+      "validator"
+    ],
+    "perStep": [
+      {
+        "role": "validator",
+        "ms": 30007,
+        "ok": true,
+        "inputTokens": 32487,
+        "outputTokens": 5347,
+        "totalTokens": 37834,
+        "cachedInputTokens": 24284,
+        "cost": 0.00455634,
+        "currency": "USD",
+        "source": "runtime_reported"
+      }
+    ],
+    "id": "atlas-claude__t4-review__r2",
+    "arm": "atlas-claude",
+    "task": "t4-review",
+    "rep": 2,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": "code_review",
+    "grade": {
+      "id": "atlas-claude__t4-review__r2",
+      "task": "t4-review",
+      "kind": "review",
+      "changed": [],
+      "added": 0,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "defects": [
+        {
+          "id": "pagination-off-by-one",
+          "found": true
+        },
+        {
+          "id": "age-before-birthday",
+          "found": true
+        },
+        {
+          "id": "escape-first-only",
+          "found": true
+        }
+      ],
+      "defectsFound": 3,
+      "defectsTotal": 3,
+      "hiddenScore": 1,
+      "reviewChars": 8147
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "elapsedMs": 207811,
+    "inputTokens": 718960,
+    "cachedInputTokens": 636288,
+    "outputTokens": 17633,
+    "costUsd": null,
+    "agentRuns": 7,
+    "steps": [
+      "architect",
+      "architect",
+      "developer",
+      "validator",
+      "qa",
+      "bug-fixer-qa",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 23395,
+        "ok": true,
+        "inputTokens": 74413,
+        "outputTokens": 2083,
+        "totalTokens": 76496,
+        "cachedInputTokens": 65280,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "architect",
+        "ms": 23654,
+        "ok": true,
+        "inputTokens": 74810,
+        "outputTokens": 2083,
+        "totalTokens": 76893,
+        "cachedInputTokens": 54912,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "developer",
+        "ms": 29062,
+        "ok": true,
+        "inputTokens": 106407,
+        "outputTokens": 3016,
+        "totalTokens": 109423,
+        "cachedInputTokens": 96384,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "validator",
+        "ms": 23470,
+        "ok": true,
+        "inputTokens": 116434,
+        "outputTokens": 1950,
+        "totalTokens": 118384,
+        "cachedInputTokens": 107264,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "qa",
+        "ms": 36588,
+        "ok": true,
+        "inputTokens": 121292,
+        "outputTokens": 3672,
+        "totalTokens": 124964,
+        "cachedInputTokens": 113280,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "fixer",
+        "ms": 39448,
+        "ok": true,
+        "inputTokens": 124519,
+        "outputTokens": 2006,
+        "totalTokens": 126525,
+        "cachedInputTokens": 114816,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "qa",
+        "ms": 30731,
+        "ok": true,
+        "inputTokens": 101085,
+        "outputTokens": 2823,
+        "totalTokens": 103908,
+        "cachedInputTokens": 84352,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      }
+    ],
+    "id": "atlas-codex__t1-slugify__r1",
+    "arm": "atlas-codex",
+    "task": "t1-slugify",
+    "rep": 1,
+    "runtime": "codex",
+    "model": "gpt-5.6-luna",
+    "template": "software_feature",
+    "grade": {
+      "id": "atlas-codex__t1-slugify__r1",
+      "task": "t1-slugify",
+      "kind": "feature",
+      "changed": [
+        "src/slugify.js",
+        "test/slugify.test.js"
+      ],
+      "added": 60,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 5,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 14,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "elapsedMs": 184240,
+    "inputTokens": 709160,
+    "cachedInputTokens": 636288,
+    "outputTokens": 15700,
+    "costUsd": null,
+    "agentRuns": 7,
+    "steps": [
+      "architect",
+      "architect",
+      "developer",
+      "validator",
+      "qa",
+      "bug-fixer-qa",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 24725,
+        "ok": true,
+        "inputTokens": 80612,
+        "outputTokens": 2192,
+        "totalTokens": 82804,
+        "cachedInputTokens": 68992,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "architect",
+        "ms": 17855,
+        "ok": true,
+        "inputTokens": 47290,
+        "outputTokens": 1229,
+        "totalTokens": 48519,
+        "cachedInputTokens": 41344,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "developer",
+        "ms": 27828,
+        "ok": true,
+        "inputTokens": 184826,
+        "outputTokens": 3082,
+        "totalTokens": 187908,
+        "cachedInputTokens": 171264,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "validator",
+        "ms": 40098,
+        "ok": true,
+        "inputTokens": 81564,
+        "outputTokens": 1850,
+        "totalTokens": 83414,
+        "cachedInputTokens": 73472,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "qa",
+        "ms": 26751,
+        "ok": true,
+        "inputTokens": 102399,
+        "outputTokens": 2486,
+        "totalTokens": 104885,
+        "cachedInputTokens": 88448,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "fixer",
+        "ms": 18773,
+        "ok": true,
+        "inputTokens": 106512,
+        "outputTokens": 1821,
+        "totalTokens": 108333,
+        "cachedInputTokens": 97280,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "qa",
+        "ms": 26955,
+        "ok": true,
+        "inputTokens": 105957,
+        "outputTokens": 3040,
+        "totalTokens": 108997,
+        "cachedInputTokens": 95488,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      }
+    ],
+    "id": "atlas-codex__t1-slugify__r2",
+    "arm": "atlas-codex",
+    "task": "t1-slugify",
+    "rep": 2,
+    "runtime": "codex",
+    "model": "gpt-5.6-luna",
+    "template": "software_feature",
+    "grade": {
+      "id": "atlas-codex__t1-slugify__r2",
+      "task": "t1-slugify",
+      "kind": "feature",
+      "changed": [
+        "src/slugify.js",
+        "test/slugify.test.js"
+      ],
+      "added": 66,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 6,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 14,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "elapsedMs": 123784,
+    "inputTokens": 549337,
+    "cachedInputTokens": 491776,
+    "outputTokens": 11870,
+    "costUsd": null,
+    "agentRuns": 4,
+    "steps": [
+      "bug-fixer",
+      "qa",
+      "bug-fixer-retry",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "fixer",
+        "ms": 31139,
+        "ok": true,
+        "inputTokens": 144714,
+        "outputTokens": 3384,
+        "totalTokens": 148098,
+        "cachedInputTokens": 128896,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "qa",
+        "ms": 34728,
+        "ok": true,
+        "inputTokens": 153834,
+        "outputTokens": 3091,
+        "totalTokens": 156925,
+        "cachedInputTokens": 144000,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "fixer",
+        "ms": 23897,
+        "ok": true,
+        "inputTokens": 104638,
+        "outputTokens": 2019,
+        "totalTokens": 106657,
+        "cachedInputTokens": 95232,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "qa",
+        "ms": 32991,
+        "ok": true,
+        "inputTokens": 146151,
+        "outputTokens": 3376,
+        "totalTokens": 149527,
+        "cachedInputTokens": 123648,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      }
+    ],
+    "id": "atlas-codex__t2-cart-bug__r1",
+    "arm": "atlas-codex",
+    "task": "t2-cart-bug",
+    "rep": 1,
+    "runtime": "codex",
+    "model": "gpt-5.6-luna",
+    "template": "bug_fix",
+    "grade": {
+      "id": "atlas-codex__t2-cart-bug__r1",
+      "task": "t2-cart-bug",
+      "kind": "bugfix",
+      "changed": [
+        "src/cart.js",
+        "test/cart.test.js"
+      ],
+      "added": 20,
+      "removed": 5,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 4,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 11,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "elapsedMs": 111135,
+    "inputTokens": 548688,
+    "cachedInputTokens": 490368,
+    "outputTokens": 11600,
+    "costUsd": null,
+    "agentRuns": 4,
+    "steps": [
+      "bug-fixer",
+      "qa",
+      "bug-fixer-retry",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "fixer",
+        "ms": 27948,
+        "ok": true,
+        "inputTokens": 126295,
+        "outputTokens": 3142,
+        "totalTokens": 129437,
+        "cachedInputTokens": 110464,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "qa",
+        "ms": 32410,
+        "ok": true,
+        "inputTokens": 138610,
+        "outputTokens": 3535,
+        "totalTokens": 142145,
+        "cachedInputTokens": 127872,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "fixer",
+        "ms": 25319,
+        "ok": true,
+        "inputTokens": 141163,
+        "outputTokens": 2414,
+        "totalTokens": 143577,
+        "cachedInputTokens": 120576,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "qa",
+        "ms": 24440,
+        "ok": true,
+        "inputTokens": 142620,
+        "outputTokens": 2509,
+        "totalTokens": 145129,
+        "cachedInputTokens": 131456,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      }
+    ],
+    "id": "atlas-codex__t2-cart-bug__r2",
+    "arm": "atlas-codex",
+    "task": "t2-cart-bug",
+    "rep": 2,
+    "runtime": "codex",
+    "model": "gpt-5.6-luna",
+    "template": "bug_fix",
+    "grade": {
+      "id": "atlas-codex__t2-cart-bug__r2",
+      "task": "t2-cart-bug",
+      "kind": "bugfix",
+      "changed": [
+        "src/cart.js",
+        "test/cart.test.js"
+      ],
+      "added": 20,
+      "removed": 4,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 4,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 11,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "elapsedMs": 183969,
+    "inputTokens": 482744,
+    "cachedInputTokens": 409088,
+    "outputTokens": 11842,
+    "costUsd": null,
+    "agentRuns": 5,
+    "steps": [
+      "architect",
+      "architect",
+      "developer",
+      "validator",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 30312,
+        "ok": true,
+        "inputTokens": 64929,
+        "outputTokens": 2014,
+        "totalTokens": 66943,
+        "cachedInputTokens": 57344,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "architect",
+        "ms": 26916,
+        "ok": true,
+        "inputTokens": 65067,
+        "outputTokens": 2148,
+        "totalTokens": 67215,
+        "cachedInputTokens": 57856,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "developer",
+        "ms": 49695,
+        "ok": true,
+        "inputTokens": 108222,
+        "outputTokens": 2965,
+        "totalTokens": 111187,
+        "cachedInputTokens": 96640,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "validator",
+        "ms": 22662,
+        "ok": true,
+        "inputTokens": 141010,
+        "outputTokens": 2020,
+        "totalTokens": 143030,
+        "cachedInputTokens": 121856,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "qa",
+        "ms": 53354,
+        "ok": true,
+        "inputTokens": 103516,
+        "outputTokens": 2695,
+        "totalTokens": 106211,
+        "cachedInputTokens": 75392,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      }
+    ],
+    "id": "atlas-codex__t3-todo-priority__r1",
+    "arm": "atlas-codex",
+    "task": "t3-todo-priority",
+    "rep": 1,
+    "runtime": "codex",
+    "model": "gpt-5.6-luna",
+    "template": "software_feature",
+    "grade": {
+      "id": "atlas-codex__t3-todo-priority__r1",
+      "task": "t3-todo-priority",
+      "kind": "feature-multifile",
+      "changed": [
+        "src/format.js",
+        "src/store.js",
+        "test/store.test.js"
+      ],
+      "added": 41,
+      "removed": 7,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 6,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "elapsedMs": 176391,
+    "inputTokens": 549300,
+    "cachedInputTokens": 482816,
+    "outputTokens": 14045,
+    "costUsd": null,
+    "agentRuns": 5,
+    "steps": [
+      "architect",
+      "architect",
+      "developer",
+      "validator",
+      "qa"
+    ],
+    "perStep": [
+      {
+        "role": "architect",
+        "ms": 24652,
+        "ok": true,
+        "inputTokens": 83308,
+        "outputTokens": 2513,
+        "totalTokens": 85821,
+        "cachedInputTokens": 75136,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "architect",
+        "ms": 35108,
+        "ok": true,
+        "inputTokens": 82973,
+        "outputTokens": 2676,
+        "totalTokens": 85649,
+        "cachedInputTokens": 70528,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "developer",
+        "ms": 66688,
+        "ok": true,
+        "inputTokens": 149824,
+        "outputTokens": 3549,
+        "totalTokens": 153373,
+        "cachedInputTokens": 137088,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "validator",
+        "ms": 24566,
+        "ok": true,
+        "inputTokens": 108410,
+        "outputTokens": 2566,
+        "totalTokens": 110976,
+        "cachedInputTokens": 97408,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      },
+      {
+        "role": "qa",
+        "ms": 24388,
+        "ok": true,
+        "inputTokens": 124785,
+        "outputTokens": 2741,
+        "totalTokens": 127526,
+        "cachedInputTokens": 102656,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      }
+    ],
+    "id": "atlas-codex__t3-todo-priority__r2",
+    "arm": "atlas-codex",
+    "task": "t3-todo-priority",
+    "rep": 2,
+    "runtime": "codex",
+    "model": "gpt-5.6-luna",
+    "template": "software_feature",
+    "grade": {
+      "id": "atlas-codex__t3-todo-priority__r2",
+      "task": "t3-todo-priority",
+      "kind": "feature-multifile",
+      "changed": [
+        "src/format.js",
+        "src/store.js",
+        "test/store.test.js"
+      ],
+      "added": 42,
+      "removed": 7,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 6,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "elapsedMs": 46897,
+    "inputTokens": 98859,
+    "cachedInputTokens": 79744,
+    "outputTokens": 3714,
+    "costUsd": null,
+    "agentRuns": 1,
+    "steps": [
+      "validator"
+    ],
+    "perStep": [
+      {
+        "role": "validator",
+        "ms": 46324,
+        "ok": true,
+        "inputTokens": 98859,
+        "outputTokens": 3714,
+        "totalTokens": 102573,
+        "cachedInputTokens": 79744,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      }
+    ],
+    "id": "atlas-codex__t4-review__r1",
+    "arm": "atlas-codex",
+    "task": "t4-review",
+    "rep": 1,
+    "runtime": "codex",
+    "model": "gpt-5.6-luna",
+    "template": "code_review",
+    "grade": {
+      "id": "atlas-codex__t4-review__r1",
+      "task": "t4-review",
+      "kind": "review",
+      "changed": [],
+      "added": 0,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "defects": [
+        {
+          "id": "pagination-off-by-one",
+          "found": true
+        },
+        {
+          "id": "age-before-birthday",
+          "found": true
+        },
+        {
+          "id": "escape-first-only",
+          "found": true
+        }
+      ],
+      "defectsFound": 3,
+      "defectsTotal": 3,
+      "hiddenScore": 1,
+      "reviewChars": 3522
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "status": "Completed",
+    "failure": null,
+    "elapsedMs": 28874,
+    "inputTokens": 97243,
+    "cachedInputTokens": 89344,
+    "outputTokens": 3153,
+    "costUsd": null,
+    "agentRuns": 1,
+    "steps": [
+      "validator"
+    ],
+    "perStep": [
+      {
+        "role": "validator",
+        "ms": 28319,
+        "ok": true,
+        "inputTokens": 97243,
+        "outputTokens": 3153,
+        "totalTokens": 100396,
+        "cachedInputTokens": 89344,
+        "cost": null,
+        "currency": null,
+        "source": "runtime_reported"
+      }
+    ],
+    "id": "atlas-codex__t4-review__r2",
+    "arm": "atlas-codex",
+    "task": "t4-review",
+    "rep": 2,
+    "runtime": "codex",
+    "model": "gpt-5.6-luna",
+    "template": "code_review",
+    "grade": {
+      "id": "atlas-codex__t4-review__r2",
+      "task": "t4-review",
+      "kind": "review",
+      "changed": [],
+      "added": 0,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "defects": [
+        {
+          "id": "pagination-off-by-one",
+          "found": true
+        },
+        {
+          "id": "age-before-birthday",
+          "found": true
+        },
+        {
+          "id": "escape-first-only",
+          "found": true
+        }
+      ],
+      "defectsFound": 3,
+      "defectsTotal": 3,
+      "hiddenScore": 1,
+      "reviewChars": 3915
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 25546,
+    "inputTokens": 162252,
+    "cachedInputTokens": 140205,
+    "outputTokens": 4789,
+    "costUsd": 0.00820515,
+    "turns": 6,
+    "agentRuns": 1,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 8,
+        "outputTokens": 4789,
+        "cacheReadInputTokens": 140205,
+        "cacheCreationInputTokens": 22039,
+        "webSearchRequests": 0,
+        "costUSD": 0.00820515,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 2273,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "id": "claude-pure__t1-slugify__r1",
+    "arm": "claude-pure",
+    "task": "t1-slugify",
+    "rep": 1,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": null,
+    "grade": {
+      "id": "claude-pure__t1-slugify__r1",
+      "task": "t1-slugify",
+      "kind": "feature",
+      "changed": [
+        "src/slugify.js",
+        "test/slugify.test.js"
+      ],
+      "added": 97,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 14,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 31077,
+    "inputTokens": 205985,
+    "cachedInputTokens": 183203,
+    "outputTokens": 5049,
+    "costUsd": 0.008911930000000002,
+    "turns": 7,
+    "agentRuns": 1,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 10,
+        "outputTokens": 5049,
+        "cacheReadInputTokens": 183203,
+        "cacheCreationInputTokens": 22772,
+        "webSearchRequests": 0,
+        "costUSD": 0.008911930000000002,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 2664,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "id": "claude-pure__t1-slugify__r2",
+    "arm": "claude-pure",
+    "task": "t1-slugify",
+    "rep": 2,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": null,
+    "grade": {
+      "id": "claude-pure__t1-slugify__r2",
+      "task": "t1-slugify",
+      "kind": "feature",
+      "changed": [
+        "src/slugify.js",
+        "test/slugify.test.js"
+      ],
+      "added": 78,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 11,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 14,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 26365,
+    "inputTokens": 206145,
+    "cachedInputTokens": 161829,
+    "outputTokens": 4864,
+    "costUsd": 0.01291249,
+    "turns": 8,
+    "agentRuns": 1,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 10,
+        "outputTokens": 4864,
+        "cacheReadInputTokens": 161829,
+        "cacheCreationInputTokens": 44306,
+        "webSearchRequests": 0,
+        "costUSD": 0.01291249,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 1944,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "id": "claude-pure__t2-cart-bug__r1",
+    "arm": "claude-pure",
+    "task": "t2-cart-bug",
+    "rep": 1,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": null,
+    "grade": {
+      "id": "claude-pure__t2-cart-bug__r1",
+      "task": "t2-cart-bug",
+      "kind": "bugfix",
+      "changed": [
+        "src/cart.js",
+        "test/cart.test.js"
+      ],
+      "added": 32,
+      "removed": 10,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 7,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 11,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 25231,
+    "inputTokens": 204940,
+    "cachedInputTokens": 182717,
+    "outputTokens": 4170,
+    "costUsd": 0.00835577,
+    "turns": 8,
+    "agentRuns": 1,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 10,
+        "outputTokens": 4170,
+        "cacheReadInputTokens": 182717,
+        "cacheCreationInputTokens": 22213,
+        "webSearchRequests": 0,
+        "costUSD": 0.00835577,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 1488,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "id": "claude-pure__t2-cart-bug__r2",
+    "arm": "claude-pure",
+    "task": "t2-cart-bug",
+    "rep": 2,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": null,
+    "grade": {
+      "id": "claude-pure__t2-cart-bug__r2",
+      "task": "t2-cart-bug",
+      "kind": "bugfix",
+      "changed": [
+        "src/cart.js",
+        "test/cart.test.js"
+      ],
+      "added": 23,
+      "removed": 4,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 6,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 11,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 43520,
+    "inputTokens": 477393,
+    "cachedInputTokens": 450469,
+    "outputTokens": 7743,
+    "costUsd": 0.013758790000000002,
+    "turns": 18,
+    "agentRuns": 1,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 22,
+        "outputTokens": 7743,
+        "cacheReadInputTokens": 450469,
+        "cacheCreationInputTokens": 26902,
+        "webSearchRequests": 0,
+        "costUSD": 0.013758790000000002,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 2955,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "id": "claude-pure__t3-todo-priority__r1",
+    "arm": "claude-pure",
+    "task": "t3-todo-priority",
+    "rep": 1,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": null,
+    "grade": {
+      "id": "claude-pure__t3-todo-priority__r1",
+      "task": "t3-todo-priority",
+      "kind": "feature-multifile",
+      "changed": [
+        "src/format.js",
+        "src/store.js",
+        "test/store.test.js"
+      ],
+      "added": 76,
+      "removed": 7,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 10,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 42047,
+    "inputTokens": 399052,
+    "cachedInputTokens": 371613,
+    "outputTokens": 7477,
+    "costUsd": 0.012940630000000002,
+    "turns": 15,
+    "agentRuns": 1,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 18,
+        "outputTokens": 7477,
+        "cacheReadInputTokens": 371613,
+        "cacheCreationInputTokens": 27421,
+        "webSearchRequests": 0,
+        "costUSD": 0.012940630000000002,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 3031,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "id": "claude-pure__t3-todo-priority__r2",
+    "arm": "claude-pure",
+    "task": "t3-todo-priority",
+    "rep": 2,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": null,
+    "grade": {
+      "id": "claude-pure__t3-todo-priority__r2",
+      "task": "t3-todo-priority",
+      "kind": "feature-multifile",
+      "changed": [
+        "src/format.js",
+        "src/store.js",
+        "test/priority.test.js"
+      ],
+      "added": 85,
+      "removed": 8,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 2,
+      "ownTests": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 18288,
+    "inputTokens": 117714,
+    "cachedInputTokens": 99461,
+    "outputTokens": 2226,
+    "costUsd": 0.00575761,
+    "turns": 3,
+    "agentRuns": 1,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 6,
+        "outputTokens": 2226,
+        "cacheReadInputTokens": 99461,
+        "cacheCreationInputTokens": 18247,
+        "webSearchRequests": 0,
+        "costUSD": 0.00575761,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 1087,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "id": "claude-pure__t4-review__r1",
+    "arm": "claude-pure",
+    "task": "t4-review",
+    "rep": 1,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": null,
+    "grade": {
+      "id": "claude-pure__t4-review__r1",
+      "task": "t4-review",
+      "kind": "review",
+      "changed": [],
+      "added": 0,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "defects": [
+        {
+          "id": "pagination-off-by-one",
+          "found": true
+        },
+        {
+          "id": "age-before-birthday",
+          "found": true
+        },
+        {
+          "id": "escape-first-only",
+          "found": true
+        }
+      ],
+      "defectsFound": 3,
+      "defectsTotal": 3,
+      "hiddenScore": 1,
+      "reviewChars": 2140
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 15475,
+    "inputTokens": 78308,
+    "cachedInputTokens": 60320,
+    "outputTokens": 1688,
+    "costUsd": 0.0050444,
+    "turns": 2,
+    "agentRuns": 1,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 4,
+        "outputTokens": 1688,
+        "cacheReadInputTokens": 60320,
+        "cacheCreationInputTokens": 17984,
+        "webSearchRequests": 0,
+        "costUSD": 0.0050444,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 503,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "id": "claude-pure__t4-review__r2",
+    "arm": "claude-pure",
+    "task": "t4-review",
+    "rep": 2,
+    "runtime": "claude",
+    "model": "haiku",
+    "template": null,
+    "grade": {
+      "id": "claude-pure__t4-review__r2",
+      "task": "t4-review",
+      "kind": "review",
+      "changed": [],
+      "added": 0,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "defects": [
+        {
+          "id": "pagination-off-by-one",
+          "found": true
+        },
+        {
+          "id": "age-before-birthday",
+          "found": true
+        },
+        {
+          "id": "escape-first-only",
+          "found": true
+        }
+      ],
+      "defectsFound": 3,
+      "defectsTotal": 3,
+      "hiddenScore": 1,
+      "reviewChars": 2713
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 30386,
+    "inputTokens": 127014,
+    "cachedInputTokens": 105984,
+    "outputTokens": 2647,
+    "reasoningTokens": 1002,
+    "costUsd": null,
+    "turns": 1,
+    "agentRuns": 1,
+    "id": "codex-pure__t1-slugify__r1",
+    "arm": "codex-pure",
+    "task": "t1-slugify",
+    "rep": 1,
+    "runtime": "codex",
+    "model": "gpt-5.6-luna",
+    "template": null,
+    "grade": {
+      "id": "codex-pure__t1-slugify__r1",
+      "task": "t1-slugify",
+      "kind": "feature",
+      "changed": [
+        "src/slugify.js",
+        "test/slugify.test.js"
+      ],
+      "added": 57,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 5,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 14,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 36376,
+    "inputTokens": 126574,
+    "cachedInputTokens": 111872,
+    "outputTokens": 2646,
+    "reasoningTokens": 802,
+    "costUsd": null,
+    "turns": 1,
+    "agentRuns": 1,
+    "id": "codex-pure__t1-slugify__r2",
+    "arm": "codex-pure",
+    "task": "t1-slugify",
+    "rep": 2,
+    "runtime": "codex",
+    "model": "gpt-5.6-luna",
+    "template": null,
+    "grade": {
+      "id": "codex-pure__t1-slugify__r2",
+      "task": "t1-slugify",
+      "kind": "feature",
+      "changed": [
+        "src/slugify.js",
+        "test/slugify.test.js"
+      ],
+      "added": 64,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 5,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 14,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 21234,
+    "inputTokens": 87535,
+    "cachedInputTokens": 68224,
+    "outputTokens": 1359,
+    "reasoningTokens": 327,
+    "costUsd": null,
+    "turns": 1,
+    "agentRuns": 1,
+    "id": "codex-pure__t2-cart-bug__r1",
+    "arm": "codex-pure",
+    "task": "t2-cart-bug",
+    "rep": 1,
+    "runtime": "codex",
+    "model": "gpt-5.6-luna",
+    "template": null,
+    "grade": {
+      "id": "codex-pure__t2-cart-bug__r1",
+      "task": "t2-cart-bug",
+      "kind": "bugfix",
+      "changed": [
+        "src/cart.js",
+        "test/cart.test.js"
+      ],
+      "added": 12,
+      "removed": 4,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 3,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 11,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 21630,
+    "inputTokens": 87184,
+    "cachedInputTokens": 78208,
+    "outputTokens": 1674,
+    "reasoningTokens": 496,
+    "costUsd": null,
+    "turns": 1,
+    "agentRuns": 1,
+    "id": "codex-pure__t2-cart-bug__r2",
+    "arm": "codex-pure",
+    "task": "t2-cart-bug",
+    "rep": 2,
+    "runtime": "codex",
+    "model": "gpt-5.6-luna",
+    "template": null,
+    "grade": {
+      "id": "codex-pure__t2-cart-bug__r2",
+      "task": "t2-cart-bug",
+      "kind": "bugfix",
+      "changed": [
+        "src/cart.js",
+        "test/cart.test.js"
+      ],
+      "added": 13,
+      "removed": 5,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 3,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 11,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 24506,
+    "inputTokens": 108751,
+    "cachedInputTokens": 93696,
+    "outputTokens": 2229,
+    "reasoningTokens": 443,
+    "costUsd": null,
+    "turns": 1,
+    "agentRuns": 1,
+    "id": "codex-pure__t3-todo-priority__r1",
+    "arm": "codex-pure",
+    "task": "t3-todo-priority",
+    "rep": 1,
+    "runtime": "codex",
+    "model": "gpt-5.6-luna",
+    "template": null,
+    "grade": {
+      "id": "codex-pure__t3-todo-priority__r1",
+      "task": "t3-todo-priority",
+      "kind": "feature-multifile",
+      "changed": [
+        "src/format.js",
+        "src/store.js",
+        "test/store.test.js"
+      ],
+      "added": 41,
+      "removed": 6,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 7,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 11,
+        "fail": 1,
+        "failed": [
+          "format high with bang"
+        ]
+      },
+      "hiddenScore": 0.9166666666666666
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 24990,
+    "inputTokens": 72245,
+    "cachedInputTokens": 62336,
+    "outputTokens": 2158,
+    "reasoningTokens": 565,
+    "costUsd": null,
+    "turns": 1,
+    "agentRuns": 1,
+    "id": "codex-pure__t3-todo-priority__r2",
+    "arm": "codex-pure",
+    "task": "t3-todo-priority",
+    "rep": 2,
+    "runtime": "codex",
+    "model": "gpt-5.6-luna",
+    "template": null,
+    "grade": {
+      "id": "codex-pure__t3-todo-priority__r2",
+      "task": "t3-todo-priority",
+      "kind": "feature-multifile",
+      "changed": [
+        "src/format.js",
+        "src/store.js",
+        "test/store.test.js"
+      ],
+      "added": 32,
+      "removed": 6,
+      "outOfScope": [],
+      "hasTree": true,
+      "ownTestFiles": 1,
+      "ownTests": {
+        "pass": 5,
+        "fail": 0,
+        "failed": []
+      },
+      "hidden": {
+        "pass": 12,
+        "fail": 0,
+        "failed": []
+      },
+      "hiddenScore": 1
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 42109,
+    "inputTokens": 71934,
+    "cachedInputTokens": 55680,
+    "outputTokens": 1818,
+    "reasoningTokens": 743,
+    "costUsd": null,
+    "turns": 1,
+    "agentRuns": 1,
+    "id": "codex-pure__t4-review__r1",
+    "arm": "codex-pure",
+    "task": "t4-review",
+    "rep": 1,
+    "runtime": "codex",
+    "model": "gpt-5.6-luna",
+    "template": null,
+    "grade": {
+      "id": "codex-pure__t4-review__r1",
+      "task": "t4-review",
+      "kind": "review",
+      "changed": [],
+      "added": 0,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "defects": [
+        {
+          "id": "pagination-off-by-one",
+          "found": true
+        },
+        {
+          "id": "age-before-birthday",
+          "found": true
+        },
+        {
+          "id": "escape-first-only",
+          "found": true
+        }
+      ],
+      "defectsFound": 3,
+      "defectsTotal": 3,
+      "hiddenScore": 1,
+      "reviewChars": 1410
+    }
+  },
+  {
+    "ok": true,
+    "exitCode": 0,
+    "elapsedMs": 35066,
+    "inputTokens": 104547,
+    "cachedInputTokens": 84992,
+    "outputTokens": 2234,
+    "reasoningTokens": 907,
+    "costUsd": null,
+    "turns": 1,
+    "agentRuns": 1,
+    "id": "codex-pure__t4-review__r2",
+    "arm": "codex-pure",
+    "task": "t4-review",
+    "rep": 2,
+    "runtime": "codex",
+    "model": "gpt-5.6-luna",
+    "template": null,
+    "grade": {
+      "id": "codex-pure__t4-review__r2",
+      "task": "t4-review",
+      "kind": "review",
+      "changed": [],
+      "added": 0,
+      "removed": 0,
+      "outOfScope": [],
+      "hasTree": true,
+      "defects": [
+        {
+          "id": "pagination-off-by-one",
+          "found": true
+        },
+        {
+          "id": "age-before-birthday",
+          "found": true
+        },
+        {
+          "id": "escape-first-only",
+          "found": true
+        }
+      ],
+      "defectsFound": 3,
+      "defectsTotal": 3,
+      "hiddenScore": 1,
+      "reviewChars": 2115
+    }
+  }
+]

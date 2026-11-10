@@ -1,0 +1,58 @@
+{
+  "ok": true,
+  "exitCode": 0,
+  "status": "Completed",
+  "failure": null,
+  "asked": [],
+  "elapsedMs": 138616,
+  "inputTokens": 251430,
+  "cachedInputTokens": 207151,
+  "outputTokens": 18034,
+  "costUsd": 0.01994191,
+  "agentRuns": 2,
+  "steps": [
+    "bug-fixer",
+    "qa"
+  ],
+  "perStep": [
+    {
+      "role": "fixer",
+      "ms": 45102,
+      "ok": true,
+      "inputTokens": 147159,
+      "outputTokens": 8442,
+      "totalTokens": 155601,
+      "cachedInputTokens": 123690,
+      "cost": 0.0101503,
+      "currency": "USD",
+      "source": "runtime_reported",
+      "thinkingTokens": 4096,
+      "textChars": 5495,
+      "toolInputChars": 4077,
+      "reasoningTokens": null
+    },
+    {
+      "role": "qa",
+      "ms": 92418,
+      "ok": true,
+      "inputTokens": 104271,
+      "outputTokens": 9592,
+      "totalTokens": 113863,
+      "cachedInputTokens": 83461,
+      "cost": 0.00979161,
+      "currency": "USD",
+      "source": "runtime_reported",
+      "thinkingTokens": 5647,
+      "textChars": 7464,
+      "toolInputChars": 1237,
+      "reasoningTokens": null
+    }
+  ],
+  "id": "atlas-claude__t6-csv-bug__r1",
+  "arm": "atlas-claude",
+  "task": "t6-csv-bug",
+  "rep": 1,
+  "runtime": "claude",
+  "model": "haiku",
+  "template": "bug_fix"
+}

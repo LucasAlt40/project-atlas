@@ -53,6 +53,11 @@ pub struct ExecutionPolicy {
     /// does not govern what an MCP tool does: that is what the step's grants are for.
     #[serde(default)]
     pub read_only: bool,
+    /// The step is given no commands to run (tests, Git's reading commands), whatever its
+    /// runtime and its agent's policy could allow: an analysis that answers from the code alone.
+    /// It can only narrow, like `read_only`.
+    #[serde(default)]
+    pub no_commands: bool,
 }
 
 fn announce_by_default() -> bool {
@@ -65,6 +70,7 @@ impl Default for ExecutionPolicy {
             isolation: IsolationMode::default(),
             announce_integrations: true,
             read_only: false,
+            no_commands: false,
         }
     }
 }
@@ -102,11 +108,17 @@ pub struct AgentNode {
 
 /// Tests the result of the step that led here and records the answer (`result.matched`), which
 /// the edges leaving it can route on.
+///
+/// A *join* (`join: true`) waits for every step that leads into it, each time round, and matches
+/// only when the condition holds for each of them: two reviews that run side by side, say, go on
+/// only if both pass. Without it the node runs when the first link reaches it, as it always did.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConditionNode {
     pub label: String,
     pub condition: Condition,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub join: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]

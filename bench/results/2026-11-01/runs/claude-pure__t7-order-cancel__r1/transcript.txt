@@ -1,0 +1,16 @@
+--- Assistant
+Order cancellation is implemented and tests are written, but I could not run them. Every shell command, including `node --test` and `npm test`, was refused by the permission check, so the code and tests are verified only by reading them. Please run `npm test` to confirm.
+
+**Changes**
+- **`src/inventory.js`**: new `give(sku, qty)` that adds stock back. It is the counterpart to `take`.
+- **`src/orders.js`**: new `cancel(orderId, reason)`.
+  - It checks the reason first and throws a `TypeError` if it is not a non-empty string.
+  - It throws an `Error` containing "not found" for an unknown order, and one containing "already cancelled" for a repeat cancel. Neither changes anything.
+  - Otherwise it restocks every item, sets `status` to `'cancelled'`, stores `reason` on the order, emits `order.cancelled` with `{ orderId, reason }`, and returns a copy of the order.
+- **`src/reports.js`**: `revenue()` and `unitsSold(sku)` now skip cancelled orders.
+- **`test/shop.test.js`**: six new tests covering restock and event, not-found, double cancel, invalid reason, and reports excluding cancelled orders. I added them to the existing file rather than creating a new one.
+
+**Choices you may want to change**
+- Argument validation runs before the order lookup, so `cancel(missingId, '')` throws the `TypeError`, not the "not found" error.
+- A whitespace-only reason such as `'   '` is accepted, since the spec says "non-empty" and I read that literally.
+- Existing behaviour is unchanged: `place`, `get`, `all` and the existing tests were not modified.

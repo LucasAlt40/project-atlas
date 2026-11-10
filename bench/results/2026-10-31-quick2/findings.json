@@ -1,0 +1,30 @@
+[
+ {
+  "finding": "O 'Quick change' (Arquiteto → Desenvolvedor → QA) entregou código com 100% nos testes ocultos nas 4 tarefas de feature, como o 'Implement', com −30% de tempo, −36% de entrada, −30% de saída e −31% de custo. Ficou a 1,6× o custo do Claude puro (o Implement fica a 2,3×), e com menos entrada que o puro.",
+  "fix": "Usar o Quick como padrão para tarefas pequenas e bem especificadas (o Arquiteto já classifica 'trivial/moderate/complex'), e o Implement para as complexas.",
+  "metric": "Custo Atlas/puro 2,3× → 1,6×",
+  "priority": "Alta",
+  "effort": "Baixo"
+ },
+ {
+  "finding": "FEITO (ADR 0044, decisão 9): no Quick, uma reprovação do QA abre UMA volta (o Desenvolvedor corrige, o QA roda de novo; uma segunda reprovação encerra como falha). Nesta rodada o QA não reprovou nenhuma vez (8/8 concluídas, 0 correções), então o ganho de 6/8 → 8/8 é variação; o comportamento da volta está provado por teste do template, não pelo benchmark.",
+  "fix": "Feito. Para ver a volta no benchmark, uma tarefa em que o primeiro rascunho costuma errar algo pedido.",
+  "metric": "Execuções do Quick concluídas",
+  "priority": "Feito",
+  "effort": "—"
+ },
+ {
+  "finding": "Mesmo no Quick, o Atlas leva 2,4× o tempo do Claude puro (101 s contra 42 s): são 3 chamadas de CLI em sequência, cada uma relendo o projeto.",
+  "fix": "Para tarefas triviais, um modo de passo único (o próprio Desenvolvedor com o teste executado) ficaria perto do puro mantendo worktree isolado, sandbox, trilha e revisão antes do Apply.",
+  "metric": "Tempo Atlas/puro",
+  "priority": "Média",
+  "effort": "Médio"
+ },
+ {
+  "finding": "Uma execução do Atlas+Claude ficou parada: a CLI sem CPU, com as conexões com a API fechadas e sem filhos, há 21 min de processo quando foi encerrada à mão. Investigado: o limite de inatividade do Atlas (15 min, RUN_TIMEOUT) conta a partir da ÚLTIMA saída e é coberto por testes (pipe e terminal); sem rede, a CLI imprime 'api_retry' e desiste após 10 tentativas (~3 min). O encerramento manual aconteceu perto de quando o limite venceria, então não há bug confirmado.",
+  "fix": "Diagnóstico: registrar quando foi a última saída de um passo e guardar as últimas linhas quando o limite vence; mostrar na interface 'sem saída há X min' para um passo parado não parecer trabalhando. Manter 15 min (um teste longo roda calado).",
+  "metric": "Tempo até perceber um passo parado",
+  "priority": "Média",
+  "effort": "Baixo"
+ }
+]

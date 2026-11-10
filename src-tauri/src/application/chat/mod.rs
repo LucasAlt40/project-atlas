@@ -65,6 +65,8 @@ pub struct WorkflowStepRequest {
     pub announce_integrations: bool,
     /// The step may not edit files (the node's setting; it only narrows the agent's policy).
     pub read_only: bool,
+    /// The step is given no commands to run (the node's setting; it only narrows).
+    pub no_commands: bool,
     /// The projects the step works in and may consult.
     pub scope: Option<ScopeRequest>,
 }
@@ -298,6 +300,7 @@ impl ChatService {
                 _busy: busy,
                 announce_integrations: true,
                 read_only: false,
+                no_commands: false,
                 scope: request.scope,
             },
         ))
@@ -329,6 +332,7 @@ impl ChatService {
         pending.shared_worktree = step.shared_worktree;
         pending.announce_integrations = step.announce_integrations;
         pending.read_only = step.read_only;
+        pending.no_commands = step.no_commands;
         pending.announce = Some(sent.user_message.clone());
         Ok((sent, pending))
     }
@@ -401,6 +405,7 @@ impl Drop for BusyGuard {
 }
 
 /// A message whose answer has not been produced yet.
+#[allow(clippy::struct_excessive_bools)] // independent settings of one step
 pub struct PendingRun {
     inner: Arc<Inner>,
     workspace_id: String,
@@ -416,6 +421,7 @@ pub struct PendingRun {
     shared_worktree: Option<String>,
     announce_integrations: bool,
     read_only: bool,
+    no_commands: bool,
     scope: Option<ScopeRequest>,
     workflow: Option<WorkflowLink>,
     /// Look at the answer for a request for a person even though no workflow is behind the run
@@ -455,6 +461,7 @@ impl PendingRun {
             node_id: self.workflow.as_ref().map(|link| link.node_id.as_str()),
             announce_integrations: self.announce_integrations,
             read_only: self.read_only,
+            no_commands: self.no_commands,
             task_rules: &[],
         };
         let result = if options.context_query.is_some() || options.detect_interaction {
@@ -904,6 +911,7 @@ mod tests {
                     shared_worktree: None,
                     announce_integrations: true,
                     read_only: false,
+                    no_commands: false,
                     scope: None,
                 })
                 .unwrap();
@@ -946,7 +954,12 @@ mod tests {
 
     #[test]
     fn a_failed_run_is_kept_as_failed_with_its_reason() {
-        let f = fixture(vec![FakeRuntime::new("rt", Err(RuntimeError::Timeout))]);
+        let f = fixture(vec![FakeRuntime::new(
+            "rt",
+            Err(RuntimeError::Timeout(
+                crate::application::process::Silence::default(),
+            )),
+        )]);
         let agent = &f.agent_ids[0];
         let (_, pending) = f.chat.send(request(&f, agent, "Do it")).unwrap();
         pending.run(&Collector::default());

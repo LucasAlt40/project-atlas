@@ -1,0 +1,34 @@
+--- Assistant
+I reviewed `src/users.js` and found three defects. I changed nothing.
+
+**1. `src/users.js:5` (`paginate`): off-by-one, page numbering contradicts the doc comment**
+- **Why it's wrong:** The comment at line 3 says page 1 is the first page, but `start = page * size` treats pages as 0-based. `paginate(items, 1, 10)` returns items 10–19, so the first page is silently skipped. `paginate(items, 0, 10)` returns items 0–9, which is the first page only under the 0-based reading. Page 0 or a negative page also produces a negative or odd `start`, which `slice` interprets from the end of the array.
+- **Fix:** `const start = (page - 1) * size;` and reject `page < 1` (throw a `RangeError`, or clamp to 1), so an invalid page can't silently return the wrong slice.
+
+**2. `src/users.js:11-12` (`isAdult`): ignores month and day, so the check is wrong for most of each year**
+- **Why it's wrong:** It subtracts only birth year from current year. Someone born 2008-12-31 is counted as 18 on 2026-01-01, when they are actually 17. They are counted as an adult for the whole year they turn 18 instead of from their birthday. This is an access-control-style age gate, so it can admit minors.
+- **Fix:** Compute the age from the full date:
+  ```js
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const beforeBirthday =
+    today.getMonth() < birthDate.getMonth() ||
+    (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate());
+  if (beforeBirthday) age -= 1;
+  return age >= 18;
+  ```
+  Also consider `getUTCFullYear` and the UTC methods if `birthDate` is parsed from a date-only string, since local-time methods can shift the day.
+
+**3. `src/users.js:18-20` (`escapeHtml`): incomplete escaping**
+- **Why it's wrong:** `String.prototype.replace` with a string pattern replaces only the first occurrence. `"<<script>"` becomes `"&lt;<script>"`, so the second `<` is left unescaped. The same applies to `&`, `<` and `>`, which breaks the "safe for HTML" promise at line 15. The output is also unsafe in attribute context, because `"` and `'` are not escaped.
+- **Fix:** Use global regexes and escape `&` first:
+  ```js
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+  ```
+  Escaping `&` first matters: if it ran later, the `&` in the entities already produced would be double-escaped. A simpler alternative is to build the value with a templating or DOM API that escapes for you.
+
+**Checked and not flagged:** `userRow` (line 25) escapes `user.name` and renders `isAdmin` as a fixed string, so it adds no injection risk on its own. Its safety depends on fix 3.

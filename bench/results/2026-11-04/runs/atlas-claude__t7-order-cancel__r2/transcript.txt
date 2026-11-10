@@ -1,0 +1,107 @@
+--- User agent-1793838860832-6
+Analyze and plan: Add order cancellation to this shop (src/orders.js, src/inventory.js, src/reports.js; src/events.js is the event bus).  - orders.cancel(orderI…
+--- Assistant agent-1793838860832-6
+Size: moderate
+
+The baseline is green: `npm test` runs 3 tests and all pass. The change touches three source modules and the test file. It adds no new modules and no new dependencies.
+
+## Plan: order cancellation
+
+**Goal.** Add `orders.cancel(orderId, reason)`. It restocks the order's items, marks the order `cancelled` and keeps the reason, emits one `order.cancelled` event, and returns the cancelled order. Reports stop counting cancelled orders.
+
+**In scope.** `src/orders.js`, `src/inventory.js`, `src/reports.js`, and `test/shop.test.js`.
+
+**Out of scope.** `src/events.js` (no change is needed), `src/shop.js` (no wiring change), README, and the existing shared-reference return in `place()`. That last one is a pre-existing issue, noted below.
+
+**Modules and dependencies.**
+- `shop.js` composes everything. `orders` depends on `inventory` and `bus`, which are injected. `reports` depends on `orders.all()`.
+- The change keeps these directions. Nothing new is imported.
+- The new contract is the `order.cancelled` event with payload `{ orderId, reason }`. Nothing subscribes to it yet.
+
+**Decisions the Developer must follow.**
+1. **Inventory gets a `restock(sku, qty)` method.** It adds `qty` to the current stock. It is the mirror of `take()`, which is the only mutator today. Do not validate beyond what `take` does.
+2. **Validation order in `cancel`:**
+   1. Check `reason` first. A non-string, or a string that is empty after `trim()`, throws `TypeError`. Nothing changes.
+   2. Look up the order. A missing order throws `Error` with a message containing "not found".
+   3. If the order is already `cancelled`, throw `Error` with a message containing "already cancelled".
+   
+   Because argument checks come first, a bad reason always gives `TypeError`, whatever the order's state.
+3. **Lookup is strict.** Ids are numbers, as `place()` creates them. Do not coerce string ids.
+4. **Restock from the stored items, not from the caller's input.** The caller passes only `orderId` and `reason`.
+5. **Mutation order mirrors `place()`:** validate, then restock each item, then set `status = 'cancelled'` and `reason` on the stored order, then emit, then return a copy. The copy is built the same way `get()` builds it, with items copied. Emitting after the state change matches `place()`.
+6. **Keep `reason` as given.** Don't trim the stored value. Trimming is only used for the emptiness check.
+7. **Reports filter in `reports.js`.** `revenue()` and `unitsSold()` skip orders whose `status === 'cancelled'`. `orders.all()` keeps returning every order, because it is a data accessor and the sales rule belongs to reports.
+
+**Files and contracts to change.**
+- `src/inventory.js`: add `restock(sku, qty)`.
+- `src/orders.js`: add `cancel(orderId, reason)`. Its contract is: it returns the cancelled order copy, and it throws `TypeError` or `Error` as described above. Emits `order.cancelled`.
+- `src/reports.js`: add the `cancelled` filter in `revenue()` and `unitsSold()`.
+- `test/shop.test.js`: add tests. Existing tests stay unchanged.
+
+**Tests to add** (in `test/shop.test.js`, following the existing `node:test` style):
+- A cancel restores stock, sets `status` to `'cancelled'`, keeps `reason`, returns the cancelled order, and emits exactly one `order.cancelled` event with `{ orderId, reason }`.
+- An unknown id throws an error matching `/not found/`, and no event is emitted.
+- A second cancel throws an error matching `/already cancelled/`. Stock is not restocked again, and no second event is emitted.
+- A reason of `''`, `'   '`, `undefined` or `42` throws `TypeError`. Stock, status and events stay unchanged.
+- After a cancel, `reports.revenue()` and `reports.unitsSold(sku)` exclude that order.
+
+**Risks.**
+- **Pre-existing:** `place()` returns `{ ...order }`, which shares the internal `items` array with the stored order. A caller can mutate the store through the returned object. This is outside the task, so leave it alone, and `cancel` should not copy that pattern.
+- **Handler exceptions:** the bus is synchronous. If a future `order.cancelled` subscriber throws, the state has already changed. This matches `place()`, so it is accepted for now.
+
+**Verification.** Run `npm test`. All 3 existing tests and the new cancellation tests should pass. Then confirm by reading that `reports.js` filters in both methods.
+
+Analysis complete. Nothing was implemented, as the step requires. The only command run was `npm test`, which gave the baseline above.
+
+```atlas-result
+{"status":"success","outcome":"approved","summary":"Analysed src/orders.js, src/inventory.js, src/reports.js, src/events.js, src/shop.js and test/shop.test.js. Baseline `npm test` passes 3/3. Plan: add inventory.restock, orders.cancel (validate reason, then lookup, then already-cancelled check; restock stored items; set status and reason; emit order.cancelled; return a copy), and a cancelled-status filter in reports.revenue and reports.unitsSold. New tests go in test/shop.test.js. Nothing was implemented.","artifacts":[{"type":"implementation_summary","name":"Order cancellation plan","path":"README.md","summary":"Plan written in full in the message above. No file was created for it."}],"decisions":[{"title":"Inventory restock method","decision":"Add inventory.restock(sku, qty) that adds to stock, mirroring take().","rationale":"take() is the only mutator today and restock is its symmetric counterpart."},{"title":"Cancel validation order","decision":"Check reason (TypeError) first, then order lookup (not found), then already-cancelled.","rationale":"Argument shape is checked before state, so a bad reason always gives TypeError."},{"title":"Restock from stored items","decision":"cancel restocks the items stored on the order, not any caller input.","rationale":"The stored order is the source of truth for what was sold."},{"title":"Reports filter location","decision":"Filter status 'cancelled' inside reports.revenue and reports.unitsSold; orders.all() still returns all orders.","rationale":"orders.all() is a data accessor; the sales rule belongs to reports."},{"title":"Strict id lookup and reason storage","decision":"Do not coerce string ids. Non-empty means not empty after trim, but the reason is stored as given.","rationale":"Ids are numbers created by place(); trimming is only for validation."}],"findings":[{"severity":"low","category":"encapsulation","title":"place() leaks internal items array","description":"place() returns a shallow copy of the stored order, so the returned items array is shared with the store and can be mutated by callers.","file":"src/orders.js","line":15,"evidence":"return { ...order };","recommendation":"Out of scope for this task. cancel() should copy items like get() does rather than follow this pattern."}],"touchedFiles":[],"touchedAreas":["orders","inventory","reports","tests"],"nextAction":"Developer implements the plan above in src/inventory.js, src/orders.js, src/reports.js and test/shop.test.js, then runs npm test."}
+```
+--- User agent-1793838860832-3
+Implement: Add order cancellation to this shop (src/orders.js, src/inventory.js, src/reports.js; src/events.js is the event bus).  - orders.cancel(orderId, reas…
+--- Assistant agent-1793838860832-3
+Order cancellation is implemented and `npm test` passes 10/10: the 3 existing tests plus 7 new ones.
+
+Changes:
+- **`src/inventory.js`**: added `restock(sku, qty)`, which adds to stock and mirrors `take()`.
+- **`src/orders.js`**: added `cancel(orderId, reason)`. It checks the reason first (`TypeError`), then the order lookup (`not found`), then the already-cancelled state. It restocks the items stored on the order, sets `status` to `'cancelled'` and stores `reason` as given, emits `order.cancelled` with `{ orderId, reason }`, and returns a copy of the order.
+- **`src/reports.js`**: `revenue()` and `unitsSold()` now read through a `live()` helper that excludes cancelled orders. `orders.all()` is unchanged.
+- **`test/shop.test.js`**: 7 new tests covering restock, the cancel happy path with the event, not-found, double cancel with no side effects, invalid reasons with no side effects, validation order, and reports excluding cancelled orders.
+
+Checked by running: `npm test` printed `ℹ tests 10`, `ℹ pass 10`, `ℹ fail 0`.
+
+Not verified: I did not run any linter, and I did not commit.
+
+Remaining risks:
+- The reason is stored untrimmed, as the plan specified. Whitespace-only reasons are rejected.
+- The `cancel` return value is a copy, so callers cannot change the stored order through it. `place()` still returns a shallow copy that shares its items array with the store. That is the out-of-scope finding from the earlier review, and I left it alone.
+
+```atlas-result
+{"status":"success","outcome":"implemented","summary":"Added inventory.restock, orders.cancel (reason TypeError check, then not-found, then already-cancelled; restocks stored items; sets status and reason; emits order.cancelled; returns a copy) and a cancelled-status filter in reports.revenue and reports.unitsSold. Added 7 tests in test/shop.test.js. npm test: 10 pass, 0 fail.","artifacts":[{"type":"implementation_summary","name":"Order cancellation implementation","path":"src/orders.js","summary":"cancel() in orders.js, restock() in inventory.js, live() filter in reports.js, tests in test/shop.test.js."}],"decisions":[{"title":"Cancel validation order","decision":"reason is checked first (TypeError), then order lookup (not found), then already cancelled.","rationale":"Argument shape is checked before state, as the plan specified."},{"title":"Reason storage","decision":"reason is stored exactly as given; only validation trims.","rationale":"Matches the plan's strict-storage decision."},{"title":"Reports filter location","decision":"Cancelled orders are filtered inside reports; orders.all() still returns every order.","rationale":"The sales rule belongs in reports, per the plan."}],"findings":[],"touchedFiles":["src/inventory.js","src/orders.js","src/reports.js","test/shop.test.js"],"touchedAreas":["inventory","orders","reports","tests"],"nextAction":"Review the change. No linter was run and nothing was committed."}
+```
+--- User agent-1793838860832-7
+Review the change: Add order cancellation to this shop (src/orders.js, src/inventory.js, src/reports.js; src/events.js is the event bus).  - orders.cancel(order…
+--- Assistant agent-1793838860832-7
+Verdict: **pass**. The change matches the task and plan, and the test suite passes (10/10). I found no failing behaviour and no security problem. One low-severity maintainability note is below.
+
+- **Spec and decisions:** The validation order is reason (TypeError), then lookup (not found), then already-cancelled, as decided. Stock is restocked from the stored items, the event is emitted once with `{ orderId, reason }`, and reason is stored as given. Reports exclude cancelled orders, and `orders.all()` still returns everything.
+- **Scope and layering:** Only `src/orders.js`, `src/inventory.js`, `src/reports.js` and `test/shop.test.js` changed. `cancel` uses `inventory.restock` the same way `place` uses `inventory.take`, so there is no new dependency or boundary crossing.
+- **Previous finding:** The plan step's shallow-copy note on `place()` does not apply here, because `cancel` returns a copied `items` array.
+- **Repository state:** The handoff says the changes are uncommitted, but `git status` is clean. They are in commit `4513188 Atlas: step exec-3` (HEAD), and I reviewed them with `git show HEAD`. This does not affect the verdict.
+
+Test run: `npm test` gave 10 pass, 0 fail. I did not run a linter, since none is in `package.json`.
+
+```atlas-result
+{"status":"pass","outcome":"pass","summary":"Reviewed the cancellation change committed in HEAD 4513188 (src/inventory.js, src/orders.js, src/reports.js, test/shop.test.js) against the task, the decisions and the project conventions. npm test: 10 pass, 0 fail. No failing behaviour, no uncovered requirement and no security problem found. One low-severity maintainability note. The changes are committed in HEAD, not in the working tree as the handoff stated.","artifacts":[],"decisions":[{"title":"Cancel validation order","decision":"reason TypeError first, then not found, then already cancelled","rationale":"Matches the task and the plan; covered by the 'reason check runs before the order lookup' test."},{"title":"Restock source","decision":"cancel restocks the items stored on the order","rationale":"The stored order is the source of truth for what was sold."},{"title":"Sales filter location","decision":"cancelled orders are filtered inside reports; orders.all() returns every order","rationale":"The sales rule belongs in reports."}],"findings":[{"severity":"low","category":"Maintainability","title":"Status literal 'cancelled' duplicated across modules","description":"The string 'cancelled' is written in orders.js and again in reports.js with no shared constant. A rename in one place would silently break reports.","file":"src/reports.js","line":5,"evidence":"const live = () => orders.all().filter((o) => o.status !== 'cancelled');  (also src/orders.js: order.status = 'cancelled')","recommendation":"Optional: export a status constant from orders.js and use it in reports.js. Not required for acceptance."},{"severity":"low","category":"Repository","title":"Changes are committed, not in the working tree","description":"The handoff lists these files as modified (uncommitted), but git status is clean and the changes are in HEAD commit 4513188 'Atlas: step exec-3'. The code is correct either way; the next step should diff against 2657147 rather than the working tree.","file":"src/orders.js","line":17,"evidence":"git show --stat HEAD: 4 files changed, 89 insertions(+), 3 deletions(-)","recommendation":"Use git show HEAD or git diff 2657147 HEAD when reviewing this change."}],"touchedFiles":[],"touchedAreas":["orders","inventory","reports","tests"],"nextAction":"Accept the change. Optionally share the 'cancelled' status constant between orders.js and reports.js."}
+```
+--- User agent-1793838860832-4
+Check behaviour: Add order cancellation to this shop (src/orders.js, src/inventory.js, src/reports.js; src/events.js is the event bus).  - orders.cancel(orderId…
+--- Assistant agent-1793838860832-4
+Verdict: pass. I read the four source files and the test file, confirmed the change is in HEAD, and ran `npm test` (10 pass, 0 fail). Every requirement traces to code and a test. The findings are low-severity, and I did not run any ad hoc repro scripts because the shell is restricted to the test and git commands. Everything below marked "read" was derived from code, not executed.
+
+- **Executed:** `npm test` gives 10/10 passing. `git diff 2657147 HEAD --stat` shows the four changed files, so the change is committed in HEAD, not in the working tree.
+- **Read:** the cancel path (reason check, then lookup, then already-cancelled, then restock from stored items, then status and event), the `reports` filter, and the test assertions. Before this change, the new tests would fail because `orders.cancel` and `inventory.restock` did not exist. I did not run that comparison.
+- **Not checked:** mutation testing, the browser (not a web page), and the event-handler failure path at runtime.
+
+```atlas-result
+{"status":"pass","outcome":"pass","summary":"Checked the cancellation change in HEAD 4513188 by reading src/orders.js, src/inventory.js, src/reports.js, src/shop.js and test/shop.test.js, and by running npm test (executed: 10 pass, 0 fail). Main path, not-found, already-cancelled, bad-reason TypeError ordering, restock from stored items, the single order.cancelled event with {orderId, reason}, and reports excluding cancelled orders are each traced to code and a test. No requirement is uncovered and no regression or security issue was found. Findings are low-severity only. Not executed: ad hoc repro scripts, mutation runs, the event-handler failure path at runtime.","artifacts":[],"decisions":[{"title":"Validation result","decision":"Outcome pass: no requirement from the task is wrong or untested.","rationale":"All task requirements trace to code and test; remaining items are robustness and maintainability notes."}],"findings":[{"severity":"low","category":"robustness","title":"place() returns items shared with the store, so cancel restocks caller-mutated quantities","description":"place() returns { ...order }, which keeps the same items array reference as the stored order. A caller who mutates the returned object's items before cancelling changes the stored items, and cancel() then restocks the mutated quantity. The task's stored-items-as-source-of-truth decision is weakened by this. Read only, not executed.","file":"src/orders.js","line":15,"evidence":"place returns { ...order } (line 15); cancel restocks from order.items (line 25); get()/all() copy items but place() does not.","recommendation":"Copy items in place() as get() and all() do. Out of the task's scope; the person can decide."},{"severity":"low","category":"maintainability","title":"Status literal 'cancelled' duplicated across modules","description":"orders.js sets the status and reports.js filters on it with no shared constant, so a rename in one file would silently break report figures. Read only.","file":"src/reports.js","line":4,"evidence":"const live = () => orders.all().filter((o) => o.status !== 'cancelled'); and order.status = 'cancelled' in src/orders.js:26.","recommendation":"Optionally export a status constant from orders.js and use it in reports.js."},{"severity":"low","category":"test-coverage","title":"Edge cases not directly asserted","description":"No test checks that revenue() and unitsSold() return 0 when every order is cancelled, that cancel restocks a SKU absent from the initial stock map, or that stock freed by a cancel can be sold again. The code paths look correct by reading (additive sums, Map default of 0). Read only.","file":"test/shop.test.js","line":89,"evidence":"The 'cancelled orders are left out of reports' test (lines 89-97) only covers a partial cancel; no test covers a full cancel or a re-sale after cancel.","recommendation":"Optionally add tests for the all-cancelled report totals and a re-sale of restocked stock."},{"severity":"low","category":"robustness","title":"Event handler throw leaves the cancel partly applied","description":"cancel() restocks and sets status before bus.emit. If a subscriber throws, the order stays cancelled and stock is restored, but the caller receives the exception and no return value. place() has the same ordering. Read only, not executed.","file":"src/orders.js","line":28,"evidence":"Order of operations in cancel(): restock (line 25), status set (line 26), emit (line 28); events.js emit has no try/catch.","recommendation":"Accept as the existing bus contract, or document it. The person can decide."}],"touchedFiles":[],"touchedAreas":["orders","inventory","reports","tests"],"nextAction":"Accept the change. The optional items are a copy of items in place(), a shared status constant, and tests for full-cancel totals and re-sale after cancel."}
+```

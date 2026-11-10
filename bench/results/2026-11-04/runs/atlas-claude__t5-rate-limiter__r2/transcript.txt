@@ -1,0 +1,157 @@
+--- User agent-1793838284226-6
+Analyze and plan: Create src/limiter.js, a CommonJS module that exports createLimiter(options), exactly as: module.exports = { createLimiter }. It is a token bu…
+--- Assistant agent-1793838284226-6
+Size: moderate
+
+## Plan: token-bucket limiter (`src/limiter.js`) and tests (`test/limiter.test.js`)
+
+This is an analysis of the task and the project. I have not written any code, because this step is analysis and planning only; the next step implements.
+
+**What I checked.** The project is `throttle` (`package.json`): CommonJS (`"type": "commonjs"`), no dependencies, and `"test": "node --test"`. The README says the same. There is no `src/` or `test/` yet, so the new files create those directories. The only file to add is `src/limiter.js`, plus `test/limiter.test.js`.
+
+### Goals
+- Export exactly `module.exports = { createLimiter }`.
+- Implement a token bucket with a fractional refill rate, an injected clock, and the validation rules from the task.
+- Cover the behaviour with `node:test` and `node:assert` tests that use a fake clock.
+
+### Out of scope
+- Any other file, `package.json` changes, or new dependencies.
+- Keyed limiters, async waiting, or a `take()` that sleeps. The spec only asks for `tryRemove`, `available`, `msUntil`, and `reset`.
+
+### Architectural impact
+- `limiter.js` is a leaf module. It has no imports and only depends on the injected `now` function, so it is fully deterministic under test.
+- The factory-closure style (`createLimiter` returns an object over private state) fits the spec's API. A class is not needed.
+
+### Design decisions the Developer must follow
+1. **Validation in `createLimiter`.** `capacity` must satisfy `Number.isInteger(c) && c > 0`. `refillPerSecond` must satisfy `typeof r === 'number' && Number.isFinite(r) && r > 0`. Any failure throws `RangeError`, including missing values. `now` defaults to `Date.now` when `undefined`.
+2. **State.** Keep `tokens` (a float, starts at `capacity`) and `last` (the reference time, set to `now()` at creation).
+3. **Refill.** Read `t = now()`. If `t < last`, set `last = t` and add nothing. Otherwise add `(t - last) * refillPerSecond / 1000`, cap at `capacity`, and set `last = t`. This covers the backwards-clock rule: no tokens are added and none are lost.
+4. **`n` validation** (for `tryRemove` and `msUntil`): `Number.isInteger(n) && n > 0`, otherwise `RangeError`. Also throw `RangeError` when `n > capacity`. Validate `n` before refilling.
+5. **`tryRemove(n = 1)`.** Refill, then if `tokens >= n` subtract `n` and return `true`; otherwise return `false` and change nothing.
+6. **`available()`.** Refill, then return `Math.floor(tokens)`.
+7. **`msUntil(n = 1)`.** Refill. If `tokens >= n`, return `0`. Otherwise return `Math.ceil((n - tokens) * 1000 / refillPerSecond)`.
+8. **Floating-point guard.** Fractional refill can leave `tokens` a hair under an integer (for example `0.9999999999`), which would make `available()` or `msUntil` off by one. Compare with a small epsilon (`1e-9`): `tokens + 1e-9 >= n`, and in `msUntil` subtract `1e-9` before `Math.ceil`. This is a judgment call on my part; the Developer should note it in a comment.
+9. **`reset()`.** Set `tokens = capacity` and `last = now()`.
+10. **Style.** Match the project's plain CommonJS, no dependencies, and no build step. Keep comments short and only where the clock-backwards and epsilon logic need them.
+
+### Files and contracts
+- **Create** `src/limiter.js`: exports `{ createLimiter }`, returns `{ tryRemove, available, msUntil, reset }`.
+- **Create** `test/limiter.test.js`: uses `node:test` and `node:assert/strict`.
+
+### Test plan (fake clock: `let t = 0; now: () => t`)
+- Starts full: `available() === capacity`.
+- `tryRemove` succeeds while tokens last, then returns `false` with no change.
+- Fractional refill: rate `0.5`, after 2000 ms one token is back.
+- Refill never exceeds `capacity`.
+- `available()` floors fractional tokens.
+- `msUntil` rounds up: rate `3`, empty bucket, `msUntil(1) === 334`. Returns `0` when already available.
+- `reset()` refills to full.
+- Clock goes backwards: no tokens added, none lost, and the earlier time becomes the new reference.
+- Invalid options table (missing, `0`, negative, `NaN`, `Infinity`, string, fractional capacity) each throws `RangeError`.
+- Invalid `n` (`0`, `-1`, `1.5`, `'1'`, `NaN`) and `n > capacity` each throw `RangeError` from `tryRemove` and `msUntil`.
+- Exports are exactly `{ createLimiter }`.
+
+### Risks
+- **Floating-point drift** with fractional rates. Mitigated by decision 8; the tests should include a case that exposes it, such as rate `0.1` stepped in 100 ms increments.
+- **Non-monotonic `Date.now`.** Handled by decision 3.
+- **Ambiguity:** the spec leaves `now` validation open. I chose to default only on `undefined` and not to validate its type. The Developer should not add extra validation beyond that.
+
+### Verification
+- Run `npm test` from the worktree (the project's own test command). Every new test must pass, and the output must be quoted in the implementation step.
+- Read `src/limiter.js` against the spec's API list and check that the module exports exactly `{ createLimiter }`.
+- Confirm that `git status` shows only the two new files.
+
+## Result
+
+The plan is complete and scoped. Implementation is the next step.
+
+```atlas-result
+{"status":"success","outcome":"approved","summary":"Analysed the throttle project (CommonJS, no dependencies, node --test) and wrote a full plan for a closure-based token bucket in src/limiter.js with node:test tests in test/limiter.test.js. Plan covers validation, clock-backwards handling, n validation, a floating-point epsilon guard, reset, a test matrix using a fake clock, and verification via npm test. No code was written in this step.","artifacts":[{"type":"implementation_summary","name":"Limiter implementation plan","path":"README.md","summary":"Plan is in the assistant message above; no file was written. Implementation targets src/limiter.js and test/limiter.test.js only."}],"decisions":[{"title":"Closure-based factory","decision":"createLimiter returns a plain object over private state; no class.","rationale":"Matches the spec's API and the project's plain CommonJS style."},{"title":"Clock-backwards handling","decision":"If now() < last, set last = now() and add no tokens.","rationale":"Satisfies the spec: no tokens added, none lost, earlier time becomes the reference."},{"title":"Float epsilon guard","decision":"Compare tokens with a 1e-9 epsilon in tryRemove and msUntil.","rationale":"Fractional refill can leave tokens just below an integer, causing off-by-one results in available() and msUntil()."},{"title":"Validation order","decision":"Validate n before refilling; throw RangeError for n not a positive integer or n > capacity.","rationale":"Invalid calls must not change bucket state."}],"findings":[],"touchedFiles":[],"touchedAreas":["src/limiter.js (planned)","test/limiter.test.js (planned)"],"nextAction":"Implement src/limiter.js and test/limiter.test.js per the plan, then run npm test and quote the output."}
+```
+--- User agent-1793838284226-3
+Implement: Create src/limiter.js, a CommonJS module that exports createLimiter(options), exactly as: module.exports = { createLimiter }. It is a token bucket.  …
+--- Assistant agent-1793838284226-3
+I added `src/limiter.js` and `test/limiter.test.js`, and `npm test` passes 16 of 16.
+
+Decisions I took:
+- **Validation first:** `tryRemove`, `msUntil`, and `available` check `n` before refilling, so a bad call leaves the bucket unchanged.
+- **Epsilon:** comparisons use a `1e-9` tolerance, and `available()` floors with the same tolerance.
+- **Removal clamp:** a removal that succeeds through the tolerance clamps the bucket to 0 rather than going negative.
+- **Options default:** `createLimiter()` with no argument throws the capacity `RangeError`. A `null` argument throws a `TypeError`, which the spec does not cover.
+
+Checks:
+- **Ran:** `npm test`, which printed 16 passing tests and 0 failures.
+- **Not checked by running:** I did not confirm that the floating-point drift test fails without the epsilon. I reasoned that ten 0.1-token refills sum to 0.9999999999999999, and the sandbox only allows the project test commands, so I could not run a standalone check.
+- **Not run:** no lint or build step exists in `package.json`.
+
+The worktree was empty apart from `README.md` and `package.json`, so there was no existing source to match. I did not commit anything.
+
+Files changed:
+- `src/limiter.js` (new)
+- `test/limiter.test.js` (new)
+
+```atlas-result
+{"status":"success","outcome":"implemented","summary":"Added src/limiter.js (closure-based token bucket exporting { createLimiter }) and test/limiter.test.js (16 node:test cases using an injected fake clock). npm test printed: tests 16, pass 16, fail 0. Validation runs before refill; a 1e-9 epsilon guards floating-point drift; a backwards clock adds no tokens and becomes the new reference. Not verified by running: that the float-drift test fails without the epsilon (reasoned only). No lint or build script exists.","artifacts":[{"type":"implementation_summary","name":"Token bucket limiter","path":"src/limiter.js","summary":"createLimiter({capacity, refillPerSecond, now}) returns tryRemove, available, msUntil, reset over private state; throws RangeError on invalid options or n."},{"type":"implementation_summary","name":"Limiter tests","path":"test/limiter.test.js","summary":"16 node:test cases covering validation, refill, fractional rates, capacity cap, rounding, msUntil, float drift, backwards clock, reset, and default Date.now."}],"decisions":[{"title":"Validate before refill","decision":"tryRemove, msUntil and available validate n (and capacity/refill at creation) before refilling.","rationale":"Invalid calls must not change bucket state."},{"title":"Epsilon guard","decision":"Comparisons use tokens + 1e-9 >= n; available floors tokens + 1e-9; msUntil subtracts 1e-9 before ceil.","rationale":"Fractional refill sums can land just below an integer and cause off-by-one results."},{"title":"Clamp on removal","decision":"tryRemove sets tokens to Math.max(0, tokens - n).","rationale":"Prevents a negative token count when a removal succeeds through the epsilon tolerance."}],"findings":[],"touchedFiles":["src/limiter.js","test/limiter.test.js"],"touchedAreas":["limiter","tests"],"nextAction":"Review the change; optionally confirm the float-drift test fails with EPSILON set to 0."}
+```
+--- User agent-1793838284226-7
+Review the change: Create src/limiter.js, a CommonJS module that exports createLimiter(options), exactly as: module.exports = { createLimiter }. It is a token b…
+--- Assistant agent-1793838284226-7
+The change is in scope and the project's tests pass. I did not modify anything.
+
+**Verdict: pass.** The implementation matches the task's API, validation, refill, clock and reset rules. The two requested files are the only ones in commit `5974a1f`. `npm test` reports 16 tests, 16 pass, 0 fail.
+
+What I checked:
+- **Contract:** `module.exports = { createLimiter }`, invalid `capacity` and `refillPerSecond` throw `RangeError` (`src/limiter.js:22-27`), `n` is validated for `tryRemove` and `msUntil` before refill, so an invalid call leaves state unchanged (`src/limiter.js:43-44`, `58-59`).
+- **Refill and clock:** refill is capped at `capacity` (`src/limiter.js:37`). A backwards clock adds nothing and resets the reference (`src/limiter.js:36-39`), which is covered by `test/limiter.test.js:142-151`.
+- **Float drift:** the epsilon guard in `src/limiter.js:45`, `54`, `60`, `64` is covered by `test/limiter.test.js:128-140`. I reasoned that the sequential sum of ten 0.1 steps is 0.9999999999999999, so this test would fail without the epsilon. I could not run that check, because only the project's test commands are permitted here.
+- **Conventions and scope:** plain CommonJS, closure-based, no class. No other files were touched.
+
+Low-severity observations (non-blocking):
+1. `src/limiter.js:20`: `createLimiter(null)` throws a `TypeError` from destructuring, not a `RangeError`. The task only specified `RangeError` for invalid capacity or refill. Fix: default `options` and check it is an object, or accept the TypeError as is.
+2. `src/limiter.js:63-64`: with an extremely small `refillPerSecond` (for example `1e-308`), `msUntil` can return `Infinity`, which is not a whole number of milliseconds. Fix: clamp or document the limit, or reject refill rates whose wait overflows.
+3. `test/limiter.test.js:128-140`: the drift test's failure without the epsilon is argued, not run. Confirming it would need a run with `EPSILON = 0`, which I could not do in read-only mode.
+
+Git reports a clean tree on a detached-looking branch name (`No branch atlas/exec-000001`). The changes are in the committed HEAD, so the review covered the committed files.
+
+```atlas-result
+{"status":"pass","outcome":"pass","summary":"Reviewed src/limiter.js and test/limiter.test.js against the task contract and decisions. npm test: 16 tests, 16 pass, 0 fail. Only the two requested files changed (commit 5974a1f). No blocking issues. Low findings: createLimiter(null) throws TypeError not RangeError; msUntil can return Infinity for extremely small refillPerSecond; the float-drift test's failure without the epsilon was reasoned, not run.","artifacts":[{"type":"implementation_summary","name":"Architecture review of token bucket limiter","path":"src/limiter.js","summary":"Closure-based token bucket meets the API, validation, refill, clock-backwards and reset requirements; scope limited to the two requested files."}],"decisions":[{"title":"Review verdict","decision":"Pass with low-severity findings","rationale":"No requirement is unmet and no test is missing for stated behaviour; the findings are out-of-contract inputs and hardening ideas that the task said should not fail the step."}],"findings":[{"severity":"low","category":"Robustness","title":"createLimiter(null) throws TypeError","description":"Destructuring options fails for null before validation, so the error is a TypeError rather than the RangeError the task specifies for invalid options.","file":"src/limiter.js","line":20,"evidence":"const { capacity, refillPerSecond, now = Date.now } = options;","recommendation":"Treat non-object options as invalid and throw RangeError, or leave as is since the task only specifies invalid capacity/refillPerSecond."},{"severity":"low","category":"Maintainability","title":"msUntil can return Infinity for tiny refill rates","description":"With a very small refillPerSecond the computed wait overflows to Infinity, which violates the whole-milliseconds contract for msUntil.","file":"src/limiter.js","line":64,"evidence":"return Math.ceil((deficit * 1000) / refillPerSecond - EPSILON);","recommendation":"Document the limit or reject refill rates whose wait is not finite at creation time."},{"severity":"low","category":"Testing","title":"Float-drift test not verified against epsilon removal","description":"The test is argued to fail without the epsilon guard but this was not executed in read-only mode.","file":"test/limiter.test.js","line":128,"evidence":"Ten 100 ms refills at 1 token/s are expected to sum to 0.9999999999999999 without the EPSILON guard.","recommendation":"Optionally run the test once with EPSILON set to 0 in a scratch copy to confirm it fails."}],"touchedFiles":[],"touchedAreas":["limiter","tests"],"nextAction":"Accept the change. Optionally address the low findings."}
+```
+--- User agent-1793838284226-4
+Check behaviour: Create src/limiter.js, a CommonJS module that exports createLimiter(options), exactly as: module.exports = { createLimiter }. It is a token buc…
+--- Assistant agent-1793838284226-4
+## QA check: `src/limiter.js` and `test/limiter.test.js`
+
+**Verdict: pass.** The implementation meets the task contract on every path I traced. I found no failing behaviour and no security problem. The findings below are low severity and are for your decision.
+
+**Executed:**
+- `npm test`: 16 tests, 16 pass, 0 fail.
+- `git status`: working tree clean.
+- `git show --stat 5974a1f`: only `src/limiter.js` (+75) and `test/limiter.test.js` (+167) changed.
+
+**Read only (reasoned, not run):** the code paths below and every finding. I could not run mutants or probe edge values, because my rules allow only the project's test commands and Git reads.
+
+**Traced and correct (read):**
+- Validation: `capacity` rejects `undefined`, `null`, `0`, negatives, `1.5`, `'5'`, `NaN`, `Infinity`. `refillPerSecond` rejects the non-positive, non-finite and non-number cases. `n` is validated before refill, so invalid calls do not move the reference time.
+- Refill is continuous and capped at `capacity`. `available()` floors, `msUntil()` rounds up (`3/s` gives 334 ms), and `reset()` refills to full.
+- Backwards clock: `elapsed > 0` guards the refill, so no tokens are added or removed, and `last` moves to the earlier time.
+- Two mutants would be caught by the existing tests (reasoned): dropping the `elapsed > 0` guard fails the backwards-clock test, and removing `EPSILON` fails the drift test.
+
+## Findings (all low, none failing)
+
+1. **`msUntil` can return 0 while `tryRemove` still fails** (`src/limiter.js:57-65`, read). If the deficit is just above `1e-9` and `refillPerSecond` is large (roughly ≥ 1e4), `ceil(deficit*1000/rate - EPSILON)` becomes `0` or `-0`. The task says the result should round up. Reachable only with fractional-millisecond clocks or contrived rates. Suggested fix: apply the epsilon to the comparison only, and return at least 1 when the deficit is positive.
+2. **`msUntil` can return `Infinity`** for denormal-small `refillPerSecond` (`src/limiter.js:64`, read). Consider rejecting such rates at creation.
+3. **`createLimiter(null)` throws `TypeError`**, not `RangeError` (`src/limiter.js:20`, read). The task only names invalid capacity and refill, so this is hardening.
+4. **A `now()` that returns `NaN` freezes refill until `reset()`** (`src/limiter.js:33-39`, read). `NaN > 0` is false, so `last` becomes `NaN` and every later elapsed value is `NaN`. This is outside the contract.
+5. **The default-clock test does not prove `Date.now` is used** (`test/limiter.test.js:162-167`, read). A mutant with `now = () => 0` would also pass. Consider stubbing `Date.now` with `t.mock.method`.
+6. **The backwards-clock test does not check "loses none"** (`test/limiter.test.js:142-151`, read). It never checks that tokens earned before the backwards jump are kept.
+7. **Float-drift and `msUntil` tests not mutation-verified** (`test/limiter.test.js:112, 128-140`, read). Reasoned: without `EPSILON`, `available()` returns 0 and `tryRemove` returns false. `1 - 0.3` times 1000 gives about 700.0000000000001, so line 112 also depends on the `msUntil` epsilon. Neither was run.
+8. **Minor test gaps** (read): no test for `createLimiter()` with no options or for `refillPerSecond: null`/`-Infinity`. The fractional-refill test only asserts `tryRemove` returns true and does not check the rate.
+
+## What I could not check
+- Mutation runs (removing `EPSILON`, the backwards guard, or the `reset` reference update). This needs a scratch copy, which read-only mode does not allow.
+- Edge-value probes for findings 1, 2 and 4. These are reasoned from the code, not executed.
+- Browser behaviour: not applicable, this is a library module.
+
+```atlas-result
+{"status":"pass","outcome":"pass","summary":"Read src/limiter.js and test/limiter.test.js and traced validation, refill, cap, rounding, msUntil, backwards clock and reset. Executed npm test: 16 pass, 0 fail. git show --stat 5974a1f: only the two requested files changed. Working tree clean. No failing behaviour and no security issue found. Findings are low: msUntil can return 0 while tryRemove fails in a narrow band (large rate, fractional-ms clock); msUntil can return Infinity for denormal rates; createLimiter(null) throws TypeError; NaN from now() freezes refill until reset; default-clock test does not prove Date.now is used; backwards-clock test does not check tokens are kept; float-drift test not mutation-verified. Mutation runs and edge probes were not executed (read-only mode).","artifacts":[],"decisions":[],"findings":[{"severity":"low","category":"correctness","title":"msUntil can return 0 while tryRemove still fails","description":"With a tiny deficit just above EPSILON and a large refillPerSecond, ceil(deficit*1000/rate - EPSILON) yields 0 or -0 although the tokens are not yet available. Narrow: needs fractional-ms clocks or contrived rates. Read, not executed.","file":"src/limiter.js","line":64,"evidence":"Read: msUntil returns Math.ceil((deficit * 1000) / refillPerSecond - EPSILON) after a check that only returns 0 when tokens + EPSILON >= n.","recommendation":"Apply EPSILON only to the availability comparison and return at least 1 when the deficit is positive."},{"severity":"low","category":"robustness","title":"msUntil can return Infinity for denormal refill rates","description":"deficit*1000/refillPerSecond overflows to Infinity for extremely small positive refill rates, breaking the whole-milliseconds contract. Read, not executed.","file":"src/limiter.js","line":64,"evidence":"Read: refillPerSecond passes isPositiveNumber for values such as 5e-324.","recommendation":"Reject refill rates whose wait is not finite at creation, or document the limit."},{"severity":"low","category":"robustness","title":"createLimiter(null) throws TypeError instead of RangeError","description":"Destructuring happens before validation, so null options give a TypeError. The task only names invalid capacity and refill. Read, not executed.","file":"src/limiter.js","line":20,"evidence":"Read: const { capacity, refillPerSecond, now = Date.now } = options; with default options = {} only covering undefined.","recommendation":"Treat non-object options as invalid and throw RangeError, or leave as is."},{"severity":"low","category":"robustness","title":"NaN from now() freezes refill until reset","description":"If now() returns NaN once, last becomes NaN and every later elapsed value is NaN, so no tokens are added until reset(). Outside the stated contract. Read, not executed.","file":"src/limiter.js","line":33,"evidence":"Read: elapsed = time - last; the guard elapsed > 0 is false for NaN, and last = time stores NaN.","recommendation":"Validate that now() returns a finite number, or ignore non-finite readings."},{"severity":"low","category":"testing","title":"Default-clock test does not prove Date.now is used","description":"A limiter with now = () => 0 passes the test, so a wrong default would not be caught. Read by reasoning, not run.","file":"test/limiter.test.js","line":162,"evidence":"Read: the test only checks the behaviour of a capacity-1 limiter within one synchronous run.","recommendation":"Stub Date.now with t.mock.method and assert it is called."},{"severity":"low","category":"testing","title":"Backwards-clock test does not check that earned tokens are kept","description":"The test checks that no tokens are added after the clock goes back, but not that tokens earned before the jump survive ('loses none'). Read, not executed.","file":"test/limiter.test.js","line":142,"evidence":"Read: the test starts from 0 tokens at the jump, so a limiter that discarded partial tokens would still pass.","recommendation":"Add a case that earns partial tokens, moves the clock back, then forward, and checks the total."},{"severity":"low","category":"testing","title":"Float-drift and msUntil rounding tests not mutation-verified","description":"Reasoned that removing EPSILON makes available() return 0, tryRemove fail and msUntil return 1 in the drift test; line 112 depends on the msUntil epsilon too. Not run, because read-only mode forbids mutant copies.","file":"test/limiter.test.js","line":128,"evidence":"Read: ten 0.1 refills sum to 0.9999999999999999; 1 - 0.3 times 1000 is about 700.0000000000001.","recommendation":"Run the suite once against a scratch copy with EPSILON set to 0 to confirm the failures."}],"touchedFiles":[],"touchedAreas":["limiter"],"nextAction":"Accept the change. Optionally address findings 1, 2 and 5 (the msUntil edge cases and the weak default-clock test) before merge."}
+```

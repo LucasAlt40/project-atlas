@@ -1,0 +1,159 @@
+--- User agent-1793835374528-6
+Analyze and plan: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  R…
+--- Assistant agent-1793835374528-6
+## Plan: `slugify` module and tests
+
+**Size: moderate.** The module is one function, but the spec has several edge cases (`maxLength` cutting, invalid input) that need explicit decisions. The repo is nearly empty, so there are no existing patterns to copy beyond the README and `package.json`.
+
+### What I checked
+- `package.json`: `"type": "commonjs"`, no dependencies, `"test": "node --test"`.
+- `README.md`: "Tests use the built-in runner: `node --test`."
+- The worktree has no `src/` or `test/` directories yet. Only `.git`, `README.md`, and `package.json` exist. The tree is clean.
+
+### Goals
+1. Create `src/slugify.js` exporting exactly `module.exports = { slugify };`.
+2. Create `test/slugify.test.js` using `node:test` and `node:assert`.
+3. Make `npm test` pass with the five examples from the spec and the edge cases listed below.
+
+### Out of scope
+- Changing `package.json`, `README.md`, or any other file. The spec says "touch no other file."
+- Adding dependencies, a build step, a lint config, or a `lib/` split.
+- Locale-aware transliteration beyond what NFD decomposition gives.
+
+### Architectural impact
+None. This is a standalone leaf module with no imports and no callers. `npm test` (`node --test`) picks up `test/slugify.test.js` by Node's default `test/**` pattern, so no script changes are needed.
+
+### Design for `src/slugify.js`
+Single exported function `slugify(text, options = {})`. Steps, in order:
+
+1. **Type check.** `if (typeof text !== 'string') throw new TypeError(...)`.
+2. **Accent removal first, then lowercase.** `text.normalize('NFD').replace(/[\u0300-\u036f]/g, '')`, then `.toLowerCase()`. The order matters: lowercasing before stripping turns `İ` into `i` + U+0307, which the strip would then leave in place. Stripping first avoids that.
+3. **Collapse non-alphanumerics.** `.replace(/[^a-z0-9]+/g, '-')`. This covers rule 3, and the run collapse covers "single `-`".
+4. **Trim dashes.** `.replace(/^-+|-+$/g, '')`. Rule 4.
+5. **`maxLength`, only if provided.** Validate first: `if (maxLength !== undefined && (!Number.isInteger(maxLength) || maxLength < 1)) throw new RangeError(...)`. Then:
+   - If `slug.length <= maxLength`, return `slug`.
+   - Otherwise `head = slug.slice(0, maxLength + 1)`. Let `idx = head.lastIndexOf('-')`. If `idx > 0`, return `slug.slice(0, idx)`. This keeps only whole words and never ends in `-`, because the char at `idx` is excluded.
+   - Otherwise (the first word alone is too long), return `slug.slice(0, maxLength)`. Since that window has no `-`, the result cannot end in `-`.
+
+Checked by hand against the spec examples:
+- `'hello big world'`, max 9: `slug` is `hello-big-world`. `head` is `hello-big-`, `idx` is 9, result `hello-big`. ✓
+- Same string, max 8: `head` is `hello-big`, `idx` is 5, result `hello`. ✓
+- `'supercalifragilistic'`, max 5: `head` is `superc`, no `-`, hard cut to `super`. ✓
+
+The file should be short, with a brief comment on the ordering in step 2 and on the cut rule in step 5. The repo has no comment style to match yet, so keep comments minimal.
+
+### Tests for `test/slugify.test.js`
+Use `const { test } = require('node:test')` and `const assert = require('node:assert')`. Use `assert.strictEqual` and `assert.throws`.
+- The five spec examples, one `test` each or grouped.
+- Accents: `'Ç'`, `'ã'`, `'ü'`, and `'Crème Brûlée'` → `creme-brulee`.
+- Lowercasing: `'HELLO'` → `hello`.
+- Digits kept: `'Room 101'` → `room-101`.
+- Punctuation runs and edges: `'  --a!!!b--  '` → `a-b`.
+- Empty and all-punctuation: `''` → `''`, `'!!!'` → `''`.
+- `maxLength` exact fit: `slugify('abc', { maxLength: 3 })` → `abc`.
+- `maxLength` cut lands on a dash: `'ab-cd'` with max 3 → `ab`, and the result must not end in `-`. Also `'ab-cdefgh'` with max 3 → `ab`.
+- Non-string input throws `TypeError` for `123`, `null`, `undefined`, and `['a']`.
+- Invalid `maxLength` (0, -1, 2.5, `'5'`) throws `RangeError`.
+
+### Decisions the Developer must follow
+1. Export shape is exactly `module.exports = { slugify };`. No default export.
+2. Normalize with NFD, strip `\u0300-\u036f`, then lowercase, in that order.
+3. Characters with no NFD decomposition (`ø`, `æ`, `ß`, `đ`) become `-` by rule 3. This is the literal reading of the spec. `'Søren'` becomes `s-ren`. This is a real limitation, not a bug in the code. If the user wants `ø`→`o` etc., that is a follow-up decision.
+4. Invalid `maxLength` throws `RangeError`, including non-number values. The spec does not specify this, so this is my choice.
+5. An input with no `a-z0-9` characters returns `''`. The spec does not specify this either.
+6. The `maxLength` truncation rule is as in the design above. Do not fall back to the full slug on overflow.
+7. No changes outside `src/slugify.js` and `test/slugify.test.js`.
+
+### Verification
+- The Developer runs `npm test` from the worktree and reports the full output. All tests should pass.
+- Read-through check: the five spec examples must match the hand-traced results above.
+- I have not run tests because the step is analysis only, and no files were written.
+
+### Risks
+- Rule 3 on non-decomposable letters (decision 3) may surprise users with Nordic or German text. It is consistent with the spec, so I am not changing it.
+- `RangeError` for a non-number `maxLength` is a judgement call. A caller passing `'5'` gets a `RangeError`, not a `TypeError`.
+
+Nothing is blocked. The plan is complete and the Developer can proceed.
+
+```atlas-result
+{"status":"success","outcome":"approved","summary":"Analyzed the near-empty repo (package.json with node --test, README, no src/ or test/). Produced a full plan for src/slugify.js (type check, NFD-then-lowercase accent stripping, dash collapse and trim, maxLength word-boundary cut with hard-cut fallback) and test/slugify.test.js (node:test + node:assert, spec examples plus edge cases). No files written; tests not run because this step is analysis only.","artifacts":[],"decisions":[{"title":"Module export shape","decision":"src/slugify.js exports exactly module.exports = { slugify }; no default export, no extra modules.","rationale":"Matches the spec verbatim and the single-file scope."},{"title":"Accent stripping order","decision":"text.normalize('NFD').replace(/[\\u0300-\\u036f]/g,'') then toLowerCase(), then collapse non-[a-z0-9] runs to '-' and trim dashes.","rationale":"Stripping before lowercasing avoids leaving a combining dot from 'İ'."},{"title":"maxLength cut rule","decision":"If slug fits, return it. Else take slug.slice(0, maxLength+1), cut at its last '-' if that index > 0; otherwise hard-cut to slug.slice(0, maxLength).","rationale":"Satisfies the word-boundary and no-trailing-dash rules; hand-checked against all three spec maxLength examples."},{"title":"Invalid maxLength","decision":"Throw RangeError for any maxLength that is not a positive integer (including non-numbers).","rationale":"Spec does not define this; one check keeps the code small."},{"title":"Empty result","decision":"Return '' when the input has no a-z or 0-9 characters.","rationale":"Spec does not define it; '' is the natural result of the rules."},{"title":"Non-decomposable letters","decision":"Characters such as ø, æ, ß, đ are not transliterated and become '-' per rule 3.","rationale":"Literal reading of the spec; flagged as a known limitation for the user to redirect if wanted."}],"findings":[{"severity":"low","category":"spec-ambiguity","title":"Non-decomposable letters become dashes","description":"Rule 3 turns ø, æ, ß, đ into '-' because NFD does not decompose them. 'Søren' becomes 's-ren'.","file":"src/slugify.js","line":1,"evidence":"Spec rules 2 and 3 applied literally; no transliteration table in the spec.","recommendation":"Keep literal behaviour for this task; the user may ask for a transliteration map later."}],"touchedFiles":[],"touchedAreas":["src/slugify.js (planned)","test/slugify.test.js (planned)"],"nextAction":"Developer implements src/slugify.js and test/slugify.test.js exactly per the plan, then runs npm test and reports the full output."}
+```
+--- User agent-1793835374526-3
+Implement: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  Rules:  …
+--- Assistant agent-1793835374526-3
+I added `src/slugify.js` and `test/slugify.test.js`, and `npm test` passes all 12 tests.
+
+Choices I made where the spec was silent, all as the handoff decisions specify:
+- An invalid `maxLength` (anything other than a positive integer, including non-numbers) throws `RangeError`. An omitted `maxLength` means no limit.
+- Input with no a-z or 0-9 characters returns `''`.
+- Letters that do not decompose under NFD, such as ø, æ, ß and đ, become `-`, so `'Søren'` gives `'s-ren'`. This is the literal reading of rule 3, and a transliteration table would be a separate change if you want one.
+
+The test file covers the five spec examples, accent handling, dash collapsing, trimming, both cut rules, the no-trailing-dash case, and both error types.
+
+`npm test` output:
+```
+✔ lowercases and joins words with dashes (0.386542ms)
+✔ removes accents and diacritics (1.510333ms)
+✔ collapses runs of other characters into a single dash (0.044375ms)
+✔ never starts or ends with a dash (0.039833ms)
+✔ returns an empty string when there are no a-z or 0-9 characters (0.040542ms)
+✔ non-decomposable letters become dashes (0.54325ms)
+✔ returns the slug unchanged when it fits maxLength (0.070917ms)
+✔ cuts at the last dash that fits within maxLength (0.046167ms)
+✔ cuts hard when the first word does not fit (0.064334ms)
+✔ does not end with a dash after a cut (0.084916ms)
+✔ throws a TypeError when text is not a string (0.16575ms)
+✔ throws a RangeError when maxLength is not a positive integer (0.069292ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 39.698917
+```
+
+What I checked by running: the test suite above. What I checked by reading: the three `maxLength` examples in the spec and the trailing-dash edge cases, traced by hand against the code. What I did not verify: behaviour outside the Node version this sandbox runs, and any input beyond the cases in the tests.
+
+Remaining risk: non-decomposable letters (ø, æ, ß, đ) turn into dashes, which may surprise users with Nordic or German text.
+
+```atlas-result
+{"status":"success","outcome":"implemented","summary":"Created src/slugify.js (CommonJS, module.exports = { slugify }) implementing NFD accent stripping, lowercasing, dash collapse and trim, maxLength word-boundary cut with hard-cut fallback, and TypeError/RangeError validation. Created test/slugify.test.js with 12 node:test + node:assert tests covering the spec examples and edge cases. npm test: 12 pass, 0 fail.","artifacts":[{"type":"implementation_summary","name":"slugify module and tests","path":"src/slugify.js","summary":"slugify(text, options) per spec; tests in test/slugify.test.js; npm test shows 12/12 passing."}],"decisions":[{"title":"Invalid maxLength throws RangeError","decision":"Any maxLength that is not a positive integer throws RangeError; undefined means no limit.","rationale":"Spec does not define it; one check keeps the code small."},{"title":"Empty slug returns empty string","decision":"Input with no a-z or 0-9 characters returns ''.","rationale":"Natural result of the rules; spec silent."},{"title":"Non-decomposable letters become dashes","decision":"ø, æ, ß, đ are not transliterated and become '-' per rule 3.","rationale":"Literal reading of the spec; transliteration would need a separate change."}],"findings":[{"severity":"low","category":"spec-ambiguity","title":"Non-decomposable letters become dashes","description":"Rule 3 turns ø, æ, ß, đ into '-' because NFD does not decompose them, so 'Søren' becomes 's-ren'.","file":"src/slugify.js","line":11,"evidence":"Covered by test 'non-decomposable letters become dashes' in test/slugify.test.js; npm test passes.","recommendation":"Keep literal behaviour; add a transliteration map only if the user asks for it."}],"touchedFiles":["src/slugify.js","test/slugify.test.js"],"touchedAreas":["src","test"],"nextAction":"Review the change; decide whether non-decomposable letters should be transliterated."}
+```
+--- User agent-1793835374528-7
+Review the change: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  …
+--- Assistant agent-1793835374528-7
+The change matches the spec, and I found nothing that needs fixing. Tests pass 12/12, and the accent-stripping regex on line 14 is confirmed by the search and by the `Olá` and `Über` tests. The verdict is pass, with two low-severity observations for you to decide on.
+
+```atlas-result
+{"status":"pass","outcome":"pass","summary":"Reviewed src/slugify.js and test/slugify.test.js against the spec rules 1-6 and the Implement handoff. npm test: 12 pass, 0 fail. Rules 1-6 are met: lowercasing, NFD accent stripping (regex on line 14 confirmed to be U+0300-U+036F via search; 'Olá' and 'Über' tests exercise it), dash collapse and trim, maxLength cut at the last fitting dash with hard-cut fallback (no trailing dash possible: head has no dash at index 0, and the hard-cut path only runs when no dash fits), TypeError for non-string. Only the two files were added; package.json is unchanged. Two low findings, neither blocking.","artifacts":[{"type":"implementation_summary","name":"slugify module","path":"src/slugify.js","summary":"CommonJS slugify(text, options) exporting { slugify }; 34 lines; validated by review and npm test."},{"type":"implementation_summary","name":"slugify tests","path":"test/slugify.test.js","summary":"12 node:test tests covering spec examples, accents, dash rules, maxLength cuts, TypeError and RangeError."}],"decisions":[{"title":"Invalid maxLength throws RangeError","decision":"Keep: any maxLength that is not undefined and not a positive integer throws RangeError.","rationale":"Spec is silent; the check is one line and is covered by a test."},{"title":"Non-decomposable letters become dashes","decision":"Keep literal behaviour: ø, æ, ß, đ become '-' ('Søren' -> 's-ren').","rationale":"Literal reading of rules 2 and 3; a transliteration map would be a separate change if the user asks."}],"findings":[{"severity":"low","category":"Maintainability","title":"null options throws a raw TypeError","description":"The default parameter options = {} applies only to undefined. slugify('x', null) fails on the destructuring at line 6 with a TypeError about reading 'maxLength' of null, not a clear message. This input is outside the stated contract (options is optional, and the spec defines no null case).","file":"src/slugify.js","line":6,"evidence":"const { maxLength } = options; with options defaulting only when undefined; no test covers null options.","recommendation":"Optional: treat null like undefined (const { maxLength } = options ?? {};) or leave as is and document that options must be an object or omitted."},{"severity":"low","category":"Testing","title":"No test for null options","description":"The test file covers invalid maxLength values but not the options argument itself, so the null-options behaviour above is unexercised.","file":"test/slugify.test.js","line":59,"evidence":"The RangeError test only varies maxLength; no call passes null or a non-object as options.","recommendation":"If null options is kept as a throw, add a test that pins the behaviour; if it is changed to be accepted, add a test for that."}],"touchedFiles":[],"touchedAreas":["src/slugify.js","test/slugify.test.js"],"nextAction":"Accept the change. Optionally decide on null options handling and the non-decomposable letters transliteration question."}
+```
+--- User agent-1793835374528-4
+Check behaviour: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  Ru…
+--- Assistant agent-1793835374528-4
+The change meets rules 1–6 and the examples in the task. `npm test` ran 12/12 passing. The rest of the verdict is from reading the code, and I could not run ad hoc Node snippets to probe edge cases, so those traces are by hand.
+
+**Executed:**
+- `npm test`: 12 pass, 0 fail.
+- Grep on `src/slugify.js`: line 14 contains characters in U+0300–U+036F, and both endpoints match, so the accent-strip range is right.
+- `git status`: clean working tree, so the change is not on disk.
+
+**Read and traced by hand:**
+- Maxlength cut: `'hello big world'` with 9 gives `hello-big` and with 8 gives `hello`; `'ab-cd'` with 2 gives `ab`. The cut never ends in a dash because the slug has no doubled dashes and no leading dash.
+- Empty input with a maxLength returns `''`.
+- `'İ'` loses its combining dot before lowercasing, so it becomes `i`.
+- A non-string `text` throws TypeError before options are read.
+
+**Not checked:**
+- Mutation testing (removing the accent strip, for example) would show that the tests catch regressions. I could not run it because the sandbox blocks writes, so that claim is from reading only.
+- Browser behaviour does not apply: this is a module with no page.
+
+**Low-severity findings (none fail the step):**
+- `slugify('x', null)` throws a raw TypeError from destructuring. `options` defaults only for `undefined`. Null options are outside the stated contract and untested.
+- `ø`, `æ`, `ß`, `đ`, `ſ` become dashes, so `'Søren'` gives `s-ren`. This is the literal reading of rules 2–3.
+- `maxLength: Infinity` throws RangeError. It is not a positive integer, so this is defensible.
+
+```atlas-result
+{"status":"pass","outcome":"pass","summary":"Read src/slugify.js and test/slugify.test.js and traced rules 1-6 and the task examples by hand. Executed npm test: 12 pass, 0 fail. Executed Grep on src/slugify.js: line 14 uses the U+0300-U+036F range, endpoints confirmed. git status shows a clean tree. Not checked: mutation testing (sandbox blocks writes, so no test-would-fail-without-change run), and ad hoc Node edge-case runs. Edge cases traced by reading: maxLength cuts at dash boundaries, no trailing dash, empty input, dotted capital I, non-string TypeError. All findings are low severity and do not fail the step.","artifacts":[],"decisions":[{"title":"Outcome for the review step","decision":"pass: rules 1-6 and the examples are met and the 12 tests pass.","rationale":"Only low-severity items were found, all outside the stated contract or literal-spec choices."}],"findings":[{"severity":"low","category":"robustness","title":"null options throws a raw TypeError","description":"Default parameter options = {} applies only to undefined, so slugify('x', null) fails on destructuring rather than behaving like no options or giving a clear message.","file":"src/slugify.js","line":6,"evidence":"Read: const { maxLength } = options; with no null guard. No test passes null as options (test/slugify.test.js only varies maxLength).","recommendation":"Either use options ?? {} and add a test, or document that options must be an object or omitted and add a test pinning the throw."},{"severity":"low","category":"spec-ambiguity","title":"Non-decomposable letters become dashes","description":"ø, æ, ß, đ and ſ are not decomposed by NFD, so rule 3 turns them into '-'. 'Søren' gives 's-ren'.","file":"src/slugify.js","line":16,"evidence":"Read: NFD plus the [^a-z0-9]+ replacement. test/slugify.test.js line 31 pins 'Søren' -> 's-ren'.","recommendation":"Keep literal behaviour for this task; add a transliteration map only if the user asks for it."},{"severity":"low","category":"robustness","title":"maxLength Infinity throws RangeError","description":"Number.isInteger(Infinity) is false, so Infinity is rejected rather than meaning no limit. This is outside the spec's positive-integer contract.","file":"src/slugify.js","line":7,"evidence":"Read: maxLength !== undefined && !(Number.isInteger(maxLength) && maxLength > 0). Not covered by any test.","recommendation":"Leave as is and document that undefined means no limit, or treat Infinity as no limit."}],"touchedFiles":[],"touchedAreas":["src/slugify.js","test/slugify.test.js"],"nextAction":"Accept the change. Decide on null options handling and on transliteration of non-decomposable letters if the user wants either."}
+```

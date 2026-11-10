@@ -1,0 +1,25 @@
+--- User agent-1793406653152-7
+Review code and architecture: Review src/users.js for correctness and security. Report each defect you find as a finding with the file, the line, why it is wron…
+--- Assistant agent-1793406653152-7
+Verdict: **fail**. The module has correctness and security defects. Review was static; no code was executed.
+
+1. **High — Security: incomplete HTML escaping**
+   - **File:** `src/users.js:16-20`
+   - **Evidence:** `.replace()` without global matching escapes only the first occurrence of each character. A name such as `</td><script>...</script>` can leave executable markup.
+   - **Recommendation:** Escape all occurrences using a global regex or equivalent HTML-escaping routine, including relevant characters for the output context.
+
+2. **Medium — Correctness: pagination is off by one**
+   - **File:** `src/users.js:3-6`
+   - **Evidence:** The documentation says page `1` is the first page, but `start = page * size` makes page 1 start at index `size`, returning the second page.
+   - **Recommendation:** Calculate the offset as `(page - 1) * size`, with validation for invalid page and size values if they are externally supplied.
+
+3. **Medium — Correctness: age calculation ignores birthday**
+   - **File:** `src/users.js:10-12`
+   - **Evidence:** It compares only birth and current years. Someone who turns 18 later in the current year is incorrectly classified as an adult.
+   - **Recommendation:** Subtract one when today is before the person’s birthday in the current year, and validate date inputs.
+
+No tests are present in the repository, so behavior is not covered by automated verification. I did not assess runtime behavior, integration contracts, or external security configuration.
+
+```atlas-result
+{"status":"success","outcome":"fail","summary":"Static review of src/users.js found one high-severity HTML injection defect and two medium-severity correctness defects: incomplete escaping, off-by-one pagination, and birthday-insensitive age calculation.","artifacts":[],"decisions":[{"title":"Validation verdict","decision":"fail","rationale":"The implementation contains demonstrable security and correctness defects that must be fixed before acceptance."}],"findings":[{"severity":"high","category":"Security","title":"HTML escaping is incomplete","description":"String replacement without global matching escapes only the first occurrence of each character, allowing later markup in a user name to remain executable.","file":"src/users.js","line":16,"evidence":"escapeHtml uses .replace('&', ...), .replace('<', ...), and .replace('>', ...), each of which replaces only the first match.","recommendation":"Use a global/context-appropriate HTML escaping implementation that escapes every occurrence of relevant characters."},{"severity":"medium","category":"Correctness","title":"Pagination skips the first page","description":"The documented one-based page number is used as a zero-based offset.","file":"src/users.js","line":5,"evidence":"const start = page * size; with page 1 starts at index size instead of index 0.","recommendation":"Use (page - 1) * size and validate page and size inputs."},{"severity":"medium","category":"Correctness","title":"Adult check ignores birthday","description":"The function marks a person as 18 as soon as the calendar year changes, even before their birthday.","file":"src/users.js","line":11,"evidence":"Age is calculated only as today.getFullYear() - birthDate.getFullYear().","recommendation":"Compare month and day and subtract one when today precedes the birthday."}],"touchedFiles":[],"touchedAreas":["src/users.js"],"nextAction":"Fix the three reported defects and add focused tests for pagination, birthday boundaries, and repeated HTML metacharacters."}
+```

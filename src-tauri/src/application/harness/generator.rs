@@ -326,8 +326,8 @@ fn architecture(findings: &[Finding]) -> String {
 const WORKING_AGREEMENTS: &str = "## Working agreements (Atlas)\n\n\
 - **Plans are mandatory documents.** An agent that proposes or is asked for a plan, design or \
 analysis before implementing must write it in full as Markdown in its message (Atlas shows it to \
-the person, highlighted, with the notification) and, if it can create files, also save it as \
-`docs/plans/<short-name>.md`.\n\
+the person, highlighted, with the notification, and keeps it with the run). It is not also saved \
+as a file in the project unless the task asks for one, so it never becomes part of the change.\n\
 - A plan is approved by the person in Atlas before implementation starts; approval lets the agent \
 continue in its isolated worktree and never applies anything to the project.\n";
 

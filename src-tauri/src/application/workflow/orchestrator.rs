@@ -976,16 +976,15 @@ impl Orchestrator {
                 .filter(|_| exec.integration.status == IntegrationStatus::InProgress);
             // A step that works in the shared worktree waits for its turn at it.
             let access = shared_worktree.as_ref().and_then(|_| {
-                self.runner
-                    .shared_access(&exec.workspace_id, &candidate.agent_id)
-                    // A read-only step never needs the worktree to itself.
-                    .map(|access| {
-                        if reads_only(node) {
-                            StepAccess::Read
-                        } else {
-                            access
-                        }
-                    })
+                let access = self
+                    .runner
+                    .shared_access(&exec.workspace_id, &candidate.agent_id)?;
+                // A read-only step never needs the worktree to itself.
+                Some(if reads_only(node) {
+                    StepAccess::Read
+                } else {
+                    access
+                })
             });
             if let Some(access) = access {
                 if !lock.try_acquire(&candidate.node_id, access) {
@@ -1006,6 +1005,7 @@ impl Orchestrator {
                 shared_worktree,
                 announce_integrations: announces_integrations(node),
                 read_only: reads_only(node),
+                no_commands: runs_no_commands(node),
                 scope: exec.scope.clone(),
                 link: WorkflowLink {
                     workflow_id: exec.workflow_id.clone(),
@@ -1618,6 +1618,13 @@ fn announces_integrations(node: &crate::domain::workflow::WorkflowNode) -> bool 
 fn reads_only(node: &crate::domain::workflow::WorkflowNode) -> bool {
     node.agent()
         .is_some_and(|step| step.execution_policy.read_only)
+}
+
+/// Whether the node's step is given no commands to run (the node's setting; `false` for anything
+/// that is not an agent step).
+fn runs_no_commands(node: &crate::domain::workflow::WorkflowNode) -> bool {
+    node.agent()
+        .is_some_and(|step| step.execution_policy.no_commands)
 }
 
 /// The attempt and the iteration the node starts now (the first of each when it has not run).

@@ -142,6 +142,7 @@ mod tests {
                     scope: crate::application::process::ExecutionScope::for_tests(),
                     text_only: false,
                     allow_edits: false,
+                    granted_commands: Vec::new(),
                     mcp: None,
                 },
                 &|_| {}

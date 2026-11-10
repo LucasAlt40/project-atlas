@@ -429,3 +429,4 @@ ou um estado compartilhado precise deles.
 - [0038 — Sandbox do macOS para os runtimes](adr/0038-macos-sandbox.md) — o processo inteiro da CLI sob um perfil do sistema; `off`/`auto`/`required`, desligado por padrão; o que não confina
 - [0039 — GitHub Copilot CLI como runtime](adr/0039-github-copilot-cli.md) — sexto runtime: execução, permissões, MCP e modelos medidos com o CLI real; limites conhecidos
 - [0043 — Uma tarefa em vários projetos](adr/0043-tarefas-em-varios-projetos.md) — uma execução por projeto, em sequência, com alerta ao rodar e sugestão de 1 projeto quando há muitos
+- [0044 — Comandos de teste e textos por runtime](adr/0044-comandos-de-teste-e-textos-por-runtime.md) — passos remetem às regras do Atlas para rodar comandos; Claude roda só os testes do projeto no sandbox da CLI; plano fora do diff

@@ -1,0 +1,49 @@
+--- User agent-1793468975480-5
+Investigate and fix: Bug report from customers about src/cart.js:  - A cart with 3 units of a product at 19.90 shows a total of 19.9 instead of 59.7. - With the…
+--- Assistant agent-1793468975480-5
+Implemented and verified the cart fix.
+
+Root cause confirmed in `src/cart.js`:
+
+- Quantity was ignored.
+- Percentage coupons returned the discount amount instead of subtracting it.
+- Fixed coupons could produce negative totals.
+- Floating-point totals were not rounded.
+
+Changes:
+
+- Multiply `price * qty`.
+- Apply percentage discounts correctly.
+- Clamp totals to zero.
+- Round totals to cents.
+- Added regression tests for all reported cases and unknown coupons.
+
+Validation: `npm test` passes all 7 tests; reported scenarios now return `59.7`, `0`, `80`, and `0.3`.
+
+Files changed:
+
+- `src/cart.js`
+- `test/cart.test.js`
+
+Residual risk: none identified for the specified API and coupon behavior.
+
+```atlas-result
+{"status":"success","outcome":"fixed","summary":"Fixed cart quantity calculation, coupon application, nonnegative totals, and cent rounding; added regression coverage.","artifacts":[{"type":"implementation_summary","name":"cart-total-fix","path":"src/cart.js","summary":"Corrected subtotal, coupon, clamping, and rounding logic."},{"type":"regression_tests","name":"cart-total-regressions","path":"test/cart.test.js","summary":"Added tests for quantities, coupons, rounding, clamping, and unknown coupons."}],"decisions":[{"title":"Root cause","decision":"Confirmed","rationale":"Source inspection and direct reproduction matched every reported symptom."},{"title":"Validation","decision":"Passed","rationale":"All 7 tests pass, including the new regression cases."}],"findings":[],"touchedFiles":["src/cart.js","test/cart.test.js"],"touchedAreas":["cart totals","coupon handling","regression tests"],"nextAction":"Run the independent verification step."}
+```
+--- User agent-1793468975480-4
+Verify the fix: Bug report from customers about src/cart.js:  - A cart with 3 units of a product at 19.90 shows a total of 19.9 instead of 59.7. - With the coup…
+--- Assistant agent-1793468975480-4
+Validation passed.
+
+- Root cause: subtotal ignored `qty`; percentage coupons returned the discount amount; no clamping or cent rounding.
+- Fix: `src/cart.js` now multiplies quantity, subtracts coupon discounts, clamps at zero, and rounds to cents.
+- Regression tests added for all reported cases and unknown coupons.
+- Executed: `npm test` — 7/7 passed.
+- Executed: direct customer scenarios — returned `59.7`, `0`, `80`, and `0.3`.
+- Read: API remains `module.exports = { total }`; no other callers exist.
+
+Low-severity hardening finding: `couponCode="__proto__"` returns `NaN` instead of ignoring the unknown coupon (`src/cart.js:18-19`). Ordinary unknown coupons work correctly.
+
+```atlas-result
+{"status":"success","outcome":"pass","summary":"Fix traced to the reported causes and independently validated; all 7 tests pass and customer scenarios return correct nonnegative cent-rounded totals.","artifacts":[{"type":"implementation_summary","name":"cart-total-fix","path":"src/cart.js","summary":"Corrected quantity calculation, coupon subtraction, nonnegative clamping, and cent rounding."},{"type":"test_summary","name":"cart-total-regressions","path":"test/cart.test.js","summary":"Added regression coverage for quantities, coupons, rounding, clamping, and unknown coupons."}],"decisions":[{"title":"Root cause","decision":"Confirmed fixed","rationale":"The changed lines directly address every reported symptom."},{"title":"Validation","decision":"Passed","rationale":"Executed npm test with 7 passing tests and direct runtime checks for all customer scenarios."}],"findings":[{"severity":"low","category":"hardening","title":"Inherited coupon key is not ignored","description":"The unknown coupon code __proto__ resolves through the plain object prototype and produces NaN.","file":"src/cart.js","line":18,"evidence":"Direct execution of total([{price:10,qty:1}], '__proto__') returned NaN.","recommendation":"Use an own-property check or a null-prototype coupon map if unknown coupon keys must always be ignored."}],"touchedFiles":["src/cart.js","test/cart.test.js"],"touchedAreas":["cart total calculation","coupon handling","regression tests"],"nextAction":"No further action required for the reported bug; consider the low-severity coupon-key hardening separately."}
+```

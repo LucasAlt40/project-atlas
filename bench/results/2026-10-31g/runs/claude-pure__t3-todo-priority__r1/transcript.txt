@@ -1,0 +1,17 @@
+--- Assistant
+I added priorities to the store and formatter and wrote tests for them, but I could not run the test suite. Every Bash command, including a plain `npm test`, was refused with "requires approval", so the tests are unverified. Running `npm test` is the first thing to do.
+
+**Changes**
+
+- **`src/store.js`**
+  - `add(title, options = {})` takes `options.priority`, which must be `'low'`, `'normal'` or `'high'`. It defaults to `'normal'`, and any other value (including `null`) throws a `RangeError` without adding the todo. The priority is stored on the todo.
+  - `list(filter = {})` returns copies sorted high, normal, low. The sort is stable, so ties keep insertion order. With `filter.priority`, only todos of that priority are returned.
+- **`src/format.js`**: a high-priority todo is rendered as `[ ] !Pay rent`. Other priorities, and todos with no priority field, render as before.
+- **`test/store.test.js`**: I added tests for the default and stored priority, the `RangeError` cases, sort order with stable ties, filtering, copy semantics, and the `!` marker in `formatList`. The existing tests are unchanged.
+
+**Judgement calls**
+
+- An invalid `filter.priority` in `list()` is not validated. It simply matches nothing. The spec didn't say, so I left it lenient.
+- Sorting happens on every `list()` call, including filtered ones. For a filtered list that is a no-op, since all items share one priority.
+
+**Compatibility**: for existing callers, todos without a priority still format the same, and `list()` on all-normal todos still returns insertion order. Both of those are covered by the existing tests, but again, I have not run them.

@@ -64,6 +64,12 @@ pub struct RuntimeRequest {
     /// by the execution service only when the agent's policy allows file writes and the agent
     /// works in an isolated worktree. A runtime that cannot ignores it.
     pub allow_edits: bool,
+    /// The project's test commands this execution may run (`npm test`…), and only those, for a
+    /// runtime whose tools cannot otherwise run commands (`ModelRuntime::runs_granted_commands`).
+    /// Empty unless the execution edits, the agent's policy runs processes and each command's
+    /// program is one the policy allows (see `executions::granted_commands`). A runtime that cannot
+    /// confine them ignores it.
+    pub granted_commands: Vec<String>,
     /// The MCP servers this execution is given, and only those. `None`: none (the runtime loads
     /// no MCP server of any kind). Never set for a `text_only` request; a runtime ignores it
     /// when it has no adapter.
@@ -157,6 +163,14 @@ pub trait ModelRuntime: Send + Sync {
         self.info().capabilities.tool_access.process_execution
     }
 
+    /// Whether this runtime, whose tools cannot run arbitrary commands, can be given the
+    /// project's test commands alone, each run inside a sandbox of its own that keeps writes in
+    /// the working directory and the network closed (`RuntimeRequest::granted_commands`). `false`
+    /// unless an adapter was written and that sandbox measured (Claude on macOS).
+    fn runs_granted_commands(&self) -> bool {
+        false
+    }
+
     /// The payload this runtime hands to its process for `request`. `execute` must take its
     /// prompt from here and nowhere else: the Context Manifest hashes this very value, so what was
     /// hashed is what was delivered. The default follows the runtime's declared
@@ -227,7 +241,8 @@ pub enum RuntimeError {
     ModelUnavailable(String),
     /// The provider answered "too many requests" (HTTP 429, a usage limit). Worth trying again later.
     RateLimited(String),
-    Timeout,
+    /// The runtime printed nothing for its idle limit; what it left, for the details.
+    Timeout(crate::application::process::Silence),
     ExecutionFailed(String),
     InvalidRequest(String),
     UnexpectedResponse(String),
@@ -255,7 +270,9 @@ impl RuntimeError {
                  used up). Wait a while and try again, or pick another model."
                     .to_owned()
             }
-            Self::Timeout => "The runtime stopped responding (no output for too long).".to_owned(),
+            Self::Timeout(_) => {
+                "The runtime stopped responding (no output for too long).".to_owned()
+            }
             Self::ExecutionFailed(_) => "The runtime could not complete the request.".to_owned(),
             Self::Unavailable(reason) | Self::InvalidRequest(reason) => reason.clone(),
             Self::UnexpectedResponse(_) => {
@@ -272,7 +289,7 @@ impl RuntimeError {
             Self::AuthenticationRequired => FailureKind::AuthenticationRequired,
             Self::ModelUnavailable(_) => FailureKind::ModelUnavailable,
             Self::RateLimited(_) => FailureKind::RateLimited,
-            Self::Timeout => FailureKind::Timeout,
+            Self::Timeout(_) => FailureKind::Timeout,
             Self::ExecutionFailed(_) => FailureKind::ExecutionFailed,
             Self::InvalidRequest(_) => FailureKind::InvalidRequest,
             Self::UnexpectedResponse(_) => FailureKind::UnexpectedResponse,
@@ -289,6 +306,7 @@ impl RuntimeError {
                 Some(details.clone())
             }
             Self::PermissionDenied(reason) => Some(reason.as_str().to_owned()),
+            Self::Timeout(silence) => Some(silence.describe()),
             _ => None,
         };
         ExecutionFailure {
@@ -296,6 +314,32 @@ impl RuntimeError {
             message: self.user_message(),
             details,
         }
+    }
+}
+
+#[cfg(test)]
+mod timeout_failure_tests {
+    use super::RuntimeError;
+    use crate::application::process::Silence;
+    use crate::domain::execution::FailureKind;
+
+    #[test]
+    fn a_timeout_tells_the_person_briefly_and_keeps_the_last_output_in_the_details() {
+        let failure = RuntimeError::Timeout(Silence {
+            idle_secs: 900,
+            last_output: "working on it".to_owned(),
+        })
+        .into_failure();
+
+        assert_eq!(failure.kind, FailureKind::Timeout);
+        assert_eq!(
+            failure.message,
+            "The runtime stopped responding (no output for too long)."
+        );
+        assert_eq!(
+            failure.details.as_deref(),
+            Some("No output for 15 min 0 s. Its last output:\nworking on it")
+        );
     }
 }
 
@@ -491,6 +535,7 @@ pub mod fake {
     use crate::domain::security::ToolAccess;
 
     /// Runtime with a scripted answer; records the requests it receives.
+    #[allow(clippy::struct_excessive_bools)] // independent capabilities a test turns on
     pub struct FakeRuntime {
         pub id: String,
         pub answer: Result<RuntimeOutput, RuntimeError>,
@@ -518,6 +563,8 @@ pub mod fake {
         pub probed: Mutex<Vec<String>>,
         /// Whether it honours the other project folders of a request.
         pub extra_dirs: bool,
+        /// Whether it can be given the project's test commands alone.
+        pub granted_commands: bool,
     }
 
     pub type Work = Box<dyn Fn(&RuntimeRequest) + Send + Sync>;
@@ -544,6 +591,7 @@ pub mod fake {
                 probe: None,
                 probed: Mutex::new(Vec::new()),
                 extra_dirs: false,
+                granted_commands: false,
             }
         }
 
@@ -596,6 +644,11 @@ pub mod fake {
             self
         }
 
+        pub fn with_granted_commands(mut self) -> Self {
+            self.granted_commands = true;
+            self
+        }
+
         pub fn with_metadata(mut self, key: &str, value: &str) -> Self {
             if let Ok(output) = &mut self.answer {
                 output.metadata.insert(key.to_owned(), value.to_owned());
@@ -629,6 +682,10 @@ pub mod fake {
     impl ModelRuntime for FakeRuntime {
         fn accepts_extra_dirs(&self) -> bool {
             self.extra_dirs
+        }
+
+        fn runs_granted_commands(&self) -> bool {
+            self.granted_commands
         }
 
         fn mcp_tools_in(&self, reported: &[String], launched: &[&str]) -> Vec<ReportedMcpTool> {

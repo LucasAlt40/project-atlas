@@ -1,0 +1,15 @@
+--- Assistant
+I created `src/slugify.js` and `test/slugify.test.js`, and touched no other file. I could not run the tests: every `node` and `npm test` command was blocked by a permission prompt in this session. I checked each assertion by hand against the implementation instead, so please run `npm test` once to confirm.
+
+**Implementation** (`src/slugify.js`)
+- Throws a `TypeError` when `text` is not a string.
+- Decomposes with NFD, strips the combining marks U+0300–U+036F, lowercases, turns each run of non-`[a-z0-9]` characters into one `-`, and trims dashes from both ends.
+- With `maxLength`, it returns the slug unchanged if it already fits. Otherwise it cuts at the last dash at or before `maxLength` (`lastIndexOf('-', maxLength)`). If there is no such dash, it cuts hard at `maxLength`.
+- Exports `module.exports = { slugify }`.
+
+**Choices I made**
+- `maxLength` is not validated. A zero or negative value returns `''`, and a non-integer is passed straight to `slice`. The spec only says "positive integer", so I did not add a `RangeError`. Say if you want one.
+- Letters with no NFD decomposition, such as `ß` and `ø`, become `-` under rule 3. The spec implies this, but I did not special-case them.
+
+**Tests** (`test/slugify.test.js`)
+These use `node:test` and `node:assert` and cover all five examples from the spec, plus accent removal, digit handling, empty results, optional options, and the `TypeError` cases. `package.json` already has `"test": "node --test"`, which picks up the file without changes.

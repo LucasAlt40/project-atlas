@@ -1,0 +1,25 @@
+{
+  "id": "atlas-codex__t2-cart-bug__r1",
+  "task": "t2-cart-bug",
+  "kind": "bugfix",
+  "changed": [
+    "src/cart.js",
+    "test/cart.test.js"
+  ],
+  "added": 24,
+  "removed": 4,
+  "outOfScope": [],
+  "hasTree": true,
+  "ownTestFiles": 1,
+  "ownTests": {
+    "pass": 7,
+    "fail": 0,
+    "failed": []
+  },
+  "hidden": {
+    "pass": 11,
+    "fail": 0,
+    "failed": []
+  },
+  "hiddenScore": 1
+}

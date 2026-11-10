@@ -1,0 +1,53 @@
+--- User agent-1793990780980-6
+Architect: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  Rules:  …
+--- Assistant agent-1793990780980-6
+Size: trivial
+
+- **What:** add a dependency-free `slugify(text, options)` in `src/slugify.js`, exported as `module.exports = { slugify }`. It NFD-normalises and strips combining marks, lowercases, collapses non-`[a-z0-9]` runs to one `-`, trims edge dashes, and for `maxLength` cuts at the last `-` that fits, or hard-cuts a single over-long word. Non-string input throws `TypeError`.
+- **Where:** new `src/slugify.js` and new `test/slugify.test.js` (`node:test` + `node:assert`). `package.json` (`"test": "node --test"`, CommonJS) and `README.md` stay untouched; no other file changes.
+- **How checked:** run `npm test`. The tests should cover the five examples in the spec, the accent cases (é, ç, ã, ü), the leading/trailing dash rule, the `maxLength` cases (9, 8, 5, plus a result that never ends in `-`), and the `TypeError` for non-string input.
+
+```atlas-result
+{"status":"success","outcome":"approved","summary":"Sized as trivial. The repo is a dependency-free CommonJS package (package.json, README.md only; no src/ or test/ yet) with tests run by `node --test`. Plan: one new module src/slugify.js and one new test file test/slugify.test.js, nothing else touched. Verification via npm test against the spec examples and edge cases.","artifacts":[],"decisions":[{"title":"Single-file module, no abstractions","decision":"Implement slugify as one exported function in src/slugify.js with no helper modules or dependencies.","rationale":"The task is small and the project has no dependencies; the spec asks for exactly module.exports = { slugify }."},{"title":"maxLength cut rule","decision":"Cut at the last '-' whose prefix fits within maxLength; if the first word alone exceeds maxLength, hard-cut to maxLength characters.","rationale":"Matches rule 5 of the spec and its examples (9 -> 'hello-big', 8 -> 'hello', 5 -> 'super')."}],"findings":[],"touchedFiles":[],"touchedAreas":["src/slugify.js","test/slugify.test.js"],"nextAction":"Developer creates src/slugify.js and test/slugify.test.js per the plan above and runs npm test."}
+```
+--- User agent-1793990780979-3
+Developer: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  Rules:  …
+--- Assistant agent-1793990780979-3
+I added `src/slugify.js` and `test/slugify.test.js`. `npm test` passes all 11 tests. The spec's five examples are in the tests and pass.
+
+Decisions:
+- `maxLength` cuts at the last `-` whose prefix fits. If the first word alone is too long, it is cut hard at `maxLength`.
+- Accents are removed with NFD normalization followed by stripping combining marks, then lowercasing.
+- No validation on `maxLength` beyond what the spec says, since the spec doesn't ask for it.
+
+```atlas-result
+{"status":"success","outcome":"implemented","summary":"Created src/slugify.js exporting slugify(text, options) via module.exports = { slugify }, and test/slugify.test.js with 11 node:test cases covering the spec examples, accents, separators, trimming, digits, maxLength cut rules and the TypeError. `npm test` printed: tests 11, pass 11, fail 0.","artifacts":[{"type":"implementation_summary","name":"slugify module","path":"src/slugify.js","summary":"Single-function CommonJS module implementing the six rules; no dependencies."},{"type":"implementation_summary","name":"slugify tests","path":"test/slugify.test.js","summary":"node:test suite covering all spec rules and examples."}],"decisions":[{"title":"maxLength cut rule","decision":"Cut at the last '-' within the first maxLength+1 characters; if there is none, hard-cut to maxLength.","rationale":"Matches rule 5 and the spec examples (9 -> 'hello-big', 8 -> 'hello', 5 -> 'super')."},{"title":"Accent removal","decision":"Use normalize('NFD') and strip U+0300-U+036F before lowercasing.","rationale":"Handles é, ç, ã, ü and also decomposed uppercase forms such as 'İ'."}],"findings":[],"touchedFiles":["src/slugify.js","test/slugify.test.js"],"touchedAreas":["src","test"],"nextAction":"QA should run npm test and review the maxLength edge cases."}
+```
+--- User agent-1793990780980-4
+QA: Create the file src/slugify.js, a CommonJS module that exports a function slugify(text, options), exactly as: module.exports = { slugify }.  Rules:  1. The …
+--- Assistant agent-1793990780980-4
+The module and tests read correctly, and `npm test` passes 11 of 11. I checked the maxLength edge cases by reading the code, since Atlas only lets me run the project's test commands.
+
+**Evidence**
+
+- **Executed:** `npm test` ran all 11 `node:test` cases: 11 pass, 0 fail.
+- **Read:** `src/slugify.js` implements all six rules, and `module.exports = { slugify }` matches the spec.
+- **Read, traced by hand:**
+  - `maxLength` boundary: when `slug[maxLength] === '-'`, `slice(0, maxLength + 1)` still finds that dash, and the cut returns exactly `maxLength` characters with no trailing dash.
+  - Hard cut: the slice `slice(0, maxLength + 1)` contains no dash, so the result has no dash and cannot end with one.
+  - Spec examples 9 → `hello-big`, 8 → `hello`, 5 → `super` all trace correctly.
+  - Accents: `Ação`, `Über`, `Café`, `Mãe` and `Olá` exercise U+0301, U+0303, U+0308 and U+0327, so the accent path is covered by the tests. The full U+0300–U+036F range was not checked byte by byte.
+- **Read:** the tests would fail without the change, since the module does not exist before it.
+
+**Findings (all low, none block the pass)**
+
+1. `maxLength` values outside the contract (0, negative, 2.5, `null`) do not throw and return truncated or empty strings. The spec only requires a positive integer, so this is a hardening idea.
+2. `options = null` throws a native destructuring TypeError rather than an explicit one. The spec does not cover this.
+3. Tests do not cover `maxLength` cut exactly on a dash boundary, such as `'hello big world'` with `maxLength: 5`. The logic handles it, but a test would lock it in.
+4. Tests do not cover `ß`, `ø` or other non-decomposable letters, which become `-` under rule 3. That is the spec's behaviour, but no test documents it.
+
+**Could not check:** I could not run ad hoc probes for the out-of-contract inputs, and I did not check the full combining-mark range byte by byte.
+
+```atlas-result
+{"status":"pass","outcome":"pass","summary":"Read src/slugify.js and test/slugify.test.js and ran npm test: 11 pass, 0 fail. The six spec rules and the spec examples trace correctly by reading, including the maxLength boundary and hard-cut paths. Only low-severity hardening and coverage gaps were found. Not checked: ad hoc probes of out-of-contract inputs (not runnable under Atlas rules) and byte-by-byte verification of the U+0300-U+036F range.","artifacts":[],"decisions":[],"findings":[{"severity":"low","category":"robustness","title":"Out-of-contract maxLength values are not rejected","description":"maxLength of 0, a negative number, a non-integer or null does not throw; it returns a truncated or empty string. The spec only requires a positive integer.","file":"src/slugify.js","line":14,"evidence":"Read: line 14 compares slug.length <= maxLength with no validation; line 19 slices with maxLength + 1 (read, traced by hand).","recommendation":"Optionally throw a RangeError for maxLength that is not a positive integer, or document the contract."},{"severity":"low","category":"robustness","title":"options = null throws a native TypeError","description":"Destructuring null in the signature throws a generic TypeError from the engine. The default parameter only covers undefined.","file":"src/slugify.js","line":13,"evidence":"Read: line 1 default options = {} and line 13 const { maxLength } = options.","recommendation":"Treat null as an empty options object if null should be accepted."},{"severity":"low","category":"coverage","title":"No test for maxLength cut exactly on a dash boundary","description":"The tests cover maxLength 9, 8 and 15 on 'hello big world', but not a value that lands on a dash such as maxLength 5 for the same text. The logic handles it correctly by reading.","file":"test/slugify.test.js","line":29,"evidence":"Read: lines 29-33 cover maxLength 9, 8 and 15 only.","recommendation":"Add an assertion such as slugify('hello big world', { maxLength: 5 }) === 'hello'."},{"severity":"low","category":"coverage","title":"Non-decomposable letters are not covered by a test","description":"Characters such as ß and ø are not decomposed by NFD, so they become '-' under rule 3. This matches the spec, but no test documents it.","file":"test/slugify.test.js","line":11,"evidence":"Read: the accent tests cover only é, ç, ã and ü.","recommendation":"Add a test that pins the behaviour for ß or ø if it is intended."}],"touchedFiles":[],"touchedAreas":["slugify module","slugify tests"],"nextAction":"Decide whether to accept the low-severity findings or add the suggested tests; the implementation meets the spec."}
+```

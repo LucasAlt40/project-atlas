@@ -1,0 +1,19 @@
+{
+  "ok": true,
+  "exitCode": 0,
+  "elapsedMs": 24990,
+  "inputTokens": 72245,
+  "cachedInputTokens": 62336,
+  "outputTokens": 2158,
+  "reasoningTokens": 565,
+  "costUsd": null,
+  "turns": 1,
+  "agentRuns": 1,
+  "id": "codex-pure__t3-todo-priority__r2",
+  "arm": "codex-pure",
+  "task": "t3-todo-priority",
+  "rep": 2,
+  "runtime": "codex",
+  "model": "gpt-5.6-luna",
+  "template": null
+}
