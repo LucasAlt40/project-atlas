@@ -23,6 +23,11 @@ Os testes ocultos foram validados contra uma solução de referência e falham n
 básicas; T5–T7 (limitador de taxa, CSV com defeitos entrelaçados, cancelamento em 3 arquivos) são mais difíceis, mas
 ainda bem especificadas: em 2026-10-31 o Claude puro (haiku) acertou 100% delas também.
 
+Uma tarefa sobre o repositório de outra pessoa não carrega uma cópia dele: a T8 (backend da Oficina das Meninas) aponta
+para o repositório público e um commit fixo em `meta.json` (`fixtureRepo`). `bench/fixture.mjs` clona esse commit uma vez em
+`bench/.cache/fixtures/` (fora do Git) e as árvores que as execuções dessa tarefa deixam ficam em `bench/.cache/result-trees/`,
+nunca em `bench/results`.
+
 ## Rodar
 
 Um comando faz tudo: confere a máquina (CLIs logadas, Python com openpyxl, Maven e `~/.m2` para a tarefa Java),

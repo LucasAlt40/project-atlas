@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { fixtureDir, treeDir } from './fixture.mjs';
 import { mavenBin } from './maven.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -118,10 +119,10 @@ for (const id of fs.readdirSync(runsDir).sort()) {
   const metrics = JSON.parse(fs.readFileSync(metricsPath, 'utf8'));
   const taskDir = path.join(here, 'tasks', metrics.task);
   const meta = JSON.parse(fs.readFileSync(path.join(taskDir, 'meta.json'), 'utf8'));
-  const tree = path.join(dir, 'tree');
+  const tree = treeDir(results, id, meta);
   const hasTree = fs.existsSync(tree);
   const d = hasTree
-    ? diff(path.join(taskDir, 'fixture'), tree)
+    ? diff(fixtureDir(metrics.task, meta), tree)
     : { changed: [], added: 0, removed: 0 };
   const outOfScope = d.changed.filter(
     (p) => !meta.allowed.some((a) => (a.endsWith('/') ? p.startsWith(a) : p === a)),
