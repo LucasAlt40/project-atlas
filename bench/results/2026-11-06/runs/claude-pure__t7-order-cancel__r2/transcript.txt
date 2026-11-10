@@ -1,0 +1,22 @@
+--- Assistant
+Order cancellation is implemented and has tests, but I could not run the test suite. Every Bash call in this session was blocked with "requires approval", including `npm test`, so the new tests and the existing `test/shop.test.js` are unverified. I checked the logic and the arithmetic in the tests by reading them.
+
+**Changes**
+- **`src/inventory.js`**: added `restock(sku, qty)`, the counterpart of `take`.
+- **`src/orders.js`**: added `cancel(orderId, reason)`.
+  - The reason is checked first and must be a non-empty string after trimming, or it throws a `TypeError`.
+  - A missing order throws `order N not found`. An already-cancelled order throws `order N is already cancelled`. Neither changes anything.
+  - Otherwise it restocks the items, sets `status` to `'cancelled'`, stores the reason on the order as `reason`, emits `order.cancelled` with `{ orderId, reason }`, and returns a copy of the order.
+- **`src/reports.js`**: `revenue()` and `unitsSold(sku)` now skip cancelled orders.
+- **`test/cancel.test.js`** (new): covers stock restoration, the event, the status and reason, not-found, double cancel, invalid reasons, and report exclusion.
+
+**Choices you may want to change**
+- Reason validation runs before the not-found check, so a bad reason on a missing order gives a `TypeError`.
+- Whitespace-only reasons are rejected as well as the empty string.
+- The cancelled reason is kept as a plain `reason` field on the order record.
+
+**Not verified**
+- Whether the existing tests still pass, and whether the new ones do.
+- I did not read the other existing test files. I only found and read `test/shop.test.js`, which covers the paths the change touches.
+
+To verify, run `npm test` in the project directory. You may need to approve the command, or allow it in your settings.

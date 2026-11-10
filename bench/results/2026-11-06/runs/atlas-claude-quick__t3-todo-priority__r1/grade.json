@@ -1,0 +1,27 @@
+{
+  "id": "atlas-claude-quick__t3-todo-priority__r1",
+  "task": "t3-todo-priority",
+  "kind": "feature-multifile",
+  "changed": [
+    "src/format.js",
+    "src/store.js",
+    "test/qa-probe.test.js",
+    "test/store.test.js"
+  ],
+  "added": 82,
+  "removed": 7,
+  "outOfScope": [],
+  "hasTree": true,
+  "ownTestFiles": 2,
+  "ownTests": {
+    "pass": 11,
+    "fail": 0,
+    "failed": []
+  },
+  "hidden": {
+    "pass": 12,
+    "fail": 0,
+    "failed": []
+  },
+  "hiddenScore": 1
+}

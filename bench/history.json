@@ -45,6 +45,11 @@
       "round": "2026-11-04",
       "change": "Da main: retomada com o contexto da falha, limite de ciclo de correção e brief mais enxuto.",
       "effect": "Atlas concluiu o T8 nas 2 execuções; no T8, tempo −30% e entrada −33%."
+    },
+    {
+      "round": "2026-11-06",
+      "change": "Validador e QA em paralelo no Implement, com uma junção no motor que espera os dois e um Corretor único; prompt de sistema sem as partes que mudam (cache).",
+      "effect": "Fase dos juízes 68 s → 40 s (−41%); taxa de cache igual (80%). O Implement total caiu só 7% por dois blocos de resultado com JSON inválido do haiku, que repetiram o Desenvolvedor."
     }
   ]
 }

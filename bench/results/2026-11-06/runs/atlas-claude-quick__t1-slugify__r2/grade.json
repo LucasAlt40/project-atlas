@@ -1,0 +1,25 @@
+{
+  "id": "atlas-claude-quick__t1-slugify__r2",
+  "task": "t1-slugify",
+  "kind": "feature",
+  "changed": [
+    "src/slugify.js",
+    "test/slugify.test.js"
+  ],
+  "added": 115,
+  "removed": 0,
+  "outOfScope": [],
+  "hasTree": true,
+  "ownTestFiles": 1,
+  "ownTests": {
+    "pass": 15,
+    "fail": 0,
+    "failed": []
+  },
+  "hidden": {
+    "pass": 14,
+    "fail": 0,
+    "failed": []
+  },
+  "hiddenScore": 1
+}

@@ -1,0 +1,25 @@
+{
+  "id": "atlas-claude__t6-csv-bug__r1",
+  "task": "t6-csv-bug",
+  "kind": "bugfix-hard",
+  "changed": [
+    "src/csv.js",
+    "test/csv.test.js"
+  ],
+  "added": 92,
+  "removed": 8,
+  "outOfScope": [],
+  "hasTree": true,
+  "ownTestFiles": 1,
+  "ownTests": {
+    "pass": 11,
+    "fail": 0,
+    "failed": []
+  },
+  "hidden": {
+    "pass": 12,
+    "fail": 0,
+    "failed": []
+  },
+  "hiddenScore": 1
+}

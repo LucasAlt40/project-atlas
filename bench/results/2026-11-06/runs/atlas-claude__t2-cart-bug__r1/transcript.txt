@@ -1,0 +1,71 @@
+--- User agent-1793990856245-5
+Investigate and fix: Bug report from customers about src/cart.js:  - A cart with 3 units of a product at 19.90 shows a total of 19.9 instead of 59.7. - With the…
+--- Assistant agent-1793990856245-5
+The root cause is confirmed, and all 8 tests pass after the fix.
+
+**Phase 1 (evidence):** I read `src/cart.js` and `test/cart.test.js`, and ran `npm test` after adding the regression tests. The original code had five defects, and each one reproduced in a failing test:
+
+1. **Quantity ignored** (`src/cart.js:16`): the loop summed `item.price` and never used `item.qty`. Reproduced as `19.9 !== 59.7`.
+2. **Percent coupon inverted** (`src/cart.js:21`): `sum * value / 100` returned the discount amount, not the amount after the discount. Reproduced as `20 !== 80`.
+3. **No floor at zero** (`src/cart.js:23`): the fixed coupon subtracted with no clamp. Reproduced as `-5 !== 0`.
+4. **No cent rounding**: the total was returned unrounded. Reproduced as `0.30000000000000004 !== 0.3`.
+5. **Unknown-coupon check is wrong** (`src/cart.js:18`): `COUPONS[couponCode]` also matches inherited properties such as `constructor`, which produced `NaN`. This was not in the report but fits the "unknown coupons are ignored" requirement, so I fixed it too.
+
+The git history has one commit touching this file (`73cf104 fixture`), so there was no recent change to blame. The root cause is in the code as written.
+
+**Phase 2 (fix):**
+
+- `src/cart.js`:
+  - Sums `item.price * item.qty`.
+  - Percent coupons compute `sum - sum * value / 100`.
+  - Coupon lookup uses `Object.hasOwn`, so only the defined coupons match.
+  - The result is `Math.round(Math.max(0, sum) * 100) / 100`, which clamps at zero and rounds to cents.
+  - The `module.exports = { total }` API is unchanged.
+- `test/cart.test.js`: added six regression tests covering quantity, percent coupon, fixed-coupon floor, cent rounding, unknown coupon, and the inherited-property case. The existing two tests are untouched.
+
+**Test run (`npm test`, after fix):** 8 tests, 8 pass, 0 fail. Before the fix, 5 of the 8 failed.
+
+**Residual risks:**
+
+- `Object.hasOwn` needs Node 16.9 or newer. The project's test runner is `node --test`, so this should be fine, but older runtimes would break.
+- Rounding is `Math.round` on the value times 100. Binary floating point can still land on the lower cent for some half-cent values (for example, 1.005 rounds to 1.00). Exact decimal arithmetic would need a different approach.
+- Negative prices or quantities are not validated. The report did not ask for this, so I left it alone.
+
+**Files changed:** `src/cart.js`, `test/cart.test.js`.
+
+```atlas-result
+{"status":"success","outcome":"fixed","summary":"Fixed five defects in src/cart.js: quantity ignored, percent coupon returned the discount instead of the remainder, no floor at zero for fixed coupons, no rounding to cents, and inherited object properties (e.g. 'constructor') treated as coupons producing NaN. Added six regression tests to test/cart.test.js. npm test before the fix: 5 failing, 3 passing. npm test after the fix: 8 passing, 0 failing.","artifacts":[{"type":"implementation_summary","name":"cart total fix","path":"src/cart.js","summary":"total() now multiplies price by qty, subtracts percent discounts correctly, clamps at 0, rounds to 2 decimals, and only accepts own-property coupon codes."}],"decisions":[{"title":"Coupon lookup uses Object.hasOwn","decision":"Unknown or inherited coupon codes are ignored by checking own properties of COUPONS.","rationale":"COUPONS[code] matched inherited properties such as 'constructor', producing NaN."},{"title":"Rounding happens once at the end","decision":"Round only the final total with Math.round(x * 100) / 100, after clamping at zero.","rationale":"Matches the requirement that totals are cent-rounded and never negative, with the smallest change."}],"findings":[{"severity":"high","category":"logic","title":"Quantity ignored in total","description":"Subtotal summed item.price without multiplying by item.qty.","file":"src/cart.js","line":16,"evidence":"npm test: '19.9 !== 59.7' before fix; passes after fix.","recommendation":"Use item.price * item.qty (applied)."},{"severity":"high","category":"logic","title":"Percent coupon returned discount amount, not discounted total","description":"sum = (sum * value) / 100 yielded 20 for 100 at 20% off.","file":"src/cart.js","line":21,"evidence":"npm test: '20 !== 80' before fix; passes after fix.","recommendation":"Use sum - (sum * value) / 100 (applied)."},{"severity":"high","category":"logic","title":"Fixed coupon can make total negative","description":"No clamp after subtracting fixed coupon value.","file":"src/cart.js","line":23,"evidence":"npm test: '-5 !== 0' before fix; passes after fix.","recommendation":"Clamp with Math.max(0, sum) (applied)."},{"severity":"medium","category":"numeric","title":"Totals not rounded to cents","description":"Float arithmetic produced long decimals.","file":"src/cart.js","line":26,"evidence":"npm test: '0.30000000000000004 !== 0.3' before fix; passes after fix.","recommendation":"Round to 2 decimals at the end (applied)."},{"severity":"medium","category":"validation","title":"Inherited object properties treated as coupons","description":"COUPONS[couponCode] matched 'constructor' and similar keys, causing NaN.","file":"src/cart.js","line":18,"evidence":"npm test: 'NaN !== 10' before fix; passes after fix.","recommendation":"Check own properties with Object.hasOwn (applied)."}],"touchedFiles":["src/cart.js","test/cart.test.js"],"touchedAreas":["cart totals","coupon handling","tests"],"nextAction":"Re-run npm test to validate; residual risks: Object.hasOwn requires Node 16.9+; Math.round can still hit binary-float half-cent edge cases; negative prices or quantities are not validated."}
+```
+--- User agent-1793990856245-4
+Verify the fix: Bug report from customers about src/cart.js:  - A cart with 3 units of a product at 19.90 shows a total of 19.9 instead of 59.7. - With the coup…
+--- Assistant agent-1793990856245-4
+## QA verdict: pass
+
+The fix is already committed in `ddc8821` (the handoff said uncommitted; `git diff` is empty). It removes the causes, not just the symptoms, and `npm test` passes 8/8. I found no regression in the code paths I traced. The findings below are low severity.
+
+**Root cause (read: `git show 73cf104:src/cart.js`):** `total()` had four independent defects:
+1. It summed `item.price` and ignored `item.qty`.
+2. For percent coupons it returned the discount (`sum * value / 100`), not the remainder.
+3. Fixed coupons had no floor at zero.
+4. There was no rounding, and `COUPONS[couponCode]` matched inherited keys like `constructor`, so `sum - undefined` produced `NaN`.
+
+**Fix applied (read: current `src/cart.js:13-27`):** the sum uses `price * qty`. The coupon is looked up with `Object.hasOwn`. Percent coupons subtract the discount from the subtotal. The total is clamped with `Math.max(0, sum)` and then rounded once with `Math.round(x * 100) / 100`. `module.exports = { total }` is unchanged.
+
+**Validation:**
+- *Executed:* `npm test` gives 8 pass, 0 fail, including the six new regression tests in `test/cart.test.js:13-41`.
+- *Read:* each regression test maps to one defect. Against the pre-fix code, the multiply test gives 19.9 vs 59.7, the OFF20 test gives 20 vs 80, the TENOFF test gives -5 vs 0, the rounding test gives 0.30000000000000004 vs 0.3, and the `constructor` test gives NaN vs 10. The `NOPE` and empty-cart tests already passed before the fix, so they are guards, not regression tests.
+- *Read:* the only caller is the test file, so no other code depends on `total`. No shared state is mutated.
+- *Not executed:* I did not run the tests against the old code to confirm the failures. Running them would mean writing a file, and my sandbox does not allow that. The pre-fix failures are from my trace and the earlier step's report.
+
+**What remains unverified or untested:**
+- Half-cent rounding: `Math.round(x * 100)` inherits binary float error. For example `1.005 * 100` is `100.49999999999999` in IEEE 754, so `total([{price:1.005, qty:1}])` should give `1` (reasoned, not executed).
+- Negative `price` or `qty` is not validated, and a negative price is silently clamped to 0.
+- An item without `qty` now makes the total `NaN` (`Math.max(0, NaN)` stays `NaN`). The old code ignored `qty`, so this is a behaviour change. The JSDoc requires `qty`, so it is a contract issue, not a bug in the fix.
+- `Object.hasOwn` needs Node 16.9+. `node --test` needs Node 18+ anyway, so this is not a real constraint.
+- No tests cover HALF, `__proto__`/`toString` keys, `qty: 0`, or half-cent results.
+
+**Decision for the person:** whether to validate or reject negative and non-numeric inputs, and whether half-cent rounding should be half-up in decimal arithmetic. Both are hardening beyond the reported bug, so I rated them low and left the outcome at pass.
+
+```atlas-result
+{"status":"pass","outcome":"pass","summary":"Verified the committed fix (ddc8821) against the pre-fix fixture (73cf104). Root causes: qty ignored, percent coupon returned the discount, no zero floor, no cent rounding, inherited keys treated as coupons. npm test executed: 8 pass, 0 fail. Regression tests map one-to-one to the defects (read). Pre-fix failures were traced by reading, not executed. No other callers of total() exist.","artifacts":[{"type":"implementation_summary","name":"QA verification of cart total fix","path":"src/cart.js","summary":"Read the fix and the regression tests, traced each test against the pre-fix code, ran npm test (8/8 pass), and checked callers and Node compatibility."}],"decisions":[{"title":"Accept the fix as committed","decision":"Pass the fix with low-severity findings only; the hardening items are left for the person to decide.","rationale":"The reported bug causes are removed and no regression was found in the traced paths."}],"findings":[{"severity":"low","category":"numeric","title":"Math.round inherits binary float error at half-cents","description":"Math.round(x*100)/100 can round half-cent values down, e.g. 1.005 becomes 1.00 rather than 1.01.","file":"src/cart.js","line":26,"evidence":"Read: the expression is applied to the final sum. Reasoned from IEEE 754 (1.005*100 = 100.49999999999999), not executed.","recommendation":"Optionally round with an epsilon or integer-cent arithmetic if half-up cents are required. Not needed for the reported bug."},{"severity":"low","category":"validation","title":"Negative or non-numeric inputs are not validated","description":"A negative price is silently clamped to a total of 0. An item missing qty makes the total NaN, which is a behaviour change from the old code that ignored qty.","file":"src/cart.js","line":16,"evidence":"Read: the loop computes item.price * item.qty with no checks; Math.max(0, NaN) stays NaN.","recommendation":"Decide whether to reject or sanitise invalid items. Add tests for negative price, qty 0 and missing qty."},{"severity":"low","category":"test-coverage","title":"Coverage gaps in the regression tests","description":"No tests for the HALF coupon, half-cent results, __proto__/toString keys, or qty 0.","file":"test/cart.test.js","line":1,"evidence":"Read: test/cart.test.js has 8 tests; the rounding test uses 0.1+0.2, which does not exercise a half-cent.","recommendation":"Add a few cases for these paths to guard against future regressions."}],"touchedFiles":[],"touchedAreas":["cart total calculation","coupon lookup","test suite"],"nextAction":"Decide whether to act on the low findings (input validation, half-cent rounding, extra tests). The reported bug is fixed."}
+```

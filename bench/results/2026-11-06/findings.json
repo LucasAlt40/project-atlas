@@ -1,0 +1,42 @@
+[
+  {
+    "headline": true,
+    "finding": "Juízes em paralelo funcionam: no Implement, o Validador e o QA rodaram lado a lado em todas as 8 execuções (sobreposição de 18 a 43 s). A fase de julgamento caiu de 68 s para 40 s (−41%), com o mesmo trabalho dos dois juízes (69 s somados).",
+    "fix": "Manter. É o ganho de tempo que a junção no motor tornou possível.",
+    "metric": "Tempo",
+    "priority": "Alta",
+    "effort": "—"
+  },
+  {
+    "headline": true,
+    "finding": "O tempo total do Implement caiu menos, de 139 s para 130 s (−7%), e o custo subiu de US$ 0,0278 para 0,0330. Duas das 8 execuções rodaram o Desenvolvedor duas vezes porque o haiku fechou o bloco de resultado com JSON inválido (`\",\"}` no fim), e uma (T5) teve uma volta de correção.",
+    "fix": "Próximo item: reparar esse defeito de JSON no leitor do resultado em vez de repetir o passo inteiro (cerca de 20 s e 3 mil tokens de saída por repetição).",
+    "metric": "Tempo, custo",
+    "priority": "Alta",
+    "effort": "Baixo"
+  },
+  {
+    "headline": true,
+    "finding": "Cache: a opção que tira do prompt de sistema as partes que mudam não mexeu na taxa de cache (Implement 81% → 80%, Quick 81% → 83%). O que fica fora do cache é o brief e as saídas das ferramentas de cada passo, não o prompt de sistema da CLI.",
+    "fix": "Manter a opção (não custa nada), mas não contar com ela. Ganho de cache, se houver, está em reaproveitar a sessão entre passos.",
+    "metric": "Custo de entrada",
+    "priority": "Média",
+    "effort": "—"
+  },
+  {
+    "headline": false,
+    "finding": "Qualidade igual: as 24 execuções do Atlas concluíram e passaram 100% dos testes ocultos. O Claude puro é o mesmo de 2026-11-04 (execuções copiadas, nada mudou nele).",
+    "fix": "—",
+    "metric": "Nota oculta",
+    "priority": "Baixa",
+    "effort": "—"
+  },
+  {
+    "headline": false,
+    "finding": "Bug fix (T2, T6, T8) não usa juízes em paralelo; as diferenças ali (T8 r1 765 s, 4,5 mi de entrada) são variação do modelo, com 2 rodadas por tarefa.",
+    "fix": "Para afirmar algo no T8, rodar mais repetições.",
+    "metric": "—",
+    "priority": "Baixa",
+    "effort": "—"
+  }
+]

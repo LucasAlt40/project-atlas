@@ -1,0 +1,36 @@
+--- User agent-1793991124931-7
+Review code and architecture: Review src/users.js for correctness and security. Report each defect you find as a finding with the file, the line, why it is wron…
+--- Assistant agent-1793991124931-7
+Review of `src/users.js` is complete. Verdict: **fail**. Three defects are confirmed by reading the code: a pagination off-by-one, a birthday check that ignores month and day, and an HTML escaper that only replaces the first occurrence of each character. The escaper defect is an XSS path. The findings rest on reading alone; I did not run the code, because this review is read-only.
+
+## Findings
+
+**1. High, Security: `escapeHtml` replaces only the first occurrence of each character** (`src/users.js:16-21`)
+- `String.prototype.replace` with a string pattern replaces only the first match. Only the first `&`, `<` and `>` are escaped.
+- `userRow` (line 25) passes `user.name` through `escapeHtml`, so a crafted name gets through unescaped.
+- Example: name `a<b><img src=x onerror=alert(1)>` becomes `a&lt;b&gt;<img src=x onerror=alert(1)>`. The second `<` and `>` are raw, so the `img` tag is live HTML.
+- Recommendation: use global regexes, e.g. `.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')`. Keep `&` first. The quote escapes also make the function safe in attribute context, which the docstring ("safe to put inside HTML") claims.
+
+**2. High, Correctness: `paginate` skips the first page** (`src/users.js:4-6`)
+- The docstring says `page` is 1-based, but `start = page * size`. For `paginate([a,b,c,d], 1, 2)` the result is `[c,d]`, not `[a,b]`. Page 0 returns the first page, which contradicts the docstring. The last page can also come back short or empty.
+- Recommendation: `const start = (page - 1) * size;`, and reject `page < 1` or non-integer input (for example by throwing a `RangeError`), so callers cannot get silent wrong pages.
+
+**3. Medium, Correctness: `isAdult` compares only the calendar year** (`src/users.js:10-12`)
+- `age = today.getFullYear() - birthDate.getFullYear()` ignores month and day. Someone born 2008-12-31 is reported as an adult on 2026-01-01, when they are still 17.
+- Recommendation: subtract one year if the birthday has not yet occurred on `today`, e.g. `let age = today.getFullYear() - birthDate.getFullYear(); const m = today.getMonth() - birthDate.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;`. Be explicit about timezone handling, since `Date` getters use local time.
+
+**4. Medium, Testing: no tests exist for this module** (repository root)
+- `package.json:1` defines `"test": "node --test"`, but the tree contains only `src/users.js`, `README.md` and `package.json`. None of the three defects above would be caught.
+- Recommendation: add `test/users.test.js` covering: page 1 and the last partial page; a birthday on the boundary day; names with multiple `<`, `>`, `&`, quotes.
+
+**5. Low, Conventions: the module header and README do not state the page-numbering convention** (`src/users.js:1`, `README.md:2`)
+- Mentioned only for completeness. Once finding 2 is fixed, document the 1-based convention in one place.
+
+## Parts not examined
+- The calling web page, which is not in this repository, so I could not confirm whether `escapeHtml` is used anywhere other than `userRow`, or whether `paginate` is called with 0- or 1-based pages.
+- Runtime behavior: none of the claims were executed.
+- Timezone and locale behavior of `isAdult` beyond the reading above.
+
+```atlas-result
+{"status":"fail","outcome":"fail","summary":"Reviewed src/users.js (29 lines) and README/package.json. Read-only; no code executed. Three confirmed defects by reading: escapeHtml replaces only the first occurrence of &, <, > (XSS via userRow, src/users.js:16-25); paginate uses start=page*size, skipping page 1 (src/users.js:4-6); isAdult compares years only (src/users.js:10-12). No test files exist despite the test script in package.json.","artifacts":[],"decisions":[],"findings":[{"severity":"high","category":"Security","title":"escapeHtml replaces only first occurrence of special characters","description":"String-pattern replace() escapes only the first &, < and >, so later markup in user.name passes through unescaped in userRow. Also no quote escaping despite the 'safe inside HTML' claim.","file":"src/users.js","line":16,"evidence":"src/users.js:17-20: .replace('<','&lt;').replace('>','&gt;') with string patterns; name a<b><img src=x onerror=alert(1)> yields a&lt;b&gt;<img src=x onerror=alert(1)>","recommendation":"Use global regexes (/&/g, /</g, />/g, /\"/g, /'/g) with & escaped first."},{"severity":"high","category":"Layering","title":"paginate skips the first page (off-by-one)","description":"Docstring says page is 1-based, but start = page*size, so page 1 returns the second chunk and page 0 returns the first.","file":"src/users.js","line":5,"evidence":"paginate([a,b,c,d],1,2) returns [c,d]; should return [a,b].","recommendation":"Use start = (page - 1) * size and reject page < 1 or non-integer values."},{"severity":"medium","category":"Maintainability","title":"isAdult ignores month and day","description":"Only the calendar year is compared, so someone not yet 18 on their birthday is reported as adult for up to a year.","file":"src/users.js","line":11,"evidence":"age = today.getFullYear() - birthDate.getFullYear(); born 2008-12-31 is counted as 18 on 2026-01-01.","recommendation":"Subtract one when today's month/day is before birthDate's month/day; state the local-time assumption."},{"severity":"medium","category":"Testing","title":"No tests for the module","description":"package.json defines a node --test script but no test files exist, so none of the defects above are covered.","file":"package.json","line":1,"evidence":"Repository contains only src/users.js, README.md, package.json.","recommendation":"Add test/users.test.js covering page boundaries, birthday edge dates, and names with repeated special characters."},{"severity":"low","category":"Conventions","title":"Page numbering convention undocumented outside the docstring","description":"The 1-based convention appears only in one docstring; the README does not describe it.","file":"README.md","line":2,"evidence":"README.md is a single description line with no API notes.","recommendation":"Document the page convention alongside the fix to paginate."}],"touchedFiles":[],"touchedAreas":["src/users.js"],"nextAction":"Fix findings 1 and 2 (security and correctness), fix isAdult, and add tests before accepting the change. Caller code outside this repo was not reviewed."}
+```
