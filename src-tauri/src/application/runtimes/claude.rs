@@ -698,6 +698,8 @@ fn quota_of(stdout: &str) -> Option<QuotaInfo> {
         windows,
         source: UsageSource::ProviderReported,
         observed_at: crate::application::support::now_ms(),
+        origin: crate::domain::usage::QuotaOrigin::AtlasRun,
+        plan: None,
     })
 }
 

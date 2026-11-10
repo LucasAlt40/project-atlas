@@ -55,6 +55,23 @@ pub struct QuotaInfo {
     pub source: UsageSource,
     /// Milliseconds since the Unix epoch when Atlas observed it.
     pub observed_at: u64,
+    /// Where Atlas read it. Older records were all read from a run.
+    #[serde(default)]
+    pub origin: QuotaOrigin,
+    /// The account's plan, when the source says (`free`, `plus`…).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plan: Option<String>,
+}
+
+/// Where a quota reading comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QuotaOrigin {
+    /// Sent by the runtime alongside an execution Atlas ran.
+    #[default]
+    AtlasRun,
+    /// Read from the CLI's own session log on this computer (the last time it ran, for anyone).
+    CliSession,
 }
 
 /// One observed execution, kept so usage can be summed later.
@@ -172,6 +189,29 @@ pub struct AgentUsageSummary {
     pub month: UsageTotals,
     /// Last quota the agent's runtime reported, if it reports any.
     pub quota: Option<QuotaInfo>,
+}
+
+/// A name for an id the usage report refers to (an agent, a workspace, a runtime).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageLabel {
+    pub id: String,
+    pub name: String,
+}
+
+/// Everything Atlas observed since a moment, for the usage screen: the executions as recorded,
+/// names for the ids they refer to, and the last quota each runtime reported. An agent or a
+/// workspace that no longer exists has no label: its records stay, under its id.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageReport {
+    /// The runtimes the agents use, so a runtime with no execution in the period still shows.
+    pub connected: Vec<String>,
+    pub records: Vec<UsageRecord>,
+    pub agents: Vec<UsageLabel>,
+    pub workspaces: Vec<UsageLabel>,
+    pub runtimes: Vec<UsageLabel>,
+    pub quotas: std::collections::BTreeMap<String, QuotaInfo>,
 }
 
 /// Usage of every agent in a workspace.

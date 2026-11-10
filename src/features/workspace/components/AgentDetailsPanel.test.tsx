@@ -234,6 +234,7 @@ describe('Agent details and usage', () => {
         ],
         source: 'provider_reported',
         observedAt: Date.now(),
+        origin: 'atlas_run',
       },
     });
 

@@ -61,6 +61,7 @@ const COMMANDS: &[&str] = &[
     "list_executions",
     "get_agent_usage",
     "get_workspace_usage",
+    "get_usage_report",
     "get_workspace_security",
     "list_mcp_connections",
     "add_mcp_connection",

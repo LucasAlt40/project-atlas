@@ -49,6 +49,7 @@ describe('App', () => {
       'Personalidades',
       'Specs',
       'MCP Hub',
+      'Uso',
       'Configurações',
     ]);
     expect(within(nav).getByRole('button', { name: 'Workspace' })).toHaveAttribute(
@@ -102,6 +103,7 @@ describe('App', () => {
       'Personalidades',
       'Specs',
       'MCP Hub',
+      'Uso',
       'Configurações',
     ]);
   });

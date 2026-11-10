@@ -2,6 +2,7 @@
 //! Each implements a port declared in `application/`; `lib.rs` wires them.
 
 mod atomic_file;
+pub mod codex_quota;
 pub mod config_file;
 mod credential_store;
 mod curl_registry;

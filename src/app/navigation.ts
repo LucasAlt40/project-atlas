@@ -21,6 +21,9 @@ const McpHubPage = lazy(() =>
 const SpecsPage = lazy(() =>
   import('@/features/specs/pages/SpecsPage').then((m) => ({ default: m.SpecsPage })),
 );
+const UsagePage = lazy(() =>
+  import('@/features/usage/pages/UsagePage').then((m) => ({ default: m.UsagePage })),
+);
 const PersonalitiesScreen = lazy(() =>
   import('./PersonalitiesScreen').then((m) => ({ default: m.PersonalitiesScreen })),
 );
@@ -54,6 +57,7 @@ export const SCREENS: readonly [Screen, ...Screen[]] = [
     component: SpecsPage,
   },
   { id: 'mcp', labelKey: 'nav.mcp', icon: 'hub', component: McpHubPage },
+  { id: 'usage', labelKey: 'nav.usage', icon: 'pulse', component: UsagePage },
   { id: 'settings', labelKey: 'nav.settings', icon: 'settings', component: SettingsPage },
 ];
 
