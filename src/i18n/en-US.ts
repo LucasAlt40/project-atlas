@@ -1652,6 +1652,7 @@ export const enUS = {
   'workflow.condition.field': 'Field',
   'workflow.condition.operator': 'Operator',
   'workflow.condition.value': 'Value',
+  'workflow.condition.join': 'Waits for every step that leads here; all must match',
   'workflow.condition.chooseOutcome': 'Choose an outcome…',
   'workflow.edge.undeclaredOutcome':
     '"{outcome}" is not an outcome declared by the agent "{agent}".',

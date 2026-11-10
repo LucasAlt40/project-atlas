@@ -652,6 +652,93 @@ fn a_condition_node_routes_on_the_previous_result() {
     );
 }
 
+/// Developer, then two reviews side by side that both lead into a join; the join goes on when
+/// both pass and sends any failure to one fixer, after which both review again.
+fn parallel_reviews() -> crate::domain::workflow::Workflow {
+    let mut join = condition_node("verdicts", Condition::equals("result.status", "pass"));
+    if let crate::domain::workflow::NodeKind::Condition(c) = &mut join.kind {
+        c.join = true;
+    }
+    workflow(
+        vec![
+            agent("dev", "a1"),
+            agent("review", "a2"),
+            agent("qa", "a3"),
+            join,
+            with_loop(agent("fix", "a4"), "review_fix", 2),
+            end("done", EndOutcome::Done),
+        ],
+        vec![
+            edge("dev", "review"),
+            edge("dev", "qa"),
+            edge("review", "verdicts"),
+            edge("qa", "verdicts"),
+            WorkflowEdgeExt::on("verdicts", "done", "result.matched", "true"),
+            WorkflowEdgeExt::on("verdicts", "fix", "result.matched", "false"),
+            edge("fix", "review"),
+            edge("fix", "qa"),
+        ],
+    )
+}
+
+#[test]
+fn a_join_waits_for_both_reviews_and_goes_on_only_when_both_pass() {
+    let w = parallel_reviews();
+    assert!(report(&w).valid, "{:?}", report(&w).issues);
+    let mut sim = Sim::new(w);
+    sim.run(|node, _| {
+        if node == "dev" || node == "fix" {
+            done("success")
+        } else {
+            done("pass")
+        }
+    });
+
+    // The two reviews start together, and nothing is fixed.
+    assert_eq!(sim.started, ["dev", "review", "qa"]);
+    assert_eq!(sim.ended(), WorkflowExecutionStatus::Completed);
+    assert_eq!(sim.status_of("fix"), NodeStatus::Skipped);
+}
+
+#[test]
+fn a_join_inside_the_fix_loop_waits_for_both_reviews_every_round() {
+    let mut sim = Sim::new(parallel_reviews());
+    // Round 1: the review fails. Round 2: QA fails. Round 3: both pass.
+    sim.run(|node, n| match (node, n) {
+        ("review", 1) | ("qa", 2) => done("fail"),
+        ("review" | "qa", _) => done("pass"),
+        _ => done("success"),
+    });
+
+    assert_eq!(
+        sim.started,
+        ["dev", "review", "qa", "fix", "review", "qa", "fix", "review", "qa"]
+    );
+    assert_eq!(sim.ended(), WorkflowExecutionStatus::Completed);
+}
+
+#[test]
+fn a_join_fails_the_run_when_the_fixes_run_out() {
+    let mut sim = Sim::new(parallel_reviews());
+    sim.run(|node, _| {
+        if node == "qa" {
+            done("fail")
+        } else if node == "review" {
+            done("pass")
+        } else {
+            done("success")
+        }
+    });
+
+    // Two fixes are allowed; the third is refused and the run fails.
+    assert_eq!(sim.started.iter().filter(|n| *n == "fix").count(), 2);
+    assert_eq!(sim.ended(), WorkflowExecutionStatus::Failed);
+    assert_eq!(
+        sim.exec.failure.as_ref().map(|f| f.code),
+        Some(FailureCode::MaxIterationsReached)
+    );
+}
+
 struct WorkflowEdgeExt;
 
 impl WorkflowEdgeExt {

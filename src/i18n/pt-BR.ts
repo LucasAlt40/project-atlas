@@ -1670,6 +1670,7 @@ export const ptBR: Record<TranslationKey, string> = {
   'workflow.condition.field': 'Campo',
   'workflow.condition.operator': 'Operador',
   'workflow.condition.value': 'Valor',
+  'workflow.condition.join': 'Espera todos os passos que chegam aqui; todos precisam passar',
   'workflow.condition.chooseOutcome': 'Escolha um resultado…',
   'workflow.edge.undeclaredOutcome':
     '"{outcome}" não é um resultado declarado pelo agente "{agent}".',

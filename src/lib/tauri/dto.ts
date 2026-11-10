@@ -2647,6 +2647,8 @@ export interface ConditionNodeFieldsDto {
   type: 'condition';
   label: string;
   condition: ConditionDto;
+  /** A join: waits for every step leading here and matches only if the condition holds for each. */
+  join?: boolean;
 }
 
 export interface EndNodeFieldsDto {

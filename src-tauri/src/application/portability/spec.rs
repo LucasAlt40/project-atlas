@@ -283,6 +283,9 @@ pub struct AgentStepSpec {
 pub struct ConditionStepSpec {
     pub label: String,
     pub condition: ConditionSpec,
+    /// Waits for every step leading here and matches only if the condition holds for each.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub join: bool,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -495,6 +498,7 @@ pub fn graph_to_spec(
                 NodeKind::Condition(step) => StepSpec::Condition(ConditionStepSpec {
                     label: step.label.clone(),
                     condition: (&step.condition).into(),
+                    join: step.join,
                 }),
                 NodeKind::End(step) => StepSpec::End(EndStepSpec {
                     label: step.label.clone(),
@@ -561,6 +565,7 @@ pub fn graph_to_domain(
                 StepSpec::Condition(step) => NodeKind::Condition(ConditionNode {
                     label: step.label.clone(),
                     condition: (&step.condition).into(),
+                    join: step.join,
                 }),
                 StepSpec::End(step) => NodeKind::End(EndNode {
                     label: step.label.clone(),

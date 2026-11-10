@@ -114,12 +114,16 @@ function AgentNodeView(props: NodeProps<FlowNode>) {
 }
 
 function ConditionNodeView(props: NodeProps<FlowNode>) {
+  const { t } = useI18n();
   const { data } = props;
   const node = data.node;
   return (
     <Frame node={props} selected={props.selected} icon="⑂" kind="workflow.node.condition">
       {node.type === 'condition' && (
         <span className={styles.nodeMeta}>{conditionText(node.condition)}</span>
+      )}
+      {node.type === 'condition' && node.join && (
+        <span className={styles.nodeMeta}>{t('workflow.condition.join')}</span>
       )}
       <Progress data={data} />
     </Frame>
