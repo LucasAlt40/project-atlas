@@ -88,3 +88,5 @@ $RECYCLE.BIN/
 
 # Benchmark: fixtures fetched from public repositories (bench/fixture.mjs)
 bench/.cache/
+# Benchmark: rounds stay on this machine (bench/results), never in Git
+bench/results/

@@ -1,9 +1,0 @@
---- Assistant
-I created `src/slugify.js` and `test/slugify.test.js`, and didn't touch any other file. I could not run the tests: my Bash calls, including `node --test`, were blocked pending approval partway through. I checked the code and each test expectation by hand instead, so please run `npm test` before relying on it.
-
-- **`src/slugify.js`** exports `{ slugify }`. It lowercases, strips diacritics via NFD normalization, turns each run of non-`a-z0-9` characters into one `-`, trims edge dashes, and applies `maxLength` by cutting at the last dash that fits, or hard-cutting when the first word is too long. Non-string input throws `TypeError`.
-- **`test/slugify.test.js`** uses `node:test` and `node:assert`. It covers the five examples from your spec, plus accents, separators, edge dashes, digits, the `TypeError` cases, `maxLength` boundaries, and invalid `maxLength` values.
-
-Choices I made that you didn't specify:
-- An invalid `maxLength` (zero, negative, non-integer, or a string) throws a `RangeError`. Omitting it means no limit.
-- `ß` is not transliterated, so `Straße` becomes `stra-e`. Your rules only mention accents and diacritics, so I left it alone.

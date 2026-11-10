@@ -1,9 +1,0 @@
---- Assistant
-I created `src/slugify.js` and `test/slugify.test.js`, and touched no other file. I could not run the tests: both `node --test` and the earlier shell commands were held for approval in this session. I traced the module and each test by hand against the spec's examples instead, and they should pass, but please run `npm test` to confirm.
-
-- **`src/slugify.js`**: strips accents with NFD normalization, lowercases, collapses runs of non-`a-z0-9` into one `-`, and trims the ends. With `maxLength`, it cuts at the last `-` that fits, or hard-cuts a first word that doesn't fit. It throws a `TypeError` for non-strings and exports `module.exports = { slugify }`.
-- **`test/slugify.test.js`**: uses `node:test` and `node:assert`. It covers the five spec examples, accents, separator collapsing, trimming, empty results, digits, the truncation cases, and the `TypeError`.
-
-Choices I made where the spec was silent:
-- An absent `maxLength` means no limit. I did not add validation for zero or negative values.
-- `options` defaults to `{}`, so `slugify(text)` works without a second argument.
