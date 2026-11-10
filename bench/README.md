@@ -28,6 +28,9 @@ para o repositório público e um commit fixo em `meta.json` (`fixtureRepo`). `b
 `bench/.cache/fixtures/` (fora do Git) e as árvores que as execuções dessa tarefa deixam ficam em `bench/.cache/result-trees/`,
 nunca em `bench/results`.
 
+Os resultados das rodadas (`bench/results/`) ficam só nesta máquina: a pasta é ignorada pelo Git. Para compartilhar uma
+rodada, publique o relatório (`relatorio.html`) ou a planilha, não a pasta.
+
 ## Rodar
 
 Um comando faz tudo: confere a máquina (CLIs logadas, Python com openpyxl, Maven e `~/.m2` para a tarefa Java),
