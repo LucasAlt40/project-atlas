@@ -79,10 +79,13 @@ Detalhes e tabela: página de desenho, seção 10; reproduzível com `docs/archi
 
 ## Consequências
 
-- A autorização por ferramenta para o Claude via `--disallowedTools` é uma lista de negação e falha aberta para
-  ferramentas que um servidor adicione depois. A Fase D precisa provar uma mitigação (autorização por servidor, e
-  conferir `init.tools` e parar antes da primeira requisição) ou documentar a autorização por ferramenta como de melhor
-  esforço.
+- A autorização por ferramenta via `--disallowedTools` é uma lista de negação: sozinha, ela deixa passar uma ferramenta
+  que o servidor adicione depois. A [ADR 0028](0028-mcp-foundation.md) (decisão 9) fecha isso em três camadas: a
+  concessão ao servidor inteiro é a granularidade padrão; uma concessão por ferramentas nomeadas sonda o servidor de novo
+  antes do lançamento e retém o que apareceu desde a descoberta; e uma ferramenta que o runtime lista sem ninguém ter
+  autorizado para o passo (`mcp_tool_not_authorized`) e não repassa a resposta. A última é detecção mais parada, de
+  melhor esforço: uma requisição pode já ter sido enviada. Testes: `a_tool_the_server_added_since_discovery_is_held_back_by_a_named_tools_grant`
+  e `a_runtime_that_lists_a_tool_nobody_authorized_stops_the_step_and_its_answer_is_not_handed_on`.
 - Uma execução somente texto não deve receber uma configuração MCP.
 - `connected` não é evidência de que uma ferramenta é utilizável; o Atlas compara as ferramentas esperadas e as expostas.
 - Sob a estratégia A a CLI inicia e para servidores stdio fora do guard de processos do Atlas, e os resultados das
