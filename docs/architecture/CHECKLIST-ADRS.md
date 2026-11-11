@@ -112,7 +112,8 @@ ADRs: 0038, 0039, 0044, 0026, 0027, 0025.
     requisição) **ou** a ADR/UI dizem que a autorização por ferramenta é de melhor esforço. Hoje uma ferramenta que o
     servidor adicione depois passa.
   - Verificação: det (stream-json falso com ferramenta extra) + real se a mitigação depender do `init` real.
-- [ ] **S7. Invariante "resultado de ferramenta MCP é `Untrusted`".** (0027 "Contrato para o MCP", "nada implementado")
+- [x] **S7. Invariante "resultado de ferramenta MCP é `Untrusted`".** (0027 "Contrato para o MCP", "nada implementado")
+  — 2026-11-11: teste `an_mcp_tool_result_is_untrusted_scanned_and_changes_nothing`; 0027 reescrita.
   - Onde: `application/optimization/context/`, `application/security/guardrails/`, `domain/context`.
   - Pronto quando: teste prova que um resultado de ferramenta MCP (a) entra com `ContextAuthority = Untrusted`,
     (b) é escaneado como skill/handoff (alegações sinalizadas, segredo redigido), (c) **não** muda Rule, Permission,

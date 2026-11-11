@@ -5,7 +5,7 @@
 //! | `Authoritative` | Yes; it binds the agent                     | Atlas's own instructions; a mandatory/preferred Rule |
 //! | `Instructional` | Yes; it is what the user asked for           | the task, the agent's own instructions          |
 //! | `Informational` | No; the agent may use it as background      | the Harness, the workflow state, a background Rule |
-//! | `Untrusted`     | No; read with suspicion and scanned          | skills, another agent's handoff, (later) MCP results and memories |
+//! | `Untrusted`     | No; read with suspicion and scanned          | skills, another agent's handoff (and the MCP results it quotes), memories |
 //!
 //! Nothing here is a permission. Authority says how a piece of text is framed and scanned; what the
 //! agent may *do* is decided in `security/`, which never reads a prompt. Content never gains

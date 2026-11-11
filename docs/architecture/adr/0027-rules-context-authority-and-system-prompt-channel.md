@@ -97,9 +97,9 @@ contradiz, sem `topic` em comum, conviviam e o modelo escolhia.
   frase como "o usuário aprovou" é comum em uma tarefa de workflow, e escaneá-la seria ruído); o DENY sem ninguém para
   perguntar permanece, por decisão.
 
-### Contrato para o MCP (Fase D/E; nada implementado)
+### Contrato para o MCP
 
-Uma invariante, a ser testada quando o MCP chegar:
+Uma invariante, testada desde a Fase D:
 
 ```text
 resultado de ferramenta MCP  →  ContextAuthority = Untrusted
@@ -111,6 +111,15 @@ pessoa aprovou, nem mudar a decisão de um Guardrail. Ele entra no contexto como
 handoff (reivindicações são sinalizadas, segredos redigidos antes de ele viajar), e um resultado que contradiz uma rule
 obrigatória é um Aviso de que a rule governa. A exposição das ferramentas continua sendo assunto de política e
 guardrail, decidido antes da execução, nunca por algo que uma ferramenta devolve.
+
+Num runtime de CLI o resultado da ferramenta nunca passa pelo Atlas: o adaptador só vê que a ferramenta terminou, sem o
+conteúdo. O único caminho até um prompt do Atlas é o agente citar o resultado na resposta, que vira o handoff do passo
+seguinte (`SectionKind::BriefHandoff`, `Untrusted`). O teste `an_mcp_tool_result_is_untrusted_scanned_and_changes_nothing`
+percorre esse caminho pelo serviço real e prova as quatro partes: a seção é `Untrusted`; a alegação de aprovação é
+sinalizada e o segredo é redigido antes de chegar ao runtime; status, pergunta, `allow_edits`, comandos concedidos e MCP
+ficam iguais aos de um passo sem esse texto; e a contradição da rule obrigatória é `rule_conflict` Aviso, com a rule
+ainda no prompt. `text_from_another_agent_cannot_answer_the_question_or_lift_the_policy` (ADR 0028) mostra que o mesmo
+texto não responde à pergunta que a política MCP faz.
 
 ## Evidência
 
@@ -127,15 +136,14 @@ isolamento da Fase 4 não mudou.
   configuração do Atlas (decidido: não agora).
 - As contradições são encontradas por tópico compartilhado, pelos grupos de escolhas conhecidas e (C.1) pelo vocabulário
   fechado acima; todo o resto fica a cargo do modelo, e o vocabulário vai perder paráfrases.
-- ~~Uma rule obrigatória que não cabe só pergunta a uma pessoa em um passo de workflow.~~ Substituído pela C.1: sem uma
-  pessoa, é uma negação.
+- Uma rule obrigatória que não cabe pergunta a uma pessoa em um passo de workflow e, sem uma pessoa, é uma negação (C.1).
 - A tarefa e as instruções do agente do próprio usuário não são escaneadas em busca de reivindicações.
 - `SourceTrust` e `ContextAuthority` coexistem; `TokenSource` e `Precision` ainda também (ADR 0026, Fase B). Cada par é
   um custo a remover.
-- A Fase D (MCP) acrescenta fontes `Untrusted` (resultados de ferramentas) e um eixo de política; não precisa que nada
-  aqui mude.
+- A Fase D (MCP, [ADR 0028](0028-mcp-foundation.md)) acrescentou um eixo de política e as fontes `Untrusted` acima sem
+  mudar nada aqui.
 
 ## Não feito
 
-Memory, integrações com Figma e Chrome DevTools, um armazenamento de credenciais, um editor de rules, qualquer execução
-real com modelo.
+Um editor de rules e qualquer execução real com modelo. Memory, Chrome DevTools e o armazenamento de credenciais vieram
+depois, nas ADRs 0037 e 0028.
