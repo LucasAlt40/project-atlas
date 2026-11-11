@@ -82,9 +82,14 @@ mcp__<servidor>__<ferramenta>` esconde uma descoberta; uma ferramenta que o serv
 
 - Só o Claude pode receber servidores MCP. Os outros quatro runtimes são `NotInvestigated`: uma conexão concedida aos
   seus agentes simplesmente não é dada, com um achado.
-- O ciclo completo do Keychain do macOS foi exercitado pelo teste real ignorado (nome exato). Os armazenamentos do
-  Windows e do Linux não: o `keyring` compila para `x86_64-pc-windows-msvc`, o crate inteiro não pôde ser construído
-  para ele aqui (sem `llvm-rc`), o alvo Linux não está instalado.
+- O `keyring` 4 (recurso `v1`) escolhe o cofre por SO: Keychain no macOS, Credential Manager no Windows, Secret Service
+  (zbus) no Linux. O crate inteiro compila e passa nos testes no CI nos três SOs. O ciclo gravar/ler/apagar
+  (`infrastructure::credential_store::tests::real_keyring_round_trips_and_forgets_a_secret`, ignorado, nome exato) foi
+  exercitado no Keychain do macOS numa máquina de desenvolvimento, e o CI o roda no Windows e no Linux (com um
+  `gnome-keyring` destravado numa sessão D-Bus própria).
+- **Não verificado:** o ciclo no Windows e no Linux, até o CI rodar com esse passo pela primeira vez. Um Linux sem
+  Secret Service (servidor sem sessão gráfica) não tem onde guardar o segredo: o Atlas mostra o erro do cofre e a
+  conexão fica sem o segredo, nunca com ele num arquivo.
 - A UI de conexões chegou na Fase E (doc seção 18): o painel de Integrações e um catálogo com o DevTools (fixado) e o
   Figma (listado, não adicionável).
 - A parada em uma ferramenta não autorizada não precisa mais de uma sessão de terminal: `SessionRegistry::stop`

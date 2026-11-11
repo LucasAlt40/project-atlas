@@ -55,3 +55,13 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run check
+      # The OS credential store's real write/read/delete (ADR 0028), by exact name: no model, no
+      # network. macOS is verified on a developer machine (a runner's login keychain can prompt).
+      - name: Credential store round trip (Windows Credential Manager)
+        if: runner.os == 'Windows'
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib infrastructure::credential_store::tests::real_keyring_round_trips_and_forgets_a_secret -- --ignored --exact
+      - name: Credential store round trip (Linux Secret Service)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y gnome-keyring dbus-x11
+          dbus-run-session -- sh -c 'echo atlas-ci | gnome-keyring-daemon --unlock --components=secrets > /dev/null && cargo test --manifest-path src-tauri/Cargo.toml --lib infrastructure::credential_store::tests::real_keyring_round_trips_and_forgets_a_secret -- --ignored --exact'
