@@ -93,6 +93,9 @@ worktrees mesclados mas não removidos são tentados de novo; novos ids de execu
 - As ferramentas próprias de um runtime não têm sandbox (ADR 0006): um agente que escreve em um caminho absoluto fora do
   seu worktree não é parado pelo Atlas. O prompt não informa mais o caminho do checkout.
 - Submódulos, sparse checkouts e repositórios `git worktree` com layouts incomuns não são tratados especificamente.
-- Os caminhos de Windows e Linux seguem o mesmo código, mas ainda não foram validados.
+- Windows e Linux: os testes de `application/worktree/tests.rs` criam repositórios e worktrees com o `git` real em
+  pastas temporárias (com espaço no nome) e rodam no CI nos três SOs; só o do symlink no lugar de um worktree é
+  `cfg(unix)`. Não verificado: layouts incomuns (caminhos longos do Windows, locks de arquivo abertos, worktrees em outro
+  volume).
 - Um worktree por execução é um checkout completo; um chat somente leitura isolado por padrão paga esse custo (um
   worktree sem mudanças é removido logo em seguida).

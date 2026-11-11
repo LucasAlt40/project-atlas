@@ -174,12 +174,13 @@ transmitir megabytes por segundo.
 - **macOS:** validado, inclusive com as CLIs reais do Claude e do OpenCode (testes opt-in: `cargo test real_ --
 --ignored --nocapture --test-threads=1` — uma tarefa longa real, saída observada, Ctrl+C, processo sumido, execução
   `Cancelled`).
-- **Linux:** os caminhos de código Unix são os mesmos e usam só recursos POSIX; não foram executados em uma máquina
-  Linux neste marco.
-- **Windows:** o código tem ramos `cfg(windows)` mas **não foi executado nem compilado** aqui (o script de build do Tauri
-  precisa do compilador de recursos do Windows, ausente nesta máquina). O tratamento do `0x03` pelo ConPTY como evento
-  de controle de console, o comportamento do `taskkill` e os shims `.cmd` precisam de uma máquina Windows; até lá trate
-  como não validado.
+- **Linux:** o CI (`ubuntu-22.04`, `npm run check`) compila e roda os testes do PTY com processos reais
+  (`infrastructure/pty.rs`, módulo `process_tests`, `cfg(all(test, unix))`): saída, Ctrl+C, terminar e grupo de
+  processos. As CLIs reais dos modelos não rodam lá.
+- **Windows:** o CI (`windows-latest`) compila os ramos `cfg(windows)`, passa o clippy e roda os testes que não são só
+  Unix. **Não verificado:** os testes de PTY com processo real são só Unix, então o tratamento do `0x03` pelo ConPTY
+  como evento de controle de console, o `taskkill /T` e os shims `.cmd` nunca rodaram; fechar exige uma máquina Windows
+  ou testes `cfg(windows)` equivalentes no CI.
 - stdout/stderr combinados; prompt visível na lista de argumentos do processo (`ps`) enquanto uma execução em terminal
   está em andamento (antes ia na stdin); ambos são consequências do PTY.
 - Interromper/terminar são de melhor esforço: o processo pode ignorar o Ctrl+C (é para isso que serve Terminar) e um

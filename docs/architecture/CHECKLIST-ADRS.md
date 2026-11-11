@@ -303,7 +303,9 @@ ADR: 0032. Onde: `application/portability/` (`format.rs`, `apply.rs`, `inspect.r
 ADRs: 0009, 0034, 0028, 0038, 0039, 0044. **O CI já roda `npm run check` em ubuntu, macOS e Windows**
 (`.github/workflows/ci.yml`); portanto "validar Windows/Linux" começa por ler o que o CI já cobre.
 
-- [ ] **X1. Auditar o que o CI já cobre.** — mapear, por ADR, o que roda de fato em Windows/Linux (testes com `cfg`,
+- [x] **X1. Auditar o que o CI já cobre.** — 2026-11-11: o CI compila, roda clippy e os testes não ignorados nos três
+  SOs; os testes de PTY com processo real são só Unix; 79 testes são `#[ignore]` e não rodam. ADRs 0007, 0009, 0028 e
+  0034 corrigidas; o que nunca rodou no Windows/Linux ficou como "não verificado" nelas. — mapear, por ADR, o que roda de fato em Windows/Linux (testes com `cfg`,
   testes ignorados). Atualizar as ADRs que dizem "só macOS foi compilado" onde o CI já prova o contrário.
 - [ ] **X2. Worktrees em Windows e Linux.** (0009) — caminhos, locks e `git worktree` com layouts incomuns, com testes
   que rodem no CI.

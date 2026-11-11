@@ -170,9 +170,10 @@ guardrail/permissão, dispositivos persistentes entre reinicializações, contas
   real sobre dados reais (pareamento pelo link, painel, plano, aprovação, atualização ao vivo, servidor morto →
   "reconectando"). O caminho de assets empacotados (`asset_resolver`) é coberto por um teste que lê a página do frontend
   embutido.
-- **Não verificado aqui:** um celular físico em uma rede Wi-Fi; builds de Windows e Linux (todo crate adicionado é
-  multiplataforma, mas só o macOS foi compilado e executado); um app empacotado (`tauri build`) com o servidor ligado
-  pelo diálogo.
+- Windows e Linux: o CI compila o crate e roda os testes de política, rotas e servidor (que sobem o servidor real em
+  `127.0.0.1`) nos três SOs.
+- **Não verificado:** um celular físico em uma rede Wi-Fi; o servidor escutando na rede local fora do macOS (firewall do
+  Windows, interfaces do Linux); um app empacotado (`tauri build`) com o servidor ligado pelo diálogo.
 
 ## Consequências
 
