@@ -88,7 +88,8 @@ ADRs: 0038, 0039, 0044, 0026, 0027, 0025.
   - Como: invocar a ferramenta de arquivo da CLI **sem passar pelo modelo**, ou forçar o modelo (se a conta permitir).
     Se não houver como forçar, registrar na ADR como limite permanente, não como pendência.
   - Verificação: real (por nome). Depende de: nada.
-- [ ] **S2. Ferramentas de build e PTY sob o perfil.** (0038)
+- [x] **S2. Ferramentas de build e PTY sob o perfil.** (0038) — 2026-11-11: medido sem modelo (tabela e lista de
+  caminhos na 0038); faltou `cargo`/`npm` com download de dependências.
   - Pronto quando: `npm` e `cargo` reais (caches de ferramentas) e o modo terminal rodam confinados sem quebrar, com a
     lista de caminhos liberados registrada na ADR.
   - Verificação: real local (sem modelo) + det do perfil gerado. Depende de: S1 (mesmo perfil).

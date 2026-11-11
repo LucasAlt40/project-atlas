@@ -143,11 +143,34 @@ dizer nada. A recusa é, ela mesma, o comportamento esperado do prompt. A confin
 Um bug do teste, não do sandbox: o prompt do teste de trabalho dizia "sandbox ok." e o Codex escreveu o ponto; o prompt
 e a verificação foram corrigidos (o teste corrigido não foi repetido para não gastar mais tokens).
 
+## Ferramentas de build e terminal sob o perfil (2026-11-11, sem modelo)
+
+Medido na máquina real com o perfil gerado em modo `required`, no `HOME` de verdade (é lá que ficam os caches):
+`sandbox_real_dev_tools_run_confined_with_the_caches_and_say_what_breaks_without` e
+`sandbox_real_terminal_mode_runs_confined`, ambos `#[ignore]`, rodados pelo nome exato.
+
+| Comando, dentro do worktree        | Caches liberados | Caches fechados        |
+| ---------------------------------- | ---------------- | ---------------------- |
+| `npm cache verify` (escreve `~/.npm`) | ok            | falha (código 255)     |
+| `npm init -y`                      | ok               | ok                     |
+| `cargo new` + `cargo build --offline` (sem dependências) | ok | ok             |
+| modo terminal (PTY): escrever no worktree / fora dele | ok / negado (`Operation not permitted`) | — |
+
+Caminhos liberados quando a pessoa escolhe os caches (`sandbox/cli.rs::DEV_CACHES`, relativos ao `HOME`): `.npm`,
+`.cache`, `Library/Caches`, `.cargo/registry`, `.cargo/git`, `.pnpm-store`, `Library/pnpm`, `.local/share/pnpm`, `.yarn`,
+`.bun/install/cache`, `.gradle`, `.m2/repository`, `.nuget/packages`, `go/pkg/mod`.
+
+Achado: o processo confinado herda o ambiente do Atlas. Um `CARGO_TARGET_DIR` (ou equivalente de outra ferramenta)
+apontando para fora do worktree faz o `cargo build` falhar dentro do perfil: a escrita vai para uma pasta fechada. Não
+é um defeito do perfil; quem usa uma pasta de build global precisa saber disso ao ligar o sandbox.
+
+Não medido: um `cargo build` que baixa dependências (precisa de rede e escreve em `~/.cargo/registry`, que está na
+lista) e `npm ci` de um projeto com dependências.
+
 ## Não verificado
 
 - A CLI real tentando de fato escrever fora do perfil (ver acima): só uma execução em que o modelo aceite tentar, ou um
   teste que invoque a ferramenta de arquivo da CLI sem passar pelo modelo, fecharia isso.
-- `npm`/`cargo` de verdade (caches de ferramentas) e o modo terminal (PTY) sob o perfil.
 - Quais escritas cada CLI _tenta e é negada_ sem quebrar: o `Claude` engole falhas; as outras, até agora, não falharam.
 
 ## Plano para ligar por padrão
