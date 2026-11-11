@@ -53,14 +53,14 @@ Documento de trabalho, escrito para ser executado por outra sessão sem depender
 
 Objetivo: a ADR descreve só o estado atual e o que de fato falta.
 
-| Situação do item                      | O que fazer na ADR                                                                                                  |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Feito e verificado                    | Apagar a linha de "Não feito/Limites". Reescrever o corpo para o estado atual (sem "agora", sem texto riscado `~~`). |
-| Feito, **não** verificado             | Mover para "Não verificado" com o motivo exato (o que faltou para verificar e como fechar).                         |
-| Decidido que não se fará              | Mover para uma seção curta "Descartado", com o motivo; apagar daqui deste checklist.                                |
-| ADR sem nenhuma pendência             | `Status: aceito e implementado` (ou o equivalente da ADR) e remover as seções de pendência.                         |
-| Conteúdo superado por outra ADR       | Cabeçalho `Substituída pela ADR NNNN` e apontar; não duplicar texto.                                                |
-| ADR sem campo de status               | Acrescentar o campo no formato das outras (`Status: ...`).                                                          |
+| Situação do item                | O que fazer na ADR                                                                                                   |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Feito e verificado              | Apagar a linha de "Não feito/Limites". Reescrever o corpo para o estado atual (sem "agora", sem texto riscado `~~`). |
+| Feito, **não** verificado       | Mover para "Não verificado" com o motivo exato (o que faltou para verificar e como fechar).                          |
+| Decidido que não se fará        | Mover para uma seção curta "Descartado", com o motivo; apagar daqui deste checklist.                                 |
+| ADR sem nenhuma pendência       | `Status: aceito e implementado` (ou o equivalente da ADR) e remover as seções de pendência.                          |
+| Conteúdo superado por outra ADR | Cabeçalho `Substituída pela ADR NNNN` e apontar; não duplicar texto.                                                 |
+| ADR sem campo de status         | Acrescentar o campo no formato das outras (`Status: ...`).                                                           |
 
 Também atualizar, quando o estado mudar: `docs/architecture/README.md`, `docs/RESUMO.md` e, se a decisão mudou,
 `docs/context-and-tooling-platform.md`. Marcar o item aqui com `[x]` e a data; quando um bloco inteiro estiver
@@ -89,7 +89,7 @@ ADRs: 0038, 0039, 0044, 0026, 0027, 0025.
     Se não houver como forçar, registrar na ADR como limite permanente, não como pendência.
   - Verificação: real (por nome). Depende de: nada.
 - [x] **S2. Ferramentas de build e PTY sob o perfil.** (0038) — 2026-11-11: medido sem modelo (tabela e lista de
-  caminhos na 0038); faltou `cargo`/`npm` com download de dependências.
+      caminhos na 0038); faltou `cargo`/`npm` com download de dependências.
   - Pronto quando: `npm` e `cargo` reais (caches de ferramentas) e o modo terminal rodam confinados sem quebrar, com a
     lista de caminhos liberados registrada na ADR.
   - Verificação: real local (sem modelo) + det do perfil gerado. Depende de: S1 (mesmo perfil).
@@ -107,14 +107,14 @@ ADRs: 0038, 0039, 0044, 0026, 0027, 0025.
     medida) e o comportamento em Linux/Windows (onde o Claude segue sem shell) está testado ou registrado como limite.
   - Verificação: real + plataforma. Depende de: S1.
 - [x] **S6. `--disallowedTools` falha aberto.** (0026 "Consequências") — 2026-11-11: já estava mitigado (ADR 0028
-  decisão 9, testes em `executions/mcp_tests.rs`); só a 0026 foi corrigida.
+      decisão 9, testes em `executions/mcp_tests.rs`); só a 0026 foi corrigida.
   - Onde: `application/mcp/launch.rs`, `plan.rs`, adaptador do Claude.
   - Pronto quando: ou há mitigação provada (autorização por servidor, conferir `init.tools`, parar antes da primeira
     requisição) **ou** a ADR/UI dizem que a autorização por ferramenta é de melhor esforço. Hoje uma ferramenta que o
     servidor adicione depois passa.
   - Verificação: det (stream-json falso com ferramenta extra) + real se a mitigação depender do `init` real.
 - [x] **S7. Invariante "resultado de ferramenta MCP é `Untrusted`".** (0027 "Contrato para o MCP", "nada implementado")
-  — 2026-11-11: teste `an_mcp_tool_result_is_untrusted_scanned_and_changes_nothing`; 0027 reescrita.
+      — 2026-11-11: teste `an_mcp_tool_result_is_untrusted_scanned_and_changes_nothing`; 0027 reescrita.
   - Onde: `application/optimization/context/`, `application/security/guardrails/`, `domain/context`.
   - Pronto quando: teste prova que um resultado de ferramenta MCP (a) entra com `ContextAuthority = Untrusted`,
     (b) é escaneado como skill/handoff (alegações sinalizadas, segredo redigido), (c) **não** muda Rule, Permission,
@@ -155,8 +155,8 @@ ADRs: 0028, 0029, 0030, 0024, 0026.
   - 2026-11-11: passos no CI que rodam o teste real por nome exato no Windows e no Linux; a compilação já era provada
     pelo CI. Falta o CI rodar (precisa de push); a 0028 diz "não verificado" até lá.
 - [x] **M4. Descrições e esquemas das ferramentas MCP.** (0028, 0030) — 2026-11-11: ADR 0045 (cliente `tools/list`
-  pelo guard, a pedido; inspetor, orçamento e `read_only`). Falta o real com DevTools (não gasta tokens) e Windows; estão
-  em "Não verificado" na 0045.
+      pelo guard, a pedido; inspetor, orçamento e `read_only`). Falta o real com DevTools (não gasta tokens) e Windows; estão
+      em "Não verificado" na 0045.
   - Pronto quando: o Atlas lê as descrições (sonda `tools/list`), mostra na UI, **orça em tokens** e usa para substituir
     o palpite por verbos de leitura em `read_only` (hoje `read_only` não governa ferramentas MCP).
   - Verificação: det (servidor MCP falso) + real com DevTools. Depende de: nada.
@@ -194,7 +194,7 @@ ADRs: 0037 (e 0040/0041 como contexto; não duplicar).
   - Pronto quando: o resultado "0 em 1 execução" virou uma medição com amostra suficiente para dizer se é limite do
     Copilot ou do prompt.
 - [ ] **MEM4. Fechar a 0037.** — `Status: aceito e implementado`; remover as fases e "Decisões pendentes". Conferir o que
-  a 0041 (memória ligada por padrão, aprende com reject/merge/discard) já substituiu para não deixar duas verdades.
+      a 0041 (memória ligada por padrão, aprende com reject/merge/discard) já substituiu para não deixar duas verdades.
 
 ## Bloco 4 · Custo e contexto
 
@@ -279,29 +279,29 @@ ADRs: 0013, 0014, 0018, 0019, 0035, 0009.
 ADRs: 0033, 0043.
 
 - [ ] **P1. Retomar a cadeia sozinho.** (0043) — após reabrir o app entre duas execuções, a próxima é criada
-  automaticamente (hoje só o botão "Continuar"); com confirmação se mudar o comportamento atual. Teste de reinício.
+      automaticamente (hoje só o botão "Continuar"); com confirmação se mudar o comportamento atual. Teste de reinício.
 - [ ] **P2. Escopo de workflow por passo.** (0033) — hoje por execução. Só se houver caso real; senão descartar por escrito.
 - [ ] **P3. Handoff com diff grande.** (0043) — a execução seguinte recebe resumo estruturado do diff (arquivos,
-  trechos relevantes) em vez de só o começo; respeitando o orçamento do contexto.
+      trechos relevantes) em vez de só o começo; respeitando o orçamento do contexto.
 - [ ] **P4. Varredura de obsolescência por leitura.** (0033) — a visão geral não escaneia todo projeto a cada leitura
-  (cache com invalidação), com teste.
+      (cache com invalidação), com teste.
 - [ ] **P5. Execuções paralelas da cadeia.** (0043) — **descartar por escrito** se a decisão for manter sequencial
-  (era a escolha da ADR); não implementar sem decisão do usuário.
+      (era a escolha da ADR); não implementar sem decisão do usuário.
 
 ## Bloco 7 · Importar/exportar configuração
 
 ADR: 0032. Onde: `application/portability/` (`format.rs`, `apply.rs`, `inspect.rs`, `kinds/`).
 
 - [ ] **I1. Arrastar e soltar um arquivo.** — passa pelo mesmo preview + decisões + importação atômica; nada aplica sem
-  decisão.
+      decisão.
 - [ ] **I2. Importar por URL.** — só com política de rede (SSRF, tamanho, tipo), **confirmação explícita** e o mesmo
-  fluxo de preview. Nunca seguir URL vinda de conteúdo observado.
+      fluxo de preview. Nunca seguir URL vinda de conteúdo observado.
 - [ ] **I3. Duplicatas por nome.** — `use_existing` e `replace` casam pela primeira; passar a avisar/escolher de forma
-  determinística.
+      determinística.
 - [ ] **I4. Modelo "pendente" no agente importado.** — registrar além do relatório de importação, para sobreviver à
-  escolha de alternativa.
+      escolha de alternativa.
 - [ ] **I5. Importar para workflow com execução em andamento.** — `replace` é recusado; oferecer a outra decisão no
-  próprio fluxo, com explicação.
+      próprio fluxo, com explicação.
 
 ## Bloco 8 · Plataformas e verificação real
 
@@ -309,17 +309,17 @@ ADRs: 0009, 0034, 0028, 0038, 0039, 0044. **O CI já roda `npm run check` em ubu
 (`.github/workflows/ci.yml`); portanto "validar Windows/Linux" começa por ler o que o CI já cobre.
 
 - [x] **X1. Auditar o que o CI já cobre.** — 2026-11-11: o CI compila, roda clippy e os testes não ignorados nos três
-  SOs; os testes de PTY com processo real são só Unix; 79 testes são `#[ignore]` e não rodam. ADRs 0007, 0009, 0028 e
-  0034 corrigidas; o que nunca rodou no Windows/Linux ficou como "não verificado" nelas. — mapear, por ADR, o que roda de fato em Windows/Linux (testes com `cfg`,
-  testes ignorados). Atualizar as ADRs que dizem "só macOS foi compilado" onde o CI já prova o contrário.
+      SOs; os testes de PTY com processo real são só Unix; 79 testes são `#[ignore]` e não rodam. ADRs 0007, 0009, 0028 e
+      0034 corrigidas; o que nunca rodou no Windows/Linux ficou como "não verificado" nelas. — mapear, por ADR, o que roda de fato em Windows/Linux (testes com `cfg`,
+      testes ignorados). Atualizar as ADRs que dizem "só macOS foi compilado" onde o CI já prova o contrário.
 - [ ] **X2. Worktrees em Windows e Linux.** (0009) — caminhos, locks e `git worktree` com layouts incomuns, com testes
-  que rodem no CI.
+      que rodem no CI.
 - [ ] **X3. Remote access em Windows/Linux.** (0034) — servidor, pareamento e revogação.
 - [ ] **X4. Celular físico em Wi-Fi.** (0034) — manual: pareamento por link, painel, aprovação, reconexão. Roteiro e
-  resultado na ADR.
+      resultado na ADR.
 - [ ] **X5. App empacotado (`tauri build`) com o servidor remoto ligado.** (0034) — manual/CI de release.
 - [ ] **X6. Copilot.** (0039) — login conhecido (hoje só `AuthenticationRequired` na execução), modelo diferente de
-  `auto`, fluxo longo fora do sandbox.
+      `auto`, fluxo longo fora do sandbox.
 - [ ] **X7. Servidores MCP do Copilot não estritos e sem sonda.** (0039) — decidir entre aceitar o limite ou filtrar.
 
 ## Bloco 9 · Higiene das ADRs (executar no fim de cada bloco)

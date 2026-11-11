@@ -149,12 +149,12 @@ Medido na máquina real com o perfil gerado em modo `required`, no `HOME` de ver
 `sandbox_real_dev_tools_run_confined_with_the_caches_and_say_what_breaks_without` e
 `sandbox_real_terminal_mode_runs_confined`, ambos `#[ignore]`, rodados pelo nome exato.
 
-| Comando, dentro do worktree        | Caches liberados | Caches fechados        |
-| ---------------------------------- | ---------------- | ---------------------- |
-| `npm cache verify` (escreve `~/.npm`) | ok            | falha (código 255)     |
-| `npm init -y`                      | ok               | ok                     |
-| `cargo new` + `cargo build --offline` (sem dependências) | ok | ok             |
-| modo terminal (PTY): escrever no worktree / fora dele | ok / negado (`Operation not permitted`) | — |
+| Comando, dentro do worktree                              | Caches liberados                        | Caches fechados    |
+| -------------------------------------------------------- | --------------------------------------- | ------------------ |
+| `npm cache verify` (escreve `~/.npm`)                    | ok                                      | falha (código 255) |
+| `npm init -y`                                            | ok                                      | ok                 |
+| `cargo new` + `cargo build --offline` (sem dependências) | ok                                      | ok                 |
+| modo terminal (PTY): escrever no worktree / fora dele    | ok / negado (`Operation not permitted`) | —                  |
 
 Caminhos liberados quando a pessoa escolhe os caches (`sandbox/cli.rs::DEV_CACHES`, relativos ao `HOME`): `.npm`,
 `.cache`, `Library/Caches`, `.cargo/registry`, `.cargo/git`, `.pnpm-store`, `Library/pnpm`, `.local/share/pnpm`, `.yarn`,
