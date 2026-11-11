@@ -786,6 +786,7 @@ impl ExecutionService {
             &runtime.info().capabilities,
             &runtime.info().id,
             cli_servers.as_deref(),
+            read_only,
         );
         // A connection somebody granted and switched on that the agent will not have: said in the
         // run itself, not only in the manifest afterwards.
@@ -838,7 +839,9 @@ impl ExecutionService {
                 .as_ref()
                 .filter(|_| engine_on)
                 .and_then(|flags| flags.context_max_tokens()),
-        );
+        )
+        // The MCP tools' definitions travel with the prompt, when Atlas knows what they weigh.
+        .with_tool_definitions(mcp_plan.tool_definitions());
         // What the prompt is built from. The Context Engine and the guardrails rework these inputs
         // (never a built prompt) and the builder, still the only assembly, builds again.
         let mut inputs = guardrails::PromptInputs {
@@ -1536,6 +1539,7 @@ impl ExecutionService {
         capabilities: &crate::domain::runtime::RuntimeCapabilities,
         runtime_id: &str,
         cli_servers: Option<&[super::mcp::CliServer]>,
+        read_only: bool,
     ) -> McpPlan {
         let support = capabilities.mcp;
         let features = capabilities.mcp_features;
@@ -1560,6 +1564,7 @@ impl ExecutionService {
             support,
             cli_servers,
             features,
+            read_only,
         })
     }
 
@@ -1600,6 +1605,7 @@ impl ExecutionService {
             McpProblem::NeedsDiscovery | McpProblem::ToolFilterUnsupported => {
                 "the tools it was limited to cannot be enforced"
             }
+            McpProblem::NoReadingTools => "this step is read-only and none of its tools only reads",
             McpProblem::NotEnabled | McpProblem::NoGrant | McpProblem::PolicyDenied => {
                 "it is not available to this step"
             }
@@ -1623,6 +1629,10 @@ impl ExecutionService {
             McpProblem::NeedsDiscovery => "its tools were never examined".to_owned(),
             McpProblem::ToolFilterUnsupported => {
                 "its runtime cannot hold a server to the tools named".to_owned()
+            }
+            McpProblem::NoReadingTools => {
+                "this step is read-only and the server described none of its tools as only reading"
+                    .to_owned()
             }
             McpProblem::NotEnabled | McpProblem::NoGrant | McpProblem::PolicyDenied => {
                 "it is not available to this step".to_owned()

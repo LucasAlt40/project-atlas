@@ -153,7 +153,9 @@ ADRs: 0028, 0029, 0030, 0024, 0026.
   - Verificação: plataforma (CI Windows/Linux já existe; criar teste que rode lá). Depende de: nada.
   - 2026-11-11: passos no CI que rodam o teste real por nome exato no Windows e no Linux; a compilação já era provada
     pelo CI. Falta o CI rodar (precisa de push); a 0028 diz "não verificado" até lá.
-- [ ] **M4. Descrições e esquemas das ferramentas MCP.** (0028, 0030)
+- [x] **M4. Descrições e esquemas das ferramentas MCP.** (0028, 0030) — 2026-11-11: ADR 0045 (cliente `tools/list`
+  pelo guard, a pedido; inspetor, orçamento e `read_only`). Falta o real com DevTools (não gasta tokens) e Windows; estão
+  em "Não verificado" na 0045.
   - Pronto quando: o Atlas lê as descrições (sonda `tools/list`), mostra na UI, **orça em tokens** e usa para substituir
     o palpite por verbos de leitura em `read_only` (hoje `read_only` não governa ferramentas MCP).
   - Verificação: det (servidor MCP falso) + real com DevTools. Depende de: nada.

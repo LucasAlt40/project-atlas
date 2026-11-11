@@ -53,27 +53,12 @@ pub struct ToolPlanItem {
     pub granted: bool,
 }
 
-/// The first word of a tool's name (`get_issue`, `getIssue`, `get-issue` → `get`).
-fn first_word(tool: &str) -> String {
-    let mut word = String::new();
-    for c in tool.chars() {
-        if c == '_' || c == '-' || c == '.' || c == ' ' || (c.is_uppercase() && !word.is_empty()) {
-            break;
-        }
-        word.push(c.to_ascii_lowercase());
-    }
-    word
-}
-
-/// Whether a tool's name says it reads: its first word is one of Atlas's reading verbs. A guess
-/// from the name (a server's tool descriptions are not known to Atlas), used only to *narrow* a
-/// grant, never to widen one.
-pub fn reads(tool: &str) -> bool {
-    const READING: [&str; 12] = [
-        "get", "list", "search", "read", "fetch", "find", "query", "view", "describe", "inspect",
-        "lookup", "resolve",
-    ];
-    READING.contains(&first_word(tool).as_str())
+/// Whether a tool of `connection` only reads: what its server said about it when Atlas asked
+/// (`readOnlyHint`, `destructiveHint`), else a guess from its name. Used only to *narrow* a grant,
+/// never to widen one.
+fn reads(connection: &McpConnection, tool: &str) -> bool {
+    let info = connection.catalog.as_ref().and_then(|c| c.tool(tool));
+    crate::domain::mcp::reads_tool(tool, info)
 }
 
 fn matches(capability: ToolCapability, name: &str) -> bool {
@@ -126,7 +111,11 @@ fn cover(
         (None, false) => Ok(ToolSelection::Server),
         (None, true) => {
             let tools = known.ok_or(ToolUnavailable::NeedsDiscovery)?;
-            let reading: Vec<String> = tools.iter().filter(|t| reads(t)).cloned().collect();
+            let reading: Vec<String> = tools
+                .iter()
+                .filter(|t| reads(connection, t))
+                .cloned()
+                .collect();
             if reading.is_empty() {
                 Err(ToolUnavailable::NoReadingTools)
             } else {
@@ -257,6 +246,7 @@ mod tests {
                 status: McpServerStatus::Connected,
                 tools: t.iter().map(|s| (*s).to_owned()).collect(),
             }),
+            catalog: None,
             created_at: 1,
         }
     }
@@ -271,6 +261,7 @@ mod tests {
 
     #[test]
     fn a_reading_tool_is_told_from_a_writing_one_by_its_first_word() {
+        let by_name = |tool: &str| crate::domain::mcp::reads_tool(tool, None);
         for reading in [
             "get_issue",
             "getIssue",
@@ -278,7 +269,7 @@ mod tests {
             "list_pages",
             "resolve-library-id",
         ] {
-            assert!(reads(reading), "{reading}");
+            assert!(by_name(reading), "{reading}");
         }
         for writing in [
             "create_issue",
@@ -286,10 +277,51 @@ mod tests {
             "delete_page",
             "navigate_page",
         ] {
-            assert!(!reads(writing), "{writing}");
+            assert!(!by_name(writing), "{writing}");
         }
         // The first word is the whole word: `getaway` is not `get`.
-        assert!(!reads("getaway_x1"));
+        assert!(!by_name("getaway_x1"));
+    }
+
+    #[test]
+    fn what_the_server_said_about_a_tool_replaces_the_guess_from_its_name() {
+        use crate::domain::mcp::{McpToolCatalog, McpToolInfo};
+        let info = |name: &str, read_only: Option<bool>, destructive: Option<bool>| McpToolInfo {
+            name: name.to_owned(),
+            title: None,
+            description: String::new(),
+            read_only,
+            destructive,
+            definition_chars: 10,
+        };
+        let mut docs = connection(
+            "docs",
+            true,
+            Some(&["take_snapshot", "get_page", "list_console", "navigate_page"]),
+        );
+        docs.catalog = Some(McpToolCatalog {
+            described_at: 2,
+            tools: vec![
+                // The name does not read; the server says it does.
+                info("take_snapshot", Some(true), None),
+                // The name reads; the server says it does not.
+                info("get_page", Some(false), None),
+                // Said to read and to destroy: destroying wins.
+                info("list_console", Some(true), Some(true)),
+                // Nothing said: the name decides.
+                info("navigate_page", None, None),
+            ],
+            truncated: false,
+        });
+
+        let plan = resolve(&[suggestion(ToolCapability::Docs)], &[docs]);
+
+        assert_eq!(
+            plan[0].tools,
+            Some(ToolSelection::Only {
+                tools: vec!["take_snapshot".to_owned()]
+            })
+        );
     }
 
     #[test]

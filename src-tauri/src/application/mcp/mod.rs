@@ -5,6 +5,7 @@
 mod catalog;
 pub mod config_io;
 mod credentials;
+pub mod describe;
 mod launch;
 mod plan;
 pub mod registry;

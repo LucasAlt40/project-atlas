@@ -178,6 +178,7 @@ pub fn run() {
             commands::mcp::set_mcp_secret,
             commands::mcp::clear_mcp_secret,
             commands::mcp::probe_mcp_connection,
+            commands::mcp::describe_mcp_connection,
             commands::mcp::grant_mcp_connection,
             commands::mcp::revoke_mcp_grant,
             commands::mcp::list_mcp_catalog,
@@ -337,7 +338,9 @@ fn build_state(
             runtimes.clone(),
         )
         .with_files(Arc::new(infrastructure::FsRuntimeConfigFiles))
-        .with_registry(Arc::new(infrastructure::CurlRegistryClient)),
+        .with_registry(Arc::new(infrastructure::CurlRegistryClient))
+        // Asking a server about its tools starts it: through the guard, like every process.
+        .with_runner(runner.clone()),
     );
     let mcp_catalog = Arc::new(application::mcp::McpCatalog::new(runner.clone()));
     // Notes of earlier work live in Atlas's own data folder, never in a project (ADR 0037).

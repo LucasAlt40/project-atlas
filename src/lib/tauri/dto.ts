@@ -154,6 +154,8 @@ export interface CommandMap {
     args: { connectionId: string; runtimeId: string };
     result: McpConnectionDto;
   };
+  /** Starts the server itself and asks it about its tools (`tools/list`); no model, no tool call. */
+  describe_mcp_connection: { args: { connectionId: string }; result: McpConnectionDto };
   grant_mcp_connection: {
     args: {
       connectionId: string;
@@ -1706,7 +1708,30 @@ export interface McpConnectionDto {
     status: McpServerStatusDto;
     tools: string[];
   };
+  /** What the server said about its tools when Atlas asked it (`tools/list`, ADR 0045). */
+  catalog?: McpToolCatalogDto;
   createdAt: number;
+}
+
+/** Mirrors `domain::mcp::McpToolInfo`: text from the server, shown and never sent to a model. */
+export interface McpToolInfoDto {
+  name: string;
+  title?: string;
+  description: string;
+  /** `readOnlyHint`; absent when the server did not say. */
+  readOnly?: boolean;
+  /** `destructiveHint`; absent when the server did not say. */
+  destructive?: boolean;
+  /** Characters of the definition a model is sent (name, description, input schema). */
+  definitionChars: number;
+}
+
+/** Mirrors `domain::mcp::McpToolCatalog`. */
+export interface McpToolCatalogDto {
+  describedAt: number;
+  tools: McpToolInfoDto[];
+  /** The server had more than Atlas reads. */
+  truncated: boolean;
 }
 
 /** Mirrors `domain::mcp::McpGrant`. */
@@ -1852,7 +1877,8 @@ export type McpProblemDto =
   | { kind: 'secret_missing'; name: string }
   | { kind: 'needs_discovery' }
   | { kind: 'tool_filter_unsupported' }
-  | { kind: 'not_in_cli_config' };
+  | { kind: 'not_in_cli_config' }
+  | { kind: 'no_reading_tools' };
 
 /** Mirrors `domain::mcp::McpRecord`: the six things about a tool, kept apart. */
 export interface McpRecordDto {
@@ -1953,7 +1979,7 @@ export interface ExecutionBudgetDto {
   limits: { input: FigureDto; output: FigureDto; total: FigureDto };
   outputReserve: FigureDto;
   safetyMargin: FigureDto;
-  /** What the MCP tools' definitions weigh: unknown, the runtime counts them in its own request. */
+  /** What the MCP tools' definitions weigh: an estimate when every server given was described. */
   toolDefinitions?: FigureDto;
   input: { limit: FigureDto; used: FigureDto; remaining: FigureDto };
   resolution: {

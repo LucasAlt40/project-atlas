@@ -93,6 +93,8 @@ commit-base, nunca o que o agente "diz"). → [04](guia/04-workflow.md)
 4. Aprovação só pelo **usuário** na UI (timeout 5 min = rejeitado).
 5. Editar arquivos exige **runtime capaz + política permite + worktree isolado** — os três.
 6. Agentes **não rodam shell nem testes** (ainda); fora do modelo, só alcançam o que a pessoa concede como conexão MCP.
+   Um passo somente leitura só recebe as ferramentas MCP que o servidor descreve como de leitura, depois que a pessoa
+   pediu as descrições ([ADR 0045](architecture/adr/0045-descricoes-das-ferramentas-mcp.md)).
 7. Terminal ao vivo (PTY) é controle (Ctrl+C / terminar), não sandbox. Sandbox de SO só no **macOS**, **desligado por
    padrão** (ADR 0038).
 8. Nenhum comando Tauri aceita programa, caminho ou aprovação do webview.

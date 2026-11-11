@@ -68,6 +68,11 @@ export function probeMcpConnection(
   return invokeCommand('probe_mcp_connection', { connectionId, runtimeId });
 }
 
+/** Starts the server once and asks it about its tools: descriptions, hints and size. */
+export function describeMcpConnection(connectionId: string): Promise<McpConnectionDto> {
+  return invokeCommand('describe_mcp_connection', { connectionId });
+}
+
 /** The workflows of the workspace, to say which run or step a grant is for. */
 export function listWorkspaceWorkflows(workspaceId: string): Promise<WorkflowDto[]> {
   return invokeCommand('list_workflows', { workspaceId });

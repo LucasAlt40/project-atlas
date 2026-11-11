@@ -47,8 +47,10 @@ adaptador. O desenho está em [context-and-tooling-platform.md](../context-and-t
 8. **A descoberta é o relatório do próprio runtime**, não um cliente MCP do Atlas: `ModelRuntime::probe_mcp` inicia o
    servidor pela CLI com um modelo que não existe, que informa o status do servidor e os nomes das suas ferramentas e
    falha na primeira requisição. Exige que a conexão esteja ligada (essa é a decisão do usuário de deixar o Atlas iniciar
-   esse processo) e seus segredos guardados. Só nomes: o relatório não tem descrições nem esquemas, e nenhum é inventado
-   (o `tool_definitions` do orçamento continua `Unknown`).
+   esse processo) e seus segredos guardados. Só nomes: o relatório não tem descrições nem esquemas, e nenhum é inventado.
+   As descrições, as anotações e o peso das definições vêm de outro caminho, pedido pela pessoa: o Atlas pergunta ao
+   próprio servidor (`tools/list`, [ADR 0045](0045-descricoes-das-ferramentas-mcp.md)). A descoberta pelo runtime
+   continua sendo o que governa o que é retido.
 9. **Reter ferramentas, e o que isso não consegue fazer.** `--tools` não limita ferramentas MCP; `--disallowedTools
 mcp__<servidor>__<ferramenta>` esconde uma descoberta; uma ferramenta que o servidor adiciona depois é listada de
    qualquer forma. Uma concessão ao servidor inteiro é, portanto, a granularidade padrão (o usuário confia no servidor),
@@ -95,15 +97,18 @@ mcp__<servidor>__<ferramenta>` esconde uma descoberta; uma ferramenta que o serv
 - A parada em uma ferramenta não autorizada não precisa mais de uma sessão de terminal: `SessionRegistry::stop`
   encerra uma sessão de terminal ou faz o runner por pipe matar o grupo de processos (veja doc seção 17.7). Uma
   requisição pode já ter chegado ao modelo quando o relatório chega.
-- Descrições e esquemas das ferramentas são desconhecidos do Atlas, então ele não pode mostrá-los nem orçá-los.
+- Descrições, anotações e o peso das definições das ferramentas são lidos do próprio servidor quando a pessoa pede
+  ([ADR 0045](0045-descricoes-das-ferramentas-mcp.md)): o inspetor os mostra, o orçamento os conta e um passo somente
+  leitura recebe só as ferramentas que leem. Sem esse pedido, nada disso é conhecido.
 - Transporte HTTP e OAuth (o servidor oficial do Figma) não foram construídos; `McpTransport::Http` existe e é
   recusado.
 
 ## Não feito
 
-Integrações com Chrome DevTools e Figma (Fase E; o Figma precisa de HTTP e OAuth), qualquer UI para adicionar ou
-conceder uma conexão, um cliente MCP no Atlas, um Tool Gateway ou proxy, HTTP e sua camada de SSRF, interceptação por
-chamada, MCP para os outros quatro runtimes, uma execução real com modelo.
+O Figma (precisa de HTTP e OAuth), o transporte HTTP e sua camada de SSRF, interceptação por chamada, um Tool Gateway
+ou proxy, uma execução real com modelo. O Chrome DevTools e a UI de conexões vieram na Fase E; MCP nos outros runtimes,
+na [ADR 0029](0029-mcp-for-every-runtime.md); um cliente MCP do Atlas, só para `tools/list`, na
+[ADR 0045](0045-descricoes-das-ferramentas-mcp.md).
 
 ## Acompanhamento da Fase F
 

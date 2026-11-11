@@ -67,8 +67,10 @@ credential is missing)`), com um pedido para dizer isso no resultado em vez de a
 ## Não feito / limites
 
 - O casamento das sugestões é pelo nome da conexão; uma conexão com outro nome é concedida à mão no inspetor.
-- `read_only` não governa ferramentas MCP; o filtro de verbos de leitura é um palpite a partir de nomes (o Atlas não
-  conhece as descrições das ferramentas).
+- `read_only` governa as ferramentas MCP de um servidor cujas descrições a pessoa pediu ao Atlas
+  ([ADR 0045](0045-descricoes-das-ferramentas-mcp.md)): o passo recebe só as que leem, pelo que o servidor diz
+  (`readOnlyHint`, `destructiveHint`). Sem descrição, ou quando o servidor não diz, vale o palpite pelo nome (verbos de
+  leitura), e um servidor nunca descrito é dado a um passo somente leitura inteiro, como antes.
 - Concessões de ferramentas nomeadas são recusadas onde o runtime não consegue reter ferramentas (OpenCode hoje): o
   servidor então não é dado e o agente é informado.
 - Nenhum modelo real foi chamado: o comportamento é coberto pelos serviços reais sobre runtimes falsos e pela pilha de

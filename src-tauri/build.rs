@@ -71,6 +71,7 @@ const COMMANDS: &[&str] = &[
     "set_mcp_secret",
     "clear_mcp_secret",
     "probe_mcp_connection",
+    "describe_mcp_connection",
     "grant_mcp_connection",
     "revoke_mcp_grant",
     "list_mcp_catalog",

@@ -840,7 +840,7 @@ Encontrado por uma revisão de todo o caminho (cada um com um teste):
 
 Não pode ser fechado sem uma decisão ou custo: se `CLAUDE.md`, hooks, auto-memória e plugins chegam ao modelo, a semântica do `--append-system-prompt`, e o tamanho
 real de `chars / 4` precisam todos de uma execução paga com modelo; descrições e esquemas de ferramentas precisam de um cliente MCP, que esta fase
-não constrói.
+não constrói (veio depois, só para `tools/list`: ADR 0045).
 
 ## 18. Fase E: catálogo e o painel de Integrações
 
@@ -885,7 +885,7 @@ a morte do grupo limitada à própria execução de um runtime, o arquivo de con
 reais sem modelo (sonda, ferramenta retida, execução parada, nenhum servidor órfão), o ciclo do Keychain no macOS, builds de produção, execuções repetidas de
 testes. **Não verificado:** a janela do desktop por uma pessoa; builds de Windows e Linux do armazenamento de credenciais; qualquer execução que custe tokens
 (se `CLAUDE.md`, hooks e auto-memória chegam ao modelo, `--append-system-prompt`, o tamanho real de `chars / 4`); o exame do DevTools
-(ele baixa código de terceiros e precisa do aval do usuário); descrições e esquemas de ferramentas MCP.
+(ele baixa código de terceiros e precisa do aval do usuário); descrições e esquemas de ferramentas MCP (lidos a pedido desde a ADR 0045).
 
 ## 14. Limites deste documento
 

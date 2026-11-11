@@ -170,6 +170,9 @@ pub struct McpService {
     files: Arc<dyn RuntimeConfigFiles>,
     /// Where servers are looked up by name (the official MCP Registry).
     registry: Arc<dyn RegistryClient>,
+    /// How Atlas starts a server itself to ask it about its tools (always the guarded runner).
+    /// Without one, nothing is described.
+    runner: Option<Arc<dyn crate::application::process::ProcessRunner>>,
 }
 
 fn invalid(reason: &str) -> AppError {
@@ -194,7 +197,19 @@ impl McpService {
             refresh_failed: std::sync::Mutex::default(),
             files: Arc::new(super::runtime_files::NoRuntimeFiles),
             registry: Arc::new(NoRegistry),
+            runner: None,
         }
+    }
+
+    /// Lets the service start a server itself, through `runner` (the process guard), to ask it
+    /// about its tools.
+    #[must_use]
+    pub fn with_runner(
+        mut self,
+        runner: Arc<dyn crate::application::process::ProcessRunner>,
+    ) -> Self {
+        self.runner = Some(runner);
+        self
     }
 
     /// Gives the service a way to search the MCP Registry.
@@ -614,6 +629,7 @@ impl McpService {
             required,
             secrets: std::collections::BTreeMap::new(),
             discovery: None,
+            catalog: None,
             created_at: now_ms(),
         };
         validate(&connection).map_err(|e| invalid(e.code()))?;
@@ -649,6 +665,7 @@ impl McpService {
         updated.required = required;
         updated.enabled = false;
         updated.discovery = None;
+        updated.catalog = None;
         validate(&updated).map_err(|e| invalid(e.code()))?;
         let declared: Vec<String> = updated
             .secret_names()
@@ -959,6 +976,48 @@ impl McpService {
             status: probe.status,
             tools: probe.tools,
         });
+        self.replace(&connection)
+    }
+
+    /// Starts the server itself and asks it about its tools (`tools/list`, ADR 0045): their
+    /// descriptions, hints and size, kept as the connection's catalog. Only when the person asks,
+    /// on a connection they switched on whose secrets are stored. No model is asked anything and
+    /// no tool is called. Until a connection has a catalog nothing about a step changes.
+    ///
+    /// # Errors
+    ///
+    /// The connection does not exist or is not ready, the credential store is locked, or the
+    /// server could not be asked.
+    pub fn describe(&self, connection_id: &str) -> Result<McpConnection, AppError> {
+        let mut connection = self.find(connection_id)?;
+        if !connection.enabled || connection.missing_secret().is_some() {
+            return Err(AppError::new(ErrorCode::McpNotReady));
+        }
+        validate(&connection).map_err(|e| invalid(e.code()))?;
+        let runner = self
+            .runner
+            .as_ref()
+            .ok_or_else(|| AppError::new(ErrorCode::McpDescribeFailed))?;
+        let server = self
+            .launch_server(&connection)
+            .map_err(|problem| match problem {
+                LaunchProblem::StoreUnavailable => {
+                    AppError::new(ErrorCode::McpCredentialStoreUnavailable)
+                }
+                _ => AppError::new(ErrorCode::McpNotReady),
+            })?;
+        let catalog =
+            super::describe::describe(runner.as_ref(), &server, now_ms()).map_err(|error| {
+                AppError::new(ErrorCode::McpDescribeFailed).with_detail(error.detail())
+            })?;
+        // The connection may have changed while the server was being asked: keep its latest
+        // state, and the catalog only if it still starts the same program.
+        let mut latest = self.find(connection_id)?;
+        if latest.transport != connection.transport {
+            return Err(AppError::new(ErrorCode::McpNotReady));
+        }
+        latest.catalog = Some(catalog);
+        connection = latest;
         self.replace(&connection)
     }
 
@@ -1395,6 +1454,7 @@ mod tests {
             cli_servers: None,
             support: McpSupport::Supported,
             features: claude_like(),
+            read_only: false,
         });
 
         let (launch, left_out) = s.service.launch(&planned);
@@ -1425,6 +1485,88 @@ mod tests {
         let c = s.service.add("w1", name, stdio(false), false).unwrap();
         s.service.set_enabled(&c.id, true).unwrap();
         c
+    }
+
+    /// A server that answers the handshake and lists one tool that reads.
+    fn describing_runner() -> Arc<crate::application::process::fake::FakeSessionRunner> {
+        Arc::new(crate::application::process::fake::FakeSessionRunner::new(
+            |line| {
+                let message: serde_json::Value = serde_json::from_str(line).unwrap();
+                let Some(id) = message.get("id").cloned() else {
+                    return Vec::new();
+                };
+                let result = if message["method"] == "tools/list" {
+                    serde_json::json!({"tools":[{"name":"read","description":"Reads.","annotations":{"readOnlyHint":true}}]})
+                } else {
+                    serde_json::json!({})
+                };
+                vec![serde_json::json!({"jsonrpc":"2.0","id":id,"result":result}).to_string()]
+            },
+        ))
+    }
+
+    #[test]
+    fn describing_a_server_keeps_what_it_said_about_its_tools_and_needs_it_ready() {
+        let mut s = setup();
+        let runner = describing_runner();
+        s.service = McpService::new(
+            s.config.clone(),
+            s.credentials.clone(),
+            Arc::new(RuntimeRegistry::new(vec![s.runtime.clone() as Arc<_>])),
+        )
+        .with_runner(runner.clone());
+        let c = s.service.add("w1", "files", stdio(true), false).unwrap();
+
+        // Off, then on without its secret: not started.
+        assert!(s
+            .service
+            .describe(&c.id)
+            .unwrap_err()
+            .is(ErrorCode::McpNotReady));
+        s.service.set_enabled(&c.id, true).unwrap();
+        assert!(s
+            .service
+            .describe(&c.id)
+            .unwrap_err()
+            .is(ErrorCode::McpNotReady));
+        assert!(runner.opened.lock().unwrap().is_empty());
+
+        s.service
+            .set_secret(&c.id, "API_TOKEN", &Secret::new("tok-123".to_owned()))
+            .unwrap();
+        let described = s.service.describe(&c.id).unwrap();
+
+        let catalog = described.catalog.unwrap();
+        assert_eq!(catalog.tools[0].name, "read");
+        assert_eq!(catalog.tools[0].read_only, Some(true));
+        // Kept with the connection, and the secret nowhere in the configuration.
+        let stored = s.service.overview("w1").connections[0].clone();
+        assert!(stored.catalog.is_some());
+        assert!(!serde_json::to_string(&stored).unwrap().contains("tok-123"));
+        // Started as the person configured it, through a session of its own kind.
+        let spec = runner.opened.lock().unwrap()[0].clone();
+        assert_eq!(
+            spec.context,
+            crate::application::process::ProcessContext::McpServer
+        );
+        assert!(spec
+            .env
+            .contains(&("API_TOKEN".to_owned(), "tok-123".to_owned())));
+        // Changing how it starts forgets what it said.
+        let updated = s.service.update(&c.id, stdio(false), false).unwrap();
+        assert!(updated.catalog.is_none());
+    }
+
+    #[test]
+    fn a_service_without_a_runner_describes_nothing() {
+        let s = setup();
+        let c = ready_connection(&s, "files");
+
+        assert!(s
+            .service
+            .describe(&c.id)
+            .unwrap_err()
+            .is(ErrorCode::McpDescribeFailed));
     }
 
     fn add_workflow(s: &Setup, id: &str, nodes: &[(&str, &str)]) {
@@ -1642,6 +1784,7 @@ mod tests {
             cli_servers: None,
             support: McpSupport::Supported,
             features: claude_like(),
+            read_only: false,
         });
 
         let (launch, left_out) = s.service.launch(&plan);

@@ -268,6 +268,63 @@ describe('McpHubPage', () => {
     expect(input).toHaveValue('');
   });
 
+  it('reading the descriptions asks the server once and shows what each tool does, its hint and weight', async () => {
+    const on = connection({
+      enabled: true,
+      discovery: {
+        discoveredAt: 1,
+        runtimeId: 'claude',
+        status: 'connected',
+        tools: ['take_snapshot', 'navigate_page'],
+      },
+    });
+    show([on]);
+    const described = connection({
+      ...on,
+      catalog: {
+        describedAt: 2,
+        truncated: false,
+        tools: [
+          {
+            name: 'take_snapshot',
+            description: 'Takes a text snapshot of the page.',
+            readOnly: true,
+            definitionChars: 400,
+          },
+          {
+            name: 'navigate_page',
+            description: 'Goes to a URL.',
+            readOnly: false,
+            destructive: true,
+            definitionChars: 200,
+          },
+        ],
+      },
+    });
+    await screen.findByRole('complementary', { name: 'MCP inspector' });
+    // The core keeps what the server said; the hub reads the connections again afterwards.
+    vi.mocked(mcp.describeMcpConnection).mockResolvedValue(described);
+    vi.mocked(mcp.listMcpConnections).mockResolvedValue({ connections: [described], grants: [] });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Read descriptions' }));
+
+    expect(mcp.describeMcpConnection).toHaveBeenCalledWith('c1');
+    expect(await screen.findByText('Takes a text snapshot of the page.')).toBeInTheDocument();
+    expect(screen.getByText('reads only')).toBeInTheDocument();
+    expect(screen.getByText('destructive')).toBeInTheDocument();
+    expect(screen.getByText('≈ 100 tokens')).toBeInTheDocument();
+    expect(screen.getByText(/≈ 150 tokens in all/)).toBeInTheDocument();
+    expect(screen.getByText(/never goes into a prompt/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Read again' })).toBeInTheDocument();
+  });
+
+  it('a server that is off is not asked about its tools', async () => {
+    show([connection()]);
+    await screen.findByRole('complementary', { name: 'MCP inspector' });
+
+    expect(screen.getByRole('button', { name: 'Read descriptions' })).toBeDisabled();
+  });
+
   it('the manifest names a secret and never shows a value', async () => {
     show([
       connection({

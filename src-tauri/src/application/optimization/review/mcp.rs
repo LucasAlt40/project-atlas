@@ -40,6 +40,9 @@ fn what(problem: &McpProblem) -> &'static str {
         McpProblem::NotInCliConfig => {
             "the agent's CLI only uses its own configured servers and does not have this one"
         }
+        McpProblem::NoReadingTools => {
+            "the step is read-only and the server described none of its tools as only reading"
+        }
     }
 }
 

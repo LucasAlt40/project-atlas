@@ -2336,6 +2336,7 @@ export const enUS = {
   'error.mcp_not_ready': 'Switch the connection on and store its secrets first.',
   'error.mcp_runtime_unsupported': 'That runtime cannot give MCP servers.',
   'error.mcp_probe_failed': 'Starting the server to look at it failed.',
+  'error.mcp_describe_failed': 'Atlas could not ask the server about its tools.',
   'error.mcp_preset_unavailable': 'That integration is not available to add yet.',
   'nav.mcp': 'MCP Hub',
   'nav.usage': 'Usage',
@@ -2486,6 +2487,20 @@ export const enUS = {
   'hub.tab.manifest': 'JSON manifest',
   'hub.tab.activity': 'Activity',
   'hub.tools.list': 'Tools this server listed',
+  'hub.describe.title': 'Tool descriptions',
+  'hub.describe.note':
+    'Starts the server once and asks it what each tool does (tools/list). No model is asked anything and no tool is called. After that, a read-only step is given only the tools the server describes as reading, and the definitions’ weight counts in the budget.',
+  'hub.describe.action': 'Read descriptions',
+  'hub.describe.again': 'Read again',
+  'hub.describe.when': 'Read on {when}',
+  'hub.describe.total': 'Definitions: ≈ {n} tokens in all (an estimate, characters ÷ 4)',
+  'hub.describe.truncated': 'The server has more than Atlas reads: the list is not complete.',
+  'hub.describe.untrusted':
+    'The text is the server’s: only for you to read. It never goes into a prompt and grants nothing.',
+  'hub.tool.readOnly': 'reads only',
+  'hub.tool.writes': 'writes',
+  'hub.tool.destructive': 'destructive',
+  'hub.tool.tokens': '≈ {n} tokens',
   'hub.tools.noRpc':
     'Atlas lists a server’s tools by name and does not call them by hand: a tool runs only when an agent that was granted it uses it in a step.',
   'hub.env.none': 'No environment variables.',
@@ -2633,6 +2648,8 @@ export const enUS = {
     "This agent's CLI (Antigravity) cannot be handed servers by Atlas for a run. It uses the servers in its own configuration (agy mcp list): Atlas checks that this one is there and tells the agent to use it. Atlas cannot hold its tools back, and the CLI also loads its other servers.",
   'context.mcp.problem.not_in_cli_config':
     'Not given: this CLI only uses the servers of its own configuration and this one is not there (add it with agy mcp add).',
+  'context.mcp.problem.no_reading_tools':
+    'Not given: the step is read-only and the server described none of its tools as only reading.',
   'hub.card.delivery.cli':
     '{agent} runs on {runtime}, which uses its own configured servers. Atlas checks it is there and tells the agent; it cannot hand it over.',
   'hub.card.delivery.none':

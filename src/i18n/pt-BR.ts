@@ -2363,6 +2363,7 @@ export const ptBR: Record<TranslationKey, string> = {
   'error.mcp_not_ready': 'Ligue a conexão e guarde seus segredos primeiro.',
   'error.mcp_runtime_unsupported': 'Esse runtime não consegue receber servidores MCP.',
   'error.mcp_probe_failed': 'Não foi possível iniciar o servidor para examiná-lo.',
+  'error.mcp_describe_failed': 'Não foi possível perguntar ao servidor sobre as suas ferramentas.',
   'error.mcp_preset_unavailable': 'Essa integração ainda não está disponível para adicionar.',
   'nav.mcp': 'MCP Hub',
   'nav.usage': 'Uso',
@@ -2512,6 +2513,20 @@ export const ptBR: Record<TranslationKey, string> = {
   'hub.tab.manifest': 'Manifesto JSON',
   'hub.tab.activity': 'Atividade',
   'hub.tools.list': 'Ferramentas que este servidor listou',
+  'hub.describe.title': 'Descrições das ferramentas',
+  'hub.describe.note':
+    'Inicia o servidor uma vez e pergunta a ele o que cada ferramenta faz (tools/list). Nenhum modelo é consultado e nenhuma ferramenta é chamada. Depois disso, uma etapa somente leitura recebe só as ferramentas que o servidor descreve como de leitura, e o peso das definições entra no orçamento.',
+  'hub.describe.action': 'Ler descrições',
+  'hub.describe.again': 'Ler de novo',
+  'hub.describe.when': 'Lidas em {when}',
+  'hub.describe.total': 'Definições: ≈ {n} tokens no total (estimativa, caracteres ÷ 4)',
+  'hub.describe.truncated': 'O servidor tem mais do que o Atlas lê: a lista não está completa.',
+  'hub.describe.untrusted':
+    'O texto é do servidor: só para você ler. Nunca entra no prompt e não concede nada.',
+  'hub.tool.readOnly': 'só lê',
+  'hub.tool.writes': 'escreve',
+  'hub.tool.destructive': 'destrutiva',
+  'hub.tool.tokens': '≈ {n} tokens',
   'hub.tools.noRpc':
     'O Atlas lista as ferramentas de um servidor pelo nome e não as chama manualmente: uma ferramenta só roda quando um agente que a recebeu a usa em uma etapa.',
   'hub.env.none': 'Nenhuma variável de ambiente.',
@@ -2664,6 +2679,8 @@ export const ptBR: Record<TranslationKey, string> = {
     'A CLI deste agente (Antigravity) não pode receber servidores do Atlas por execução. Ela usa os servidores da própria configuração (agy mcp list): o Atlas confere se este está lá e diz ao agente para usá-lo. O Atlas não consegue restringir as ferramentas dele, e a CLI também carrega os outros servidores dela.',
   'context.mcp.problem.not_in_cli_config':
     'Não entregue: esta CLI só usa os servidores da própria configuração e este não está lá (adicione com agy mcp add).',
+  'context.mcp.problem.no_reading_tools':
+    'Não entregue: a etapa é somente leitura e o servidor não descreveu nenhuma ferramenta como de leitura.',
   'hub.card.delivery.cli':
     '{agent} roda no {runtime}, que usa os servidores da própria configuração. O Atlas confere se ele está lá e avisa o agente; não consegue entregá-lo.',
   'hub.card.delivery.none':

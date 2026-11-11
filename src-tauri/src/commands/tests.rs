@@ -169,6 +169,7 @@ pub(super) fn app_window(
             super::mcp::apply_mcp_sync,
             super::mcp::apply_mcp_to_runtime,
             super::mcp::clear_mcp_secret,
+            super::mcp::describe_mcp_connection,
             super::mcp::export_mcp_config,
             super::mcp::grant_mcp_connection,
             super::mcp::import_mcp_config,

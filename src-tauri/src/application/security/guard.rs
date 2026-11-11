@@ -22,13 +22,14 @@ use std::time::Duration;
 use super::approvals::{Answer, ApprovalBroker, PendingApproval};
 use super::audit::AuditLog;
 use super::evaluator::{
-    evaluate_agent_request, evaluate_probe, evaluate_runtime_launch, evaluate_tool, Evaluation,
+    evaluate_agent_request, evaluate_mcp_server, evaluate_probe, evaluate_runtime_launch,
+    evaluate_tool, Evaluation,
 };
 use super::sandbox::{SandboxProvider, SandboxRefusal, SandboxRequest};
 use super::service::{PolicyResolver, ResolvedScope};
 use crate::application::process::{
     ExecutionScope, ProcessContext, ProcessError, ProcessEvent, ProcessOutput, ProcessRunner,
-    ProcessSpec,
+    ProcessSession, ProcessSpec,
 };
 use crate::application::support::now_ms;
 use crate::domain::security::{
@@ -347,6 +348,22 @@ impl ProcessRunner for GuardedProcessRunner {
             },
             ProcessContext::Runtime(scope) => self.run_runtime(scope, spec, on_event),
             ProcessContext::AgentRequested(scope) => self.run_agent_request(scope, spec, on_event),
+            // An MCP server is only ever talked to, never run to completion.
+            ProcessContext::McpServer => {
+                Err(ProcessError::PermissionDenied(Reason::ProcessesDenied))
+            }
+        }
+    }
+
+    /// Only an MCP server Atlas asks about its tools is kept open; every other kind of process
+    /// runs to completion through [`Self::run`].
+    fn open_session(&self, spec: &ProcessSpec) -> Result<Box<dyn ProcessSession>, ProcessError> {
+        match &spec.context {
+            ProcessContext::McpServer => match refusal(evaluate_mcp_server(spec)) {
+                Some(reason) => Err(ProcessError::PermissionDenied(reason)),
+                None => self.inner.open_session(spec),
+            },
+            _ => Err(ProcessError::PermissionDenied(Reason::ProcessesDenied)),
         }
     }
 }
@@ -1187,6 +1204,74 @@ mod tests {
 
         assert_eq!(output.stdout.trim_end(), hostile.join(" "));
         assert!(!marker.exists(), "an argument was run by a shell");
+    }
+
+    #[test]
+    fn only_an_mcp_server_is_kept_open_and_only_as_the_person_configured_it() {
+        use crate::application::process::fake::FakeSessionRunner;
+        let inner = Arc::new(FakeSessionRunner::new(|_| Vec::new()));
+        let config = Arc::new(ConfigRepository::load(Box::<MemoryStore>::default()));
+        let guard = GuardedProcessRunner::new(
+            inner.clone(),
+            Arc::new(SecurityService::new(config)),
+            Arc::new(ApprovalBroker::new()),
+            Arc::new(AuditLog::default()),
+            Arc::new(NoSandbox),
+            Vec::new(),
+        );
+        let server = |program: &str| ProcessSpec {
+            context: ProcessContext::McpServer,
+            ..ProcessSpec::probe(program, &["-y", "server@1"], Duration::from_secs(1))
+        };
+        let refused = |spec: &ProcessSpec| match guard.open_session(spec) {
+            Err(ProcessError::PermissionDenied(reason)) => Some(reason),
+            _ => None,
+        };
+
+        // A launcher the person chose is how most servers start.
+        assert!(guard.open_session(&server("npx")).is_ok());
+        assert_eq!(inner.opened.lock().unwrap().len(), 1);
+        // Never a shell, whatever the path or extension.
+        for shell in ["sh", "/bin/bash", "C:\\Windows\\System32\\cmd.exe", "pwsh"] {
+            assert_eq!(
+                refused(&server(shell)),
+                Some(Reason::ShellNotPermitted),
+                "{shell}"
+            );
+        }
+        // No variable that changes what is loaded, or that Atlas keeps for itself.
+        for key in [
+            "PATH",
+            "NODE_OPTIONS",
+            "LD_PRELOAD",
+            "ATLAS_MCP_OTHER_TOKEN",
+        ] {
+            let spec = ProcessSpec {
+                env: vec![(key.to_owned(), "x".to_owned())],
+                ..server("npx")
+            };
+            assert_eq!(refused(&spec), Some(Reason::EnvironmentOverride), "{key}");
+        }
+        // No terminal, no input up front, no working directory.
+        let with_stdin = ProcessSpec {
+            stdin: Some("x".to_owned()),
+            ..server("npx")
+        };
+        assert_eq!(refused(&with_stdin), Some(Reason::ProcessesDenied));
+        let with_terminal = ProcessSpec {
+            terminal: Some(crate::application::process::TerminalRequest::new(false)),
+            ..server("npx")
+        };
+        assert_eq!(refused(&with_terminal), Some(Reason::ProcessesDenied));
+        // Any other kind of process is never kept open, and a server is never run to completion.
+        let probe = ProcessSpec::probe("claude", &["--version"], Duration::from_secs(1));
+        assert_eq!(refused(&probe), Some(Reason::ProcessesDenied));
+        assert!(matches!(
+            guard.run(&server("npx"), &|_| {}),
+            Err(ProcessError::PermissionDenied(Reason::ProcessesDenied))
+        ));
+        // Nothing refused ever reached the runner.
+        assert_eq!(inner.opened.lock().unwrap().len(), 1);
     }
 
     #[test]

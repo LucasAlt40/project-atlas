@@ -16,6 +16,7 @@
 use std::collections::BTreeSet;
 
 use super::validate::validate;
+use crate::domain::mcp::reads_tool;
 use crate::domain::mcp::{
     McpConnection, McpFeatures, McpGrant, McpProblem, McpRecord, McpServerRecord, McpSupport,
     McpToolFilter, McpToolState, McpTransport, ToolSelection,
@@ -102,6 +103,9 @@ pub struct McpInputs<'a> {
     pub cli_servers: Option<&'a [CliServer]>,
     /// How the runtime filters tools (what a grant naming tools needs).
     pub features: McpFeatures,
+    /// The step may not change anything. A server Atlas asked for its tools' descriptions is then
+    /// held to the ones that only read (ADR 0045); one never asked is given as before.
+    pub read_only: bool,
 }
 
 /// One connection as this step sees it.
@@ -160,6 +164,31 @@ fn combine(matching: &[&McpGrant]) -> Option<ToolSelection> {
     })
 }
 
+/// What a read-only step may have of `selection`: the tools that only read, by what the server
+/// said about them ([`reads_tool`]). A server Atlas never asked keeps its selection: the person did
+/// not ask for its descriptions, and nothing about the step changes until they do.
+fn reading_only(connection: &McpConnection, selection: ToolSelection) -> ToolSelection {
+    let Some(catalog) = &connection.catalog else {
+        return selection;
+    };
+    let candidates: Vec<String> = match selection {
+        ToolSelection::Only { tools } => tools,
+        ToolSelection::Server => {
+            let mut all: BTreeSet<String> = catalog.tools.iter().map(|t| t.name.clone()).collect();
+            if let Some(discovery) = &connection.discovery {
+                all.extend(discovery.tools.iter().cloned());
+            }
+            all.into_iter().collect()
+        }
+    };
+    ToolSelection::Only {
+        tools: candidates
+            .into_iter()
+            .filter(|tool| reads_tool(tool, catalog.tool(tool)))
+            .collect(),
+    }
+}
+
 pub(super) fn covers(grant: &McpGrant, connection: &McpConnection, ctx: &McpContext<'_>) -> bool {
     grant.connection_id == connection.id
         && grant.agent_id.as_deref().is_none_or(|a| a == ctx.agent)
@@ -183,6 +212,11 @@ pub fn plan(inputs: &McpInputs<'_>) -> McpPlan {
                 .filter(|g| covers(g, connection, ctx))
                 .collect();
             let selection = combine(&matching);
+            let selection = if inputs.read_only {
+                selection.map(|s| reading_only(connection, s))
+            } else {
+                selection
+            };
             let cli = (inputs.support == McpSupport::CliConfigured)
                 .then(|| cli_match(connection, inputs.cli_servers.unwrap_or_default()))
                 .flatten();
@@ -218,6 +252,12 @@ fn problem_of(
     let selection = selection?;
     if inputs.policy == Permission::Denied {
         return Some(McpProblem::PolicyDenied);
+    }
+    if inputs.read_only
+        && connection.catalog.is_some()
+        && matches!(selection, ToolSelection::Only { tools } if tools.is_empty())
+    {
+        return Some(McpProblem::NoReadingTools);
     }
     match inputs.support {
         McpSupport::Supported => {}
@@ -320,6 +360,52 @@ impl McpPlan {
             Some(ToolSelection::Only { tools }) => Some(tools.clone()),
             _ => None,
         }
+    }
+
+    /// What the definitions of the MCP tools this step is given weigh, as Atlas estimates it
+    /// (`chars / 4` of what each server said about its tools). Unknown unless every server given
+    /// was described and every tool it is given is in the description: Atlas does not guess the
+    /// rest, and a step given no MCP at all says nothing either.
+    pub fn tool_definitions(&self) -> crate::domain::context::Figure {
+        use crate::domain::context::Figure;
+        let held = self.held_back();
+        let mut chars: u64 = 0;
+        let mut any = false;
+        for server in self.exposed() {
+            any = true;
+            let Some(catalog) = server
+                .connection
+                .catalog
+                .as_ref()
+                .filter(|_| server.cli_name.is_none())
+            else {
+                return Figure::unknown();
+            };
+            let names: Vec<&str> = match &server.selection {
+                Some(ToolSelection::Only { tools }) => tools.iter().map(String::as_str).collect(),
+                _ if catalog.truncated => return Figure::unknown(),
+                _ => catalog
+                    .tools
+                    .iter()
+                    .map(|t| t.name.as_str())
+                    .filter(|t| {
+                        !held
+                            .iter()
+                            .any(|(s, h)| s == &server.connection.name && h == t)
+                    })
+                    .collect(),
+            };
+            for name in names {
+                match catalog.tool(name) {
+                    Some(info) => chars += info.definition_chars,
+                    None => return Figure::unknown(),
+                }
+            }
+        }
+        if !any {
+            return Figure::unknown();
+        }
+        Figure::estimated_from_chars(usize::try_from(chars).unwrap_or(usize::MAX))
     }
 
     /// The six states of each tool Atlas knows of, for the manifest.
@@ -459,6 +545,16 @@ mod tests {
         policy: Permission,
         support: McpSupport,
     ) -> McpPlan {
+        run_as(connections, grants, policy, support, false)
+    }
+
+    fn run_as(
+        connections: &[McpConnection],
+        grants: &[McpGrant],
+        policy: Permission,
+        support: McpSupport,
+        read_only: bool,
+    ) -> McpPlan {
         plan(&McpInputs {
             connections,
             grants,
@@ -471,7 +567,162 @@ mod tests {
                 probe: crate::domain::mcp::McpProbeKind::Tools,
                 strict: false,
             },
+            read_only,
         })
+    }
+
+    fn described(mut c: McpConnection, tools: &[(&str, Option<bool>)]) -> McpConnection {
+        c.catalog = Some(crate::domain::mcp::McpToolCatalog {
+            described_at: 2,
+            tools: tools
+                .iter()
+                .map(|(name, read_only)| crate::domain::mcp::McpToolInfo {
+                    name: (*name).to_owned(),
+                    title: None,
+                    description: format!("{name} does things"),
+                    read_only: *read_only,
+                    destructive: None,
+                    definition_chars: 40,
+                })
+                .collect(),
+            truncated: false,
+        });
+        c
+    }
+
+    fn read_only_step(connections: &[McpConnection], grants: &[McpGrant]) -> McpPlan {
+        run_as(
+            connections,
+            grants,
+            Permission::Allowed,
+            McpSupport::Supported,
+            true,
+        )
+    }
+
+    #[test]
+    fn a_read_only_step_is_given_only_the_tools_a_described_server_says_only_read() {
+        let files = described(
+            discovered(connection("files"), &["read", "take_snapshot", "write"]),
+            &[
+                ("read", Some(true)),
+                ("take_snapshot", Some(true)),
+                ("write", Some(false)),
+            ],
+        );
+        let grants = [grant(&files, ToolSelection::Server)];
+
+        let narrowed = read_only_step(&[files.clone()], &grants);
+
+        assert_eq!(
+            narrowed.servers[0].selection,
+            Some(ToolSelection::Only {
+                tools: vec!["read".to_owned(), "take_snapshot".to_owned()]
+            })
+        );
+        assert_eq!(
+            narrowed.held_back(),
+            [("files".to_owned(), "write".to_owned())]
+        );
+        // The same grant in a step that may write: the whole server, as before.
+        let writing = allowed(&[files], &grants);
+        assert_eq!(writing.servers[0].selection, Some(ToolSelection::Server));
+        assert!(writing.held_back().is_empty());
+    }
+
+    #[test]
+    fn the_tool_definitions_a_step_is_given_are_estimated_only_when_all_are_described() {
+        let files = described(
+            discovered(connection("files"), &["read", "write"]),
+            &[("read", Some(true)), ("write", Some(false))],
+        );
+        let whole = [grant(&files, ToolSelection::Server)];
+        // Two definitions of 40 characters: 80 / 4.
+        let figure = allowed(&[files.clone()], &whole).tool_definitions();
+        assert_eq!(figure.value, Some(20));
+        assert_eq!(
+            figure.precision,
+            crate::domain::context::Precision::Estimated
+        );
+        // A read-only step is given one of them.
+        assert_eq!(
+            read_only_step(&[files.clone()], &whole)
+                .tool_definitions()
+                .value,
+            Some(10)
+        );
+        // A tool the description does not have: unknown, not a guess.
+        let named = [grant(
+            &files,
+            ToolSelection::Only {
+                tools: vec!["read".to_owned(), "other".to_owned()],
+            },
+        )];
+        assert!(!allowed(&[files.clone()], &named)
+            .tool_definitions()
+            .is_known());
+        // A server never described, or no MCP at all: unknown.
+        let plain = discovered(connection("plain"), &["read"]);
+        let plain_grants = [grant(&plain, ToolSelection::Server)];
+        assert!(!allowed(&[plain], &plain_grants)
+            .tool_definitions()
+            .is_known());
+        assert!(!allowed(&[files], &[]).tool_definitions().is_known());
+    }
+
+    #[test]
+    fn a_server_atlas_never_asked_is_given_to_a_read_only_step_as_before() {
+        let files = discovered(connection("files"), &["read", "write"]);
+        let grants = [grant(&files, ToolSelection::Server)];
+
+        assert_eq!(
+            read_only_step(&[files.clone()], &grants),
+            allowed(&[files], &grants)
+        );
+    }
+
+    #[test]
+    fn a_read_only_step_narrows_a_named_grant_and_never_widens_it() {
+        let files = described(
+            discovered(connection("files"), &["read", "list", "write"]),
+            &[
+                ("read", Some(true)),
+                ("list", Some(true)),
+                ("write", Some(false)),
+            ],
+        );
+        let grants = [grant(
+            &files,
+            ToolSelection::Only {
+                tools: vec!["read".to_owned(), "write".to_owned()],
+            },
+        )];
+
+        let narrowed = read_only_step(&[files], &grants);
+
+        assert_eq!(
+            narrowed.servers[0].selection,
+            Some(ToolSelection::Only {
+                tools: vec!["read".to_owned()]
+            })
+        );
+    }
+
+    #[test]
+    fn a_described_server_with_nothing_that_only_reads_is_not_given_to_a_read_only_step() {
+        let files = described(
+            discovered(connection("files"), &["write"]),
+            &[("write", Some(false))],
+        );
+        let grants = [grant(&files, ToolSelection::Server)];
+
+        let narrowed = read_only_step(&[files], &grants);
+
+        assert!(!narrowed.servers[0].exposed());
+        assert_eq!(
+            narrowed.servers[0].problem,
+            Some(McpProblem::NoReadingTools)
+        );
     }
 
     fn allowed(connections: &[McpConnection], grants: &[McpGrant]) -> McpPlan {
@@ -874,6 +1125,7 @@ mod tests {
                 probe: crate::domain::mcp::McpProbeKind::None,
                 strict: false,
             },
+            read_only: false,
         })
     }
 

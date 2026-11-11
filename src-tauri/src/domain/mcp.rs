@@ -103,7 +103,86 @@ pub struct McpConnection {
     pub secrets: BTreeMap<String, u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub discovery: Option<McpDiscovery>,
+    /// What the server itself said about its tools when Atlas asked it (`tools/list`): their
+    /// descriptions, hints and size. Only after the person asked for it; `None` until then, and
+    /// then nothing about a step changes (ADR 0045).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub catalog: Option<McpToolCatalog>,
     pub created_at: u64,
+}
+
+/// The longest description Atlas keeps for display. The size counted for the budget is the whole
+/// definition's, whatever was kept.
+pub const MAX_DESCRIPTION_CHARS: usize = 1000;
+
+/// One tool as its server describes it. Text from the server: shown to the person, never put in a
+/// prompt, and given no authority. The hints only ever narrow what a step is given.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct McpToolInfo {
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// At most [`MAX_DESCRIPTION_CHARS`], control characters removed.
+    #[serde(default)]
+    pub description: String,
+    /// `annotations.readOnlyHint`: `None` when the server did not say.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub read_only: Option<bool>,
+    /// `annotations.destructiveHint`: `None` when the server did not say.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub destructive: Option<bool>,
+    /// Characters of the definition a model is sent (name, description and input schema as JSON).
+    pub definition_chars: u64,
+}
+
+/// A server's answer to `tools/list`, as Atlas kept it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct McpToolCatalog {
+    /// Milliseconds since the Unix epoch.
+    pub described_at: u64,
+    pub tools: Vec<McpToolInfo>,
+    /// The server had more than Atlas reads (tools or pages): the list is not the whole server.
+    #[serde(default)]
+    pub truncated: bool,
+}
+
+impl McpToolCatalog {
+    pub fn tool(&self, name: &str) -> Option<&McpToolInfo> {
+        self.tools.iter().find(|t| t.name == name)
+    }
+}
+
+/// The first word of a tool's name (`get_issue`, `getIssue`, `get-issue` → `get`).
+fn first_word(tool: &str) -> String {
+    let mut word = String::new();
+    for c in tool.chars() {
+        if c == '_' || c == '-' || c == '.' || c == ' ' || (c.is_uppercase() && !word.is_empty()) {
+            break;
+        }
+        word.push(c.to_ascii_lowercase());
+    }
+    word
+}
+
+/// Whether a tool only reads. What the server says wins: `destructiveHint: true` never reads,
+/// `readOnlyHint` decides when given. Without either, a guess from the name (its first word is a
+/// reading verb). Used only to *narrow* what a step is given, never to widen it.
+pub fn reads_tool(name: &str, info: Option<&McpToolInfo>) -> bool {
+    const READING: [&str; 12] = [
+        "get", "list", "search", "read", "fetch", "find", "query", "view", "describe", "inspect",
+        "lookup", "resolve",
+    ];
+    if let Some(info) = info {
+        if info.destructive == Some(true) {
+            return false;
+        }
+        if let Some(read_only) = info.read_only {
+            return read_only;
+        }
+    }
+    READING.contains(&first_word(name).as_str())
 }
 
 impl McpConnection {
@@ -245,6 +324,8 @@ pub enum McpProblem {
     ToolFilterUnsupported,
     /// The CLI only uses the servers of its own configuration, and this one is not among them.
     NotInCliConfig,
+    /// The step is read-only and none of the tools the server described only reads.
+    NoReadingTools,
 }
 
 /// The six things kept apart for one tool.
@@ -443,6 +524,7 @@ pub(crate) mod tests {
             required: false,
             secrets: BTreeMap::new(),
             discovery: None,
+            catalog: None,
             created_at: 1,
         }
     }

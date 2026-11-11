@@ -209,9 +209,9 @@ pub struct ExecutionBudget {
     pub output_reserve: Figure,
     /// Tokens kept as slack. Unknown until a policy sets it.
     pub safety_margin: Figure,
-    /// What the MCP tools' definitions weigh in the window. Unknown: the runtimes' start-up reports
-    /// list names, not descriptions or schemas, and the runtime counts them inside its own request.
-    /// Atlas does not guess a figure for what it cannot see.
+    /// What the MCP tools' definitions weigh in the window. Unknown unless every server the step is
+    /// given was described to Atlas (`tools/list`, ADR 0045): the runtimes' start-up reports list
+    /// names only, and Atlas does not guess a figure for what it cannot see.
     #[serde(default = "Figure::unknown")]
     pub tool_definitions: Figure,
     pub input: InputBudget,
@@ -285,6 +285,23 @@ impl ExecutionBudget {
             (None, Some(t)) => t,
             (None, None) => Figure::unknown(),
         }
+    }
+
+    /// Sets what the MCP tools' definitions weigh. They travel in the same request as the prompt,
+    /// so a known figure comes off the input limit the Context Engine fits against.
+    #[must_use]
+    pub fn with_tool_definitions(mut self, figure: Figure) -> Self {
+        self.tool_definitions = figure;
+        if let (Some(limit), Some(tools)) = (self.input.limit.value, figure.value) {
+            self.input.limit = Figure {
+                value: Some(limit.saturating_sub(tools)),
+                source: self.input.limit.source,
+                precision: self.input.limit.precision.weakest(figure.precision),
+                method: figure.method,
+            };
+        }
+        let used = self.input.used;
+        self.measured(used)
     }
 
     /// Records how much of the input the prompt uses (`used` is an estimate unless the caller
@@ -408,6 +425,22 @@ mod tests {
         );
         assert_eq!(rough.input.limit.source, FigureSource::Reported);
         assert_eq!(rough.input.limit.precision, Precision::Estimated);
+    }
+
+    #[test]
+    fn known_tool_definitions_come_off_the_input_and_unknown_ones_change_nothing() {
+        let budget = ExecutionBudget::resolve(
+            unknown(),
+            &[LimitOverride::input(OverrideLayer::Settings, 4_000)],
+        );
+
+        let with_tools = budget.clone().with_tool_definitions(Figure::estimated(500));
+        assert_eq!(with_tools.available_for_context(), Some(3_500));
+        assert_eq!(with_tools.tool_definitions.value, Some(500));
+        assert_eq!(with_tools.input.limit.precision, Precision::Unknown);
+
+        let unknown_tools = budget.clone().with_tool_definitions(Figure::unknown());
+        assert_eq!(unknown_tools, budget);
     }
 
     #[test]

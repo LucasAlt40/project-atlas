@@ -30,6 +30,7 @@
     "allow-set-mcp-secret",
     "allow-clear-mcp-secret",
     "allow-probe-mcp-connection",
+    "allow-describe-mcp-connection",
     "allow-grant-mcp-connection",
     "allow-revoke-mcp-grant",
     "allow-list-mcp-catalog",

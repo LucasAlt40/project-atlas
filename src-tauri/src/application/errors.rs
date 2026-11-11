@@ -126,6 +126,8 @@ pub enum ErrorCode {
     McpRuntimeUnsupported,
     /// Starting the server to look at it failed (`detail` says what the runtime reported).
     McpProbeFailed,
+    /// Atlas could not ask an MCP server about its tools.
+    McpDescribeFailed,
     /// The catalogue entry does not exist or cannot be added yet (Figma: HTTP and OAuth).
     McpPresetUnavailable,
     /// The text or file is not the configuration format it was said to be.
