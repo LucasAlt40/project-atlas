@@ -256,7 +256,8 @@ ADRs: 0036, 0021, 0020, 0012, 0011.
 
 ADRs: 0013, 0014, 0018, 0019, 0035, 0009.
 
-- [ ] **W1. Reativar o Live Workspace depois de reiniciar.** (0018 "Limitação conhecida")
+- [x] **W1. Reativar o Live Workspace depois de reiniciar.** (0018 "Limitação conhecida") — 2026-11-11:
+      `observe_open_runs` na abertura do app, com teste de reinício (0018).
   - Onde: `application/live_workspace/` (`mod.rs`, `tracker.rs`).
   - Pronto quando: uma execução existente volta a ser observada ao reabrir o app (sem esperar o retomar), com teste de
     reinício.

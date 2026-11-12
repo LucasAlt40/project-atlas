@@ -109,9 +109,12 @@ contagens de linhas não mudaram.
   segurança, corrige.
 - Conteúdos e diffs não fazem parte deste estado (só caminhos, status e contagens): são lidos sob demanda do Git por
   trabalho posterior.
-- **Limitação conhecida: depois que o app reinicia, uma execução que já existe pode ser consultada (um snapshot é uma
-  única olhada no seu worktree), mas a observação não é reativada automaticamente** até a execução ser retomada.
-  Recuperação e persistência do Live Workspace são uma possível evolução futura.
+- **Depois que o app reinicia** (2026-11-11), toda execução que ficou sem fim (interrompida, esperando uma pessoa ou
+  pausada) e cujo código ainda está no worktree volta a ser observada assim que o app abre
+  (`LiveWorkspaceService::observe_open_runs`, chamado em `lib.rs` depois da recuperação das execuções): uma mudança
+  feita no worktree aparece sem precisar retomar a execução. Uma execução cujo código foi aplicado, descartado ou cujo
+  worktree sumiu não é observada. Teste: `a_run_left_without_an_end_is_watched_again_when_the_app_opens`. O estado do
+  Live Workspace continua não sendo gravado: ao reabrir ele é lido de novo do worktree.
 
 ## Consequências
 

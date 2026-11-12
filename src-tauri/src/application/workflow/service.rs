@@ -874,6 +874,25 @@ impl WorkflowService {
             .read(|c| c.workflow_executions.iter().find(|e| e.id == id).cloned())
     }
 
+    /// Runs of every workspace that stopped without ending (interrupted by a restart, waiting for a
+    /// person, paused): the ones whose worktree may still change.
+    pub fn open_executions(&self) -> Vec<WorkflowExecution> {
+        self.config.read(|c| {
+            c.workflow_executions
+                .iter()
+                .filter(|e| {
+                    matches!(
+                        e.status,
+                        WorkflowExecutionStatus::Interrupted
+                            | WorkflowExecutionStatus::WaitingForInput
+                            | WorkflowExecutionStatus::Paused
+                    )
+                })
+                .cloned()
+                .collect()
+        })
+    }
+
     /// Runs, newest first, of a workspace and optionally of one workflow.
     pub fn executions(
         &self,

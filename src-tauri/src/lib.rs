@@ -522,6 +522,9 @@ fn build_state(
         Arc::new(infrastructure::NotifyWatcher),
         live_sink,
     ));
+    // A run the last session left without an end, its code still in the worktree, is watched
+    // again now, not only once it is resumed (ADR 0018).
+    live.observe_open_runs();
     let orchestrator = Arc::new(
         Orchestrator::new(
             workflows.clone(),
