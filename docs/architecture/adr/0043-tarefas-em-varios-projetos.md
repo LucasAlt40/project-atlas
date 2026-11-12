@@ -62,11 +62,15 @@ Escolhido: **A**.
   todas as execuções levam a mesma spec. Cada uma marca só as tarefas do seu projeto e o progresso da spec junta as
   execuções da cadeia. A escrita da spec, num workspace com vários projetos, pede as tarefas agrupadas por projeto.
 
+## Descartado
+
+- **Execuções paralelas da cadeia** (decisão do usuário, 2026-11-11). As execuções seguem uma depois da outra: a
+  seguinte depende do que a anterior fez (a passagem de bastão, "só roda se precisar", esperar a entrega).
+
 ## Consequências e limites
 
 - O merge continua por projeto. A execução seguinte não vê os arquivos do worktree da anterior, só o que lhe é escrito
   no prompt; se o diff for grande, só o começo.
-- As execuções são sequenciais (uma por vez por workflow, como antes). Não há execuções paralelas da cadeia.
 - Se o app fechar entre uma execução que concluiu e o início da próxima, **a próxima é criada e conduzida quando o app
   abre** (decisão do usuário, 2026-11-11): `Orchestrator::chains_ready_to_go_on` acha as execuções concluídas cuja
   cadeia tem um próximo projeto, não foi parada nem seguida nem pulada, e (se espera a entrega) teve o código aplicado
