@@ -217,7 +217,7 @@ ADRs: 0036, 0021, 0020, 0012, 0011.
       (teste `sdd_real_cost_before_and_after`); tabela na 0036. Uma execução por turno: indício, não estatística.
   - Pronto quando: execuções reais de SDD, antes e depois das otimizações 3–5, lidas na barra de consumo, com a tabela
     na ADR. Atenção: gasta tokens; **perguntar**.
-- [ ] **C2. Estimativa de custo antes de executar.** (0036)
+- [x] **C2. Estimativa de custo antes de executar.** (0036) — 2026-11-11: descartado pelo usuário ("Descartado" na 0036).
   - Pronto quando: a estimativa aparece só quando há dado confiável (histórico) e **marca a precisão**
     (`Precision`/`TokenSource`); sem dado, não mostra número inventado.
 - [ ] **C3. Prompt em blocos para caching.** (0036, 0026)
@@ -236,13 +236,15 @@ ADRs: 0036, 0021, 0020, 0012, 0011.
   - Pronto quando: a instrução de plano (regra de plano × protocolo de interação) e os avisos de "não concede
     permissões" não aparecem repetidos, **sem** remover nenhuma regra de segurança, e o prompt desligado continua igual.
   - Atenção: é uma decisão (0021 pede decisão, não mais deduplicação); **perguntar** se mexer em texto obrigatório.
-- [ ] **C7. Contexto ciente da tarefa além do léxico.** (0012, 0011)
+- [x] **C7. Contexto ciente da tarefa além do léxico.** (0012, 0011) — 2026-11-11: o filtro por área já é o Task Context
+      (0011 corrigida); a estratégia fora do léxico foi adiada pelo usuário (0012).
   - Pronto quando: o filtro por tarefa sobre as áreas do Harness (0011 "não implementado") existe ou foi descartado por
     escrito; o léxico feito à mão ganha estratégia para projetos fora do vocabulário.
-- [ ] **C8. Modelo por etapa do SDD.** (0036)
+- [x] **C8. Modelo por etapa do SDD.** (0036) — 2026-11-11: descartado por falta de evidência (0036).
   - Pronto quando: só se houver evidência de ganho. Caso contrário, mover para "Descartado" com o motivo (hoje é
     "criaria um segundo sistema de configuração").
-- [ ] **C9. Skills especializadas de elicitação/cenários/decomposição.** (0036)
+- [x] **C9. Skills especializadas de elicitação/cenários/decomposição.** (0036) — 2026-11-11: descartado por falta de
+      evidência (0036).
   - Mesmo critério de C8: sem evidência, descartar por escrito.
 
 ## Bloco 5 · Workflow, spec e entrega

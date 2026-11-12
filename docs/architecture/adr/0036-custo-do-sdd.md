@@ -138,20 +138,27 @@ US$ 4,19, e duas tentativas seguidas de alterar o design falharam antes da terce
 
 ## O que não foi feito
 
-- **Modelo por etapa.** O modelo é o do agente escolhido para escrever e para revisar; não há como trocar por etapa sem
-  criar um segundo sistema de configuração. Dá para ter um agente "revisor" mais barato ou mais forte que o autor.
 - **Prompt caching.** O runtime Claude já informa tokens vindos do cache (aparecem na barra de consumo), mas o Atlas
   entrega o prompt como um bloco só, então só o prefixo do sistema do próprio runtime é aproveitado (cerca de 4 500
   tokens, nas medições). Reordenar o prompt não muda isso sem partir o prompt em blocos, o que depende do runtime.
   Os demais runtimes não informam tokens de cache; nenhuma economia é declarada para eles.
-- **Estimativa antes de executar.** Há o consumo real depois e o limite; uma estimativa antes dependeria de dados que a
-  maioria das execuções não tem.
 - **Exploração do projeto pelos agentes.** É a maior parte do custo medido e também o que ancora os documentos no
   código real. Não foi limitada. O limite de tokens por spec é o freio.
 - **Invalidação por seção.** Documentos dependentes continuam sendo marcados como desatualizados por inteiro quando o
   de origem muda de verdade; decidir "esta mudança não afeta o design" exigiria interpretar o texto.
-- **Skills especializadas** para elicitação, cenários ou decomposição: sem evidência de que ajudariam, não foram criadas.
 - **Diff entre revisões** na tela.
+
+## Descartado
+
+- **Estimativa de custo antes de executar** (decidido pelo usuário em 2026-11-11). O Atlas mostra o custo que o runtime
+  informou depois e o limite por spec; não estima antes. Uma estimativa honesta só sairia da mediana de execuções
+  anteriores do mesmo tipo, agente e modelo, e mesmo assim contrariaria o princípio de produto "o Atlas nunca estima um
+  custo" (tela de Uso): fica o princípio.
+- **Modelo por etapa do SDD** (2026-11-11). Sem evidência de ganho: a medição do C1 (acima) mostra o custo concentrado
+  na exploração do projeto, não no modelo de uma etapa, e trocar de modelo por etapa criaria um segundo sistema de
+  configuração. Quem quer um revisor mais barato ou mais forte já escolhe outro agente para revisar.
+- **Skills especializadas de elicitação, cenários e decomposição** (2026-11-11). Nenhuma medição sugere que ajudariam; o
+  custo está na leitura do projeto, que uma skill não reduz.
 
 ## Riscos
 

@@ -114,7 +114,8 @@ O `HarnessContextBuilder` produz um _Resumo de Contexto do Projeto_ compacto sob
 caracteres). Os itens são mantidos por prioridade — restrições/decisões (nunca descartadas: cada uma é limitada por si),
 fatos verificados e stack, o que pode estar desatualizado e conflitos, arquitetura, módulos, convenções, testes,
 inferências, negócio, desconhecidos — e o que é omitido é nomeado no texto e registrado na execução. Cada item guarda sua
-área para que um filtro posterior ciente da tarefa possa selecionar itens sem mudar o armazenamento (não implementado).
+área, e é por ela que o filtro ciente da tarefa seleciona itens sem mudar o armazenamento: o Task Context da
+[ADR 0012](0012-task-aware-context.md).
 O texto começa declarando que é contexto, não autoridade. Camadas, da mais externa para a mais interna: contexto global
 do usuário → Harness do projeto → contexto do workspace → personalidade → contexto da execução → tarefa. A Política de
 Segurança não é uma camada: é aplicada pelo guard de processos e não pode ser alterada por nenhum contexto.
