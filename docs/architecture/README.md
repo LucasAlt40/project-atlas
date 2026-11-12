@@ -425,7 +425,7 @@ ou um estado compartilhado precise deles.
 - [0034 — Acesso pelo celular](adr/0034-mobile-remote-access.md) — um celular na rede local acompanha execuções e responde o que espera; pareamento, níveis de ação, SSE com cursor, limites do HTTP
 - [0035 — Specs (SDD)](adr/0035-spec-driven-development.md) — especificação escrita por agentes e aprovada pela pessoa antes do workflow; OpenSpec como primeiro formato, motor interno, validação em duas camadas, publicação segura, CLI opcional
 - [0036 — Custo do SDD](adr/0036-custo-do-sdd.md) — consumo por spec medido, limite de tokens, alteração por seções, revisão que sabe o que mudou; o que ainda não foi feito
-- [0037 — Memória](adr/0037-memory.md) — lições curtas entre sessões, propostas pelo agente e decididas pela pessoa; escopos usuário/workspace/agente, desligada por padrão; M1–M3 feitas, M4 pendente
+- [0037 — Memória](adr/0037-memory.md) — lições curtas entre sessões, propostas pelo agente e decididas pela pessoa; escopos usuário/workspace/agente, desligada por padrão; aceita e implementada, medida com modelo real (`propose` recomendado)
 - [0038 — Sandbox do macOS para os runtimes](adr/0038-macos-sandbox.md) — o processo inteiro da CLI sob um perfil do sistema; `off`/`auto`/`required`, desligado por padrão; o que não confina
 - [0039 — GitHub Copilot CLI como runtime](adr/0039-github-copilot-cli.md) — sexto runtime: execução, permissões, MCP e modelos medidos com o CLI real; limites conhecidos
 - [0043 — Uma tarefa em vários projetos](adr/0043-tarefas-em-varios-projetos.md) — uma execução por projeto, em sequência, com alerta ao rodar e sugestão de 1 projeto quando há muitos

@@ -193,17 +193,20 @@ ADRs: 0028, 0029, 0030, 0024, 0026.
 
 ADRs: 0037 (e 0040/0041 como contexto; não duplicar).
 
-- [ ] **MEM1. Fase M4: validação de custo/benefício.** (0037 fases)
+- [x] **MEM1. Fase M4: validação de custo/benefício.** (0037 fases) — 2026-11-11: já medido em 2026-10-15 (7 rodadas,
+      N=3, opencode e claude, `spikes/memory-m4-results.md`); só a 0037 foi corrigida.
   - Onde: testes `memory_experiment_*` (por nome; `ATLAS_M4_N` controla a amostra), `application/memory/`.
   - Pronto quando: números registrados (tokens de entrada, chamadas, acerto) com e sem memória, com amostra maior que 1
     por braço, em pelo menos dois runtimes.
   - Atenção: gasta tokens; **perguntar** antes. Depende de: nada.
-- [ ] **MEM2. Decidir padrões e cotas com os números.** (0037 "Decisões pendentes")
+- [x] **MEM2. Decidir padrões e cotas com os números.** (0037 "Decisões pendentes") — 2026-11-11: modo escolhido
+      pela pessoa, `propose` recomendado, cotas e validades mantidas; escrito na 0037.
   - Pronto quando: modo padrão por escopo, cotas e validades definidos pelos números de MEM1 e escritos na ADR.
 - [ ] **MEM3. Agente propor notas, com amostra.** (0039)
   - Pronto quando: o resultado "0 em 1 execução" virou uma medição com amostra suficiente para dizer se é limite do
     Copilot ou do prompt.
-- [ ] **MEM4. Fechar a 0037.** — `Status: aceito e implementado`; remover as fases e "Decisões pendentes". Conferir o que
+- [x] **MEM4. Fechar a 0037.** — 2026-11-11: status aceito e implementado; fases e pendências trocadas pela medição.
+      A 0041 não está nesta branch (POC): a 0037 diz isso. — `Status: aceito e implementado`; remover as fases e "Decisões pendentes". Conferir o que
       a 0041 (memória ligada por padrão, aprende com reject/merge/discard) já substituiu para não deixar duas verdades.
 
 ## Bloco 4 · Custo e contexto
