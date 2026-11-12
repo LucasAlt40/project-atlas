@@ -13,7 +13,9 @@ import { dockFor, type DockActionId } from '../model/dock';
 import { stageName } from '../model/messages';
 import { statusView } from '../model/status';
 import {
+  adoptHandEdits,
   answerFindings,
+  editArtifact,
   raiseBudget,
   setSpecIntegrations,
   answerQuestion,
@@ -47,6 +49,7 @@ import {
 import { AgentsDialog } from './AgentsDialog';
 import { DeleteSpecDialog } from './DeleteSpecDialog';
 import { ArtifactDocument } from './ArtifactDocument';
+import { HandEditsNotice } from './HandEditsNotice';
 import { OpenQuestions } from './OpenQuestions';
 import { UsageBar } from './UsageBar';
 import { AnswerQuestionsDialog } from './AnswerQuestionsDialog';
@@ -225,6 +228,11 @@ export function SpecDetail({ workspace, agents, specId, onBack, onImplement, onD
             view={view}
             artifact={current}
             focus={focus}
+            onEdit={
+              spec.started && !spec.archived && !view.busy
+                ? (revision, files) => act(() => editArtifact(specId, current.id, revision, files))
+                : undefined
+            }
           />
         ) : (
           phase && (
@@ -319,6 +327,15 @@ export function SpecDetail({ workspace, agents, specId, onBack, onImplement, onD
       />
 
       {spec.started && <Stepper view={view} selected={stage} onSelect={go} />}
+
+      {spec.publication.state === 'published' && (
+        <HandEditsNotice
+          specId={specId}
+          version={spec.version}
+          busy={busy}
+          onAdopt={(artifactId) => void act(() => adoptHandEdits(specId, artifactId))}
+        />
+      )}
 
       <UsageBar
         part="banner"

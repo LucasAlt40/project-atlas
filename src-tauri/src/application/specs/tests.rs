@@ -39,7 +39,7 @@ use crate::domain::execution::ExecutionEvent;
 use crate::domain::runtime::{ModelInfo, RuntimeInfo};
 use crate::domain::spec::{
     DecisionKind, FindingStatus, Generation, Publication, QuestionStatus, Review, ReviewRun,
-    SpecStatus,
+    RevisionOrigin, SpecFile, SpecStatus,
 };
 use crate::domain::workflow::{EndOutcome, WorkflowMode};
 
@@ -1727,6 +1727,135 @@ fn the_final_approval_records_the_warnings_that_were_showing() {
 
     let approval = spec.final_approval.as_ref().unwrap();
     assert_eq!(approval.revisions, spec.current_revisions());
+}
+
+// ---- editing by hand ----------------------------------------------------------------------------------------------
+
+#[test]
+fn an_edit_in_atlas_is_a_new_revision_checked_and_waiting_for_approval_and_its_dependents_go_out_of_date(
+) {
+    let w = world();
+    let id = started(&w);
+    for artifact in ["proposal", "specs"] {
+        w.runtime.say(&answer_for(artifact));
+        generate(&w, &id, artifact);
+        approve(&w, &id, artifact);
+    }
+    let file = |content: &str| {
+        vec![SpecFile {
+            path: "proposal.md".to_owned(),
+            content: content.to_owned(),
+        }]
+    };
+    let edited = format!("{PROPOSAL}\nAlso for people with low vision.\n");
+
+    // Refused: another revision than the latest, other files, nothing new.
+    assert!(w
+        .specs
+        .edit(&id, "proposal", 9, file(&edited))
+        .unwrap_err()
+        .is(ErrorCode::SpecRevisionOutdated));
+    let other = vec![SpecFile {
+        path: "other.md".to_owned(),
+        content: edited.clone(),
+    }];
+    assert!(w
+        .specs
+        .edit(&id, "proposal", 1, other)
+        .unwrap_err()
+        .is(ErrorCode::SpecStateInvalid));
+    assert!(w
+        .specs
+        .edit(&id, "proposal", 1, file(PROPOSAL))
+        .unwrap_err()
+        .is(ErrorCode::SpecStateInvalid));
+
+    let view = w.specs.edit(&id, "proposal", 1, file(&edited)).unwrap();
+
+    let proposal = view.spec.artifact("proposal").unwrap();
+    let latest = proposal.latest().unwrap();
+    assert_eq!(
+        (latest.number, latest.origin, latest.run_id.as_deref()),
+        (2, RevisionOrigin::Edited, None)
+    );
+    assert_eq!(proposal.review, Review::AwaitingReview);
+    assert_eq!(
+        proposal.validation.as_ref().map(|v| v.revision),
+        Some(2),
+        "checked like any revision"
+    );
+    assert!(view.spec.artifact("specs").unwrap().outdated.is_some());
+    // A document with errors is still refused at approval, edited or not.
+    let broken = w
+        .specs
+        .edit(&id, "proposal", 2, file("# Proposal\n\nnothing\n"))
+        .unwrap();
+    assert!(!broken
+        .spec
+        .artifact("proposal")
+        .unwrap()
+        .validation
+        .as_ref()
+        .unwrap()
+        .issues
+        .is_empty());
+    assert!(w
+        .specs
+        .decide(&id, "proposal", 3, DecisionKind::Approve, None)
+        .is_err());
+}
+
+#[test]
+fn a_published_file_edited_by_hand_is_found_never_written_over_and_can_be_adopted() {
+    let w = world();
+    let id = ready(&w);
+    w.specs.publish(&id, None).unwrap();
+    assert!(w.specs.hand_edits(&id).unwrap().is_empty());
+    let path = "openspec/changes/dark-mode/proposal.md";
+    let published = w.files.get(path).unwrap();
+    w.files
+        .put(path, &format!("{published}\nEdited in the editor.\n"));
+
+    let edits = w.specs.hand_edits(&id).unwrap();
+    assert_eq!(edits.len(), 1);
+    assert_eq!(
+        (edits[0].artifact_id.as_str(), edits[0].changed.as_slice()),
+        ("proposal", &["proposal.md".to_owned()][..])
+    );
+
+    // Publishing again would write over it: refused, and the file is as the person left it.
+    let refused = w.specs.publish(&id, None).unwrap_err();
+    assert!(refused.is(ErrorCode::SpecEditedInProject));
+    assert!(w.files.get(path).unwrap().contains("Edited in the editor."));
+
+    // Adopted, it becomes the next revision, waiting for approval, and is no longer reported.
+    let view = w.specs.adopt_hand_edits(&id, "proposal").unwrap();
+    let proposal = view.spec.artifact("proposal").unwrap();
+    assert_eq!(
+        proposal.latest().unwrap().origin,
+        RevisionOrigin::EditedInProject
+    );
+    assert!(proposal.latest().unwrap().files[0]
+        .content
+        .contains("Edited in the editor."));
+    assert_eq!(proposal.review, Review::AwaitingReview);
+    assert!(w.specs.hand_edits(&id).unwrap().is_empty());
+}
+
+#[test]
+fn an_edit_undone_by_hand_lets_the_spec_be_published_again() {
+    let w = world();
+    let id = ready(&w);
+    w.specs.publish(&id, None).unwrap();
+    let path = "openspec/changes/dark-mode/tasks.md";
+    let published = w.files.get(path).unwrap();
+    w.files.put(path, "# Tasks\n\nsomething else\n");
+    assert!(w.specs.publish(&id, None).is_err());
+
+    w.files.put(path, &published);
+
+    assert!(w.specs.hand_edits(&id).unwrap().is_empty());
+    assert!(w.specs.publish(&id, None).is_ok());
 }
 
 // ---- publishing --------------------------------------------------------------------------------------------------

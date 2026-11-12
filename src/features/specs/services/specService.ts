@@ -1,7 +1,13 @@
 import { invokeCommand } from '@/lib/tauri/commands';
 import { listenToEvent } from '@/lib/tauri/events';
 import type { UnlistenFn } from '@tauri-apps/api/event';
-import type { CliStatusDto, RevisionDiffDto, SpecChangedDto } from '@/lib/tauri/commands';
+import type {
+  CliStatusDto,
+  HandEditDto,
+  RevisionDiffDto,
+  SpecChangedDto,
+  SpecFileDto,
+} from '@/lib/tauri/commands';
 import type {
   FindingStatus,
   ImportCandidate,
@@ -71,6 +77,26 @@ export function keepArtifact(
   expectedRevision: number,
 ): Promise<SpecView> {
   return invokeCommand('keep_spec_artifact', { specId, artifactId, expectedRevision });
+}
+
+/** The person's own text for a document: a new revision that waits for their approval. */
+export function editArtifact(
+  specId: string,
+  artifactId: string,
+  expectedRevision: number,
+  files: SpecFileDto[],
+): Promise<SpecView> {
+  return invokeCommand('edit_spec_artifact', { specId, artifactId, expectedRevision, files });
+}
+
+/** The published documents whose files were edited by hand in the project. */
+export function specHandEdits(specId: string): Promise<HandEditDto[]> {
+  return invokeCommand('spec_hand_edits', { specId });
+}
+
+/** Takes what was edited by hand in the project as the document's next revision. */
+export function adoptHandEdits(specId: string, artifactId: string): Promise<SpecView> {
+  return invokeCommand('adopt_spec_hand_edits', { specId, artifactId });
 }
 
 /** What changed in a document between two of its revisions, worked out by the core. */

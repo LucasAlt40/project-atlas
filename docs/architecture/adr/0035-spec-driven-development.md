@@ -149,6 +149,32 @@ antes. Publicar não pede arquivos de especificação, e o archive pela CLI pass
 importar uma pasta de mudança que não tem `specs/` continua pedindo esses arquivos; e o `openspec validate` da CLI, que é
 só uma segunda opinião, pode reclamar de uma mudança sem deltas.
 
+### 14. Edição à mão, no Atlas e no projeto
+
+- **No Atlas.** "Editar" no documento abre o texto do arquivo mostrado. Salvar grava a **próxima revisão**
+  (`rules::edit_by_hand`, origem `edited`, sem run nem agente):
+  - só sobre a revisão mais recente;
+  - com os mesmos arquivos;
+  - sem arquivo vazio nem maior que o limite;
+  - e com alguma mudança.
+
+  A revisão é conferida pelas mesmas regras de qualquer outra e volta a esperar a aprovação da pessoa: editar não é
+  aprovar, e um documento com erros continua sem poder ser aprovado. Os documentos escritos a partir dele ficam
+  desatualizados, como depois de uma revisão do agente. Não se edita com um run em andamento nem numa spec arquivada.
+
+- **No projeto.** Depois de publicar, `spec_hand_edits` compara cada arquivo publicado no projeto com a revisão que foi
+  publicada. Uma quebra de linha a mais ou a menos no fim não conta. A tela avisa, por documento, o que foi alterado ou
+  removido à mão. **O Atlas nunca publica por cima**: republicar com um arquivo editado à mão é recusado
+  (`spec_edited_in_project`, com os arquivos). A pessoa tem dois caminhos:
+  - **adotar** a edição (`adopt_spec_hand_edits`): o texto do projeto vira a próxima revisão (origem
+    `edited_in_project`), que espera aprovação e desatualiza os dependentes;
+  - ou desfazê-la no projeto. Um arquivo removido não tem o que adotar: publicar de novo o recria.
+
+Testes: `an_edit_in_atlas_is_a_new_revision_checked_and_waiting_for_approval_and_its_dependents_go_out_of_date`,
+`a_published_file_edited_by_hand_is_found_never_written_over_and_can_be_adopted`,
+`an_edit_undone_by_hand_lets_the_spec_be_published_again` e os de "editing by hand" na tela. Limites: a edição no Atlas
+é por arquivo existente (não cria nem remove um arquivo de capacidade), e a detecção lê o primeiro projeto da spec.
+
 ## Descartado
 
 - **Mesclar deltas em `openspec/specs/` sem a CLI** (decisão do usuário, 2026-11-11): reimplementar o archive do
@@ -159,7 +185,6 @@ só uma segunda opinião, pode reclamar de uma mudança sem deltas.
 
 - **Spec Kit**: fora do escopo desta entrega.
 - **Acompanhar/aprovar pelo celular** (ADR 0034): nada impede, nada foi feito.
-- **Edição manual do documento** e sincronização de arquivos alterados à mão no projeto.
 
 ## Riscos conhecidos
 

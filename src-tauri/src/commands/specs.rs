@@ -3,7 +3,9 @@
 //! (and a document of it), and what is written, run or published is what Atlas stored and the
 //! agents' turns report. Every command refuses while the module is off.
 
+use crate::application::specs::service::HandEdit;
 use crate::domain::spec::diff::RevisionDiff;
+use crate::domain::spec::SpecFile;
 use serde::Serialize;
 use tauri::{AppHandle, Runtime, State};
 
@@ -227,6 +229,42 @@ pub fn decide_spec_artifact<R: Runtime>(
     };
     let error = next.and_then(|artifact| launch_artifact(&app, &state, &spec_id, &artifact));
     action(&state, &spec_id, error)
+}
+
+/// The person's own text for a document: a new revision that waits for their approval.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+pub fn edit_spec_artifact(
+    state: State<'_, AppState>,
+    spec_id: String,
+    artifact_id: String,
+    expected_revision: u32,
+    files: Vec<SpecFile>,
+) -> Result<SpecView, AppError> {
+    state
+        .specs
+        .edit(&spec_id, &artifact_id, expected_revision, files)
+}
+
+/// The published documents whose files were edited by hand in the project. Reads only.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+pub fn spec_hand_edits(
+    state: State<'_, AppState>,
+    spec_id: String,
+) -> Result<Vec<HandEdit>, AppError> {
+    state.specs.hand_edits(&spec_id)
+}
+
+/// Takes what was edited by hand in the project as the document's next revision.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+pub fn adopt_spec_hand_edits(
+    state: State<'_, AppState>,
+    spec_id: String,
+    artifact_id: String,
+) -> Result<SpecView, AppError> {
+    state.specs.adopt_hand_edits(&spec_id, &artifact_id)
 }
 
 /// What changed in a document between two of its revisions. Reads only.

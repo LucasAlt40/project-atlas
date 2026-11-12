@@ -27,6 +27,9 @@ import {
   raiseBudget,
   resolveFinding,
   runReview,
+  adoptHandEdits,
+  editArtifact,
+  specHandEdits,
   specRevisionDiff,
   startSpec,
   subscribeToSpecChanges,
@@ -92,6 +95,7 @@ beforeEach(() => {
   // Answers not yet sent are kept in the browser: one test's must not reach the next.
   localStorage.clear();
   vi.mocked(listMcpConnections).mockResolvedValue({ connections: [], grants: [] });
+  vi.mocked(specHandEdits).mockResolvedValue([]);
 });
 
 /** The panels of the final review fold down to their title and state; open the one a test needs. */
@@ -1373,6 +1377,71 @@ describe('publishing and building', () => {
     expect(screen.getByRole('button', { name: 'Start a workflow from this spec' })).toBeDisabled();
     await openPanel('Publish to the project');
     expect(screen.getByRole('button', { name: 'Publish' })).toBeDisabled();
+  });
+});
+
+describe('editing by hand', () => {
+  it('saves the person’s own text as the next revision of the document', async () => {
+    const current = view('awaiting_review', {
+      artifacts: [
+        artifact('proposal', { revisions: 1 }),
+        artifact('specs'),
+        artifact('design'),
+        artifact('tasks'),
+      ],
+    });
+    vi.mocked(editArtifact).mockResolvedValue(current);
+    const user = await open(current);
+
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    const editor = screen.getByRole('form', { name: /Editing proposal.md/ });
+    expect(within(editor).getByText(/waits for your approval/)).toBeInTheDocument();
+    const text = within(editor).getByRole('textbox');
+    await user.clear(text);
+    await user.type(text, '# Proposal{enter}{enter}New text');
+    await user.click(within(editor).getByRole('button', { name: 'Save as new revision' }));
+
+    expect(editArtifact).toHaveBeenCalledWith(current.spec.id, 'proposal', 1, [
+      { path: 'proposal.md', content: '# Proposal\n\nNew text' },
+    ]);
+    await waitFor(() => {
+      expect(screen.queryByRole('form', { name: /Editing/ })).not.toBeInTheDocument();
+    });
+  });
+
+  it('says a published file was edited in the project and lets the edit be adopted', async () => {
+    const published = view(
+      'published',
+      {
+        artifacts: allApproved(),
+        publication: {
+          state: 'published',
+          changeId: 'dark-mode',
+          root: 'openspec/changes/dark-mode',
+          files: ['proposal.md'],
+          revisions: {},
+          at: Date.now(),
+        },
+      },
+      { readiness: { ready: true, blockers: [] }, publicationCurrent: true },
+    );
+    vi.mocked(specHandEdits).mockResolvedValue([
+      { artifactId: 'proposal', revision: 1, changed: ['proposal.md'], missing: [] },
+    ]);
+    vi.mocked(adoptHandEdits).mockResolvedValue(published);
+    vi.mocked(getCliStatus).mockResolvedValue({
+      available: false,
+      version: null,
+      compatible: false,
+      reason: 'not_installed',
+    });
+    const user = await open(published);
+
+    expect(await screen.findByText('Proposal was edited in the project')).toBeInTheDocument();
+    expect(screen.getByText(/Atlas will not publish over it/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Adopt as new revision' }));
+
+    expect(adoptHandEdits).toHaveBeenCalledWith(published.spec.id, 'proposal');
   });
 });
 

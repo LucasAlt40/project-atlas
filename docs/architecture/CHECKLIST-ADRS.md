@@ -283,7 +283,8 @@ ADRs: 0013, 0014, 0018, 0019, 0035, 0009.
 - [x] **W7. Spec: diff entre revisões.** (0035, 0036: **uma** implementação para as duas) — 2026-11-12: calculado no
       núcleo, "Comparar com" no documento (0035 §12).
   - Pronto quando: a tela mostra o diff entre revisões do documento, calculado no núcleo, testado.
-- [ ] **W8. Spec: edição manual e sincronização de arquivos editados à mão.** (0035)
+- [x] **W8. Spec: edição manual e sincronização de arquivos editados à mão.** (0035) — 2026-11-12: "Editar" grava a
+      próxima revisão; arquivo editado no projeto é detectado, nunca sobrescrito, e pode ser adotado (0035 §14).
   - Pronto quando: edição manual é aceita com validação, e a mudança feita fora do Atlas é detectada e reconciliada sem
     sobrescrever silenciosamente. Marca dependentes como desatualizados como já ocorre.
 - [x] **W9. `skip_specs`.** (0035) — 2026-11-12: escolhido na criação; sem o documento de especificações, proposta

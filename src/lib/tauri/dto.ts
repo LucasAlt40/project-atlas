@@ -445,6 +445,18 @@ export interface CommandMap {
     args: { specId: string; artifactId: string; from: number; to: number };
     result: RevisionDiffDto;
   };
+  edit_spec_artifact: {
+    args: { specId: string; artifactId: string; expectedRevision: number; files: SpecFileDto[] };
+    result: SpecViewDto;
+  };
+  spec_hand_edits: {
+    args: { specId: string };
+    result: HandEditDto[];
+  };
+  adopt_spec_hand_edits: {
+    args: { specId: string; artifactId: string };
+    result: SpecViewDto;
+  };
   answer_spec_question: {
     args: { specId: string; questionId: string; choice: string | null; answer: string | null };
     result: SpecActionDto;
@@ -3644,7 +3656,7 @@ export interface SpecFileDto {
 export interface SpecRevisionDto {
   number: number;
   files: SpecFileDto[];
-  origin: 'generated' | 'revised' | 'regenerated' | 'imported';
+  origin: 'generated' | 'revised' | 'regenerated' | 'imported' | 'edited' | 'edited_in_project';
   runId: string | null;
   agentId: string | null;
   basedOn: Record<string, number>;
@@ -4052,4 +4064,13 @@ export interface RevisionDiffDto {
   from: number;
   to: number;
   files: FileDiffDto[];
+}
+
+/** A published document whose files were edited (or removed) by hand in the project. */
+export interface HandEditDto {
+  artifactId: string;
+  /** The revision that was published, which the files no longer match. */
+  revision: number;
+  changed: string[];
+  missing: string[];
 }

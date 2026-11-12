@@ -3373,6 +3373,20 @@ export const enUS = {
   'specs.origin.revised': 'revised after your changes',
   'specs.origin.regenerated': 'written again',
   'specs.origin.imported': 'read from the project',
+  'specs.origin.edited': 'edited by you',
+  'specs.origin.edited_in_project': 'edited in the project',
+  'specs.edit.start': 'Edit',
+  'specs.edit.label': 'Editing {file}',
+  'specs.edit.hint':
+    'Your text becomes the next revision: it is checked like any other and waits for your approval, and the documents written from it go out of date.',
+  'specs.edit.save': 'Save as new revision',
+  'specs.edit.cancel': 'Cancel',
+  'specs.handEdits.title': '{stage} was edited in the project',
+  'specs.handEdits.changed': 'Changed by hand: {files}.',
+  'specs.handEdits.missing': 'Not in the project any more: {files}.',
+  'specs.handEdits.never':
+    'Atlas will not publish over it. Adopt the edit as the next revision, or undo it in the project.',
+  'specs.handEdits.adopt': 'Adopt as new revision',
   'specs.pane.blocked':
     'The {stage} is written from {needs}. It becomes available when those are approved.',
   'specs.pane.ready': 'The {stage} has not been written yet. Ask for it when you are ready.',
@@ -3758,6 +3772,8 @@ export const enUS = {
   'error.spec_validation_blocking':
     'The checks found errors in this document. Ask for changes first.',
   'error.spec_not_ready': 'Something still keeps the spec from being ready. See the final review.',
+  'error.spec_edited_in_project':
+    'A published file was edited by hand in the project ({files}). Atlas will not write over it: adopt the edit or undo it first.',
   'error.spec_change_exists':
     'The folder “{change}” already exists in the project. Nothing was written; choose another name.',
   'error.spec_publish_failed':

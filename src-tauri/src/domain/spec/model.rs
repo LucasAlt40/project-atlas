@@ -78,6 +78,10 @@ pub enum RevisionOrigin {
     Regenerated,
     /// Read from an `OpenSpec` change already in the project.
     Imported,
+    /// The person edited the document in Atlas.
+    Edited,
+    /// The person adopted what was edited by hand in the published files of the project.
+    EditedInProject,
 }
 
 /// One version of an artifact. Never edited and never dropped once approved.

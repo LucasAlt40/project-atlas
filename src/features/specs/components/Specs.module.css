@@ -667,6 +667,23 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.editor textarea {
+  min-height: 24rem;
+  padding: var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  color: var(--text-standard);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+  resize: vertical;
+}
 .diff {
   display: flex;
   flex-direction: column;

@@ -3412,6 +3412,20 @@ export const ptBR: Record<TranslationKey, string> = {
   'specs.origin.revised': 'revisado após suas alterações',
   'specs.origin.regenerated': 'escrito novamente',
   'specs.origin.imported': 'lido do projeto',
+  'specs.origin.edited': 'editado por você',
+  'specs.origin.edited_in_project': 'editado no projeto',
+  'specs.edit.start': 'Editar',
+  'specs.edit.label': 'Editando {file}',
+  'specs.edit.hint':
+    'Seu texto vira a próxima revisão: é conferido como qualquer outra e espera sua aprovação, e os documentos escritos a partir dele ficam desatualizados.',
+  'specs.edit.save': 'Salvar como nova revisão',
+  'specs.edit.cancel': 'Cancelar',
+  'specs.handEdits.title': '{stage} foi editado no projeto',
+  'specs.handEdits.changed': 'Alterado à mão: {files}.',
+  'specs.handEdits.missing': 'Não está mais no projeto: {files}.',
+  'specs.handEdits.never':
+    'O Atlas não publica por cima. Adote a edição como próxima revisão, ou desfaça-a no projeto.',
+  'specs.handEdits.adopt': 'Adotar como nova revisão',
   'specs.pane.blocked':
     'O documento {stage} é escrito a partir de {needs}. Fica disponível quando esses forem aprovados.',
   'specs.pane.ready': 'O documento {stage} ainda não foi escrito. Peça quando estiver pronto.',
@@ -3797,6 +3811,8 @@ export const ptBR: Record<TranslationKey, string> = {
   'error.spec_validation_blocking':
     'As validações encontraram erros neste documento. Peça alterações antes.',
   'error.spec_not_ready': 'Ainda há algo impedindo a spec de ficar pronta. Veja a revisão final.',
+  'error.spec_edited_in_project':
+    'Um arquivo publicado foi editado à mão no projeto ({files}). O Atlas não escreve por cima: adote a edição ou desfaça-a antes.',
   'error.spec_change_exists':
     'A pasta “{change}” já existe no projeto. Nada foi escrito; escolha outro nome.',
   'error.spec_publish_failed':

@@ -189,6 +189,9 @@ pub enum ErrorCode {
     SpecNotReady,
     /// The change folder is already in the project (`change` names it); nothing was written.
     SpecChangeExists,
+    /// A published file was edited by hand in the project (`files` names them): publishing again
+    /// would overwrite it, so it is refused until the person adopts the edit or undoes it.
+    SpecEditedInProject,
     /// Writing the files stopped half way (`detail` says why); doing it again picks up from there.
     SpecPublishFailed,
     /// That change is already one of this workspace's specs.
