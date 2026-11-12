@@ -191,9 +191,8 @@ log de eventos de uma execução é guardado dentro dela (os 400 mais novos).
 
 ## Limites conhecidos
 
-- ~~Cada passo isolado tinha seu próprio worktree~~ e ~~os arquivos tocados eram o que o agente informava~~: os dois
-  foram alterados pela [ADR 0014](0014-handoff-shared-worktree-and-code-integration.md) (um worktree compartilhado por
-  execução; arquivos medidos pelo Git).
+- Um worktree é compartilhado pela execução inteira, e os arquivos tocados são os que o Git mede, não os que o agente
+  informa ([ADR 0014](0014-handoff-shared-worktree-and-code-integration.md)).
 - Um passo com um processo pode ser parado no cancelamento; um runtime sem sessão de terminal termina por conta própria.
 - `max_parallel_steps` é por execução: 4 por padrão, e a pessoa o muda de 1 a 8 no seletor "Passos em paralelo" da
   execução (`set_max_parallel_steps`, 2026-11-11). Os passos que já rodam seguem; o limite novo vale para os próximos,

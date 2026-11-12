@@ -1,5 +1,7 @@
 # 0020 — Camada de Otimização, fase 0: medir antes de otimizar
 
+Status: aceito e implementado.
+
 ## Contexto
 
 O Atlas monta um prompt para cada execução (personalidade, regras, Harness/Task Context, projeto, instruções do agente e,
@@ -54,8 +56,8 @@ byte e tudo o mais que é entregue ao runtime.
   `tools.totalOutputBytes` é sempre `None`. `tools.calls` é o número de eventos de ferramenta que o runtime transmitiu,
   e `None` quando não transmitiu nenhum (o Atlas não distingue "nenhuma ferramenta usada" de "este runtime não transmite
   eventos de ferramenta").
-- **Caches**: ainda não existe nenhum; `cacheHits`/`cacheMisses` são `None`. `deduplicatedItems`/`compressedItems` são 0
-  porque a fase 0 não faz nenhuma das duas coisas.
+- **Caches**: `cacheHits`/`cacheMisses` vêm do cache de descoberta de skills ([ADR 0022](0022-skills.md)) e são `None`
+  quando as skills estão desligadas. `deduplicatedItems`/`compressedItems` são 0 porque nada deduplica nem comprime.
 - **Tokens do runtime** quando o runtime não informa nenhum (o número de cache do Gemini não é lido; as CLIs de
   substituição informam só um custo).
 

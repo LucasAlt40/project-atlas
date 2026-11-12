@@ -1,5 +1,7 @@
 # 0024 — Camada de Otimização, fase 4: o que um runtime consegue alcançar (superfície e isolamento)
 
+Status: aceito. O que falta está em "Não construído (e por quê)".
+
 ## Contexto
 
 A fase 4 da Camada de Otimização foi escrita em torno da seleção de ferramentas e de MCP: um catálogo, um seletor,
@@ -52,11 +54,11 @@ Um teste opt-in (`cargo test real_claude_surface -- --ignored`) repete a mediç�
 
 ## Não construído (e por quê)
 
-- **ToolCatalog / ToolSelector / registro de MCP / descoberta adiada.** O Atlas dá a um agente uma lista fixa de
-  ferramentas por modo (somente leitura, edição, nenhuma) e, agora, nenhum MCP. Não há escolha para um seletor fazer e
-  nenhum servidor MCP que o próprio Atlas ofereça. No momento em que um agente precisar de um servidor MCP, o caminho é
-  gerar um `--mcp-config` explícito por execução só com esse servidor; a busca de ferramentas e o carregamento adiado
-  do próprio runtime são então a capacidade nativa a usar.
+- **ToolCatalog / ToolSelector / descoberta adiada.** O Atlas dá a um agente uma lista fixa de ferramentas por modo
+  (somente leitura, edição, nenhuma). Os servidores MCP chegam só por concessão explícita, numa configuração gerada por
+  execução com os servidores concedidos ([ADR 0028](0028-mcp-foundation.md), [ADR 0029](0029-mcp-for-every-runtime.md)).
+  Não há seletor automático de ferramentas; a busca de ferramentas e o carregamento adiado do próprio runtime são a
+  capacidade nativa a usar.
 - **OpenCode, Gemini e Antigravity.** A superfície deles não foi medida: o OpenCode lê sua própria configuração e pode
   carregar os servidores MCP do usuário; Gemini e Antigravity negam shell e escrita de arquivos no modo headless, e o
   carregamento de MCP e extensões deles não é conhecido. Até serem medidos, nada é afirmado sobre eles e seus fatos no

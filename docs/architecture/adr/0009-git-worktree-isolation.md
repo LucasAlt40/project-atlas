@@ -57,8 +57,10 @@ desligados, a menos que a política negue escritas no Git), mede com o Git (arqu
 1. worktree diferente do que o Atlas criou (outra pasta, branch trocado) → bloqueado, deixado em paz;
 2. nada mudou → nada para fazer merge; o worktree vazio e o branch são removidos;
 3. a execução falhou / foi cancelada / foi interrompida → bloqueado; **mantido**, nunca mesclado;
-4. mudanças que não puderam ser commitadas → bloqueado;
-5. validação falhou → bloqueado (o Atlas ainda não roda testes: a validação é `not_run`, o que não bloqueia);
+4. a política nega escritas no Git → bloqueado por ela, com o trabalho deixado sem commit no worktree
+   ([ADR 0014](0014-handoff-shared-worktree-and-code-integration.md)); senão, mudanças que não puderam ser commitadas →
+   bloqueado;
+5. validação falhou → bloqueado (o Atlas não roda testes: a validação é `not_run`, o que não bloqueia);
 6. o Git diz que há conflitos → `conflict`; branch e worktree mantidos; o checkout fica intocado;
 7. a política nega escritas no Git → bloqueado;
 8. checkout sujo / saiu do branch base → bloqueado (o usuário pode pedir de novo depois);

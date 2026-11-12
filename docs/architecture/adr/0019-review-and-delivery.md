@@ -1,5 +1,7 @@
 # 0019 — Revisão e Entrega: ler um workflow concluído e decidir sobre o seu código
 
+Status: aceito e implementado.
+
 ## Contexto
 
 Um workflow termina com seu código em um worktree isolado ([ADR 0014](0014-handoff-shared-worktree-and-code-integration.md),

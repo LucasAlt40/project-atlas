@@ -10,17 +10,17 @@ agente escreva muda permissões, rotas, aprovações ou política.
 
 ## Quem usa o quê
 
-| Peça                  | Usa / é                                                                                                                                | Detalhe                                     |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| Agente                | personalidade + runtime + modelo + instruções + perfil de permissão + isolamento (ligado) + contrato de resultado                      | [02](guia/02-agentes-runtimes-e-prompt.md)  |
-| Modelo de IA          | Acessado por **CLI local** já logada pelo usuário: `claude`, `opencode`, `codex`, `gemini`, `agy`, `copilot`. **Sem chave de API.**    | [02](guia/02-agentes-runtimes-e-prompt.md)  |
-| Frontend              | React/TS; só chama **comandos Tauri** com allow-list; nunca toca disco/processo/Git/rede                                               | [01](guia/01-visao-geral-e-arquitetura.md)  |
-| Core                  | Rust em camadas `commands → application → domain`; adaptadores nas bordas; wiring só em `lib.rs`                                       | [01](guia/01-visao-geral-e-arquitetura.md)  |
-| Personalidades        | Architect, Spec Architect, Developer, QA, Architecture & Code Validator (somente leitura), Bug Fixer — editáveis; dá para criar outras | [02](guia/02-agentes-runtimes-e-prompt.md)  |
-| Código escrito por IA | Só em **worktree Git isolado**, nunca no checkout; o usuário decide se entra no projeto                                                | [05](guia/05-seguranca-e-isolamento.md)     |
-| Specs (SDD)           | Especificação escrita por agentes e **aprovada pela pessoa** antes do workflow (formato OpenSpec)                                      | [09](guia/09-specs-sdd.md)                  |
-| Memória               | Lições curtas entre sessões, propostas pelo agente e decididas pela pessoa; **desligada por padrão**                                   | [ADR 0037](architecture/adr/0037-memory.md) |
-| Celular               | Acompanhar e responder execuções pelo navegador do celular, na rede local; desligado até a pessoa ligar                                | [08](guia/08-acesso-pelo-celular.md)        |
+| Peça                  | Usa / é                                                                                                                                                              | Detalhe                                     |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| Agente                | personalidade + runtime + modelo + instruções + perfil de permissão + isolamento (ligado) + contrato de resultado                                                    | [02](guia/02-agentes-runtimes-e-prompt.md)  |
+| Modelo de IA          | Acessado por **CLI local** já logada pelo usuário: `claude`, `opencode`, `codex`, `gemini`, `agy`, `copilot`. **Sem chave de API.**                                  | [02](guia/02-agentes-runtimes-e-prompt.md)  |
+| Frontend              | React/TS; só chama **comandos Tauri** com allow-list; nunca toca disco/processo/Git/rede                                                                             | [01](guia/01-visao-geral-e-arquitetura.md)  |
+| Core                  | Rust em camadas `commands → application → domain`; adaptadores nas bordas; wiring só em `lib.rs`                                                                     | [01](guia/01-visao-geral-e-arquitetura.md)  |
+| Personalidades        | Architect, Spec Architect, Developer, QA, Architecture & Code Validator (somente leitura), Bug Fixer — editáveis; dá para criar outras                               | [02](guia/02-agentes-runtimes-e-prompt.md)  |
+| Código escrito por IA | Só em **worktree Git isolado**, nunca no checkout; o usuário decide se entra no projeto                                                                              | [05](guia/05-seguranca-e-isolamento.md)     |
+| Specs (SDD)           | Especificação escrita por agentes e **aprovada pela pessoa** antes do workflow (formato OpenSpec); editável à mão, nunca publicada por cima de uma edição no projeto | [09](guia/09-specs-sdd.md)                  |
+| Memória               | Lições curtas entre sessões, propostas pelo agente e decididas pela pessoa; **desligada por padrão**                                                                 | [ADR 0037](architecture/adr/0037-memory.md) |
+| Celular               | Acompanhar e responder execuções pelo navegador do celular, na rede local; specs só para ler; desligado até a pessoa ligar                                           | [08](guia/08-acesso-pelo-celular.md)        |
 
 ## Como o prompt é montado (sempre pelo `PromptBuilder`)
 

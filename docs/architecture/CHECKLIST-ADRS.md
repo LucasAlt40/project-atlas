@@ -252,96 +252,6 @@ ADRs: 0036, 0021, 0020, 0012, 0011.
       evidência (0036).
   - Mesmo critério de C8: sem evidência, descartar por escrito.
 
-## Bloco 5 · Workflow, spec e entrega
-
-ADRs: 0013, 0014, 0018, 0019, 0035, 0009.
-
-- [x] **W1. Reativar o Live Workspace depois de reiniciar.** (0018 "Limitação conhecida") — 2026-11-11:
-      `observe_open_runs` na abertura do app, com teste de reinício (0018).
-  - Onde: `application/live_workspace/` (`mod.rs`, `tracker.rs`).
-  - Pronto quando: uma execução existente volta a ser observada ao reabrir o app (sem esperar o retomar), com teste de
-    reinício.
-- [x] **W2. Limites do Live Workspace.** (0018 "Limites") — 2026-11-11: limites mantidos; o corte em 500 agora é
-      dito no painel (0018).
-  - Pronto quando: o corte de 500 arquivos (`MAX_CHANGESET_FILES`) e a leitura de contagens só até 1 MiB têm decisão
-    (paginar/avisar na UI ou manter e registrar). Hoje o corte é silencioso na lista.
-- [x] **W3. Persistir o status de revisão.** (0019) — 2026-11-11: já sobrevivia: é derivado do status de integração,
-      que é gravado e é a fonte; um campo próprio poderia divergir. Só a 0019 foi corrigida.
-  - Pronto quando: sobrevive a reabrir o app, sem divergir do status de integração (ele continua a fonte).
-- [x] **W4. `max_parallel_steps` configurável.** (0013) — 2026-11-11: seletor por execução (1 a 8), comando com
-      política e teste; execuções antigas leem 4 (0013).
-  - Onde: `application/workflow/engine.rs`, `domain/workflow`, UI de configuração.
-  - Pronto quando: o valor (hoje fixo em 4) é configurável por execução com limites validados, e execuções antigas sem o
-    campo leem o padrão 4 (compatibilidade, como as outras migrações).
-- [x] **W5. Passos paralelos compartilham a árvore.** (0014) — 2026-11-11: mantido por decisão do usuário (0014).
-  - Pronto quando: há decisão. Hoje o delta por passo pode incluir arquivos do outro; ou isolar por passo ou manter e
-    deixar o aviso de sobreposição como o limite documentado.
-- [x] **W6. Spec: acompanhar/aprovar pelo celular.** (0035; 0034) — 2026-11-12: só acompanhar, por decisão do usuário;
-      rotas só GET, uma linha de política, testes de política e de rota (0035 §15, 0034 §8).
-  - Onde: `application/remote/policy.rs`, rotas de `remote_server.rs`, `src/mobile/`.
-  - Pronto quando: uma linha de política por ação nova, teste de política e de rota, e nenhuma ação nova sem
-    pareamento válido (ADR 0034). Nada de caminhos de projeto/worktree nem diffs no celular.
-- [x] **W7. Spec: diff entre revisões.** (0035, 0036: **uma** implementação para as duas) — 2026-11-12: calculado no
-      núcleo, "Comparar com" no documento (0035 §12).
-  - Pronto quando: a tela mostra o diff entre revisões do documento, calculado no núcleo, testado.
-- [x] **W8. Spec: edição manual e sincronização de arquivos editados à mão.** (0035) — 2026-11-12: "Editar" grava a
-      próxima revisão; arquivo editado no projeto é detectado, nunca sobrescrito, e pode ser adotado (0035 §14).
-  - Pronto quando: edição manual é aceita com validação, e a mudança feita fora do Atlas é detectada e reconciliada sem
-    sobrescrever silenciosamente. Marca dependentes como desatualizados como já ocorre.
-- [x] **W9. `skip_specs`.** (0035) — 2026-11-12: escolhido na criação; sem o documento de especificações, proposta
-      com validação própria, archive com `--skip-specs` (0035 §13). — mudança sem comportamento passa sem exigir uma capacidade, com validação própria.
-- [x] **W10. Agente isolado lê os arquivos publicados.** (0035 tabela) — 2026-11-12: o brief é a garantia definitiva,
-      por decisão do usuário (0035).
-  - Pronto quando: a spec publicada e ainda não commitada chega ao agente isolado de forma garantida (hoje só o digest;
-    o conteúdo vai no brief). Ou documentar como garantia definitiva.
-- [x] **W11. Merge de deltas em `openspec/specs/` sem a CLI.** (0035) — 2026-11-11: descartado pelo usuário (0035).
-  - Pronto quando: decisão. A ADR considera reimplementar o archive do OpenSpec arriscado; se continuar assim, mover
-    para "Descartado" com o motivo.
-- [x] **W12. Detectar o Visual Studio.** (0014) — 2026-11-12: `devenv.exe` nas pastas de instalação, só no Windows;
-      não verificado num Windows real (0014). — entrega mostra a opção quando detectado, só Windows (`cfg`).
-- [x] **W13. Submódulos e sparse checkouts.** (0009) — 2026-11-12: detectados, registrados no worktree e ditos na
-      tela (0009). — detecção e tratamento explícito (ou erro claro), com teste.
-- [x] **W14. Integração automática de mudanças.** (0014 "só o usuário aplica") — 2026-11-11: descartado pelo usuário
-      (0014).
-  - Pronto quando: decisão. Provavelmente **manter** (é invariante de segurança): mover para "Descartado" com motivo.
-- [x] **W15. Política que nega Git deixa trabalho sem commit.** (0014) — 2026-11-12: o motivo mostrado é a política, com
-      onde o trabalho ficou e como usá-lo (0014).
-  - Pronto quando: o usuário vê claramente que o trabalho está sem commit e como aplicá-lo, ou o fluxo é ajustado.
-
-## Bloco 6 · Multi-projeto
-
-ADRs: 0033, 0043.
-
-- [x] **P1. Retomar a cadeia sozinho.** (0043) — 2026-11-11: decisão do usuário; segue sozinha ao abrir o app, com
-      teste de reinício (0043). — após reabrir o app entre duas execuções, a próxima é criada
-      automaticamente (hoje só o botão "Continuar"); com confirmação se mudar o comportamento atual. Teste de reinício.
-- [x] **P2. Escopo de workflow por passo.** (0033) — 2026-11-11: descartado pelo usuário (0033). — hoje por execução. Só se houver caso real; senão descartar por escrito.
-- [x] **P3. Handoff com diff grande.** (0043) — 2026-11-11: resumo por arquivo dentro do mesmo orçamento (0043). — a execução seguinte recebe resumo estruturado do diff (arquivos,
-      trechos relevantes) em vez de só o começo; respeitando o orçamento do contexto.
-- [x] **P4. Varredura de obsolescência por leitura.** (0033) — 2026-11-11: cache de 30 s só na visão geral, esquecido
-      ao gravar o Harness (0033). — a visão geral não escaneia todo projeto a cada leitura
-      (cache com invalidação), com teste.
-- [x] **P5. Execuções paralelas da cadeia.** (0043) — 2026-11-11: descartado pelo usuário, fica sequencial (0043). — **descartar por escrito** se a decisão for manter sequencial
-      (era a escolha da ADR); não implementar sem decisão do usuário.
-
-## Bloco 7 · Importar/exportar configuração
-
-ADR: 0032. Onde: `application/portability/` (`format.rs`, `apply.rs`, `inspect.rs`, `kinds/`).
-
-- [x] **I1. Arrastar e soltar um arquivo.** (0032) — 2026-11-12: soltar no diálogo de importação; a janela real não foi
-      vista (0032, Não verificado). — passa pelo mesmo preview + decisões + importação atômica; nada aplica sem
-      decisão.
-- [x] **I2. Importar por URL.** (0032) — 2026-11-12: descartado pelo usuário; baixar e soltar cobre o caso (0032). — só com política de rede (SSRF, tamanho, tipo), **confirmação explícita** e o mesmo
-      fluxo de preview. Nunca seguir URL vinda de conteúdo observado.
-- [x] **I3. Duplicatas por nome.** (0032) — 2026-11-12: casa com a primeira salva e a prévia avisa (`same_name`). — `use_existing` e `replace` casam pela primeira; passar a avisar/escolher de forma
-      determinística.
-- [x] **I4. Modelo "pendente" no agente importado.** (0032) — 2026-11-12: `Agent.imported_model`, até a pessoa mudar o
-      modelo. — registrar além do relatório de importação, para sobreviver à
-      escolha de alternativa.
-- [x] **I5. Importar para workflow com execução em andamento.** (0032) — 2026-11-12: a prévia não oferece `replace` e
-      diz por quê. — `replace` é recusado; oferecer a outra decisão no
-      próprio fluxo, com explicação.
-
 ## Bloco 8 · Plataformas e verificação real
 
 ADRs: 0009, 0034, 0028, 0038, 0039, 0044. **O CI já roda `npm run check` em ubuntu, macOS e Windows**
@@ -363,23 +273,24 @@ ADRs: 0009, 0034, 0028, 0038, 0039, 0044. **O CI já roda `npm run check` em ubu
 
 ## Bloco 9 · Higiene das ADRs (executar no fim de cada bloco)
 
-- [ ] **H1. Remover texto riscado e estados superados.** Procurar `~~` e "ainda não" nas ADRs 0009–0044 e reescrever.
-- [ ] **H2. Campo `Status:` em todas.** As ADRs 0016–0028 não têm o campo no formato das demais.
-- [ ] **H3. 0013, 0024 e 0026–0028:** reescrever as seções que ainda afirmam o estado pré-MCP/pré-Fase E.
-- [ ] **H4. Índices.** `docs/architecture/README.md` e `docs/RESUMO.md` refletem os status novos.
-- [ ] **H5. Este arquivo.** Marcar `[x]` com data; apagar blocos concluídos; apagar o arquivo quando vazio.
+- [x] **H1. Remover texto riscado e estados superados.** — 2026-11-12: removido o texto riscado da 0013 e os "ainda não" superados (0009, 0020, 0027). Procurar `~~` e "ainda não" nas ADRs 0009–0044 e reescrever.
+- [x] **H2. Campo `Status:` em todas.** — 2026-11-12: `Status:` nas ADRs 0016, 0019–0022, 0024 e 0026–0028. As ADRs 0016–0028 não têm o campo no formato das demais.
+- [x] **H3. 0013, 0024 e 0026–0028:** — 2026-11-12: 0024 e 0026 sem o estado pré-MCP; a 0013 não afirmava nenhum. reescrever as seções que ainda afirmam o estado pré-MCP/pré-Fase E.
+- [x] **H4. Índices.** — 2026-11-12: README e RESUMO com os status e o que mudou. `docs/architecture/README.md` e `docs/RESUMO.md` refletem os status novos.
+- [x] **H5. Este arquivo.** — 2026-11-12: blocos concluídos apagados; repetir no fim de cada bloco. Marcar `[x]` com data; apagar blocos concluídos; apagar o arquivo quando vazio.
 
 ---
 
 ## Ordem sugerida
 
-1. **S7, S6, M3, M4** (determinísticos, sem custo, destravam o resto) e **X1**.
-2. **S1–S3** (real, pedir autorização) → **S4/S9** (decisões do usuário).
-3. **M1 → M2**, **MEM1 → MEM2/MEM4**.
-4. **C1 → C3**, depois **C4–C7**.
-5. **W1–W4**, **P1, P3, P4**, **I1–I5**, **W6–W10**.
-6. **X2–X7** conforme dê acesso a máquinas/celular.
-7. **H1–H5** ao fim de cada bloco.
+Os blocos 5, 6 e 7 foram concluídos e apagados (2026-11-12). O que resta:
+
+1. **S1/S3 com o Codex** (cota volta em 2026-11-16; pedir autorização), **S5**; decisões do usuário: **S4**, **S8**,
+   **S10**.
+2. **M3** (o CI só prova com um push), **M5–M9**; **M2** fica para quando o OAuth for decidido.
+3. **MEM3**; **C3** (medição real, pedir autorização).
+4. **X2–X7** conforme dê acesso a máquinas/celular.
+5. **H1–H5** ao fim de cada bloco.
 
 Itens marcados "decisão"/"descartar por escrito" **não** viram código: viram uma linha na ADR. Itens marcados
 "perguntar" não são executados sem o usuário.

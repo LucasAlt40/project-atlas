@@ -1,5 +1,7 @@
 # 0022 — Camada de Otimização, fase 2: Skills com divulgação progressiva
 
+Status: aceito. O que falta está em "Não construído".
+
 ## Contexto
 
 Os agentes do Atlas rodam em runtimes de CLI que recebem um único prompt. Colocar todo o conhecimento do projeto em todo

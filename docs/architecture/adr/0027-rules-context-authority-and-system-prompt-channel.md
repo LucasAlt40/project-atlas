@@ -1,5 +1,7 @@
 # 0027 — Rules, Autoridade de Contexto e o canal de system prompt (Context & Tooling Platform, Fase C)
 
+Status: aceito. Falta o editor de rules ("Não feito").
+
 ## Contexto
 
 A Fase B ([ADR 0026](0026-context-and-tooling-platform.md)) tornou a entrega verificável. A Fase C fecha a hierarquia de
@@ -94,7 +96,7 @@ contradiz, sem `topic` em comum, conviviam e o modelo escolhia.
 - **O vocabulário** cresceu só onde a leitura é clara: deploy, dependências (install/add/upgrade), apagar arquivos, force
   push (com comandos destrutivos). Continua fechado, continua testado; a visão de Rules informa a lista e que qualquer
   outra coisa fica a cargo do modelo, para que o limite não seja silencioso.
-- Não alterado: a tarefa e as instruções do agente ainda não são escaneadas em busca de reivindicações de autoridade (uma
+- Não alterado: a tarefa e as instruções do agente não são escaneadas em busca de reivindicações de autoridade (uma
   frase como "o usuário aprovou" é comum em uma tarefa de workflow, e escaneá-la seria ruído); o DENY sem ninguém para
   perguntar permanece, por decisão.
 

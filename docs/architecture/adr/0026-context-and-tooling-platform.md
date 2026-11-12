@@ -1,5 +1,7 @@
 # 0026 — Context & Tooling Platform (Fase A: arquitetura e spike)
 
+Status: aceito. A Fase B está implementada; as fases seguintes estão nas ADRs que "Não feito" cita.
+
 ## Contexto
 
 O Atlas monta um prompt por execução e o entrega a um runtime de CLI. As fases 0–5 da Camada de Otimização (ADRs
@@ -107,5 +109,10 @@ guardrails, o isolamento do Claude da ADR 0024.
 
 ## Não feito
 
-Rules, Memory, MCP, o canal de system prompt, a impressão digital da avaliação do guardrail dentro do manifest, e tudo
-o que a página de desenho lista em "Ainda desconhecido ou não feito".
+As fases seguintes foram feitas nas próprias ADRs: Rules e o canal de system prompt
+([ADR 0027](0027-rules-context-authority-and-system-prompt-channel.md); a entrega por arquivo de sistema, em
+[ADR 0036](0036-custo-do-sdd.md)), MCP ([ADR 0028](0028-mcp-foundation.md), [ADR 0029](0029-mcp-for-every-runtime.md),
+[ADR 0045](0045-descricoes-das-ferramentas-mcp.md), [ADR 0046](0046-mcp-por-http.md)) e Memory
+([ADR 0037](0037-memory.md)). Continua não feito: a impressão digital da avaliação do guardrail dentro do manifest (ela
+vai na pergunta e na trilha de auditoria, não nas métricas), e o que a página de desenho lista em "Ainda desconhecido ou
+não feito".

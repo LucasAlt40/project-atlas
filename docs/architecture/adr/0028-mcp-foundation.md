@@ -1,5 +1,7 @@
 # 0028 — Fundação MCP (Context & Tooling Platform, Fase D)
 
+Status: aceito. Falta o Figma oficial, que depende de OAuth ("Não feito").
+
 ## Contexto
 
 A ADR 0026 escolheu o formato (um domínio agnóstico de runtime, um adaptador do Claude, estratégia A: o suporte MCP do

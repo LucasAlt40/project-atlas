@@ -1,5 +1,7 @@
 # 0021 — Camada de Otimização, fase 1: o Context Engine
 
+Status: aceito e implementado.
+
 ## Contexto
 
 A fase 0 ([ADR 0020](0020-optimization-observability.md)) mediu do que um prompt é feito. Mostrou que a maior parte é
