@@ -80,6 +80,11 @@ pub struct OptimizationSettings {
     /// All off by default: it adds text to prompts.
     #[serde(default)]
     pub memory: crate::domain::memory::MemorySettings,
+    /// `optimization.narrationOnlyWhenWatched`: leave the live-narration instruction out of the
+    /// runs nobody watches live (a spec's turns, whose answer is a document), ADR 0021. Off by
+    /// default: off, every prompt keeps it, byte for byte as before.
+    #[serde(default)]
+    pub narration_only_when_watched: bool,
 }
 
 fn default_guardrails_enabled() -> bool {
@@ -100,6 +105,7 @@ impl Default for OptimizationSettings {
             guardrails_enabled: true,
             specs_max_tokens: None,
             memory: crate::domain::memory::MemorySettings::default(),
+            narration_only_when_watched: false,
         }
     }
 }

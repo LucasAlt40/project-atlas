@@ -63,15 +63,24 @@ bytes por passo). Isto não está atrás de uma flag: a regra para a qual aponta
 
 O que foi **deixado de lado de propósito**: os avisos de "não concede permissões" (Harness, handoff, bloco de
 resultado, bloco de interação). Cada um protege uma fonte diferente de texto não confiável, então não são duplicatas, e
-remover um enfraqueceria essa proteção. `LIVE_NARRATION` e `PLAN_RULE` são comportamento de produto (a visão ao vivo, os
-documentos de plano obrigatórios), não repetição; condicioná-los é uma decisão de produto, não uma otimização.
+remover um enfraqueceria essa proteção. `PLAN_RULE` é comportamento de produto (os planos que a pessoa lê) e fica em
+todo prompt.
+
+**A narração ao vivo, condicionada** (decisão do usuário em 2026-11-11). `LIVE_NARRATION` só molda a resposta ao vivo,
+e a tela de uma spec mostra o documento, não o turno ao vivo. Com `optimization.narrationOnlyWhenWatched` ligada, um
+turno de spec (`StepOptions::watched = false`, marcado em `ChatService::send_spec_step`) não recebe a instrução de
+narrar; fica só a frase que manda pôr caminhos entre aspas nos comandos (`QUOTE_PATHS`), que protege um comando de
+quebrar num caminho com espaços. Conversas e passos de workflow continuam com a narração. **Desligada por padrão**: aí o
+prompt é idêntico byte a byte ao de antes. Testes: `a_run_nobody_watches_is_not_asked_to_narrate_and_keeps_the_advice_on_paths`
+e `only_a_run_nobody_watches_drops_the_narration_and_only_when_the_person_chose_so`. Não há interruptor na tela; a
+configuração fica no arquivo, como as outras flags desta camada. A economia é a do texto da narração (cerca de 90 tokens
+estimados por turno de spec); não foi medida com modelo.
 
 ## Consequências
 
-- A economia disponível hoje é pequena: a maioria dos tokens está em texto obrigatório. Os próximos candidatos estão no
-  que o engine não tem permissão de tocar (a instrução de plano repetida pela regra de plano e pelo protocolo de
-  interação, os avisos de "não concede permissões"), o que pede uma decisão sobre condicionar esse texto, não mais
-  deduplicação.
+- A economia disponível hoje é pequena: a maioria dos tokens está em texto obrigatório. A repetição da instrução de
+  plano saiu na origem, os avisos de "não concede permissões" ficam por segurança, e a narração é condicionada atrás
+  de uma flag (acima).
 - `ContextQuality` (sinal sobre o total) não foi construído: ainda não há sinal de relevância por item
   (`ContextItem.relevance` está vazio). A redundância removida é a metade que o Atlas consegue medir.
 - Cache (o fingerprint da fase 1 é só um digest do item) e obsolescência por item vinda do Harness não estão ligados.

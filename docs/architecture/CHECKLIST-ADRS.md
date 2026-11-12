@@ -232,7 +232,8 @@ ADRs: 0036, 0021, 0020, 0012, 0011.
   - Pronto quando: o fingerprint da fase 1 vira cache real **medido** (a ADR 0020 diz que `cacheHits/cacheMisses` são
     `None`) e a obsolescência do Harness entra por item. Há um flag no registro de perf que mostrou "sem efeito" no
     cache; reavaliar antes de religar.
-- [ ] **C6. Condicionar o texto obrigatório repetido.** (0021)
+- [x] **C6. Condicionar o texto obrigatório repetido.** (0021) — 2026-11-11: plano já saía na origem; avisos mantidos;
+      narração condicionada nos turnos de spec atrás de `narrationOnlyWhenWatched` (desligada), decisão do usuário.
   - Pronto quando: a instrução de plano (regra de plano × protocolo de interação) e os avisos de "não concede
     permissões" não aparecem repetidos, **sem** remover nenhuma regra de segurança, e o prompt desligado continua igual.
   - Atenção: é uma decisão (0021 pede decisão, não mais deduplicação); **perguntar** se mexer em texto obrigatório.

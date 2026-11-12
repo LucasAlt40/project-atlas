@@ -1265,6 +1265,8 @@ export interface AppSettingsDto {
     contextMaxTokens?: number | null;
     /** `optimization.skills.enabled`: Atlas sends the skills a task calls for. */
     skillsEnabled?: boolean;
+    /** Runs nobody watches live (a spec's turns) get no live-narration instruction. Off by default. */
+    narrationOnlyWhenWatched?: boolean;
     /** `optimization.guardrails.enabled`: review the context before an agent starts. */
     guardrailsEnabled?: boolean;
     /** `optimization.specs.maxTokens`: what the runs of one spec may use together; none: no limit. */

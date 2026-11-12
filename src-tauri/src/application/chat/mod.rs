@@ -301,6 +301,7 @@ impl ChatService {
                 announce_integrations: true,
                 read_only: false,
                 no_commands: false,
+                watched: true,
                 scope: request.scope,
             },
         ))
@@ -359,6 +360,8 @@ impl ChatService {
         pending.context_query = Some(step.context_query);
         pending.read_only = true;
         pending.detect_interaction = true;
+        // The spec screen shows the document, not a live view of the turn.
+        pending.watched = false;
         pending.announce = Some(sent.user_message.clone());
         Ok((sent, pending))
     }
@@ -422,6 +425,8 @@ pub struct PendingRun {
     announce_integrations: bool,
     read_only: bool,
     no_commands: bool,
+    /// Someone may watch it live (see `StepOptions::watched`).
+    watched: bool,
     scope: Option<ScopeRequest>,
     workflow: Option<WorkflowLink>,
     /// Look at the answer for a request for a person even though no workflow is behind the run
@@ -463,6 +468,7 @@ impl PendingRun {
             read_only: self.read_only,
             no_commands: self.no_commands,
             task_rules: &[],
+            watched: self.watched,
         };
         let result = if options.context_query.is_some() || options.detect_interaction {
             self.inner

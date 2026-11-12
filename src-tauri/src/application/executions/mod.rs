@@ -135,6 +135,10 @@ pub struct StepOptions<'a> {
     pub read_only: bool,
     /// The step's node is given no commands to run, whatever the runtime and the policy allow.
     pub no_commands: bool,
+    /// Someone may watch the run live (a conversation, a workflow step). `false` for a spec's
+    /// turns, whose answer is a document: with `narration_only_when_watched` on, they get no
+    /// live-narration instruction.
+    pub watched: bool,
 }
 
 impl Default for StepOptions<'_> {
@@ -152,6 +156,7 @@ impl Default for StepOptions<'_> {
             announce_integrations: true,
             read_only: false,
             no_commands: false,
+            watched: true,
         }
     }
 }
@@ -534,6 +539,7 @@ impl ExecutionService {
             announce_integrations: true,
             read_only: false,
             no_commands: false,
+            watched: true,
         };
         self.run_step(id, request, options, observer)
     }
@@ -563,7 +569,15 @@ impl ExecutionService {
             announce_integrations,
             read_only,
             no_commands,
+            watched,
         } = options;
+        // The live-narration instruction is for a run someone may watch; a spec's turn drops it
+        // only when the person chose so (ADR 0021). Off, every prompt keeps it.
+        let narrate = watched
+            || !self
+                .optimization
+                .as_ref()
+                .is_some_and(|flags| flags.narration_only_when_watched());
         // Read once: a run is measured entirely or not at all.
         let measuring = self
             .optimization
@@ -877,6 +891,7 @@ impl ExecutionService {
                 integrations: &announced,
                 unavailable_integrations: &unavailable,
                 other_projects: &other_projects,
+                narrate,
             }
             .assemble()
         };
