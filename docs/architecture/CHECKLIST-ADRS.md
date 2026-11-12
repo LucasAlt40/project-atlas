@@ -156,6 +156,7 @@ ADRs: 0028, 0029, 0030, 0024, 0026.
   - Pronto quando: fluxo OAuth com armazenamento de token no keyring; o Figma passa de "listado, não adicionável" para
     adicionável no catálogo (`application/mcp/catalog.rs`). Nunca logar token.
   - Atenção: OAuth exige conta real do usuário; **perguntar** antes de qualquer fluxo com credencial. Depende de: M1.
+  - 2026-11-11: pulado por ora, a pedido do usuário. O M1 já deu o transporte; falta só o OAuth.
 - [ ] **M3. Credenciais em Windows e Linux.** (0028)
   - Onde: `application/mcp/credentials.rs` (`keyring`).
   - Pronto quando: o crate inteiro compila para `x86_64-pc-windows-msvc` e o alvo Linux, e o ciclo gravar/ler/apagar
