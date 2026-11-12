@@ -631,14 +631,14 @@ touch "$H/.aws/x" 2>/dev/null; echo aws_write=$?
             });
             let wt = w.base.join("wt");
             fs::create_dir_all(&wt).unwrap();
-            let script = r#"
+            let script = r"
 npm cache verify >/dev/null 2>&1; echo npm_cache=$?
 npm init -y >/dev/null 2>&1; echo npm_init=$?
 cargo new --vcs none --quiet probe >/dev/null 2>&1; echo cargo_new=$?
 unset CARGO_TARGET_DIR
 (cd probe && cargo build --offline --quiet > ../cargo.log 2>&1); echo cargo_build=$?
 tail -3 cargo.log
-"#;
+";
             let given = spec("claude", &wt, &["-c", script]);
             let sandbox = MacosSandbox::new(
                 Arc::new(move || settings(SandboxMode::Required, dev_caches)),

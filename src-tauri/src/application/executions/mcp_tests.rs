@@ -1436,7 +1436,10 @@ fn a_read_only_step_is_given_only_what_a_described_server_says_reads_and_its_wei
 
     // Never described: a read-only step is given the server as before, and nothing is budgeted.
     let before = step_reading(&world, &world.developer, true);
-    assert!(held_back_last_run(&world).is_empty());
+    assert_eq!(
+        held_back_last_run(&world),
+        [] as [(std::string::String, std::string::String); 0]
+    );
     assert!(!tool_definitions(&before).is_known());
 
     described(&world, &files);
@@ -1458,6 +1461,9 @@ fn a_read_only_step_is_given_only_what_a_described_server_says_reads_and_its_wei
 
     // A step that may write is given the whole server, as before.
     let writing = step_reading(&world, &world.developer, false);
-    assert!(held_back_last_run(&world).is_empty());
+    assert_eq!(
+        held_back_last_run(&world),
+        [] as [(std::string::String, std::string::String); 0]
+    );
     assert_eq!(tool_definitions(&writing).value, Some(200));
 }

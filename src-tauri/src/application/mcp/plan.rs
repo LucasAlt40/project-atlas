@@ -612,7 +612,7 @@ mod tests {
         );
         let grants = [grant(&files, ToolSelection::Server)];
 
-        let narrowed = read_only_step(&[files.clone()], &grants);
+        let narrowed = read_only_step(std::slice::from_ref(&files), &grants);
 
         assert_eq!(
             narrowed.servers[0].selection,
@@ -627,7 +627,10 @@ mod tests {
         // The same grant in a step that may write: the whole server, as before.
         let writing = allowed(&[files], &grants);
         assert_eq!(writing.servers[0].selection, Some(ToolSelection::Server));
-        assert!(writing.held_back().is_empty());
+        assert_eq!(
+            writing.held_back(),
+            [] as [(std::string::String, std::string::String); 0]
+        );
     }
 
     #[test]
@@ -638,7 +641,7 @@ mod tests {
         );
         let whole = [grant(&files, ToolSelection::Server)];
         // Two definitions of 40 characters: 80 / 4.
-        let figure = allowed(&[files.clone()], &whole).tool_definitions();
+        let figure = allowed(std::slice::from_ref(&files), &whole).tool_definitions();
         assert_eq!(figure.value, Some(20));
         assert_eq!(
             figure.precision,
@@ -646,7 +649,7 @@ mod tests {
         );
         // A read-only step is given one of them.
         assert_eq!(
-            read_only_step(&[files.clone()], &whole)
+            read_only_step(std::slice::from_ref(&files), &whole)
                 .tool_definitions()
                 .value,
             Some(10)
@@ -658,7 +661,7 @@ mod tests {
                 tools: vec!["read".to_owned(), "other".to_owned()],
             },
         )];
-        assert!(!allowed(&[files.clone()], &named)
+        assert!(!allowed(std::slice::from_ref(&files), &named)
             .tool_definitions()
             .is_known());
         // A server never described, or no MCP at all: unknown.
@@ -676,7 +679,7 @@ mod tests {
         let grants = [grant(&files, ToolSelection::Server)];
 
         assert_eq!(
-            read_only_step(&[files.clone()], &grants),
+            read_only_step(std::slice::from_ref(&files), &grants),
             allowed(&[files], &grants)
         );
     }

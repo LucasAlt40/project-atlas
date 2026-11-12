@@ -173,9 +173,8 @@ impl Conversation {
             if left.is_zero() {
                 return Err(DescribeError::NoAnswer);
             }
-            let line = match self.session.read_line(left) {
-                Ok(Some(line)) => line,
-                Ok(None) | Err(_) => return Err(DescribeError::NoAnswer),
+            let Ok(Some(line)) = self.session.read_line(left) else {
+                return Err(DescribeError::NoAnswer);
             };
             let message: Option<Value> = serde_json::from_str(line.trim())
                 .ok()
