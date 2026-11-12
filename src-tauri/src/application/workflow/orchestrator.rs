@@ -68,6 +68,8 @@ enum Message {
     },
     /// The person turned the automatic approval of plans on or off.
     AutoPlans(bool),
+    /// The person changed how many steps may run at once (already in range).
+    MaxParallel(u32),
 }
 
 /// What asking a chain to go on came to.
@@ -599,6 +601,28 @@ impl Orchestrator {
         later_run || chain.skipped.iter().any(|s| s.by_execution_id == exec.id)
     }
 
+    /// The completed runs whose chain is ready to go on now and has not (ADR 0043, P1): a next
+    /// project left, nothing stopped it, it was not continued or skipped already, and, for a chain
+    /// that waits for the code, the code was applied or kept. What the app goes on with when it
+    /// opens, as the person's "continue" would.
+    pub fn chains_ready_to_go_on(&self) -> Vec<String> {
+        self.workflows
+            .completed_chain_runs()
+            .into_iter()
+            .filter(|exec| {
+                let Some(chain) = exec.chain.as_ref() else {
+                    return false;
+                };
+                chain.next().is_some()
+                    && chain.stopped.is_none()
+                    && !self.chain_went_on(exec, chain)
+                    && (!chain.wait_for_delivery
+                        || exec.integration.status.delivery() == Delivery::Done)
+            })
+            .map(|exec| exec.id)
+            .collect()
+    }
+
     /// Goes on with a completed run's chain now: starts (saves, does not drive) the run of the
     /// next project that needs one and returns its id. For the person's "continue", and for the
     /// moment they decide about the code of a chain that waits for it.
@@ -648,9 +672,10 @@ impl Orchestrator {
             .as_deref()
             .and_then(|primary| {
                 self.runner
-                    .workspace_diff(primary, MAX_CHAIN_DIFF_CHARS * 2)
+                    .workspace_diff(primary, crate::domain::workflow::MAX_CHAIN_DIFF_READ)
             })
-            .map(|diff| clip_chars(&diff, MAX_CHAIN_DIFF_CHARS))
+            // Every file with its counts and the start of its own changes, not only the first files.
+            .map(|diff| crate::domain::workflow::summarize_diff(&diff, MAX_CHAIN_DIFF_CHARS))
             .unwrap_or_default();
         // Each node's latest word, in the order the nodes finished.
         let mut finished: Vec<(&String, &NodeAttempt)> = exec
@@ -1065,6 +1090,11 @@ impl Orchestrator {
                 Ok(events) => events,
                 Err(problem) => engine.reject_answer(exec, &interaction_id, &problem, at),
             },
+            Message::MaxParallel(steps) => {
+                // The steps already running go on; the next ones start within the new limit.
+                exec.max_parallel_steps = steps;
+                Vec::new()
+            }
             Message::AutoPlans(on) => {
                 exec.auto_approve_plans = on;
                 // Turning it on covers the plans already waiting: that is what was asked.
@@ -1441,6 +1471,36 @@ impl Orchestrator {
         self.workflows.save_execution(&exec)?;
         announce(observer, &events);
         Ok(())
+    }
+
+    /// How many steps of a run may run at once, as the person set it (ADR 0013, W4): from 1 to 8.
+    /// The steps already running go on; the limit applies to the next ones.
+    ///
+    /// # Errors
+    ///
+    /// The run does not exist or has ended, or the number is out of range.
+    pub fn set_max_parallel_steps(&self, execution_id: &str, steps: u32) -> Result<(), AppError> {
+        if !crate::domain::workflow::MAX_PARALLEL_STEPS_RANGE.contains(&steps) {
+            return Err(
+                AppError::new(ErrorCode::WorkflowInvalid).with("reason", "max_parallel_steps")
+            );
+        }
+        let mut exec = self
+            .workflows
+            .execution(execution_id)
+            .ok_or_else(|| AppError::new(ErrorCode::WorkflowExecutionNotFound))?;
+        if exec.status.is_final() {
+            return Err(AppError::new(ErrorCode::WorkflowStateInvalid));
+        }
+        let sender = self.live.lock_or_recover().get(execution_id).cloned();
+        if let Some(sender) = sender {
+            return sender
+                .send(Message::MaxParallel(steps))
+                .map_err(|_| AppError::new(ErrorCode::WorkflowStateInvalid));
+        }
+        // Nobody drives it now: kept for when it is resumed.
+        exec.max_parallel_steps = steps;
+        self.workflows.save_execution(&exec)
     }
 
     /// Reflects in the run which steps are waiting for the user. The answer comes from the real

@@ -35,6 +35,11 @@ export type SpecProgress = SpecProgressDto;
 export const STAGES = ['proposal', 'specs', 'design', 'tasks', 'final'] as const;
 export type Stage = (typeof STAGES)[number];
 
+/** The stages this spec has: a change with no behaviour to specify has no `specs`. */
+export function stagesOf(view: SpecView): readonly Stage[] {
+  return view.spec.skipSpecs ? STAGES.filter((stage) => stage !== 'specs') : STAGES;
+}
+
 export function isStage(value: string): value is Stage {
   return (STAGES as readonly string[]).includes(value);
 }

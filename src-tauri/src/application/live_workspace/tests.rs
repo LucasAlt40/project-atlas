@@ -679,6 +679,50 @@ fn observation_picked_up_again_after_a_restart_keeps_the_numbers_going() {
     assert_eq!(again.observation, ObservationMode::Events);
 }
 
+/// ADR 0018, W1: when the app opens, a run the last session left without an end, its code still
+/// in the worktree, is watched again at once; one whose code was applied is not.
+#[test]
+fn a_run_left_without_an_end_is_watched_again_when_the_app_opens() {
+    use crate::domain::workflow::{IntegrationStatus, WorkflowExecution, WorkflowExecutionStatus};
+    let l = live();
+    let store_run = |status: WorkflowExecutionStatus, integration: IntegrationStatus| {
+        let mut run = WorkflowExecution::new(
+            "wfx-1".to_owned(),
+            crate::application::workflow::test_support::workflow(vec![], vec![]),
+            "task".to_owned(),
+            1,
+        );
+        run.status = status;
+        run.integration.status = integration;
+        run.integration.worktree_execution_id = Some(PRIMARY.to_owned());
+        l.env
+            .config
+            .modify(|c| {
+                c.workflow_executions = vec![run.clone()];
+                Ok(())
+            })
+            .unwrap();
+    };
+
+    // Applied: nothing to watch.
+    store_run(
+        WorkflowExecutionStatus::Interrupted,
+        IntegrationStatus::Integrated,
+    );
+    assert_eq!(l.service.observe_open_runs(), Vec::<String>::new());
+
+    // Interrupted with its code in the worktree: watched, and a change shows up without resuming.
+    store_run(
+        WorkflowExecutionStatus::Interrupted,
+        IntegrationStatus::InProgress,
+    );
+    assert_eq!(l.service.observe_open_runs(), [PRIMARY]);
+    assert_eq!(l.state().observation, ObservationMode::Events);
+    assert_eq!(l.state().phase, LivePhase::Idle);
+    write(&l.dir, "edited-by-hand.ts", "1\n");
+    l.wait_for_file("edited-by-hand.ts", FileChangeStatus::Added);
+}
+
 #[test]
 fn a_cancelled_run_keeps_what_the_worktree_holds_and_stops_being_watched() {
     let l = live();

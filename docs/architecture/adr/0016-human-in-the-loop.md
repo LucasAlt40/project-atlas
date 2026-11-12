@@ -1,5 +1,7 @@
 # 0016 — Humano no circuito: um agente esperando por uma pessoa
 
+Status: aceito e implementado. Os itens em "Limites" são escolhas da v1, não pendências.
+
 ## Contexto
 
 Um runtime como `claude -p` ou `opencode run` responde uma vez e encerra. Quando o agente precisava de uma decisão, ele
@@ -82,7 +84,7 @@ Os templates de workflow embutidos roteiam por `result.outcome`, que os contrato
 (`pass`/`fail`). Workflows que roteiam por `result.status` continuam funcionando, mas os templates não fazem mais isso;
 um agente sem o outcome é apontado pela validação antes da execução.
 
-## Não feito
+## Limites
 
 - Timeout opcional, global (`AppSettings.questionTimeoutMinutes`, sem limite por padrão): a pergunta vira `expired`
   e o passo falha sem nova tentativa (ver [guia 04](../../guia/04-workflow.md#humano-no-loop)).

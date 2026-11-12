@@ -1165,6 +1165,7 @@ fn runtime_with(filter: McpToolFilter, probe: McpProbeKind) -> FakeRuntime {
         tool_filter: filter,
         probe,
         strict: false,
+        http: false,
     })
 }
 
@@ -1352,4 +1353,118 @@ fn a_node_can_turn_the_announcement_off_and_the_integration_is_still_given() {
 
     assert!(!prompt_of_last_run(&world).contains("Integrations (MCP servers)"));
     assert_eq!(given(&world), ["files"]);
+}
+
+/// What `tools/list` would have left on the connection (ADR 0045): `read` only reads, `write`
+/// does not.
+fn described(world: &World, connection: &McpConnection) {
+    use crate::domain::mcp::{McpToolCatalog, McpToolInfo};
+    let info = |name: &str, read_only: bool| McpToolInfo {
+        name: name.to_owned(),
+        title: None,
+        description: format!("{name} a file"),
+        read_only: Some(read_only),
+        destructive: None,
+        definition_chars: 400,
+    };
+    world
+        .config
+        .modify(|c| {
+            let slot = c
+                .mcp_connections
+                .iter_mut()
+                .find(|x| x.id == connection.id)
+                .unwrap();
+            slot.catalog = Some(McpToolCatalog {
+                described_at: 2,
+                tools: vec![info("read", true), info("write", false)],
+                truncated: false,
+            });
+            Ok(())
+        })
+        .unwrap();
+}
+
+fn step_reading(world: &World, agent: &str, read_only: bool) -> ExecutionRecord {
+    world
+        .service
+        .run_step(
+            world.service.next_execution_id(),
+            RunAgentRequest {
+                task_id: "task-1".to_owned(),
+                workspace_id: world.workspace_id.clone(),
+                agent_id: agent.to_owned(),
+                description: "Look at the invoice total".to_owned(),
+                scope: None,
+            },
+            StepOptions {
+                read_only,
+                ..StepOptions::default()
+            },
+            &Quiet::default(),
+        )
+        .unwrap()
+}
+
+fn held_back_last_run(world: &World) -> Vec<(String, String)> {
+    world
+        .runtime
+        .requests
+        .lock()
+        .unwrap()
+        .last()
+        .and_then(|r| r.mcp.clone())
+        .unwrap()
+        .held_back
+}
+
+fn tool_definitions(record: &ExecutionRecord) -> crate::domain::context::Figure {
+    record
+        .execution
+        .optimization
+        .as_ref()
+        .and_then(|m| m.budget.clone())
+        .unwrap()
+        .tool_definitions
+}
+
+#[test]
+fn a_read_only_step_is_given_only_what_a_described_server_says_reads_and_its_weight_is_budgeted() {
+    let world = world_with(FakeRuntime::new("rt-a", Ok("done")).with_mcp());
+    let files = connect(&world, "files", false, false);
+    discovered(&world, &files, &["read", "write"]);
+    grant_all(&world, &files, &world.developer);
+
+    // Never described: a read-only step is given the server as before, and nothing is budgeted.
+    let before = step_reading(&world, &world.developer, true);
+    assert_eq!(
+        held_back_last_run(&world),
+        [] as [(std::string::String, std::string::String); 0]
+    );
+    assert!(!tool_definitions(&before).is_known());
+
+    described(&world, &files);
+
+    // Described: the read-only step keeps only the tool that reads, and the agent is told so.
+    let reading = step_reading(&world, &world.developer, true);
+    assert_eq!(
+        held_back_last_run(&world),
+        [("files".to_owned(), "write".to_owned())]
+    );
+    assert!(reading.execution.prompt.contains("files (tools: read)"));
+    // One definition of 400 characters: an estimate, never an exact count.
+    let figure = tool_definitions(&reading);
+    assert_eq!(figure.value, Some(100));
+    assert_eq!(
+        figure.precision,
+        crate::domain::context::Precision::Estimated
+    );
+
+    // A step that may write is given the whole server, as before.
+    let writing = step_reading(&world, &world.developer, false);
+    assert_eq!(
+        held_back_last_run(&world),
+        [] as [(std::string::String, std::string::String); 0]
+    );
+    assert_eq!(tool_definitions(&writing).value, Some(200));
 }

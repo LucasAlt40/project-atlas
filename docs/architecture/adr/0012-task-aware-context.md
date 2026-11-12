@@ -144,7 +144,10 @@ contrato que uma camada dessas teria de estender.
 ## Limites conhecidos
 
 - O léxico é pequeno e feito à mão; um projeto cujo vocabulário não está nele recebe só o contexto base (arquitetura,
-  convenções, testes, stack), mais o que suas palavras-chave casarem em rótulos e caminhos.
+  convenções, testes, stack), mais o que suas palavras-chave casarem em rótulos e caminhos. **Adiado** (decisão do
+  usuário em 2026-11-11, junto com o léxico de conflitos da [ADR 0025](0025-guardrails-and-context-review.md)): uma
+  estratégia para projetos fora do vocabulário só quando um uso real mostrar contexto errado por isso, e o caso vira o
+  teste.
 - Restrições, decisões e texto de negócio são itens dos arquivos do usuário, não divididos por frase; um arquivo de
   negócio que menciona uma palavra-chave da tarefa é incluído inteiro (cada campo é limitado a 1.500 caracteres).
 - A relevância olha o Harness, não o código: uma tarefa em um módulo que a análise não encontrou não recebe contexto

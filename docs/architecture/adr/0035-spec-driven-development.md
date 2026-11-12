@@ -15,15 +15,15 @@ dar a um agente mais alcance do que ele já tem.
 
 ## O que o código mostra (e o que o prompt original supunha)
 
-| Pergunta                                         | Resposta                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Uma execução de agente fora de um workflow       | `ChatService` → `ExecutionService`, a mesma de um passo de workflow (política do agente, Task Context do Harness, runtime, guard, uso). Um passo de workflow só difere por ter `read_only`, `context_query` e `detect_interaction`.                                                                                                                                                                                                                                                     |
-| `atlas-interaction` só vale em workflow?         | Sim: `detect_interaction = workflow.is_some()`. Foi preciso um caminho próprio (`send_spec_step`) que liga a detecção sem fingir um `WorkflowLink`.                                                                                                                                                                                                                                                                                                                                     |
-| A ADR 0031 serve para aprovar um documento?      | O **vocabulário** sim (`approve` / `revise` com nota obrigatória / `redo`). O **armazenamento** não: o `PendingInteraction` mora em `WorkflowExecution.interactions`, preso a um run. Usá-lo exigiria runs de workflow sintéticos. Reutilizamos os tipos e as regras, não o repositório.                                                                                                                                                                                                |
-| O `config.json` aguenta documentos?              | Não: é reescrito inteiro a cada mudança e já carrega mensagens e execuções. Specs ganham um armazenamento próprio.                                                                                                                                                                                                                                                                                                                                                                      |
-| O agente lê a pasta do rascunho?                 | Não: o runtime só alcança a pasta do projeto (ADR 0024). Os documentos aprovados vão **no prompt**, com orçamento e aviso de corte; o brief de 4 500 caracteres do workflow não se aplica a esse prompt.                                                                                                                                                                                                                                                                                |
-| Um agente em worktree isolado vê arquivos novos? | Só o que está no commit base. Uma spec publicada e ainda não commitada **não** aparece no worktree. Por isso o run recebe no brief o conteúdo da spec (requisitos, decisões do design e **todas** as tarefas, até 24 000 caracteres), e o agente é avisado de que os arquivos não estão no worktree. Quando não cabe, cada parte perde um pouco e diz quanto (`[cut: …]`), em vez de perder o fim da lista de tarefas em silêncio (ADR 0036). Os caminhos publicados são só referência. |
-| O design depende só do `proposal` no OpenSpec?   | Sim (`schemas/spec-driven/schema.yaml`): `design` exige `proposal`; `tasks` exige `specs` e `design`. O Atlas serializa `design` depois de `specs` (decisão 3).                                                                                                                                                                                                                                                                                                                         |
+| Pergunta                                         | Resposta                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Uma execução de agente fora de um workflow       | `ChatService` → `ExecutionService`, a mesma de um passo de workflow (política do agente, Task Context do Harness, runtime, guard, uso). Um passo de workflow só difere por ter `read_only`, `context_query` e `detect_interaction`.                                                                                                                                                                                                                                                                                                                                                                                                |
+| `atlas-interaction` só vale em workflow?         | Sim: `detect_interaction = workflow.is_some()`. Foi preciso um caminho próprio (`send_spec_step`) que liga a detecção sem fingir um `WorkflowLink`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| A ADR 0031 serve para aprovar um documento?      | O **vocabulário** sim (`approve` / `revise` com nota obrigatória / `redo`). O **armazenamento** não: o `PendingInteraction` mora em `WorkflowExecution.interactions`, preso a um run. Usá-lo exigiria runs de workflow sintéticos. Reutilizamos os tipos e as regras, não o repositório.                                                                                                                                                                                                                                                                                                                                           |
+| O `config.json` aguenta documentos?              | Não: é reescrito inteiro a cada mudança e já carrega mensagens e execuções. Specs ganham um armazenamento próprio.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| O agente lê a pasta do rascunho?                 | Não: o runtime só alcança a pasta do projeto (ADR 0024). Os documentos aprovados vão **no prompt**, com orçamento e aviso de corte; o brief de 4 500 caracteres do workflow não se aplica a esse prompt.                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Um agente em worktree isolado vê arquivos novos? | Só o que está no commit base. Uma spec publicada e ainda não commitada **não** aparece no worktree. Por isso o run recebe no brief o conteúdo da spec (requisitos, decisões do design e **todas** as tarefas, até 24 000 caracteres), e o agente é avisado de que os arquivos não estão no worktree. Quando não cabe, cada parte perde um pouco e diz quanto (`[cut: …]`), em vez de perder o fim da lista de tarefas em silêncio (ADR 0036). Os caminhos publicados são só referência. **Esta é a garantia** (decisão do usuário, 2026-11-12): os arquivos não são copiados para o worktree, porque entrariam no diff da entrega. |
+| O design depende só do `proposal` no OpenSpec?   | Sim (`schemas/spec-driven/schema.yaml`): `design` exige `proposal`; `tasks` exige `specs` e `design`. O Atlas serializa `design` depois de `specs` (decisão 3).                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 ## Decisões
 
@@ -123,14 +123,93 @@ O revisor recebe a lista como o que pode usar. Na execução a partir da spec, o
 manda deixar fora de `completedTasks` o que não pôde ser verificado por não ter a ferramenta. Uma conexão desligada fica
 escolhida, aparece como desligada e não é citada a nenhum agente. A proposta não recebe a lista: é sobre por quê e o quê.
 
+### 12. Diff entre revisões
+
+O documento mostra o que mudou desde outra revisão ("Comparar com"). O núcleo calcula (`domain/spec/diff.rs`,
+`spec_revision_diff`, só leitura): por arquivo, linha a linha, com três linhas de contexto em volta de cada mudança e o
+resto como intervalos; arquivos novos e removidos aparecem inteiros. A comparação deixa de lado o começo e o fim iguais e
+é um LCS no que sobra; acima de 4 milhões de células o arquivo diz só que mudou, em vez de usar memória sem limite. É a
+mesma implementação para a ADR 0036. Testes: os de `domain::spec::diff`,
+`the_core_says_what_changed_between_two_revisions_of_a_document` e
+"shows what changed since another revision, as the core worked it out".
+
+### 13. Mudança sem comportamento (`skip_specs`)
+
+Ao criar a spec, a pessoa pode marcar "mudança sem comportamento" (refatoração, ferramentas, documentação):
+`Spec.skip_specs`, que nunca muda depois e vale `false` para toda spec anterior. A spec então não tem o documento de
+especificações: o grafo perde `specs` e as dependências nele (`rules::without_specs`), ficando proposta → design →
+tarefas. A proposta tem **validação própria** (`validate_artifact_without_specs`): não precisa da seção de capacidades
+e é um erro nomear uma (`capabilities_without_specs`), porque nenhuma ganharia arquivo. O agente recebe outra instrução
+para a proposta e, no design e nas tarefas, um aviso de que não há requisitos a citar; desligado, o prompt é o mesmo de
+antes. Publicar não pede arquivos de especificação, e o archive pela CLI passa `--skip-specs` (nenhuma spec principal
+é atualizada). Testes: `a_change_without_behaviour_goes_through_without_specification_files`,
+`a_spec_from_before_has_its_specification_files`,
+`without_specification_files_a_proposal_names_no_capability_and_needs_no_section`,
+`a_change_without_specification_files_is_archived_without_touching_the_main_specs` e o de criação na tela. Limites:
+importar uma pasta de mudança que não tem `specs/` continua pedindo esses arquivos; e o `openspec validate` da CLI, que é
+só uma segunda opinião, pode reclamar de uma mudança sem deltas.
+
+### 14. Edição à mão, no Atlas e no projeto
+
+- **No Atlas.** "Editar" no documento abre o texto do arquivo mostrado. Salvar grava a **próxima revisão**
+  (`rules::edit_by_hand`, origem `edited`, sem run nem agente):
+  - só sobre a revisão mais recente;
+  - com os mesmos arquivos;
+  - sem arquivo vazio nem maior que o limite;
+  - e com alguma mudança.
+
+  A revisão é conferida pelas mesmas regras de qualquer outra e volta a esperar a aprovação da pessoa: editar não é
+  aprovar, e um documento com erros continua sem poder ser aprovado. Os documentos escritos a partir dele ficam
+  desatualizados, como depois de uma revisão do agente. Não se edita com um run em andamento nem numa spec arquivada.
+
+- **No projeto.** Depois de publicar, `spec_hand_edits` compara cada arquivo publicado no projeto com a revisão que foi
+  publicada. Uma quebra de linha a mais ou a menos no fim não conta. A tela avisa, por documento, o que foi alterado ou
+  removido à mão. **O Atlas nunca publica por cima**: republicar com um arquivo editado à mão é recusado
+  (`spec_edited_in_project`, com os arquivos). A pessoa tem dois caminhos:
+  - **adotar** a edição (`adopt_spec_hand_edits`): o texto do projeto vira a próxima revisão (origem
+    `edited_in_project`), que espera aprovação e desatualiza os dependentes;
+  - ou desfazê-la no projeto. Um arquivo removido não tem o que adotar: publicar de novo o recria.
+
+Testes: `an_edit_in_atlas_is_a_new_revision_checked_and_waiting_for_approval_and_its_dependents_go_out_of_date`,
+`a_published_file_edited_by_hand_is_found_never_written_over_and_can_be_adopted`,
+`an_edit_undone_by_hand_lets_the_spec_be_published_again` e os de "editing by hand" na tela. Limites: a edição no Atlas
+é por arquivo existente (não cria nem remove um arquivo de capacidade), e a detecção lê o primeiro projeto da spec.
+
+### 15. Acompanhar pelo celular
+
+Por decisão do usuário (2026-11-12), o celular pareado (ADR 0034) **só acompanha** uma spec. A política tem uma linha
+para isso (`remote::policy::SPECS`: seguir sim, decidir não). Aprovar ou pedir mudanças inicia um agente, que manda
+contexto a um modelo, por isso fica no computador.
+
+As rotas são só de leitura: `GET /api/specs` e `GET /api/specs/{id}`, atrás do mesmo pareamento das outras. A projeção
+fica em `remote/specs.rs` e mostra:
+
+- título, workspace e status;
+- a fase e a revisão de cada documento;
+- o texto da revisão atual, com segredos redigidos e limite de tamanho.
+
+Um arquivo de especificação é nomeado pela capacidade. Nunca vão ao celular um caminho do projeto, um worktree ou um
+diff. Nenhuma rota escreve numa spec.
+
+Testes:
+
+- `a_phone_follows_a_specification_and_never_decides_on_one`;
+- `the_phone_reads_each_document_without_folders_secrets_or_a_way_to_decide`;
+- `a_phone_follows_a_specification_and_has_no_way_to_decide_on_it`, que é de rota e cobre pareamento, leitura e 404
+  para qualquer escrita;
+- o de "specifications" na página do celular.
+
+Limite: a lista de specs do celular é lida quando a página abre, não pelo fluxo de eventos.
+
+## Descartado
+
+- **Mesclar deltas em `openspec/specs/` sem a CLI** (decisão do usuário, 2026-11-11): reimplementar o archive do
+  OpenSpec é arriscado e duplicaria a CLI; com a CLI instalada o Atlas a chama, e sem ela "Encerrar esta spec" só fecha
+  o registro do Atlas e os arquivos do projeto ficam onde estão.
+
 ## O que não foi feito (e por quê)
 
 - **Spec Kit**: fora do escopo desta entrega.
-- **`skip_specs`** (mudança sem comportamento): o fluxo exige ao menos uma capacidade.
-- **Mesclar deltas em `openspec/specs/` sem a CLI**: reimplementar o archive do OpenSpec é arriscado; sem a CLI, "Encerrar esta spec" só fecha o registro do Atlas e os arquivos do projeto ficam onde estão.
-- **Acompanhar/aprovar pelo celular** (ADR 0034): nada impede, nada foi feito.
-- **Diff entre revisões**, edição manual do documento e sincronização de arquivos alterados à mão no projeto.
-- **Garantia de que um agente isolado leia os arquivos publicados**: só o digest é garantido (ver a tabela).
 
 ## Riscos conhecidos
 

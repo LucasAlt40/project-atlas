@@ -33,6 +33,10 @@ use crate::domain::mcp::{
 
 /// How long the CLI waits for an MCP server to start, in milliseconds (its `MCP_TIMEOUT`).
 pub const STARTUP_WAIT_MS: u64 = 120_000;
+/// How long one call to a remote server may take before the CLI gives up on it (`MCP_TOOL_TIMEOUT`).
+pub const REMOTE_CALL_TIMEOUT_MS: u64 = 120_000;
+/// The most of a remote tool's answer the CLI hands the model (`MAX_MCP_OUTPUT_TOKENS`).
+pub const REMOTE_OUTPUT_TOKENS: u64 = 25_000;
 
 /// What stands in for the config file in a description of the launch (the real path is
 /// per-run and means nothing to a reader).
@@ -63,6 +67,8 @@ impl McpAdapter for ClaudeMcpAdapter {
             tool_filter: McpToolFilter::DenyList,
             probe: McpProbeKind::Tools,
             strict: true,
+            // `{"type": "http", "url", "headers"}` in `--mcp-config` (ADR 0046).
+            http: true,
         }
     }
 
@@ -174,10 +180,77 @@ impl ClaudeMcpAdapter {
         format!("ATLAS_MCP_{server}_{name}")
     }
 
+    /// The environment variable that carries the secret value of one header of a remote server.
+    /// A header's name may hold `-`, which a `${…}` reference cannot: it is spelled out apart.
+    pub fn header_variable(server: &str, header: &str) -> String {
+        let header: String = header
+            .chars()
+            .map(|c| {
+                if c.is_ascii_alphanumeric() {
+                    c.to_ascii_uppercase()
+                } else {
+                    '_'
+                }
+            })
+            .collect();
+        Self::secret_variable(server, &format!("H_{header}"))
+    }
+
+    /// Every secret of the launch, under the variable the config refers to it by.
+    fn secret_pairs(launch: &McpLaunch) -> Vec<(String, String)> {
+        let mut pairs = Vec::new();
+        for server in &launch.servers {
+            for var in &server.env {
+                if let LaunchEnv::Secret { name, value } = var {
+                    pairs.push((
+                        Self::secret_variable(&server.name, name),
+                        value.expose().to_owned(),
+                    ));
+                }
+            }
+            for header in server.http.iter().flat_map(|h| h.headers.iter()) {
+                if let LaunchEnv::Secret { name, value } = header {
+                    pairs.push((
+                        Self::header_variable(&server.name, name),
+                        value.expose().to_owned(),
+                    ));
+                }
+            }
+        }
+        pairs
+    }
+
+    /// A remote server's entry: `{"type": "http", "url", "headers"}`, a secret header as a
+    /// reference the CLI expands from its own environment (ADR 0046).
+    fn http_entry(server: &crate::application::mcp::LaunchServer) -> Option<Value> {
+        let http = server.http.as_ref()?;
+        let mut headers = Map::new();
+        for header in &http.headers {
+            let value = match header {
+                LaunchEnv::Plain { value, .. } => value.clone(),
+                LaunchEnv::Secret { name, .. } => {
+                    format!("${{{}}}", Self::header_variable(&server.name, name))
+                }
+            };
+            headers.insert(header.name().to_owned(), Value::String(value));
+        }
+        let mut entry = Map::new();
+        entry.insert("type".to_owned(), json!("http"));
+        entry.insert("url".to_owned(), json!(http.url));
+        if !headers.is_empty() {
+            entry.insert("headers".to_owned(), Value::Object(headers));
+        }
+        Some(Value::Object(entry))
+    }
+
     /// The `--mcp-config` value: one JSON line, with references where a secret goes.
     pub fn config_json(launch: &McpLaunch) -> String {
         let mut servers = Map::new();
         for server in &launch.servers {
+            if let Some(entry) = Self::http_entry(server) {
+                servers.insert(server.name.clone(), entry);
+                continue;
+            }
             let mut env = Map::new();
             for var in &server.env {
                 let value = match var {
@@ -234,19 +307,7 @@ impl ClaudeMcpAdapter {
 
     /// The secrets the config refers to, under the variable names it uses.
     pub fn secret_environment(launch: &McpLaunch) -> Vec<(String, String)> {
-        launch
-            .servers
-            .iter()
-            .flat_map(|server| {
-                server.env.iter().filter_map(|var| match var {
-                    LaunchEnv::Secret { name, value } => Some((
-                        Self::secret_variable(&server.name, name),
-                        value.expose().to_owned(),
-                    )),
-                    LaunchEnv::Plain { .. } => None,
-                })
-            })
-            .collect()
+        Self::secret_pairs(launch)
     }
 
     /// The values the CLI's own environment must carry: the secrets the config refers to, and how
@@ -257,18 +318,21 @@ impl ClaudeMcpAdapter {
         if launch.is_empty() {
             return Vec::new();
         }
-        let secrets = launch.servers.iter().flat_map(|server| {
-            server.env.iter().filter_map(|var| match var {
-                LaunchEnv::Secret { name, value } => Some((
-                    Self::secret_variable(&server.name, name),
-                    value.expose().to_owned(),
-                )),
-                LaunchEnv::Plain { .. } => None,
-            })
-        });
-        secrets
-            .chain([("MCP_TIMEOUT".to_owned(), STARTUP_WAIT_MS.to_string())])
-            .collect()
+        let mut environment = Self::secret_pairs(launch);
+        environment.push(("MCP_TIMEOUT".to_owned(), STARTUP_WAIT_MS.to_string()));
+        // A remote server: how long one call may take and how much of its answer reaches the
+        // model, set explicitly (ADR 0046). The CLI enforces both; Atlas does not see the calls.
+        if launch.servers.iter().any(|s| s.http.is_some()) {
+            environment.push((
+                "MCP_TOOL_TIMEOUT".to_owned(),
+                REMOTE_CALL_TIMEOUT_MS.to_string(),
+            ));
+            environment.push((
+                "MAX_MCP_OUTPUT_TOKENS".to_owned(),
+                REMOTE_OUTPUT_TOKENS.to_string(),
+            ));
+        }
+        environment
     }
 
     /// The arguments of a start-up probe of one server: nothing is asked of any model (the model
@@ -367,7 +431,62 @@ mod tests {
                 "/tmp/a b".to_owned(),
             ],
             env,
+            http: None,
         }
+    }
+
+    #[test]
+    fn a_remote_server_is_an_http_entry_whose_secret_header_travels_in_the_environment() {
+        let remote = LaunchServer {
+            name: "figma".to_owned(),
+            executable: String::new(),
+            args: Vec::new(),
+            env: Vec::new(),
+            http: Some(crate::application::mcp::LaunchHttp {
+                url: "https://mcp.figma.com/mcp".to_owned(),
+                headers: vec![
+                    secret_env("Authorization", "Bearer tok-123"),
+                    LaunchEnv::Plain {
+                        name: "X-Client".to_owned(),
+                        value: "atlas".to_owned(),
+                    },
+                ],
+            }),
+        };
+        let launch = McpLaunch::of_one(&remote);
+
+        let config: Value = serde_json::from_str(&ClaudeMcpAdapter::config_json(&launch)).unwrap();
+        let entry = &config["mcpServers"]["figma"];
+        assert_eq!(entry["type"], "http");
+        assert_eq!(entry["url"], "https://mcp.figma.com/mcp");
+        assert_eq!(
+            entry["headers"]["Authorization"],
+            "${ATLAS_MCP_FIGMA_H_AUTHORIZATION}"
+        );
+        assert_eq!(entry["headers"]["X-Client"], "atlas");
+        assert!(entry.get("command").is_none());
+        // The secret is in the CLI's environment only, never in the config.
+        assert!(!config.to_string().contains("tok-123"));
+        let environment = ClaudeMcpAdapter::environment(&launch);
+        assert!(environment.contains(&(
+            "ATLAS_MCP_FIGMA_H_AUTHORIZATION".to_owned(),
+            "Bearer tok-123".to_owned()
+        )));
+        // How long a call may take and how much of its answer reaches the model: set for a
+        // remote server, and only then.
+        assert!(environment.iter().any(|(k, _)| k == "MCP_TOOL_TIMEOUT"));
+        assert!(environment
+            .iter()
+            .any(|(k, _)| k == "MAX_MCP_OUTPUT_TOKENS"));
+        let local = McpLaunch::of_one(&server("files", vec![]));
+        assert!(!ClaudeMcpAdapter::environment(&local)
+            .iter()
+            .any(|(k, _)| k == "MCP_TOOL_TIMEOUT" || k == "MAX_MCP_OUTPUT_TOKENS"));
+        // A header whose name has a dash still gives a variable a reference can name.
+        assert_eq!(
+            ClaudeMcpAdapter::header_variable("figma", "X-Api-Key"),
+            "ATLAS_MCP_FIGMA_H_X_API_KEY"
+        );
     }
 
     fn secret_env(name: &str, value: &str) -> LaunchEnv {

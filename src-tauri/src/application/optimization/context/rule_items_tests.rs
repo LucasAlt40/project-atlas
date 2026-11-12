@@ -181,3 +181,60 @@ fn a_mandatory_rule_is_not_edited_even_when_it_repeats_what_the_prompt_says() {
     let kept = plan.items.iter().find(|i| i.id == "rule:global.m").unwrap();
     assert!(kept.content.contains(repeated));
 }
+
+/// ADR 0021, C4/C5: the signal on the whole context counts only what is measured, and a Task
+/// Context's own record is what its item says about itself.
+#[test]
+fn the_context_quality_counts_only_what_is_measured() {
+    use super::apply::quality_of;
+    use super::HarnessFacts;
+    use crate::domain::task_context::{ContextMode, ContextRecord};
+
+    let mut task = ContextItem::new(
+        "task_context",
+        SectionKind::TaskContext,
+        Priority::High,
+        "harness",
+        "x",
+    );
+    let record = ContextRecord {
+        mode: ContextMode::TaskAware,
+        total_harness_characters: 10,
+        selected_context_characters: 5,
+        selected_items: 4,
+        omitted_items: 1,
+        stale_items: 1,
+        matched_items: 1,
+        fallback_reason: None,
+    };
+    let facts = HarnessFacts::of(Some(&record));
+    assert_eq!(facts.relevance, Some(0.25));
+    assert!(facts.stale);
+    task.relevance = facts.relevance;
+    task.stale = facts.stale;
+    let mut skill = ContextItem::new(
+        "skill:a",
+        SectionKind::Skills,
+        Priority::High,
+        "skills",
+        "y",
+    );
+    skill.relevance = Some(1.0);
+    let unknown = ContextItem::new(
+        "project",
+        SectionKind::ProjectContext,
+        Priority::Required,
+        "workspace",
+        "z",
+    );
+
+    let quality = quality_of(&[task, skill, unknown]);
+
+    assert_eq!(quality.items, 3);
+    assert_eq!(quality.with_relevance, 2);
+    assert_eq!(quality.mean_relevance_permille, Some(625));
+    assert_eq!(quality.stale_items, 1);
+    // Nothing measured: no mean is made up.
+    assert_eq!(quality_of(&[]).mean_relevance_permille, None);
+    assert_eq!(HarnessFacts::of(None), HarnessFacts::default());
+}

@@ -155,6 +155,7 @@ fn run_with(
     .with_optimization(Arc::new(FixedFlags {
         metrics: true,
         guardrails: true,
+        system_channel: SYSTEM_CHANNEL.with(std::cell::Cell::get),
         ..FixedFlags::default()
     }))
     .with_policies(security)
@@ -184,6 +185,131 @@ thread_local! {
     /// Whether the step is told which integrations it was given (the default); a test sets it to
     /// compare.
     static ANNOUNCE: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
+    /// Whether Atlas's instructions go through the CLI's system channel (off by default).
+    static SYSTEM_CHANNEL: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// What `init` cannot prove, measured once with a real model (M7, ADR 0026): what a server dying in
+/// the middle does to a step, whether the project's `CLAUDE.md` reaches the model, and what the
+/// system channel does to the CLI's own system prompt. Prints what it saw; asserts only what
+/// Atlas promises (the step ends, nothing is invented). Three short runs:
+/// `cargo test application::executions::real_runtime_tests::real_model_claude_what_init_does_not_prove -- --ignored --exact --nocapture`.
+#[test]
+#[ignore = "calls a real model (a few tokens): three short Claude runs"]
+fn real_model_claude_what_init_does_not_prove() {
+    let model = std::env::var("ATLAS_M7_MODEL").unwrap_or_else(|_| "haiku".to_owned());
+    let tokens = |record: &ExecutionRecord| {
+        record
+            .execution
+            .usage
+            .as_ref()
+            .map(|u| {
+                format!(
+                    "input={:?} cached={:?}",
+                    u.input_tokens, u.cached_input_tokens
+                )
+            })
+            .unwrap_or_default()
+    };
+
+    // 1. The server answers tools/list, then exits: the model's call reaches nothing.
+    let nonce = format!("d{}", std::process::id());
+    let died = run_with("claude", &model, PROMPT, &|mcp, workspace_id, agent| {
+        grant_dying_spike(mcp, workspace_id, agent, &nonce);
+    });
+    let answer = report("M7 server-died", &died);
+    eprintln!("REAL M7 server-died {}", tokens(&died));
+    // Measured 2026-11-12: the call still returned the nonce seconds after the server exited, so
+    // the CLI starts a stdio server that died again when a tool is called. Atlas only promises the
+    // step ends and says what happened.
+    assert_eq!(
+        died.execution.status,
+        crate::domain::execution::ExecutionStatus::Completed
+    );
+    eprintln!(
+        "REAL M7 server-died the call reached a server again: {}",
+        answer.contains(&format!("atlas-spike-called:{nonce}"))
+    );
+
+    // 2. A `CLAUDE.md` in the project with a word nothing else holds.
+    let project = std::env::temp_dir().join(format!("atlas-real-claude-{}", std::process::id()));
+    std::fs::create_dir_all(&project).unwrap();
+    let word = format!("ZEBRA{}", std::process::id());
+    std::fs::write(
+        project.join("CLAUDE.md"),
+        format!(
+            "# Project notes
+
+The project codeword is {word}.
+"
+        ),
+    )
+    .unwrap();
+    let asked = run_with(
+        "claude",
+        &model,
+        "Without reading any file or using any tool: if the instructions you were given before          this message mention a project codeword, reply with exactly that codeword. Otherwise          reply with exactly NONE.",
+        &|_, _, _| {},
+    );
+    let answer = report("M7 claude-md", &asked);
+    eprintln!(
+        "REAL M7 claude-md reached the model: {} {}",
+        answer.contains(&word),
+        tokens(&asked)
+    );
+
+    // 3. The system channel appends to the CLI's own system prompt or replaces it.
+    SYSTEM_CHANNEL.with(|on| on.set(true));
+    let channel = run_with(
+        "claude",
+        &model,
+        "Without using any tool, reply with exactly two lines and nothing else: `CLI:<the name of          the coding tool or CLI your system prompt says you are running in, or UNKNOWN>` and          `ATLAS:<YES if your system prompt contains instructions that mention Atlas, NO otherwise>`.",
+        &|_, _, _| {},
+    );
+    SYSTEM_CHANNEL.with(|on| on.set(false));
+    let answer = report("M7 system-channel", &channel);
+    eprintln!("REAL M7 system-channel {}", tokens(&channel));
+    assert_eq!(
+        channel.execution.status,
+        crate::domain::execution::ExecutionStatus::Completed
+    );
+    assert!(
+        answer.contains("CLI:") && answer.contains("ATLAS:"),
+        "{answer}"
+    );
+}
+
+/// The harmless server in `MODE=die`: it lists its tools and exits, as a server that crashes.
+fn grant_dying_spike(mcp: &McpService, workspace_id: &str, agent: &str, nonce: &str) {
+    let server = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../docs/architecture/spikes/mcp-claude/echo-mcp.js");
+    let plain = |name: &str, value: &str| McpEnv {
+        name: name.to_owned(),
+        value: McpEnvValue::Plain {
+            value: value.to_owned(),
+        },
+    };
+    let connection = mcp
+        .add(
+            workspace_id,
+            "atlasspike",
+            McpTransport::Stdio {
+                executable: "node".to_owned(),
+                args: vec![server.to_string_lossy().into_owned()],
+                env: vec![plain("NONCE", nonce), plain("MODE", "die")],
+            },
+            false,
+        )
+        .unwrap();
+    mcp.set_enabled(&connection.id, true).unwrap();
+    mcp.grant(
+        &connection.id,
+        Some(agent),
+        None,
+        None,
+        ToolSelection::Server,
+    )
+    .unwrap();
 }
 
 fn report(label: &str, record: &ExecutionRecord) -> String {

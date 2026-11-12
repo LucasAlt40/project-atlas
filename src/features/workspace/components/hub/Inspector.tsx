@@ -10,12 +10,15 @@ import { useI18n } from '@/i18n/I18nProvider';
 import type {
   McpConnectionDto,
   McpGrantDto,
+  McpToolCatalogDto,
+  McpToolInfoDto,
   McpTransportDto,
   WorkflowDto,
 } from '@/lib/tauri/commands';
 import { envOf, manifestOf, statusOf } from '../../model/hub';
 import {
   clearMcpSecret,
+  describeMcpConnection,
   probeMcpConnection,
   removeMcpConnection,
   setMcpConnectionEnabled,
@@ -29,6 +32,38 @@ import integrations from '../Integrations.module.css';
 import styles from './McpHub.module.css';
 
 type Tab = 'tools' | 'env' | 'manifest' | 'activity';
+
+/** Atlas's estimate of a text's tokens, as the core counts it: characters ÷ 4, rounded up. */
+const tokensOf = (chars: number) => Math.ceil(chars / 4);
+
+const HINT_KEYS = {
+  readOnly: 'hub.tool.readOnly',
+  destructive: 'hub.tool.destructive',
+  writes: 'hub.tool.writes',
+} as const satisfies Record<string, TranslationKey>;
+
+/** What the server said a tool does to things: only reads, destroys, writes, or nothing said. */
+function hintOf(info: McpToolInfoDto): 'readOnly' | 'destructive' | 'writes' | undefined {
+  if (info.destructive === true) return 'destructive';
+  if (info.readOnly === true) return 'readOnly';
+  if (info.readOnly === false) return 'writes';
+  return undefined;
+}
+
+/**
+ * The tools the runtime listed and the ones the server described, together: the runtime's order
+ * first, then what only the description has. `chars` sums the definitions that are known.
+ */
+function describedTools(listed: string[], catalog: McpToolCatalogDto | undefined) {
+  const names = [...listed];
+  for (const tool of catalog?.tools ?? []) if (!names.includes(tool.name)) names.push(tool.name);
+  const tools = names.map((name) => ({
+    name,
+    info: catalog?.tools.find((tool) => tool.name === name),
+  }));
+  const chars = tools.reduce((sum, { info }) => sum + (info?.definitionChars ?? 0), 0);
+  return { tools, chars };
+}
 
 interface Props {
   connection: McpConnectionDto;
@@ -62,6 +97,8 @@ export function Inspector({
   const [tab, setTab] = useState<Tab>('tools');
   const [removing, setRemoving] = useState(false);
   const tools = connection.discovery?.tools ?? [];
+  const catalog = connection.catalog;
+  const described = describedTools(tools, catalog);
   const usable = runtimes.filter(
     (r) =>
       r.runtime.capabilities.mcp === 'supported' &&
@@ -182,7 +219,7 @@ export function Inspector({
                   run(() => probeMcpConnection(connection.id, runtimeId));
                 }}
               />
-              {tools.length > 0 && (
+              {tools.length > 0 && !catalog && (
                 <ul className={styles.toolList} aria-label={t('hub.tools.list')}>
                   {tools.map((tool) => (
                     <li key={tool}>
@@ -192,6 +229,61 @@ export function Inspector({
                 </ul>
               )}
               <p className={styles.muted}>{t('hub.tools.noRpc')}</p>
+            </section>
+
+            <section className={styles.stack}>
+              <h3 className={integrations.heading}>{t('hub.describe.title')}</h3>
+              <p className={styles.muted}>{t('hub.describe.note')}</p>
+              <div className={styles.row}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={busy || !connection.enabled || missing.length > 0}
+                  onClick={() => {
+                    run(() => describeMcpConnection(connection.id));
+                  }}
+                >
+                  {catalog ? t('hub.describe.again') : t('hub.describe.action')}
+                </Button>
+                {catalog && (
+                  <span className={styles.muted}>
+                    {t('hub.describe.when', {
+                      when: new Date(catalog.describedAt).toLocaleString(language),
+                    })}
+                  </span>
+                )}
+              </div>
+              {catalog && (
+                <>
+                  <p className={styles.muted}>
+                    {t('hub.describe.total', { n: tokensOf(described.chars) })}
+                  </p>
+                  {catalog.truncated && (
+                    <p className={styles.muted}>{t('hub.describe.truncated')}</p>
+                  )}
+                  <ul className={styles.plainList} aria-label={t('hub.tools.list')}>
+                    {described.tools.map(({ name, info }) => (
+                      <li key={name} className={styles.stack}>
+                        <span className={styles.row}>
+                          <code className={styles.mono}>{name}</code>
+                          {info && hintOf(info) && (
+                            <Badge tone={hintOf(info) === 'readOnly' ? 'success' : 'warning'}>
+                              {t(HINT_KEYS[hintOf(info) ?? 'writes'])}
+                            </Badge>
+                          )}
+                          {info && (
+                            <span className={styles.muted}>
+                              {t('hub.tool.tokens', { n: tokensOf(info.definitionChars) })}
+                            </span>
+                          )}
+                        </span>
+                        {info?.description && <p className={styles.muted}>{info.description}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className={styles.muted}>{t('hub.describe.untrusted')}</p>
+                </>
+              )}
             </section>
 
             <section className={styles.stack}>

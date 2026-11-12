@@ -109,6 +109,22 @@ pub async fn probe_mcp_connection(
     .await?
 }
 
+/// Starts the server itself and asks it about its tools (descriptions, hints and size, ADR 0045);
+/// no model is asked anything and no tool is called. Keeps the answer as the connection's catalog.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command]
+pub async fn describe_mcp_connection(
+    state: State<'_, AppState>,
+    connection_id: String,
+) -> Result<McpConnection, AppError> {
+    let mcp = state.mcp.clone();
+    // Starting a server can take a while (a launcher may download it): never on the window's thread.
+    super::off_window(ErrorCode::StorageFailed, move || {
+        mcp.describe(&connection_id)
+    })
+    .await?
+}
+
 /// Lets an agent (optionally in one workflow, optionally in one of its steps) use a connection:
 /// all of its tools, or the ones named.
 #[allow(clippy::needless_pass_by_value)]

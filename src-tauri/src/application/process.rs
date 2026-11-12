@@ -14,6 +14,20 @@ pub trait ProcessRunner: Send + Sync {
     /// Where `program` is installed, if anywhere.
     fn locate(&self, program: &str) -> Option<PathBuf>;
 
+    /// Starts `program` and keeps it running, to talk to it line by line (an MCP server Atlas asks
+    /// for its tools, ADR 0045). Dropping the session ends the process and what it started. A
+    /// runner that cannot keep a process open refuses.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the program is missing or cannot start, or the runner has no sessions.
+    fn open_session(&self, spec: &ProcessSpec) -> Result<Box<dyn ProcessSession>, ProcessError> {
+        let _ = spec;
+        Err(ProcessError::Spawn(
+            "this runner cannot keep a process open".to_owned(),
+        ))
+    }
+
     /// Runs `program` to completion. `on_event` is told when the process has started, when its
     /// input has been delivered, and about each line of stdout as soon as it is written
     /// (the complete output is still returned at the end).
@@ -26,6 +40,23 @@ pub trait ProcessRunner: Send + Sync {
         spec: &ProcessSpec,
         on_event: &dyn Fn(ProcessEvent),
     ) -> Result<ProcessOutput, ProcessError>;
+}
+
+/// A process Atlas talks to line by line. Dropping it ends the process and everything it started.
+pub trait ProcessSession: Send {
+    /// Writes one line (a newline is added) to the process's input.
+    ///
+    /// # Errors
+    ///
+    /// The process is gone or its input is closed.
+    fn send_line(&mut self, line: &str) -> Result<(), ProcessError>;
+
+    /// The next line of output, waiting at most `timeout`. `Ok(None)`: the output ended.
+    ///
+    /// # Errors
+    ///
+    /// Nothing came within `timeout` ([`ProcessError::Timeout`]).
+    fn read_line(&mut self, timeout: Duration) -> Result<Option<String>, ProcessError>;
 }
 
 /// Which execution a process belongs to. The ids are Atlas's own (never from the webview) and
@@ -75,6 +106,10 @@ pub enum ProcessContext {
     /// command, ADR 0035): never an agent's request. Only a known tool, by bare name, in a folder
     /// it names, with a subcommand the guard knows.
     Tool,
+    /// Atlas starting an MCP server the person configured and switched on, to ask it about its
+    /// tools (`tools/list`, ADR 0045): only as a session, never to run to completion, with no
+    /// terminal, input or working directory of its own. No model and no agent is involved.
+    McpServer,
     /// A command an agent asked Atlas to run on its behalf. No Atlas feature issues these yet
     /// (the runtimes run their own tools inside their process); the security layer is ready
     /// for the first one.
@@ -260,6 +295,75 @@ pub mod fake {
                 handler: Box::new(handler),
                 calls: Mutex::new(Vec::new()),
             }
+        }
+    }
+
+    type Reply = Box<dyn Fn(&str) -> Vec<String> + Send + Sync>;
+
+    /// A runner whose sessions answer each line sent with the lines `reply` gives back.
+    pub struct FakeSessionRunner {
+        reply: std::sync::Arc<Reply>,
+        pub opened: Mutex<Vec<ProcessSpec>>,
+        pub sent: std::sync::Arc<Mutex<Vec<String>>>,
+    }
+
+    impl FakeSessionRunner {
+        pub fn new(reply: impl Fn(&str) -> Vec<String> + Send + Sync + 'static) -> Self {
+            Self {
+                reply: std::sync::Arc::new(Box::new(reply)),
+                opened: Mutex::new(Vec::new()),
+                sent: std::sync::Arc::default(),
+            }
+        }
+    }
+
+    struct FakeSession {
+        reply: std::sync::Arc<Reply>,
+        sent: std::sync::Arc<Mutex<Vec<String>>>,
+        queued: std::collections::VecDeque<String>,
+    }
+
+    impl super::ProcessSession for FakeSession {
+        fn send_line(&mut self, line: &str) -> Result<(), ProcessError> {
+            self.sent.lock().unwrap().push(line.to_owned());
+            self.queued.extend((self.reply)(line));
+            Ok(())
+        }
+
+        fn read_line(
+            &mut self,
+            _timeout: std::time::Duration,
+        ) -> Result<Option<String>, ProcessError> {
+            self.queued
+                .pop_front()
+                .map(Some)
+                .ok_or_else(|| ProcessError::Timeout(super::Silence::default()))
+        }
+    }
+
+    impl ProcessRunner for FakeSessionRunner {
+        fn locate(&self, program: &str) -> Option<PathBuf> {
+            Some(PathBuf::from(program))
+        }
+
+        fn open_session(
+            &self,
+            spec: &ProcessSpec,
+        ) -> Result<Box<dyn super::ProcessSession>, ProcessError> {
+            self.opened.lock().unwrap().push(spec.clone());
+            Ok(Box::new(FakeSession {
+                reply: self.reply.clone(),
+                sent: self.sent.clone(),
+                queued: std::collections::VecDeque::new(),
+            }))
+        }
+
+        fn run(
+            &self,
+            _spec: &ProcessSpec,
+            _on_event: &dyn Fn(ProcessEvent),
+        ) -> Result<ProcessOutput, ProcessError> {
+            Err(ProcessError::NotFound)
         }
     }
 

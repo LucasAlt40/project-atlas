@@ -60,6 +60,7 @@ fn connection(env: &Env, name: &str, enabled: bool, tools: Option<&[&str]>) -> M
             status: McpServerStatus::Connected,
             tools: t.iter().map(|s| (*s).to_owned()).collect(),
         }),
+        catalog: None,
         created_at: 1,
     }
 }

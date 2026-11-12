@@ -247,14 +247,29 @@ describe('the Git section of the inspector', () => {
         worktreeOf('w1', 'a1', 'exec-42', {
           mergeStatus: 'blocked',
           blockReason: 'policy_denied',
-          recommendation: 'review',
+          recommendation: 'inspect',
         }),
       ],
     });
 
     const git = await within(inspector).findByRole('region', { name: 'Git' });
     expect(within(git).getByText(/does not allow Git writes/)).toBeInTheDocument();
+    // Where the work is, uncommitted, and how to use it.
+    expect(
+      within(git).getByText(
+        /still in the execution’s folder, uncommitted: \/data\/worktrees\/w1\/exec-42/,
+      ),
+    ).toBeInTheDocument();
     expect(within(git).queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('says what an isolated worktree leaves out of a repository with submodules', async () => {
+    const { inspector } = await inspect({
+      worktrees: [worktreeOf('w1', 'a1', 'exec-42', { baseLayout: ['submodules'] })],
+    });
+
+    const git = await within(inspector).findByRole('region', { name: 'Git' });
+    expect(within(git).getByText(/has submodules/)).toBeInTheDocument();
   });
 
   it('words an execution of an agent that is not isolated as such', async () => {

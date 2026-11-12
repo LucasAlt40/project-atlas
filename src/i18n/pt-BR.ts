@@ -1023,6 +1023,8 @@ export const ptBR: Record<TranslationKey, string> = {
     'Cada execução trabalha no seu próprio worktree e não modifica diretamente o checkout principal do projeto.',
   'agents.form.isolationOff':
     'Com isto desativado, o agente poderá trabalhar diretamente na pasta do projeto.',
+  'agents.form.importedModel':
+    'Importado pedindo {runtime} · {model}. Escolher outro modelo aqui apaga este aviso.',
   'agents.form.noFileEdit': 'Este runtime não suporta edição de arquivos.',
   'contract.type': 'Tipo de contrato',
   'contract.kind.general': 'Geral',
@@ -1171,7 +1173,14 @@ export const ptBR: Record<TranslationKey, string> = {
   'git.merge.applied': 'Aplicado (sem commit)',
   'git.merge.conflict': 'Conflito',
   'git.merge.blocked': 'Bloqueado',
-  'git.reason.policy_denied': 'A política do agente não permite escritas no Git.',
+  'git.layout.submodules':
+    'Este repositório tem submódulos. O worktree isolado não os traz: as pastas deles ficam vazias lá, e o Atlas não os baixa.',
+  'git.layout.sparse_checkout':
+    'Este projeto usa checkout esparso. O worktree isolado tem o próprio checkout, que pode ter arquivos que o seu deixa de fora.',
+  'git.reason.policy_denied':
+    'A política do agente não permite escritas no Git, então o Atlas não fez commit nem merge do trabalho.',
+  'git.policyDenied.how':
+    'O trabalho continua na pasta da execução, sem commit: {path}. Abra-a no editor e leve o que precisar, ou permita escritas no Git na política do agente para a próxima execução.',
   'git.reason.execution_not_completed': 'A execução não foi concluída.',
   'git.reason.validation_failed': 'A validação falhou.',
   'git.reason.base_dirty': 'O checkout do projeto tem alterações não commitadas.',
@@ -1950,6 +1959,8 @@ export const ptBR: Record<TranslationKey, string> = {
   'live.files.all': 'Todas as alterações',
   'live.files.empty':
     'Nenhuma alteração ainda: o worktree está igual ao ponto de partida da execução.',
+  'live.files.cut':
+    'Mostrando os primeiros {shown} de {n} arquivos alterados. A lista para aí; os totais e o worktree têm todos.',
   'live.files.count': '{n} arquivo(s)',
   'live.files.renamedFrom': 'Renomeado de {path}',
   'live.activity': 'Atividade',
@@ -2044,6 +2055,9 @@ export const ptBR: Record<TranslationKey, string> = {
   'interaction.showLess': 'Mostrar menos',
   'interaction.required': 'Ação necessária',
   'interaction.waiting': '{step} está aguardando sua resposta',
+  'workflow.parallel': 'Passos em paralelo',
+  'workflow.parallel.hint':
+    'Quantas etapas desta execução podem rodar ao mesmo tempo (1 a 8). As que já estão rodando seguem; o novo limite vale para as próximas. Um agente nunca roda duas ao mesmo tempo.',
   'workflow.autoPlans': 'Aprovar planos automaticamente',
   'workflow.autoPlans.hint':
     'Quando uma etapa elabora um plano, o Atlas o aprova sem perguntar e a etapa segue. Você ainda pode ler todos os planos na execução. Ligar também aprova os planos que já estão esperando.',
@@ -2363,6 +2377,7 @@ export const ptBR: Record<TranslationKey, string> = {
   'error.mcp_not_ready': 'Ligue a conexão e guarde seus segredos primeiro.',
   'error.mcp_runtime_unsupported': 'Esse runtime não consegue receber servidores MCP.',
   'error.mcp_probe_failed': 'Não foi possível iniciar o servidor para examiná-lo.',
+  'error.mcp_describe_failed': 'Não foi possível perguntar ao servidor sobre as suas ferramentas.',
   'error.mcp_preset_unavailable': 'Essa integração ainda não está disponível para adicionar.',
   'nav.mcp': 'MCP Hub',
   'nav.usage': 'Uso',
@@ -2512,6 +2527,20 @@ export const ptBR: Record<TranslationKey, string> = {
   'hub.tab.manifest': 'Manifesto JSON',
   'hub.tab.activity': 'Atividade',
   'hub.tools.list': 'Ferramentas que este servidor listou',
+  'hub.describe.title': 'Descrições das ferramentas',
+  'hub.describe.note':
+    'Inicia o servidor uma vez e pergunta a ele o que cada ferramenta faz (tools/list). Nenhum modelo é consultado e nenhuma ferramenta é chamada. Depois disso, uma etapa somente leitura recebe só as ferramentas que o servidor descreve como de leitura, e o peso das definições entra no orçamento.',
+  'hub.describe.action': 'Ler descrições',
+  'hub.describe.again': 'Ler de novo',
+  'hub.describe.when': 'Lidas em {when}',
+  'hub.describe.total': 'Definições: ≈ {n} tokens no total (estimativa, caracteres ÷ 4)',
+  'hub.describe.truncated': 'O servidor tem mais do que o Atlas lê: a lista não está completa.',
+  'hub.describe.untrusted':
+    'O texto é do servidor: só para você ler. Nunca entra no prompt e não concede nada.',
+  'hub.tool.readOnly': 'só lê',
+  'hub.tool.writes': 'escreve',
+  'hub.tool.destructive': 'destrutiva',
+  'hub.tool.tokens': '≈ {n} tokens',
   'hub.tools.noRpc':
     'O Atlas lista as ferramentas de um servidor pelo nome e não as chama manualmente: uma ferramenta só roda quando um agente que a recebeu a usa em uma etapa.',
   'hub.env.none': 'Nenhuma variável de ambiente.',
@@ -2664,6 +2693,12 @@ export const ptBR: Record<TranslationKey, string> = {
     'A CLI deste agente (Antigravity) não pode receber servidores do Atlas por execução. Ela usa os servidores da própria configuração (agy mcp list): o Atlas confere se este está lá e diz ao agente para usá-lo. O Atlas não consegue restringir as ferramentas dele, e a CLI também carrega os outros servidores dela.',
   'context.mcp.problem.not_in_cli_config':
     'Não entregue: esta CLI só usa os servidores da própria configuração e este não está lá (adicione com agy mcp add).',
+  'context.mcp.problem.http_unsupported':
+    'Não entregue: é um servidor remoto, e este runtime não tem um jeito medido de recebê-lo.',
+  'context.mcp.problem.destination_blocked':
+    'Não entregue: o endereço é loopback, rede privada ou de metadados, ou não pôde ser consultado logo antes da etapa.',
+  'context.mcp.problem.no_reading_tools':
+    'Não entregue: a etapa é somente leitura e o servidor não descreveu nenhuma ferramenta como de leitura.',
   'hub.card.delivery.cli':
     '{agent} roda no {runtime}, que usa os servidores da própria configuração. O Atlas confere se ele está lá e avisa o agente; não consegue entregá-lo.',
   'hub.card.delivery.none':
@@ -2821,6 +2856,7 @@ export const ptBR: Record<TranslationKey, string> = {
     'Escolha um arquivo exportado pelo Atlas. Você vai ver o que ele contém e o que faria aqui antes de qualquer mudança.',
   'portability.safety':
     'Importar só adiciona definições. Nada é executado, nenhum workflow é iniciado e nenhuma ferramenta é concedida; agentes que podem editar arquivos chegam só com leitura, a menos que você diga o contrário abaixo.',
+  'portability.import.drop': 'Ou solte o arquivo .atlas.json aqui.',
   'portability.import.choose': 'Escolher arquivo…',
   'portability.import.reading': 'Lendo…',
   'portability.import.another': 'Escolher outro arquivo',
@@ -2924,6 +2960,10 @@ export const ptBR: Record<TranslationKey, string> = {
     'Uma etapa está sem agente: você vai precisar escolher um.',
   'portability.issue.tools_suggested':
     'Sugere ferramentas para algumas etapas. Importar não concede nenhuma.',
+  'portability.issue.same_name':
+    '{count} configurações aqui têm este nome: reaproveitar ou substituir vale para a primeira salva.',
+  'portability.issue.workflow_running':
+    'Este workflow tem uma execução em andamento, então não pode ser substituído agora. Importe como novo, use o daqui ou pule.',
   'portability.issue.permissions_lowered':
     'Importado só com leitura (o arquivo pedia {requested}).',
   'portability.reason.name_required': 'não tem nome',
@@ -2975,6 +3015,13 @@ export const ptBR: Record<TranslationKey, string> = {
   'error.config_file_io': 'Não foi possível ler ou gravar o arquivo.',
 
   // Mobile access (ADR 0034): the phone's page, and the desktop dialog that switches it on
+  'mobile.specs.title': 'Especificações',
+  'mobile.specs.approved': '{done} de {total} aprovados',
+  'mobile.specs.revision': 'revisão {number}',
+  'mobile.specs.notWritten': 'Ainda não escrito.',
+  'mobile.specs.notFound': 'Esta especificação não existe mais.',
+  'mobile.specs.failed': 'Não foi possível ler esta especificação. Tente de novo em instantes.',
+  'mobile.specs.atComputer': 'Aprovar, pedir mudanças e publicar se faz no computador.',
   'mobile.loading': 'Carregando…',
   'mobile.retry': 'Tentar de novo',
   'mobile.back': 'Voltar',
@@ -3326,6 +3373,9 @@ export const ptBR: Record<TranslationKey, string> = {
   'specs.new.context': 'Contexto adicional (opcional)',
   'specs.new.author': 'Agente que escreve',
   'specs.new.recommended': '{name} (recomendado)',
+  'specs.new.skipSpecs': 'Mudança sem comportamento (sem arquivos de especificação)',
+  'specs.new.skipSpecsHint':
+    'Para refatoração, ferramentas ou documentação: só proposta, design e tarefas. A proposta não nomeia capacidade, e o archive não atualiza nenhuma spec principal.',
   'specs.new.authorHint':
     'Recomendado: um agente com a personalidade Arquiteto de Especificações. Qualquer agente pode escrever.',
   'specs.new.reviewer': 'Agente que revisa',
@@ -3351,6 +3401,18 @@ export const ptBR: Record<TranslationKey, string> = {
   'specs.doc.current': 'atual',
   'specs.doc.approvedRevision': 'Aprovada',
   'specs.doc.older': 'Revisão anterior',
+  'specs.diff.compareWith': 'Comparar com',
+  'specs.diff.none': 'Sem comparação',
+  'specs.diff.against': 'Mudanças desde a revisão {number}',
+  'specs.diff.label': 'Mudanças da revisão {from} para a {to}',
+  'specs.diff.loading': 'Comparando…',
+  'specs.diff.change.added': 'arquivo novo',
+  'specs.diff.change.removed': 'removido',
+  'specs.diff.change.changed': 'alterado',
+  'specs.diff.change.unchanged': 'sem mudanças',
+  'specs.diff.counts': '+{added} −{removed}',
+  'specs.diff.tooLarge': 'Grande demais para comparar linha a linha: ele mudou.',
+  'specs.diff.gap': '… {lines} linhas sem mudança …',
   'specs.doc.chooseRevision': 'Revisão',
   'specs.doc.view': 'Visualização',
   'specs.doc.rendered': 'Requisitos',
@@ -3364,6 +3426,20 @@ export const ptBR: Record<TranslationKey, string> = {
   'specs.origin.revised': 'revisado após suas alterações',
   'specs.origin.regenerated': 'escrito novamente',
   'specs.origin.imported': 'lido do projeto',
+  'specs.origin.edited': 'editado por você',
+  'specs.origin.edited_in_project': 'editado no projeto',
+  'specs.edit.start': 'Editar',
+  'specs.edit.label': 'Editando {file}',
+  'specs.edit.hint':
+    'Seu texto vira a próxima revisão: é conferido como qualquer outra e espera sua aprovação, e os documentos escritos a partir dele ficam desatualizados.',
+  'specs.edit.save': 'Salvar como nova revisão',
+  'specs.edit.cancel': 'Cancelar',
+  'specs.handEdits.title': '{stage} foi editado no projeto',
+  'specs.handEdits.changed': 'Alterado à mão: {files}.',
+  'specs.handEdits.missing': 'Não está mais no projeto: {files}.',
+  'specs.handEdits.never':
+    'O Atlas não publica por cima. Adote a edição como próxima revisão, ou desfaça-a no projeto.',
+  'specs.handEdits.adopt': 'Adotar como nova revisão',
   'specs.pane.blocked':
     'O documento {stage} é escrito a partir de {needs}. Fica disponível quando esses forem aprovados.',
   'specs.pane.ready': 'O documento {stage} ainda não foi escrito. Peça quando estiver pronto.',
@@ -3674,6 +3750,8 @@ export const ptBR: Record<TranslationKey, string> = {
   'specs.issue.what_changes_missing': 'A proposta não tem a seção “What Changes”.',
   'specs.issue.what_changes_empty': '“What Changes” está vazio.',
   'specs.issue.capabilities_missing': 'A proposta não tem a seção “Capabilities”.',
+  'specs.issue.capabilities_without_specs':
+    'A proposta nomeia capacidades, mas esta mudança não tem arquivos de especificação. Tire-as, ou crie a spec com especificações.',
   'specs.issue.no_capabilities':
     'A proposta não nomeia nenhuma capacidade. Cada uma vira um arquivo de spec.',
   'specs.issue.capability_path_invalid': '“{capability}” não é um caminho de capacidade válido.',
@@ -3747,6 +3825,8 @@ export const ptBR: Record<TranslationKey, string> = {
   'error.spec_validation_blocking':
     'As validações encontraram erros neste documento. Peça alterações antes.',
   'error.spec_not_ready': 'Ainda há algo impedindo a spec de ficar pronta. Veja a revisão final.',
+  'error.spec_edited_in_project':
+    'Um arquivo publicado foi editado à mão no projeto ({files}). O Atlas não escreve por cima: adote a edição ou desfaça-a antes.',
   'error.spec_change_exists':
     'A pasta “{change}” já existe no projeto. Nada foi escrito; escolha outro nome.',
   'error.spec_publish_failed':

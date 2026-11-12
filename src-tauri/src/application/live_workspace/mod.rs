@@ -364,6 +364,32 @@ impl LiveWorkspaceService {
             .ok_or(LiveError::NotFound)
     }
 
+    /// Picks up observing again, after the app opens, every run that stopped without ending and
+    /// whose code is still in its worktree (ADR 0018): the person sees the worktree change without
+    /// resuming the run first. A run whose code was applied, discarded or is gone is not watched.
+    /// Returns the worktrees now observed.
+    pub fn observe_open_runs(&self) -> Vec<String> {
+        let mut observed = Vec::new();
+        for run in self.workflows.open_executions() {
+            if run.integration.status != IntegrationStatus::InProgress {
+                continue;
+            }
+            let Some(primary) = run.integration.worktree_execution_id.clone() else {
+                continue;
+            };
+            if self.start(&primary).is_ok() {
+                let phase = if run.status == WorkflowExecutionStatus::WaitingForInput {
+                    LivePhase::WaitingForInput
+                } else {
+                    LivePhase::Idle
+                };
+                self.set_phase(&primary, phase);
+                observed.push(primary);
+            }
+        }
+        observed
+    }
+
     /// The state of a worktree: what the observer holds, or what it last held, or (for a run
     /// nobody is observing, as after a restart) one look at the worktree.
     pub fn state(&self, primary_id: &str) -> Option<LiveWorkspaceState> {

@@ -32,6 +32,44 @@ pub struct ContextInputs<'a> {
     /// The memories in the prompt, one block each.
     pub memories: &'a [MemoryBlock],
     pub budget: &'a ExecutionBudget,
+    /// What the Task Context said of itself (ADR 0021): its relevance and whether it includes
+    /// outdated knowledge. Default: nothing known.
+    pub harness_facts: HarnessFacts,
+}
+
+/// What the Harness text in a prompt is known to be.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct HarnessFacts {
+    pub relevance: Option<f32>,
+    pub stale: bool,
+}
+
+impl HarnessFacts {
+    /// From what the execution kept of how its context was chosen.
+    pub fn of(record: Option<&crate::domain::task_context::ContextRecord>) -> Self {
+        record.map_or_else(Self::default, |r| Self {
+            relevance: r.relevance(),
+            stale: r.stale_items > 0,
+        })
+    }
+}
+
+/// The signal on the whole context, from what its items say about themselves.
+pub(crate) fn quality_of(items: &[ContextItem]) -> crate::domain::optimization::ContextQuality {
+    let known: Vec<f32> = items.iter().filter_map(|i| i.relevance).collect();
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        clippy::cast_precision_loss
+    )]
+    let mean = (!known.is_empty())
+        .then(|| (known.iter().sum::<f32>() / known.len() as f32 * 1000.0).round() as u32);
+    crate::domain::optimization::ContextQuality {
+        items: u32::try_from(items.len()).unwrap_or(u32::MAX),
+        with_relevance: u32::try_from(known.len()).unwrap_or(u32::MAX),
+        mean_relevance_permille: mean,
+        stale_items: u32::try_from(items.iter().filter(|i| i.stale).count()).unwrap_or(u32::MAX),
+    }
 }
 
 /// What to build the prompt from instead, and what was done.
@@ -150,7 +188,7 @@ pub(crate) fn prompt_items(
         for block in skills {
             // A skill the task asked for by name is relevant context; one Atlas matched is
             // the first thing a budget gives up.
-            items.push(ContextItem::new(
+            let mut item = ContextItem::new(
                 &format!("skill:{}", block.name),
                 SectionKind::Skills,
                 if block.explicit {
@@ -160,7 +198,11 @@ pub(crate) fn prompt_items(
                 },
                 "skills",
                 &block.text,
-            ));
+            );
+            if block.explicit {
+                item.relevance = Some(1.0);
+            }
+            items.push(item);
         }
     }
     if !memories.is_empty() {
@@ -283,7 +325,7 @@ pub fn optimize_prompt_inputs(inputs: &ContextInputs<'_>) -> ContextOutcome {
     let prompt = inputs.prompt;
     let description = inputs.task_description;
     let PromptItems {
-        items,
+        mut items,
         prefix: split,
         skipped,
     } = prompt_items(
@@ -295,6 +337,18 @@ pub fn optimize_prompt_inputs(inputs: &ContextInputs<'_>) -> ContextOutcome {
         inputs.rules,
         inputs.memories,
     );
+
+    // What the Task Context said of itself goes on its item.
+    if let Some(item) = items
+        .iter_mut()
+        .find(|i| i.id == "task_context" || i.id == "harness")
+    {
+        item.relevance = inputs.harness_facts.relevance;
+        if inputs.harness_facts.stale {
+            item.stale = true;
+        }
+    }
+    let quality = quality_of(&items);
 
     let whole = TextSize::of(inputs.combined);
     let items_tokens: u64 = items.iter().map(ContextItem::estimated_tokens).sum();
@@ -378,11 +432,16 @@ pub fn optimize_prompt_inputs(inputs: &ContextInputs<'_>) -> ContextOutcome {
         task_description,
         brief_parts,
         changed,
-        plan_metrics: metrics_of(&plan, whole, skipped),
+        plan_metrics: metrics_of(&plan, whole, skipped, quality),
     }
 }
 
-fn metrics_of(plan: &EnginePlan, raw: TextSize, skipped: Option<String>) -> ContextEngineMetrics {
+fn metrics_of(
+    plan: &EnginePlan,
+    raw: TextSize,
+    skipped: Option<String>,
+    quality: crate::domain::optimization::ContextQuality,
+) -> ContextEngineMetrics {
     ContextEngineMetrics {
         raw_bytes: raw.bytes,
         final_bytes: raw.bytes,
@@ -400,5 +459,6 @@ fn metrics_of(plan: &EnginePlan, raw: TextSize, skipped: Option<String>) -> Cont
             .collect(),
         over_budget: plan.over_budget,
         skipped,
+        quality: Some(quality),
     }
 }

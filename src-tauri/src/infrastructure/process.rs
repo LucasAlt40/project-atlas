@@ -9,7 +9,8 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::application::process::{
-    ProcessContext, ProcessError, ProcessEvent, ProcessOutput, ProcessRunner, ProcessSpec,
+    ProcessContext, ProcessError, ProcessEvent, ProcessOutput, ProcessRunner, ProcessSession,
+    ProcessSpec, Silence,
 };
 use crate::application::sessions::SessionRegistry;
 use crate::application::support::LockExt;
@@ -285,6 +286,26 @@ impl ProcessRunner for SystemProcessRunner {
             .find(|candidate| is_executable(candidate))
     }
 
+    fn open_session(&self, spec: &ProcessSpec) -> Result<Box<dyn ProcessSession>, ProcessError> {
+        let executable = self.locate(&spec.program).ok_or(ProcessError::NotFound)?;
+        let mut command = self.command(&executable, spec);
+        command.stdin(Stdio::piped());
+        let mut child = command
+            .spawn()
+            .map_err(|error| ProcessError::Spawn(error.to_string()))?;
+        let (line_tx, lines) = mpsc::channel();
+        // The readers end by themselves when the process (and whatever holds its pipes) does.
+        let _ = child.stdout.take().map(|s| read_lines(s, line_tx));
+        // A server's log is not Atlas's to keep: drained, capped and dropped.
+        let _ = child.stderr.take().map(read_capped);
+        let stdin = child.stdin.take();
+        Ok(Box::new(PipedSession {
+            child,
+            stdin,
+            lines,
+        }))
+    }
+
     fn run(
         &self,
         spec: &ProcessSpec,
@@ -396,6 +417,55 @@ impl ProcessRunner for SystemProcessRunner {
             stdout: String::from_utf8_lossy(&stdout).into_owned(),
             stderr: String::from_utf8_lossy(&collect(stderr)).into_owned(),
         })
+    }
+}
+
+/// A process kept open to be talked to line by line. Dropping it ends the process and what it
+/// started: its group on Unix, its tree on Windows (an `npx` shim starts the real server).
+struct PipedSession {
+    child: Child,
+    stdin: Option<std::process::ChildStdin>,
+    lines: mpsc::Receiver<String>,
+}
+
+impl ProcessSession for PipedSession {
+    fn send_line(&mut self, line: &str) -> Result<(), ProcessError> {
+        let stdin = self
+            .stdin
+            .as_mut()
+            .ok_or_else(|| ProcessError::Io("the input is closed".to_owned()))?;
+        stdin
+            .write_all(line.as_bytes())
+            .and_then(|()| stdin.write_all(b"\n"))
+            .and_then(|()| stdin.flush())
+            .map_err(|error| ProcessError::Io(error.to_string()))
+    }
+
+    fn read_line(&mut self, timeout: Duration) -> Result<Option<String>, ProcessError> {
+        match self.lines.recv_timeout(timeout) {
+            Ok(line) => Ok(Some(line)),
+            Err(mpsc::RecvTimeoutError::Disconnected) => Ok(None),
+            Err(mpsc::RecvTimeoutError::Timeout) => Err(ProcessError::Timeout(Silence {
+                idle_secs: timeout.as_secs(),
+                last_output: String::new(),
+            })),
+        }
+    }
+}
+
+impl Drop for PipedSession {
+    fn drop(&mut self) {
+        // The end of its input first: a server that stops on it stops cleanly.
+        self.stdin.take();
+        #[cfg(windows)]
+        {
+            let _ = Command::new("taskkill")
+                .args(["/PID", &self.child.id().to_string(), "/T", "/F"])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+        }
+        kill(&mut self.child);
     }
 }
 
@@ -640,6 +710,55 @@ mod tests {
             "{result:?}"
         );
         assert!(started.elapsed() < Duration::from_secs(5));
+    }
+
+    #[test]
+    fn a_session_answers_line_by_line_and_ends_the_process_when_dropped() {
+        let file = pid_file();
+        let script = format!(
+            "echo $$ > '{}'; while read line; do echo \"got $line\"; done",
+            file.display()
+        );
+        let mut session = SystemProcessRunner::new()
+            .open_session(&ProcessSpec::probe(
+                "sh",
+                &["-c", &script],
+                Duration::from_secs(5),
+            ))
+            .unwrap();
+
+        session.send_line("one").unwrap();
+        assert_eq!(
+            session
+                .read_line(Duration::from_secs(5))
+                .unwrap()
+                .as_deref(),
+            Some("got one")
+        );
+        session.send_line("two").unwrap();
+        assert_eq!(
+            session
+                .read_line(Duration::from_secs(5))
+                .unwrap()
+                .as_deref(),
+            Some("got two")
+        );
+        // Nothing more to say: a timeout, not a hang.
+        assert!(matches!(
+            session.read_line(Duration::from_millis(100)),
+            Err(ProcessError::Timeout(_))
+        ));
+        let pid = pid_in(&file);
+        assert!(alive(pid));
+
+        drop(session);
+
+        let gone = (0..100).any(|_| {
+            thread::sleep(Duration::from_millis(20));
+            !alive(pid)
+        });
+        assert!(gone, "the process outlived its session");
+        let _ = std::fs::remove_file(file);
     }
 
     fn pid_file() -> PathBuf {

@@ -1,5 +1,7 @@
 # 0021 — Camada de Otimização, fase 1: o Context Engine
 
+Status: aceito e implementado.
+
 ## Contexto
 
 A fase 0 ([ADR 0020](0020-optimization-observability.md)) mediu do que um prompt é feito. Mostrou que a maior parte é
@@ -63,15 +65,41 @@ bytes por passo). Isto não está atrás de uma flag: a regra para a qual aponta
 
 O que foi **deixado de lado de propósito**: os avisos de "não concede permissões" (Harness, handoff, bloco de
 resultado, bloco de interação). Cada um protege uma fonte diferente de texto não confiável, então não são duplicatas, e
-remover um enfraqueceria essa proteção. `LIVE_NARRATION` e `PLAN_RULE` são comportamento de produto (a visão ao vivo, os
-documentos de plano obrigatórios), não repetição; condicioná-los é uma decisão de produto, não uma otimização.
+remover um enfraqueceria essa proteção. `PLAN_RULE` é comportamento de produto (os planos que a pessoa lê) e fica em
+todo prompt.
+
+**A narração ao vivo, condicionada** (decisão do usuário em 2026-11-11). `LIVE_NARRATION` só molda a resposta ao vivo,
+e a tela de uma spec mostra o documento, não o turno ao vivo. Com `optimization.narrationOnlyWhenWatched` ligada, um
+turno de spec (`StepOptions::watched = false`, marcado em `ChatService::send_spec_step`) não recebe a instrução de
+narrar; fica só a frase que manda pôr caminhos entre aspas nos comandos (`QUOTE_PATHS`), que protege um comando de
+quebrar num caminho com espaços. Conversas e passos de workflow continuam com a narração. **Desligada por padrão**: aí o
+prompt é idêntico byte a byte ao de antes. Testes: `a_run_nobody_watches_is_not_asked_to_narrate_and_keeps_the_advice_on_paths`
+e `only_a_run_nobody_watches_drops_the_narration_and_only_when_the_person_chose_so`. Não há interruptor na tela; a
+configuração fica no arquivo, como as outras flags desta camada. A economia é a do texto da narração (cerca de 90 tokens
+estimados por turno de spec); não foi medida com modelo.
 
 ## Consequências
 
-- A economia disponível hoje é pequena: a maioria dos tokens está em texto obrigatório. Os próximos candidatos estão no
-  que o engine não tem permissão de tocar (a instrução de plano repetida pela regra de plano e pelo protocolo de
-  interação, os avisos de "não concede permissões"), o que pede uma decisão sobre condicionar esse texto, não mais
-  deduplicação.
-- `ContextQuality` (sinal sobre o total) não foi construído: ainda não há sinal de relevância por item
-  (`ContextItem.relevance` está vazio). A redundância removida é a metade que o Atlas consegue medir.
-- Cache (o fingerprint da fase 1 é só um digest do item) e obsolescência por item vinda do Harness não estão ligados.
+- A economia disponível hoje é pequena: a maioria dos tokens está em texto obrigatório. A repetição da instrução de
+  plano saiu na origem, os avisos de "não concede permissões" ficam por segurança, e a narração é condicionada atrás
+  de uma flag (acima).
+- **Relevância por item e o sinal sobre o total (C4, 2026-11-11, decisão do usuário).** Um item carrega relevância só
+  quando algo a mediu: o Task Context, a fatia do que ele incluiu por casar com a tarefa (`ContextRecord.matched_items`
+  ÷ `selected_items`; restrições, decisões e a palavra do usuário entram sempre e não contam como casamento); uma skill
+  que a tarefa pediu pelo nome, 1. Memórias, rules e o resto ficam sem relevância (desconhecida, não irrelevante).
+  Quando um orçamento obriga a cortar, entre itens de uma prioridade sai antes o desatualizado, depois o menos
+  relevante, e um item sem nota conta como meio caminho. `ContextEngineMetrics.quality` (`ContextQuality`) registra
+  quantos itens há, quantos têm relevância, a média dos que têm (em milésimos) e quantos estão desatualizados; nenhuma
+  média é inventada quando nada foi medido. Testes: `a_task_contexts_relevance_is_the_share_it_chose_for_the_task`,
+  `a_budget_leaves_out_the_less_relevant_first_and_an_unscored_item_counts_as_halfway`,
+  `the_context_quality_counts_only_what_is_measured`.
+- **Obsolescência e cache (C5, 2026-11-11).** Um Task Context que inclui conhecimento desatualizado
+  (`ContextRecord.stale_items > 0`) marca o seu item como desatualizado. O cache do fingerprint do projeto
+  (`with_fingerprint_cache`, 5 s no app, para as prévias enquanto a pessoa digita) agora conta o que serve do cache e o
+  que escaneia (`fingerprint_cache_stats`); medido por `the_fingerprint_cache_serves_a_second_build_and_counts_both`.
+  Um cache do plano do engine pelo fingerprint dos itens não foi feito: o engine roda em milissegundos, então não haveria
+  o que ganhar.
+- **Limite da granularidade.** O Harness e o Task Context entram no engine como **um item cada**, com prioridade `High`,
+  que um orçamento nunca corta. A relevância e a obsolescência deles aparecem no sinal de qualidade, mas não mudam um
+  corte; mudam os cortes entre itens abaixo de `High` (skills casadas, memórias, preferências, partes do brief).
+  Quebrar o Harness em itens por entrada seria a próxima etapa, se um uso real mostrar contexto errado por isso.

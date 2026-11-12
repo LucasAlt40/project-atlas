@@ -45,6 +45,7 @@ impl McpAdapter for CodexMcpAdapter {
             tool_filter: McpToolFilter::AllowList,
             probe: McpProbeKind::None,
             strict: false,
+            http: false,
         }
     }
 
@@ -202,6 +203,7 @@ mod tests {
             executable: "node".to_owned(),
             args: vec!["server.js".to_owned(), "a \"b\"".to_owned()],
             env,
+            http: None,
         }
     }
 

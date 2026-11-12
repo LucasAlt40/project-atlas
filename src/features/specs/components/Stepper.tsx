@@ -1,7 +1,7 @@
 import { Icon } from '@/components/ui/Icon';
 import { useI18n } from '@/i18n/I18nProvider';
 import { phaseView, statusView } from '../model/status';
-import { STAGES, type SpecView, type Stage } from '../types';
+import { stagesOf, type SpecView, type Stage } from '../types';
 import { stageName } from '../model/messages';
 import styles from './Specs.module.css';
 
@@ -17,7 +17,7 @@ export function Stepper({ view, selected, onSelect }: Props) {
   return (
     <nav className={styles.stepper} aria-label={t('specs.stages')}>
       <ol>
-        {STAGES.map((stage, index) => {
+        {stagesOf(view).map((stage, index) => {
           const phase = stage === 'final' ? undefined : view.phases[stage];
           const tone = phase ? phaseView(phase).tone : statusView(view.status).tone;
           const label = phase

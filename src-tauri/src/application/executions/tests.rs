@@ -3440,3 +3440,83 @@ fn a_required_context_that_does_not_fit_the_budget_is_never_cut_and_the_step_ask
             .delivered
     );
 }
+
+/// ADR 0036, C3: the person's system-channel switch reaches the runtime, and a runtime with no
+/// measured channel still gets one text: nothing is declared for it.
+#[test]
+fn the_system_channel_switch_reaches_the_runtime_and_one_without_a_channel_gets_one_text() {
+    let delivered = |on: bool| {
+        let f = with_flags(
+            fixture(vec![("rt-a", Ok("done"))]),
+            FixedFlags {
+                system_channel: on,
+                ..FixedFlags::default()
+            },
+        );
+        let agent_id = create_agent(&f, "rt-a");
+        let record = run(
+            &f,
+            &agent_id,
+            "Find three improvements",
+            &Collector::default(),
+        )
+        .unwrap();
+        let request = f.runtimes[0].requests.lock().unwrap()[0].clone();
+        (
+            request.system_channel,
+            record.execution.manifest.unwrap().delivery,
+        )
+    };
+
+    let (asked_off, off) = delivered(false);
+    let (asked_on, on) = delivered(true);
+
+    assert!(!asked_off);
+    assert!(asked_on);
+    for record in [&off, &on] {
+        assert_eq!(
+            record.system_channel,
+            crate::domain::runtime::SystemPromptChannel::Unsupported
+        );
+        assert_eq!(record.system_bytes, 0);
+    }
+    assert_eq!(off.prompt_hash, on.prompt_hash);
+}
+
+/// ADR 0021, C6: a run nobody watches live (a spec's turn) drops the narration instruction only
+/// when the person chose so; a run someone may watch always keeps it.
+#[test]
+fn only_a_run_nobody_watches_drops_the_narration_and_only_when_the_person_chose_so() {
+    let prompt_of = |only_when_watched: bool, watched: bool| {
+        let f = with_flags(
+            fixture(vec![("rt-a", Ok("done"))]),
+            FixedFlags {
+                narration_only_when_watched: only_when_watched,
+                ..FixedFlags::default()
+            },
+        );
+        let agent_id = create_agent(&f, "rt-a");
+        f.service
+            .run_step(
+                f.service.next_execution_id(),
+                request(&f, &agent_id, "Write the design"),
+                StepOptions {
+                    watched,
+                    ..StepOptions::default()
+                },
+                &Collector::default(),
+            )
+            .unwrap()
+            .execution
+            .prompt
+    };
+
+    // Off (the default): the same prompt as ever, watched or not.
+    assert_eq!(prompt_of(false, false), prompt_of(false, true));
+    assert!(prompt_of(false, false).contains("Narrate your work"));
+    // On: only the unwatched run loses it, and keeps the advice on quoting paths.
+    assert!(prompt_of(true, true).contains("Narrate your work"));
+    let unwatched = prompt_of(true, false);
+    assert!(!unwatched.contains("Narrate your work"));
+    assert!(unwatched.contains("always quote paths in shell commands"));
+}

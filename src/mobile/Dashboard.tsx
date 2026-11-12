@@ -3,6 +3,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { clock, duration } from './format';
 import { failureKey } from './labels';
 import { RunChip } from './StatusChip';
+import { SpecsSection } from './SpecScreen';
 import type { Remote } from './useRemote';
 import type { RunSummary } from './types';
 import styles from './Mobile.module.css';
@@ -141,6 +142,7 @@ export function Dashboard({ remote }: { remote: Remote }) {
           <Section title={t('mobile.dashboard.finished')} runs={finished} now={now} />
         </>
       )}
+      <SpecsSection />
       <div className={styles.footer}>
         <button
           type="button"

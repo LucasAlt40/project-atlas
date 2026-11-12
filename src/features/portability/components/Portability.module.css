@@ -43,6 +43,19 @@
   align-items: center;
   gap: var(--space-3);
 }
+.drop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+}
+.dropActive {
+  border-color: var(--accent);
+  background: var(--surface-1);
+}
 .rowEnd {
   display: flex;
   flex-wrap: wrap;

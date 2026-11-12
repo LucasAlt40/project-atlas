@@ -23,6 +23,8 @@ use crate::application::projects::fake::FakeInspector;
 use crate::application::remote::gateway::RemoteGateway;
 use crate::application::remote::hub::EventHub;
 use crate::application::remote::network::fake::Fixed;
+use crate::application::remote::specs::fake::FakeSpecs;
+use crate::application::remote::specs::tests::state as spec_state;
 use crate::application::remote::{Asset, AssetSource, RemoteAccess};
 use crate::application::settings::SettingsService;
 use crate::application::support::now_ms;
@@ -100,13 +102,17 @@ impl Fx {
             env.agent_service.clone(),
             Arc::new(FakeInspector::with(&[("/atlas", &["Rust"])])),
         ));
-        let gateway = Arc::new(RemoteGateway::new(
-            env.service.clone(),
-            workspaces,
-            env.agent_service.clone(),
-            Arc::new(SettingsService::new(env.config.clone())),
-            orchestrator.clone(),
-        ));
+        let workspace_id = workspaces.list()[0].id.clone();
+        let gateway = Arc::new(
+            RemoteGateway::new(
+                env.service.clone(),
+                workspaces,
+                env.agent_service.clone(),
+                Arc::new(SettingsService::new(env.config.clone())),
+                orchestrator.clone(),
+            )
+            .with_specs(Arc::new(FakeSpecs(vec![spec_state(&workspace_id)]))),
+        );
         let access = Arc::new(RemoteAccess::new(
             gateway,
             Arc::new(Fixed(vec![("lo0", "127.0.0.1")])),
@@ -704,6 +710,46 @@ async fn the_number_of_paired_devices_is_bounded_and_the_code_is_kept_when_full(
 }
 
 // ---- reading -------------------------------------------------------------------------------------
+
+#[tokio::test]
+async fn a_phone_follows_a_specification_and_has_no_way_to_decide_on_it() {
+    let fx = Fx::new(vec![plan()]);
+    assert_eq!(fx.send("GET", "/api/specs", &[], None).await.status, 401);
+    assert_eq!(
+        fx.send("GET", "/api/specs/spec-1", &[], None).await.status,
+        401
+    );
+    let cookie = fx.paired().await;
+
+    let list = fx.get("/api/specs", &cookie).await;
+    assert_eq!(list.status, 200);
+    let body = list.json();
+    assert_eq!(body["specs"][0]["title"], "Dark mode");
+    assert_eq!(body["specs"][0]["workspaceName"], "Atlas");
+
+    let one = fx.get("/api/specs/spec-1", &cookie).await;
+    assert_eq!(one.status, 200);
+    let detail = one.json();
+    assert_eq!(detail["canDecide"], false);
+    assert_eq!(detail["documents"][0]["phase"], "awaiting_review");
+    assert_eq!(detail["documents"][1]["files"][0]["name"], "ui/dark-mode");
+    assert_eq!(fx.get("/api/specs/nope", &cookie).await.status, 404);
+
+    // No route writes to a spec, whatever is sent.
+    for path in [
+        "/api/specs/spec-1",
+        "/api/specs/spec-1/approve",
+        "/api/specs/spec-1/artifacts/proposal/decide",
+    ] {
+        let reply = fx.post(path, &cookie, r#"{"decision":"approve"}"#).await;
+        assert_eq!(
+            (reply.status, reply.code().as_str()),
+            (404, "not_found"),
+            "{path}"
+        );
+    }
+    fx.access.stop();
+}
 
 #[tokio::test]
 async fn the_dashboard_puts_what_waits_for_a_person_first_and_shows_only_what_is_known() {

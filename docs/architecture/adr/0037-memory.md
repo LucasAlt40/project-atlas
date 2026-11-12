@@ -1,6 +1,6 @@
 # ADR 0037 — Memory: lições duráveis entre sessões, propostas pelo agente e decididas pela pessoa
 
-Status: proposto; **Fases M1, M2 e M3 implementadas** (M1: domínio, armazenamento, recuperação, prompt, manifest, comandos; M2: protocolo `atlas-memory`, candidatos, aprovação e modo automático; M3: painel nas Configurações e notas no Inspetor, em pt-BR e en-US). M4 pendente. Baseia-se na seção 6 de
+Status: aceito e implementado, **desligada por padrão**. Medida com modelo real (M4, 2026-10-15, sete rodadas: [spikes/memory-m4-results.md](../spikes/memory-m4-results.md)). Baseia-se na seção 6 de
 [context-and-tooling-platform.md](../context-and-tooling-platform.md), na [ADR 0021](0021-context-engine.md) (Context
 Engine), na [ADR 0025](0025-guardrails-and-context-review.md) (guardrails), na [ADR 0026](0026-context-and-tooling-platform.md)
 (orçamento e manifest) e na [ADR 0027](0027-rules-context-authority-and-system-prompt-channel.md) (autoridade de contexto).
@@ -78,7 +78,7 @@ Um candidato só entra sozinho se **todas** as condições valem; qualquer falha
 3. a revisão de contexto não achou reivindicação de autoridade nem de segurança no texto;
 4. não duplica nem contradiz uma memória ou rule existente do mesmo tópico (comparação exata de chave e fingerprint,
    sem julgamento semântico, como nas Rules); contradição vira proposta;
-5. cabe no teto de tamanho e na cota do escopo (por padrão 40 por workspace, 20 por agente, 20 de usuário); passando da
+5. cabe no teto de tamanho e na cota do escopo (40 automáticas por workspace e 20 por agente; o escopo User não tem automáticas); passando da
    cota, a nota **não entra sozinha**: vira proposta. Nada que já está guardado é substituído nem apagado em silêncio
    (isto substitui a ideia inicial de expulsar a de menor valor);
 6. tipo `preference` e escopo `User` **nunca** são automáticos: o que fala pela pessoa é aprovado por ela.
@@ -109,7 +109,7 @@ agente soube disso" é uma pergunta com resposta. Isso também alimenta a medida
   está declarado; se não, a memória vai para `stale` e não é enviada (a pessoa vê o motivo e pode renovar ou apagar).
 - `uses` e `last_used_at` sobem só quando a memória _entrou no prompt de um passo concluído_; é o sinal que decide poda,
   cota e validade.
-- Nada é apagado em silêncio: o que expira ou é podado vai para `archived`, recuperável por 30 dias.
+- Nada é apagado em silêncio: o que expira ou é podado vai para `archived` e fica guardado (não há expurgo automático).
 
 ### 8. Medir antes de dizer "otimizado"
 
@@ -150,17 +150,33 @@ Nenhuma checagem da decisão 5 mede se a lição é _verdadeira_. Por isso, em m
 
 O `auto` continua sendo escolha explícita da pessoa, e `propose` continua sendo o modo recomendado.
 
-## Fases
+## Medição (M4) e o que ela decidiu
 
-| Fase | Entrega                                                                                                                                                                      | Critério de pronto                                                                                                  |
-| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| M1   | Domínio `Memory`, porta e armazenamento, recuperação determinística, `SectionKind::Memory` (Untrusted), manifest, guardrails; comandos Tauri de CRUD; modo `off` por padrão  | `npm run check` verde; com modo `off` o prompt é idêntico byte a byte; testes de escopo, cota, validade e orçamento |
-| M2   | Protocolo `atlas-memory`, candidatos, aprovação (aprovar/editar/descartar), coleta determinística de falha→sucesso, modo `auto` com todas as condições da decisão 5          | testes provam que cada condição rebaixa ou descarta; `preference`/`User` nunca automáticos; segredo descartado      |
-| M3   | Interface: painel de Memória por escopo, candidatos pendentes inline no passo e no chat, selo de automática, promover/editar/apagar, aba no Inspetor, export/import opcional | revisão visual no app; textos nos três idiomas; acessibilidade do painel                                            |
-| M4   | Validação: métricas de custo/benefício; execução real autorizada (tokens) comparando passos com e sem memória                                                                | números registrados; decisão sobre padrões e cotas baseada neles                                                    |
+Medido em duas CLIs (`opencode/big-pickle` e `claude` haiku, e uma execução no sonnet), três execuções por braço: A sem
+nota, B com a nota certa escrita por uma pessoa, C com o ciclo do agente propondo e a execução seguinte recebendo.
 
-## Decisões pendentes (a pessoa decide antes da M2)
+| Achado                                            | Número (medianas)                                                                 |
+| ------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Nota escrita por uma pessoa, no claude            | entrada 74 mil → 36 mil, saída 1,4 mil → 0,5 mil, 9 → 2 chamadas, isca 3/3 → 0/3  |
+| Nota escrita por uma pessoa, no opencode          | entrada dentro do ruído (97 mil → 90 mil), isca 3/3 → 0/3                         |
+| Custo de uma nota no prompt                       | ~150–370 tokens estimados                                                         |
+| Agente propondo, regra no fim do prompt           | opencode 3 de 3 execuções deixaram nota; claude haiku 0 em 18; sonnet 1 de 1      |
+| Nota automática aceita só porque o passo terminou | ensinou o erro duas vezes (opencode e sonnet): origem do portão do validador (5b) |
 
-- Padrão do modo por escopo quando a pessoa ligar a Memory pela primeira vez (proposta: `propose` em Workspace e Agent,
-  `propose` em User, `auto` só por escolha explícita).
-- Cotas e validades padrão (valores acima são o ponto de partida, a calibrar na M4).
+Decisões tiradas desses números (2026-11-11, item MEM2 do checklist):
+
+- **Modo por escopo:** a pessoa escolhe ao ligar; nenhum escopo liga sozinho. `propose` é o recomendado (é onde a nota
+  rendeu), `auto` existe só em Workspace e Agent, por escolha explícita e com o portão do validador; o escopo User não
+  tem `auto`. É o que o painel já oferece.
+- **Cotas e validades:** mantidas como o código as tem (`memory/service.rs`): até 40 notas automáticas por workspace e
+  20 por agente (o escopo User não tem automáticas), até 20 propostas esperando por dono, 60 dias sem uso para uma
+  automática ser arquivada, e um teto de 600 tokens por prompt. Uma nota arquivada fica guardada; não há expurgo
+  automático. O teto cabe de uma a três notas do
+  tamanho medido; nenhuma rodada encheu uma cota, então os números não pedem mudança. Rever quando houver uso real que
+  bata nelas.
+
+O que a medição não cobriu: uma tarefa real além da tarefa com isca, Codex e Antigravity, e se a proposta do agente
+funciona em modelos pequenos (o haiku não seguiu a regra).
+
+A ADR 0041, se for adotada (está na branch de POC da memória externa), muda o padrão
+desta ADR; enquanto ela não estiver nesta branch, vale o que está escrito aqui: desligada por padrão.

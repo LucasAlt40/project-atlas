@@ -43,6 +43,53 @@ describe('the phone page', () => {
     vi.useRealTimers();
   });
 
+  describe('specifications', () => {
+    const spec = {
+      id: 'spec-1',
+      title: 'Dark mode',
+      workspaceName: 'Atlas',
+      status: 'awaiting_review',
+      approved: 1,
+      documents: 4,
+      updatedAt: Date.now(),
+    };
+
+    it('lists them and shows each document, with no way to decide from the phone', async () => {
+      paired();
+      server.on('GET', '/api/specs', () => json(200, { specs: [spec] }));
+      server.on('GET', '/api/specs/spec-1', () =>
+        json(200, {
+          ...spec,
+          request: 'Add a dark mode',
+          canDecide: false,
+          documents: [
+            {
+              id: 'proposal',
+              phase: 'awaiting_review',
+              revision: 2,
+              files: [{ name: 'proposal.md', text: '# Proposal\n\nWhy: night shifts.' }],
+            },
+            { id: 'specs', phase: 'blocked', revision: null, files: [] },
+          ],
+        }),
+      );
+      render(<MobileApp />);
+
+      const link = await screen.findByRole('link', { name: /Dark mode/ });
+      expect(within(link).getByText('1 of 4 approved')).toBeInTheDocument();
+      await userEvent.setup().click(link);
+
+      expect(await screen.findByText(/Why: night shifts/)).toBeInTheDocument();
+      expect(screen.getByText('Awaiting review · revision 2')).toBeInTheDocument();
+      expect(screen.getByText('Not written yet.')).toBeInTheDocument();
+      expect(screen.getByText(/done at the computer/)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Approve/ })).not.toBeInTheDocument();
+      expect(
+        server.calls.filter((c) => c.path.startsWith('/api/specs') && c.method !== 'GET'),
+      ).toEqual([]);
+    });
+  });
+
   describe('pairing', () => {
     it('asks for a code when there is no session', async () => {
       server.on('GET', '/api/session', () => problem(401, 'unauthenticated'));

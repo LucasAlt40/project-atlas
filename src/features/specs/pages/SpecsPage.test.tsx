@@ -27,6 +27,10 @@ import {
   raiseBudget,
   resolveFinding,
   runReview,
+  adoptHandEdits,
+  editArtifact,
+  specHandEdits,
+  specRevisionDiff,
   startSpec,
   subscribeToSpecChanges,
   validateSpec,
@@ -91,6 +95,7 @@ beforeEach(() => {
   // Answers not yet sent are kept in the browser: one test's must not reach the next.
   localStorage.clear();
   vi.mocked(listMcpConnections).mockResolvedValue({ connections: [], grants: [] });
+  vi.mocked(specHandEdits).mockResolvedValue([]);
 });
 
 /** The panels of the final review fold down to their title and state; open the one a test needs. */
@@ -200,6 +205,38 @@ describe('the Specs overview', () => {
 });
 
 describe('creating a spec', () => {
+  it('makes a change with no behaviour, and then shows no Requirements stage', async () => {
+    backend();
+    vi.mocked(listSpecs).mockResolvedValue([]);
+    const draft = view('draft', {
+      started: true,
+      skipSpecs: true,
+      artifacts: [artifact('proposal'), artifact('design'), artifact('tasks')],
+    });
+    vi.mocked(createSpec).mockResolvedValue(draft);
+    vi.mocked(getSpec).mockResolvedValue(draft);
+    const user = userEvent.setup();
+    renderWithProviders(<SpecsPage />);
+
+    await user.click(first(await screen.findAllByRole('button', { name: 'New specification' })));
+    const dialog = await screen.findByRole('dialog', { name: 'New specification' });
+    await user.type(within(dialog).getByLabelText('Title'), 'Build timing');
+    await user.type(within(dialog).getByLabelText(/What do you want built/), 'Time the build');
+    await user.click(
+      within(dialog).getByRole('checkbox', {
+        name: 'No behaviour change (no specification files)',
+      }),
+    );
+    expect(within(dialog).getByText(/proposal, design and tasks only/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Create' }));
+
+    expect(createSpec).toHaveBeenCalledWith(expect.objectContaining({ skipSpecs: true }));
+    const stages = await screen.findByRole('navigation', { name: 'Stages' });
+    expect(within(stages).queryByRole('button', { name: /Requirements/ })).not.toBeInTheDocument();
+    expect(within(stages).getByRole('button', { name: /Design/ })).toBeInTheDocument();
+    expect(within(stages).getAllByRole('button')).toHaveLength(4);
+  });
+
   it('needs a title and a request, records them, and starts nothing until confirmed', async () => {
     backend();
     vi.mocked(listSpecs).mockResolvedValue([]);
@@ -230,6 +267,7 @@ describe('creating a spec', () => {
       authorAgentId: 'a1',
       reviewerAgentId: 'a1',
       integrations: [],
+      skipSpecs: false,
     });
     expect(await screen.findByRole('heading', { level: 2, name: 'Dark mode' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start specification' })).toBeEnabled();
@@ -605,6 +643,44 @@ describe('reviewing a document', () => {
     await user.selectOptions(screen.getByLabelText('Revision'), '1');
 
     expect(screen.getByText('Older revision')).toBeInTheDocument();
+  });
+
+  it('shows what changed since another revision, as the core worked it out', async () => {
+    vi.mocked(specRevisionDiff).mockResolvedValue({
+      from: 1,
+      to: 2,
+      files: [
+        {
+          path: 'proposal.md',
+          change: 'changed',
+          added: 1,
+          removed: 1,
+          tooLarge: false,
+          lines: [
+            { kind: 'gap', lines: 4 },
+            { kind: 'removed', text: 'Day shift only.' },
+            { kind: 'added', text: 'Night shift too.' },
+          ],
+        },
+      ],
+    });
+    const user = await open(
+      view('awaiting_review', {
+        artifacts: [
+          artifact('proposal', { revisions: 2 }),
+          artifact('specs'),
+          artifact('design'),
+          artifact('tasks'),
+        ],
+      }),
+    );
+
+    await user.selectOptions(screen.getByLabelText('Compare with'), '1');
+
+    expect(await screen.findByText('Night shift too.', { exact: false })).toBeInTheDocument();
+    expect(screen.getByText('Day shift only.', { exact: false })).toBeInTheDocument();
+    expect(screen.getByText('… 4 unchanged lines …')).toBeInTheDocument();
+    expect(specRevisionDiff).toHaveBeenCalledWith(expect.any(String), 'proposal', 1, 2);
   });
 });
 
@@ -1301,6 +1377,71 @@ describe('publishing and building', () => {
     expect(screen.getByRole('button', { name: 'Start a workflow from this spec' })).toBeDisabled();
     await openPanel('Publish to the project');
     expect(screen.getByRole('button', { name: 'Publish' })).toBeDisabled();
+  });
+});
+
+describe('editing by hand', () => {
+  it('saves the person’s own text as the next revision of the document', async () => {
+    const current = view('awaiting_review', {
+      artifacts: [
+        artifact('proposal', { revisions: 1 }),
+        artifact('specs'),
+        artifact('design'),
+        artifact('tasks'),
+      ],
+    });
+    vi.mocked(editArtifact).mockResolvedValue(current);
+    const user = await open(current);
+
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    const editor = screen.getByRole('form', { name: /Editing proposal.md/ });
+    expect(within(editor).getByText(/waits for your approval/)).toBeInTheDocument();
+    const text = within(editor).getByRole('textbox');
+    await user.clear(text);
+    await user.type(text, '# Proposal{enter}{enter}New text');
+    await user.click(within(editor).getByRole('button', { name: 'Save as new revision' }));
+
+    expect(editArtifact).toHaveBeenCalledWith(current.spec.id, 'proposal', 1, [
+      { path: 'proposal.md', content: '# Proposal\n\nNew text' },
+    ]);
+    await waitFor(() => {
+      expect(screen.queryByRole('form', { name: /Editing/ })).not.toBeInTheDocument();
+    });
+  });
+
+  it('says a published file was edited in the project and lets the edit be adopted', async () => {
+    const published = view(
+      'published',
+      {
+        artifacts: allApproved(),
+        publication: {
+          state: 'published',
+          changeId: 'dark-mode',
+          root: 'openspec/changes/dark-mode',
+          files: ['proposal.md'],
+          revisions: {},
+          at: Date.now(),
+        },
+      },
+      { readiness: { ready: true, blockers: [] }, publicationCurrent: true },
+    );
+    vi.mocked(specHandEdits).mockResolvedValue([
+      { artifactId: 'proposal', revision: 1, changed: ['proposal.md'], missing: [] },
+    ]);
+    vi.mocked(adoptHandEdits).mockResolvedValue(published);
+    vi.mocked(getCliStatus).mockResolvedValue({
+      available: false,
+      version: null,
+      compatible: false,
+      reason: 'not_installed',
+    });
+    const user = await open(published);
+
+    expect(await screen.findByText('Proposal was edited in the project')).toBeInTheDocument();
+    expect(screen.getByText(/Atlas will not publish over it/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Adopt as new revision' }));
+
+    expect(adoptHandEdits).toHaveBeenCalledWith(published.spec.id, 'proposal');
   });
 });
 

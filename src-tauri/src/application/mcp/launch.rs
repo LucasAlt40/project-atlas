@@ -32,6 +32,17 @@ pub struct LaunchServer {
     pub executable: String,
     pub args: Vec<String>,
     pub env: Vec<LaunchEnv>,
+    /// A remote server: the runtime connects to `url` itself, with these headers (secrets
+    /// resolved for the launch only). `executable`, `args` and `env` are then empty.
+    pub http: Option<LaunchHttp>,
+}
+
+/// A remote server as a runtime adapter is handed it. Its destination was checked just before
+/// (`mcp::destination`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LaunchHttp {
+    pub url: String,
+    pub headers: Vec<LaunchEnv>,
 }
 
 /// The servers a step is given and the tools of those servers it is not. Built only after the

@@ -246,14 +246,22 @@ impl OpenSpecCli {
     /// # Errors
     ///
     /// When the command is not usable or refuses (what it said is in the error).
-    pub fn archive(&self, root: &str, change_id: &str) -> Result<CliArchive, CliError> {
+    /// `skip_specs`: the change has no specification files, so no main spec is updated
+    /// (`--skip-specs`).
+    pub fn archive(
+        &self,
+        root: &str,
+        change_id: &str,
+        skip_specs: bool,
+    ) -> Result<CliArchive, CliError> {
         self.ready(root)?;
+        let mut args = vec!["archive", change_id, "--yes"];
+        if skip_specs {
+            args.push("--skip-specs");
+        }
         let output = self
             .runner
-            .run(
-                &Self::spec(root, &["archive", change_id, "--yes"], ARCHIVE_TIMEOUT),
-                &|_| {},
-            )
+            .run(&Self::spec(root, &args, ARCHIVE_TIMEOUT), &|_| {})
             .map_err(|e| CliError::Failed(format!("{e:?}")))?;
         if output.exit_code != Some(0) {
             return Err(CliError::Failed(clip(
@@ -307,6 +315,22 @@ mod tests {
     const INVALID: &str = r#"{"items":[{"id":"broken","type":"change","valid":false,"issues":[{"level":"ERROR","path":"a/spec.md","message":"ADDED \"Weak\" must contain SHALL or MUST"}]}]}"#;
 
     #[test]
+    fn a_change_without_specification_files_is_archived_without_touching_the_main_specs() {
+        let (cli, runner) = cli(true, |spec| match spec.args[0].as_str() {
+            "--version" => ok("1.3.1"),
+            _ => ok("Change 'build-timing' archived as '2026-11-12-build-timing'.\n"),
+        });
+
+        cli.archive("/p", "build-timing", true).unwrap();
+
+        let last = runner.calls.lock().unwrap().last().cloned().unwrap();
+        assert_eq!(
+            last.args,
+            ["archive", "build-timing", "--yes", "--skip-specs"]
+        );
+    }
+
+    #[test]
     fn without_the_command_everything_says_so_and_nothing_is_started() {
         let (cli, runner) = cli(false, |_| ok(""));
 
@@ -319,7 +343,7 @@ mod tests {
             Err(CliError::Unavailable("not_installed".to_owned()))
         );
         assert_eq!(
-            cli.archive("/project", "x"),
+            cli.archive("/project", "x", false),
             Err(CliError::Unavailable("not_installed".to_owned()))
         );
         assert!(runner.calls.lock().unwrap().is_empty());
@@ -434,7 +458,7 @@ mod tests {
         }
         });
 
-        let archived = cli.archive("/p", "dark-mode").unwrap();
+        let archived = cli.archive("/p", "dark-mode", false).unwrap();
 
         assert_eq!(
             archived.archived_as.as_deref(),
@@ -451,7 +475,7 @@ mod tests {
             _ => outcome(1, "", "Validation failed: ADDED requirement exists"),
         });
 
-        let error = cli.archive("/p", "x").unwrap_err();
+        let error = cli.archive("/p", "x", false).unwrap_err();
 
         assert!(matches!(&error, CliError::Failed(text) if text.contains("Validation failed")));
         let app: AppError = error.into();
@@ -465,7 +489,7 @@ mod tests {
             _ => ok("Change 'x' archived as '../../etc'."),
         });
 
-        assert_eq!(cli.archive("/p", "x").unwrap().archived_as, None);
+        assert_eq!(cli.archive("/p", "x", false).unwrap().archived_as, None);
     }
 
     #[test]

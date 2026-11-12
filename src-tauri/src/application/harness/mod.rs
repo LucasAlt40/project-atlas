@@ -179,7 +179,16 @@ pub struct HarnessService {
     /// Chooses what a task is told of the Harness. Shared with the execution service so that a
     /// preview shows what a run would use.
     context: Option<Arc<HarnessContextBuilder>>,
+    /// Each project's fingerprint, kept for [`FINGERPRINT_TTL`] (ADR 0033, P4): the overview of a
+    /// workspace with several projects is read often, and each read scanned every project.
+    /// Forgotten as soon as Atlas writes that project's Harness. `scans` counts the real scans.
+    fingerprints: Mutex<HashMap<String, (std::time::Instant, Option<ProjectFingerprint>)>>,
+    scans: std::sync::atomic::AtomicU64,
 }
+
+/// How long a project's fingerprint is reused before the project is scanned again. A change the
+/// person makes in the project shows as outdated at most this long after.
+pub const FINGERPRINT_TTL: std::time::Duration = std::time::Duration::from_secs(30);
 
 /// The user's choices about the findings, as stored in the manifest.
 #[derive(Default, Clone)]
@@ -205,6 +214,21 @@ impl HarnessService {
             pending: Mutex::new(HashMap::new()),
             workspace_store: None,
             context: None,
+            fingerprints: Mutex::new(HashMap::new()),
+            scans: std::sync::atomic::AtomicU64::new(0),
+        }
+    }
+
+    /// How many times a project was really scanned for its fingerprint (the rest came from the
+    /// cache). Read by the tests that measure the cache.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub fn fingerprint_scans(&self) -> u64 {
+        self.scans.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    fn forget_fingerprint(&self, path: &str) {
+        if let Ok(mut cache) = self.fingerprints.lock() {
+            cache.remove(path);
         }
     }
 
@@ -337,6 +361,7 @@ impl HarnessService {
     ) -> Result<HarnessSummary, AppError> {
         let path = self.project_path_of(workspace_id, project_id)?;
         self.store.reset(&path)?;
+        self.forget_fingerprint(&path);
         self.pending
             .lock()
             .expect("pending analyses lock")
@@ -353,21 +378,55 @@ impl HarnessService {
 
     /// The project's relevant state right now. `None` when it cannot be read: staleness is then
     /// simply not claimed.
-    fn current_fingerprint(&self, path: &str) -> Option<ProjectFingerprint> {
-        self.scanner
+    /// The project's fingerprint, from the cache when `reuse` and it is fresh enough. Only the
+    /// workspace overview reuses: asking for one project's state always scans it.
+    fn fingerprint(&self, path: &str, reuse: bool) -> Option<ProjectFingerprint> {
+        if let Some((at, cached)) = reuse
+            .then(|| {
+                self.fingerprints
+                    .lock()
+                    .ok()
+                    .and_then(|cache| cache.get(path).cloned())
+            })
+            .flatten()
+        {
+            if at.elapsed() < FINGERPRINT_TTL {
+                return cached;
+            }
+        }
+        self.scans
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let current = self
+            .scanner
             .scan(path)
             .ok()
-            .map(|snapshot| fingerprint::compute(&snapshot))
+            .map(|snapshot| fingerprint::compute(&snapshot));
+        if let Ok(mut cache) = self.fingerprints.lock() {
+            cache.insert(
+                path.to_owned(),
+                (std::time::Instant::now(), current.clone()),
+            );
+        }
+        current
     }
 
     fn summary_at(&self, path: &str) -> HarnessSummary {
+        self.summary_with(path, false)
+    }
+
+    /// [`Self::summary_at`] for the workspace overview, which may reuse a recent fingerprint.
+    pub(crate) fn summary_for_overview(&self, path: &str) -> HarnessSummary {
+        self.summary_with(path, true)
+    }
+
+    fn summary_with(&self, path: &str, reuse: bool) -> HarnessSummary {
         let has_dir = self.store.has_atlas_dir(path);
         match self.store.read_manifest(path) {
             Ok(text) => summarize(
                 text.as_deref(),
                 self.knowledge_text(path).as_deref(),
                 has_dir,
-                self.current_fingerprint(path).as_ref(),
+                self.fingerprint(path, reuse).as_ref(),
             ),
             Err(_) => HarnessSummary {
                 problem: Some("harness_invalid".to_owned()),
@@ -744,6 +803,8 @@ impl HarnessService {
         let (user_files, left) = user_files(&self.user_files(path), wanted_user);
         files.extend(user_files);
         let report = self.store.write(path, &files)?;
+        // What was written is compared with the project as it is now, not as it was cached.
+        self.forget_fingerprint(path);
         Ok(self.outcome(path, report, left))
     }
 

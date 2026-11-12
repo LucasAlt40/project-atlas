@@ -98,6 +98,12 @@ why, and after it say briefly what you found. Keep these updates short. When you
 the complete final answer as a last message that stands on its own, without relying on the updates. \
 Your working directory path can contain spaces: always quote paths in shell commands.";
 
+/// What stays of [`LIVE_NARRATION`] in a run nobody watches live (ADR 0021): not the narration,
+/// which only shapes the live view, but the advice that keeps a command from breaking on a path
+/// with spaces.
+const QUOTE_PATHS: &str =
+    "Your working directory path can contain spaces: always quote paths in shell commands.";
+
 /// Applied to every agent, implicitly: a plan is a document the person reads and decides on, so
 /// it is never a one-line summary. Atlas shows the message in full (and in the notification) and
 /// keeps it with the run, so the plan is not also written into the worktree: a
@@ -353,6 +359,9 @@ pub struct PromptBuilder<'a> {
     /// The other projects of the workspace this execution may look at or change. Empty: the
     /// prompt is the single-project prompt, word for word.
     pub other_projects: &'a [ProjectNote],
+    /// Someone may watch the run live: the live-narration instruction is part of the prompt.
+    /// `false` only when the person chose so for runs nobody watches (a spec's turns).
+    pub narrate: bool,
 }
 
 /// What the agent is told about the projects it may reach besides its own: where they are, what
@@ -410,6 +419,7 @@ impl PromptBuilder<'_> {
             integrations,
             unavailable_integrations,
             other_projects,
+            narrate,
         } = *self;
         let atlas_rules = if can_edit && tools_are_commands {
             ATLAS_RULES_EDITING_COMMANDS.to_owned()
@@ -421,8 +431,8 @@ impl PromptBuilder<'_> {
             ATLAS_RULES.to_owned()
         };
         let personality_text = personality.system_instructions.trim();
-        let system =
-            format!("{personality_text}\n\n{atlas_rules}\n\n{LIVE_NARRATION}\n\n{PLAN_RULE}");
+        let narration = if narrate { LIVE_NARRATION } else { QUOTE_PATHS };
+        let system = format!("{personality_text}\n\n{atlas_rules}\n\n{narration}\n\n{PLAN_RULE}");
         // Only when the person turned proposals on: otherwise the prompt is the one there was. It
         // goes after the task, not in the system part: a model that was told in the task to reply
         // with one word ignored a rule that sat far from it (measured, `spikes/memory-m4-results.md`).
@@ -466,7 +476,7 @@ impl PromptBuilder<'_> {
         let layout = PromptLayout {
             personality: TextSize::of(personality_text),
             atlas_rules: TextSize::of(&atlas_rules),
-            live_narration: TextSize::of(LIVE_NARRATION),
+            live_narration: TextSize::of(narration),
             plan_rule: TextSize::of(PLAN_RULE),
             memory_rule,
             project_context: TextSize::of(&context),
@@ -509,6 +519,24 @@ mod tests {
         can_edit: bool,
         tools_are_commands: bool,
     ) -> Prompt {
+        build_narrated(
+            instructions,
+            integrations,
+            unavailable,
+            can_edit,
+            tools_are_commands,
+            true,
+        )
+    }
+
+    fn build_narrated(
+        instructions: &str,
+        integrations: &[String],
+        unavailable: &[String],
+        can_edit: bool,
+        tools_are_commands: bool,
+        narrate: bool,
+    ) -> Prompt {
         let personality = PersonalityProfile {
             id: "p".to_owned(),
             name: "Architect".to_owned(),
@@ -535,6 +563,7 @@ mod tests {
             permission_profile_id: None,
             worktree_isolation: false,
             result_contract: crate::domain::result_contract::ResultContract::default(),
+            imported_model: None,
             created_at: 0,
         };
         let task = Task {
@@ -560,9 +589,26 @@ mod tests {
             integrations,
             unavailable_integrations: unavailable,
             other_projects: &[],
+            narrate,
         }
         .assemble()
         .0
+    }
+
+    #[test]
+    fn a_run_nobody_watches_is_not_asked_to_narrate_and_keeps_the_advice_on_paths() {
+        let watched = build_narrated("", &[], &[], false, false, true);
+        let unwatched = build_narrated("", &[], &[], false, false, false);
+
+        assert!(watched.system.contains(LIVE_NARRATION));
+        assert!(!unwatched.system.contains("Narrate your work"));
+        assert!(unwatched.system.contains(QUOTE_PATHS));
+        // Nothing else changes: the rest of the prompt is the same text.
+        assert_eq!(
+            watched.system.replace(LIVE_NARRATION, QUOTE_PATHS),
+            unwatched.system
+        );
+        assert_eq!(watched.rest(), unwatched.rest());
     }
 
     #[test]

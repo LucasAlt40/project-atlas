@@ -25,6 +25,7 @@ import {
   resumeWorkflow,
   saveAsTemplate,
   setAutoApprovePlans,
+  setMaxParallelSteps,
   selectTemplate,
   startWorkflow,
   continueWorkflowChain,
@@ -575,6 +576,20 @@ export function useWorkflows(workspaceId: string | undefined) {
     [shownRun, activeRun, guard, draft, upsert],
   );
 
+  /** How many steps of the run being driven may run at once. */
+  const maxParallelSteps = useCallback(
+    async (steps: number) => {
+      const target = activeRun;
+      if (!target) return;
+      await guard(async () => {
+        await setMaxParallelSteps(target.id, steps);
+        const fresh = await getRun(target.id);
+        if (fresh) setRuns((current) => current.map((r) => (r.id === fresh.id ? fresh : r)));
+      });
+    },
+    [activeRun, guard],
+  );
+
   /** The person's standing instruction about plans, for the run being driven. */
   const autoApprovePlans = useCallback(
     async (enabled: boolean) => {
@@ -702,6 +717,7 @@ export function useWorkflows(workspaceId: string | undefined) {
     },
     recommend: selectTemplate,
     autoApprovePlans,
+    maxParallelSteps,
     planTools,
     removeTemplate,
     saveTemplate,

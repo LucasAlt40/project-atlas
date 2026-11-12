@@ -140,11 +140,40 @@ pub struct NewSpec {
     pub author_agent_id: String,
     pub reviewer_agent_id: String,
     pub origin: SpecOrigin,
+    /// No specification files: see [`Spec::skip_specs`].
+    pub skip_specs: bool,
+}
+
+/// The framework's graph for a spec that has no specification files: `Specs` is gone, and so is
+/// every dependency on it.
+pub fn without_specs(
+    graph: &[(ArtifactKind, Vec<ArtifactKind>)],
+) -> Vec<(ArtifactKind, Vec<ArtifactKind>)> {
+    graph
+        .iter()
+        .filter(|(kind, _)| *kind != ArtifactKind::Specs)
+        .map(|(kind, deps)| {
+            (
+                *kind,
+                deps.iter()
+                    .copied()
+                    .filter(|d| *d != ArtifactKind::Specs)
+                    .collect(),
+            )
+        })
+        .collect()
 }
 
 /// A spec with its artifacts and none of them started. `graph` is the framework's: each kind and
 /// the kinds it is written from.
 pub fn create(new: NewSpec, graph: &[(ArtifactKind, Vec<ArtifactKind>)], now: u64) -> Spec {
+    let shaped;
+    let graph = if new.skip_specs {
+        shaped = without_specs(graph);
+        &shaped[..]
+    } else {
+        graph
+    };
     let artifacts = graph
         .iter()
         .map(|(kind, depends_on)| SpecArtifact {
@@ -189,6 +218,7 @@ pub fn create(new: NewSpec, graph: &[(ArtifactKind, Vec<ArtifactKind>)], now: u6
         budget_steps: 0,
         integrations: Vec::new(),
         runs: Vec::new(),
+        skip_specs: new.skip_specs,
         origin: new.origin,
         version: 1,
         created_at: now,
@@ -434,6 +464,89 @@ pub fn complete_generation(
     if !first && !unchanged {
         mark_dependents_outdated(spec, artifact_id, number, now);
     }
+    touch(spec, now);
+    Ok(number)
+}
+
+/// The person's own text for a document: a new revision, written by nobody's run. It goes back to
+/// waiting for the person's approval (an edit is not an approval) and, when it says something new,
+/// the documents written from it are out of date, as after an agent's revision. The files are the
+/// latest revision's, by path: an edit changes what they say, not which files there are.
+///
+/// # Errors
+///
+/// When the spec is archived or not started, a run is going, the person edited another revision
+/// than the latest, the files are not the latest revision's, or nothing changed.
+pub fn edit_by_hand(
+    spec: &mut Spec,
+    artifact_id: &str,
+    expected_revision: u32,
+    files: Vec<SpecFile>,
+    origin: RevisionOrigin,
+    now: u64,
+) -> Result<u32, TransitionError> {
+    open(spec)?;
+    if !spec.started {
+        return Err(TransitionError::NotStarted);
+    }
+    if has_active_run(spec) {
+        return Err(TransitionError::RunInProgress);
+    }
+    let artifact = spec
+        .artifact(artifact_id)
+        .ok_or(TransitionError::ArtifactNotFound)?;
+    let latest = artifact
+        .latest()
+        .ok_or(TransitionError::WrongState("nothing_to_edit"))?;
+    if latest.number != expected_revision {
+        return Err(TransitionError::RevisionOutdated {
+            current: latest.number,
+        });
+    }
+    let mut paths: Vec<&str> = latest.files.iter().map(|f| f.path.as_str()).collect();
+    let mut given: Vec<&str> = files.iter().map(|f| f.path.as_str()).collect();
+    paths.sort_unstable();
+    given.sort_unstable();
+    if paths != given {
+        return Err(TransitionError::WrongState("files_differ"));
+    }
+    if files
+        .iter()
+        .any(|f| f.content.trim().is_empty() || f.content.len() > super::MAX_FILE)
+    {
+        return Err(TransitionError::WrongState("file_size"));
+    }
+    if same_content(&latest.files, &files) {
+        return Err(TransitionError::WrongState("unchanged"));
+    }
+    let based_on: BTreeMap<String, u32> = artifact
+        .depends_on
+        .iter()
+        .filter_map(|id| {
+            let dep = spec.artifact(id)?;
+            dep.approved_revision
+                .or_else(|| dep.latest_number())
+                .map(|n| (id.clone(), n))
+        })
+        .collect();
+    let number = latest.number + 1;
+    if let Some(artifact) = spec.artifact_mut(artifact_id) {
+        artifact.revisions.push(Revision {
+            number,
+            files,
+            origin,
+            run_id: None,
+            agent_id: None,
+            based_on,
+            created_at: now,
+        });
+        prune_revisions(artifact);
+        artifact.review = Review::AwaitingReview;
+        artifact.outdated = None;
+        artifact.validation = None;
+        artifact.updated_at = now;
+    }
+    mark_dependents_outdated(spec, artifact_id, number, now);
     touch(spec, now);
     Ok(number)
 }
@@ -1476,6 +1589,7 @@ pub(crate) mod tests_support {
                 author_agent_id: "a1".to_owned(),
                 reviewer_agent_id: "a2".to_owned(),
                 origin: SpecOrigin::Created,
+                skip_specs: false,
             },
             &graph(),
             1,

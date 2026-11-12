@@ -39,7 +39,7 @@ use crate::domain::execution::ExecutionEvent;
 use crate::domain::runtime::{ModelInfo, RuntimeInfo};
 use crate::domain::spec::{
     DecisionKind, FindingStatus, Generation, Publication, QuestionStatus, Review, ReviewRun,
-    SpecStatus,
+    RevisionOrigin, SpecFile, SpecStatus,
 };
 use crate::domain::workflow::{EndOutcome, WorkflowMode};
 
@@ -294,6 +294,7 @@ fn new_request(w: &World) -> NewSpecRequest {
         author_agent_id: w.agent_id.clone(),
         reviewer_agent_id: Some(w.other_agent_id.clone()),
         integrations: Vec::new(),
+        skip_specs: false,
     }
 }
 
@@ -550,6 +551,49 @@ fn asking_for_changes_sends_the_current_document_and_the_feedback_and_keeps_the_
     assert!(proposal.revisions[0].files[0]
         .content
         .contains("Users working at night"));
+}
+
+#[test]
+fn the_core_says_what_changed_between_two_revisions_of_a_document() {
+    let w = world();
+    let id = started(&w);
+    w.runtime.say(&answer_for("proposal"));
+    generate(&w, &id, "proposal");
+    w.specs
+        .decide(
+            &id,
+            "proposal",
+            1,
+            DecisionKind::Revise,
+            Some("Night shift too"),
+        )
+        .unwrap();
+    w.runtime.say(&doc(
+        "proposal.md",
+        &format!("{PROPOSAL}\nNight shift workers too.\n"),
+    ));
+    generate(&w, &id, "proposal");
+
+    let diff = w.specs.revision_diff(&id, "proposal", 1, 2).unwrap();
+
+    assert_eq!((diff.from, diff.to), (1, 2));
+    let file = &diff.files[0];
+    assert_eq!(file.path, "proposal.md");
+    assert_eq!(file.change, crate::domain::spec::diff::FileChange::Changed);
+    assert!(file.lines.iter().any(|line| matches!(
+        line,
+        crate::domain::spec::diff::DiffLine::Added { text } if text == "Night shift workers too."
+    )));
+    assert!(w
+        .specs
+        .revision_diff(&id, "proposal", 1, 9)
+        .unwrap_err()
+        .is(ErrorCode::SpecArtifactNotFound));
+    assert!(w
+        .specs
+        .revision_diff(&id, "nothing", 1, 2)
+        .unwrap_err()
+        .is(ErrorCode::SpecArtifactNotFound));
 }
 
 #[test]
@@ -1685,7 +1729,239 @@ fn the_final_approval_records_the_warnings_that_were_showing() {
     assert_eq!(approval.revisions, spec.current_revisions());
 }
 
+// ---- editing by hand ----------------------------------------------------------------------------------------------
+
+#[test]
+fn an_edit_in_atlas_is_a_new_revision_checked_and_waiting_for_approval_and_its_dependents_go_out_of_date(
+) {
+    let w = world();
+    let id = started(&w);
+    for artifact in ["proposal", "specs"] {
+        w.runtime.say(&answer_for(artifact));
+        generate(&w, &id, artifact);
+        approve(&w, &id, artifact);
+    }
+    let file = |content: &str| {
+        vec![SpecFile {
+            path: "proposal.md".to_owned(),
+            content: content.to_owned(),
+        }]
+    };
+    let edited = format!("{PROPOSAL}\nAlso for people with low vision.\n");
+
+    // Refused: another revision than the latest, other files, nothing new.
+    assert!(w
+        .specs
+        .edit(&id, "proposal", 9, file(&edited))
+        .unwrap_err()
+        .is(ErrorCode::SpecRevisionOutdated));
+    let other = vec![SpecFile {
+        path: "other.md".to_owned(),
+        content: edited.clone(),
+    }];
+    assert!(w
+        .specs
+        .edit(&id, "proposal", 1, other)
+        .unwrap_err()
+        .is(ErrorCode::SpecStateInvalid));
+    assert!(w
+        .specs
+        .edit(&id, "proposal", 1, file(PROPOSAL))
+        .unwrap_err()
+        .is(ErrorCode::SpecStateInvalid));
+
+    let view = w.specs.edit(&id, "proposal", 1, file(&edited)).unwrap();
+
+    let proposal = view.spec.artifact("proposal").unwrap();
+    let latest = proposal.latest().unwrap();
+    assert_eq!(
+        (latest.number, latest.origin, latest.run_id.as_deref()),
+        (2, RevisionOrigin::Edited, None)
+    );
+    assert_eq!(proposal.review, Review::AwaitingReview);
+    assert_eq!(
+        proposal.validation.as_ref().map(|v| v.revision),
+        Some(2),
+        "checked like any revision"
+    );
+    assert!(view.spec.artifact("specs").unwrap().outdated.is_some());
+    // A document with errors is still refused at approval, edited or not.
+    let broken = w
+        .specs
+        .edit(&id, "proposal", 2, file("# Proposal\n\nnothing\n"))
+        .unwrap();
+    assert!(!broken
+        .spec
+        .artifact("proposal")
+        .unwrap()
+        .validation
+        .as_ref()
+        .unwrap()
+        .issues
+        .is_empty());
+    assert!(w
+        .specs
+        .decide(&id, "proposal", 3, DecisionKind::Approve, None)
+        .is_err());
+}
+
+#[test]
+fn a_published_file_edited_by_hand_is_found_never_written_over_and_can_be_adopted() {
+    let w = world();
+    let id = ready(&w);
+    w.specs.publish(&id, None).unwrap();
+    assert!(w.specs.hand_edits(&id).unwrap().is_empty());
+    let path = "openspec/changes/dark-mode/proposal.md";
+    let published = w.files.get(path).unwrap();
+    w.files
+        .put(path, &format!("{published}\nEdited in the editor.\n"));
+
+    let edits = w.specs.hand_edits(&id).unwrap();
+    assert_eq!(edits.len(), 1);
+    assert_eq!(
+        (edits[0].artifact_id.as_str(), edits[0].changed.as_slice()),
+        ("proposal", &["proposal.md".to_owned()][..])
+    );
+
+    // Publishing again would write over it: refused, and the file is as the person left it.
+    let refused = w.specs.publish(&id, None).unwrap_err();
+    assert!(refused.is(ErrorCode::SpecEditedInProject));
+    assert!(w.files.get(path).unwrap().contains("Edited in the editor."));
+
+    // Adopted, it becomes the next revision, waiting for approval, and is no longer reported.
+    let view = w.specs.adopt_hand_edits(&id, "proposal").unwrap();
+    let proposal = view.spec.artifact("proposal").unwrap();
+    assert_eq!(
+        proposal.latest().unwrap().origin,
+        RevisionOrigin::EditedInProject
+    );
+    assert!(proposal.latest().unwrap().files[0]
+        .content
+        .contains("Edited in the editor."));
+    assert_eq!(proposal.review, Review::AwaitingReview);
+    assert!(w.specs.hand_edits(&id).unwrap().is_empty());
+}
+
+#[test]
+fn an_edit_undone_by_hand_lets_the_spec_be_published_again() {
+    let w = world();
+    let id = ready(&w);
+    w.specs.publish(&id, None).unwrap();
+    let path = "openspec/changes/dark-mode/tasks.md";
+    let published = w.files.get(path).unwrap();
+    w.files.put(path, "# Tasks\n\nsomething else\n");
+    assert!(w.specs.publish(&id, None).is_err());
+
+    w.files.put(path, &published);
+
+    assert!(w.specs.hand_edits(&id).unwrap().is_empty());
+    assert!(w.specs.publish(&id, None).is_ok());
+}
+
 // ---- publishing --------------------------------------------------------------------------------------------------
+
+/// A proposal for a change with no behaviour to specify: no Capabilities section.
+const PROPOSAL_WITHOUT_SPECS: &str = "# Proposal\n\n## Why\n\nThe build takes ten minutes and nobody can tell which step is slow, so it should say.\n\n## What Changes\n\n- Time each build step and print the slowest.\n\n## Impact\n\nThe build scripts.\n";
+
+#[test]
+fn a_change_without_behaviour_goes_through_without_specification_files() {
+    let w = world();
+    let mut request = new_request(&w);
+    request.skip_specs = true;
+    let view = w.specs.create(request).unwrap();
+    let id = view.spec.id.clone();
+    let shape: Vec<(&str, Vec<&str>)> = view
+        .spec
+        .artifacts
+        .iter()
+        .map(|a| {
+            (
+                a.id.as_str(),
+                a.depends_on.iter().map(String::as_str).collect(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        shape,
+        [
+            ("proposal", vec![]),
+            ("design", vec!["proposal"]),
+            ("tasks", vec!["design"]),
+        ]
+    );
+    w.specs.start(&id).unwrap();
+
+    // The proposal is asked for without capabilities, and one that names them is wrong here.
+    w.runtime.say(&answer_for("proposal"));
+    generate(&w, &id, "proposal");
+    let prompt = w.runtime.last_prompt();
+    assert!(prompt.contains("it has NO specification files"));
+    assert!(!prompt.contains("### New Capabilities"));
+    let codes = |w: &World| -> Vec<String> {
+        w.specs
+            .view(&id)
+            .unwrap()
+            .spec
+            .artifact("proposal")
+            .unwrap()
+            .validation
+            .as_ref()
+            .unwrap()
+            .issues
+            .iter()
+            .map(|i| i.code.clone())
+            .collect()
+    };
+    assert!(codes(&w).contains(&"capabilities_without_specs".to_owned()));
+    w.specs
+        .decide(
+            &id,
+            "proposal",
+            1,
+            DecisionKind::Revise,
+            Some("No capabilities: it is the build"),
+        )
+        .unwrap();
+    w.runtime.say(&doc("proposal.md", PROPOSAL_WITHOUT_SPECS));
+    generate(&w, &id, "proposal");
+    assert!(codes(&w).is_empty(), "{:?}", codes(&w));
+    approve(&w, &id, "proposal");
+
+    w.runtime.say(&answer_for("design"));
+    generate(&w, &id, "design");
+    assert!(w
+        .runtime
+        .last_prompt()
+        .contains("there are no requirements to point to"));
+    approve(&w, &id, "design");
+    w.runtime.say(&doc(
+        "tasks.md",
+        "# Tasks\n\n## 1. Build\n\n- [ ] 1.1 Time each step and verify the slowest is printed\n",
+    ));
+    generate(&w, &id, "tasks");
+    approve(&w, &id, "tasks");
+    w.runtime.say(&review_answer("[]"));
+    w.runner.prepare_review(&id).unwrap().run(&Quiet);
+    w.specs.approve_final(&id).unwrap();
+
+    let published = w.specs.publish(&id, None).unwrap();
+
+    assert_eq!(published.status, SpecStatus::Published);
+    assert!(
+        w.files.paths().iter().all(|p| !p.contains("/specs/")),
+        "{:?}",
+        w.files.paths()
+    );
+    assert_eq!(w.files.paths().len(), 4, "yaml, proposal, design, tasks");
+}
+
+#[test]
+fn a_spec_from_before_has_its_specification_files() {
+    let w = world();
+    let view = w.specs.create(new_request(&w)).unwrap();
+    assert!(!view.spec.skip_specs);
+    assert!(view.spec.artifact("specs").is_some());
+}
 
 #[test]
 fn a_ready_spec_is_published_to_the_project_and_confirmed_by_reading_it_back() {

@@ -46,6 +46,42 @@ pub const PROPOSAL_TEMPLATE: &str = "\
 
 <!-- affected code, APIs, dependencies, systems -->";
 
+/// The proposal of a change with no behaviour to specify (`skip_specs`): the same, without the
+/// capabilities that would each get a specification file.
+pub const PROPOSAL_WITHOUT_SPECS_INSTRUCTION: &str = "\
+Write proposal.md: why this change is needed and what it changes. Keep it concise (one or two \
+pages) and about the why, not the how (that belongs in design.md).
+
+This change does not change behaviour that can be observed (a refactor, tooling, build, \
+documentation): it has NO specification files. Do not write a `## Capabilities` section and do not \
+name capabilities. If the change does alter observable behaviour, say so in `## Why` so the person \
+can make it a spec with specifications instead.
+
+Sections:
+- `## Why`: one or two sentences, at least 50 characters: the problem or the opportunity, and why now.
+- `## What Changes`: a bullet list of specific changes. Mark breaking changes with **BREAKING**.
+- `## Impact`: the code, APIs, dependencies or systems affected.";
+
+pub const PROPOSAL_WITHOUT_SPECS_TEMPLATE: &str = "\
+# Proposal
+
+## Why
+
+<!-- the motivation: what problem this solves, and why now -->
+
+## What Changes
+
+<!-- specific changes; mark **BREAKING** -->
+
+## Impact
+
+<!-- affected code, APIs, dependencies, systems -->";
+
+/// Added to the design and the tasks of a change with no specification files.
+pub const WITHOUT_SPECS_NOTE: &str = "\
+This change has NO specification files (it does not change observable behaviour): there are no \
+requirements to point to or cite. Ground what you write in the approved proposal and the project.";
+
 pub const SPECS_INSTRUCTION: &str = "\
 Write the specification files that define WHAT the system should do: one file per capability listed \
 in the proposal's Capabilities section, at `specs/<capability-path>/spec.md`, keeping the full path \

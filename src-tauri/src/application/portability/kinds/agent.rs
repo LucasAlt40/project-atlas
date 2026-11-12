@@ -18,7 +18,7 @@ use crate::application::agents::{check_fields, check_model_id, check_name};
 use crate::application::config::UserConfig;
 use crate::application::errors::{AppError, ErrorCode};
 use crate::application::support::new_id;
-use crate::domain::agent::Agent;
+use crate::domain::agent::{Agent, ImportedModel};
 use crate::domain::runtime::{Availability, ModelDiscovery, RuntimeStatus};
 use crate::domain::security::PermissionProfile;
 
@@ -329,6 +329,13 @@ impl Category for AgentKind {
                     .with("granted", granted.id()),
             );
         }
+        // Imported on another runtime or model than the file's: the original stays on the agent,
+        // not only in this report, so the person can come back to it.
+        let imported_model =
+            (runtime_id != spec.runtime.id || model_id != spec.model.id).then(|| ImportedModel {
+                runtime_id: spec.runtime.id.clone(),
+                model_id: spec.model.id.clone(),
+            });
         let taken: Vec<String> = config
             .agents
             .iter()
@@ -353,6 +360,7 @@ impl Category for AgentKind {
             agent.permission_profile_id = Some(granted.id().to_owned());
             agent.worktree_isolation = spec.worktree_isolation;
             agent.result_contract = contract;
+            agent.imported_model = imported_model;
             agent.id.clone()
         } else {
             let id = new_id("agent");
@@ -366,6 +374,7 @@ impl Category for AgentKind {
                 permission_profile_id: Some(granted.id().to_owned()),
                 worktree_isolation: spec.worktree_isolation,
                 result_contract: contract,
+                imported_model,
                 created_at: cx.now,
             });
             id

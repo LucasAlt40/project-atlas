@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use serde::Serialize;
-use tauri::{AppHandle, Runtime, State};
+use tauri::{AppHandle, Manager, Runtime, State};
 
 use super::events::TauriWorkflowObserver;
 use crate::application::errors::{AppError, ErrorCode};
@@ -244,6 +244,19 @@ pub fn set_auto_approve_plans<R: Runtime>(
     )
 }
 
+/// How many steps of the run may run at once (1 to 8). The steps already running go on.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command]
+pub fn set_max_parallel_steps(
+    state: State<'_, AppState>,
+    execution_id: String,
+    steps: u32,
+) -> Result<(), AppError> {
+    state
+        .orchestrator
+        .set_max_parallel_steps(&execution_id, steps)
+}
+
 /// Stops starting new steps. A step already running is left to finish.
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command]
@@ -417,6 +430,27 @@ pub async fn continue_workflow_chain<R: Runtime>(
     .await??;
     drive(&app, &state, next, Drive::Fresh);
     Ok(())
+}
+
+/// When the app opens: a chain whose run completed in an earlier session and that was ready to go
+/// on goes on now, as the person's "continue" would (ADR 0043, P1). Off the window's thread: what
+/// a run leaves for the next is read from Git.
+pub fn go_on_with_chains_at_start<R: Runtime>(app: &AppHandle<R>) {
+    let state: State<'_, AppState> = app.state();
+    let orchestrator = state.orchestrator.clone();
+    let app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let observer = TauriWorkflowObserver { app: app.clone() };
+        for run in orchestrator.chains_ready_to_go_on() {
+            match orchestrator.go_on_with_chain(&run, &observer) {
+                Ok(next) => {
+                    let state: State<'_, AppState> = app.state();
+                    drive(&app, &state, next, Drive::Fresh);
+                }
+                Err(error) => log::info!("the chain of run {run} did not go on: {error}"),
+            }
+        }
+    });
 }
 
 /// After the person decided about a run's code: a chain that waited for it goes on (or, for

@@ -1,5 +1,7 @@
 # 0026 — Context & Tooling Platform (Fase A: arquitetura e spike)
 
+Status: aceito. A Fase B está implementada; as fases seguintes estão nas ADRs que "Não feito" cita.
+
 ## Contexto
 
 O Atlas monta um prompt por execução e o entrega a um runtime de CLI. As fases 0–5 da Camada de Otimização (ADRs
@@ -79,17 +81,32 @@ Detalhes e tabela: página de desenho, seção 10; reproduzível com `docs/archi
 
 ## Consequências
 
-- A autorização por ferramenta para o Claude via `--disallowedTools` é uma lista de negação e falha aberta para
-  ferramentas que um servidor adicione depois. A Fase D precisa provar uma mitigação (autorização por servidor, e
-  conferir `init.tools` e parar antes da primeira requisição) ou documentar a autorização por ferramenta como de melhor
-  esforço.
+- A autorização por ferramenta via `--disallowedTools` é uma lista de negação: sozinha, ela deixa passar uma ferramenta
+  que o servidor adicione depois. A [ADR 0028](0028-mcp-foundation.md) (decisão 9) fecha isso em três camadas: a
+  concessão ao servidor inteiro é a granularidade padrão; uma concessão por ferramentas nomeadas sonda o servidor de novo
+  antes do lançamento e retém o que apareceu desde a descoberta; e uma ferramenta que o runtime lista sem ninguém ter
+  autorizado para o passo (`mcp_tool_not_authorized`) e não repassa a resposta. A última é detecção mais parada, de
+  melhor esforço: uma requisição pode já ter sido enviada. Testes: `a_tool_the_server_added_since_discovery_is_held_back_by_a_named_tools_grant`
+  e `a_runtime_that_lists_a_tool_nobody_authorized_stops_the_step_and_its_answer_is_not_handed_on`.
 - Uma execução somente texto não deve receber uma configuração MCP.
 - `connected` não é evidência de que uma ferramenta é utilizável; o Atlas compara as ferramentas esperadas e as expostas.
 - Sob a estratégia A a CLI inicia e para servidores stdio fora do guard de processos do Atlas, e os resultados das
   ferramentas não passam pelo Atlas. A autoridade do Atlas é o que ele expõe no lançamento e o que repassa depois.
-- Contagens reais de tokens de entrada, morte de servidor no meio da execução, comportamento no cancelamento,
-  auto-memória/`CLAUDE.md` chegando ao modelo e a semântica do `--append-system-prompt` precisam de uma execução real com
-  modelo. Nenhuma foi feita; o Atlas perguntará antes de gastar tokens.
+- **Medido com modelo real** (M7, 2026-11-12, haiku, autorizado pelo usuário). Teste
+  `application::executions::real_runtime_tests::real_model_claude_what_init_does_not_prove`, mais os de cancelamento.
+  O que se viu:
+  - **Tokens de entrada:** o runtime informa a contagem real e o manifest a guarda: ~16 mil com um servidor MCP
+    concedido e ~7,7 mil sem nenhum (com parte servida do cache).
+  - **Servidor que morre no meio:** o servidor `MODE=die` sai logo depois de listar as ferramentas, e mesmo assim a
+    chamada do modelo, segundos depois, recebeu a resposta. A CLI do Claude inicia de novo um servidor stdio que morreu
+    quando uma ferramenta é chamada, e o passo completa. O Atlas não vê esse reinício: ele acontece dentro da CLI
+    (estratégia A, acima).
+  - **Cancelamento:** `real_claude_can_be_interrupted` e `real_claude_mcp_a_stopped_run_leaves_no_server_behind`
+    passam. A execução é interrompida, e nenhum servidor MCP fica rodando depois.
+  - **`CLAUDE.md` do projeto:** chega ao modelo, que respondeu com a palavra-código que só estava nele. Continua
+    `UserControlled`: o Atlas não o tira nem afirma controlá-lo. A auto-memória do usuário não foi medida à parte.
+  - **`--append-system-prompt`:** acrescenta, não substitui. Com o canal ligado, o modelo continua se identificando
+    como Claude Code e vê as instruções do Atlas no system prompt.
 
 ## Fase B (implementada)
 
@@ -104,5 +121,10 @@ guardrails, o isolamento do Claude da ADR 0024.
 
 ## Não feito
 
-Rules, Memory, MCP, o canal de system prompt, a impressão digital da avaliação do guardrail dentro do manifest, e tudo
-o que a página de desenho lista em "Ainda desconhecido ou não feito".
+As fases seguintes foram feitas nas próprias ADRs: Rules e o canal de system prompt
+([ADR 0027](0027-rules-context-authority-and-system-prompt-channel.md); a entrega por arquivo de sistema, em
+[ADR 0036](0036-custo-do-sdd.md)), MCP ([ADR 0028](0028-mcp-foundation.md), [ADR 0029](0029-mcp-for-every-runtime.md),
+[ADR 0045](0045-descricoes-das-ferramentas-mcp.md), [ADR 0046](0046-mcp-por-http.md)) e Memory
+([ADR 0037](0037-memory.md)). Continua não feito: a impressão digital da avaliação do guardrail dentro do manifest (ela
+vai na pergunta e na trilha de auditoria, não nas métricas), e o que a página de desenho lista em "Ainda desconhecido ou
+não feito".

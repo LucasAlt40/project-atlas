@@ -218,6 +218,33 @@ pub fn evaluate_tool(spec: &ProcessSpec, known_tools: &[String]) -> Evaluation {
     }
 }
 
+/// Atlas starting an MCP server the person configured and switched on, only to ask it about its
+/// tools (ADR 0045). The connection's own checks (`mcp::validate`) already ran; this holds the
+/// process to them whatever the caller built: no shell, no variable that changes what a program
+/// loads or that Atlas keeps for itself, no terminal, no input given up front and no working
+/// directory (the process talks only through the session). A launcher (`npx`, `uvx`) is what most
+/// servers are started with, and the person chose it: unlike an agent's command, it is allowed.
+pub fn evaluate_mcp_server(spec: &ProcessSpec) -> Evaluation {
+    let stem = program_stem(&spec.program);
+    if is_shell(&stem) {
+        return Evaluation::denied(Reason::ShellNotPermitted);
+    }
+    if spec.program.trim().is_empty() || spec.program.contains(' ') {
+        return Evaluation::denied(Reason::UnknownProgram);
+    }
+    if spec
+        .env
+        .iter()
+        .any(|(key, _)| is_dangerous_env(key) || key.to_uppercase().starts_with("ATLAS_"))
+    {
+        return Evaluation::denied(Reason::EnvironmentOverride);
+    }
+    if spec.terminal.is_some() || spec.stdin.is_some() || spec.cwd.is_some() {
+        return Evaluation::denied(Reason::ProcessesDenied);
+    }
+    Evaluation::ALLOWED
+}
+
 /// A command an agent asked Atlas to run.
 pub fn evaluate_agent_request(
     policy: &SecurityPolicy,

@@ -400,7 +400,8 @@ impl HarnessService {
             .map(|project| {
                 let exists = self.scanner.folder_exists(&project.path);
                 // A folder that is not there has no Harness to read.
-                let summary = exists.then(|| self.summary_at(&project.path));
+                // Read often (every look at the workspace): a recent fingerprint is reused.
+                let summary = exists.then(|| self.summary_for_overview(&project.path));
                 let facts = if exists {
                     self.integration_facts(project)
                 } else {

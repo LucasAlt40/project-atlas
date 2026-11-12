@@ -154,6 +154,8 @@ export interface CommandMap {
     args: { connectionId: string; runtimeId: string };
     result: McpConnectionDto;
   };
+  /** Starts the server itself and asks it about its tools (`tools/list`); no model, no tool call. */
+  describe_mcp_connection: { args: { connectionId: string }; result: McpConnectionDto };
   grant_mcp_connection: {
     args: {
       connectionId: string;
@@ -351,6 +353,8 @@ export interface CommandMap {
   };
   /** Approve the plans of a run without asking (also the ones already waiting), or ask again. */
   set_auto_approve_plans: { args: { executionId: string; enabled: boolean }; result: null };
+  /** How many steps of the run may run at once (1 to 8); the ones running go on. */
+  set_max_parallel_steps: { args: { executionId: string; steps: number }; result: null };
   pause_workflow: { args: { executionId: string }; result: null };
   /**
    * Resumes a paused run, picks up one the app's shutdown interrupted, or picks a failed one up
@@ -435,6 +439,22 @@ export interface CommandMap {
   };
   keep_spec_artifact: {
     args: { specId: string; artifactId: string; expectedRevision: number };
+    result: SpecViewDto;
+  };
+  spec_revision_diff: {
+    args: { specId: string; artifactId: string; from: number; to: number };
+    result: RevisionDiffDto;
+  };
+  edit_spec_artifact: {
+    args: { specId: string; artifactId: string; expectedRevision: number; files: SpecFileDto[] };
+    result: SpecViewDto;
+  };
+  spec_hand_edits: {
+    args: { specId: string };
+    result: HandEditDto[];
+  };
+  adopt_spec_hand_edits: {
+    args: { specId: string; artifactId: string };
     result: SpecViewDto;
   };
   answer_spec_question: {
@@ -1087,6 +1107,11 @@ export interface AgentDto {
   worktreeIsolation: boolean;
   /** Agents saved before contracts existed are `general`: no outcome is required of them. */
   resultContract: ResultContractDto;
+  /**
+   * What a configuration file asked this agent to run on, when it was imported with another
+   * runtime or model. Gone once the person changes the agent's runtime or model.
+   */
+  importedModel?: { runtimeId: string; modelId: string } | null;
   createdAt: number;
 }
 
@@ -1263,6 +1288,10 @@ export interface AppSettingsDto {
     contextMaxTokens?: number | null;
     /** `optimization.skills.enabled`: Atlas sends the skills a task calls for. */
     skillsEnabled?: boolean;
+    /** Runs nobody watches live (a spec's turns) get no live-narration instruction. Off by default. */
+    narrationOnlyWhenWatched?: boolean;
+    /** Claude gets Atlas's instructions on its system channel, for the cache (ADR 0036). Off by default. */
+    systemChannel?: boolean;
     /** `optimization.guardrails.enabled`: review the context before an agent starts. */
     guardrailsEnabled?: boolean;
     /** `optimization.specs.maxTokens`: what the runs of one spec may use together; none: no limit. */
@@ -1686,7 +1715,14 @@ export type McpTransportDto =
       args?: string[];
       env?: { name: string; value: { kind: 'plain'; value: string } | { kind: 'secret' } }[];
     }
-  | { kind: 'http'; url: string };
+  | {
+      kind: 'http';
+      url: string;
+      /** Headers; a secret one is named here and kept in the credential store. */
+      headers?: { name: string; value: { kind: 'plain'; value: string } | { kind: 'secret' } }[];
+      /** The person allows a loopback or private-network destination (never a metadata one). */
+      allowPrivate?: boolean;
+    };
 
 export type McpToolSelectionDto = { kind: 'server' } | { kind: 'only'; tools: string[] };
 
@@ -1706,7 +1742,30 @@ export interface McpConnectionDto {
     status: McpServerStatusDto;
     tools: string[];
   };
+  /** What the server said about its tools when Atlas asked it (`tools/list`, ADR 0045). */
+  catalog?: McpToolCatalogDto;
   createdAt: number;
+}
+
+/** Mirrors `domain::mcp::McpToolInfo`: text from the server, shown and never sent to a model. */
+export interface McpToolInfoDto {
+  name: string;
+  title?: string;
+  description: string;
+  /** `readOnlyHint`; absent when the server did not say. */
+  readOnly?: boolean;
+  /** `destructiveHint`; absent when the server did not say. */
+  destructive?: boolean;
+  /** Characters of the definition a model is sent (name, description, input schema). */
+  definitionChars: number;
+}
+
+/** Mirrors `domain::mcp::McpToolCatalog`. */
+export interface McpToolCatalogDto {
+  describedAt: number;
+  tools: McpToolInfoDto[];
+  /** The server had more than Atlas reads. */
+  truncated: boolean;
 }
 
 /** Mirrors `domain::mcp::McpGrant`. */
@@ -1852,7 +1911,10 @@ export type McpProblemDto =
   | { kind: 'secret_missing'; name: string }
   | { kind: 'needs_discovery' }
   | { kind: 'tool_filter_unsupported' }
-  | { kind: 'not_in_cli_config' };
+  | { kind: 'not_in_cli_config' }
+  | { kind: 'no_reading_tools' }
+  | { kind: 'http_unsupported' }
+  | { kind: 'destination_blocked' };
 
 /** Mirrors `domain::mcp::McpRecord`: the six things about a tool, kept apart. */
 export interface McpRecordDto {
@@ -1953,7 +2015,7 @@ export interface ExecutionBudgetDto {
   limits: { input: FigureDto; output: FigureDto; total: FigureDto };
   outputReserve: FigureDto;
   safetyMargin: FigureDto;
-  /** What the MCP tools' definitions weigh: unknown, the runtime counts them in its own request. */
+  /** What the MCP tools' definitions weigh: an estimate when every server given was described. */
   toolDefinitions?: FigureDto;
   input: { limit: FigureDto; used: FigureDto; remaining: FigureDto };
   resolution: {
@@ -2469,6 +2531,8 @@ export interface ExecutionWorktreeDto {
   branchName: string;
   worktreePath: string;
   workingDir: string;
+  /** What the isolated worktree does not reproduce of the repository (ADR 0009). */
+  baseLayout?: ('submodules' | 'sparse_checkout')[];
   repositoryPath: string;
   status: WorktreeStatusDto;
   mergeStatus: MergeStatusDto;
@@ -3594,7 +3658,7 @@ export interface SpecFileDto {
 export interface SpecRevisionDto {
   number: number;
   files: SpecFileDto[];
-  origin: 'generated' | 'revised' | 'regenerated' | 'imported';
+  origin: 'generated' | 'revised' | 'regenerated' | 'imported' | 'edited' | 'edited_in_project';
   runId: string | null;
   agentId: string | null;
   basedOn: Record<string, number>;
@@ -3777,6 +3841,8 @@ export interface SpecDto {
   budgetSteps: number;
   /** The integrations (connection ids) chosen for testing and review. */
   integrations: string[];
+  /** A change with no behaviour to specify: no specification files. Absent on older specs. */
+  skipSpecs?: boolean;
   origin: { kind: 'created' } | { kind: 'imported'; path: string; at: number };
   version: number;
   createdAt: number;
@@ -3916,6 +3982,8 @@ export interface NewSpecRequestDto {
   reviewerAgentId?: string | null;
   /** Connection ids of the workspace's integrations to test and review the spec with. */
   integrations?: string[];
+  /** A change with no behaviour to specify (refactor, tooling, docs): no specification files. */
+  skipSpecs?: boolean;
 }
 
 /** What a decision or an answer did; `launchError` says why an agent meant to start could not. */
@@ -3978,4 +4046,33 @@ export interface SpecCliCheckDto {
   valid: boolean;
   issues: { level: string; path: string; message: string }[];
   at: number;
+}
+
+/** Mirrors `domain::spec::diff::RevisionDiff`: what changed in a document between two revisions. */
+export type DiffLineDto =
+  { kind: 'same' | 'added' | 'removed'; text: string } | { kind: 'gap'; lines: number };
+
+export interface FileDiffDto {
+  path: string;
+  change: 'added' | 'removed' | 'changed' | 'unchanged';
+  added: number;
+  removed: number;
+  /** Too large to compare line by line: only that it changed. */
+  tooLarge: boolean;
+  lines: DiffLineDto[];
+}
+
+export interface RevisionDiffDto {
+  from: number;
+  to: number;
+  files: FileDiffDto[];
+}
+
+/** A published document whose files were edited (or removed) by hand in the project. */
+export interface HandEditDto {
+  artifactId: string;
+  /** The revision that was published, which the files no longer match. */
+  revision: number;
+  changed: string[];
+  missing: string[];
 }

@@ -126,6 +126,8 @@ pub enum ErrorCode {
     McpRuntimeUnsupported,
     /// Starting the server to look at it failed (`detail` says what the runtime reported).
     McpProbeFailed,
+    /// Atlas could not ask an MCP server about its tools.
+    McpDescribeFailed,
     /// The catalogue entry does not exist or cannot be added yet (Figma: HTTP and OAuth).
     McpPresetUnavailable,
     /// The text or file is not the configuration format it was said to be.
@@ -187,6 +189,9 @@ pub enum ErrorCode {
     SpecNotReady,
     /// The change folder is already in the project (`change` names it); nothing was written.
     SpecChangeExists,
+    /// A published file was edited by hand in the project (`files` names them): publishing again
+    /// would overwrite it, so it is refused until the person adopts the edit or undoes it.
+    SpecEditedInProject,
     /// Writing the files stopped half way (`detail` says why); doing it again picks up from there.
     SpecPublishFailed,
     /// That change is already one of this workspace's specs.

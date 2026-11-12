@@ -189,3 +189,28 @@ export interface ChangeEvent {
   workspaceId: string | null;
   at: number;
 }
+
+/** A specification as the phone follows it (`remote/specs.rs`): read only. */
+export interface RemoteSpecSummary {
+  id: string;
+  title: string;
+  workspaceName: string;
+  status: string;
+  approved: number;
+  documents: number;
+  updatedAt: number;
+}
+
+export interface RemoteDocument {
+  id: string;
+  phase: string | null;
+  revision: number | null;
+  files: { name: string; text: string }[];
+}
+
+export interface RemoteSpecDetail extends Omit<RemoteSpecSummary, 'documents'> {
+  request: string;
+  documents: RemoteDocument[];
+  /** Always false: deciding on a spec stays at the computer. */
+  canDecide: boolean;
+}

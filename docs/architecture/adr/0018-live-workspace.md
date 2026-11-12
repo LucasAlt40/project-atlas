@@ -101,17 +101,23 @@ contagens de linhas não mudaram.
 
 ## Limites (atuais)
 
-- No máximo 500 arquivos são listados (`MAX_CHANGESET_FILES`); além disso a lista é cortada.
+- No máximo 500 arquivos são listados (`MAX_CHANGESET_FILES`); além disso a lista é cortada. **Mantido, e dito**
+  (2026-11-11): quando `files` tem menos que `filesChanged`, o painel diz "mostrando os primeiros N de M arquivos" e que
+  os totais e o worktree têm todos (teste `says when the list of files was cut…`). Paginar não foi feito: a revisão do
+  diff tem o mesmo corte, e um run que muda mais de 500 arquivos é revisado no editor.
 - As contagens de linhas de arquivos não rastreados só são lidas para arquivos de texto de até 1 MiB; arquivos maiores
-  são listados sem contagens.
+  são listados sem contagens. Mantido: ler mais custaria o que o painel ao vivo não pode gastar a cada evento.
 - Renames só são reconhecidos em uma leitura completa e só para conteúdo idêntico.
 - Um escritor que pausa por mais que a janela de silêncio pode ser lido pela metade; o próximo evento, ou a olhada de
   segurança, corrige.
 - Conteúdos e diffs não fazem parte deste estado (só caminhos, status e contagens): são lidos sob demanda do Git por
   trabalho posterior.
-- **Limitação conhecida: depois que o app reinicia, uma execução que já existe pode ser consultada (um snapshot é uma
-  única olhada no seu worktree), mas a observação não é reativada automaticamente** até a execução ser retomada.
-  Recuperação e persistência do Live Workspace são uma possível evolução futura.
+- **Depois que o app reinicia** (2026-11-11), toda execução que ficou sem fim (interrompida, esperando uma pessoa ou
+  pausada) e cujo código ainda está no worktree volta a ser observada assim que o app abre
+  (`LiveWorkspaceService::observe_open_runs`, chamado em `lib.rs` depois da recuperação das execuções): uma mudança
+  feita no worktree aparece sem precisar retomar a execução. Uma execução cujo código foi aplicado, descartado ou cujo
+  worktree sumiu não é observada. Teste: `a_run_left_without_an_end_is_watched_again_when_the_app_opens`. O estado do
+  Live Workspace continua não sendo gravado: ao reabrir ele é lido de novo do worktree.
 
 ## Consequências
 

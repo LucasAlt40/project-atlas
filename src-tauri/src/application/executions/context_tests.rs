@@ -194,6 +194,7 @@ fn every_adapter_hands_its_process_exactly_the_payload_it_hashes() {
         allow_edits: false,
         granted_commands: Vec::new(),
         mcp: None,
+        system_channel: false,
     };
     let spy = |program: &str| {
         Arc::new(FakeProcessRunner::new(&[program], |spec| {
@@ -653,6 +654,7 @@ fn no_adapter_claims_a_system_channel_it_does_not_use() {
         allow_edits: false,
         granted_commands: Vec::new(),
         mcp: None,
+        system_channel: false,
     };
     let runner: Arc<FakeProcessRunner> = Arc::new(FakeProcessRunner::new(&[], |_| ok("")));
     let runtimes: Vec<Box<dyn ModelRuntime>> = vec![

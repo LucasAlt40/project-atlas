@@ -1,5 +1,5 @@
 import type { McpConnectionDto } from '@/lib/tauri/commands';
-import { commandLine, manifestOf, matches, metricsOf, statusOf } from './hub';
+import { commandLine, envOf, manifestOf, matches, metricsOf, statusOf } from './hub';
 
 const connection = (over: Partial<McpConnectionDto> = {}): McpConnectionDto => ({
   id: 'c1',
@@ -86,5 +86,34 @@ describe('the hub model', () => {
     expect(manifest.env.REGION).toBe('eu');
     expect(manifest.env.API_TOKEN).toMatch(/stored/);
     expect(manifest.env.OTHER).toMatch(/not stored/);
+  });
+
+  it('a remote server shows its URL and names a secret header without its value', () => {
+    const remote = connection({
+      transport: {
+        kind: 'http',
+        url: 'https://mcp.figma.com/mcp',
+        headers: [
+          { name: 'Authorization', value: { kind: 'secret' } },
+          { name: 'X-Client', value: { kind: 'plain', value: 'atlas' } },
+        ],
+      },
+      secrets: { Authorization: 2 },
+    });
+
+    const manifest = JSON.parse(manifestOf(remote)) as {
+      type: string;
+      url: string;
+      headers: Record<string, string>;
+      allowPrivate: boolean;
+    };
+
+    expect(manifest.type).toBe('http');
+    expect(manifest.url).toBe('https://mcp.figma.com/mcp');
+    expect(manifest.headers.Authorization).toMatch(/stored in the system credential store/);
+    expect(manifest.headers['X-Client']).toBe('atlas');
+    expect(manifest.allowPrivate).toBe(false);
+    // The secret header is where the inspector offers to store it.
+    expect(envOf(remote).map((e) => e.name)).toEqual(['Authorization', 'X-Client']);
   });
 });

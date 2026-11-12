@@ -170,6 +170,12 @@ pub struct McpService {
     files: Arc<dyn RuntimeConfigFiles>,
     /// Where servers are looked up by name (the official MCP Registry).
     registry: Arc<dyn RegistryClient>,
+    /// How Atlas starts a server itself to ask it about its tools (always the guarded runner).
+    /// Without one, nothing is described.
+    runner: Option<Arc<dyn crate::application::process::ProcessRunner>>,
+    /// How a remote server's name is looked up, to check where it is (ADR 0046). Without one,
+    /// no remote server is given to a step: its destination cannot be checked.
+    resolver: Option<Arc<dyn super::destination::HostResolver>>,
 }
 
 fn invalid(reason: &str) -> AppError {
@@ -194,7 +200,55 @@ impl McpService {
             refresh_failed: std::sync::Mutex::default(),
             files: Arc::new(super::runtime_files::NoRuntimeFiles),
             registry: Arc::new(NoRegistry),
+            runner: None,
+            resolver: None,
         }
+    }
+
+    /// Lets the service look remote servers' names up, to check their destination.
+    #[must_use]
+    pub fn with_resolver(mut self, resolver: Arc<dyn super::destination::HostResolver>) -> Self {
+        self.resolver = Some(resolver);
+        self
+    }
+
+    /// Whether a remote connection may be reached now. A STDIO one has no destination.
+    fn check_destination(
+        &self,
+        connection: &McpConnection,
+    ) -> Result<(), super::destination::Blocked> {
+        let McpTransport::Http {
+            url, allow_private, ..
+        } = &connection.transport
+        else {
+            return Ok(());
+        };
+        let resolver = self
+            .resolver
+            .as_ref()
+            .ok_or(super::destination::Blocked::Unresolved)?;
+        super::destination::check(url, *allow_private, resolver.as_ref())
+    }
+
+    /// At save: a destination that is known to be closed is refused now, with why. One that
+    /// cannot be looked up (offline) is kept, and checked again before every step.
+    fn refuse_closed_destination(&self, connection: &McpConnection) -> Result<(), AppError> {
+        match self.check_destination(connection) {
+            Ok(()) | Err(super::destination::Blocked::Unresolved) => Ok(()),
+            Err(blocked) => Err(AppError::new(ErrorCode::McpConnectionInvalid)
+                .with("reason", format!("destination_{}", blocked.code()))),
+        }
+    }
+
+    /// Lets the service start a server itself, through `runner` (the process guard), to ask it
+    /// about its tools.
+    #[must_use]
+    pub fn with_runner(
+        mut self,
+        runner: Arc<dyn crate::application::process::ProcessRunner>,
+    ) -> Self {
+        self.runner = Some(runner);
+        self
     }
 
     /// Gives the service a way to search the MCP Registry.
@@ -614,9 +668,11 @@ impl McpService {
             required,
             secrets: std::collections::BTreeMap::new(),
             discovery: None,
+            catalog: None,
             created_at: now_ms(),
         };
         validate(&connection).map_err(|e| invalid(e.code()))?;
+        self.refuse_closed_destination(&connection)?;
         self.config.modify(|config| {
             if !config.workspaces.iter().any(|w| w.id == workspace_id) {
                 return Err(AppError::new(ErrorCode::WorkspaceNotFound));
@@ -649,7 +705,9 @@ impl McpService {
         updated.required = required;
         updated.enabled = false;
         updated.discovery = None;
+        updated.catalog = None;
         validate(&updated).map_err(|e| invalid(e.code()))?;
+        self.refuse_closed_destination(&updated)?;
         let declared: Vec<String> = updated
             .secret_names()
             .iter()
@@ -837,42 +895,69 @@ impl McpService {
         })
     }
 
-    fn launch_server(&self, connection: &McpConnection) -> Result<LaunchServer, LaunchProblem> {
-        let McpTransport::Stdio {
-            executable,
-            args,
-            env,
-        } = &connection.transport
-        else {
-            return Err(LaunchProblem::Invalid);
-        };
-        let mut resolved = Vec::new();
-        for var in env {
-            match &var.value {
-                McpEnvValue::Plain { value } => resolved.push(LaunchEnv::Plain {
-                    name: var.name.clone(),
-                    value: value.clone(),
-                }),
-                McpEnvValue::Secret => {
-                    // The stored time says it was set; the store must still have it.
-                    let secret = self
-                        .credentials
-                        .get(&connection.id, &var.name)
-                        .map_err(|_| LaunchProblem::StoreUnavailable)?
-                        .ok_or_else(|| LaunchProblem::SecretMissing(var.name.clone()))?;
-                    resolved.push(LaunchEnv::Secret {
-                        name: var.name.clone(),
-                        value: secret,
-                    });
+    /// One value of the server's environment or headers, its secret read from the store.
+    fn resolve_value(
+        &self,
+        connection: &McpConnection,
+        name: &str,
+        value: &McpEnvValue,
+    ) -> Result<LaunchEnv, LaunchProblem> {
+        Ok(match value {
+            McpEnvValue::Plain { value } => LaunchEnv::Plain {
+                name: name.to_owned(),
+                value: value.clone(),
+            },
+            McpEnvValue::Secret => {
+                // The stored time says it was set; the store must still have it.
+                let secret = self
+                    .credentials
+                    .get(&connection.id, name)
+                    .map_err(|_| LaunchProblem::StoreUnavailable)?
+                    .ok_or_else(|| LaunchProblem::SecretMissing(name.to_owned()))?;
+                LaunchEnv::Secret {
+                    name: name.to_owned(),
+                    value: secret,
                 }
             }
-        }
-        Ok(LaunchServer {
-            name: connection.name.clone(),
-            executable: executable.clone(),
-            args: args.clone(),
-            env: resolved,
         })
+    }
+
+    fn launch_server(&self, connection: &McpConnection) -> Result<LaunchServer, LaunchProblem> {
+        match &connection.transport {
+            McpTransport::Stdio {
+                executable,
+                args,
+                env,
+            } => Ok(LaunchServer {
+                name: connection.name.clone(),
+                executable: executable.clone(),
+                args: args.clone(),
+                env: env
+                    .iter()
+                    .map(|var| self.resolve_value(connection, &var.name, &var.value))
+                    .collect::<Result<_, _>>()?,
+                http: None,
+            }),
+            McpTransport::Http { url, headers, .. } => {
+                // Where it is, checked again right before the step: a name may resolve elsewhere
+                // than when it was saved.
+                self.check_destination(connection)
+                    .map_err(LaunchProblem::DestinationBlocked)?;
+                Ok(LaunchServer {
+                    name: connection.name.clone(),
+                    executable: String::new(),
+                    args: Vec::new(),
+                    env: Vec::new(),
+                    http: Some(super::LaunchHttp {
+                        url: url.clone(),
+                        headers: headers
+                            .iter()
+                            .map(|h| self.resolve_value(connection, &h.name, &h.value))
+                            .collect::<Result<_, _>>()?,
+                    }),
+                })
+            }
+        }
     }
 
     /// Resolves the secrets of the servers a plan exposes, for the launch of the step. A server
@@ -936,9 +1021,12 @@ impl McpService {
             .find(runtime_id)
             .ok_or_else(|| AppError::new(ErrorCode::RuntimeNotSupported))?;
         let capabilities = runtime.info().capabilities;
-        // A runtime without an adapter, or one that cannot look at a server without a model.
+        // A runtime without an adapter, or one that cannot look at a server without a model, or a
+        // remote server for a runtime that cannot be given one.
+        let remote = matches!(connection.transport, McpTransport::Http { .. });
         if capabilities.mcp != McpSupport::Supported
             || capabilities.mcp_features.probe == crate::domain::mcp::McpProbeKind::None
+            || (remote && !capabilities.mcp_features.http)
         {
             return Err(AppError::new(ErrorCode::McpRuntimeUnsupported));
         }
@@ -959,6 +1047,54 @@ impl McpService {
             status: probe.status,
             tools: probe.tools,
         });
+        self.replace(&connection)
+    }
+
+    /// Starts the server itself and asks it about its tools (`tools/list`, ADR 0045): their
+    /// descriptions, hints and size, kept as the connection's catalog. Only when the person asks,
+    /// on a connection they switched on whose secrets are stored. No model is asked anything and
+    /// no tool is called. Until a connection has a catalog nothing about a step changes.
+    ///
+    /// # Errors
+    ///
+    /// The connection does not exist or is not ready, the credential store is locked, or the
+    /// server could not be asked.
+    pub fn describe(&self, connection_id: &str) -> Result<McpConnection, AppError> {
+        let mut connection = self.find(connection_id)?;
+        if !connection.enabled || connection.missing_secret().is_some() {
+            return Err(AppError::new(ErrorCode::McpNotReady));
+        }
+        validate(&connection).map_err(|e| invalid(e.code()))?;
+        // Atlas's own client talks to a local process only; a remote server is not started.
+        if matches!(connection.transport, McpTransport::Http { .. }) {
+            return Err(AppError::new(ErrorCode::McpDescribeFailed).with_detail(
+                "Only a local (STDIO) server can be asked about its tools.".to_owned(),
+            ));
+        }
+        let runner = self
+            .runner
+            .as_ref()
+            .ok_or_else(|| AppError::new(ErrorCode::McpDescribeFailed))?;
+        let server = self
+            .launch_server(&connection)
+            .map_err(|problem| match problem {
+                LaunchProblem::StoreUnavailable => {
+                    AppError::new(ErrorCode::McpCredentialStoreUnavailable)
+                }
+                _ => AppError::new(ErrorCode::McpNotReady),
+            })?;
+        let catalog =
+            super::describe::describe(runner.as_ref(), &server, now_ms()).map_err(|error| {
+                AppError::new(ErrorCode::McpDescribeFailed).with_detail(error.detail())
+            })?;
+        // The connection may have changed while the server was being asked: keep its latest
+        // state, and the catalog only if it still starts the same program.
+        let mut latest = self.find(connection_id)?;
+        if latest.transport != connection.transport {
+            return Err(AppError::new(ErrorCode::McpNotReady));
+        }
+        latest.catalog = Some(catalog);
+        connection = latest;
         self.replace(&connection)
     }
 
@@ -1029,6 +1165,8 @@ pub enum LaunchProblem {
     Invalid,
     SecretMissing(String),
     StoreUnavailable,
+    /// A remote server's destination is closed (or could not be looked up) right now.
+    DestinationBlocked(super::destination::Blocked),
 }
 
 #[cfg(test)]
@@ -1395,6 +1533,7 @@ mod tests {
             cli_servers: None,
             support: McpSupport::Supported,
             features: claude_like(),
+            read_only: false,
         });
 
         let (launch, left_out) = s.service.launch(&planned);
@@ -1418,6 +1557,7 @@ mod tests {
             tool_filter: crate::domain::mcp::McpToolFilter::DenyList,
             probe: crate::domain::mcp::McpProbeKind::Tools,
             strict: false,
+            http: true,
         }
     }
 
@@ -1425,6 +1565,275 @@ mod tests {
         let c = s.service.add("w1", name, stdio(false), false).unwrap();
         s.service.set_enabled(&c.id, true).unwrap();
         c
+    }
+
+    /// A server that answers the handshake and lists one tool that reads.
+    fn describing_runner() -> Arc<crate::application::process::fake::FakeSessionRunner> {
+        Arc::new(crate::application::process::fake::FakeSessionRunner::new(
+            |line| {
+                let message: serde_json::Value = serde_json::from_str(line).unwrap();
+                let Some(id) = message.get("id").cloned() else {
+                    return Vec::new();
+                };
+                let result = if message["method"] == "tools/list" {
+                    serde_json::json!({"tools":[{"name":"read","description":"Reads.","annotations":{"readOnlyHint":true}}]})
+                } else {
+                    serde_json::json!({})
+                };
+                vec![serde_json::json!({"jsonrpc":"2.0","id":id,"result":result}).to_string()]
+            },
+        ))
+    }
+
+    #[test]
+    fn describing_a_server_keeps_what_it_said_about_its_tools_and_needs_it_ready() {
+        let mut s = setup();
+        let runner = describing_runner();
+        s.service = McpService::new(
+            s.config.clone(),
+            s.credentials.clone(),
+            Arc::new(RuntimeRegistry::new(vec![s.runtime.clone() as Arc<_>])),
+        )
+        .with_runner(runner.clone());
+        let c = s.service.add("w1", "files", stdio(true), false).unwrap();
+
+        // Off, then on without its secret: not started.
+        assert!(s
+            .service
+            .describe(&c.id)
+            .unwrap_err()
+            .is(ErrorCode::McpNotReady));
+        s.service.set_enabled(&c.id, true).unwrap();
+        assert!(s
+            .service
+            .describe(&c.id)
+            .unwrap_err()
+            .is(ErrorCode::McpNotReady));
+        assert!(runner.opened.lock().unwrap().is_empty());
+
+        s.service
+            .set_secret(&c.id, "API_TOKEN", &Secret::new("tok-123".to_owned()))
+            .unwrap();
+        let described = s.service.describe(&c.id).unwrap();
+
+        let catalog = described.catalog.unwrap();
+        assert_eq!(catalog.tools[0].name, "read");
+        assert_eq!(catalog.tools[0].read_only, Some(true));
+        // Kept with the connection, and the secret nowhere in the configuration.
+        let stored = s.service.overview("w1").connections[0].clone();
+        assert!(stored.catalog.is_some());
+        assert!(!serde_json::to_string(&stored).unwrap().contains("tok-123"));
+        // Started as the person configured it, through a session of its own kind.
+        let spec = runner.opened.lock().unwrap()[0].clone();
+        assert_eq!(
+            spec.context,
+            crate::application::process::ProcessContext::McpServer
+        );
+        assert!(spec
+            .env
+            .contains(&("API_TOKEN".to_owned(), "tok-123".to_owned())));
+        // Changing how it starts forgets what it said.
+        let updated = s.service.update(&c.id, stdio(false), false).unwrap();
+        assert!(updated.catalog.is_none());
+    }
+
+    #[test]
+    fn a_service_without_a_runner_describes_nothing() {
+        let s = setup();
+        let c = ready_connection(&s, "files");
+
+        assert!(s
+            .service
+            .describe(&c.id)
+            .unwrap_err()
+            .is(ErrorCode::McpDescribeFailed));
+    }
+
+    fn remote(url: &str, allow_private: bool) -> McpTransport {
+        McpTransport::Http {
+            url: url.to_owned(),
+            headers: vec![crate::domain::mcp::McpHeader {
+                name: "Authorization".to_owned(),
+                value: McpEnvValue::Secret,
+            }],
+            allow_private,
+        }
+    }
+
+    fn with_dns(mut s: Setup) -> Setup {
+        s.service = McpService::new(
+            s.config.clone(),
+            s.credentials.clone(),
+            Arc::new(RuntimeRegistry::new(vec![s.runtime.clone() as Arc<_>])),
+        )
+        .with_resolver(Arc::new(
+            crate::application::mcp::destination::fake::FakeResolver::with(&[
+                ("mcp.example.com", &["93.184.216.34"]),
+                ("intranet.local", &["10.0.0.7"]),
+            ]),
+        ));
+        s
+    }
+
+    fn plan_for(s: &Setup) -> McpPlan {
+        let overview = s.service.overview("w1");
+        plan(&McpInputs {
+            connections: &overview.connections,
+            grants: &overview.grants,
+            context: McpContext {
+                workspace: "w1",
+                agent: "a1",
+                workflow: None,
+                node: None,
+            },
+            policy: Permission::Allowed,
+            cli_servers: None,
+            support: McpSupport::Supported,
+            features: claude_like(),
+            read_only: false,
+        })
+    }
+
+    #[test]
+    fn a_remote_server_on_a_closed_destination_is_refused_when_it_is_saved() {
+        let s = with_dns(setup());
+        let refused = |url: &str, allow: bool| {
+            s.service
+                .add("w1", "remote", remote(url, allow), false)
+                .unwrap_err()
+                .is(ErrorCode::McpConnectionInvalid)
+        };
+
+        assert!(refused("https://intranet.local/mcp", false));
+        assert!(refused("https://169.254.169.254/", true));
+        assert!(refused("https://user:pw@mcp.example.com/", false));
+        // The person's own network, said so: kept. A name that cannot be looked up now: kept,
+        // and checked again before every step.
+        assert!(s
+            .service
+            .add(
+                "w1",
+                "local",
+                remote("https://intranet.local/mcp", true),
+                false
+            )
+            .is_ok());
+        assert!(s
+            .service
+            .add(
+                "w1",
+                "later",
+                remote("https://offline.example.com/mcp", false),
+                false
+            )
+            .is_ok());
+    }
+
+    #[test]
+    fn a_remote_server_is_launched_with_its_header_secret_and_its_destination_checked_again() {
+        let s = with_dns(setup());
+        let c = s
+            .service
+            .add(
+                "w1",
+                "remote",
+                remote("https://mcp.example.com/mcp", false),
+                false,
+            )
+            .unwrap();
+        s.service
+            .set_secret(
+                &c.id,
+                "Authorization",
+                &Secret::new("Bearer tok".to_owned()),
+            )
+            .unwrap();
+        s.service.set_enabled(&c.id, true).unwrap();
+        s.service
+            .grant(&c.id, None, None, None, ToolSelection::Server)
+            .unwrap();
+
+        let (launch, left_out) = s.service.launch(&plan_for(&s));
+
+        assert!(left_out.is_empty(), "{left_out:?}");
+        let http = launch.servers[0].http.clone().unwrap();
+        assert_eq!(http.url, "https://mcp.example.com/mcp");
+        assert_eq!(
+            http.headers,
+            [LaunchEnv::Secret {
+                name: "Authorization".to_owned(),
+                value: Secret::new("Bearer tok".to_owned()),
+            }]
+        );
+        assert_eq!(launch.servers[0].executable, "");
+        // The secret never reached the configuration.
+        assert!(!serde_json::to_string(&s.service.overview("w1"))
+            .unwrap()
+            .contains("Bearer tok"));
+    }
+
+    #[test]
+    fn a_remote_server_that_cannot_be_looked_up_before_the_step_is_left_out() {
+        let s = with_dns(setup());
+        let c = s
+            .service
+            .add(
+                "w1",
+                "later",
+                remote("https://offline.example.com/mcp", false),
+                false,
+            )
+            .unwrap();
+        s.service
+            .set_secret(&c.id, "Authorization", &Secret::new("x".to_owned()))
+            .unwrap();
+        s.service.set_enabled(&c.id, true).unwrap();
+        s.service
+            .grant(&c.id, None, None, None, ToolSelection::Server)
+            .unwrap();
+
+        let (launch, left_out) = s.service.launch(&plan_for(&s));
+
+        assert_eq!(launch.servers.len(), 0);
+        assert_eq!(
+            left_out,
+            [(
+                "later".to_owned(),
+                LaunchProblem::DestinationBlocked(
+                    crate::application::mcp::destination::Blocked::Unresolved
+                )
+            )]
+        );
+    }
+
+    #[test]
+    fn a_remote_server_is_not_examined_by_a_runtime_without_http_nor_asked_by_atlas() {
+        let s = with_dns(setup());
+        let c = s
+            .service
+            .add(
+                "w1",
+                "remote",
+                remote("https://mcp.example.com/mcp", false),
+                false,
+            )
+            .unwrap();
+        s.service
+            .set_secret(&c.id, "Authorization", &Secret::new("x".to_owned()))
+            .unwrap();
+        s.service.set_enabled(&c.id, true).unwrap();
+
+        // The fake runtime has an adapter, but none measured for remote servers.
+        assert!(s
+            .service
+            .probe(&c.id, "rt-a")
+            .unwrap_err()
+            .is(ErrorCode::McpRuntimeUnsupported));
+        assert!(s
+            .service
+            .describe(&c.id)
+            .unwrap_err()
+            .is(ErrorCode::McpDescribeFailed));
     }
 
     fn add_workflow(s: &Setup, id: &str, nodes: &[(&str, &str)]) {
@@ -1642,6 +2051,7 @@ mod tests {
             cli_servers: None,
             support: McpSupport::Supported,
             features: claude_like(),
+            read_only: false,
         });
 
         let (launch, left_out) = s.service.launch(&plan);

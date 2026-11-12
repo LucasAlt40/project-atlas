@@ -503,6 +503,40 @@ fn the_overview_says_where_each_project_stands() {
     assert!(!overview.projects[0].summary.stack.is_empty());
 }
 
+/// ADR 0033, P4: looking at the workspace again soon does not scan every project again; writing a
+/// project's Harness makes the next look scan it.
+#[test]
+fn looking_at_the_overview_again_reuses_each_projects_fingerprint_until_its_harness_is_written() {
+    let shop = shop();
+    run(&shop, Some(&shop.ids[..1]));
+    let projects = 3;
+
+    let before = shop.service.fingerprint_scans();
+    shop.service.workspace_overview(&shop.workspace_id).unwrap();
+    let first_look = shop.service.fingerprint_scans() - before;
+    shop.service.workspace_overview(&shop.workspace_id).unwrap();
+    shop.service.workspace_overview(&shop.workspace_id).unwrap();
+    let three_looks = shop.service.fingerprint_scans() - before;
+
+    // Only the projects whose folder exists and that have a Harness are scanned, and only once.
+    assert!(first_look <= projects, "{first_look}");
+    assert_eq!(
+        three_looks, first_look,
+        "the second and third looks scanned again"
+    );
+
+    // Writing a Harness forgets that project's fingerprint: what was written is compared with
+    // the project scanned again then, not with the cached one.
+    let before_reset = shop.service.fingerprint_scans();
+    shop.service
+        .reset_in(&shop.workspace_id, Some(&shop.ids[0]))
+        .unwrap();
+    assert!(
+        shop.service.fingerprint_scans() > before_reset,
+        "the project whose Harness changed is scanned again, not read from the cache"
+    );
+}
+
 #[test]
 fn the_context_is_outdated_when_a_project_changes_and_current_after_rebuilding() {
     let shop = shop();

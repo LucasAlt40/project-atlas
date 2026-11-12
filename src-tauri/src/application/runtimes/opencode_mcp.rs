@@ -48,6 +48,7 @@ impl McpAdapter for OpenCodeMcpAdapter {
             tool_filter: McpToolFilter::AllowList,
             probe: McpProbeKind::StatusOnly,
             strict: false,
+            http: false,
         }
     }
 
@@ -235,6 +236,7 @@ mod tests {
                 "/a b".to_owned(),
             ],
             env,
+            http: None,
         }
     }
 

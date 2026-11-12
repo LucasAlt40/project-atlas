@@ -156,7 +156,9 @@ pub(crate) trait Category: Sync {
     ) -> Result<apply::Written, AppError>;
 }
 
-/// The one whose name is `name`, ignoring case and surrounding space.
+/// The one whose name is `name`, ignoring case and surrounding space. When several are, the first
+/// in the order they were saved: the same one every time, which the preview warns about
+/// (`same_name`).
 pub(super) fn by_name(list: Vec<Existing>, name: &str) -> Option<Existing> {
     let wanted = name.trim().to_lowercase();
     list.into_iter()

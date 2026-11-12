@@ -11,6 +11,12 @@ use crate::domain::worktree::ChangeSet;
 
 /// Steps that may run at once in one workflow run.
 pub const DEFAULT_MAX_PARALLEL_STEPS: u32 = 4;
+/// What the person may set a run's parallel steps to (ADR 0013, W4): one at a time, up to eight.
+pub const MAX_PARALLEL_STEPS_RANGE: std::ops::RangeInclusive<u32> = 1..=8;
+
+fn default_max_parallel_steps() -> u32 {
+    DEFAULT_MAX_PARALLEL_STEPS
+}
 /// Events kept on a run; the oldest go first.
 pub const MAX_EVENTS: usize = 400;
 
@@ -428,6 +434,8 @@ pub struct WorkflowExecution {
     /// flight have.
     #[serde(default)]
     pub cancel_requested: bool,
+    /// How many steps may run at once. A run stored without it reads the default.
+    #[serde(default = "default_max_parallel_steps")]
     pub max_parallel_steps: u32,
     pub nodes: BTreeMap<String, NodeState>,
     pub state: SharedExecutionState,

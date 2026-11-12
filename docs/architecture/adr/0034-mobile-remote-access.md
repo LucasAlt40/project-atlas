@@ -122,6 +122,11 @@ Notification e service workers não são oferecidos (veja §10).
 | 3     | Uma pergunta de **permissão** ou de **confirmação de runtime**                                                                                                                                                                                 | só a resposta _recusando_ (`deny`/`no`): o remoto pode estreitar, nunca ampliar |
 | 4     | Perguntas de guardrail (qual contexto vai a um modelo), aprovações de comando (`ApprovalBroker`), aplicar/manter/descartar código, retomar uma execução falha/interrompida, iniciar uma execução, entrada de terminal, arquivos, configurações | só no desktop — mostrado no celular como "precisa do computador"                |
 
+**Specs** (ADR 0035 §15, decisão do usuário, 2026-11-12): o celular só **acompanha**. Ele vê em que pé está cada
+documento e lê o texto da revisão atual (`GET /api/specs`, `GET /api/specs/{id}`, nível 0). Aprovar, pedir mudanças,
+escrever de novo e publicar ficam no computador (`policy::SPECS`), porque iniciam um agente ou mudam o projeto, e não
+existe rota que escreva numa spec.
+
 Qualquer coisa que não está nesta tabela não existe como endpoint: não há proxy genérico de comandos do Tauri, nem
 parâmetro de caminho, programa ou arquivo em lugar nenhum da API remota.
 
@@ -170,9 +175,10 @@ guardrail/permissão, dispositivos persistentes entre reinicializações, contas
   real sobre dados reais (pareamento pelo link, painel, plano, aprovação, atualização ao vivo, servidor morto →
   "reconectando"). O caminho de assets empacotados (`asset_resolver`) é coberto por um teste que lê a página do frontend
   embutido.
-- **Não verificado aqui:** um celular físico em uma rede Wi-Fi; builds de Windows e Linux (todo crate adicionado é
-  multiplataforma, mas só o macOS foi compilado e executado); um app empacotado (`tauri build`) com o servidor ligado
-  pelo diálogo.
+- Windows e Linux: o CI compila o crate e roda os testes de política, rotas e servidor (que sobem o servidor real em
+  `127.0.0.1`) nos três SOs.
+- **Não verificado:** um celular físico em uma rede Wi-Fi; o servidor escutando na rede local fora do macOS (firewall do
+  Windows, interfaces do Linux); um app empacotado (`tauri build`) com o servidor ligado pelo diálogo.
 
 ## Consequências
 

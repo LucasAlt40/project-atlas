@@ -201,6 +201,7 @@ mod tests {
                 permission_profile_id: None,
                 worktree_isolation: false,
                 result_contract: crate::domain::result_contract::ResultContract::default(),
+                imported_model: None,
                 created_at: 5,
             }],
             builtin_overrides: vec![PersonalityProfile {
@@ -259,6 +260,7 @@ mod tests {
                 workflow_execution_id: None,
                 shared_with: None,
                 end_commit: None,
+                base_layout: Vec::new(),
             }],
             ..UserConfig::default()
         };

@@ -667,6 +667,44 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.editor textarea {
+  min-height: 24rem;
+  padding: var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  color: var(--text-standard);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+  resize: vertical;
+}
+.diff {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.diffFile h4 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--text-high);
+}
+.diffAdded {
+  color: var(--success);
+}
+.diffRemoved {
+  color: var(--danger);
+  text-decoration: line-through;
+}
+.diffGap {
+  color: var(--text-muted);
+  font-style: italic;
+}
 .outline {
   display: flex;
   flex-direction: column;

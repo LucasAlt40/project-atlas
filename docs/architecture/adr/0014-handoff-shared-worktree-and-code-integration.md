@@ -105,7 +105,12 @@ editor**.
 pelo seu próprio lançador de linha de comando no `PATH` (Windows: nomes `.cmd`/`.exe`) ou, no macOS, como um aplicativo
 instalado (`open -a`). O programa é escolhido da lista, a pasta é um argumento de um processo iniciado sem shell, e deve
 ser um caminho absoluto para uma pasta existente. A pasta nunca vem da webview nem de um agente: é o worktree da
-execução enquanto o código está só lá, o projeto depois de aplicado. O Visual Studio ainda não é detectado.
+execução enquanto o código está só lá, o projeto depois de aplicado. O **Visual Studio** (só no Windows) não põe lançador
+no `PATH`: o `devenv.exe` mais novo é achado nas pastas de instalação dele
+(`Microsoft Visual Studio\<versão>\<edição>\Common7\IDE`, sob as pastas Program Files) e abre a pasta como único
+argumento. Testes: `on_windows_visual_studio_is_found_in_its_install_folder_and_opens_the_folder` e
+`visual_studio_is_never_offered_off_windows_or_when_it_is_not_installed`. Não verificado num Windows com o Visual
+Studio instalado.
 
 ## Deixar os agentes escreverem arquivos
 
@@ -124,12 +129,24 @@ A causa raiz acima é corrigida de forma estreita, dentro do modelo de seguranç
 - O prompt diz o que é verdade: a regra de edição para uma execução assim (worktree isolado, só arquivos, nada fora
   dele, revisado antes de chegar ao projeto), a regra de somente leitura para todas as outras.
 
+## Descartado
+
+- **Integração automática das mudanças** (decisão do usuário, 2026-11-11). Só a pessoa aplica o código ao projeto,
+  mesmo quando a política permitiria um merge: é uma invariante de segurança do Atlas ("o usuário decide o que entra no
+  projeto"), não uma lacuna.
+
 ## Limites conhecidos
 
 - Passos de uma mesma execução que rodam em paralelo compartilham uma árvore: seus commits podem se misturar e o delta
-  por passo pode incluir arquivos do outro passo. Os avisos de sobreposição continuam valendo.
-- Só o usuário aplica mudanças; não há integração automática, mesmo para uma política que permitiria um merge.
+  por passo pode incluir arquivos do outro passo. Os avisos de sobreposição continuam valendo. **Mantido por decisão**
+  (usuário, 2026-11-11): isolar cada passo paralelo pediria um worktree por passo e um merge entre eles no fim, com
+  conflitos para resolver; o aviso de sobreposição é a resposta, e quem quer passos sem mistura limita a execução a um
+  passo por vez (`Passos em paralelo` = 1, ADR 0013).
 - Os agentes do OpenCode continuam somente leitura. Agentes não podem executar testes nem um shell (uma decisão
   diferente e maior).
-- As mudanças do passo são commitadas no branch da execução pelo Atlas quando as escritas no Git não são negadas; com uma
-  política que as nega o trabalho fica sem commit e não pode ser aplicado a partir do Atlas.
+- As mudanças são commitadas no branch da execução pelo Atlas quando as escritas no Git não são negadas. Com uma
+  política que as nega (uma execução de agente fora de workflow; o worktree de um workflow entrega na árvore de
+  trabalho e não depende dela), o Atlas não faz commit nem merge. A tela diz exatamente isso (`policy_denied`, e não
+  "mudanças que não puderam ser commitadas") e mostra onde o trabalho ficou, sem commit, com como usá-lo: abrir a
+  pasta e levar o que precisar, ou permitir escritas no Git na política do agente para a próxima execução. Teste:
+  `a_policy_that_denies_git_writes_blocks_the_merge_even_when_the_user_asks` (2026-11-12).

@@ -96,24 +96,106 @@ gasta tokens sem dizer nada de novo.
   milissegundos e é refeita só quando a revisão muda.
 - O Atlas não cacheia respostas de modelos: uma aprovação ou uma revisão por IA só vale para as revisões exatas que leu.
 
+## Medição com modelo real (2026-11-11)
+
+As otimizações 3 e 5 não se desligam, então o antes e o depois foram medidos **dentro da mesma spec**: a mesma espécie
+de mudança no `design.md` pedida uma vez como edição de uma seção (`Revise`) e outra como reescrita inteira (`Redo`), e
+a primeira revisão contra a segunda, depois de uma mudança. Pelo Atlas inteiro (serviço de specs, runner, chat,
+execuções, guard, CLI real), num projeto pequeno de exemplo; números informados pelo runtime, lidos do registro de
+uso. Teste: `application::specs::real_cost_tests::sdd_real_cost_before_and_after` (`#[ignore]`, nome exato). Claude
+Sonnet, uma execução por turno.
+
+| Turno                                   | Desfecho             | Entrada | Do cache | Saída  | Custo (US$) |
+| --------------------------------------- | -------------------- | ------- | -------- | ------ | ----------- |
+| escrever a proposta                     | concluído            | 25 205  | 20 148   | 1 441  | 0,037       |
+| escrever as specs                       | concluído            | 9 122   | 3 882    | 1 457  | 0,036       |
+| escrever o design                       | concluído            | 31 371  | 24 379   | 3 526  | 0,066       |
+| escrever as tarefas                     | concluído            | 12 281  | 3 882    | 3 067  | 0,065       |
+| **design: mudar uma seção (edição)**    | concluído            | 13 554  | 3 882    | 2 600  | **0,065**   |
+| **design: escrever de novo (inteiro)**  | parou para perguntar | 13 518  | 3 882    | 1 080  | 0,050       |
+| design: escrever de novo, após resposta | concluído            | 13 670  | 3 882    | 5 759  | **0,097**   |
+| **revisão 1**                           | concluída            | 34 119  | 20 862   | 3 926  | **0,094**   |
+| tarefas: mudar uma seção (edição)       | concluído            | 16 579  | 3 882    | 1 479  | 0,066       |
+| **revisão 2 (sabe o que mudou)**        | concluída            | 17 407  | 3 882    | 3 197  | **0,087**   |
+| **Total (10 turnos)**                   |                      | 186 826 | 92 563   | 27 532 | **0,66**    |
+
+O que os números dizem, com uma execução por turno (indício, não estatística):
+
+- **Otimização 3 (edição por seção):** a mudança respondida como edição saiu com **55% menos saída** (2 600 contra 5 759
+  tokens) e **33% mais barata** (US$ 0,065 contra 0,097) que a reescrita inteira do mesmo documento, com a mesma
+  entrada. A reescrita ainda custou um turno a mais: o agente parou para perguntar (US$ 0,050). O teste não registrou
+  se a resposta veio como blocos `ATLAS-EDIT` ou como documento inteiro; a saída menor que a do design original
+  (3 526) indica edição.
+- **Otimização 5 (a segunda revisão sabe o que mudou):** metade da entrada (17 mil contra 34 mil) e 19% menos saída,
+  mas só **8% mais barata** (US$ 0,087 contra 0,094), porque a primeira teve 21 mil tokens servidos do cache e a
+  segunda quase nenhum. O ganho em tokens é real; em custo, depende do cache.
+- **Uma spec inteira neste projeto pequeno custou US$ 0,66**, contra US$ 2,00 da linha de base. Não é comparável: a
+  linha de base é outra spec, num projeto maior, e a exploração do projeto é a maior parte do custo.
+
+Outro ponto, do histórico local da pessoa (24/10, Claude Opus, outra spec, depois destas otimizações): 9 execuções,
+US$ 4,19, e duas tentativas seguidas de alterar o design falharam antes da terceira passar. Os tamanhos de saída
+(612 e 1 178 tokens) sugerem edições recusadas e depois o documento inteiro; o motivo não foi conferido.
+
 ## O que não foi feito
 
-- **Modelo por etapa.** O modelo é o do agente escolhido para escrever e para revisar; não há como trocar por etapa sem
-  criar um segundo sistema de configuração. Dá para ter um agente "revisor" mais barato ou mais forte que o autor.
-- **Prompt caching.** O runtime Claude já informa tokens vindos do cache (aparecem na barra de consumo), mas o Atlas
-  entrega o prompt como um bloco só, então só o prefixo do sistema do próprio runtime é aproveitado (cerca de 4 500
-  tokens, nas medições). Reordenar o prompt não muda isso sem partir o prompt em blocos, o que depende do runtime.
-  Os demais runtimes não informam tokens de cache; nenhuma economia é declarada para eles.
-- **Estimativa antes de executar.** Há o consumo real depois e o limite; uma estimativa antes dependeria de dados que a
-  maioria das execuções não tem.
 - **Exploração do projeto pelos agentes.** É a maior parte do custo medido e também o que ancora os documentos no
   código real. Não foi limitada. O limite de tokens por spec é o freio.
 - **Invalidação por seção.** Documentos dependentes continuam sendo marcados como desatualizados por inteiro quando o
   de origem muda de verdade; decidir "esta mudança não afeta o design" exigiria interpretar o texto.
-- **Skills especializadas** para elicitação, cenários ou decomposição: sem evidência de que ajudariam, não foram criadas.
-- **Diff entre revisões** na tela.
-- **Comparação antes/depois em execuções reais**: não existe ainda. As otimizações 3 a 5 só aparecem nos números das
-  próximas execuções; a barra de consumo é como se mede.
+
+## O prompt em duas partes, para o cache (C3, 2026-11-11)
+
+Na medição do C1, a maioria dos turnos teve só ~3,9 mil tokens servidos do cache: o prefixo de sistema da própria CLI.
+As instruções do Atlas (personalidade, regras, narração, regra de plano, rules) iam no corpo da mensagem, depois do que
+muda a cada passo, e por isso não entravam no prefixo cacheado.
+
+Com `optimization.systemChannel` ligada (decisão do usuário: construir desligado e medir), o Claude recebe essas
+instruções pelo canal de sistema e o resto como mensagem:
+
+- `--append-system-prompt-file <arquivo>`: um arquivo privado da execução (0600 no Unix), apagado quando ela termina.
+  Arquivo e não argumento porque um argumento de várias linhas quebra um shim `.cmd` do Windows e precisaria de escape
+  (o motivo pelo qual a [ADR 0027](0027-rules-context-authority-and-system-prompt-channel.md) não tinha adotado a flag).
+- `--exclude-dynamic-system-prompt-sections`, que o Atlas já passava, tira cwd e estado do Git do prefixo da CLI.
+- O manifest registra `systemChannel: appended` e o hash das duas partes delimitadas pelo tamanho (o mesmo `delivery()`
+  da ADR 0026 entrega e calcula o hash). Um runtime sem canal medido recebe um texto só, com a flag ligada ou não.
+- **Desligada por padrão**: aí a entrega é idêntica byte a byte.
+
+Testes: `the_system_channel_sends_the_instructions_in_a_file_and_off_changes_nothing` (Claude, executor espião: o arquivo
+tem as instruções enquanto a CLI roda e some depois, a mensagem não as repete, os hashes diferem) e
+`the_system_channel_switch_reaches_the_runtime_and_one_without_a_channel_gets_one_text`.
+
+**Medido (2026-11-12, haiku, autorizado pelo usuário):** o teste real
+`application::executions::system_channel_real_tests::system_channel_real_cache` (`#[ignore]`, nome exato) rodou a mesma
+tarefa três vezes com o canal desligado e três com ele ligado. Custo total: cerca de US$ 0,011.
+
+| canal     | execução | entrada | servido do cache | custo (US$) |
+| --------- | -------- | ------- | ---------------- | ----------- |
+| desligado | 1        | 27 074  | 18 722           | 0,0019      |
+| desligado | 2        | 27 152  | 20 186           | 0,0017      |
+| desligado | 3        | 27 172  | 20 192           | 0,0017      |
+| ligado    | 1        | 27 124  | 13 453           | 0,0030      |
+| ligado    | 2        | 27 112  | 20 951           | 0,0015      |
+| ligado    | 3        | 27 239  | 20 963           | 0,0016      |
+
+Com o canal ligado, a partir da segunda execução cerca de 770 tokens a mais são servidos do cache (≈3% da entrada, ≈10%
+mais barato por execução). A primeira execução paga para escrever o prefixo novo. Num prompt de ~27 mil tokens, o
+ganho é pequeno e está perto do ruído de uma amostra de três: **a flag continua desligada por padrão**. Pode valer mais
+num prompt de spec, em que as instruções do Atlas são uma parte maior, mas isso não foi medido.
+
+Não verificado: o canal no Windows, e se o texto no canal de sistema muda o comportamento do modelo em relação ao mesmo
+texto no corpo.
+
+## Descartado
+
+- **Estimativa de custo antes de executar** (decidido pelo usuário em 2026-11-11). O Atlas mostra o custo que o runtime
+  informou depois e o limite por spec; não estima antes. Uma estimativa honesta só sairia da mediana de execuções
+  anteriores do mesmo tipo, agente e modelo, e mesmo assim contrariaria o princípio de produto "o Atlas nunca estima um
+  custo" (tela de Uso): fica o princípio.
+- **Modelo por etapa do SDD** (2026-11-11). Sem evidência de ganho: a medição do C1 (acima) mostra o custo concentrado
+  na exploração do projeto, não no modelo de uma etapa, e trocar de modelo por etapa criaria um segundo sistema de
+  configuração. Quem quer um revisor mais barato ou mais forte já escolhe outro agente para revisar.
+- **Skills especializadas de elicitação, cenários e decomposição** (2026-11-11). Nenhuma medição sugere que ajudariam; o
+  custo está na leitura do projeto, que uma skill não reduz.
 
 ## Riscos
 

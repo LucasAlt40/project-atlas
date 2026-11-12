@@ -50,6 +50,8 @@ const READ_AND_COMMAND_TOOLS: &str = "Read,Grep,Glob,Bash";
 /// its arguments, before any model call: the run is then made again without it (see
 /// [`ClaudeRuntime::execute`]), and the flag is not passed again.
 const CACHE_FLAG: &str = "--exclude-dynamic-system-prompt-sections";
+/// Where Atlas's instructions go when the system channel is on (ADR 0036, C3).
+const SYSTEM_PROMPT_FILE_FLAG: &str = "--append-system-prompt-file";
 
 /// Runtime for the Claude CLI (Claude Code), using the user's existing sign-in.
 ///
@@ -225,9 +227,10 @@ impl ModelRuntime for ClaudeRuntime {
             &self.info().id,
             vec![
                 SurfaceEntry::delivered_prompt(),
-                // Atlas does not use the CLI's `--append-system-prompt` (its Windows and escaping
-                // behaviour and its semantics are untested): the instructions are in the body.
-                SurfaceEntry::system_channel(self.info().capabilities.system_prompt),
+                // Off by default the instructions are in the body; with the system channel on
+                // they go to `--append-system-prompt-file` (a file: no escaping, no multi-line
+                // argument).
+                SurfaceEntry::system_channel(self.delivery(request).channel()),
                 SurfaceEntry::new(SurfaceKind::LaunchFlags, atlas, Observation::Declared)
                     .with_detail(flags.join(" ")),
                 SurfaceEntry::new(SurfaceKind::Tools, atlas, Observation::Declared)
@@ -281,6 +284,18 @@ impl ModelRuntime for ClaudeRuntime {
         true
     }
 
+    /// One text, unless the person turned the system channel on (ADR 0036, C3): then Atlas's
+    /// instructions and rules go to `--append-system-prompt-file` and the rest is the message, so
+    /// the same instructions make a prefix the provider can serve from its cache.
+    fn delivery(&self, request: &RuntimeRequest) -> crate::application::runtimes::Delivery {
+        let channel = if request.system_channel {
+            SystemPromptChannel::Appended
+        } else {
+            SystemPromptChannel::Unsupported
+        };
+        crate::application::runtimes::Delivery::for_channel(&request.prompt, channel)
+    }
+
     fn execute(
         &self,
         request: &RuntimeRequest,
@@ -313,8 +328,28 @@ impl ClaudeRuntime {
         mcp: &McpPreparation,
         progress: &dyn Fn(RuntimeEvent),
     ) -> Result<ProcessOutput, RuntimeError> {
-        let args = self.launch_args(request, &mcp.args);
-        let delivery = cli::deliver_prompt(args, self.delivery(request).into_payload(), false);
+        let mut args = self.launch_args(request, &mcp.args);
+        let delivered = self.delivery(request);
+        // On the system channel the instructions travel in a private file, never an argument: a
+        // multi-line argument breaks a Windows `.cmd` shim, and a file needs no escaping. It is
+        // deleted when the run ends, however it ends.
+        let system_file = delivered
+            .system()
+            .map(super::mcp_adapter::ConfigFile::write_text)
+            .transpose()
+            .map_err(|e| {
+                RuntimeError::ExecutionFailed(format!(
+                    "the system prompt file could not be written: {e}"
+                ))
+            })?;
+        let payload = if let Some(file) = &system_file {
+            args.push(SYSTEM_PROMPT_FILE_FLAG.to_owned());
+            args.push(file.path().to_owned());
+            delivered.body().to_owned()
+        } else {
+            delivered.into_payload()
+        };
+        let delivery = cli::deliver_prompt(args, payload, false);
         let spec = ProcessSpec {
             program: PROGRAM.to_owned(),
             args: delivery.args,
@@ -788,7 +823,7 @@ mod tests {
     use crate::application::process::fake::{ok, FakeProcessRunner};
     use crate::application::process::ProcessError;
     use crate::application::prompt::Prompt;
-    use crate::application::runtimes::inspect;
+    use crate::application::runtimes::{inspect, Delivery};
     use crate::domain::mcp::McpServerStatus;
     use crate::domain::runtime::{Availability, ModelDiscovery};
 
@@ -835,6 +870,7 @@ mod tests {
             allow_edits: false,
             granted_commands: Vec::new(),
             mcp: None,
+            system_channel: false,
         }
     }
 
@@ -1134,6 +1170,70 @@ mod tests {
         assert_eq!(runs(false), vec![true, false, false]);
     }
 
+    /// ADR 0036, C3: with the system channel on, Atlas's instructions go in a private file named by
+    /// `--append-system-prompt-file` (no escaping, no multi-line argument), the rest is the
+    /// message, and the manifest's hash is the one of what was delivered. Off, the launch is the one
+    /// there always was.
+    #[test]
+    fn the_system_channel_sends_the_instructions_in_a_file_and_off_changes_nothing() {
+        /// One launch as the spy saw it: arguments, the system file's text, the input.
+        type Seen = (Vec<String>, Option<String>, Option<String>);
+        let seen: Arc<std::sync::Mutex<Vec<Seen>>> = Arc::default();
+        let log = seen.clone();
+        let runner = Arc::new(FakeProcessRunner::new(&["claude"], move |spec| {
+            // The file exists while the CLI runs: read it then.
+            let file = spec
+                .args
+                .iter()
+                .position(|a| a == SYSTEM_PROMPT_FILE_FLAG)
+                .map(|at| std::fs::read_to_string(&spec.args[at + 1]).unwrap());
+            log.lock()
+                .unwrap()
+                .push((spec.args.clone(), file, spec.stdin.clone()));
+            ok(SUCCESS)
+        }));
+        let runtime = ClaudeRuntime::new(runner.clone() as Arc<dyn ProcessRunner>);
+        let mut on = request("sonnet");
+        on.system_channel = true;
+
+        runtime.execute(&request("sonnet"), &|_| {}).unwrap();
+        runtime.execute(&on, &|_| {}).unwrap();
+
+        let calls = seen.lock().unwrap().clone();
+        let (off_args, off_file, off_stdin) = &calls[0];
+        let (on_args, on_file, on_stdin) = &calls[1];
+        // Off: no file, the whole prompt as one text.
+        assert!(off_file.is_none());
+        assert!(!off_args.contains(&SYSTEM_PROMPT_FILE_FLAG.to_owned()));
+        let whole = Delivery::of_prompt(&request("sonnet").prompt).into_payload();
+        assert!(
+            off_stdin.as_deref() == Some(whole.as_str()) || off_args.iter().any(|a| a == &whole),
+            "the prompt is delivered whole when the channel is off"
+        );
+        // On: the instructions in the file, and the message without them.
+        let split = runtime.delivery(&on);
+        assert_eq!(split.channel(), SystemPromptChannel::Appended);
+        assert_eq!(on_file.as_deref(), split.system());
+        assert_eq!(on_file.as_deref(), Some("SYS"));
+        let body = split.body().to_owned();
+        assert!(
+            on_stdin.as_deref() == Some(body.as_str()) || on_args.iter().any(|a| a == &body),
+            "the message is the body"
+        );
+        assert!(!body.contains("SYS"));
+        // The file is gone once the run is over.
+        let at = on_args
+            .iter()
+            .position(|a| a == SYSTEM_PROMPT_FILE_FLAG)
+            .unwrap();
+        assert!(!std::path::Path::new(&on_args[at + 1]).exists());
+        // The manifest hashes what was delivered, and the two deliveries differ.
+        assert_ne!(
+            split.prompt_hash(),
+            runtime.delivery(&request("sonnet")).prompt_hash()
+        );
+    }
+
     /// The tools a run is launched with follow the request: read-only by default, files only when
     /// the execution service granted edits, nothing at all for a text-only run. A shell and the
     /// web are never among them.
@@ -1202,6 +1302,7 @@ mod tests {
             } else {
                 vec![]
             },
+            http: None,
         }
     }
 
@@ -1697,6 +1798,7 @@ mod tests {
                     value: (*value).to_owned(),
                 })
                 .collect(),
+            http: None,
         }
     }
 

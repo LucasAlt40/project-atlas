@@ -180,7 +180,8 @@ impl ContextEngine {
         }
     }
 
-    /// Leaves out whole items below `High` until the budget is met, stale and larger ones first,
+    /// Leaves out whole items below `High` until the budget is met: lower priority first, then
+    /// stale, then the less relevant (an item nobody scored counts as halfway), then larger ones,
     /// each replaced by a line saying so. What cannot be left out is reported, not cut.
     fn fit(plan: &mut EnginePlan, available: Option<u64>) {
         let Some(available) = available else {
@@ -199,6 +200,7 @@ impl ContextEngine {
                     (
                         item.priority,
                         !item.stale,
+                        relevance_key(item),
                         std::cmp::Reverse(item.size.bytes),
                     )
                 })
@@ -241,6 +243,13 @@ impl ContextEngine {
 
 /// How the note an omitted item leaves behind begins.
 pub(crate) const LEFT_OUT_PREFIX: &str = "[Left out to fit the context budget:";
+
+/// An item's relevance as a whole number for ordering: thousandths, and halfway when unknown.
+fn relevance_key(item: &ContextItem) -> u32 {
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // clamped to 0..=1000
+    item.relevance
+        .map_or(500, |r| (r.clamp(0.0, 1.0) * 1000.0).round() as u32)
+}
 
 fn is_notice(item: &ContextItem) -> bool {
     item.content.starts_with(LEFT_OUT_PREFIX)

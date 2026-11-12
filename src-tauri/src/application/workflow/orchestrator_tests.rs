@@ -759,6 +759,7 @@ fn a_real_brief_says_each_fact_once_and_the_context_engine_keeps_every_one() {
         memories: &[],
         rules: &[],
         budget: &ExecutionBudget::resolve(ModelLimits::unknown("rt", "m"), &[]),
+        harness_facts: crate::application::optimization::context::HarnessFacts::default(),
     });
 
     // The brief says the artifact and the decision once (in the workflow context; the handoff
@@ -962,6 +963,56 @@ fn the_parallelism_limit_of_the_run_is_respected() {
         env.service.execution(&exec.id).unwrap().status,
         WorkflowExecutionStatus::Completed
     );
+}
+
+/// ADR 0013, W4: the person sets a run's parallel steps (1 to 8); outside that, or on a run that
+/// ended, nothing changes. A run stored before the setting existed reads the default of 4.
+#[test]
+fn the_person_sets_how_many_steps_run_at_once_within_limits() {
+    let env = env();
+    let workflow = env.workflow(
+        vec![
+            agent("architect", "architect"),
+            end("done", EndOutcome::Done),
+        ],
+        vec![edge("architect", "done")],
+    );
+    let exec = env.service.start(&workflow.id, "task").unwrap();
+    let runner = Scripted::new();
+    let orchestrator = env.orchestrator(&runner);
+
+    // Nobody drives it yet: the limit is kept for when it is.
+    orchestrator.set_max_parallel_steps(&exec.id, 1).unwrap();
+    assert_eq!(
+        env.service.execution(&exec.id).unwrap().max_parallel_steps,
+        1
+    );
+    for out_of_range in [0, 9, 100] {
+        let refused = orchestrator.set_max_parallel_steps(&exec.id, out_of_range);
+        assert!(
+            refused.unwrap_err().is(ErrorCode::WorkflowInvalid),
+            "{out_of_range}"
+        );
+    }
+    assert_eq!(
+        env.service.execution(&exec.id).unwrap().max_parallel_steps,
+        1
+    );
+
+    // A run that ended keeps what it had.
+    let mut ended = env.service.execution(&exec.id).unwrap();
+    ended.status = WorkflowExecutionStatus::Completed;
+    env.service.save_execution(&ended).unwrap();
+    assert!(orchestrator
+        .set_max_parallel_steps(&exec.id, 3)
+        .unwrap_err()
+        .is(ErrorCode::WorkflowStateInvalid));
+
+    // A run stored without the field reads the default.
+    let mut stored = serde_json::to_value(&ended).unwrap();
+    stored.as_object_mut().unwrap().remove("maxParallelSteps");
+    let old: WorkflowExecution = serde_json::from_value(stored).unwrap();
+    assert_eq!(old.max_parallel_steps, 4);
 }
 
 // ---- failure, retry, loops --------------------------------------------------------------------------------
@@ -3528,6 +3579,42 @@ fn completed_first_run_of_a_chain(
     done.integration.status = status;
     env.service.save_execution(&done).unwrap();
     first.id
+}
+
+/// ADR 0043, P1: a chain a previous session left ready to go on is found when the app opens,
+/// and once it went on it is not found again; one that waits for the code waits.
+#[test]
+fn after_a_restart_a_chain_ready_to_go_on_is_found_once_and_one_that_waits_is_not() {
+    use crate::domain::workflow::IntegrationStatus;
+    let env = env();
+    let ready = completed_first_run_of_a_chain(&env, false, IntegrationStatus::ChangesAvailable);
+    // The app closed here: a new orchestrator over the same stored runs.
+    let runner = Scripted::new();
+    let restarted = env.orchestrator(&runner);
+
+    assert_eq!(
+        restarted.chains_ready_to_go_on(),
+        std::slice::from_ref(&ready)
+    );
+    let next = restarted
+        .go_on_with_chain(&ready, &Collector::default())
+        .unwrap();
+    assert_eq!(env.service.chain_runs(&ready)[1].id, next);
+    // Gone on once: nothing more to find.
+    assert!(!restarted.chains_ready_to_go_on().contains(&ready));
+}
+
+#[test]
+fn after_a_restart_a_chain_that_waits_for_the_code_is_not_gone_on_with() {
+    use crate::domain::workflow::IntegrationStatus;
+    let env = env();
+    let waiting = completed_first_run_of_a_chain(&env, true, IntegrationStatus::ChangesAvailable);
+    let runner = Scripted::new();
+
+    assert!(!env
+        .orchestrator(&runner)
+        .chains_ready_to_go_on()
+        .contains(&waiting));
 }
 
 #[test]

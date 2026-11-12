@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type DragEvent } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
@@ -22,6 +22,9 @@ import { importConfigs, pickConfigFile, previewConfigImport } from '../services/
 import { ImportItemCard } from './ImportItemCard';
 import { ImportResult } from './ImportResult';
 import styles from './Portability.module.css';
+
+/** The core refuses a larger file anyway (ADR 0032); this keeps it from crossing over at all. */
+const MAX_FILE_BYTES = 2 * 1024 * 1024;
 
 interface Props {
   onClose: () => void;
@@ -54,6 +57,7 @@ export function ImportDialog({ onClose, onImported }: Props) {
   const workspaces = workspace?.workspaces ?? [];
   const [stage, setStage] = useState<Stage>({ name: 'pick', busy: false });
   const [error, setError] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   const startWorkspace = workspace?.active?.id ?? null;
 
@@ -85,6 +89,31 @@ export function ImportDialog({ onClose, onImported }: Props) {
         }
         await review(picked.fileName, picked.text, startWorkspace);
       })
+      .catch((cause: unknown) => {
+        setError(portabilityError(t, cause));
+        setStage({ name: 'pick', busy: false });
+      });
+  }
+
+  /**
+   * A file dropped on the dialog goes the same way as a chosen one: its text is read here (the UI
+   * still never names a path) and shown in the preview; nothing is imported without a decision.
+   */
+  function dropped(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setDragging(false);
+    if (stage.name !== 'pick' || stage.busy) return;
+    const file = event.dataTransfer.files.item(0);
+    if (!file) return;
+    setError(null);
+    if (file.size > MAX_FILE_BYTES) {
+      setError(t('error.import_file_too_large', { max: String(MAX_FILE_BYTES / 1024 / 1024) }));
+      return;
+    }
+    setStage({ name: 'pick', busy: true });
+    file
+      .text()
+      .then((text) => review(file.name, text, startWorkspace))
       .catch((cause: unknown) => {
         setError(portabilityError(t, cause));
         setStage({ name: 'pick', busy: false });
@@ -127,11 +156,23 @@ export function ImportDialog({ onClose, onImported }: Props) {
           <>
             <p className={styles.muted}>{t('portability.import.intro')}</p>
             <p className={styles.safety}>{t('portability.safety')}</p>
-            <div className={styles.row}>
+            <div
+              className={[styles.drop, dragging ? styles.dropActive : ''].join(' ').trim()}
+              data-testid="import-drop"
+              onDragOver={(event) => {
+                event.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => {
+                setDragging(false);
+              }}
+              onDrop={dropped}
+            >
               <Button disabled={stage.busy} onClick={choose}>
                 <Icon name="folder" size={14} />{' '}
                 {t(stage.busy ? 'portability.import.reading' : 'portability.import.choose')}
               </Button>
+              <span className={styles.muted}>{t('portability.import.drop')}</span>
             </div>
           </>
         )}

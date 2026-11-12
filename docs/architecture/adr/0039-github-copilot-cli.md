@@ -31,9 +31,18 @@ respeitando `COPILOT_HOME`) e sua estratégia de confinamento. Nada em agentes, 
 
 ## Limites conhecidos (não escondidos)
 
-- **Login desconhecido:** não há comando de status; a ausência de login aparece como `AuthenticationRequired` na execução.
-- **MCP não estrito e sem sonda:** os servidores do usuário (e de `.mcp.json` do projeto) carregam junto, e não há como
-  olhar um servidor sem chamar um modelo. `copilot mcp list` só lê configuração.
+- **Login:** não há comando de status. Quando ninguém fez login, a listagem de modelos pelo ACP responde a `session/new`
+  com o erro de autenticação do protocolo. O Atlas passa a mostrar o runtime como "autenticação necessária" na detecção,
+  antes de qualquer execução (2026-11-12). Com o login feito, o estado continua "desconhecido": listar modelos não prova
+  um login. Teste: `signed_out_is_known_from_the_model_listing_before_any_run`. **Não verificado** com uma conta
+  deslogada de verdade, porque deslogar a conta da pessoa para isso não vale. O formato do erro segue a especificação do
+  ACP (código -32000).
+- **MCP não estrito e sem sonda: aceito como limite** (decisão do usuário, 2026-11-12). Os servidores do usuário (e os de
+  `.mcp.json` do projeto) carregam junto, e não há como olhar um servidor sem chamar um modelo; `copilot mcp list` só
+  lê a configuração. O Atlas concede só os servidores dele, com `--allow-tool=<servidor>`, e o prompt diz ao agente quais
+  integrações são do Atlas. O resto o CLI nega sem ninguém para aprovar. Conferido em 2026-11-12
+  (`real_copilot_answers_through_the_system_runner`): a lista de ferramentas enviada ao modelo trazia os servidores
+  `chrome-devtools` e `jira` que a pessoa configurou no próprio Copilot.
 - **Servidores remotos (HTTP):** o hub os ignora com o motivo, como nos outros dialetos.
 - **Pergunta ao usuário:** a ferramenta de perguntar não é chamada em modo headless; vale o detector genérico.
 - **Sandbox:** o trabalho normal funciona dentro do perfil (`sandbox:confined`, edição no worktree e mesclagem). A
@@ -41,9 +50,14 @@ respeitando `COPILOT_HOME`) e sua estratégia de confinamento. Nada em agentes, 
   trabalho") e nada apareceu fora do projeto, o que só mostra que não tentou. Outros modelos não estão disponíveis nesta
   conta para forçar a tentativa. O CLI também confere caminhos por conta própria antes do sistema operacional.
 - **Memória (ADR 0037):** a nota entra no prompt e muda o resultado (acertou o arquivo, sem tocar o isca, 3 chamadas contra
-  5, 56 mil contra 69 mil tokens de entrada; 1 execução por braço). O agente **propor** notas deu 0 em 1 execução:
-  inconclusivo, sem amostra para dizer que é limite do Copilot.
-- Não verificado: edição de arquivos fora do sandbox por um fluxo longo, e um modelo específico que não seja `auto`.
+  5, 56 mil contra 69 mil tokens de entrada; 1 execução por braço). O agente **propor** notas sozinho: **0 em 14
+  execuções** com `auto` (9 em 2026-10, mais 5 em 2026-11-12, `memory_experiment_copilot` com `ATLAS_M4_ARMS=C` e
+  `ATLAS_M4_C1_ONLY=1`), todas completas, com a regra de memória no prompt. A mesma regra faz o OpenCode propor em cerca
+  de 3 de 6 execuções e o Codex em 2 de 3, então **é limite do modelo do Copilot (`auto`), não do prompt**, como no Claude
+  haiku. O ciclo do modo `Auto` da memória não começa no Copilot; uma nota escrita pela pessoa continua ajudando.
+- **Modelo diferente de `auto`:** nesta conta, o ACP oferece só `auto` (conferido de novo em 2026-11-12). Testar um
+  modelo específico depende de uma conta que ofereça outros; é limite desta conta, não do Atlas.
+- Não verificado: edição de arquivos fora do sandbox por um fluxo longo.
 
 ## Como verificar
 

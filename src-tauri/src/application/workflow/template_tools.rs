@@ -11,7 +11,7 @@
 
 use serde::Serialize;
 
-use crate::domain::mcp::{McpConnection, McpServerStatus, ToolSelection};
+use crate::domain::mcp::{McpConnection, McpServerStatus, McpTransport, ToolSelection};
 use crate::domain::workflow::{SuggestionTarget, ToolCapability, ToolSuggestion, Workflow};
 
 /// Why a suggestion cannot be applied in this workspace.
@@ -53,35 +53,51 @@ pub struct ToolPlanItem {
     pub granted: bool,
 }
 
-/// The first word of a tool's name (`get_issue`, `getIssue`, `get-issue` → `get`).
-fn first_word(tool: &str) -> String {
-    let mut word = String::new();
-    for c in tool.chars() {
-        if c == '_' || c == '-' || c == '.' || c == ' ' || (c.is_uppercase() && !word.is_empty()) {
-            break;
-        }
-        word.push(c.to_ascii_lowercase());
-    }
-    word
+/// Whether a tool of `connection` only reads: what its server said about it when Atlas asked
+/// (`readOnlyHint`, `destructiveHint`), else a guess from its name. Used only to *narrow* a grant,
+/// never to widen one.
+fn reads(connection: &McpConnection, tool: &str) -> bool {
+    let info = connection.catalog.as_ref().and_then(|c| c.tool(tool));
+    crate::domain::mcp::reads_tool(tool, info)
 }
 
-/// Whether a tool's name says it reads: its first word is one of Atlas's reading verbs. A guess
-/// from the name (a server's tool descriptions are not known to Atlas), used only to *narrow* a
-/// grant, never to widen one.
-pub fn reads(tool: &str) -> bool {
-    const READING: [&str; 12] = [
-        "get", "list", "search", "read", "fetch", "find", "query", "view", "describe", "inspect",
-        "lookup", "resolve",
-    ];
-    READING.contains(&first_word(tool).as_str())
+/// How a connection was recognised as being of a kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum Recognised {
+    /// By its name, which the person chose.
+    Name,
+    /// By the package it starts or the address it reaches, whatever it is called.
+    Server,
 }
 
-fn matches(capability: ToolCapability, name: &str) -> bool {
+fn by_name(capability: ToolCapability, name: &str) -> bool {
     let name = name.to_ascii_lowercase();
     capability
         .known_names()
         .iter()
         .any(|known| name == *known || name.contains(known))
+}
+
+/// Whether `connection` is of the kind, and how that is known.
+fn recognise(capability: ToolCapability, connection: &McpConnection) -> Option<Recognised> {
+    if by_name(capability, &connection.name) {
+        return Some(Recognised::Name);
+    }
+    let what = match &connection.transport {
+        McpTransport::Stdio {
+            executable, args, ..
+        } => std::iter::once(executable.as_str())
+            .chain(args.iter().map(String::as_str))
+            .collect::<Vec<_>>()
+            .join(" "),
+        McpTransport::Http { url, .. } => url.clone(),
+    }
+    .to_ascii_lowercase();
+    capability
+        .known_servers()
+        .iter()
+        .any(|server| what.contains(server))
+        .then_some(Recognised::Server)
 }
 
 /// Whether the connection can be given at all, before looking at tools.
@@ -126,7 +142,11 @@ fn cover(
         (None, false) => Ok(ToolSelection::Server),
         (None, true) => {
             let tools = known.ok_or(ToolUnavailable::NeedsDiscovery)?;
-            let reading: Vec<String> = tools.iter().filter(|t| reads(t)).cloned().collect();
+            let reading: Vec<String> = tools
+                .iter()
+                .filter(|t| reads(connection, t))
+                .cloned()
+                .collect();
             if reading.is_empty() {
                 Err(ToolUnavailable::NoReadingTools)
             } else {
@@ -162,12 +182,14 @@ pub fn resolve(suggestions: &[ToolSuggestion], connections: &[McpConnection]) ->
             };
             match &suggestion.target {
                 SuggestionTarget::Capability { capability } => {
-                    let mut candidates: Vec<&McpConnection> = connections
+                    let mut candidates: Vec<(Recognised, &McpConnection)> = connections
                         .iter()
-                        .filter(|c| matches(*capability, &c.name))
+                        .filter_map(|c| recognise(*capability, c).map(|how| (how, c)))
                         .collect();
-                    candidates.sort_by_key(|c| blocked(c).is_some()); // stable
-                    match candidates.first() {
+                    // Usable first, then a name match before a server match, then the order they
+                    // were added in (the sort is stable).
+                    candidates.sort_by_key(|(how, c)| (blocked(c).is_some(), *how));
+                    match candidates.first().map(|(_, c)| *c) {
                         None => item(None, Some(*capability), Err(ToolUnavailable::NoConnection)),
                         Some(found) => item(
                             Some(found),
@@ -257,6 +279,7 @@ mod tests {
                 status: McpServerStatus::Connected,
                 tools: t.iter().map(|s| (*s).to_owned()).collect(),
             }),
+            catalog: None,
             created_at: 1,
         }
     }
@@ -270,7 +293,74 @@ mod tests {
     }
 
     #[test]
+    fn a_connection_with_another_name_is_recognised_by_the_server_it_starts_or_reaches() {
+        let mut browser = connection("browser-1", true, None);
+        browser.transport = McpTransport::Stdio {
+            executable: "/usr/bin/npx".to_owned(),
+            args: vec!["-y".to_owned(), "chrome-devtools-mcp@latest".to_owned()],
+            env: vec![],
+        };
+        let mut tickets = connection(
+            "work-tickets",
+            true,
+            Some(&["getJiraIssue", "createJiraIssue"]),
+        );
+        tickets.transport = McpTransport::Http {
+            url: "https://mcp.atlassian.com/v1/sse".to_owned(),
+            headers: vec![],
+            allow_private: false,
+        };
+        // A folder called `docs` in an argument is not a documentation server.
+        let mut notes = connection("notes", true, Some(&["get_note"]));
+        notes.transport = McpTransport::Stdio {
+            executable: "/usr/bin/node".to_owned(),
+            args: vec!["/home/me/docs/server.js".to_owned()],
+            env: vec![],
+        };
+        let all = [browser, tickets, notes];
+
+        let plan = resolve(
+            &[
+                suggestion(ToolCapability::Browser),
+                suggestion(ToolCapability::Issues),
+                suggestion(ToolCapability::Docs),
+            ],
+            &all,
+        );
+
+        assert_eq!(plan[0].connection.as_deref(), Some("browser-1"));
+        assert_eq!(plan[0].tools, Some(ToolSelection::Server));
+        assert_eq!(plan[1].connection.as_deref(), Some("work-tickets"));
+        assert_eq!(
+            plan[1].tools,
+            Some(ToolSelection::Only {
+                tools: vec!["getJiraIssue".to_owned()]
+            })
+        );
+        assert_eq!(plan[2].reason, Some(ToolUnavailable::NoConnection));
+    }
+
+    #[test]
+    fn a_name_match_comes_before_a_server_match() {
+        let mut by_server = connection("headless", true, None);
+        by_server.transport = McpTransport::Stdio {
+            executable: "/usr/bin/npx".to_owned(),
+            args: vec!["@playwright/mcp".to_owned()],
+            env: vec![],
+        };
+        let by_name = connection("chrome-devtools", true, None);
+
+        let plan = resolve(
+            &[suggestion(ToolCapability::Browser)],
+            &[by_server, by_name],
+        );
+
+        assert_eq!(plan[0].connection.as_deref(), Some("chrome-devtools"));
+    }
+
+    #[test]
     fn a_reading_tool_is_told_from_a_writing_one_by_its_first_word() {
+        let by_name = |tool: &str| crate::domain::mcp::reads_tool(tool, None);
         for reading in [
             "get_issue",
             "getIssue",
@@ -278,7 +368,7 @@ mod tests {
             "list_pages",
             "resolve-library-id",
         ] {
-            assert!(reads(reading), "{reading}");
+            assert!(by_name(reading), "{reading}");
         }
         for writing in [
             "create_issue",
@@ -286,10 +376,51 @@ mod tests {
             "delete_page",
             "navigate_page",
         ] {
-            assert!(!reads(writing), "{writing}");
+            assert!(!by_name(writing), "{writing}");
         }
         // The first word is the whole word: `getaway` is not `get`.
-        assert!(!reads("getaway_x1"));
+        assert!(!by_name("getaway_x1"));
+    }
+
+    #[test]
+    fn what_the_server_said_about_a_tool_replaces_the_guess_from_its_name() {
+        use crate::domain::mcp::{McpToolCatalog, McpToolInfo};
+        let info = |name: &str, read_only: Option<bool>, destructive: Option<bool>| McpToolInfo {
+            name: name.to_owned(),
+            title: None,
+            description: String::new(),
+            read_only,
+            destructive,
+            definition_chars: 10,
+        };
+        let mut docs = connection(
+            "docs",
+            true,
+            Some(&["take_snapshot", "get_page", "list_console", "navigate_page"]),
+        );
+        docs.catalog = Some(McpToolCatalog {
+            described_at: 2,
+            tools: vec![
+                // The name does not read; the server says it does.
+                info("take_snapshot", Some(true), None),
+                // The name reads; the server says it does not.
+                info("get_page", Some(false), None),
+                // Said to read and to destroy: destroying wins.
+                info("list_console", Some(true), Some(true)),
+                // Nothing said: the name decides.
+                info("navigate_page", None, None),
+            ],
+            truncated: false,
+        });
+
+        let plan = resolve(&[suggestion(ToolCapability::Docs)], &[docs]);
+
+        assert_eq!(
+            plan[0].tools,
+            Some(ToolSelection::Only {
+                tools: vec!["take_snapshot".to_owned()]
+            })
+        );
     }
 
     #[test]

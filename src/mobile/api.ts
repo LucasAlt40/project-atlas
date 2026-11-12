@@ -1,4 +1,11 @@
-import type { Answered, Overview, RunDetail, SessionInfo } from './types';
+import type {
+  Answered,
+  Overview,
+  RemoteSpecDetail,
+  RemoteSpecSummary,
+  RunDetail,
+  SessionInfo,
+} from './types';
 
 /** A failure the server named (`error.code`), or the network itself failing (`status` 0). */
 export class ApiError extends Error {
@@ -56,6 +63,9 @@ export const api = {
   logout: () => request<{ ok: boolean }>('DELETE', '/api/session'),
   runs: () => request<Overview>('GET', '/api/runs'),
   run: (id: string) => request<RunDetail>('GET', `/api/runs/${encodeURIComponent(id)}`),
+  /** Specifications are only followed from the phone: there is nothing to send about one. */
+  specs: () => request<{ specs: RemoteSpecSummary[] }>('GET', '/api/specs'),
+  spec: (id: string) => request<RemoteSpecDetail>('GET', `/api/specs/${encodeURIComponent(id)}`),
   answer: (runId: string, interactionId: string, answer: { choice?: string; text?: string }) =>
     request<Answered>(
       'POST',

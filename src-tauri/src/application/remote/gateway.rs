@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 
 use super::policy::{self, rule_for};
+use super::specs::{self, RemoteSpecDetail, RemoteSpecSummary, SpecSource};
 use super::view::{self, Names, RunDetail, RunSummary};
 use crate::application::agents::AgentService;
 use crate::application::errors::{AppError, ErrorCode};
@@ -136,6 +137,8 @@ pub struct ControlRequest {
 }
 
 pub struct RemoteGateway {
+    /// Specifications, read only (`policy::SPECS`). None: the phone lists none.
+    specs: Option<Arc<dyn SpecSource>>,
     workflows: Arc<WorkflowService>,
     workspaces: Arc<WorkspaceService>,
     agents: Arc<AgentService>,
@@ -152,12 +155,59 @@ impl RemoteGateway {
         orchestrator: Arc<Orchestrator>,
     ) -> Self {
         Self {
+            specs: None,
             workflows,
             workspaces,
             agents,
             settings,
             orchestrator,
         }
+    }
+
+    /// Lets the phone follow the specifications of every workspace.
+    #[must_use]
+    pub fn with_specs(mut self, specs: Arc<dyn SpecSource>) -> Self {
+        self.specs = Some(specs);
+        self
+    }
+
+    /// The specifications, newest first. Following them is all a phone may do (`policy::SPECS`).
+    pub fn specs(&self) -> Vec<RemoteSpecSummary> {
+        let Some(source) = self.specs.as_ref().filter(|_| policy::SPECS.follow) else {
+            return Vec::new();
+        };
+        let all = self
+            .workspaces
+            .list()
+            .iter()
+            .flat_map(|workspace| {
+                source
+                    .of_workspace(&workspace.id)
+                    .iter()
+                    .map(|state| specs::summary(state, &workspace.name))
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        specs::newest_first(all)
+    }
+
+    /// One specification, as the phone reads it.
+    ///
+    /// # Errors
+    ///
+    /// [`RemoteError::NotFound`] when there is no such spec (or the phone may not follow specs).
+    pub fn spec(&self, id: &str) -> Result<RemoteSpecDetail, RemoteError> {
+        let state = self
+            .specs
+            .as_ref()
+            .filter(|_| policy::SPECS.follow)
+            .and_then(|source| source.one(id))
+            .ok_or(RemoteError::NotFound)?;
+        let workspace = self
+            .workspaces
+            .get(&state.spec.workspace_id)
+            .map_or_else(String::new, |w| w.name);
+        Ok(specs::detail(&state, &workspace))
     }
 
     fn with_names<T>(&self, exec: &WorkflowExecution, f: impl FnOnce(&Names<'_>) -> T) -> T {

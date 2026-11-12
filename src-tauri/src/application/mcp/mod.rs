@@ -5,6 +5,8 @@
 mod catalog;
 pub mod config_io;
 mod credentials;
+pub mod describe;
+pub mod destination;
 mod launch;
 mod plan;
 pub mod registry;
@@ -15,7 +17,7 @@ pub(crate) mod validate;
 pub use crate::domain::mcp::ReportedMcpTool;
 pub use catalog::{McpCatalog, McpPresetInfo};
 pub use credentials::{CredentialError, CredentialStore};
-pub use launch::{LaunchEnv, LaunchServer, McpLaunch, McpProbe};
+pub use launch::{LaunchEnv, LaunchHttp, LaunchServer, McpLaunch, McpProbe};
 pub use plan::{plan, CliServer, McpContext, McpInputs, McpPlan, PlannedServer};
 pub use runtime_files::{RuntimeConfigFiles, RuntimeFileError};
 pub use service::{

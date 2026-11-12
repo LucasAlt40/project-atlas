@@ -103,6 +103,7 @@ mod tests {
                 author_agent_id: "a".to_owned(),
                 reviewer_agent_id: "a".to_owned(),
                 origin: SpecOrigin::Created,
+                skip_specs: false,
             },
             &[(ArtifactKind::Proposal, vec![])],
             1,

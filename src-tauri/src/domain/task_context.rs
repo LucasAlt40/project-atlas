@@ -279,8 +279,25 @@ pub struct ContextRecord {
     /// block). Zero for executions recorded before this was counted.
     #[serde(default)]
     pub stale_items: usize,
+    /// Included because they matched the task (a score above zero), not because they are always
+    /// included (constraints, decisions, the user's own word). Zero for older executions.
+    #[serde(default)]
+    pub matched_items: usize,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fallback_reason: Option<String>,
+}
+
+impl ContextRecord {
+    /// How much of what was included was chosen for this task, as a share (0 to 1): the only
+    /// relevance Atlas measures of a Task Context. `None` when nothing was included or the
+    /// context was not chosen for the task (fallback, none).
+    pub fn relevance(&self) -> Option<f32> {
+        if self.mode != ContextMode::TaskAware || self.selected_items == 0 {
+            return None;
+        }
+        #[allow(clippy::cast_precision_loss)] // counts of a few dozen items
+        Some(self.matched_items.min(self.selected_items) as f32 / self.selected_items as f32)
+    }
 }
 
 impl TaskContext {
@@ -306,6 +323,15 @@ impl TaskContext {
                     e.outcome == EntryOutcome::Included && e.item.block == ContextBlock::Outdated
                 })
                 .count(),
+            matched_items: self
+                .entries
+                .iter()
+                .filter(|e| {
+                    e.outcome == EntryOutcome::Included
+                        && e.reason.score > 0
+                        && e.reason.always_included.is_none()
+                })
+                .count(),
             fallback_reason: self.fallback_reason.clone(),
         }
     }
@@ -327,4 +353,39 @@ pub enum PreviewStatus {
 pub struct TaskContextPreview {
     pub status: PreviewStatus,
     pub context: Option<TaskContext>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn record(mode: ContextMode, selected: usize, matched: usize) -> ContextRecord {
+        ContextRecord {
+            mode,
+            total_harness_characters: 100,
+            selected_context_characters: 50,
+            selected_items: selected,
+            omitted_items: 0,
+            stale_items: 0,
+            matched_items: matched,
+            fallback_reason: None,
+        }
+    }
+
+    /// ADR 0021, C4: the only relevance Atlas measures of a Task Context is the share of what it
+    /// included because it matched the task. Nothing else is scored.
+    #[test]
+    fn a_task_contexts_relevance_is_the_share_it_chose_for_the_task() {
+        assert_eq!(record(ContextMode::TaskAware, 4, 3).relevance(), Some(0.75));
+        assert_eq!(record(ContextMode::TaskAware, 4, 0).relevance(), Some(0.0));
+        // Nothing included, or not chosen for the task: unknown, not zero.
+        assert_eq!(record(ContextMode::TaskAware, 0, 0).relevance(), None);
+        assert_eq!(record(ContextMode::Fallback, 4, 4).relevance(), None);
+        // An older record, without the count, reads as nothing matched.
+        let old: ContextRecord = serde_json::from_str(
+            r#"{"mode":"task_aware","totalHarnessCharacters":1,"selectedContextCharacters":1,"selectedItems":2,"omittedItems":0}"#,
+        )
+        .unwrap();
+        assert_eq!(old.matched_items, 0);
+    }
 }

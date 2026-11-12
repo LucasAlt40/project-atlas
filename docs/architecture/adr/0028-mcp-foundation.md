@@ -1,5 +1,7 @@
 # 0028 — Fundação MCP (Context & Tooling Platform, Fase D)
 
+Status: aceito. Falta o Figma oficial, que depende de OAuth ("Não feito").
+
 ## Contexto
 
 A ADR 0026 escolheu o formato (um domínio agnóstico de runtime, um adaptador do Claude, estratégia A: o suporte MCP do
@@ -47,8 +49,10 @@ adaptador. O desenho está em [context-and-tooling-platform.md](../context-and-t
 8. **A descoberta é o relatório do próprio runtime**, não um cliente MCP do Atlas: `ModelRuntime::probe_mcp` inicia o
    servidor pela CLI com um modelo que não existe, que informa o status do servidor e os nomes das suas ferramentas e
    falha na primeira requisição. Exige que a conexão esteja ligada (essa é a decisão do usuário de deixar o Atlas iniciar
-   esse processo) e seus segredos guardados. Só nomes: o relatório não tem descrições nem esquemas, e nenhum é inventado
-   (o `tool_definitions` do orçamento continua `Unknown`).
+   esse processo) e seus segredos guardados. Só nomes: o relatório não tem descrições nem esquemas, e nenhum é inventado.
+   As descrições, as anotações e o peso das definições vêm de outro caminho, pedido pela pessoa: o Atlas pergunta ao
+   próprio servidor (`tools/list`, [ADR 0045](0045-descricoes-das-ferramentas-mcp.md)). A descoberta pelo runtime
+   continua sendo o que governa o que é retido.
 9. **Reter ferramentas, e o que isso não consegue fazer.** `--tools` não limita ferramentas MCP; `--disallowedTools
 mcp__<servidor>__<ferramenta>` esconde uma descoberta; uma ferramenta que o servidor adiciona depois é listada de
    qualquer forma. Uma concessão ao servidor inteiro é, portanto, a granularidade padrão (o usuário confia no servidor),
@@ -80,25 +84,34 @@ mcp__<servidor>__<ferramenta>` esconde uma descoberta; uma ferramenta que o serv
 
 ## Consequências
 
-- Só o Claude pode receber servidores MCP. Os outros quatro runtimes são `NotInvestigated`: uma conexão concedida aos
-  seus agentes simplesmente não é dada, com um achado.
-- O ciclo completo do Keychain do macOS foi exercitado pelo teste real ignorado (nome exato). Os armazenamentos do
-  Windows e do Linux não: o `keyring` compila para `x86_64-pc-windows-msvc`, o crate inteiro não pôde ser construído
-  para ele aqui (sem `llvm-rc`), o alvo Linux não está instalado.
+- Nesta fase só o Claude recebia servidores MCP. A [ADR 0029](0029-mcp-for-every-runtime.md) levou o MCP a todo runtime
+  que consegue suportá-lo, por capacidades medidas em cada CLI; um runtime que não consegue continua sem receber a
+  conexão, com um achado que diz por quê.
+- O `keyring` 4 (recurso `v1`) escolhe o cofre por SO: Keychain no macOS, Credential Manager no Windows, Secret Service
+  (zbus) no Linux. O crate inteiro compila e passa nos testes no CI nos três SOs. O ciclo gravar/ler/apagar
+  (`infrastructure::credential_store::tests::real_keyring_round_trips_and_forgets_a_secret`, ignorado, nome exato) foi
+  exercitado no Keychain do macOS numa máquina de desenvolvimento, e o CI o roda no Windows e no Linux (com um
+  `gnome-keyring` destravado numa sessão D-Bus própria).
+- **Não verificado:** o ciclo no Windows e no Linux, até o CI rodar com esse passo pela primeira vez. Um Linux sem
+  Secret Service (servidor sem sessão gráfica) não tem onde guardar o segredo: o Atlas mostra o erro do cofre e a
+  conexão fica sem o segredo, nunca com ele num arquivo.
 - A UI de conexões chegou na Fase E (doc seção 18): o painel de Integrações e um catálogo com o DevTools (fixado) e o
   Figma (listado, não adicionável).
 - A parada em uma ferramenta não autorizada não precisa mais de uma sessão de terminal: `SessionRegistry::stop`
   encerra uma sessão de terminal ou faz o runner por pipe matar o grupo de processos (veja doc seção 17.7). Uma
   requisição pode já ter chegado ao modelo quando o relatório chega.
-- Descrições e esquemas das ferramentas são desconhecidos do Atlas, então ele não pode mostrá-los nem orçá-los.
-- Transporte HTTP e OAuth (o servidor oficial do Figma) não foram construídos; `McpTransport::Http` existe e é
-  recusado.
+- Descrições, anotações e o peso das definições das ferramentas são lidos do próprio servidor quando a pessoa pede
+  ([ADR 0045](0045-descricoes-das-ferramentas-mcp.md)): o inspetor os mostra, o orçamento os conta e um passo somente
+  leitura recebe só as ferramentas que leem. Sem esse pedido, nada disso é conhecido.
+- O transporte HTTP veio na [ADR 0046](0046-mcp-por-http.md) (Claude; os outros runtimes recusam com motivo), com a
+  camada de destino. O OAuth (o servidor oficial do Figma) não foi construído.
 
 ## Não feito
 
-Integrações com Chrome DevTools e Figma (Fase E; o Figma precisa de HTTP e OAuth), qualquer UI para adicionar ou
-conceder uma conexão, um cliente MCP no Atlas, um Tool Gateway ou proxy, HTTP e sua camada de SSRF, interceptação por
-chamada, MCP para os outros quatro runtimes, uma execução real com modelo.
+O Figma (precisa de OAuth), interceptação por chamada, um Tool Gateway ou proxy, uma execução real com modelo. O
+transporte HTTP e a camada de destino vieram na [ADR 0046](0046-mcp-por-http.md). O Chrome DevTools e a UI de conexões vieram na Fase E; MCP nos outros runtimes,
+na [ADR 0029](0029-mcp-for-every-runtime.md); um cliente MCP do Atlas, só para `tools/list`, na
+[ADR 0045](0045-descricoes-das-ferramentas-mcp.md).
 
 ## Acompanhamento da Fase F
 

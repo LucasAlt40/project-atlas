@@ -16,7 +16,8 @@ use crate::domain::agent::Agent;
 use crate::domain::security::{Permission, SecurityPolicy};
 use crate::domain::workspace::{Workspace, WorkspaceLayout};
 use crate::domain::worktree::{
-    BlockReason, ExecutionWorktree, MergeStatus, Recommendation, Validation, WorktreeStatus,
+    BaseLayout, BlockReason, ExecutionWorktree, MergeStatus, Recommendation, Validation,
+    WorktreeStatus,
 };
 use crate::infrastructure::GitWorktreeManager;
 
@@ -127,6 +128,7 @@ impl Env {
                         permission_profile_id: Some("developer".to_owned()),
                         worktree_isolation: true,
                         result_contract: crate::domain::result_contract::ResultContract::default(),
+                        imported_model: None,
                         created_at: 1,
                     });
                 }
@@ -535,6 +537,40 @@ fn when_the_policy_asks_for_approval_nothing_is_merged_until_the_user_says_so() 
 }
 
 #[test]
+fn a_repository_with_submodules_or_a_sparse_checkout_is_said_to_differ_in_the_worktree() {
+    let plain = Env::new(Permission::Allowed);
+    assert_eq!(plain.prepare("exec-1").worktree.base_layout, []);
+
+    let env = Env::new(Permission::Allowed);
+    write(
+        env.project.path(),
+        ".gitmodules",
+        "[submodule \"lib\"]\n\tpath = lib\n\turl = ../lib\n",
+    );
+    git(env.project.path(), &["add", ".gitmodules"]);
+    git(
+        env.project.path(),
+        &["commit", "--quiet", "-m", "submodules"],
+    );
+    git(
+        env.project.path(),
+        &["config", "core.sparseCheckout", "true"],
+    );
+
+    let prepared = env.prepare("exec-2");
+
+    assert_eq!(
+        prepared.worktree.base_layout,
+        [BaseLayout::Submodules, BaseLayout::SparseCheckout]
+    );
+    // Recorded with the worktree, so the screen can say it after a restart.
+    assert_eq!(
+        env.service.get("exec-2").unwrap().base_layout,
+        [BaseLayout::Submodules, BaseLayout::SparseCheckout]
+    );
+}
+
+#[test]
 fn a_policy_that_denies_git_writes_blocks_the_merge_even_when_the_user_asks() {
     let env = Env::new(Permission::Denied);
     let prepared = env.prepare("exec-1");
@@ -544,13 +580,19 @@ fn a_policy_that_denies_git_writes_blocks_the_merge_even_when_the_user_asks() {
     let done = env.finalize("exec-1");
 
     assert_eq!(done.merge_status, MergeStatus::Blocked);
-    assert_eq!(done.block_reason, Some(BlockReason::UncommittedChanges));
+    // The reason the person reads is the policy, and the work is left where it is, uncommitted.
+    assert_eq!(done.block_reason, Some(BlockReason::PolicyDenied));
+    assert_eq!(done.recommendation, Some(Recommendation::Inspect));
     assert_eq!(
         env.service.merge("exec-1").unwrap_err(),
         WorktreeError::PolicyDenied
     );
     assert_eq!(env.main_branch_head(), before);
     assert!(prepared.working_dir.join("feature.txt").is_file());
+    assert_eq!(
+        git(&prepared.working_dir, &["status", "--porcelain"]).trim(),
+        "?? feature.txt"
+    );
 }
 
 #[test]

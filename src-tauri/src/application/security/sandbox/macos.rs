@@ -620,6 +620,100 @@ touch "$H/.aws/x" 2>/dev/null; echo aws_write=$?
             assert_eq!(r["read_ssh"], "1");
         }
 
+        /// The real developer tools of this machine under the profile, in the real home (their
+        /// caches are there): what S2 of the ADR checklist asks. No model; it touches the real
+        /// `~/.npm` (`npm cache verify`) and needs `npm` and `cargo` installed, so it runs by name.
+        fn dev_tools(dev_caches: bool) -> std::collections::BTreeMap<String, String> {
+            let w = world(if dev_caches {
+                "devtools"
+            } else {
+                "devtools-nc"
+            });
+            let wt = w.base.join("wt");
+            fs::create_dir_all(&wt).unwrap();
+            let script = r"
+npm cache verify >/dev/null 2>&1; echo npm_cache=$?
+npm init -y >/dev/null 2>&1; echo npm_init=$?
+cargo new --vcs none --quiet probe >/dev/null 2>&1; echo cargo_new=$?
+unset CARGO_TARGET_DIR
+(cd probe && cargo build --offline --quiet > ../cargo.log 2>&1); echo cargo_build=$?
+tail -3 cargo.log
+";
+            let given = spec("claude", &wt, &["-c", script]);
+            let sandbox = MacosSandbox::new(
+                Arc::new(move || settings(SandboxMode::Required, dev_caches)),
+                w.base.join("data"),
+                crate::application::runtimes::confinement::default_confinements(),
+            );
+            let prepared =
+                prepare(&sandbox, &w, given, &SecurityPolicy::developer(), true).unwrap();
+            assert_eq!(prepared.notes, ["sandbox:confined"]);
+            let out = run(&prepared);
+            eprintln!("[dev tools, caches={dev_caches}]\n{out}");
+            out.lines()
+                .filter_map(|l| l.split_once('='))
+                .map(|(k, v)| (k.to_owned(), v.to_owned()))
+                .collect()
+        }
+
+        #[test]
+        #[ignore = "runs the machine's real npm and cargo in the real home (no model); by name"]
+        fn sandbox_real_dev_tools_run_confined_with_the_caches_and_say_what_breaks_without() {
+            let with = dev_tools(true);
+            assert_eq!(with["npm_cache"], "0", "{with:?}");
+            assert_eq!(with["npm_init"], "0", "{with:?}");
+            assert_eq!(with["cargo_new"], "0", "{with:?}");
+            assert_eq!(with["cargo_build"], "0", "{with:?}");
+            // Without them the tools still work in the worktree; what needs a cache is reported.
+            let without = dev_tools(false);
+            assert_ne!(
+                without["npm_cache"], "0",
+                "npm's cache is closed: {without:?}"
+            );
+            assert_eq!(without["npm_init"], "0", "{without:?}");
+            assert_eq!(without["cargo_new"], "0", "{without:?}");
+        }
+
+        /// The terminal mode (PTY) with the profile: the wrapper is the program the terminal runs.
+        #[test]
+        #[ignore = "runs a confined process in a real terminal (no model); by name"]
+        fn sandbox_real_terminal_mode_runs_confined() {
+            let w = world("pty");
+            let wt = w.base.join("wt");
+            let out = w.base.join("elsewhere");
+            fs::create_dir_all(&wt).unwrap();
+            fs::create_dir_all(&out).unwrap();
+            let script = format!(
+                "touch '{}/inside'; echo inside=$?; touch '{}/outside'; echo outside=$?",
+                wt.display(),
+                out.display()
+            );
+            let mut given = spec("claude", &wt, &["-c", &script]);
+            given.terminal = Some(crate::application::process::TerminalRequest::new(false));
+            let prepared = prepare(
+                &provider(&w, settings(SandboxMode::Required, true)),
+                &w,
+                given,
+                &SecurityPolicy::developer(),
+                true,
+            )
+            .unwrap();
+            assert_eq!(prepared.notes, ["sandbox:confined"]);
+
+            let output = crate::application::process::ProcessRunner::run(
+                &crate::infrastructure::SystemProcessRunner::new(),
+                &prepared.spec,
+                &|_| {},
+            )
+            .unwrap();
+
+            eprintln!("[terminal]\n{}", output.stdout);
+            assert!(output.stdout.contains("inside=0"), "{}", output.stdout);
+            assert!(output.stdout.contains("outside=1"), "{}", output.stdout);
+            assert!(wt.join("inside").exists());
+            assert!(!out.join("outside").exists());
+        }
+
         #[test]
         fn without_the_developer_caches_a_confined_process_cannot_write_them() {
             let w = world("nocache");

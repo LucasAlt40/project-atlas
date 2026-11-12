@@ -237,6 +237,14 @@ export function AgentForm({
             onModelChange={setModelId}
           />
         )}
+        {initial?.importedModel && (
+          <p className={styles.hint}>
+            {t('agents.form.importedModel', {
+              runtime: initial.importedModel.runtimeId,
+              model: initial.importedModel.modelId,
+            })}
+          </p>
+        )}
         {runtime && !runtime.runtime.capabilities.fileEdit && (
           <p className={styles.hint}>{t('agents.form.noFileEdit')}</p>
         )}

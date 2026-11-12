@@ -605,6 +605,7 @@ impl SemanticModel for RuntimeSemanticModel {
             allow_edits: false,
             granted_commands: Vec::new(),
             mcp: None,
+            system_channel: false,
         };
         runtime
             .execute(&request, &|event| match event {

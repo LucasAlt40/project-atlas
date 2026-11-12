@@ -311,6 +311,21 @@ impl SpecFramework for OpenSpecAdapter {
         }
     }
 
+    fn instructions_without_specs(&self, kind: ArtifactKind) -> ArtifactInstructions {
+        match kind {
+            ArtifactKind::Proposal => ArtifactInstructions {
+                instruction: text::PROPOSAL_WITHOUT_SPECS_INSTRUCTION.to_owned(),
+                template: text::PROPOSAL_WITHOUT_SPECS_TEMPLATE.to_owned(),
+            },
+            other => {
+                let mut instructions = self.instructions(other);
+                instructions.instruction.push_str("\n\n");
+                instructions.instruction.push_str(text::WITHOUT_SPECS_NOTE);
+                instructions
+            }
+        }
+    }
+
     fn output_protocol(&self, kind: ArtifactKind) -> String {
         document_protocol(kind)
     }
@@ -424,6 +439,15 @@ impl SpecFramework for OpenSpecAdapter {
         validate::validate_artifact(kind, files, project)
     }
 
+    fn validate_artifact_without_specs(
+        &self,
+        kind: ArtifactKind,
+        files: &[SpecFile],
+        project: &ProjectSpecs,
+    ) -> Vec<ValidationIssue> {
+        validate::validate_artifact_without_specs(kind, files, project)
+    }
+
     fn validate_consistency(&self, documents: &Documents) -> Vec<ValidationIssue> {
         validate::validate_consistency(documents)
     }
@@ -432,6 +456,7 @@ impl SpecFramework for OpenSpecAdapter {
         &self,
         documents: &Documents,
         created_at_ms: u64,
+        skip_specs: bool,
     ) -> Result<Vec<PublishFile>, ArtifactKind> {
         let mut out = vec![PublishFile {
             path: ".openspec.yaml".to_owned(),
@@ -443,6 +468,9 @@ impl SpecFramework for OpenSpecAdapter {
             ArtifactKind::Design,
             ArtifactKind::Tasks,
         ] {
+            if skip_specs && kind == ArtifactKind::Specs {
+                continue;
+            }
             let files = documents
                 .get(kind.id())
                 .filter(|f| !f.is_empty())
@@ -949,7 +977,7 @@ mod tests {
     #[test]
     fn publishing_lists_the_metadata_and_every_document() {
         let files = adapter()
-            .publish_files(&documents(), 1_791_849_600_000)
+            .publish_files(&documents(), 1_791_849_600_000, false)
             .unwrap();
 
         let paths: Vec<&str> = files.iter().map(|f| f.path.as_str()).collect();
@@ -975,7 +1003,10 @@ mod tests {
         let mut docs = documents();
         docs.remove("design");
 
-        assert_eq!(adapter().publish_files(&docs, 0), Err(ArtifactKind::Design));
+        assert_eq!(
+            adapter().publish_files(&docs, 0, false),
+            Err(ArtifactKind::Design)
+        );
     }
 
     #[test]

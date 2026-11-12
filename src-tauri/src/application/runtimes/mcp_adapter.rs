@@ -326,6 +326,7 @@ mod tests {
             executable: "node".to_owned(),
             args: vec![],
             env: vec![],
+            http: None,
         };
 
         let error = McpAdapterFactory::create(McpDialect::Codex)

@@ -108,6 +108,8 @@ pub fn run() {
                 live,
                 spec_events,
             ));
+            // A chain the last session left ready to go on goes on now (ADR 0043).
+            commands::workflow::go_on_with_chains_at_start(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -178,6 +180,7 @@ pub fn run() {
             commands::mcp::set_mcp_secret,
             commands::mcp::clear_mcp_secret,
             commands::mcp::probe_mcp_connection,
+            commands::mcp::describe_mcp_connection,
             commands::mcp::grant_mcp_connection,
             commands::mcp::revoke_mcp_grant,
             commands::mcp::list_mcp_catalog,
@@ -228,6 +231,7 @@ pub fn run() {
             commands::workflow::repair_workflow_routes,
             commands::workflow::start_workflow,
             commands::workflow::set_auto_approve_plans,
+            commands::workflow::set_max_parallel_steps,
             commands::workflow::pause_workflow,
             commands::workflow::resume_workflow,
             commands::workflow::continue_workflow_chain,
@@ -262,6 +266,10 @@ pub fn run() {
             commands::specs::generate_spec_artifact,
             commands::specs::decide_spec_artifact,
             commands::specs::keep_spec_artifact,
+            commands::specs::spec_revision_diff,
+            commands::specs::edit_spec_artifact,
+            commands::specs::spec_hand_edits,
+            commands::specs::adopt_spec_hand_edits,
             commands::specs::answer_spec_question,
             commands::specs::answer_spec_findings,
             commands::specs::resolve_spec_finding,
@@ -337,7 +345,11 @@ fn build_state(
             runtimes.clone(),
         )
         .with_files(Arc::new(infrastructure::FsRuntimeConfigFiles))
-        .with_registry(Arc::new(infrastructure::CurlRegistryClient)),
+        .with_registry(Arc::new(infrastructure::CurlRegistryClient))
+        // A remote server's name is looked up before it is given to a step (ADR 0046).
+        .with_resolver(Arc::new(infrastructure::SystemHostResolver))
+        // Asking a server about its tools starts it: through the guard, like every process.
+        .with_runner(runner.clone()),
     );
     let mcp_catalog = Arc::new(application::mcp::McpCatalog::new(runner.clone()));
     // Notes of earlier work live in Atlas's own data folder, never in a project (ADR 0037).
@@ -517,6 +529,9 @@ fn build_state(
         Arc::new(infrastructure::NotifyWatcher),
         live_sink,
     ));
+    // A run the last session left without an end, its code still in the worktree, is watched
+    // again now, not only once it is resumed (ADR 0018).
+    live.observe_open_runs();
     let orchestrator = Arc::new(
         Orchestrator::new(
             workflows.clone(),
@@ -548,13 +563,16 @@ fn build_state(
     let usage = UsageReporter::new(ledger, chat.clone(), agents.clone());
     // Off until the person switches it on; nothing listens before that (ADR 0034).
     let remote = Arc::new(application::remote::RemoteAccess::new(
-        Arc::new(application::remote::gateway::RemoteGateway::new(
-            workflows.clone(),
-            workspaces.clone(),
-            agents.clone(),
-            settings.clone(),
-            orchestrator.clone(),
-        )),
+        Arc::new(
+            application::remote::gateway::RemoteGateway::new(
+                workflows.clone(),
+                workspaces.clone(),
+                agents.clone(),
+                settings.clone(),
+                orchestrator.clone(),
+            )
+            .with_specs(specs.clone()),
+        ),
         Arc::new(infrastructure::SystemInterfaces),
     ));
     let overview = Arc::new(SecurityOverview::new(

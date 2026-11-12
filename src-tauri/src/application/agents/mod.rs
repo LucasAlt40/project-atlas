@@ -86,6 +86,7 @@ impl AgentService {
             permission_profile_id: Some(profile.id().to_owned()),
             worktree_isolation: request.worktree_isolation.unwrap_or(true),
             result_contract,
+            imported_model: None,
             created_at: now_ms(),
         };
         self.config.add_agent(agent.clone())?;
@@ -118,6 +119,10 @@ impl AgentService {
                 .ok_or_else(|| AppError::new(ErrorCode::AgentNotFound))?;
             agent.name = name;
             agent.personality_id = request.personality_id;
+            // The person chose where it runs: what an import asked for no longer stands.
+            if agent.runtime_id != request.runtime_id || agent.model_id != model_id {
+                agent.imported_model = None;
+            }
             agent.runtime_id = request.runtime_id;
             agent.model_id = model_id;
             request

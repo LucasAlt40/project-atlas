@@ -38,6 +38,35 @@ impl ToolCapability {
         }
     }
 
+    /// The servers of this kind, as their package or address names them. A connection the person
+    /// called something else (`browser-1`) is still recognised by what it starts or reaches.
+    /// Specific on purpose: a word like `docs` would match any folder in an argument.
+    pub fn known_servers(self) -> &'static [&'static str] {
+        match self {
+            Self::Browser => &[
+                "chrome-devtools-mcp",
+                "@playwright/mcp",
+                "puppeteer-mcp",
+                "mcp-server-puppeteer",
+            ],
+            Self::Issues => &[
+                "mcp-atlassian",
+                "mcp.atlassian.com",
+                "mcp.linear.app",
+                "linear-mcp",
+                "jira-mcp",
+            ],
+            Self::Docs => &["context7-mcp", "mcp.context7.com"],
+            Self::Repo => &[
+                "github-mcp-server",
+                "api.githubcopilot.com/mcp",
+                "gitlab-mcp",
+                "server-github",
+                "server-gitlab",
+            ],
+        }
+    }
+
     /// Whether the step only *consults* what the tool offers. Then the suggestion covers the
     /// reading tools of the server (when they are known) and never the ones that write.
     pub fn consults(self) -> bool {

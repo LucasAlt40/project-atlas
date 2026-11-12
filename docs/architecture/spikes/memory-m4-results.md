@@ -283,7 +283,8 @@ confinamento tem teste de registro) e dos testes sem modelo.
 - **A nota ajuda no Copilot também**: acerta o arquivo 3 de 3 (controle: 1 de 3), nunca toca na isca (controle: 3 de 3), com 18%
   menos entrada e 40% menos chamadas de ferramenta.
 - **O Copilot não propôs nenhuma nota** em 9 execuções sem nota (0 de 9), como o claude haiku: com o modelo `auto` a regra de
-  proposta é ignorada. O ciclo do `Auto` não começa nele.
+  proposta é ignorada. O ciclo do `Auto` não começa nele. Mais 5 execuções em 2026-11-12 (só a execução 1 do braço C):
+  0 de 5, 5/5 completas, 5/5 na isca, ~135 mil tokens de entrada. Total: 0 de 14.
 - Todas as execuções completaram (o Copilot nega comandos de shell, e o prompt já diz isso: `runs_commands = false`).
 - O sandbox, trabalho normal (`sandbox_real_copilot_does_its_work`), passou com `sandbox:confined` (27 mil tokens de entrada).
 

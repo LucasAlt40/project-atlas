@@ -57,8 +57,10 @@ desligados, a menos que a política negue escritas no Git), mede com o Git (arqu
 1. worktree diferente do que o Atlas criou (outra pasta, branch trocado) → bloqueado, deixado em paz;
 2. nada mudou → nada para fazer merge; o worktree vazio e o branch são removidos;
 3. a execução falhou / foi cancelada / foi interrompida → bloqueado; **mantido**, nunca mesclado;
-4. mudanças que não puderam ser commitadas → bloqueado;
-5. validação falhou → bloqueado (o Atlas ainda não roda testes: a validação é `not_run`, o que não bloqueia);
+4. a política nega escritas no Git → bloqueado por ela, com o trabalho deixado sem commit no worktree
+   ([ADR 0014](0014-handoff-shared-worktree-and-code-integration.md)); senão, mudanças que não puderam ser commitadas →
+   bloqueado;
+5. validação falhou → bloqueado (o Atlas não roda testes: a validação é `not_run`, o que não bloqueia);
 6. o Git diz que há conflitos → `conflict`; branch e worktree mantidos; o checkout fica intocado;
 7. a política nega escritas no Git → bloqueado;
 8. checkout sujo / saiu do branch base → bloqueado (o usuário pode pedir de novo depois);
@@ -92,7 +94,19 @@ worktrees mesclados mas não removidos são tentados de novo; novos ids de execu
   projeto.
 - As ferramentas próprias de um runtime não têm sandbox (ADR 0006): um agente que escreve em um caminho absoluto fora do
   seu worktree não é parado pelo Atlas. O prompt não informa mais o caminho do checkout.
-- Submódulos, sparse checkouts e repositórios `git worktree` com layouts incomuns não são tratados especificamente.
-- Os caminhos de Windows e Linux seguem o mesmo código, mas ainda não foram validados.
+- **Submódulos e sparse checkout** são detectados ao criar o worktree e registrados nele (`base_layout`), e a tela os
+  diz (2026-11-12):
+  - **submódulos:** o worktree isolado não os traz, as pastas deles ficam vazias, e o Atlas não os baixa, porque isso
+    iria à rede;
+  - **checkout esparso:** o worktree tem o próprio checkout, que pode ter arquivos que o da pessoa deixa de fora.
+
+  Nada é contornado; o isolamento segue. Teste:
+  `a_repository_with_submodules_or_a_sparse_checkout_is_said_to_differ_in_the_worktree`. Outros layouts incomuns de
+  `git worktree` continuam sem tratamento específico.
+
+- Windows e Linux: os testes de `application/worktree/tests.rs` criam repositórios e worktrees com o `git` real em
+  pastas temporárias (com espaço no nome) e rodam no CI nos três SOs; só o do symlink no lugar de um worktree é
+  `cfg(unix)`. Não verificado: layouts incomuns (caminhos longos do Windows, locks de arquivo abertos, worktrees em outro
+  volume).
 - Um worktree por execução é um checkout completo; um chat somente leitura isolado por padrão paga esse custo (um
   worktree sem mudanças é removido logo em seguida).

@@ -135,6 +135,10 @@ pub struct StepOptions<'a> {
     pub read_only: bool,
     /// The step's node is given no commands to run, whatever the runtime and the policy allow.
     pub no_commands: bool,
+    /// Someone may watch the run live (a conversation, a workflow step). `false` for a spec's
+    /// turns, whose answer is a document: with `narration_only_when_watched` on, they get no
+    /// live-narration instruction.
+    pub watched: bool,
 }
 
 impl Default for StepOptions<'_> {
@@ -152,6 +156,7 @@ impl Default for StepOptions<'_> {
             announce_integrations: true,
             read_only: false,
             no_commands: false,
+            watched: true,
         }
     }
 }
@@ -534,6 +539,7 @@ impl ExecutionService {
             announce_integrations: true,
             read_only: false,
             no_commands: false,
+            watched: true,
         };
         self.run_step(id, request, options, observer)
     }
@@ -563,7 +569,15 @@ impl ExecutionService {
             announce_integrations,
             read_only,
             no_commands,
+            watched,
         } = options;
+        // The live-narration instruction is for a run someone may watch; a spec's turn drops it
+        // only when the person chose so (ADR 0021). Off, every prompt keeps it.
+        let narrate = watched
+            || !self
+                .optimization
+                .as_ref()
+                .is_some_and(|flags| flags.narration_only_when_watched());
         // Read once: a run is measured entirely or not at all.
         let measuring = self
             .optimization
@@ -786,6 +800,7 @@ impl ExecutionService {
             &runtime.info().capabilities,
             &runtime.info().id,
             cli_servers.as_deref(),
+            read_only,
         );
         // A connection somebody granted and switched on that the agent will not have: said in the
         // run itself, not only in the manifest afterwards.
@@ -838,7 +853,9 @@ impl ExecutionService {
                 .as_ref()
                 .filter(|_| engine_on)
                 .and_then(|flags| flags.context_max_tokens()),
-        );
+        )
+        // The MCP tools' definitions travel with the prompt, when Atlas knows what they weigh.
+        .with_tool_definitions(mcp_plan.tool_definitions());
         // What the prompt is built from. The Context Engine and the guardrails rework these inputs
         // (never a built prompt) and the builder, still the only assembly, builds again.
         let mut inputs = guardrails::PromptInputs {
@@ -874,6 +891,7 @@ impl ExecutionService {
                 integrations: &announced,
                 unavailable_integrations: &unavailable,
                 other_projects: &other_projects,
+                narrate,
             }
             .assemble()
         };
@@ -892,6 +910,9 @@ impl ExecutionService {
                     rules: &inputs.rules,
                     memories: &inputs.memories,
                     budget: &budget,
+                    harness_facts: optimization::context::HarnessFacts::of(
+                        execution.context.as_ref(),
+                    ),
                 },
             );
             if outcome.changed {
@@ -1063,6 +1084,10 @@ impl ExecutionService {
             allow_edits: can_edit,
             granted_commands,
             mcp: mcp_launch,
+            system_channel: self
+                .optimization
+                .as_ref()
+                .is_some_and(|flags| flags.system_channel()),
         };
         // What the adapter will hand to its process, hashed from that same value, before it does.
         // Always: the manifest is the evidence of the delivery, not an optional measurement.
@@ -1536,6 +1561,7 @@ impl ExecutionService {
         capabilities: &crate::domain::runtime::RuntimeCapabilities,
         runtime_id: &str,
         cli_servers: Option<&[super::mcp::CliServer]>,
+        read_only: bool,
     ) -> McpPlan {
         let support = capabilities.mcp;
         let features = capabilities.mcp_features;
@@ -1560,6 +1586,7 @@ impl ExecutionService {
             support,
             cli_servers,
             features,
+            read_only,
         })
     }
 
@@ -1600,6 +1627,9 @@ impl ExecutionService {
             McpProblem::NeedsDiscovery | McpProblem::ToolFilterUnsupported => {
                 "the tools it was limited to cannot be enforced"
             }
+            McpProblem::NoReadingTools => "this step is read-only and none of its tools only reads",
+            McpProblem::HttpUnsupported => "this agent's runtime cannot be given a remote server",
+            McpProblem::DestinationBlocked => "its address is not one Atlas lets a runtime reach",
             McpProblem::NotEnabled | McpProblem::NoGrant | McpProblem::PolicyDenied => {
                 "it is not available to this step"
             }
@@ -1623,6 +1653,17 @@ impl ExecutionService {
             McpProblem::NeedsDiscovery => "its tools were never examined".to_owned(),
             McpProblem::ToolFilterUnsupported => {
                 "its runtime cannot hold a server to the tools named".to_owned()
+            }
+            McpProblem::NoReadingTools => {
+                "this step is read-only and the server described none of its tools as only reading"
+                    .to_owned()
+            }
+            McpProblem::HttpUnsupported => {
+                "it is a remote server and its runtime has no measured way to be given one".to_owned()
+            }
+            McpProblem::DestinationBlocked => {
+                "its address is loopback, a private network or a metadata endpoint, or could not be looked up"
+                    .to_owned()
             }
             McpProblem::NotEnabled | McpProblem::NoGrant | McpProblem::PolicyDenied => {
                 "it is not available to this step".to_owned()
@@ -1657,6 +1698,7 @@ impl ExecutionService {
             LaunchProblem::StoreUnavailable => McpProblem::InvalidConfiguration {
                 reason: "credential_store".to_owned(),
             },
+            LaunchProblem::DestinationBlocked(_) => McpProblem::DestinationBlocked,
         }
     }
 
@@ -2448,5 +2490,7 @@ mod rules_tests;
 mod sandbox_real_tests;
 #[cfg(test)]
 mod scope_tests;
+#[cfg(test)]
+mod system_channel_real_tests;
 #[cfg(test)]
 mod tests;

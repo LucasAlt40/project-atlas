@@ -404,29 +404,31 @@ ou um estado compartilhado precise deles.
 - [0013 — Workflow Engine e Orchestrator](adr/0013-workflow-engine-and-orchestrator.md)
 - [0014 — Handoff, o worktree compartilhado da execução e a integração do código](adr/0014-handoff-shared-worktree-and-code-integration.md)
 - [0015 — Contratos de resultado, desfechos e a trava do worktree compartilhado](adr/0015-result-contracts-outcomes-and-worktree-lock.md)
-- [0016 — Humano no circuito: um agente esperando por uma pessoa](adr/0016-human-in-the-loop.md)
+- [0016 — Humano no circuito: um agente esperando por uma pessoa](adr/0016-human-in-the-loop.md) — aceito e implementado
 - [0017 — Validação de workflow ciente do contrato e reparo assistido de rotas](adr/0017-contract-aware-workflow-validation-and-route-repair.md)
 - [0018 — Live Workspace: observar o worktree de uma execução de workflow enquanto ela trabalha](adr/0018-live-workspace.md)
-- [0019 — Revisão e Entrega: ler um workflow concluído e decidir sobre o seu código](adr/0019-review-and-delivery.md)
-- [0020 — Camada de Otimização, fase 0: medir antes de otimizar](adr/0020-optimization-observability.md)
-- [0021 — Camada de Otimização, fase 1: o Context Engine](adr/0021-context-engine.md)
+- [0019 — Revisão e Entrega: ler um workflow concluído e decidir sobre o seu código](adr/0019-review-and-delivery.md) — aceito e implementado
+- [0020 — Camada de Otimização, fase 0: medir antes de otimizar](adr/0020-optimization-observability.md) — aceito e implementado
+- [0021 — Camada de Otimização, fase 1: o Context Engine](adr/0021-context-engine.md) — aceito e implementado
 - [0022 — Camada de Otimização, fase 2: Skills com divulgação progressiva](adr/0022-skills.md)
 - [0023 — RTK (Rust Token Killer): avaliado, construído e removido](adr/0023-rtk-evaluated-and-removed.md)
 - [0024 — Camada de Otimização, fase 4: o que um runtime consegue alcançar (superfície e isolamento)](adr/0024-runtime-surface-and-isolation.md)
-- [0025 — Camada de Otimização, fase 5: Guardrails e Revisão de Contexto](adr/0025-guardrails-and-context-review.md)
+- [0025 — Camada de Otimização, fase 5: Guardrails e Revisão de Contexto](adr/0025-guardrails-and-context-review.md) — aceito e implementado; autonomia e `--restricted` descartados, léxico adiado
 - [0026 — Context & Tooling Platform (Fase A: arquitetura e spike)](adr/0026-context-and-tooling-platform.md) — desenho: [context-and-tooling-platform.md](context-and-tooling-platform.md)
 - [0027 — Rules, Autoridade de Contexto e o canal de system prompt (Fase C)](adr/0027-rules-context-authority-and-system-prompt-channel.md)
 - [0028 — Fundação MCP (Fase D)](adr/0028-mcp-foundation.md)
 - [0029 — MCP para todo runtime que consegue suportá-lo](adr/0029-mcp-for-every-runtime.md) — o que cada CLI oferece, medido
 - [0030 — Templates de workflow: propósito, ferramentas e cópias salvas](adr/0030-workflow-templates-and-tools.md) — Implementer, Debugger, Reviewer; MCP por passo
 - [0031 — Planos esperam pela pessoa](adr/0031-plan-approval.md) — aprovar, mudar ou refazer; a aprovação automática é uma configuração da pessoa
-- [0032 — Compartilhar configurações como arquivo](adr/0032-configuration-import-export.md) — JSON versionado; prévia, decisões e uma importação de tudo ou nada
+- [0032 — Compartilhar configurações como arquivo](adr/0032-configuration-import-export.md) — JSON versionado; prévia, decisões e uma importação de tudo ou nada; o arquivo é escolhido ou solto no diálogo; aceito e implementado
 - [0033 — Workspaces com vários projetos](adr/0033-multi-project-workspaces.md) — Harness local por projeto mais um contexto do workspace; escopo, worktrees, migração
 - [0034 — Acesso pelo celular](adr/0034-mobile-remote-access.md) — um celular na rede local acompanha execuções e responde o que espera; pareamento, níveis de ação, SSE com cursor, limites do HTTP
-- [0035 — Specs (SDD)](adr/0035-spec-driven-development.md) — especificação escrita por agentes e aprovada pela pessoa antes do workflow; OpenSpec como primeiro formato, motor interno, validação em duas camadas, publicação segura, CLI opcional
+- [0035 — Specs (SDD)](adr/0035-spec-driven-development.md) — especificação escrita por agentes e aprovada pela pessoa antes do workflow; OpenSpec como primeiro formato, motor interno, validação em duas camadas, publicação segura, CLI opcional; diff entre revisões, edição à mão, mudança sem especificações (`skip_specs`) e acompanhamento pelo celular
 - [0036 — Custo do SDD](adr/0036-custo-do-sdd.md) — consumo por spec medido, limite de tokens, alteração por seções, revisão que sabe o que mudou; o que ainda não foi feito
-- [0037 — Memória](adr/0037-memory.md) — lições curtas entre sessões, propostas pelo agente e decididas pela pessoa; escopos usuário/workspace/agente, desligada por padrão; M1–M3 feitas, M4 pendente
+- [0037 — Memória](adr/0037-memory.md) — lições curtas entre sessões, propostas pelo agente e decididas pela pessoa; escopos usuário/workspace/agente, desligada por padrão; aceita e implementada, medida com modelo real (`propose` recomendado)
 - [0038 — Sandbox do macOS para os runtimes](adr/0038-macos-sandbox.md) — o processo inteiro da CLI sob um perfil do sistema; `off`/`auto`/`required`, desligado por padrão; o que não confina
 - [0039 — GitHub Copilot CLI como runtime](adr/0039-github-copilot-cli.md) — sexto runtime: execução, permissões, MCP e modelos medidos com o CLI real; limites conhecidos
 - [0043 — Uma tarefa em vários projetos](adr/0043-tarefas-em-varios-projetos.md) — uma execução por projeto, em sequência, com alerta ao rodar e sugestão de 1 projeto quando há muitos
 - [0044 — Comandos de teste e textos por runtime](adr/0044-comandos-de-teste-e-textos-por-runtime.md) — passos remetem às regras do Atlas para rodar comandos; Claude roda só os testes do projeto no sandbox da CLI; plano fora do diff
+- [0045 — Descrições das ferramentas MCP](adr/0045-descricoes-das-ferramentas-mcp.md) — a pedido da pessoa, o Atlas pergunta `tools/list` ao servidor pelo guard; mostra, orça e faz `read_only` valer para as ferramentas MCP
+- [0046 — Servidores MCP remotos (HTTP)](adr/0046-mcp-por-http.md) — HTTP nativo da CLI (Claude), com a camada de destino (SSRF) ao salvar e antes de cada passo; não intercepta chamadas

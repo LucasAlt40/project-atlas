@@ -80,6 +80,17 @@ pub struct OptimizationSettings {
     /// All off by default: it adds text to prompts.
     #[serde(default)]
     pub memory: crate::domain::memory::MemorySettings,
+    /// `optimization.narrationOnlyWhenWatched`: leave the live-narration instruction out of the
+    /// runs nobody watches live (a spec's turns, whose answer is a document), ADR 0021. Off by
+    /// default: off, every prompt keeps it, byte for byte as before.
+    #[serde(default)]
+    pub narration_only_when_watched: bool,
+    /// `optimization.systemChannel`: a runtime with a measured system-prompt channel (Claude:
+    /// `--append-system-prompt-file`) gets Atlas's instructions and rules there, the rest as the
+    /// message, so a stable prefix can be served from the provider's cache (ADR 0036, C3). Off by
+    /// default: off, every runtime gets one text, as before.
+    #[serde(default)]
+    pub system_channel: bool,
 }
 
 fn default_guardrails_enabled() -> bool {
@@ -100,6 +111,8 @@ impl Default for OptimizationSettings {
             guardrails_enabled: true,
             specs_max_tokens: None,
             memory: crate::domain::memory::MemorySettings::default(),
+            narration_only_when_watched: false,
+            system_channel: false,
         }
     }
 }
@@ -418,6 +431,7 @@ mod tests {
             permission_profile_id: None,
             worktree_isolation: true,
             result_contract: crate::domain::result_contract::ResultContract::default(),
+            imported_model: None,
             created_at: 1,
         }
     }

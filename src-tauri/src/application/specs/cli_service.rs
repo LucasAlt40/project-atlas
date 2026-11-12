@@ -132,7 +132,7 @@ impl SpecCliService {
         }
         let change_id = Self::published(&spec)?;
         self.implementation_settled(&spec)?;
-        let result = self.cli.archive(&root, &change_id)?;
+        let result = self.cli.archive(&root, &change_id, spec.skip_specs)?;
         // Said only if it can be seen: the folder is where the command said it put it.
         let path = result.archived_as.and_then(|name| {
             self.files

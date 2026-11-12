@@ -68,8 +68,11 @@ export function matches(connection: McpConnectionDto, filter: HubFilter): boolea
 }
 
 /** `ghp_…` is a secret; a plain value is shown as it is. */
+/** The variables of a local server, or the headers of a remote one: where its secrets are named. */
 export function envOf(connection: McpConnectionDto) {
-  return connection.transport.kind === 'stdio' ? (connection.transport.env ?? []) : [];
+  return connection.transport.kind === 'stdio'
+    ? (connection.transport.env ?? [])
+    : (connection.transport.headers ?? []);
 }
 
 /**
@@ -77,22 +80,31 @@ export function envOf(connection: McpConnectionDto) {
  * stored; never the value (Atlas does not have it in the configuration).
  */
 export function manifestOf(connection: McpConnectionDto): string {
-  if (connection.transport.kind !== 'stdio') return JSON.stringify(connection.transport, null, 2);
+  const shown = (entries: { name: string; value: { kind: string; value?: string } }[]) =>
+    Object.fromEntries(
+      entries.map((e) => [
+        e.name,
+        e.value.kind === 'plain'
+          ? (e.value.value ?? '')
+          : connection.secrets[e.name] === undefined
+            ? '<secret: not stored>'
+            : '<secret: stored in the system credential store>',
+      ]),
+    );
+  if (connection.transport.kind === 'http') {
+    const { url, headers, allowPrivate } = connection.transport;
+    return JSON.stringify(
+      { type: 'http', url, headers: shown(headers ?? []), allowPrivate: allowPrivate ?? false },
+      null,
+      2,
+    );
+  }
   const { executable, args, env } = connection.transport;
   return JSON.stringify(
     {
       command: executable,
       args: args ?? [],
-      env: Object.fromEntries(
-        (env ?? []).map((e) => [
-          e.name,
-          e.value.kind === 'plain'
-            ? e.value.value
-            : connection.secrets[e.name] === undefined
-              ? '<secret: not stored>'
-              : '<secret: stored in the system credential store>',
-        ]),
-      ),
+      env: shown(env ?? []),
     },
     null,
     2,

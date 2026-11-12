@@ -1016,6 +1016,8 @@ export const enUS = {
   'agents.form.isolationOn':
     'Each execution works in its own worktree and does not modify the project’s main checkout directly.',
   'agents.form.isolationOff': 'With this off, the agent may work directly in the project folder.',
+  'agents.form.importedModel':
+    'Imported asking for {runtime} · {model}. Choosing another model here dismisses this.',
   'agents.form.noFileEdit': 'This runtime does not support file editing.',
   'contract.type': 'Contract type',
   'contract.kind.general': 'General',
@@ -1161,7 +1163,14 @@ export const enUS = {
   'git.merge.applied': 'Applied (not committed)',
   'git.merge.conflict': 'Conflict',
   'git.merge.blocked': 'Blocked',
-  'git.reason.policy_denied': 'The agent’s policy does not allow Git writes.',
+  'git.layout.submodules':
+    'This repository has submodules. The isolated worktree does not check them out: their folders are empty there, and Atlas does not fetch them.',
+  'git.layout.sparse_checkout':
+    'This project uses a sparse checkout. The isolated worktree has its own checkout, which can hold files yours leaves out.',
+  'git.reason.policy_denied':
+    'The agent’s policy does not allow Git writes, so Atlas did not commit or merge its work.',
+  'git.policyDenied.how':
+    'The work is still in the execution’s folder, uncommitted: {path}. Open it in your editor and take what you need, or allow Git writes in the agent’s policy for the next run.',
   'git.reason.execution_not_completed': 'The execution did not complete.',
   'git.reason.validation_failed': 'Validation failed.',
   'git.reason.base_dirty': 'The project checkout has uncommitted changes.',
@@ -1930,6 +1939,8 @@ export const enUS = {
   'live.files': 'Changed files',
   'live.files.all': 'All changes',
   'live.files.empty': 'No changes yet: the worktree matches where the run started.',
+  'live.files.cut':
+    'Showing the first {shown} of {n} changed files. The list stops there; the totals and the worktree have them all.',
   'live.files.count': '{n} file(s)',
   'live.files.renamedFrom': 'Renamed from {path}',
   'live.activity': 'Activity',
@@ -2024,6 +2035,9 @@ export const enUS = {
   'interaction.showLess': 'Show less',
   'interaction.required': 'Action required',
   'interaction.waiting': '{step} is waiting for your response',
+  'workflow.parallel': 'Steps in parallel',
+  'workflow.parallel.hint':
+    'How many steps of this run may run at once (1 to 8). The ones already running go on; the new limit applies to the next ones. An agent never runs two at once.',
   'workflow.autoPlans': 'Approve plans automatically',
   'workflow.autoPlans.hint':
     'When a step draws up a plan, Atlas approves it without asking you and the step goes on. You can still read every plan in the run. Turning it on also approves plans already waiting.',
@@ -2336,6 +2350,7 @@ export const enUS = {
   'error.mcp_not_ready': 'Switch the connection on and store its secrets first.',
   'error.mcp_runtime_unsupported': 'That runtime cannot give MCP servers.',
   'error.mcp_probe_failed': 'Starting the server to look at it failed.',
+  'error.mcp_describe_failed': 'Atlas could not ask the server about its tools.',
   'error.mcp_preset_unavailable': 'That integration is not available to add yet.',
   'nav.mcp': 'MCP Hub',
   'nav.usage': 'Usage',
@@ -2486,6 +2501,20 @@ export const enUS = {
   'hub.tab.manifest': 'JSON manifest',
   'hub.tab.activity': 'Activity',
   'hub.tools.list': 'Tools this server listed',
+  'hub.describe.title': 'Tool descriptions',
+  'hub.describe.note':
+    'Starts the server once and asks it what each tool does (tools/list). No model is asked anything and no tool is called. After that, a read-only step is given only the tools the server describes as reading, and the definitions’ weight counts in the budget.',
+  'hub.describe.action': 'Read descriptions',
+  'hub.describe.again': 'Read again',
+  'hub.describe.when': 'Read on {when}',
+  'hub.describe.total': 'Definitions: ≈ {n} tokens in all (an estimate, characters ÷ 4)',
+  'hub.describe.truncated': 'The server has more than Atlas reads: the list is not complete.',
+  'hub.describe.untrusted':
+    'The text is the server’s: only for you to read. It never goes into a prompt and grants nothing.',
+  'hub.tool.readOnly': 'reads only',
+  'hub.tool.writes': 'writes',
+  'hub.tool.destructive': 'destructive',
+  'hub.tool.tokens': '≈ {n} tokens',
   'hub.tools.noRpc':
     'Atlas lists a server’s tools by name and does not call them by hand: a tool runs only when an agent that was granted it uses it in a step.',
   'hub.env.none': 'No environment variables.',
@@ -2633,6 +2662,12 @@ export const enUS = {
     "This agent's CLI (Antigravity) cannot be handed servers by Atlas for a run. It uses the servers in its own configuration (agy mcp list): Atlas checks that this one is there and tells the agent to use it. Atlas cannot hold its tools back, and the CLI also loads its other servers.",
   'context.mcp.problem.not_in_cli_config':
     'Not given: this CLI only uses the servers of its own configuration and this one is not there (add it with agy mcp add).',
+  'context.mcp.problem.http_unsupported':
+    'Not given: it is a remote server, and this runtime has no measured way to be given one.',
+  'context.mcp.problem.destination_blocked':
+    'Not given: its address is loopback, a private network or a metadata endpoint, or could not be looked up just before the step.',
+  'context.mcp.problem.no_reading_tools':
+    'Not given: the step is read-only and the server described none of its tools as only reading.',
   'hub.card.delivery.cli':
     '{agent} runs on {runtime}, which uses its own configured servers. Atlas checks it is there and tells the agent; it cannot hand it over.',
   'hub.card.delivery.none':
@@ -2789,6 +2824,7 @@ export const enUS = {
     'Choose a file exported by Atlas. You will see what it holds and what it would do here before anything is changed.',
   'portability.safety':
     'Importing only adds definitions. It runs nothing, starts no workflow and grants no tool; agents that may edit files arrive read-only unless you say otherwise below.',
+  'portability.import.drop': 'Or drop the .atlas.json file here.',
   'portability.import.choose': 'Choose file…',
   'portability.import.reading': 'Reading…',
   'portability.import.another': 'Choose another file',
@@ -2889,6 +2925,10 @@ export const enUS = {
   'portability.issue.step_without_agent': 'A step has no agent: you will have to choose one.',
   'portability.issue.tools_suggested':
     'It suggests tools for some steps. Importing grants none of them.',
+  'portability.issue.same_name':
+    '{count} configurations here have this name: reusing or replacing applies to the first one saved.',
+  'portability.issue.workflow_running':
+    'This workflow has a run in progress, so it cannot be replaced now. Import it as a new one, use the one here, or skip it.',
   'portability.issue.permissions_lowered':
     'Imported able only to read (the file asked for {requested}).',
   'portability.reason.name_required': 'it has no name',
@@ -2940,6 +2980,14 @@ export const enUS = {
   'error.config_file_io': 'The file could not be read or written.',
 
   // Mobile access (ADR 0034): the phone's page, and the desktop dialog that switches it on
+  'mobile.specs.title': 'Specifications',
+  'mobile.specs.approved': '{done} of {total} approved',
+  'mobile.specs.revision': 'revision {number}',
+  'mobile.specs.notWritten': 'Not written yet.',
+  'mobile.specs.notFound': 'This specification no longer exists.',
+  'mobile.specs.failed': 'Could not read this specification. Try again in a moment.',
+  'mobile.specs.atComputer':
+    'Approving, asking for changes and publishing are done at the computer.',
   'mobile.loading': 'Loading…',
   'mobile.retry': 'Try again',
   'mobile.back': 'Back',
@@ -3287,6 +3335,9 @@ export const enUS = {
   'specs.new.context': 'Extra context (optional)',
   'specs.new.author': 'Agent that writes',
   'specs.new.recommended': '{name} (recommended)',
+  'specs.new.skipSpecs': 'No behaviour change (no specification files)',
+  'specs.new.skipSpecsHint':
+    'For a refactor, tooling or docs: proposal, design and tasks only. The proposal names no capability, and archiving it updates no main spec.',
   'specs.new.authorHint':
     'Recommended: an agent with the Spec Architect personality. Any agent can write.',
   'specs.new.reviewer': 'Agent that reviews',
@@ -3312,6 +3363,18 @@ export const enUS = {
   'specs.doc.current': 'current',
   'specs.doc.approvedRevision': 'Approved',
   'specs.doc.older': 'Older revision',
+  'specs.diff.compareWith': 'Compare with',
+  'specs.diff.none': 'No comparison',
+  'specs.diff.against': 'Changes since revision {number}',
+  'specs.diff.label': 'Changes from revision {from} to {to}',
+  'specs.diff.loading': 'Comparing…',
+  'specs.diff.change.added': 'new file',
+  'specs.diff.change.removed': 'removed',
+  'specs.diff.change.changed': 'changed',
+  'specs.diff.change.unchanged': 'no changes',
+  'specs.diff.counts': '+{added} −{removed}',
+  'specs.diff.tooLarge': 'Too large to compare line by line: it changed.',
+  'specs.diff.gap': '… {lines} unchanged lines …',
   'specs.doc.chooseRevision': 'Revision',
   'specs.doc.view': 'View',
   'specs.doc.rendered': 'Requirements',
@@ -3325,6 +3388,20 @@ export const enUS = {
   'specs.origin.revised': 'revised after your changes',
   'specs.origin.regenerated': 'written again',
   'specs.origin.imported': 'read from the project',
+  'specs.origin.edited': 'edited by you',
+  'specs.origin.edited_in_project': 'edited in the project',
+  'specs.edit.start': 'Edit',
+  'specs.edit.label': 'Editing {file}',
+  'specs.edit.hint':
+    'Your text becomes the next revision: it is checked like any other and waits for your approval, and the documents written from it go out of date.',
+  'specs.edit.save': 'Save as new revision',
+  'specs.edit.cancel': 'Cancel',
+  'specs.handEdits.title': '{stage} was edited in the project',
+  'specs.handEdits.changed': 'Changed by hand: {files}.',
+  'specs.handEdits.missing': 'Not in the project any more: {files}.',
+  'specs.handEdits.never':
+    'Atlas will not publish over it. Adopt the edit as the next revision, or undo it in the project.',
+  'specs.handEdits.adopt': 'Adopt as new revision',
   'specs.pane.blocked':
     'The {stage} is written from {needs}. It becomes available when those are approved.',
   'specs.pane.ready': 'The {stage} has not been written yet. Ask for it when you are ready.',
@@ -3635,6 +3712,8 @@ export const enUS = {
   'specs.issue.what_changes_missing': 'The proposal has no “What Changes” section.',
   'specs.issue.what_changes_empty': '“What Changes” is empty.',
   'specs.issue.capabilities_missing': 'The proposal has no “Capabilities” section.',
+  'specs.issue.capabilities_without_specs':
+    'The proposal names capabilities, but this change has no specification files. Remove them, or create the spec with specifications.',
   'specs.issue.no_capabilities': 'The proposal names no capability. Each one becomes a spec file.',
   'specs.issue.capability_path_invalid': '“{capability}” is not a valid capability path.',
   'specs.issue.capability_not_kebab':
@@ -3708,6 +3787,8 @@ export const enUS = {
   'error.spec_validation_blocking':
     'The checks found errors in this document. Ask for changes first.',
   'error.spec_not_ready': 'Something still keeps the spec from being ready. See the final review.',
+  'error.spec_edited_in_project':
+    'A published file was edited by hand in the project ({files}). Atlas will not write over it: adopt the edit or undo it first.',
   'error.spec_change_exists':
     'The folder “{change}” already exists in the project. Nothing was written; choose another name.',
   'error.spec_publish_failed':

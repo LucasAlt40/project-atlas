@@ -436,9 +436,26 @@ async fn dispatch(
             )
             .await
         }
+        // Specifications are followed from the phone, never decided (`policy::SPECS`): there is
+        // no route that writes to one.
+        (Method::GET, ["api", "specs"]) => read_specs(None, context).await,
+        (Method::GET, ["api", "specs", id]) => read_specs(Some((*id).to_owned()), context).await,
         (Method::GET, ["api", "events"]) => events(&request, &device, context),
         _ => error(404, "not_found"),
     }
+}
+
+/// The specifications, or one of them: read only (`policy::SPECS`).
+async fn read_specs(id: Option<String>, context: &Arc<Shared>) -> Response<Body> {
+    let gateway = context.deps.access.gateway.clone();
+    blocking(move || match id {
+        None => json(200, &serde_json::json!({ "specs": gateway.specs() })),
+        Some(id) => match gateway.spec(&id) {
+            Ok(spec) => json(200, &spec),
+            Err(e) => remote_error(e),
+        },
+    })
+    .await
 }
 
 /// Gateway calls take locks and may wait for a run's loop: they do not belong on the reactor.

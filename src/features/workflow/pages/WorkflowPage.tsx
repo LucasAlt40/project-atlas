@@ -38,6 +38,7 @@ import { StartChoice, VIBE, type StartFrom } from '@/features/specs/components/S
 import { useReadySpecs } from '@/features/specs/hooks/useReadySpecs';
 import { NewWorkflowPanel, type NewWorkflowChoice } from '../components/NewWorkflowPanel';
 import { AutoPlansToggle } from '../components/AutoPlansToggle';
+import { ParallelStepsPicker } from '../components/ParallelStepsPicker';
 import { SaveTemplate } from '../components/SaveTemplate';
 import { loadAutoPlans, saveAutoPlans } from '../model/planPreference';
 import { WorkflowCanvas, type Selection } from '../components/WorkflowCanvas';
@@ -562,6 +563,14 @@ export function WorkflowPage() {
                   checked={space.activeRun.autoApprovePlans}
                   onChange={(value) => {
                     void space.autoApprovePlans(value);
+                  }}
+                />
+              )}
+              {space.activeRun && (
+                <ParallelStepsPicker
+                  value={space.activeRun.maxParallelSteps}
+                  onChange={(steps) => {
+                    void space.maxParallelSteps(steps);
                   }}
                 />
               )}

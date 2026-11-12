@@ -248,6 +248,67 @@ fn only_as_much_is_left_out_as_the_budget_needs_and_stale_goes_first() {
     assert!(plan.over_budget.is_none());
 }
 
+/// ADR 0021, C4: among items of one priority, the less relevant goes first; an item nobody scored
+/// counts as halfway, and staleness still comes before relevance.
+#[test]
+fn a_budget_leaves_out_the_less_relevant_first_and_an_unscored_item_counts_as_halfway() {
+    let scored = |id: &str, relevance: Option<f32>, stale: bool| {
+        let mut it = item(id, SectionKind::Task, Priority::Normal, &filler(id, 100));
+        it.relevance = relevance;
+        if stale {
+            it = it.stale();
+        }
+        it
+    };
+    let first_out = |items: Vec<ContextItem>| {
+        let plan = ContextEngine::plan(
+            [
+                vec![required("task", SectionKind::Task, "Fix the invoice total")],
+                items,
+            ]
+            .concat(),
+            // One filler fits, two do not.
+            Some(150),
+        );
+        plan.items
+            .iter()
+            .find(|i| i.content.starts_with("[Left out"))
+            .map(|i| i.id.clone())
+            .unwrap()
+    };
+
+    assert_eq!(
+        first_out(vec![
+            scored("a", Some(0.9), false),
+            scored("b", Some(0.1), false)
+        ]),
+        "b"
+    );
+    // Unknown sits between: below a relevant item, above an irrelevant one.
+    assert_eq!(
+        first_out(vec![
+            scored("a", Some(0.9), false),
+            scored("u", None, false)
+        ]),
+        "u"
+    );
+    assert_eq!(
+        first_out(vec![
+            scored("u", None, false),
+            scored("b", Some(0.1), false)
+        ]),
+        "b"
+    );
+    // A stale item goes first whatever its relevance.
+    assert_eq!(
+        first_out(vec![
+            scored("s", Some(1.0), true),
+            scored("b", Some(0.0), false)
+        ]),
+        "s"
+    );
+}
+
 #[test]
 fn what_is_kept_for_the_answer_comes_out_of_the_budget() {
     let extra = filler("e", 100);

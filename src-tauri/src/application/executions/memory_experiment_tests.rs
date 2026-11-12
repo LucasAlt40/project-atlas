@@ -175,6 +175,7 @@ fn setup<'a>(runtime: &'a str, model: &'a str, memory: MemorySettings) -> Setup<
         files: FILES,
         sandbox: SandboxMode::Off,
         memory,
+        system_channel: false,
     }
 }
 

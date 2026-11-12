@@ -6,6 +6,7 @@
 //! Every change goes through [`SpecService::modify`]: made on a copy, saved, and only then
 //! shown; if the save fails the spec is what it was.
 
+use crate::domain::spec::diff::{diff_revisions, RevisionDiff};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 
@@ -60,6 +61,21 @@ pub struct NewSpecRequest {
     /// The workspace's integrations (connection ids) to test and review the spec with.
     #[serde(default)]
     pub integrations: Vec<String>,
+    /// A change with no behaviour to specify: no specification files (`Spec::skip_specs`).
+    #[serde(default)]
+    pub skip_specs: bool,
+}
+
+/// A document whose published files were edited by hand in the project.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HandEdit {
+    pub artifact_id: String,
+    /// The revision that was published, which the files no longer match.
+    pub revision: u32,
+    /// Change-relative paths of its files that differ (`missing` lists the ones not there).
+    pub changed: Vec<String>,
+    pub missing: Vec<String>,
 }
 
 /// How a generation ended, as the runner reports it.
@@ -240,6 +256,200 @@ impl SpecService {
 
     pub fn get(&self, id: &str) -> Option<Spec> {
         self.specs.lock_or_recover().get(id).cloned()
+    }
+
+    /// What changed in a document from one of its revisions to another, worked out here so every
+    /// screen shows the same thing (ADR 0035, 0036).
+    ///
+    /// # Errors
+    ///
+    /// When the spec, the document or either revision does not exist.
+    pub fn revision_diff(
+        &self,
+        id: &str,
+        artifact_id: &str,
+        from: u32,
+        to: u32,
+    ) -> Result<RevisionDiff, AppError> {
+        let spec = self.require(id)?;
+        let artifact = spec
+            .artifact(artifact_id)
+            .ok_or_else(|| AppError::new(ErrorCode::SpecArtifactNotFound))?;
+        let revision = |number: u32| {
+            artifact
+                .revisions
+                .iter()
+                .find(|r| r.number == number)
+                .ok_or_else(|| {
+                    AppError::new(ErrorCode::SpecArtifactNotFound)
+                        .with("revision", number.to_string())
+                })
+        };
+        Ok(diff_revisions(revision(from)?, revision(to)?))
+    }
+
+    // ---- editing by hand ---------------------------------------------------------------------------
+
+    /// The person's own text for a document (ADR 0035): a new revision that is checked like any
+    /// other and waits for the person's approval; the documents written from it go out of date.
+    ///
+    /// # Errors
+    ///
+    /// When the spec or document does not exist, a run is going, another revision is the latest,
+    /// the files are not the latest revision's, a file is empty or too long, or nothing changed.
+    pub fn edit(
+        &self,
+        id: &str,
+        artifact_id: &str,
+        expected_revision: u32,
+        files: Vec<SpecFile>,
+    ) -> Result<SpecView, AppError> {
+        self.record_edit(
+            id,
+            artifact_id,
+            expected_revision,
+            files,
+            RevisionOrigin::Edited,
+        )
+    }
+
+    fn record_edit(
+        &self,
+        id: &str,
+        artifact_id: &str,
+        expected_revision: u32,
+        files: Vec<SpecFile>,
+        origin: RevisionOrigin,
+    ) -> Result<SpecView, AppError> {
+        let spec = self.require(id)?;
+        let project = self.project_specs(&spec);
+        self.modify(id, |spec| {
+            rules::edit_by_hand(
+                spec,
+                artifact_id,
+                expected_revision,
+                files,
+                origin,
+                now_ms(),
+            )
+            .map_err(app_error)?;
+            self.refresh_checks(spec, &project);
+            Ok(())
+        })?;
+        self.view(id)
+    }
+
+    /// The published documents whose files in the project no longer say what Atlas published:
+    /// edited (or removed) by hand. Reads the project; empty while nothing is published.
+    ///
+    /// # Errors
+    ///
+    /// When there is no such spec.
+    pub fn hand_edits(&self, id: &str) -> Result<Vec<HandEdit>, AppError> {
+        let spec = self.require(id)?;
+        let Publication::Published {
+            root, revisions, ..
+        } = &spec.publication
+        else {
+            return Ok(Vec::new());
+        };
+        let Some(project_root) = self.project_roots(&spec).into_iter().next() else {
+            return Ok(Vec::new());
+        };
+        let mut out = Vec::new();
+        for artifact in &spec.artifacts {
+            let Some(published) = revisions
+                .get(&artifact.id)
+                .and_then(|n| artifact.revisions.iter().find(|r| r.number == *n))
+            else {
+                continue;
+            };
+            // What the latest revision says, when the person already adopted the edit.
+            let latest = artifact.latest().filter(|l| l.number != published.number);
+            let mut changed = Vec::new();
+            let mut missing = Vec::new();
+            for file in &published.files {
+                match self
+                    .files
+                    .read(&project_root, &format!("{root}/{}", file.path))
+                {
+                    None => missing.push(file.path.clone()),
+                    Some(text) if same_text(&text, &file.content) => {}
+                    Some(text)
+                        if latest.is_some_and(|l| {
+                            l.files
+                                .iter()
+                                .any(|f| f.path == file.path && same_text(&text, &f.content))
+                        }) => {}
+                    Some(_) => changed.push(file.path.clone()),
+                }
+            }
+            if !changed.is_empty() || !missing.is_empty() {
+                out.push(HandEdit {
+                    artifact_id: artifact.id.clone(),
+                    revision: published.number,
+                    changed,
+                    missing,
+                });
+            }
+        }
+        Ok(out)
+    }
+
+    /// Takes what was edited by hand in the project's files of a document as its next revision,
+    /// which then waits for the person's approval like an edit made here.
+    ///
+    /// # Errors
+    ///
+    /// When nothing was edited, a file was removed (there is nothing to adopt), or the document
+    /// moved on since it was published.
+    pub fn adopt_hand_edits(&self, id: &str, artifact_id: &str) -> Result<SpecView, AppError> {
+        let spec = self.require(id)?;
+        let edit = self
+            .hand_edits(id)?
+            .into_iter()
+            .find(|e| e.artifact_id == artifact_id)
+            .ok_or_else(|| state("not_edited_in_project"))?;
+        if !edit.missing.is_empty() {
+            return Err(state("file_removed_in_project"));
+        }
+        let Publication::Published { root, .. } = &spec.publication else {
+            return Err(state("not_published"));
+        };
+        let artifact = spec
+            .artifact(artifact_id)
+            .ok_or_else(|| AppError::new(ErrorCode::SpecArtifactNotFound))?;
+        let latest = artifact.latest_number().unwrap_or(0);
+        if latest != edit.revision {
+            return Err(
+                AppError::new(ErrorCode::SpecRevisionOutdated).with("current", latest.to_string())
+            );
+        }
+        let project_root = self
+            .project_roots(&spec)
+            .into_iter()
+            .next()
+            .ok_or_else(|| invalid("project_invalid"))?;
+        let files = artifact
+            .latest()
+            .map(|r| r.files.clone())
+            .unwrap_or_default()
+            .into_iter()
+            .map(|file| SpecFile {
+                content: self
+                    .files
+                    .read(&project_root, &format!("{root}/{}", file.path))
+                    .unwrap_or(file.content),
+                path: file.path,
+            })
+            .collect();
+        self.record_edit(
+            id,
+            artifact_id,
+            latest,
+            files,
+            RevisionOrigin::EditedInProject,
+        )
     }
 
     fn require(&self, id: &str) -> Result<Spec, AppError> {
@@ -534,7 +744,12 @@ impl SpecService {
             })
             .collect();
         for (id, kind, revision, files) in due {
-            let issues = self.framework.validate_artifact(kind, &files, project);
+            let issues = if spec.skip_specs {
+                self.framework
+                    .validate_artifact_without_specs(kind, &files, project)
+            } else {
+                self.framework.validate_artifact(kind, &files, project)
+            };
             let _ = rules::record_validation(
                 spec,
                 &id,
@@ -698,6 +913,7 @@ impl SpecService {
                 author_agent_id: request.author_agent_id,
                 reviewer_agent_id: reviewer,
                 origin: SpecOrigin::Created,
+                skip_specs: request.skip_specs,
             },
             &self.framework.graph(),
             now,
@@ -1159,6 +1375,20 @@ impl SpecService {
         {
             return Err(AppError::new(ErrorCode::SpecChangeExists).with("change", target));
         }
+        // A file edited by hand in the project is never written over: the person adopts the edit
+        // (it becomes a revision) or undoes it first.
+        if own {
+            let edited: Vec<String> = self
+                .hand_edits(id)?
+                .into_iter()
+                .flat_map(|e| e.changed)
+                .collect();
+            if !edited.is_empty() {
+                return Err(
+                    AppError::new(ErrorCode::SpecEditedInProject).with("files", edited.join(", "))
+                );
+            }
+        }
         self.transition(id, |spec| {
             rules::begin_publication(spec, &target, now_ms())?;
             target.clone_into(&mut spec.change_id);
@@ -1167,7 +1397,7 @@ impl SpecService {
         let documents = latest_documents(&self.require(id)?);
         let planned = self
             .framework
-            .publish_files(&documents, now_ms())
+            .publish_files(&documents, now_ms(), self.require(id)?.skip_specs)
             .map_err(|_| state("document_missing"))?;
         let mut written = Vec::new();
         for file in &planned {
@@ -1415,6 +1645,7 @@ impl SpecService {
                     path: format!("{changes_root}/{change_id}"),
                     at: now,
                 },
+                skip_specs: false,
             },
             &self.framework.graph(),
             now,
@@ -1527,6 +1758,12 @@ impl SpecService {
     pub fn link_implementation(&self, id: &str, link: ImplementationLink) -> Result<(), AppError> {
         self.transition(id, |spec| rules::link_implementation(spec, link, now_ms()))
     }
+}
+
+/// Whether a file in the project says what Atlas wrote: publishing ends every file with a line
+/// break, so one more or less at the end does not count.
+fn same_text(on_disk: &str, written: &str) -> bool {
+    on_disk.trim_end_matches('\n') == written.trim_end_matches('\n')
 }
 
 /// The latest document of every artifact that has one.
