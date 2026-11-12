@@ -26,8 +26,8 @@ export function RevisionDiff({ specId, artifactId, from, to }: Props) {
   const [state, setState] = useState<State>({ name: 'loading' });
 
   useEffect(() => {
+    // A new pair of revisions mounts a new component (its `key`), so it starts loading.
     let current = true;
-    setState({ name: 'loading' });
     specRevisionDiff(specId, artifactId, from, to)
       .then((diff) => {
         if (current) setState({ name: 'ready', diff });

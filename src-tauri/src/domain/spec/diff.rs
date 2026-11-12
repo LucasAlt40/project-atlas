@@ -126,48 +126,52 @@ enum Op {
 }
 
 /// The edit from `a` to `b`, or `None` when it is too large to work out.
-fn compare(a: &[&str], b: &[&str]) -> Option<Vec<Op>> {
-    let prefix = a.iter().zip(b).take_while(|(x, y)| x == y).count();
-    let suffix = a[prefix..]
+fn compare(old: &[&str], new: &[&str]) -> Option<Vec<Op>> {
+    let prefix = old.iter().zip(new).take_while(|(x, y)| x == y).count();
+    let suffix = old[prefix..]
         .iter()
         .rev()
-        .zip(b[prefix..].iter().rev())
+        .zip(new[prefix..].iter().rev())
         .take_while(|(x, y)| x == y)
         .count();
-    let (a_mid, b_mid) = (&a[prefix..a.len() - suffix], &b[prefix..b.len() - suffix]);
+    let (a_mid, b_mid) = (
+        &old[prefix..old.len() - suffix],
+        &new[prefix..new.len() - suffix],
+    );
     if a_mid.len().saturating_mul(b_mid.len()) > MAX_CELLS {
         return None;
     }
-    let mut ops: Vec<Op> = (0..prefix).map(|i| Op::Same(i, i)).collect();
-    // lengths[i][j]: the longest common subsequence of a_mid[i..] and b_mid[j..].
-    let (n, m) = (a_mid.len(), b_mid.len());
-    let mut lengths = vec![0u32; (n + 1) * (m + 1)];
-    for i in (0..n).rev() {
-        for j in (0..m).rev() {
-            lengths[i * (m + 1) + j] = if a_mid[i] == b_mid[j] {
-                lengths[(i + 1) * (m + 1) + j + 1] + 1
+    let mut ops: Vec<Op> = (0..prefix).map(|row| Op::Same(row, row)).collect();
+    // lengths[row][col]: the longest common subsequence of a_mid[row..] and b_mid[col..].
+    let (rows, cols) = (a_mid.len(), b_mid.len());
+    let mut lengths = vec![0u32; (rows + 1) * (cols + 1)];
+    for row in (0..rows).rev() {
+        for col in (0..cols).rev() {
+            lengths[row * (cols + 1) + col] = if a_mid[row] == b_mid[col] {
+                lengths[(row + 1) * (cols + 1) + col + 1] + 1
             } else {
-                lengths[(i + 1) * (m + 1) + j].max(lengths[i * (m + 1) + j + 1])
+                lengths[(row + 1) * (cols + 1) + col].max(lengths[row * (cols + 1) + col + 1])
             };
         }
     }
-    let (mut i, mut j) = (0, 0);
-    while i < n || j < m {
-        if i < n && j < m && a_mid[i] == b_mid[j] {
-            ops.push(Op::Same(prefix + i, prefix + j));
-            i += 1;
-            j += 1;
-        } else if j < m
-            && (i == n || lengths[i * (m + 1) + j + 1] >= lengths[(i + 1) * (m + 1) + j])
+    let (mut row, mut col) = (0, 0);
+    while row < rows || col < cols {
+        if row < rows && col < cols && a_mid[row] == b_mid[col] {
+            ops.push(Op::Same(prefix + row, prefix + col));
+            row += 1;
+            col += 1;
+        } else if col < cols
+            && (row == rows
+                || lengths[row * (cols + 1) + col + 1] >= lengths[(row + 1) * (cols + 1) + col])
         {
-            ops.push(Op::Added(prefix + j));
-            j += 1;
+            ops.push(Op::Added(prefix + col));
+            col += 1;
         } else {
-            ops.push(Op::Removed(prefix + i));
-            i += 1;
+            ops.push(Op::Removed(prefix + row));
+            row += 1;
         }
     }
-    ops.extend((0..suffix).map(|k| Op::Same(a.len() - suffix + k, b.len() - suffix + k)));
+    ops.extend((0..suffix).map(|k| Op::Same(old.len() - suffix + k, new.len() - suffix + k)));
     Some(ops)
 }
 
@@ -215,6 +219,7 @@ mod tests {
     use super::*;
     use crate::domain::spec::RevisionOrigin;
     use std::collections::BTreeMap;
+    use std::fmt::Write as _;
 
     fn revision(number: u32, files: &[(&str, &str)]) -> Revision {
         Revision {
@@ -235,7 +240,10 @@ mod tests {
     }
 
     fn text(lines: std::ops::Range<usize>) -> String {
-        lines.map(|i| format!("line {i}\n")).collect()
+        lines.fold(String::new(), |mut out, i| {
+            let _ = writeln!(out, "line {i}");
+            out
+        })
     }
 
     #[test]
@@ -291,7 +299,7 @@ mod tests {
                 ("specs/b/spec.md", FileChange::Removed),
             ]
         );
-        assert!(diff.files[0].lines.is_empty());
+        assert_eq!(diff.files[0].lines, []);
         assert_eq!(diff.files[1].added, 2);
         assert_eq!(diff.files[2].removed, 1);
     }
@@ -323,7 +331,10 @@ mod tests {
     #[test]
     fn a_comparison_too_large_says_so_instead_of_using_unbounded_memory() {
         let old = text(0..3_000);
-        let new: String = (0..3_000).map(|i| format!("other {i}\n")).collect();
+        let new = (0..3_000).fold(String::new(), |mut out, i| {
+            let _ = writeln!(out, "other {i}");
+            out
+        });
 
         let diff = diff_revisions(
             &revision(1, &[("t.md", &old)]),
@@ -332,7 +343,7 @@ mod tests {
 
         let file = &diff.files[0];
         assert!(file.too_large);
-        assert!(file.lines.is_empty());
+        assert_eq!(file.lines, []);
         assert_eq!((file.added, file.removed), (3_000, 3_000));
         // A small edit in a long document is cheap: the shared start and end are set aside.
         let long = text(0..20_000);

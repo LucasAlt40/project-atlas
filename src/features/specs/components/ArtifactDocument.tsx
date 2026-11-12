@@ -197,6 +197,7 @@ export function ArtifactDocument({ view, artifact, focus, onEdit }: Props) {
           </form>
         ) : compareWith !== null && compareWith !== shown.number ? (
           <RevisionDiff
+            key={`${String(compareWith)}-${String(shown.number)}`}
             specId={view.spec.id}
             artifactId={artifact.id}
             from={compareWith}
