@@ -286,7 +286,8 @@ ADRs: 0013, 0014, 0018, 0019, 0035, 0009.
   - Pronto quando: edição manual é aceita com validação, e a mudança feita fora do Atlas é detectada e reconciliada sem
     sobrescrever silenciosamente. Marca dependentes como desatualizados como já ocorre.
 - [ ] **W9. `skip_specs`.** (0035) — mudança sem comportamento passa sem exigir uma capacidade, com validação própria.
-- [ ] **W10. Agente isolado lê os arquivos publicados.** (0035 tabela)
+- [x] **W10. Agente isolado lê os arquivos publicados.** (0035 tabela) — 2026-11-12: o brief é a garantia definitiva,
+      por decisão do usuário (0035).
   - Pronto quando: a spec publicada e ainda não commitada chega ao agente isolado de forma garantida (hoje só o digest;
     o conteúdo vai no brief). Ou documentar como garantia definitiva.
 - [x] **W11. Merge de deltas em `openspec/specs/` sem a CLI.** (0035) — 2026-11-11: descartado pelo usuário (0035).
