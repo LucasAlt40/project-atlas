@@ -120,6 +120,7 @@ pub(super) fn app_window(
             super::workflow::validate_workflow,
             super::workflow::start_workflow,
             super::workflow::set_auto_approve_plans,
+            super::workflow::set_max_parallel_steps,
             super::workflow::pause_workflow,
             super::workflow::resume_workflow,
             super::workflow::continue_workflow_chain,

@@ -68,6 +68,8 @@ enum Message {
     },
     /// The person turned the automatic approval of plans on or off.
     AutoPlans(bool),
+    /// The person changed how many steps may run at once (already in range).
+    MaxParallel(u32),
 }
 
 /// What asking a chain to go on came to.
@@ -1065,6 +1067,11 @@ impl Orchestrator {
                 Ok(events) => events,
                 Err(problem) => engine.reject_answer(exec, &interaction_id, &problem, at),
             },
+            Message::MaxParallel(steps) => {
+                // The steps already running go on; the next ones start within the new limit.
+                exec.max_parallel_steps = steps;
+                Vec::new()
+            }
             Message::AutoPlans(on) => {
                 exec.auto_approve_plans = on;
                 // Turning it on covers the plans already waiting: that is what was asked.
@@ -1441,6 +1448,36 @@ impl Orchestrator {
         self.workflows.save_execution(&exec)?;
         announce(observer, &events);
         Ok(())
+    }
+
+    /// How many steps of a run may run at once, as the person set it (ADR 0013, W4): from 1 to 8.
+    /// The steps already running go on; the limit applies to the next ones.
+    ///
+    /// # Errors
+    ///
+    /// The run does not exist or has ended, or the number is out of range.
+    pub fn set_max_parallel_steps(&self, execution_id: &str, steps: u32) -> Result<(), AppError> {
+        if !crate::domain::workflow::MAX_PARALLEL_STEPS_RANGE.contains(&steps) {
+            return Err(
+                AppError::new(ErrorCode::WorkflowInvalid).with("reason", "max_parallel_steps")
+            );
+        }
+        let mut exec = self
+            .workflows
+            .execution(execution_id)
+            .ok_or_else(|| AppError::new(ErrorCode::WorkflowExecutionNotFound))?;
+        if exec.status.is_final() {
+            return Err(AppError::new(ErrorCode::WorkflowStateInvalid));
+        }
+        let sender = self.live.lock_or_recover().get(execution_id).cloned();
+        if let Some(sender) = sender {
+            return sender
+                .send(Message::MaxParallel(steps))
+                .map_err(|_| AppError::new(ErrorCode::WorkflowStateInvalid));
+        }
+        // Nobody drives it now: kept for when it is resumed.
+        exec.max_parallel_steps = steps;
+        self.workflows.save_execution(&exec)
     }
 
     /// Reflects in the run which steps are waiting for the user. The answer comes from the real

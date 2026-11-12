@@ -353,6 +353,8 @@ export interface CommandMap {
   };
   /** Approve the plans of a run without asking (also the ones already waiting), or ask again. */
   set_auto_approve_plans: { args: { executionId: string; enabled: boolean }; result: null };
+  /** How many steps of the run may run at once (1 to 8); the ones running go on. */
+  set_max_parallel_steps: { args: { executionId: string; steps: number }; result: null };
   pause_workflow: { args: { executionId: string }; result: null };
   /**
    * Resumes a paused run, picks up one the app's shutdown interrupted, or picks a failed one up

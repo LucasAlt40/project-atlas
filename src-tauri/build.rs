@@ -120,6 +120,7 @@ const COMMANDS: &[&str] = &[
     "validate_workflow",
     "start_workflow",
     "set_auto_approve_plans",
+    "set_max_parallel_steps",
     "pause_workflow",
     "resume_workflow",
     "continue_workflow_chain",

@@ -268,7 +268,8 @@ ADRs: 0013, 0014, 0018, 0019, 0035, 0009.
 - [x] **W3. Persistir o status de revisão.** (0019) — 2026-11-11: já sobrevivia: é derivado do status de integração,
       que é gravado e é a fonte; um campo próprio poderia divergir. Só a 0019 foi corrigida.
   - Pronto quando: sobrevive a reabrir o app, sem divergir do status de integração (ele continua a fonte).
-- [ ] **W4. `max_parallel_steps` configurável.** (0013)
+- [x] **W4. `max_parallel_steps` configurável.** (0013) — 2026-11-11: seletor por execução (1 a 8), comando com
+      política e teste; execuções antigas leem 4 (0013).
   - Onde: `application/workflow/engine.rs`, `domain/workflow`, UI de configuração.
   - Pronto quando: o valor (hoje fixo em 4) é configurável por execução com limites validados, e execuções antigas sem o
     campo leem o padrão 4 (compatibilidade, como as outras migrações).

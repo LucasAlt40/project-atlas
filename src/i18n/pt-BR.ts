@@ -2046,6 +2046,9 @@ export const ptBR: Record<TranslationKey, string> = {
   'interaction.showLess': 'Mostrar menos',
   'interaction.required': 'Ação necessária',
   'interaction.waiting': '{step} está aguardando sua resposta',
+  'workflow.parallel': 'Passos em paralelo',
+  'workflow.parallel.hint':
+    'Quantas etapas desta execução podem rodar ao mesmo tempo (1 a 8). As que já estão rodando seguem; o novo limite vale para as próximas. Um agente nunca roda duas ao mesmo tempo.',
   'workflow.autoPlans': 'Aprovar planos automaticamente',
   'workflow.autoPlans.hint':
     'Quando uma etapa elabora um plano, o Atlas o aprova sem perguntar e a etapa segue. Você ainda pode ler todos os planos na execução. Ligar também aprova os planos que já estão esperando.',

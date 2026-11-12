@@ -195,4 +195,8 @@ log de eventos de uma execução é guardado dentro dela (os 400 mais novos).
   foram alterados pela [ADR 0014](0014-handoff-shared-worktree-and-code-integration.md) (um worktree compartilhado por
   execução; arquivos medidos pelo Git).
 - Um passo com um processo pode ser parado no cancelamento; um runtime sem sessão de terminal termina por conta própria.
-- `max_parallel_steps` é fixo em 4 (guardado por execução; ainda não configurável).
+- `max_parallel_steps` é por execução: 4 por padrão, e a pessoa o muda de 1 a 8 no seletor "Passos em paralelo" da
+  execução (`set_max_parallel_steps`, 2026-11-11). Os passos que já rodam seguem; o limite novo vale para os próximos,
+  numa execução sendo conduzida (pela mensagem ao orquestrador) ou parada (guardado para quando for retomada). Fora do
+  intervalo, ou numa execução que terminou, é recusado. Uma execução gravada sem o campo lê 4. Um run seguinte de uma
+  cadeia de projetos (ADR 0043) começa com o padrão. Teste: `the_person_sets_how_many_steps_run_at_once_within_limits`.

@@ -229,6 +229,7 @@ pub fn run() {
             commands::workflow::repair_workflow_routes,
             commands::workflow::start_workflow,
             commands::workflow::set_auto_approve_plans,
+            commands::workflow::set_max_parallel_steps,
             commands::workflow::pause_workflow,
             commands::workflow::resume_workflow,
             commands::workflow::continue_workflow_chain,

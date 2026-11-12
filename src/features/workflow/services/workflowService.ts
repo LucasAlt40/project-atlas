@@ -134,6 +134,11 @@ export async function setAutoApprovePlans(executionId: string, enabled: boolean)
   await invokeCommand('set_auto_approve_plans', { executionId, enabled });
 }
 
+/** How many steps of the run may run at once (1 to 8). The steps already running go on. */
+export async function setMaxParallelSteps(executionId: string, steps: number): Promise<void> {
+  await invokeCommand('set_max_parallel_steps', { executionId, steps });
+}
+
 export async function pauseWorkflow(executionId: string): Promise<void> {
   await invokeCommand('pause_workflow', { executionId });
 }

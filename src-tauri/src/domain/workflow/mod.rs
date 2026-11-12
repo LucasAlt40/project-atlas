@@ -22,6 +22,7 @@ pub use execution::{
     AttemptStatus, FailureCode, NodeAttempt, NodeState, NodeStatus, RecoveryKind, RecoveryPlan,
     RecoveryProblem, RecoveryRecord, SpecIntegrationRef, SpecLink, SpecTaskRef, WorkflowEvent,
     WorkflowEventKind, WorkflowExecution, WorkflowExecutionStatus, WorkflowFailure,
+    MAX_PARALLEL_STEPS_RANGE,
 };
 pub use handoff::{AgentHandoff, HandoffArtifact, HandoffDecision, HandoffKind, HandoffValidation};
 pub use integration::{Delivery, IntegrationStatus, WorkflowIntegration};

@@ -2026,6 +2026,9 @@ export const enUS = {
   'interaction.showLess': 'Show less',
   'interaction.required': 'Action required',
   'interaction.waiting': '{step} is waiting for your response',
+  'workflow.parallel': 'Steps in parallel',
+  'workflow.parallel.hint':
+    'How many steps of this run may run at once (1 to 8). The ones already running go on; the new limit applies to the next ones. An agent never runs two at once.',
   'workflow.autoPlans': 'Approve plans automatically',
   'workflow.autoPlans.hint':
     'When a step draws up a plan, Atlas approves it without asking you and the step goes on. You can still read every plan in the run. Turning it on also approves plans already waiting.',

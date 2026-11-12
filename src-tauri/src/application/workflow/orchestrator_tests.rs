@@ -965,6 +965,56 @@ fn the_parallelism_limit_of_the_run_is_respected() {
     );
 }
 
+/// ADR 0013, W4: the person sets a run's parallel steps (1 to 8); outside that, or on a run that
+/// ended, nothing changes. A run stored before the setting existed reads the default of 4.
+#[test]
+fn the_person_sets_how_many_steps_run_at_once_within_limits() {
+    let env = env();
+    let workflow = env.workflow(
+        vec![
+            agent("architect", "architect"),
+            end("done", EndOutcome::Done),
+        ],
+        vec![edge("architect", "done")],
+    );
+    let exec = env.service.start(&workflow.id, "task").unwrap();
+    let runner = Scripted::new();
+    let orchestrator = env.orchestrator(&runner);
+
+    // Nobody drives it yet: the limit is kept for when it is.
+    orchestrator.set_max_parallel_steps(&exec.id, 1).unwrap();
+    assert_eq!(
+        env.service.execution(&exec.id).unwrap().max_parallel_steps,
+        1
+    );
+    for out_of_range in [0, 9, 100] {
+        let refused = orchestrator.set_max_parallel_steps(&exec.id, out_of_range);
+        assert!(
+            refused.unwrap_err().is(ErrorCode::WorkflowInvalid),
+            "{out_of_range}"
+        );
+    }
+    assert_eq!(
+        env.service.execution(&exec.id).unwrap().max_parallel_steps,
+        1
+    );
+
+    // A run that ended keeps what it had.
+    let mut ended = env.service.execution(&exec.id).unwrap();
+    ended.status = WorkflowExecutionStatus::Completed;
+    env.service.save_execution(&ended).unwrap();
+    assert!(orchestrator
+        .set_max_parallel_steps(&exec.id, 3)
+        .unwrap_err()
+        .is(ErrorCode::WorkflowStateInvalid));
+
+    // A run stored without the field reads the default.
+    let mut stored = serde_json::to_value(&ended).unwrap();
+    stored.as_object_mut().unwrap().remove("maxParallelSteps");
+    let old: WorkflowExecution = serde_json::from_value(stored).unwrap();
+    assert_eq!(old.max_parallel_steps, 4);
+}
+
 // ---- failure, retry, loops --------------------------------------------------------------------------------
 
 #[test]

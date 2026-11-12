@@ -244,6 +244,19 @@ pub fn set_auto_approve_plans<R: Runtime>(
     )
 }
 
+/// How many steps of the run may run at once (1 to 8). The steps already running go on.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command]
+pub fn set_max_parallel_steps(
+    state: State<'_, AppState>,
+    execution_id: String,
+    steps: u32,
+) -> Result<(), AppError> {
+    state
+        .orchestrator
+        .set_max_parallel_steps(&execution_id, steps)
+}
+
 /// Stops starting new steps. A step already running is left to finish.
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command]
