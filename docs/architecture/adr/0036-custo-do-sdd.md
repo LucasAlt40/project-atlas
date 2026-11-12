@@ -96,6 +96,46 @@ gasta tokens sem dizer nada de novo.
   milissegundos e é refeita só quando a revisão muda.
 - O Atlas não cacheia respostas de modelos: uma aprovação ou uma revisão por IA só vale para as revisões exatas que leu.
 
+## Medição com modelo real (2026-11-11)
+
+As otimizações 3 e 5 não se desligam, então o antes e o depois foram medidos **dentro da mesma spec**: a mesma espécie
+de mudança no `design.md` pedida uma vez como edição de uma seção (`Revise`) e outra como reescrita inteira (`Redo`), e
+a primeira revisão contra a segunda, depois de uma mudança. Pelo Atlas inteiro (serviço de specs, runner, chat,
+execuções, guard, CLI real), num projeto pequeno de exemplo; números informados pelo runtime, lidos do registro de
+uso. Teste: `application::specs::real_cost_tests::sdd_real_cost_before_and_after` (`#[ignore]`, nome exato). Claude
+Sonnet, uma execução por turno.
+
+| Turno                                   | Desfecho             | Entrada | Do cache | Saída  | Custo (US$) |
+| --------------------------------------- | -------------------- | ------- | -------- | ------ | ----------- |
+| escrever a proposta                     | concluído            | 25 205  | 20 148   | 1 441  | 0,037       |
+| escrever as specs                       | concluído            | 9 122   | 3 882    | 1 457  | 0,036       |
+| escrever o design                       | concluído            | 31 371  | 24 379   | 3 526  | 0,066       |
+| escrever as tarefas                     | concluído            | 12 281  | 3 882    | 3 067  | 0,065       |
+| **design: mudar uma seção (edição)**    | concluído            | 13 554  | 3 882    | 2 600  | **0,065**   |
+| **design: escrever de novo (inteiro)**  | parou para perguntar | 13 518  | 3 882    | 1 080  | 0,050       |
+| design: escrever de novo, após resposta | concluído            | 13 670  | 3 882    | 5 759  | **0,097**   |
+| **revisão 1**                           | concluída            | 34 119  | 20 862   | 3 926  | **0,094**   |
+| tarefas: mudar uma seção (edição)       | concluído            | 16 579  | 3 882    | 1 479  | 0,066       |
+| **revisão 2 (sabe o que mudou)**        | concluída            | 17 407  | 3 882    | 3 197  | **0,087**   |
+| **Total (10 turnos)**                   |                      | 186 826 | 92 563   | 27 532 | **0,66**    |
+
+O que os números dizem, com uma execução por turno (indício, não estatística):
+
+- **Otimização 3 (edição por seção):** a mudança respondida como edição saiu com **55% menos saída** (2 600 contra 5 759
+  tokens) e **33% mais barata** (US$ 0,065 contra 0,097) que a reescrita inteira do mesmo documento, com a mesma
+  entrada. A reescrita ainda custou um turno a mais: o agente parou para perguntar (US$ 0,050). O teste não registrou
+  se a resposta veio como blocos `ATLAS-EDIT` ou como documento inteiro; a saída menor que a do design original
+  (3 526) indica edição.
+- **Otimização 5 (a segunda revisão sabe o que mudou):** metade da entrada (17 mil contra 34 mil) e 19% menos saída,
+  mas só **8% mais barata** (US$ 0,087 contra 0,094), porque a primeira teve 21 mil tokens servidos do cache e a
+  segunda quase nenhum. O ganho em tokens é real; em custo, depende do cache.
+- **Uma spec inteira neste projeto pequeno custou US$ 0,66**, contra US$ 2,00 da linha de base. Não é comparável: a
+  linha de base é outra spec, num projeto maior, e a exploração do projeto é a maior parte do custo.
+
+Outro ponto, do histórico local da pessoa (24/10, Claude Opus, outra spec, depois destas otimizações): 9 execuções,
+US$ 4,19, e duas tentativas seguidas de alterar o design falharam antes da terceira passar. Os tamanhos de saída
+(612 e 1 178 tokens) sugerem edições recusadas e depois o documento inteiro; o motivo não foi conferido.
+
 ## O que não foi feito
 
 - **Modelo por etapa.** O modelo é o do agente escolhido para escrever e para revisar; não há como trocar por etapa sem
@@ -112,8 +152,6 @@ gasta tokens sem dizer nada de novo.
   de origem muda de verdade; decidir "esta mudança não afeta o design" exigiria interpretar o texto.
 - **Skills especializadas** para elicitação, cenários ou decomposição: sem evidência de que ajudariam, não foram criadas.
 - **Diff entre revisões** na tela.
-- **Comparação antes/depois em execuções reais**: não existe ainda. As otimizações 3 a 5 só aparecem nos números das
-  próximas execuções; a barra de consumo é como se mede.
 
 ## Riscos
 

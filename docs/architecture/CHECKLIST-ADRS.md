@@ -213,7 +213,8 @@ ADRs: 0037 (e 0040/0041 como contexto; não duplicar).
 
 ADRs: 0036, 0021, 0020, 0012, 0011.
 
-- [ ] **C1. Comparação antes/depois do custo do SDD.** (0036)
+- [x] **C1. Comparação antes/depois do custo do SDD.** (0036) — 2026-11-11: medido no Sonnet dentro da mesma spec
+      (teste `sdd_real_cost_before_and_after`); tabela na 0036. Uma execução por turno: indício, não estatística.
   - Pronto quando: execuções reais de SDD, antes e depois das otimizações 3–5, lidas na barra de consumo, com a tabela
     na ADR. Atenção: gasta tokens; **perguntar**.
 - [ ] **C2. Estimativa de custo antes de executar.** (0036)
