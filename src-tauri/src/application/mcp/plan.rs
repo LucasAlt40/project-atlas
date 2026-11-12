@@ -272,6 +272,10 @@ fn problem_of(
             reason: invalid.code().to_owned(),
         });
     }
+    // A remote server goes only to a runtime whose adapter was written and measured for it.
+    if matches!(connection.transport, McpTransport::Http { .. }) && !inputs.features.http {
+        return Some(McpProblem::HttpUnsupported);
+    }
     if matches!(selection, ToolSelection::Only { .. }) {
         match inputs.features.tool_filter {
             // The rest cannot be held back: better not to give the server at all.
@@ -566,6 +570,7 @@ mod tests {
                 tool_filter: McpToolFilter::DenyList,
                 probe: crate::domain::mcp::McpProbeKind::Tools,
                 strict: false,
+                http: true,
             },
             read_only,
         })
@@ -671,6 +676,42 @@ mod tests {
             .tool_definitions()
             .is_known());
         assert!(!allowed(&[files], &[]).tool_definitions().is_known());
+    }
+
+    #[test]
+    fn a_remote_server_goes_only_to_a_runtime_whose_adapter_takes_one() {
+        let mut figma = connection("figma");
+        figma.transport = McpTransport::Http {
+            url: "https://mcp.figma.com/mcp".to_owned(),
+            headers: Vec::new(),
+            allow_private: false,
+        };
+        let grants = [grant(&figma, ToolSelection::Server)];
+        let with_http = |http: bool| {
+            plan(&McpInputs {
+                connections: std::slice::from_ref(&figma),
+                grants: &grants,
+                context: CTX,
+                policy: Permission::Allowed,
+                cli_servers: None,
+                support: McpSupport::Supported,
+                features: McpFeatures {
+                    tool_filter: McpToolFilter::DenyList,
+                    probe: crate::domain::mcp::McpProbeKind::Tools,
+                    strict: true,
+                    http,
+                },
+                read_only: false,
+            })
+        };
+
+        assert!(with_http(true).servers[0].exposed());
+        let refused = with_http(false);
+        assert!(!refused.servers[0].exposed());
+        assert_eq!(
+            refused.servers[0].problem,
+            Some(McpProblem::HttpUnsupported)
+        );
     }
 
     #[test]
@@ -1127,6 +1168,7 @@ mod tests {
                 tool_filter: filter,
                 probe: crate::domain::mcp::McpProbeKind::None,
                 strict: false,
+                http: false,
             },
             read_only: false,
         })

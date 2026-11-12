@@ -1165,6 +1165,7 @@ fn runtime_with(filter: McpToolFilter, probe: McpProbeKind) -> FakeRuntime {
         tool_filter: filter,
         probe,
         strict: false,
+        http: false,
     })
 }
 

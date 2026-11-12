@@ -2648,6 +2648,10 @@ export const enUS = {
     "This agent's CLI (Antigravity) cannot be handed servers by Atlas for a run. It uses the servers in its own configuration (agy mcp list): Atlas checks that this one is there and tells the agent to use it. Atlas cannot hold its tools back, and the CLI also loads its other servers.",
   'context.mcp.problem.not_in_cli_config':
     'Not given: this CLI only uses the servers of its own configuration and this one is not there (add it with agy mcp add).',
+  'context.mcp.problem.http_unsupported':
+    'Not given: it is a remote server, and this runtime has no measured way to be given one.',
+  'context.mcp.problem.destination_blocked':
+    'Not given: its address is loopback, a private network or a metadata endpoint, or could not be looked up just before the step.',
   'context.mcp.problem.no_reading_tools':
     'Not given: the step is read-only and the server described none of its tools as only reading.',
   'hub.card.delivery.cli':

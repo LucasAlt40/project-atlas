@@ -288,6 +288,7 @@ mod tests {
                     value: Secret::new("s3cr3t".to_owned()),
                 },
             ],
+            http: None,
         }
     }
 

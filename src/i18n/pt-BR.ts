@@ -2679,6 +2679,10 @@ export const ptBR: Record<TranslationKey, string> = {
     'A CLI deste agente (Antigravity) não pode receber servidores do Atlas por execução. Ela usa os servidores da própria configuração (agy mcp list): o Atlas confere se este está lá e diz ao agente para usá-lo. O Atlas não consegue restringir as ferramentas dele, e a CLI também carrega os outros servidores dela.',
   'context.mcp.problem.not_in_cli_config':
     'Não entregue: esta CLI só usa os servidores da própria configuração e este não está lá (adicione com agy mcp add).',
+  'context.mcp.problem.http_unsupported':
+    'Não entregue: é um servidor remoto, e este runtime não tem um jeito medido de recebê-lo.',
+  'context.mcp.problem.destination_blocked':
+    'Não entregue: o endereço é loopback, rede privada ou de metadados, ou não pôde ser consultado logo antes da etapa.',
   'context.mcp.problem.no_reading_tools':
     'Não entregue: a etapa é somente leitura e o servidor não descreveu nenhuma ferramenta como de leitura.',
   'hub.card.delivery.cli':

@@ -5,7 +5,7 @@
 //! and a list of arguments, kept apart; it never joins them into a string for a shell to read, and
 //! it will not be handed `sh -c "…"` as a way to do the same.
 
-use crate::domain::mcp::{McpConnection, McpEnv, McpTransport};
+use crate::domain::mcp::{McpConnection, McpEnv, McpEnvValue, McpHeader, McpTransport};
 
 pub const MAX_NAME: usize = 32;
 const MAX_FIELD: usize = 4096;
@@ -16,7 +16,13 @@ const MAX_ENV: usize = 64;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Invalid {
     Name,
-    HttpNotSupported,
+    /// Not a URL Atlas accepts: not `http(s)`, a credential or fragment in it, too long.
+    Url,
+    /// A query parameter that looks like a secret: secrets go in a header, kept in the store.
+    UrlSecret,
+    HeaderName,
+    HeaderDuplicate,
+    HeaderValue,
     Executable,
     Shell,
     Argument,
@@ -31,7 +37,11 @@ impl Invalid {
     pub fn code(&self) -> &'static str {
         match self {
             Self::Name => "name",
-            Self::HttpNotSupported => "http_not_supported",
+            Self::Url => "url",
+            Self::UrlSecret => "url_secret",
+            Self::HeaderName => "header_name",
+            Self::HeaderDuplicate => "header_duplicate",
+            Self::HeaderValue => "header_value",
             Self::Executable => "executable",
             Self::Shell => "shell",
             Self::Argument => "argument",
@@ -130,13 +140,13 @@ pub fn validate(connection: &McpConnection) -> Result<(), Invalid> {
     if !valid_name(&connection.name) {
         return Err(Invalid::Name);
     }
-    let McpTransport::Stdio {
-        executable,
-        args,
-        env,
-    } = &connection.transport
-    else {
-        return Err(Invalid::HttpNotSupported);
+    let (executable, args, env) = match &connection.transport {
+        McpTransport::Stdio {
+            executable,
+            args,
+            env,
+        } => (executable, args, env),
+        McpTransport::Http { url, headers, .. } => return check_http(url, headers),
     };
     if !plain(executable) || executable.trim() != executable || executable.contains(' ') {
         return Err(Invalid::Executable);
@@ -172,6 +182,100 @@ pub fn validate(connection: &McpConnection) -> Result<(), Invalid> {
         return Err(Invalid::Expansion);
     }
     check_env(env)
+}
+
+const MAX_URL: usize = 2048;
+const MAX_HEADERS: usize = 32;
+
+/// Query parameters that carry a credential. A URL ends up in logs, the audit trail and the CLI's
+/// own files: a secret belongs in a header, which Atlas keeps in the credential store.
+const SECRET_PARAMS: &[&str] = &[
+    "token",
+    "access_token",
+    "auth",
+    "key",
+    "api_key",
+    "apikey",
+    "secret",
+    "password",
+    "sig",
+    "signature",
+    "client_secret",
+];
+
+/// Headers a client sets itself, or that would change where or how the request goes.
+const FORBIDDEN_HEADERS: &[&str] = &[
+    "host",
+    "content-length",
+    "transfer-encoding",
+    "connection",
+    "upgrade",
+    "te",
+    "trailer",
+    "keep-alive",
+];
+
+/// The CLIs expand references from Atlas's environment in a server's URL and headers too.
+fn expands(text: &str) -> bool {
+    text.contains("${")
+        || text.contains("{env:")
+        || text.contains("{file:")
+        || text.match_indices('$').any(|(at, _)| {
+            text[at + 1..].starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+        })
+}
+
+/// What a remote server's configuration may be, without looking anything up: whether it may be
+/// reached is `destination::check`, at save and before every step.
+fn check_http(url: &str, headers: &[McpHeader]) -> Result<(), Invalid> {
+    if url.len() > MAX_URL || !plain(url) || url.trim() != url || url.contains(' ') {
+        return Err(Invalid::Url);
+    }
+    if expands(url) {
+        return Err(Invalid::Expansion);
+    }
+    let parsed = url::Url::parse(url).map_err(|_| Invalid::Url)?;
+    if !matches!(parsed.scheme(), "https" | "http")
+        || parsed.host().is_none()
+        || !parsed.username().is_empty()
+        || parsed.password().is_some()
+        || parsed.fragment().is_some()
+    {
+        return Err(Invalid::Url);
+    }
+    if parsed
+        .query_pairs()
+        .any(|(key, _)| SECRET_PARAMS.contains(&key.to_ascii_lowercase().as_str()))
+    {
+        return Err(Invalid::UrlSecret);
+    }
+    if headers.len() > MAX_HEADERS {
+        return Err(Invalid::TooMany);
+    }
+    let mut seen: Vec<String> = Vec::new();
+    for header in headers {
+        let name = header.name.to_ascii_lowercase();
+        let token = !name.is_empty()
+            && name.len() <= 64
+            && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-');
+        if !token || FORBIDDEN_HEADERS.contains(&name.as_str()) || name.starts_with("proxy-") {
+            return Err(Invalid::HeaderName);
+        }
+        if seen.contains(&name) {
+            return Err(Invalid::HeaderDuplicate);
+        }
+        seen.push(name);
+        if let McpEnvValue::Plain { value } = &header.value {
+            // No new line: a value cannot add a header of its own.
+            if value.len() > MAX_FIELD || value.chars().any(char::is_control) {
+                return Err(Invalid::HeaderValue);
+            }
+            if expands(value) {
+                return Err(Invalid::Expansion);
+            }
+        }
+    }
+    Ok(())
 }
 
 fn check_env(env: &[McpEnv]) -> Result<(), Invalid> {
@@ -347,14 +451,86 @@ mod tests {
         }
     }
 
+    fn http(url: &str, headers: Vec<McpHeader>) -> McpTransport {
+        McpTransport::Http {
+            url: url.to_owned(),
+            headers,
+            allow_private: false,
+        }
+    }
+
+    fn header(name: &str, value: Option<&str>) -> McpHeader {
+        McpHeader {
+            name: name.to_owned(),
+            value: value.map_or(McpEnvValue::Secret, |v| McpEnvValue::Plain {
+                value: v.to_owned(),
+            }),
+        }
+    }
+
     #[test]
-    fn http_is_part_of_the_contract_and_refused() {
-        assert_eq!(
-            validate(&with(McpTransport::Http {
-                url: "https://example.test/mcp".to_owned()
-            })),
-            Err(Invalid::HttpNotSupported)
-        );
+    fn a_remote_server_is_a_url_and_headers_whose_secrets_are_named_never_written() {
+        let figma = with(http(
+            "https://mcp.figma.com/mcp?team=1",
+            vec![
+                header("Authorization", None),
+                header("X-Client", Some("atlas")),
+            ],
+        ));
+
+        assert_eq!(validate(&figma), Ok(()));
+        assert_eq!(figma.secret_names(), ["Authorization"]);
+    }
+
+    #[test]
+    fn a_url_that_carries_a_credential_or_is_not_one_is_refused() {
+        for (url, why) in [
+            ("https://user:pass@mcp.example.com/", Invalid::Url),
+            ("https://token@mcp.example.com/", Invalid::Url),
+            ("https://mcp.example.com/#x", Invalid::Url),
+            ("ftp://mcp.example.com/", Invalid::Url),
+            ("file:///etc/passwd", Invalid::Url),
+            ("https://mcp.example.com/a b", Invalid::Url),
+            ("https://mcp.example.com/\nX: y", Invalid::Url),
+            ("not a url", Invalid::Url),
+            ("https://mcp.example.com/?api_key=abc", Invalid::UrlSecret),
+            ("https://mcp.example.com/?Token=abc", Invalid::UrlSecret),
+            (
+                "https://mcp.example.com/${ATLAS_MCP_OTHER_TOKEN}",
+                Invalid::Expansion,
+            ),
+        ] {
+            assert_eq!(validate(&with(http(url, vec![]))), Err(why), "{url}");
+        }
+        let long = format!("https://mcp.example.com/{}", "a".repeat(MAX_URL));
+        assert_eq!(validate(&with(http(&long, vec![]))), Err(Invalid::Url));
+    }
+
+    #[test]
+    fn a_header_cannot_add_another_steer_the_request_or_read_another_secret() {
+        let url = "https://mcp.example.com/mcp";
+        for (headers, why) in [
+            (vec![header("Host", Some("evil"))], Invalid::HeaderName),
+            (
+                vec![header("Proxy-Authorization", None)],
+                Invalid::HeaderName,
+            ),
+            (vec![header("Bad Name", Some("x"))], Invalid::HeaderName),
+            (
+                vec![header("X-A", Some("1")), header("x-a", Some("2"))],
+                Invalid::HeaderDuplicate,
+            ),
+            (
+                vec![header("X-A", Some("1\r\nX-B: 2"))],
+                Invalid::HeaderValue,
+            ),
+            (
+                vec![header("X-A", Some("${ATLAS_MCP_OTHER_TOKEN}"))],
+                Invalid::Expansion,
+            ),
+        ] {
+            assert_eq!(validate(&with(http(url, headers))), Err(why));
+        }
     }
 
     #[test]

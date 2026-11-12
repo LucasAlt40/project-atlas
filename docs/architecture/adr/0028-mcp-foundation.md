@@ -100,13 +100,13 @@ mcp__<servidor>__<ferramenta>` esconde uma descoberta; uma ferramenta que o serv
 - Descrições, anotações e o peso das definições das ferramentas são lidos do próprio servidor quando a pessoa pede
   ([ADR 0045](0045-descricoes-das-ferramentas-mcp.md)): o inspetor os mostra, o orçamento os conta e um passo somente
   leitura recebe só as ferramentas que leem. Sem esse pedido, nada disso é conhecido.
-- Transporte HTTP e OAuth (o servidor oficial do Figma) não foram construídos; `McpTransport::Http` existe e é
-  recusado.
+- O transporte HTTP veio na [ADR 0046](0046-mcp-por-http.md) (Claude; os outros runtimes recusam com motivo), com a
+  camada de destino. O OAuth (o servidor oficial do Figma) não foi construído.
 
 ## Não feito
 
-O Figma (precisa de HTTP e OAuth), o transporte HTTP e sua camada de SSRF, interceptação por chamada, um Tool Gateway
-ou proxy, uma execução real com modelo. O Chrome DevTools e a UI de conexões vieram na Fase E; MCP nos outros runtimes,
+O Figma (precisa de OAuth), interceptação por chamada, um Tool Gateway ou proxy, uma execução real com modelo. O
+transporte HTTP e a camada de destino vieram na [ADR 0046](0046-mcp-por-http.md). O Chrome DevTools e a UI de conexões vieram na Fase E; MCP nos outros runtimes,
 na [ADR 0029](0029-mcp-for-every-runtime.md); um cliente MCP do Atlas, só para `tools/list`, na
 [ADR 0045](0045-descricoes-das-ferramentas-mcp.md).
 

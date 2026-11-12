@@ -1202,6 +1202,7 @@ mod tests {
             } else {
                 vec![]
             },
+            http: None,
         }
     }
 
@@ -1697,6 +1698,7 @@ mod tests {
                     value: (*value).to_owned(),
                 })
                 .collect(),
+            http: None,
         }
     }
 

@@ -36,8 +36,29 @@ pub enum McpTransport {
         #[serde(default)]
         env: Vec<McpEnv>,
     },
-    /// Reserved. Not implemented, and refused by validation.
-    Http { url: String },
+    /// A remote server the runtime's CLI connects to itself (ADR 0046). Its destination is
+    /// checked when it is saved and before every step that is given it: `https`, no credential
+    /// in the URL, and an address that is not loopback, a private network or a cloud metadata
+    /// endpoint unless `allow_private` says the person meant a server on their own network.
+    /// Headers may hold secrets, kept in the credential store like a STDIO server's environment.
+    Http {
+        url: String,
+        #[serde(default)]
+        headers: Vec<McpHeader>,
+        /// The person allows a loopback or private-network destination (a server on their own
+        /// machine or network). Cloud metadata endpoints stay closed whatever this says.
+        #[serde(default, rename = "allowPrivate", alias = "allow_private")]
+        allow_private: bool,
+    },
+}
+
+/// One HTTP header of a remote server. A secret value is in the credential store under the
+/// header's name, like an environment variable of a STDIO server.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct McpHeader {
+    pub name: String,
+    pub value: McpEnvValue,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -194,7 +215,11 @@ impl McpConnection {
                 .filter(|e| matches!(e.value, McpEnvValue::Secret))
                 .map(|e| e.name.as_str())
                 .collect(),
-            McpTransport::Http { .. } => Vec::new(),
+            McpTransport::Http { headers, .. } => headers
+                .iter()
+                .filter(|h| matches!(h.value, McpEnvValue::Secret))
+                .map(|h| h.name.as_str())
+                .collect(),
         }
     }
 
@@ -296,6 +321,9 @@ pub enum McpProbeKind {
 pub struct McpFeatures {
     pub tool_filter: McpToolFilter,
     pub probe: McpProbeKind,
+    /// The runtime can be given a remote (HTTP) server, translated by its adapter.
+    #[serde(default)]
+    pub http: bool,
     /// The runtime loads **only** the servers Atlas gives it (measured). `false`: it merges them
     /// with whatever the user configured in the runtime itself, which Atlas cannot see or hide.
     pub strict: bool,
@@ -326,6 +354,11 @@ pub enum McpProblem {
     NotInCliConfig,
     /// The step is read-only and none of the tools the server described only reads.
     NoReadingTools,
+    /// A remote server, and the agent's runtime has no way Atlas measured to give it one.
+    HttpUnsupported,
+    /// A remote server whose address is one Atlas does not let a runtime reach (loopback, a
+    /// private network or a metadata endpoint), or that could not be looked up.
+    DestinationBlocked,
 }
 
 /// The six things kept apart for one tool.
@@ -527,6 +560,38 @@ pub(crate) mod tests {
             catalog: None,
             created_at: 1,
         }
+    }
+
+    #[test]
+    fn a_remote_transport_reads_as_the_interface_writes_it_and_an_old_one_still_reads() {
+        let written: McpTransport = serde_json::from_str(
+            r#"{"kind":"http","url":"https://mcp.example.com/mcp","headers":[{"name":"Authorization","value":{"kind":"secret"}}],"allowPrivate":true}"#,
+        )
+        .unwrap();
+        let McpTransport::Http {
+            headers,
+            allow_private,
+            ..
+        } = &written
+        else {
+            panic!("not http");
+        };
+        assert!(*allow_private);
+        assert_eq!(headers[0].value, McpEnvValue::Secret);
+        assert!(serde_json::to_string(&written)
+            .unwrap()
+            .contains("\"allowPrivate\":true"));
+        // What ADR 0028 reserved: a URL alone, closed to private networks.
+        let old: McpTransport =
+            serde_json::from_str(r#"{"kind":"http","url":"https://mcp.example.com/mcp"}"#).unwrap();
+        assert_eq!(
+            old,
+            McpTransport::Http {
+                url: "https://mcp.example.com/mcp".to_owned(),
+                headers: Vec::new(),
+                allow_private: false,
+            }
+        );
     }
 
     #[test]

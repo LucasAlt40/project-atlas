@@ -750,6 +750,7 @@ mod tests {
                     name: "TOKEN".to_owned(),
                     value: Secret::new("hunter2".to_owned()),
                 }],
+                http: None,
             }],
             held_back: vec![],
             only: vec![],
@@ -895,6 +896,7 @@ mod tests {
                     value: crate::domain::mcp::Secret::new(secret.to_owned()),
                 },
             ],
+            http: None,
         }
     }
 

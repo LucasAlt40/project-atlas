@@ -32,6 +32,8 @@ sha2 = "0.10"
 # The OS credential store (macOS Keychain, Windows Credential Manager, Linux Secret Service) for MCP
 # secrets. Used only by `infrastructure/`, behind the `CredentialStore` port.
 keyring = "4"
+# Reading the URL of a remote MCP server (ADR 0046). Already in the tree through Tauri.
+url = "2"
 tauri-plugin-updater = "2"
 # Mobile access (ADR 0034). hyper, Tokio and their helpers are already in the tree through Tauri; only
 # the features the local server needs are switched on. `if-addrs` lists the network interfaces,

@@ -612,6 +612,7 @@ pub mod fake {
                 tool_filter: McpToolFilter::DenyList,
                 probe: McpProbeKind::Tools,
                 strict: true,
+                http: false,
             };
             self
         }

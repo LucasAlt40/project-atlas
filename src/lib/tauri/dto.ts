@@ -1688,7 +1688,14 @@ export type McpTransportDto =
       args?: string[];
       env?: { name: string; value: { kind: 'plain'; value: string } | { kind: 'secret' } }[];
     }
-  | { kind: 'http'; url: string };
+  | {
+      kind: 'http';
+      url: string;
+      /** Headers; a secret one is named here and kept in the credential store. */
+      headers?: { name: string; value: { kind: 'plain'; value: string } | { kind: 'secret' } }[];
+      /** The person allows a loopback or private-network destination (never a metadata one). */
+      allowPrivate?: boolean;
+    };
 
 export type McpToolSelectionDto = { kind: 'server' } | { kind: 'only'; tools: string[] };
 
@@ -1878,7 +1885,9 @@ export type McpProblemDto =
   | { kind: 'needs_discovery' }
   | { kind: 'tool_filter_unsupported' }
   | { kind: 'not_in_cli_config' }
-  | { kind: 'no_reading_tools' };
+  | { kind: 'no_reading_tools' }
+  | { kind: 'http_unsupported' }
+  | { kind: 'destination_blocked' };
 
 /** Mirrors `domain::mcp::McpRecord`: the six things about a tool, kept apart. */
 export interface McpRecordDto {

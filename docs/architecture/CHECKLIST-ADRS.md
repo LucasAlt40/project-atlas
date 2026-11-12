@@ -143,7 +143,9 @@ ADRs: 0038, 0039, 0044, 0026, 0027, 0025.
 
 ADRs: 0028, 0029, 0030, 0024, 0026.
 
-- [ ] **M1. Transporte HTTP.** (0028 "Não feito")
+- [x] **M1. Transporte HTTP.** (0028 "Não feito") — 2026-11-11: ADR 0046 (HTTP nativo, decisão do usuário):
+      validação, camada de destino ao salvar e antes do passo, Claude traduz e os outros recusam com motivo. Interceptação
+      por chamada ficou como limite escrito; falta a sonda real do Claude com um servidor remoto (sem tokens).
   - Onde: `domain/mcp.rs` (`McpTransport::Http` existe e é recusado), `application/mcp/validate.rs`, `config_io.rs`,
     `launch.rs`, `application/security/` para a camada de rede.
   - Pronto quando: servidor HTTP é aceito, com **camada de SSRF** (bloqueio de loopback/rede privada/metadata salvo

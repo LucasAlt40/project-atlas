@@ -585,6 +585,7 @@ mod tests {
             executable: "node".to_owned(),
             args: vec![path.to_string_lossy().into_owned()],
             env,
+            http: None,
         }
     }
 

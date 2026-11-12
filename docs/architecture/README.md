@@ -431,3 +431,4 @@ ou um estado compartilhado precise deles.
 - [0043 — Uma tarefa em vários projetos](adr/0043-tarefas-em-varios-projetos.md) — uma execução por projeto, em sequência, com alerta ao rodar e sugestão de 1 projeto quando há muitos
 - [0044 — Comandos de teste e textos por runtime](adr/0044-comandos-de-teste-e-textos-por-runtime.md) — passos remetem às regras do Atlas para rodar comandos; Claude roda só os testes do projeto no sandbox da CLI; plano fora do diff
 - [0045 — Descrições das ferramentas MCP](adr/0045-descricoes-das-ferramentas-mcp.md) — a pedido da pessoa, o Atlas pergunta `tools/list` ao servidor pelo guard; mostra, orça e faz `read_only` valer para as ferramentas MCP
+- [0046 — Servidores MCP remotos (HTTP)](adr/0046-mcp-por-http.md) — HTTP nativo da CLI (Claude), com a camada de destino (SSRF) ao salvar e antes de cada passo; não intercepta chamadas

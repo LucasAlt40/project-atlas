@@ -43,6 +43,10 @@ fn what(problem: &McpProblem) -> &'static str {
         McpProblem::NoReadingTools => {
             "the step is read-only and the server described none of its tools as only reading"
         }
+        McpProblem::HttpUnsupported => "it is a remote server and the agent's runtime cannot be given one",
+        McpProblem::DestinationBlocked => {
+            "its address is not one Atlas lets a runtime reach (loopback, private network, metadata)"
+        }
     }
 }
 

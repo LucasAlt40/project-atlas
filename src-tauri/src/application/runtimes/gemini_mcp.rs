@@ -56,6 +56,7 @@ impl McpAdapter for GeminiMcpAdapter {
             tool_filter: McpToolFilter::AllowList,
             probe: McpProbeKind::StatusOnly,
             strict: false,
+            http: false,
         }
     }
 
@@ -183,6 +184,7 @@ mod tests {
             executable: "node".to_owned(),
             args: vec!["server.js".to_owned()],
             env,
+            http: None,
         }
     }
 

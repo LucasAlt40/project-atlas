@@ -1606,6 +1606,8 @@ impl ExecutionService {
                 "the tools it was limited to cannot be enforced"
             }
             McpProblem::NoReadingTools => "this step is read-only and none of its tools only reads",
+            McpProblem::HttpUnsupported => "this agent's runtime cannot be given a remote server",
+            McpProblem::DestinationBlocked => "its address is not one Atlas lets a runtime reach",
             McpProblem::NotEnabled | McpProblem::NoGrant | McpProblem::PolicyDenied => {
                 "it is not available to this step"
             }
@@ -1632,6 +1634,13 @@ impl ExecutionService {
             }
             McpProblem::NoReadingTools => {
                 "this step is read-only and the server described none of its tools as only reading"
+                    .to_owned()
+            }
+            McpProblem::HttpUnsupported => {
+                "it is a remote server and its runtime has no measured way to be given one".to_owned()
+            }
+            McpProblem::DestinationBlocked => {
+                "its address is loopback, a private network or a metadata endpoint, or could not be looked up"
                     .to_owned()
             }
             McpProblem::NotEnabled | McpProblem::NoGrant | McpProblem::PolicyDenied => {
@@ -1667,6 +1676,7 @@ impl ExecutionService {
             LaunchProblem::StoreUnavailable => McpProblem::InvalidConfiguration {
                 reason: "credential_store".to_owned(),
             },
+            LaunchProblem::DestinationBlocked(_) => McpProblem::DestinationBlocked,
         }
     }
 

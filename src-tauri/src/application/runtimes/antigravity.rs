@@ -121,6 +121,7 @@ impl ModelRuntime for AntigravityRuntime {
             tool_filter: McpToolFilter::Unsupported,
             probe: McpProbeKind::None,
             strict: false,
+            http: false,
         };
         RuntimeInfo {
             id: "antigravity".to_owned(),

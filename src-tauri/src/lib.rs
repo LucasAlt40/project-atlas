@@ -339,6 +339,8 @@ fn build_state(
         )
         .with_files(Arc::new(infrastructure::FsRuntimeConfigFiles))
         .with_registry(Arc::new(infrastructure::CurlRegistryClient))
+        // A remote server's name is looked up before it is given to a step (ADR 0046).
+        .with_resolver(Arc::new(infrastructure::SystemHostResolver))
         // Asking a server about its tools starts it: through the guard, like every process.
         .with_runner(runner.clone()),
     );
