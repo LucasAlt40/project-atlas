@@ -178,17 +178,20 @@ ADRs: 0028, 0029, 0030, 0024, 0026.
   - Também: o arquivo gerenciado de configurações de sistema do Gemini seria substituído durante a execução; decidir
     se vira aviso na UI.
   - Verificação: real (por nome).
-- [ ] **M6. Sugestão de concessões por conexão com outro nome.** (0030)
+- [x] **M6. Sugestão de concessões por conexão com outro nome.** (0030) — 2026-11-12: casa também pelo pacote ou
+      endereço do servidor (0030).
   - Pronto quando: o casamento deixa de depender só do nome (ou a limitação é mostrada ao usuário), com teste.
 - [ ] **M7. Execução real com modelo para o que o `init` não prova.** (0026 "Consequências")
   - Pronto quando: foram medidos contagem real de tokens de entrada, morte de servidor no meio da execução,
     comportamento no cancelamento, `CLAUDE.md`/auto-memória chegando ao modelo e a semântica do
     `--append-system-prompt`.
   - Atenção: gasta tokens; **perguntar** antes. Agrupar tudo numa única rodada pequena. Depende de: nada.
-- [ ] **M8. Superfície de OpenCode, Gemini e Antigravity.** (0024 "Não construído")
+- [x] **M8. Superfície de OpenCode, Gemini e Antigravity.** (0024 "Não construído") — 2026-11-12: MCP medido na
+      0029; o resto declarado fora na 0024, com os motivos.
   - Pronto quando: cada um tem fatos de superfície medidos (sem OpenCode real em terminal: ver 0.3) ou a ADR declara
     explicitamente que ficam fora e por quê. Reescrever a 0024 para o estado atual (ela diz "nenhum MCP").
-- [ ] **M9. Limpar a 0024, 0026 e 0028 do que já foi superado.** (0024, 0026, 0028)
+- [x] **M9. Limpar a 0024, 0026 e 0028 do que já foi superado.** (0024, 0026, 0028) — 2026-11-12: 0024 e 0026 no
+      H3; a 0028 aponta para a 0029 em vez de dizer "só o Claude".
   - Pronto quando: as ADRs deixam de afirmar "nenhum MCP", "só o Claude" e "Fase E não feita" onde isso mudou.
 
 ## Bloco 3 · Memória
@@ -288,7 +291,7 @@ ADRs: 0009, 0034, 0028, 0038, 0039, 0044. **O CI já roda `npm run check` em ubu
 Os blocos 5, 6 e 7 foram concluídos e apagados (2026-11-12). O que resta:
 
 1. **S1/S3 com o Codex** (cota volta em 2026-11-16; pedir autorização), **S5**.
-2. **M3** (o CI só prova com um push), **M5–M9**; **M2** fica para quando o OAuth for decidido.
+2. **M3** (o CI só prova com um push), **M5**, **M7** (reais); **M2** fica para quando o OAuth for decidido.
 3. **MEM3**; **C3** (medição real, pedir autorização).
 4. **X2–X7** conforme dê acesso a máquinas/celular.
 5. **H1–H5** ao fim de cada bloco.

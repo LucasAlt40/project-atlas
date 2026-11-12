@@ -43,8 +43,12 @@ Status: aceito. Baseia-se na [ADR 0013](0013-workflow-engine-and-orchestrator.md
 5. **O Reviewer** é um passo somente leitura; o template não consegue fazer um arquivo mudar, seja qual for o perfil do
    agente. Uma correção posterior é uma execução separada que a pessoa inicia.
 6. **Ferramentas são sugestões até a pessoa aplicá-las.** Um template nomeia um _tipo_ de ferramenta por passo
-   (`ToolCapability`: browser, issues, docs, repo), casado com as conexões do workspace pelo nome (um palpite, então só
-   sugere). `template_tools::resolve` diz, por sugestão, qual conexão serviria com quais ferramentas, ou por que nenhuma
+   (`ToolCapability`: browser, issues, docs, repo), casado com as conexões do workspace pelo nome ou, quando a pessoa deu
+   outro nome à conexão, pelo pacote que ela inicia ou pelo endereço que alcança (`chrome-devtools-mcp`,
+   `mcp.atlassian.com`; uma lista específica, para uma pasta chamada `docs` num argumento não contar). Um casamento pelo
+   nome vem antes de um pelo servidor. É um palpite, então só sugere. Testes:
+   `a_connection_with_another_name_is_recognised_by_the_server_it_starts_or_reaches` e
+   `a_name_match_comes_before_a_server_match` (2026-11-12). `template_tools::resolve` diz, por sugestão, qual conexão serviria com quais ferramentas, ou por que nenhuma
    pode (sem conexão, desligada, segredo ausente, não conseguiu conectar, ferramentas nunca listadas, sem ferramentas de
    leitura). `create_workflow_from_template(applyTools: true)` transforma as utilizáveis em concessões comuns para aquele
    agente, workflow e passo. Um passo que só _consulta_ recebe apenas as ferramentas da conexão cuja primeira palavra é
@@ -66,7 +70,8 @@ credential is missing)`), com um pedido para dizer isso no resultado em vez de a
 
 ## Não feito / limites
 
-- O casamento das sugestões é pelo nome da conexão; uma conexão com outro nome é concedida à mão no inspetor.
+- Uma conexão cujo nome e servidor nenhum dos dois o Atlas reconhece (um servidor próprio, um pacote fora da lista) é
+  concedida à mão no inspetor.
 - `read_only` governa as ferramentas MCP de um servidor cujas descrições a pessoa pediu ao Atlas
   ([ADR 0045](0045-descricoes-das-ferramentas-mcp.md)): o passo recebe só as que leem, pelo que o servidor diz
   (`readOnlyHint`, `destructiveHint`). Sem descrição, ou quando o servidor não diz, vale o palpite pelo nome (verbos de

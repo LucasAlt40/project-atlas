@@ -11,7 +11,7 @@
 
 use serde::Serialize;
 
-use crate::domain::mcp::{McpConnection, McpServerStatus, ToolSelection};
+use crate::domain::mcp::{McpConnection, McpServerStatus, McpTransport, ToolSelection};
 use crate::domain::workflow::{SuggestionTarget, ToolCapability, ToolSuggestion, Workflow};
 
 /// Why a suggestion cannot be applied in this workspace.
@@ -61,12 +61,43 @@ fn reads(connection: &McpConnection, tool: &str) -> bool {
     crate::domain::mcp::reads_tool(tool, info)
 }
 
-fn matches(capability: ToolCapability, name: &str) -> bool {
+/// How a connection was recognised as being of a kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum Recognised {
+    /// By its name, which the person chose.
+    Name,
+    /// By the package it starts or the address it reaches, whatever it is called.
+    Server,
+}
+
+fn by_name(capability: ToolCapability, name: &str) -> bool {
     let name = name.to_ascii_lowercase();
     capability
         .known_names()
         .iter()
         .any(|known| name == *known || name.contains(known))
+}
+
+/// Whether `connection` is of the kind, and how that is known.
+fn recognise(capability: ToolCapability, connection: &McpConnection) -> Option<Recognised> {
+    if by_name(capability, &connection.name) {
+        return Some(Recognised::Name);
+    }
+    let what = match &connection.transport {
+        McpTransport::Stdio {
+            executable, args, ..
+        } => std::iter::once(executable.as_str())
+            .chain(args.iter().map(String::as_str))
+            .collect::<Vec<_>>()
+            .join(" "),
+        McpTransport::Http { url, .. } => url.clone(),
+    }
+    .to_ascii_lowercase();
+    capability
+        .known_servers()
+        .iter()
+        .any(|server| what.contains(server))
+        .then_some(Recognised::Server)
 }
 
 /// Whether the connection can be given at all, before looking at tools.
@@ -151,12 +182,14 @@ pub fn resolve(suggestions: &[ToolSuggestion], connections: &[McpConnection]) ->
             };
             match &suggestion.target {
                 SuggestionTarget::Capability { capability } => {
-                    let mut candidates: Vec<&McpConnection> = connections
+                    let mut candidates: Vec<(Recognised, &McpConnection)> = connections
                         .iter()
-                        .filter(|c| matches(*capability, &c.name))
+                        .filter_map(|c| recognise(*capability, c).map(|how| (how, c)))
                         .collect();
-                    candidates.sort_by_key(|c| blocked(c).is_some()); // stable
-                    match candidates.first() {
+                    // Usable first, then a name match before a server match, then the order they
+                    // were added in (the sort is stable).
+                    candidates.sort_by_key(|(how, c)| (blocked(c).is_some(), *how));
+                    match candidates.first().map(|(_, c)| *c) {
                         None => item(None, Some(*capability), Err(ToolUnavailable::NoConnection)),
                         Some(found) => item(
                             Some(found),
@@ -257,6 +290,72 @@ mod tests {
             target: SuggestionTarget::Capability { capability },
             purpose: "why".to_owned(),
         }
+    }
+
+    #[test]
+    fn a_connection_with_another_name_is_recognised_by_the_server_it_starts_or_reaches() {
+        let mut browser = connection("browser-1", true, None);
+        browser.transport = McpTransport::Stdio {
+            executable: "/usr/bin/npx".to_owned(),
+            args: vec!["-y".to_owned(), "chrome-devtools-mcp@latest".to_owned()],
+            env: vec![],
+        };
+        let mut tickets = connection(
+            "work-tickets",
+            true,
+            Some(&["getJiraIssue", "createJiraIssue"]),
+        );
+        tickets.transport = McpTransport::Http {
+            url: "https://mcp.atlassian.com/v1/sse".to_owned(),
+            headers: vec![],
+            allow_private: false,
+        };
+        // A folder called `docs` in an argument is not a documentation server.
+        let mut notes = connection("notes", true, Some(&["get_note"]));
+        notes.transport = McpTransport::Stdio {
+            executable: "/usr/bin/node".to_owned(),
+            args: vec!["/home/me/docs/server.js".to_owned()],
+            env: vec![],
+        };
+        let all = [browser, tickets, notes];
+
+        let plan = resolve(
+            &[
+                suggestion(ToolCapability::Browser),
+                suggestion(ToolCapability::Issues),
+                suggestion(ToolCapability::Docs),
+            ],
+            &all,
+        );
+
+        assert_eq!(plan[0].connection.as_deref(), Some("browser-1"));
+        assert_eq!(plan[0].tools, Some(ToolSelection::Server));
+        assert_eq!(plan[1].connection.as_deref(), Some("work-tickets"));
+        assert_eq!(
+            plan[1].tools,
+            Some(ToolSelection::Only {
+                tools: vec!["getJiraIssue".to_owned()]
+            })
+        );
+        assert_eq!(plan[2].reason, Some(ToolUnavailable::NoConnection));
+    }
+
+    #[test]
+    fn a_name_match_comes_before_a_server_match() {
+        let mut by_server = connection("headless", true, None);
+        by_server.transport = McpTransport::Stdio {
+            executable: "/usr/bin/npx".to_owned(),
+            args: vec!["@playwright/mcp".to_owned()],
+            env: vec![],
+        };
+        let by_name = connection("chrome-devtools", true, None);
+
+        let plan = resolve(
+            &[suggestion(ToolCapability::Browser)],
+            &[by_server, by_name],
+        );
+
+        assert_eq!(plan[0].connection.as_deref(), Some("chrome-devtools"));
     }
 
     #[test]
