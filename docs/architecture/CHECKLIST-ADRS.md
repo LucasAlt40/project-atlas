@@ -181,7 +181,8 @@ ADRs: 0028, 0029, 0030, 0024, 0026.
 - [x] **M6. Sugestão de concessões por conexão com outro nome.** (0030) — 2026-11-12: casa também pelo pacote ou
       endereço do servidor (0030).
   - Pronto quando: o casamento deixa de depender só do nome (ou a limitação é mostrada ao usuário), com teste.
-- [ ] **M7. Execução real com modelo para o que o `init` não prova.** (0026 "Consequências")
+- [x] **M7. Execução real com modelo para o que o `init` não prova.** (0026 "Consequências") — 2026-11-12: medido
+      com haiku; a CLI reinicia um servidor que morreu, o `CLAUDE.md` chega, o canal acrescenta (0026).
   - Pronto quando: foram medidos contagem real de tokens de entrada, morte de servidor no meio da execução,
     comportamento no cancelamento, `CLAUDE.md`/auto-memória chegando ao modelo e a semântica do
     `--append-system-prompt`.

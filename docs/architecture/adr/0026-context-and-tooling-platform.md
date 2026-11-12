@@ -92,9 +92,21 @@ Detalhes e tabela: página de desenho, seção 10; reproduzível com `docs/archi
 - `connected` não é evidência de que uma ferramenta é utilizável; o Atlas compara as ferramentas esperadas e as expostas.
 - Sob a estratégia A a CLI inicia e para servidores stdio fora do guard de processos do Atlas, e os resultados das
   ferramentas não passam pelo Atlas. A autoridade do Atlas é o que ele expõe no lançamento e o que repassa depois.
-- Contagens reais de tokens de entrada, morte de servidor no meio da execução, comportamento no cancelamento,
-  auto-memória/`CLAUDE.md` chegando ao modelo e a semântica do `--append-system-prompt` precisam de uma execução real com
-  modelo. Nenhuma foi feita; o Atlas perguntará antes de gastar tokens.
+- **Medido com modelo real** (M7, 2026-11-12, haiku, autorizado pelo usuário). Teste
+  `application::executions::real_runtime_tests::real_model_claude_what_init_does_not_prove`, mais os de cancelamento.
+  O que se viu:
+  - **Tokens de entrada:** o runtime informa a contagem real e o manifest a guarda: ~16 mil com um servidor MCP
+    concedido e ~7,7 mil sem nenhum (com parte servida do cache).
+  - **Servidor que morre no meio:** o servidor `MODE=die` sai logo depois de listar as ferramentas, e mesmo assim a
+    chamada do modelo, segundos depois, recebeu a resposta. A CLI do Claude inicia de novo um servidor stdio que morreu
+    quando uma ferramenta é chamada, e o passo completa. O Atlas não vê esse reinício: ele acontece dentro da CLI
+    (estratégia A, acima).
+  - **Cancelamento:** `real_claude_can_be_interrupted` e `real_claude_mcp_a_stopped_run_leaves_no_server_behind`
+    passam. A execução é interrompida, e nenhum servidor MCP fica rodando depois.
+  - **`CLAUDE.md` do projeto:** chega ao modelo, que respondeu com a palavra-código que só estava nele. Continua
+    `UserControlled`: o Atlas não o tira nem afirma controlá-lo. A auto-memória do usuário não foi medida à parte.
+  - **`--append-system-prompt`:** acrescenta, não substitui. Com o canal ligado, o modelo continua se identificando
+    como Claude Code e vê as instruções do Atlas no system prompt.
 
 ## Fase B (implementada)
 
