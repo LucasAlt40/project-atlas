@@ -74,6 +74,10 @@ pub struct RuntimeRequest {
     /// no MCP server of any kind). Never set for a `text_only` request; a runtime ignores it
     /// when it has no adapter.
     pub mcp: Option<McpLaunch>,
+    /// The person turned the system-prompt channel on (`optimization.systemChannel`): a runtime
+    /// whose channel was measured sends Atlas's instructions on it. A runtime without one ignores
+    /// it and gets one text, as always.
+    pub system_channel: bool,
 }
 
 /// A runtime's answer, normalized: provider-specific output formats stop here.

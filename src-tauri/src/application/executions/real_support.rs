@@ -50,6 +50,8 @@ pub(super) struct Setup<'a> {
     pub sandbox: SandboxMode,
     /// Memory on with these settings (the service is wired either way, so a note can be seeded).
     pub memory: MemorySettings,
+    /// `optimization.systemChannel` (ADR 0036, C3).
+    pub system_channel: bool,
 }
 
 pub(super) struct RealWorld {
@@ -175,6 +177,7 @@ impl RealWorld {
                 FixedFlags {
                     metrics: true,
                     guardrails: true,
+                    system_channel: setup.system_channel,
                     ..FixedFlags::default()
                 }
                 .with_memory(setup.memory),
@@ -261,6 +264,7 @@ impl RealWorld {
             allow_edits: true,
             granted_commands: Vec::new(),
             mcp: None,
+            system_channel: false,
         };
         let events = std::sync::Mutex::new(Vec::new());
         let result = runtime.execute(&request, &|event| events.lock().unwrap().push(event));

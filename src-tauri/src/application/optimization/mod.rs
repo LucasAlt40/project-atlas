@@ -65,6 +65,12 @@ pub trait OptimizationFlags: Send + Sync {
     fn narration_only_when_watched(&self) -> bool {
         false
     }
+
+    /// `optimization.systemChannel`: a runtime with a measured system channel gets Atlas's
+    /// instructions on it.
+    fn system_channel(&self) -> bool {
+        false
+    }
 }
 
 impl OptimizationFlags for ConfigRepository {
@@ -95,6 +101,10 @@ impl OptimizationFlags for ConfigRepository {
     fn narration_only_when_watched(&self) -> bool {
         self.read(|config| config.settings.optimization.narration_only_when_watched)
     }
+
+    fn system_channel(&self) -> bool {
+        self.read(|config| config.settings.optimization.system_channel)
+    }
 }
 
 /// A fixed answer, for tests.
@@ -109,6 +119,7 @@ pub struct FixedFlags {
     pub guardrails: bool,
     pub memory: crate::domain::memory::MemorySettings,
     pub narration_only_when_watched: bool,
+    pub system_channel: bool,
 }
 
 #[cfg(test)]
@@ -141,6 +152,7 @@ impl FixedFlags {
             guardrails: false,
             memory: crate::domain::memory::MemorySettings::default(),
             narration_only_when_watched: false,
+            system_channel: false,
         }
     }
 
@@ -179,6 +191,10 @@ impl OptimizationFlags for FixedFlags {
 
     fn narration_only_when_watched(&self) -> bool {
         self.narration_only_when_watched
+    }
+
+    fn system_channel(&self) -> bool {
+        self.system_channel
     }
 }
 

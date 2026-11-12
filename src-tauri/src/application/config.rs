@@ -85,6 +85,12 @@ pub struct OptimizationSettings {
     /// default: off, every prompt keeps it, byte for byte as before.
     #[serde(default)]
     pub narration_only_when_watched: bool,
+    /// `optimization.systemChannel`: a runtime with a measured system-prompt channel (Claude:
+    /// `--append-system-prompt-file`) gets Atlas's instructions and rules there, the rest as the
+    /// message, so a stable prefix can be served from the provider's cache (ADR 0036, C3). Off by
+    /// default: off, every runtime gets one text, as before.
+    #[serde(default)]
+    pub system_channel: bool,
 }
 
 fn default_guardrails_enabled() -> bool {
@@ -106,6 +112,7 @@ impl Default for OptimizationSettings {
             specs_max_tokens: None,
             memory: crate::domain::memory::MemorySettings::default(),
             narration_only_when_watched: false,
+            system_channel: false,
         }
     }
 }

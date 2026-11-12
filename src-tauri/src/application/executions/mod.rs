@@ -1081,6 +1081,10 @@ impl ExecutionService {
             allow_edits: can_edit,
             granted_commands,
             mcp: mcp_launch,
+            system_channel: self
+                .optimization
+                .as_ref()
+                .is_some_and(|flags| flags.system_channel()),
         };
         // What the adapter will hand to its process, hashed from that same value, before it does.
         // Always: the manifest is the evidence of the delivery, not an optional measurement.
@@ -2483,5 +2487,7 @@ mod rules_tests;
 mod sandbox_real_tests;
 #[cfg(test)]
 mod scope_tests;
+#[cfg(test)]
+mod system_channel_real_tests;
 #[cfg(test)]
 mod tests;

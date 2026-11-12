@@ -1267,6 +1267,8 @@ export interface AppSettingsDto {
     skillsEnabled?: boolean;
     /** Runs nobody watches live (a spec's turns) get no live-narration instruction. Off by default. */
     narrationOnlyWhenWatched?: boolean;
+    /** Claude gets Atlas's instructions on its system channel, for the cache (ADR 0036). Off by default. */
+    systemChannel?: boolean;
     /** `optimization.guardrails.enabled`: review the context before an agent starts. */
     guardrailsEnabled?: boolean;
     /** `optimization.specs.maxTokens`: what the runs of one spec may use together; none: no limit. */

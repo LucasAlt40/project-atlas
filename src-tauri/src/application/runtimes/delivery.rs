@@ -54,15 +54,18 @@ impl Delivery {
         }
     }
 
-    /// The system channel's text, when the runtime has one. For an adapter that really has such a
-    /// channel (none does yet) and for the tests that prove the split.
-    #[cfg_attr(not(test), allow(dead_code))]
+    /// The system channel's text, when the delivery uses one (Claude, with
+    /// `optimization.systemChannel` on).
     pub fn system(&self) -> Option<&str> {
         self.system.as_deref()
     }
 
+    /// The channel this delivery uses.
+    pub fn channel(&self) -> SystemPromptChannel {
+        self.channel
+    }
+
     /// The prompt body: the whole prompt when there is no system channel.
-    #[cfg_attr(not(test), allow(dead_code))]
     pub fn body(&self) -> &str {
         &self.body
     }

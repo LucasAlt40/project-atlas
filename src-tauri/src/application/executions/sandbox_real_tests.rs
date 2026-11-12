@@ -85,6 +85,7 @@ fn run_confined(runtime_id: &str, model: &str, prompt: &dyn Fn(&Path) -> String)
         files: &[("README.md", "test project\n")],
         sandbox: SandboxMode::Required,
         memory: MemorySettings::default(),
+        system_channel: false,
     });
     let record = world.run(&prompt(&world.project));
     Outcome {
@@ -309,6 +310,7 @@ fn bare_escape_is_refused(runtime_id: &str, model: &str) -> BareOutcome {
         files: &[("README.md", "test project\n")],
         sandbox: SandboxMode::Required,
         memory: MemorySettings::default(),
+        system_channel: false,
     });
     let project = world.project.clone();
     let outside = [

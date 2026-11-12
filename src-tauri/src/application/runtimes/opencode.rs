@@ -465,6 +465,7 @@ mod tests {
             allow_edits: false,
             granted_commands: Vec::new(),
             mcp: None,
+            system_channel: false,
         }
     }
 

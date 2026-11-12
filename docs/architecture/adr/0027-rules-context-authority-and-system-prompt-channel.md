@@ -47,8 +47,9 @@ priority, enabled, topic, provenance, metadata }`; escopos Global, Project, Work
 8. **`SystemPromptChannel { Unsupported, Native, Appended }`** substitui o booleano não usado como capacidade do runtime;
    todo adaptador declara `Unsupported` e nenhum recebe uma divisão. `delivery()` só divide para um runtime que declara um
    canal (instruções e rules do Atlas ali, o resto no corpo), com hash das duas partes delimitadas pelo comprimento. O
-   `--append-system-prompt` do Claude continua não adotado: seu comportamento no Windows e com escapes e seu efeito
-   semântico não foram testados.
+   Claude usa o canal só com `optimization.systemChannel` ligada, e por `--append-system-prompt-file` (um arquivo: sem
+   escape e sem argumento de várias linhas), [ADR 0036](0036-custo-do-sdd.md) C3. O efeito semântico de mover o texto
+   para o canal de sistema não foi medido.
 9. **O manifest é evidência, não uma métrica** (reverte a nota da Fase B da ADR 0026 que o ligava à flag de métricas):
    `Execution.plan` e `Execution.manifest` existem para toda execução que montou um prompt, com métricas ligadas ou não,
    e registram as rules e o que aconteceu com cada uma.
