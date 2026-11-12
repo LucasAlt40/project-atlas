@@ -569,7 +569,9 @@ fn settings_default_to_portuguese_and_persist_language_and_selected_workspace() 
                 "skillsEnabled": false,
                 "guardrailsEnabled": true,
                 "specsMaxTokens": null,
-                "memory": { "user": "off", "workspace": "off", "agent": "off", "maxTokens": 600 }
+                "memory": { "user": "off", "workspace": "off", "agent": "off", "maxTokens": 600 },
+                "narrationOnlyWhenWatched": false,
+                "systemChannel": false
             },
             "sandbox": { "mode": "off", "devCaches": true },
             "presence": { "enabled": false, "showNames": true },
