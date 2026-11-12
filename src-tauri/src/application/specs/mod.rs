@@ -18,4 +18,6 @@ pub mod view;
 #[cfg(test)]
 mod real_cli_tests;
 #[cfg(test)]
+mod real_cost_tests;
+#[cfg(test)]
 mod tests;
