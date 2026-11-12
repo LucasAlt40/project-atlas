@@ -246,13 +246,16 @@ impl AppState {
         ));
         let usage = UsageReporter::new(ledger, chat.clone(), agents.clone());
         let remote = Arc::new(RemoteAccess::new(
-            Arc::new(crate::application::remote::gateway::RemoteGateway::new(
-                workflows.clone(),
-                workspaces.clone(),
-                agents.clone(),
-                settings.clone(),
-                orchestrator.clone(),
-            )),
+            Arc::new(
+                crate::application::remote::gateway::RemoteGateway::new(
+                    workflows.clone(),
+                    workspaces.clone(),
+                    agents.clone(),
+                    settings.clone(),
+                    orchestrator.clone(),
+                )
+                .with_specs(specs.clone()),
+            ),
             Arc::new(crate::application::remote::network::fake::Fixed(vec![(
                 "lo0",
                 "127.0.0.1",

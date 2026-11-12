@@ -11,6 +11,23 @@ use crate::domain::interaction::{
     DetectionSource, InteractionAnswer, InteractionKind, PendingInteraction,
 };
 
+/// What a phone may do with a specification (ADR 0035 §15; the person's decision, 2026-11-12).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpecRule {
+    /// See where each document stands and read the text of its current revision.
+    pub follow: bool,
+    /// Approve, ask for changes, write again, publish. Each of these starts an agent or changes
+    /// the project, so it stays at the computer.
+    pub decide: bool,
+}
+
+/// Specifications from the phone: followed, never decided.
+pub const SPECS: SpecRule = SpecRule {
+    follow: true,
+    decide: false,
+};
+
 /// Why a question is not answered from the phone.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -164,5 +181,16 @@ mod tests {
                 }
             ));
         }
+    }
+
+    #[test]
+    fn a_phone_follows_a_specification_and_never_decides_on_one() {
+        assert_eq!(
+            SPECS,
+            SpecRule {
+                follow: true,
+                decide: false
+            }
+        );
     }
 }

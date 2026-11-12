@@ -3008,6 +3008,13 @@ export const ptBR: Record<TranslationKey, string> = {
   'error.config_file_io': 'Não foi possível ler ou gravar o arquivo.',
 
   // Mobile access (ADR 0034): the phone's page, and the desktop dialog that switches it on
+  'mobile.specs.title': 'Especificações',
+  'mobile.specs.approved': '{done} de {total} aprovados',
+  'mobile.specs.revision': 'revisão {number}',
+  'mobile.specs.notWritten': 'Ainda não escrito.',
+  'mobile.specs.notFound': 'Esta especificação não existe mais.',
+  'mobile.specs.failed': 'Não foi possível ler esta especificação. Tente de novo em instantes.',
+  'mobile.specs.atComputer': 'Aprovar, pedir mudanças e publicar se faz no computador.',
   'mobile.loading': 'Carregando…',
   'mobile.retry': 'Tentar de novo',
   'mobile.back': 'Voltar',

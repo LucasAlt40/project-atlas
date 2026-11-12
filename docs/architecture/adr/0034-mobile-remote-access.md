@@ -122,6 +122,11 @@ Notification e service workers não são oferecidos (veja §10).
 | 3     | Uma pergunta de **permissão** ou de **confirmação de runtime**                                                                                                                                                                                 | só a resposta _recusando_ (`deny`/`no`): o remoto pode estreitar, nunca ampliar |
 | 4     | Perguntas de guardrail (qual contexto vai a um modelo), aprovações de comando (`ApprovalBroker`), aplicar/manter/descartar código, retomar uma execução falha/interrompida, iniciar uma execução, entrada de terminal, arquivos, configurações | só no desktop — mostrado no celular como "precisa do computador"                |
 
+**Specs** (ADR 0035 §15, decisão do usuário, 2026-11-12): o celular só **acompanha**. Ele vê em que pé está cada
+documento e lê o texto da revisão atual (`GET /api/specs`, `GET /api/specs/{id}`, nível 0). Aprovar, pedir mudanças,
+escrever de novo e publicar ficam no computador (`policy::SPECS`), porque iniciam um agente ou mudam o projeto, e não
+existe rota que escreva numa spec.
+
 Qualquer coisa que não está nesta tabela não existe como endpoint: não há proxy genérico de comandos do Tauri, nem
 parâmetro de caminho, programa ou arquivo em lugar nenhum da API remota.
 

@@ -563,13 +563,16 @@ fn build_state(
     let usage = UsageReporter::new(ledger, chat.clone(), agents.clone());
     // Off until the person switches it on; nothing listens before that (ADR 0034).
     let remote = Arc::new(application::remote::RemoteAccess::new(
-        Arc::new(application::remote::gateway::RemoteGateway::new(
-            workflows.clone(),
-            workspaces.clone(),
-            agents.clone(),
-            settings.clone(),
-            orchestrator.clone(),
-        )),
+        Arc::new(
+            application::remote::gateway::RemoteGateway::new(
+                workflows.clone(),
+                workspaces.clone(),
+                agents.clone(),
+                settings.clone(),
+                orchestrator.clone(),
+            )
+            .with_specs(specs.clone()),
+        ),
         Arc::new(infrastructure::SystemInterfaces),
     ));
     let overview = Arc::new(SecurityOverview::new(

@@ -6,14 +6,17 @@ import { AlertBanners, ConnectionBanner } from './Banners';
 import { Dashboard } from './Dashboard';
 import { codeInAddress, PairScreen } from './PairScreen';
 import { RunScreen } from './RunScreen';
+import { SpecScreen } from './SpecScreen';
 import { useRemote, type Remote } from './useRemote';
 import styles from './Mobile.module.css';
 
-type Route = { name: 'dashboard' } | { name: 'run'; id: string };
+type Route = { name: 'dashboard' } | { name: 'run'; id: string } | { name: 'spec'; id: string };
 
 function parseRoute(hash: string): Route {
   const match = /^#\/run\/([^/?#]+)/.exec(hash);
   if (match?.[1]) return { name: 'run', id: decodeURIComponent(match[1]) };
+  const spec = /^#\/spec\/([^/?#]+)/.exec(hash);
+  if (spec?.[1]) return { name: 'spec', id: decodeURIComponent(spec[1]) };
   return { name: 'dashboard' };
 }
 
@@ -91,7 +94,7 @@ function Shell({
   return (
     <div className={styles.app}>
       <header className={styles.top}>
-        {route.name === 'run' ? (
+        {route.name !== 'dashboard' ? (
           <a className={styles.back} href="#/" aria-label={t('mobile.back')}>
             ‹ {t('mobile.back')}
           </a>
@@ -113,9 +116,11 @@ function Shell({
         onDismiss={remote.dismissAlert}
       />
       <main className={styles.main}>
-        <ErrorBoundary resetKey={route.name === 'run' ? route.id : 'dashboard'}>
+        <ErrorBoundary resetKey={route.name === 'dashboard' ? 'dashboard' : route.id}>
           {route.name === 'run' ? (
             <RunScreen key={route.id} remote={remote} id={route.id} />
+          ) : route.name === 'spec' ? (
+            <SpecScreen key={route.id} id={route.id} />
           ) : (
             <Dashboard remote={remote} />
           )}

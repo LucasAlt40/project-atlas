@@ -2973,6 +2973,14 @@ export const enUS = {
   'error.config_file_io': 'The file could not be read or written.',
 
   // Mobile access (ADR 0034): the phone's page, and the desktop dialog that switches it on
+  'mobile.specs.title': 'Specifications',
+  'mobile.specs.approved': '{done} of {total} approved',
+  'mobile.specs.revision': 'revision {number}',
+  'mobile.specs.notWritten': 'Not written yet.',
+  'mobile.specs.notFound': 'This specification no longer exists.',
+  'mobile.specs.failed': 'Could not read this specification. Try again in a moment.',
+  'mobile.specs.atComputer':
+    'Approving, asking for changes and publishing are done at the computer.',
   'mobile.loading': 'Loading…',
   'mobile.retry': 'Try again',
   'mobile.back': 'Back',

@@ -175,6 +175,32 @@ Testes: `an_edit_in_atlas_is_a_new_revision_checked_and_waiting_for_approval_and
 `an_edit_undone_by_hand_lets_the_spec_be_published_again` e os de "editing by hand" na tela. Limites: a edição no Atlas
 é por arquivo existente (não cria nem remove um arquivo de capacidade), e a detecção lê o primeiro projeto da spec.
 
+### 15. Acompanhar pelo celular
+
+Por decisão do usuário (2026-11-12), o celular pareado (ADR 0034) **só acompanha** uma spec. A política tem uma linha
+para isso (`remote::policy::SPECS`: seguir sim, decidir não). Aprovar ou pedir mudanças inicia um agente, que manda
+contexto a um modelo, por isso fica no computador.
+
+As rotas são só de leitura: `GET /api/specs` e `GET /api/specs/{id}`, atrás do mesmo pareamento das outras. A projeção
+fica em `remote/specs.rs` e mostra:
+
+- título, workspace e status;
+- a fase e a revisão de cada documento;
+- o texto da revisão atual, com segredos redigidos e limite de tamanho.
+
+Um arquivo de especificação é nomeado pela capacidade. Nunca vão ao celular um caminho do projeto, um worktree ou um
+diff. Nenhuma rota escreve numa spec.
+
+Testes:
+
+- `a_phone_follows_a_specification_and_never_decides_on_one`;
+- `the_phone_reads_each_document_without_folders_secrets_or_a_way_to_decide`;
+- `a_phone_follows_a_specification_and_has_no_way_to_decide_on_it`, que é de rota e cobre pareamento, leitura e 404
+  para qualquer escrita;
+- o de "specifications" na página do celular.
+
+Limite: a lista de specs do celular é lida quando a página abre, não pelo fluxo de eventos.
+
 ## Descartado
 
 - **Mesclar deltas em `openspec/specs/` sem a CLI** (decisão do usuário, 2026-11-11): reimplementar o archive do
@@ -184,7 +210,6 @@ Testes: `an_edit_in_atlas_is_a_new_revision_checked_and_waiting_for_approval_and
 ## O que não foi feito (e por quê)
 
 - **Spec Kit**: fora do escopo desta entrega.
-- **Acompanhar/aprovar pelo celular** (ADR 0034): nada impede, nada foi feito.
 
 ## Riscos conhecidos
 

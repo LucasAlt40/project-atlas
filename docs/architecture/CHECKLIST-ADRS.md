@@ -276,7 +276,8 @@ ADRs: 0013, 0014, 0018, 0019, 0035, 0009.
 - [x] **W5. Passos paralelos compartilham a árvore.** (0014) — 2026-11-11: mantido por decisão do usuário (0014).
   - Pronto quando: há decisão. Hoje o delta por passo pode incluir arquivos do outro; ou isolar por passo ou manter e
     deixar o aviso de sobreposição como o limite documentado.
-- [ ] **W6. Spec: acompanhar/aprovar pelo celular.** (0035; 0034)
+- [x] **W6. Spec: acompanhar/aprovar pelo celular.** (0035; 0034) — 2026-11-12: só acompanhar, por decisão do usuário;
+      rotas só GET, uma linha de política, testes de política e de rota (0035 §15, 0034 §8).
   - Onde: `application/remote/policy.rs`, rotas de `remote_server.rs`, `src/mobile/`.
   - Pronto quando: uma linha de política por ação nova, teste de política e de rota, e nenhuma ação nova sem
     pareamento válido (ADR 0034). Nada de caminhos de projeto/worktree nem diffs no celular.
