@@ -432,7 +432,7 @@ impl RuntimeRegistry {
 /// This is the single place a [`RuntimeStatus`] is assembled.
 pub fn inspect(runtime: &dyn ModelRuntime) -> RuntimeStatus {
     let info = runtime.info();
-    let detection = runtime.detect();
+    let mut detection = runtime.detect();
     let usable = detection.installed && detection.unavailable.is_none();
     let (models, discovery, error) = if !usable {
         (Vec::new(), ModelDiscovery::Unavailable, None)
@@ -441,6 +441,12 @@ pub fn inspect(runtime: &dyn ModelRuntime) -> RuntimeStatus {
     } else {
         match runtime.list_models() {
             Ok(models) => (models, ModelDiscovery::Discovered, None),
+            // A runtime with no status command can still say, while listing its models, that no
+            // one is signed in: that is what the person needs to know, before any run.
+            Err(RuntimeError::AuthenticationRequired) => {
+                detection.authentication.state = crate::domain::runtime::AuthState::Required;
+                (Vec::new(), ModelDiscovery::Failed, None)
+            }
             Err(error) => (
                 Vec::new(),
                 ModelDiscovery::Failed,

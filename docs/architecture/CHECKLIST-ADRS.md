@@ -208,7 +208,8 @@ ADRs: 0037 (e 0040/0041 como contexto; não duplicar).
 - [x] **MEM2. Decidir padrões e cotas com os números.** (0037 "Decisões pendentes") — 2026-11-11: modo escolhido
       pela pessoa, `propose` recomendado, cotas e validades mantidas; escrito na 0037.
   - Pronto quando: modo padrão por escopo, cotas e validades definidos pelos números de MEM1 e escritos na ADR.
-- [ ] **MEM3. Agente propor notas, com amostra.** (0039)
+- [x] **MEM3. Agente propor notas, com amostra.** (0039) — 2026-11-12: 0 em 14 no Copilot (`auto`); a mesma regra
+      funciona no OpenCode e no Codex, então é limite do modelo (0039).
   - Pronto quando: o resultado "0 em 1 execução" virou uma medição com amostra suficiente para dizer se é limite do
     Copilot ou do prompt.
 - [x] **MEM4. Fechar a 0037.** — 2026-11-11: status aceito e implementado; fases e pendências trocadas pela medição.
@@ -276,7 +277,10 @@ ADRs: 0009, 0034, 0028, 0038, 0039, 0044. **O CI já roda `npm run check` em ubu
 - [ ] **X5. App empacotado (`tauri build`) com o servidor remoto ligado.** (0034) — manual/CI de release.
 - [ ] **X6. Copilot.** (0039) — login conhecido (hoje só `AuthenticationRequired` na execução), modelo diferente de
       `auto`, fluxo longo fora do sandbox.
-- [ ] **X7. Servidores MCP do Copilot não estritos e sem sonda.** (0039) — decidir entre aceitar o limite ou filtrar.
+  - 2026-11-12: login sem execução pela listagem do ACP (deslogado não verificado de verdade); esta conta só oferece
+    `auto`, registrado como limite. Falta o fluxo longo fora do sandbox (um workflow real, alguns premium requests).
+- [x] **X7. Servidores MCP do Copilot não estritos e sem sonda.** (0039) — 2026-11-12: aceito como limite pelo usuário
+      (0039). — decidir entre aceitar o limite ou filtrar.
 
 ## Bloco 9 · Higiene das ADRs (executar no fim de cada bloco)
 
@@ -294,7 +298,7 @@ Os blocos 5, 6 e 7 foram concluídos e apagados (2026-11-12). O que resta:
 
 1. **S1/S3 com o Codex** (cota volta em 2026-11-16; pedir autorização), **S5**.
 2. **M3** (o CI só prova com um push), **M5**, **M7** (reais); **M2** fica para quando o OAuth for decidido.
-3. **MEM3**; **C3** (medição real, pedir autorização).
+3. **X6**: falta o fluxo longo do Copilot fora do sandbox (alguns premium requests).
 4. **X2–X7** conforme dê acesso a máquinas/celular.
 5. **H1–H5** ao fim de cada bloco.
 

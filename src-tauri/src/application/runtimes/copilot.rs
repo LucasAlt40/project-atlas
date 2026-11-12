@@ -256,6 +256,21 @@ fn parse_models(stdout: &str) -> Result<Vec<ModelInfo>, RuntimeError> {
         .ok_or_else(|| {
             RuntimeError::UnexpectedResponse("Copilot did not list its models.".into())
         })?;
+    // The Agent Client Protocol answers `session/new` with an error when no one is signed in
+    // (`auth_required`, code -32000): the sign-in is then known without running a model.
+    if let Some(error) = answer.get("error") {
+        let code = error["code"].as_i64();
+        let message = error["message"]
+            .as_str()
+            .unwrap_or_default()
+            .to_ascii_lowercase();
+        if code == Some(-32000) || message.contains("auth") || message.contains("login") {
+            return Err(RuntimeError::AuthenticationRequired);
+        }
+        return Err(RuntimeError::UnexpectedResponse(
+            "Copilot did not list its models.".to_owned(),
+        ));
+    }
     let mut models: Vec<ModelInfo> = Vec::new();
     for entry in answer["result"]["models"]["availableModels"]
         .as_array()
@@ -576,6 +591,26 @@ mod tests {
             .collect();
         // `auto` once, and not the model the account has not enabled.
         assert_eq!(ids, ["auto", "gpt-6-luna"]);
+    }
+
+    #[test]
+    fn signed_out_is_known_from_the_model_listing_before_any_run() {
+        let fake = Arc::new(FakeProcessRunner::new(&["copilot"], |spec| {
+            match spec.args[0].as_str() {
+                "--acp" => ok(concat!(
+                    r#"{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":1}}"#,
+                    "\n",
+                    r#"{"jsonrpc":"2.0","id":2,"error":{"code":-32000,"message":"Authentication required"}}"#,
+                )),
+                _ => ok("1.0.97\n"),
+            }
+        }));
+
+        let status = inspect(&CopilotRuntime::new(fake));
+
+        assert_eq!(status.availability, Availability::AuthenticationRequired);
+        assert_eq!(status.authentication.state, AuthState::Required);
+        assert_eq!(status.available_models, []);
     }
 
     #[test]
