@@ -98,6 +98,10 @@ endereçados por `projectId`).
 ## Consequências e limites
 
 - O cenário "escreve em vários projetos em uma tarefa" não é uma execução (acima).
-- A verificação de obsolescência de um projeto escaneia o projeto; a visão geral escaneia todo projeto a cada leitura.
+- A verificação de obsolescência de um projeto escaneia o projeto. A visão geral do workspace, lida muitas vezes,
+  **reaproveita por 30 s** o fingerprint de cada projeto (`FINGERPRINT_TTL`, 2026-11-11) em vez de escanear todos a cada
+  leitura. O status de um projeto sozinho continua escaneando na hora e renova o cache; gravar ou apagar o Harness de um
+  projeto o esquece. Uma mudança feita no projeto aparece na visão geral em até 30 s. Teste:
+  `looking_at_the_overview_again_reuses_each_projects_fingerprint_until_its_harness_is_written`.
 - Os projetos consultados são informados como fragmentos de Harness; seus arquivos brutos só são legíveis por execuções
   do Claude sem ferramentas de edição.

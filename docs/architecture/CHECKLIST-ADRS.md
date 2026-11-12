@@ -310,7 +310,8 @@ ADRs: 0033, 0043.
 - [x] **P2. Escopo de workflow por passo.** (0033) — 2026-11-11: descartado pelo usuário (0033). — hoje por execução. Só se houver caso real; senão descartar por escrito.
 - [x] **P3. Handoff com diff grande.** (0043) — 2026-11-11: resumo por arquivo dentro do mesmo orçamento (0043). — a execução seguinte recebe resumo estruturado do diff (arquivos,
       trechos relevantes) em vez de só o começo; respeitando o orçamento do contexto.
-- [ ] **P4. Varredura de obsolescência por leitura.** (0033) — a visão geral não escaneia todo projeto a cada leitura
+- [x] **P4. Varredura de obsolescência por leitura.** (0033) — 2026-11-11: cache de 30 s só na visão geral, esquecido
+      ao gravar o Harness (0033). — a visão geral não escaneia todo projeto a cada leitura
       (cache com invalidação), com teste.
 - [x] **P5. Execuções paralelas da cadeia.** (0043) — 2026-11-11: descartado pelo usuário, fica sequencial (0043). — **descartar por escrito** se a decisão for manter sequencial
       (era a escolha da ADR); não implementar sem decisão do usuário.
