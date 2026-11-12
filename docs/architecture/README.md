@@ -413,7 +413,7 @@ ou um estado compartilhado precise deles.
 - [0022 — Camada de Otimização, fase 2: Skills com divulgação progressiva](adr/0022-skills.md)
 - [0023 — RTK (Rust Token Killer): avaliado, construído e removido](adr/0023-rtk-evaluated-and-removed.md)
 - [0024 — Camada de Otimização, fase 4: o que um runtime consegue alcançar (superfície e isolamento)](adr/0024-runtime-surface-and-isolation.md)
-- [0025 — Camada de Otimização, fase 5: Guardrails e Revisão de Contexto](adr/0025-guardrails-and-context-review.md)
+- [0025 — Camada de Otimização, fase 5: Guardrails e Revisão de Contexto](adr/0025-guardrails-and-context-review.md) — aceito e implementado; autonomia e `--restricted` descartados, léxico adiado
 - [0026 — Context & Tooling Platform (Fase A: arquitetura e spike)](adr/0026-context-and-tooling-platform.md) — desenho: [context-and-tooling-platform.md](context-and-tooling-platform.md)
 - [0027 — Rules, Autoridade de Contexto e o canal de system prompt (Fase C)](adr/0027-rules-context-authority-and-system-prompt-channel.md)
 - [0028 — Fundação MCP (Fase D)](adr/0028-mcp-foundation.md)

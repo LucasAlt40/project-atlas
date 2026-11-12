@@ -130,7 +130,8 @@ ADRs: 0038, 0039, 0044, 0026, 0027, 0025.
   - Pronto quando: há decisão registrada. A ADR já disse que escanear gera ruído ("o usuário aprovou" é comum numa
     tarefa de workflow). Se não implementar, mover para "Descartado" com o motivo; se implementar, só sinalizar, nunca
     bloquear.
-- [ ] **S9. Decisões abertas de autonomia.** (0025 "Decisões pendentes")
+- [x] **S9. Decisões abertas de autonomia.** (0025 "Decisões pendentes") — 2026-11-11: decididas pelo usuário: (a) não
+      introduzir, (b) não adotar `--restricted`, (c) adiar até ter casos. Registradas na 0025.
   - (a) Introduzir autonomia Manual/Guiado/Auto e o que cada uma significa para o `ASK`.
   - (b) `--restricted` para o Claude (decisão C): precisa de **uma execução real pequena** antes.
   - (c) Ampliar o léxico de conflitos a partir de projetos reais (`application/rules/`).

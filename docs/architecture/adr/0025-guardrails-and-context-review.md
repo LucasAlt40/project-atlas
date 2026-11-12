@@ -1,5 +1,7 @@
 # 0025 — Camada de Otimização, fase 5: Guardrails e Revisão de Contexto
 
+Status: aceito e implementado. Sem decisões pendentes: as três de 2026-11-11 estão em "Descartado" e "Adiado".
+
 ## Contexto
 
 A fase 5 pede guardrails contextuais ("dados o agente, a tarefa, o contexto, o runtime e a política, isto pode
@@ -228,7 +230,7 @@ modelo, antes de a autenticação ser exercitada), e o que os hooks ou regras de
 arquivos de configuração ignorados, faziam por ele (por exemplo, um hook de que ele dependa deixaria de se aplicar). Cada
 um desses pontos precisa de uma chamada de modelo.
 
-**Decisão: C, investigar depois.** Não adotado. A evidência diz que ele pode acrescentar isolamento dos plugins,
+**Decisão: C, investigar depois** (fechada em 2026-11-11: não adotado, veja "Descartado"). Não adotado. A evidência diz que ele pode acrescentar isolamento dos plugins,
 configurações e memória do usuário e nada além, e a parte que mais importaria (o confinamento das ferramentas de arquivo
 em uma execução com edição, e o login) não pode ser demonstrada sem gastar tokens. O próximo passo é uma pequena
 execução real, com o aval do usuário, em um passo com edição habilitada em um worktree descartável: pedir que escreva
@@ -253,8 +255,21 @@ fora da pasta e que toque no `.git`, com e sem a flag, e verificar o login.
   passo.
 - As métricas e a revisão são guardadas por execução; não há dashboard (fase 7).
 
-## Decisões pendentes
+## Descartado
 
-1. Se vamos introduzir autonomia (Manual / Guiado / Auto) e o que cada uma significa para o `ASK`.
-2. `--restricted` para o Claude: decisão C, é preciso uma pequena execução real (veja acima).
-3. Estender o léxico de conflitos a partir de projetos reais.
+- **Modos de autonomia (Manual / Guiado / Auto).** Decidido pelo usuário em 2026-11-11: não introduzir. O `ASK`
+  continua só onde uma pessoa pode responder (um passo de workflow); numa conversa o problema é informado e a execução
+  segue. O único "automático" que existe é uma configuração da pessoa por execução, a aprovação automática de planos
+  ([ADR 0031](0031-plan-approval.md)), e ele não alcança os guardrails.
+- **`--restricted` para o Claude.** Decidido pelo usuário em 2026-11-11: não adotar. A parte que mais importaria, o
+  confinamento da ferramenta de arquivo numa execução com edição, a própria CLI já faz no modo em que o Atlas a lança:
+  na rodada real de 2026-11-11 (`sandbox_real_bare_claude_cannot_escape`, [ADR 0038](0038-macos-sandbox.md)) o `Write`
+  do Claude, sem a flag, recusou escrever em `~`, em `/private/tmp` e em `.git/hooks`. O ganho que sobra (não carregar
+  plugins, configurações e memória do usuário) não justifica uma flag cujo efeito no login e nos hooks do usuário não
+  foi medido.
+
+## Adiado
+
+- **Ampliar o léxico de conflitos a partir de projetos reais.** Decidido pelo usuário em 2026-11-11: adiar até
+  aparecer um caso. Amplia-se quando houver um conflito real que o detector não pegou, e o caso vira o teste da
+  ampliação. Até lá o vocabulário fechado fica como está e o resto continua a cargo do modelo.
