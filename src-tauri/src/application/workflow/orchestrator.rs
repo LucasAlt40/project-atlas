@@ -601,6 +601,28 @@ impl Orchestrator {
         later_run || chain.skipped.iter().any(|s| s.by_execution_id == exec.id)
     }
 
+    /// The completed runs whose chain is ready to go on now and has not (ADR 0043, P1): a next
+    /// project left, nothing stopped it, it was not continued or skipped already, and, for a chain
+    /// that waits for the code, the code was applied or kept. What the app goes on with when it
+    /// opens, as the person's "continue" would.
+    pub fn chains_ready_to_go_on(&self) -> Vec<String> {
+        self.workflows
+            .completed_chain_runs()
+            .into_iter()
+            .filter(|exec| {
+                let Some(chain) = exec.chain.as_ref() else {
+                    return false;
+                };
+                chain.next().is_some()
+                    && chain.stopped.is_none()
+                    && !self.chain_went_on(exec, chain)
+                    && (!chain.wait_for_delivery
+                        || exec.integration.status.delivery() == Delivery::Done)
+            })
+            .map(|exec| exec.id)
+            .collect()
+    }
+
     /// Goes on with a completed run's chain now: starts (saves, does not drive) the run of the
     /// next project that needs one and returns its id. For the person's "continue", and for the
     /// moment they decide about the code of a chain that waits for it.

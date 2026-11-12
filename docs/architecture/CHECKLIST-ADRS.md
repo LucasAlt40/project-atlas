@@ -304,7 +304,8 @@ ADRs: 0013, 0014, 0018, 0019, 0035, 0009.
 
 ADRs: 0033, 0043.
 
-- [ ] **P1. Retomar a cadeia sozinho.** (0043) — após reabrir o app entre duas execuções, a próxima é criada
+- [x] **P1. Retomar a cadeia sozinho.** (0043) — 2026-11-11: decisão do usuário; segue sozinha ao abrir o app, com
+      teste de reinício (0043). — após reabrir o app entre duas execuções, a próxima é criada
       automaticamente (hoje só o botão "Continuar"); com confirmação se mudar o comportamento atual. Teste de reinício.
 - [ ] **P2. Escopo de workflow por passo.** (0033) — hoje por execução. Só se houver caso real; senão descartar por escrito.
 - [ ] **P3. Handoff com diff grande.** (0043) — a execução seguinte recebe resumo estruturado do diff (arquivos,

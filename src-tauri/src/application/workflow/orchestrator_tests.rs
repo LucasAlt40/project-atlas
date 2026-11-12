@@ -3581,6 +3581,42 @@ fn completed_first_run_of_a_chain(
     first.id
 }
 
+/// ADR 0043, P1: a chain a previous session left ready to go on is found when the app opens,
+/// and once it went on it is not found again; one that waits for the code waits.
+#[test]
+fn after_a_restart_a_chain_ready_to_go_on_is_found_once_and_one_that_waits_is_not() {
+    use crate::domain::workflow::IntegrationStatus;
+    let env = env();
+    let ready = completed_first_run_of_a_chain(&env, false, IntegrationStatus::ChangesAvailable);
+    // The app closed here: a new orchestrator over the same stored runs.
+    let runner = Scripted::new();
+    let restarted = env.orchestrator(&runner);
+
+    assert_eq!(
+        restarted.chains_ready_to_go_on(),
+        std::slice::from_ref(&ready)
+    );
+    let next = restarted
+        .go_on_with_chain(&ready, &Collector::default())
+        .unwrap();
+    assert_eq!(env.service.chain_runs(&ready)[1].id, next);
+    // Gone on once: nothing more to find.
+    assert!(!restarted.chains_ready_to_go_on().contains(&ready));
+}
+
+#[test]
+fn after_a_restart_a_chain_that_waits_for_the_code_is_not_gone_on_with() {
+    use crate::domain::workflow::IntegrationStatus;
+    let env = env();
+    let waiting = completed_first_run_of_a_chain(&env, true, IntegrationStatus::ChangesAvailable);
+    let runner = Scripted::new();
+
+    assert!(!env
+        .orchestrator(&runner)
+        .chains_ready_to_go_on()
+        .contains(&waiting));
+}
+
 #[test]
 fn a_chain_that_waits_goes_on_only_once_the_code_is_applied_and_only_once() {
     use crate::domain::workflow::IntegrationStatus;

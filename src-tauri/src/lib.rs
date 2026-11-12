@@ -108,6 +108,8 @@ pub fn run() {
                 live,
                 spec_events,
             ));
+            // A chain the last session left ready to go on goes on now (ADR 0043).
+            commands::workflow::go_on_with_chains_at_start(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

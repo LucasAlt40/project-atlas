@@ -67,6 +67,12 @@ Escolhido: **A**.
 - O merge continua por projeto. A execução seguinte não vê os arquivos do worktree da anterior, só o que lhe é escrito
   no prompt; se o diff for grande, só o começo.
 - As execuções são sequenciais (uma por vez por workflow, como antes). Não há execuções paralelas da cadeia.
-- Se o app fechar entre uma execução que concluiu e o início da próxima, a próxima não é criada sozinha: o botão
-  "Continuar" da barra da cadeia a cria.
+- Se o app fechar entre uma execução que concluiu e o início da próxima, **a próxima é criada e conduzida quando o app
+  abre** (decisão do usuário, 2026-11-11): `Orchestrator::chains_ready_to_go_on` acha as execuções concluídas cuja
+  cadeia tem um próximo projeto, não foi parada nem seguida nem pulada, e (se espera a entrega) teve o código aplicado
+  ou mantido; o app chama para cada uma o mesmo "Continuar" (`go_on_with_chain`) e conduz a execução nova. Uma cadeia
+  que espera a entrega continua esperando. O botão "Continuar" segue valendo. Testes:
+  `after_a_restart_a_chain_ready_to_go_on_is_found_once_and_one_that_waits_is_not` e
+  `after_a_restart_a_chain_that_waits_for_the_code_is_not_gone_on_with`. Não verificado: a abertura real do app (o
+  caminho do `setup` do Tauri não tem teste).
 - O chat de um agente (fora do workflow) continua com um projeto de trabalho e consultas.
