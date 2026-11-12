@@ -186,6 +186,12 @@ struct Turn {
     run_id: String,
 }
 
+fn header() {
+    eprintln!(
+        "\n| turn | outcome | input | of it cached | output | cost (USD) |\n| --- | --- | --- | --- | --- | --- |"
+    );
+}
+
 impl World {
     fn latest_run(&self, id: &str) -> String {
         self.specs
@@ -205,14 +211,16 @@ impl World {
                 .prepare_generation(id, artifact)
                 .unwrap_or_else(|e| panic!("{label}: cannot start: {e:?}"))
                 .run(&Quiet);
-            turns.push(Turn {
+            let turn = Turn {
                 label: if attempt == 0 {
                     label.to_owned()
                 } else {
                     format!("{label} (after the answer)")
                 },
                 run_id: self.latest_run(id),
-            });
+            };
+            eprintln!("{}", row(self, id, &turn));
+            turns.push(turn);
             let spec = self.specs.get(id).unwrap();
             let open = spec
                 .questions
@@ -289,6 +297,8 @@ impl World {
                 self.specs
                     .keep_outdated(id, &artifact.id, revision)
                     .unwrap_or_else(|e| panic!("keep {}: {e:?}", artifact.id));
+                // Keeping it puts it back in front of the person: approved again, as they would.
+                self.approve(id, &artifact.id);
             }
         }
     }
@@ -298,10 +308,12 @@ impl World {
             .prepare_review(id)
             .unwrap_or_else(|e| panic!("{label}: cannot start: {e:?}"))
             .run(&Quiet);
-        turns.push(Turn {
+        let turn = Turn {
             label: label.to_owned(),
             run_id: self.latest_run(id),
-        });
+        };
+        eprintln!("{}", row(self, id, &turn));
+        turns.push(turn);
     }
 }
 
@@ -356,6 +368,8 @@ assumptions instead of asking."
     let id = view.spec.id;
     w.specs.start(&id).unwrap();
     let mut turns = Vec::new();
+    eprintln!("[C1] runtime={runtime} model={model}");
+    header();
 
     for artifact in ["proposal", "specs", "design", "tasks"] {
         w.generate(&id, artifact, &format!("write {artifact}"), &mut turns);
@@ -401,10 +415,6 @@ operating system until the user chooses one.",
     w.keep_outdated(&id);
     w.review(&id, "review 2 (knows what changed)", &mut turns);
 
-    eprintln!("\n[C1] runtime={runtime} model={model}\n| turn | outcome | input | of it cached | output | cost (USD) |\n| --- | --- | --- | --- | --- | --- |");
-    for turn in &turns {
-        eprintln!("{}", row(&w, &id, turn));
-    }
     eprintln!("\n[C1] design after the edit: {edited_design}");
     let usage = w.specs.view(&id).unwrap().usage;
     eprintln!("[C1] spec total: {usage:?}");
