@@ -2,6 +2,7 @@
 //! documents a person approved. The format (`OpenSpec`) and the agents that write the documents are
 //! outside this module.
 
+pub mod diff;
 mod model;
 pub mod rules;
 

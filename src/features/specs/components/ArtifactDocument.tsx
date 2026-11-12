@@ -5,6 +5,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { agoText } from '@/features/workflow/model/time';
 import { stageName } from '../model/messages';
 import type { SpecArtifact, SpecView } from '../types';
+import { RevisionDiff } from './RevisionDiff';
 import { SpecsOutline } from './SpecsOutline';
 import styles from './Specs.module.css';
 
@@ -27,6 +28,8 @@ export function ArtifactDocument({ view, artifact, focus }: Props) {
   const [revision, setRevision] = useState<number | null>(null);
   const [file, setFile] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>('rendered');
+  /** Another revision to compare the one shown with; `null` shows the document itself. */
+  const [compareWith, setCompareWith] = useState<number | null>(null);
 
   const shown = artifact.revisions.find((r) => r.number === (revision ?? latest?.number));
   const files = shown?.files ?? [];
@@ -81,7 +84,28 @@ export function ArtifactDocument({ view, artifact, focus }: Props) {
               </select>
             </label>
           )}
-          {canRender && (
+          {artifact.revisions.length > 1 && (
+            <label className={styles.inline}>
+              <span className={styles.srOnly}>{t('specs.diff.compareWith')}</span>
+              <select
+                value={compareWith ?? ''}
+                onChange={(event) => {
+                  setCompareWith(event.target.value === '' ? null : Number(event.target.value));
+                }}
+              >
+                <option value="">{t('specs.diff.none')}</option>
+                {[...artifact.revisions]
+                  .reverse()
+                  .filter((r) => r.number !== shown.number)
+                  .map((r) => (
+                    <option key={r.number} value={r.number}>
+                      {t('specs.diff.against', { number: r.number })}
+                    </option>
+                  ))}
+              </select>
+            </label>
+          )}
+          {canRender && compareWith === null && (
             <SegmentedControl
               label={t('specs.doc.view')}
               value={mode}
@@ -112,7 +136,14 @@ export function ArtifactDocument({ view, artifact, focus }: Props) {
         </div>
       )}
       <div className={styles.docPage}>
-        {canRender && mode === 'rendered' ? (
+        {compareWith !== null && compareWith !== shown.number ? (
+          <RevisionDiff
+            specId={view.spec.id}
+            artifactId={artifact.id}
+            from={compareWith}
+            to={shown.number}
+          />
+        ) : canRender && mode === 'rendered' ? (
           <SpecsOutline outline={outline} focus={focus} />
         ) : mode === 'source' || artifact.id === 'specs' ? (
           <pre className={styles.source}>{current.content}</pre>

@@ -280,7 +280,8 @@ ADRs: 0013, 0014, 0018, 0019, 0035, 0009.
   - Onde: `application/remote/policy.rs`, rotas de `remote_server.rs`, `src/mobile/`.
   - Pronto quando: uma linha de política por ação nova, teste de política e de rota, e nenhuma ação nova sem
     pareamento válido (ADR 0034). Nada de caminhos de projeto/worktree nem diffs no celular.
-- [ ] **W7. Spec: diff entre revisões.** (0035, 0036: **uma** implementação para as duas)
+- [x] **W7. Spec: diff entre revisões.** (0035, 0036: **uma** implementação para as duas) — 2026-11-12: calculado no
+      núcleo, "Comparar com" no documento (0035 §12).
   - Pronto quando: a tela mostra o diff entre revisões do documento, calculado no núcleo, testado.
 - [ ] **W8. Spec: edição manual e sincronização de arquivos editados à mão.** (0035)
   - Pronto quando: edição manual é aceita com validação, e a mudança feita fora do Atlas é detectada e reconciliada sem

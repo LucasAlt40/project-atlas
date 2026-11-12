@@ -441,6 +441,10 @@ export interface CommandMap {
     args: { specId: string; artifactId: string; expectedRevision: number };
     result: SpecViewDto;
   };
+  spec_revision_diff: {
+    args: { specId: string; artifactId: string; from: number; to: number };
+    result: RevisionDiffDto;
+  };
   answer_spec_question: {
     args: { specId: string; questionId: string; choice: string | null; answer: string | null };
     result: SpecActionDto;
@@ -4024,4 +4028,24 @@ export interface SpecCliCheckDto {
   valid: boolean;
   issues: { level: string; path: string; message: string }[];
   at: number;
+}
+
+/** Mirrors `domain::spec::diff::RevisionDiff`: what changed in a document between two revisions. */
+export type DiffLineDto =
+  { kind: 'same' | 'added' | 'removed'; text: string } | { kind: 'gap'; lines: number };
+
+export interface FileDiffDto {
+  path: string;
+  change: 'added' | 'removed' | 'changed' | 'unchanged';
+  added: number;
+  removed: number;
+  /** Too large to compare line by line: only that it changed. */
+  tooLarge: boolean;
+  lines: DiffLineDto[];
+}
+
+export interface RevisionDiffDto {
+  from: number;
+  to: number;
+  files: FileDiffDto[];
 }

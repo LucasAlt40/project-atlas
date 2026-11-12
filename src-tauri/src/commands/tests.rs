@@ -148,6 +148,7 @@ pub(super) fn app_window(
             super::specs::start_spec,
             super::specs::generate_spec_artifact,
             super::specs::keep_spec_artifact,
+            super::specs::spec_revision_diff,
             super::specs::answer_spec_question,
             super::specs::answer_spec_findings,
             super::specs::resolve_spec_finding,

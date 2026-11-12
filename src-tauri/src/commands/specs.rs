@@ -3,6 +3,7 @@
 //! (and a document of it), and what is written, run or published is what Atlas stored and the
 //! agents' turns report. Every command refuses while the module is off.
 
+use crate::domain::spec::diff::RevisionDiff;
 use serde::Serialize;
 use tauri::{AppHandle, Runtime, State};
 
@@ -226,6 +227,19 @@ pub fn decide_spec_artifact<R: Runtime>(
     };
     let error = next.and_then(|artifact| launch_artifact(&app, &state, &spec_id, &artifact));
     action(&state, &spec_id, error)
+}
+
+/// What changed in a document between two of its revisions. Reads only.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command]
+pub fn spec_revision_diff(
+    state: State<'_, AppState>,
+    spec_id: String,
+    artifact_id: String,
+    from: u32,
+    to: u32,
+) -> Result<RevisionDiff, AppError> {
+    state.specs.revision_diff(&spec_id, &artifact_id, from, to)
 }
 
 /// The person looked at an outdated document and it still holds.

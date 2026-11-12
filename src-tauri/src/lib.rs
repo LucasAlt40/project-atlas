@@ -266,6 +266,7 @@ pub fn run() {
             commands::specs::generate_spec_artifact,
             commands::specs::decide_spec_artifact,
             commands::specs::keep_spec_artifact,
+            commands::specs::spec_revision_diff,
             commands::specs::answer_spec_question,
             commands::specs::answer_spec_findings,
             commands::specs::resolve_spec_finding,

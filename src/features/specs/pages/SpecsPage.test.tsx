@@ -27,6 +27,7 @@ import {
   raiseBudget,
   resolveFinding,
   runReview,
+  specRevisionDiff,
   startSpec,
   subscribeToSpecChanges,
   validateSpec,
@@ -605,6 +606,44 @@ describe('reviewing a document', () => {
     await user.selectOptions(screen.getByLabelText('Revision'), '1');
 
     expect(screen.getByText('Older revision')).toBeInTheDocument();
+  });
+
+  it('shows what changed since another revision, as the core worked it out', async () => {
+    vi.mocked(specRevisionDiff).mockResolvedValue({
+      from: 1,
+      to: 2,
+      files: [
+        {
+          path: 'proposal.md',
+          change: 'changed',
+          added: 1,
+          removed: 1,
+          tooLarge: false,
+          lines: [
+            { kind: 'gap', lines: 4 },
+            { kind: 'removed', text: 'Day shift only.' },
+            { kind: 'added', text: 'Night shift too.' },
+          ],
+        },
+      ],
+    });
+    const user = await open(
+      view('awaiting_review', {
+        artifacts: [
+          artifact('proposal', { revisions: 2 }),
+          artifact('specs'),
+          artifact('design'),
+          artifact('tasks'),
+        ],
+      }),
+    );
+
+    await user.selectOptions(screen.getByLabelText('Compare with'), '1');
+
+    expect(await screen.findByText('Night shift too.', { exact: false })).toBeInTheDocument();
+    expect(screen.getByText('Day shift only.', { exact: false })).toBeInTheDocument();
+    expect(screen.getByText('… 4 unchanged lines …')).toBeInTheDocument();
+    expect(specRevisionDiff).toHaveBeenCalledWith(expect.any(String), 'proposal', 1, 2);
   });
 });
 

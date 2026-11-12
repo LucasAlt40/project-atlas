@@ -667,6 +667,27 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.diff {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.diffFile h4 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--text-high);
+}
+.diffAdded {
+  color: var(--success);
+}
+.diffRemoved {
+  color: var(--danger);
+  text-decoration: line-through;
+}
+.diffGap {
+  color: var(--text-muted);
+  font-style: italic;
+}
 .outline {
   display: flex;
   flex-direction: column;

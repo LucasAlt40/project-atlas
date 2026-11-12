@@ -157,6 +157,7 @@ const COMMANDS: &[&str] = &[
     "generate_spec_artifact",
     "decide_spec_artifact",
     "keep_spec_artifact",
+    "spec_revision_diff",
     "answer_spec_question",
     "answer_spec_findings",
     "resolve_spec_finding",

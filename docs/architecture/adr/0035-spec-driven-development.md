@@ -123,6 +123,16 @@ O revisor recebe a lista como o que pode usar. Na execução a partir da spec, o
 manda deixar fora de `completedTasks` o que não pôde ser verificado por não ter a ferramenta. Uma conexão desligada fica
 escolhida, aparece como desligada e não é citada a nenhum agente. A proposta não recebe a lista: é sobre por quê e o quê.
 
+### 12. Diff entre revisões
+
+O documento mostra o que mudou desde outra revisão ("Comparar com"). O núcleo calcula (`domain/spec/diff.rs`,
+`spec_revision_diff`, só leitura): por arquivo, linha a linha, com três linhas de contexto em volta de cada mudança e o
+resto como intervalos; arquivos novos e removidos aparecem inteiros. A comparação deixa de lado o começo e o fim iguais e
+é um LCS no que sobra; acima de 4 milhões de células o arquivo diz só que mudou, em vez de usar memória sem limite. É a
+mesma implementação para a ADR 0036. Testes: os de `domain::spec::diff`,
+`the_core_says_what_changed_between_two_revisions_of_a_document` e
+"shows what changed since another revision, as the core worked it out".
+
 ## Descartado
 
 - **Mesclar deltas em `openspec/specs/` sem a CLI** (decisão do usuário, 2026-11-11): reimplementar o archive do
@@ -134,7 +144,7 @@ escolhida, aparece como desligada e não é citada a nenhum agente. A proposta n
 - **Spec Kit**: fora do escopo desta entrega.
 - **`skip_specs`** (mudança sem comportamento): o fluxo exige ao menos uma capacidade.
 - **Acompanhar/aprovar pelo celular** (ADR 0034): nada impede, nada foi feito.
-- **Diff entre revisões**, edição manual do documento e sincronização de arquivos alterados à mão no projeto.
+- **Edição manual do documento** e sincronização de arquivos alterados à mão no projeto.
 
 ## Riscos conhecidos
 

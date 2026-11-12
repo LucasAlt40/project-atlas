@@ -553,6 +553,43 @@ fn asking_for_changes_sends_the_current_document_and_the_feedback_and_keeps_the_
 }
 
 #[test]
+fn the_core_says_what_changed_between_two_revisions_of_a_document() {
+    let w = world();
+    let id = started(&w);
+    w.runtime.say(&answer_for("proposal"));
+    generate(&w, &id, "proposal");
+    w.specs
+        .decide(&id, "proposal", 1, DecisionKind::Revise, Some("Night shift too"))
+        .unwrap();
+    w.runtime.say(&doc(
+        "proposal.md",
+        &format!("{PROPOSAL}\nNight shift workers too.\n"),
+    ));
+    generate(&w, &id, "proposal");
+
+    let diff = w.specs.revision_diff(&id, "proposal", 1, 2).unwrap();
+
+    assert_eq!((diff.from, diff.to), (1, 2));
+    let file = &diff.files[0];
+    assert_eq!(file.path, "proposal.md");
+    assert_eq!(file.change, crate::domain::spec::diff::FileChange::Changed);
+    assert!(file.lines.iter().any(|line| matches!(
+        line,
+        crate::domain::spec::diff::DiffLine::Added { text } if text == "Night shift workers too."
+    )));
+    assert!(w
+        .specs
+        .revision_diff(&id, "proposal", 1, 9)
+        .unwrap_err()
+        .is(ErrorCode::SpecArtifactNotFound));
+    assert!(w
+        .specs
+        .revision_diff(&id, "nothing", 1, 2)
+        .unwrap_err()
+        .is(ErrorCode::SpecArtifactNotFound));
+}
+
+#[test]
 fn an_approval_for_a_revision_the_person_is_no_longer_looking_at_is_refused() {
     let w = world();
     let id = started(&w);

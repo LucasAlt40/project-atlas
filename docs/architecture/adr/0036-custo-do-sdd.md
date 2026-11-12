@@ -142,7 +142,6 @@ US$ 4,19, e duas tentativas seguidas de alterar o design falharam antes da terce
   código real. Não foi limitada. O limite de tokens por spec é o freio.
 - **Invalidação por seção.** Documentos dependentes continuam sendo marcados como desatualizados por inteiro quando o
   de origem muda de verdade; decidir "esta mudança não afeta o design" exigiria interpretar o texto.
-- **Diff entre revisões** na tela.
 
 ## O prompt em duas partes, para o cache (C3, 2026-11-11)
 

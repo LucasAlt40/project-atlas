@@ -157,6 +157,7 @@
     "allow-generate-spec-artifact",
     "allow-decide-spec-artifact",
     "allow-keep-spec-artifact",
+    "allow-spec-revision-diff",
     "allow-answer-spec-question",
     "allow-answer-spec-findings",
     "allow-resolve-spec-finding",

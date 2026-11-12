@@ -1,7 +1,7 @@
 import { invokeCommand } from '@/lib/tauri/commands';
 import { listenToEvent } from '@/lib/tauri/events';
 import type { UnlistenFn } from '@tauri-apps/api/event';
-import type { CliStatusDto, SpecChangedDto } from '@/lib/tauri/commands';
+import type { CliStatusDto, RevisionDiffDto, SpecChangedDto } from '@/lib/tauri/commands';
 import type {
   FindingStatus,
   ImportCandidate,
@@ -71,6 +71,16 @@ export function keepArtifact(
   expectedRevision: number,
 ): Promise<SpecView> {
   return invokeCommand('keep_spec_artifact', { specId, artifactId, expectedRevision });
+}
+
+/** What changed in a document between two of its revisions, worked out by the core. */
+export function specRevisionDiff(
+  specId: string,
+  artifactId: string,
+  from: number,
+  to: number,
+): Promise<RevisionDiffDto> {
+  return invokeCommand('spec_revision_diff', { specId, artifactId, from, to });
 }
 
 export function answerQuestion(

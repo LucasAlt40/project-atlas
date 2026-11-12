@@ -6,6 +6,7 @@
 //! Every change goes through [`SpecService::modify`]: made on a copy, saved, and only then
 //! shown; if the save fails the spec is what it was.
 
+use crate::domain::spec::diff::{diff_revisions, RevisionDiff};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 
@@ -240,6 +241,36 @@ impl SpecService {
 
     pub fn get(&self, id: &str) -> Option<Spec> {
         self.specs.lock_or_recover().get(id).cloned()
+    }
+
+    /// What changed in a document from one of its revisions to another, worked out here so every
+    /// screen shows the same thing (ADR 0035, 0036).
+    ///
+    /// # Errors
+    ///
+    /// When the spec, the document or either revision does not exist.
+    pub fn revision_diff(
+        &self,
+        id: &str,
+        artifact_id: &str,
+        from: u32,
+        to: u32,
+    ) -> Result<RevisionDiff, AppError> {
+        let spec = self.require(id)?;
+        let artifact = spec
+            .artifact(artifact_id)
+            .ok_or_else(|| AppError::new(ErrorCode::SpecArtifactNotFound))?;
+        let revision = |number: u32| {
+            artifact
+                .revisions
+                .iter()
+                .find(|r| r.number == number)
+                .ok_or_else(|| {
+                    AppError::new(ErrorCode::SpecArtifactNotFound)
+                        .with("revision", number.to_string())
+                })
+        };
+        Ok(diff_revisions(revision(from)?, revision(to)?))
     }
 
     fn require(&self, id: &str) -> Result<Spec, AppError> {
