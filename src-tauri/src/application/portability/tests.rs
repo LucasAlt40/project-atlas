@@ -26,7 +26,7 @@ use crate::application::workflow::test_support::{
     agent as agent_node, edge, end, on_outcome, with_failure_route, with_loop, with_retries,
 };
 use crate::application::workspace::{WorkspaceInput, WorkspaceService};
-use crate::domain::agent::Agent;
+use crate::domain::agent::{Agent, ImportedModel};
 use crate::domain::mcp::ToolSelection;
 use crate::domain::result_contract::{ContractKind, ResultContract};
 use crate::domain::workflow::{
@@ -651,6 +651,8 @@ fn a_model_the_runtime_does_not_list_is_said_so_with_alternatives_and_is_never_s
         .unwrap();
     let imported = &destination.agents.list()[0];
     assert_eq!(imported.model_id, "opencode/retired");
+    // Nothing was swapped, so there is no other original to remember.
+    assert_eq!(imported.imported_model, None);
 }
 
 #[test]
@@ -674,6 +676,105 @@ fn the_person_can_pick_an_alternative_and_the_original_stays_in_the_report() {
     let outcome = report.items.iter().find_map(|i| i.model.as_ref()).unwrap();
     assert_eq!(outcome.original_model, "opencode/retired");
     assert_eq!(outcome.original_runtime, "opencode");
+}
+
+#[test]
+fn the_original_model_stays_on_the_agent_until_the_person_changes_where_it_runs() {
+    let text = agent_file(&full(), "opencode", "opencode/retired");
+    let destination = full();
+    let preview = destination.service.preview(&text, None).unwrap();
+    let mut request = defaults(&preview, None);
+    request.models.insert(
+        item_of(&preview, "Architect").key.clone(),
+        ModelChoice {
+            runtime_id: "opencode".to_owned(),
+            model_id: "opencode/alt".to_owned(),
+        },
+    );
+    destination.service.import(&text, &request).unwrap();
+
+    // Not only in the report: on the agent, saved with it.
+    let imported = destination.agents.list()[0].clone();
+    assert_eq!(
+        imported.imported_model,
+        Some(ImportedModel {
+            runtime_id: "opencode".to_owned(),
+            model_id: "opencode/retired".to_owned(),
+        })
+    );
+    let saved = destination.config.snapshot();
+    assert_eq!(saved.agents[0].imported_model, imported.imported_model);
+
+    // Editing something else keeps it; choosing another model is the person's answer to it.
+    let edit = |model: &str| CreateAgentRequest {
+        name: imported.name.clone(),
+        personality_id: imported.personality_id.clone(),
+        runtime_id: imported.runtime_id.clone(),
+        model_id: model.to_owned(),
+        instructions: "Other instructions.".to_owned(),
+        worktree_isolation: None,
+        result_contract: None,
+        permission_profile_id: None,
+    };
+    let renamed = destination
+        .agents
+        .update(&imported.id, edit("opencode/alt"))
+        .unwrap();
+    assert!(renamed.imported_model.is_some());
+    let moved = destination
+        .agents
+        .update(&imported.id, edit("opencode/big-pickle"))
+        .unwrap();
+    assert_eq!(moved.imported_model, None);
+}
+
+#[test]
+fn two_configurations_with_the_same_name_here_are_matched_to_the_first_and_the_person_is_told() {
+    let text = agent_file(&full(), "opencode", "opencode/big-pickle");
+    let destination = full();
+    let p = personality(&destination, "Reviewer");
+    let first = agent(&destination, "Architect", &p, "opencode", "opencode/alt");
+    destination
+        .config
+        .modify(|config| {
+            let mut twin = first.clone();
+            twin.id = "agent-twin".to_owned();
+            config.agents.push(twin);
+            Ok(())
+        })
+        .unwrap();
+
+    for _ in 0..2 {
+        let preview = destination.service.preview(&text, None).unwrap();
+        let item = item_of(&preview, "Architect");
+        assert_eq!(
+            item.existing.as_ref().map(|e| e.id.as_str()),
+            Some(first.id.as_str())
+        );
+        let warning = item.issues.iter().find(|i| i.code == "same_name").unwrap();
+        assert_eq!(warning.params.get("count").map(String::as_str), Some("2"));
+    }
+    // Replacing touches the first one only.
+    let preview = destination.service.preview(&text, None).unwrap();
+    let mut request = defaults(&preview, None);
+    request.decisions.insert(
+        item_of(&preview, "Architect").key.clone(),
+        Decision::Replace,
+    );
+    destination.service.import(&text, &request).unwrap();
+    let agents = destination.config.snapshot().agents;
+    assert_eq!(
+        agents.iter().find(|a| a.id == first.id).unwrap().model_id,
+        "opencode/big-pickle"
+    );
+    assert_eq!(
+        agents
+            .iter()
+            .find(|a| a.id == "agent-twin")
+            .unwrap()
+            .model_id,
+        "opencode/alt"
+    );
 }
 
 #[test]
@@ -1300,12 +1401,18 @@ fn a_workflow_with_a_run_in_progress_cannot_be_replaced() {
         .service
         .preview(&changed, Some(&destination.workspace_id))
         .unwrap();
+    // The preview does not offer it and says why, so the person picks another decision there.
+    let flow = item_of(&preview, "Feature flow");
+    assert!(!flow.allowed.contains(&Decision::Replace));
+    assert!(flow.allowed.contains(&Decision::Create));
+    assert!(flow.issues.iter().any(|i| i.code == "workflow_running"));
     let mut request = defaults(&preview, Some(&destination.workspace_id));
     request.decisions.insert(
         item_of(&preview, "Feature flow").key.clone(),
         Decision::Replace,
     );
 
+    // Asked anyway, the import still refuses it.
     rejected(
         &destination.service.import(&changed, &request).unwrap_err(),
         "workflow_running",

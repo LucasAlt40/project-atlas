@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CommandError, type ImportPreviewDto } from '@/lib/tauri/commands';
 import { mockBackend, renderWithProviders, workspace } from '@/test/fixtures';
@@ -84,6 +84,48 @@ describe('ImportDialog', () => {
     });
     expect(previewConfigImport).not.toHaveBeenCalled();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  describe('dropping a file', () => {
+    /** What the webview hands over for a dropped file: its name, size and text, never a path. */
+    const drop = (file: { name: string; size: number; text: () => Promise<string> }) => {
+      fireEvent.drop(screen.getByTestId('import-drop'), {
+        dataTransfer: { files: { length: 1, item: () => file } },
+      });
+    };
+
+    it('reads it into the same preview, and imports nothing without a decision', async () => {
+      mockBackend({});
+      vi.mocked(previewConfigImport).mockResolvedValue(importPreview([reviewer, architect()]));
+      renderWithProviders(<ImportDialog onClose={vi.fn()} />);
+      await screen.findByText('Or drop the .atlas.json file here.');
+
+      drop({
+        name: 'dropped.atlas.json',
+        size: FILE.text.length,
+        text: () => Promise.resolve(FILE.text),
+      });
+
+      expect(await screen.findByText('File: dropped.atlas.json')).toBeInTheDocument();
+      expect(previewConfigImport).toHaveBeenCalledWith(FILE.text, null);
+      expect(pickConfigFile).not.toHaveBeenCalled();
+      expect(importConfigs).not.toHaveBeenCalled();
+    });
+
+    it('refuses a file larger than a configuration can be without reading it', async () => {
+      mockBackend({});
+      renderWithProviders(<ImportDialog onClose={vi.fn()} />);
+      await screen.findByText('Or drop the .atlas.json file here.');
+      const text = vi.fn(() => Promise.resolve(''));
+
+      drop({ name: 'huge.json', size: 3 * 1024 * 1024, text });
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'The file is larger than 2 MB, which is more than a configuration needs.',
+      );
+      expect(text).not.toHaveBeenCalled();
+      expect(previewConfigImport).not.toHaveBeenCalled();
+    });
   });
 
   it('shows what the core said was wrong with a file, in words, and lets the person try another', async () => {
@@ -304,6 +346,25 @@ describe('ImportDialog', () => {
       await user.click(importButton());
 
       expect(vi.mocked(importConfigs).mock.calls[0]?.[1].decisions['agent-2']).toBe('create');
+    });
+
+    it('does not offer to replace a workflow with a run in progress, and says why', async () => {
+      const running = previewItem('workflow-3', 'workflow', 'Feature flow', {
+        existing: { id: 'workflow-local', name: 'Feature flow' },
+        allowed: ['skip', 'create', 'use_existing'],
+        issues: [{ code: 'workflow_running', severity: 'warning', params: {} }],
+      });
+      await review(importPreview([running]), { workspaces: true });
+
+      expect(
+        screen.getByText(/has a run in progress, so it cannot be replaced now/),
+      ).toBeInTheDocument();
+      const decision = screen.getByRole('combobox', { name: 'What to do with Feature flow' });
+      const offered = within(decision)
+        .getAllByRole('option')
+        .map((option) => (option as HTMLOptionElement).value);
+      expect(offered).not.toContain('replace');
+      expect(offered).toContain('create');
     });
 
     it('replaces only after the person confirms it', async () => {

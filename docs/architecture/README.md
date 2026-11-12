@@ -420,7 +420,7 @@ ou um estado compartilhado precise deles.
 - [0029 — MCP para todo runtime que consegue suportá-lo](adr/0029-mcp-for-every-runtime.md) — o que cada CLI oferece, medido
 - [0030 — Templates de workflow: propósito, ferramentas e cópias salvas](adr/0030-workflow-templates-and-tools.md) — Implementer, Debugger, Reviewer; MCP por passo
 - [0031 — Planos esperam pela pessoa](adr/0031-plan-approval.md) — aprovar, mudar ou refazer; a aprovação automática é uma configuração da pessoa
-- [0032 — Compartilhar configurações como arquivo](adr/0032-configuration-import-export.md) — JSON versionado; prévia, decisões e uma importação de tudo ou nada
+- [0032 — Compartilhar configurações como arquivo](adr/0032-configuration-import-export.md) — JSON versionado; prévia, decisões e uma importação de tudo ou nada; o arquivo é escolhido ou solto no diálogo
 - [0033 — Workspaces com vários projetos](adr/0033-multi-project-workspaces.md) — Harness local por projeto mais um contexto do workspace; escopo, worktrees, migração
 - [0034 — Acesso pelo celular](adr/0034-mobile-remote-access.md) — um celular na rede local acompanha execuções e responde o que espera; pareamento, níveis de ação, SSE com cursor, limites do HTTP
 - [0035 — Specs (SDD)](adr/0035-spec-driven-development.md) — especificação escrita por agentes e aprovada pela pessoa antes do workflow; OpenSpec como primeiro formato, motor interno, validação em duas camadas, publicação segura, CLI opcional

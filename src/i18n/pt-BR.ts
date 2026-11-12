@@ -1023,6 +1023,8 @@ export const ptBR: Record<TranslationKey, string> = {
     'Cada execução trabalha no seu próprio worktree e não modifica diretamente o checkout principal do projeto.',
   'agents.form.isolationOff':
     'Com isto desativado, o agente poderá trabalhar diretamente na pasta do projeto.',
+  'agents.form.importedModel':
+    'Importado pedindo {runtime} · {model}. Escolher outro modelo aqui apaga este aviso.',
   'agents.form.noFileEdit': 'Este runtime não suporta edição de arquivos.',
   'contract.type': 'Tipo de contrato',
   'contract.kind.general': 'Geral',
@@ -2847,6 +2849,7 @@ export const ptBR: Record<TranslationKey, string> = {
     'Escolha um arquivo exportado pelo Atlas. Você vai ver o que ele contém e o que faria aqui antes de qualquer mudança.',
   'portability.safety':
     'Importar só adiciona definições. Nada é executado, nenhum workflow é iniciado e nenhuma ferramenta é concedida; agentes que podem editar arquivos chegam só com leitura, a menos que você diga o contrário abaixo.',
+  'portability.import.drop': 'Ou solte o arquivo .atlas.json aqui.',
   'portability.import.choose': 'Escolher arquivo…',
   'portability.import.reading': 'Lendo…',
   'portability.import.another': 'Escolher outro arquivo',
@@ -2950,6 +2953,10 @@ export const ptBR: Record<TranslationKey, string> = {
     'Uma etapa está sem agente: você vai precisar escolher um.',
   'portability.issue.tools_suggested':
     'Sugere ferramentas para algumas etapas. Importar não concede nenhuma.',
+  'portability.issue.same_name':
+    '{count} configurações aqui têm este nome: reaproveitar ou substituir vale para a primeira salva.',
+  'portability.issue.workflow_running':
+    'Este workflow tem uma execução em andamento, então não pode ser substituído agora. Importe como novo, use o daqui ou pule.',
   'portability.issue.permissions_lowered':
     'Importado só com leitura (o arquivo pedia {requested}).',
   'portability.reason.name_required': 'não tem nome',

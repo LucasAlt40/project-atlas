@@ -127,6 +127,7 @@ impl Env {
                         permission_profile_id: Some("developer".to_owned()),
                         worktree_isolation: true,
                         result_contract: crate::domain::result_contract::ResultContract::default(),
+                        imported_model: None,
                         created_at: 1,
                     });
                 }

@@ -29,8 +29,21 @@ pub struct Agent {
     /// is required of them. The personality may suggest a contract; the agent's own is what counts.
     #[serde(default)]
     pub result_contract: ResultContract,
+    /// The runtime and model a configuration file asked for, when the agent was imported with
+    /// others (ADR 0032). Kept so the original survives the choice of an alternative; cleared
+    /// when the person changes the agent's runtime or model.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub imported_model: Option<ImportedModel>,
     /// Milliseconds since the Unix epoch.
     pub created_at: u64,
+}
+
+/// What an imported agent's file asked to run on.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportedModel {
+    pub runtime_id: String,
+    pub model_id: String,
 }
 
 fn default_worktree_isolation() -> bool {

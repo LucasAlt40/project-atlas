@@ -201,6 +201,7 @@ mod tests {
                 permission_profile_id: None,
                 worktree_isolation: false,
                 result_contract: crate::domain::result_contract::ResultContract::default(),
+                imported_model: None,
                 created_at: 5,
             }],
             builtin_overrides: vec![PersonalityProfile {

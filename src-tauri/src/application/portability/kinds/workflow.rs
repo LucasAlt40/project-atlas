@@ -23,6 +23,15 @@ use crate::domain::workflow::{Workflow, WorkflowExecutionStatus, WorkflowStatus}
 
 pub struct WorkflowKind;
 
+/// Whether the workflow has a run that is going or was interrupted (and may be resumed): one that
+/// replacing its definition would pull the graph from under.
+fn has_open_execution(config: &UserConfig, workflow_id: &str) -> bool {
+    config.workflow_executions.iter().any(|e| {
+        e.workflow_id == workflow_id
+            && (e.status.is_active() || e.status == WorkflowExecutionStatus::Interrupted)
+    })
+}
+
 /// The agents of an installation, for the validator.
 struct Agents<'a>(&'a UserConfig);
 
@@ -204,6 +213,15 @@ impl Category for WorkflowKind {
         {
             inspection.issues.push(Issue::warning("step_without_agent"));
         }
+        // A workflow with a run in progress is never overwritten: the preview leaves `replace` out
+        // and says why, so the person picks another decision there instead of meeting a refusal.
+        if self
+            .existing(&cx.scope(), item)
+            .is_some_and(|e| has_open_execution(cx.config, &e.id))
+        {
+            inspection.cannot_replace = true;
+            inspection.issues.push(Issue::warning("workflow_running"));
+        }
         inspection.identical = all_known
             && self
                 .existing(&cx.scope(), item)
@@ -258,11 +276,7 @@ impl Category for WorkflowKind {
                 .iter()
                 .find(|w| w.id == existing.id)
                 .ok_or_else(|| AppError::new(ErrorCode::WorkflowNotFound))?;
-            let running = config.workflow_executions.iter().any(|e| {
-                e.workflow_id == current.id
-                    && (e.status.is_active() || e.status == WorkflowExecutionStatus::Interrupted)
-            });
-            if running {
+            if has_open_execution(config, &current.id) {
                 return Err(reject("workflow_running", &item.name));
             }
             let mut next = current.clone();

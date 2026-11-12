@@ -71,6 +71,9 @@ pub(crate) struct Inspection {
     pub identical: bool,
     pub model: Option<ModelAssessment>,
     pub issues: Vec<Issue>,
+    /// What it matches here may not be overwritten now (a workflow with a run in progress): the
+    /// preview does not offer `replace`, and an issue says why.
+    pub cannot_replace: bool,
 }
 
 /// The installation as a category sees it while inspecting.
@@ -191,6 +194,14 @@ pub(super) fn preview(
             inspection.issues.push(Issue::warning("possible_secret"));
         }
         let existing = cat.existing(&scope, item);
+        // More than one configuration here has this name: the match is the first saved, every
+        // time, and the person is told so before deciding to reuse or replace it.
+        let same_name = same_name_count(&cat.list(&scope), &item.name);
+        if existing.is_some() && same_name > 1 {
+            inspection
+                .issues
+                .push(Issue::warning("same_name").with("count", same_name.to_string()));
+        }
         let blocked = inspection
             .issues
             .iter()
@@ -215,7 +226,7 @@ pub(super) fn preview(
         }
         if existing.is_some() {
             allowed.push(Decision::UseExisting);
-            if !blocked {
+            if !blocked && !inspection.cannot_replace {
                 allowed.push(Decision::Replace);
             }
         }
@@ -262,6 +273,14 @@ pub(super) fn preview(
         items,
         external,
     }
+}
+
+/// How many of `list` are called `name`, ignoring case and surrounding space.
+fn same_name_count(list: &[Existing], name: &str) -> usize {
+    let wanted = name.trim().to_lowercase();
+    list.iter()
+        .filter(|existing| existing.name.trim().to_lowercase() == wanted)
+        .count()
 }
 
 /// What the file needs and does not carry, with the local candidates for each.

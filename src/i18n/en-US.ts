@@ -1016,6 +1016,8 @@ export const enUS = {
   'agents.form.isolationOn':
     'Each execution works in its own worktree and does not modify the project’s main checkout directly.',
   'agents.form.isolationOff': 'With this off, the agent may work directly in the project folder.',
+  'agents.form.importedModel':
+    'Imported asking for {runtime} · {model}. Choosing another model here dismisses this.',
   'agents.form.noFileEdit': 'This runtime does not support file editing.',
   'contract.type': 'Contract type',
   'contract.kind.general': 'General',
@@ -2815,6 +2817,7 @@ export const enUS = {
     'Choose a file exported by Atlas. You will see what it holds and what it would do here before anything is changed.',
   'portability.safety':
     'Importing only adds definitions. It runs nothing, starts no workflow and grants no tool; agents that may edit files arrive read-only unless you say otherwise below.',
+  'portability.import.drop': 'Or drop the .atlas.json file here.',
   'portability.import.choose': 'Choose file…',
   'portability.import.reading': 'Reading…',
   'portability.import.another': 'Choose another file',
@@ -2915,6 +2918,10 @@ export const enUS = {
   'portability.issue.step_without_agent': 'A step has no agent: you will have to choose one.',
   'portability.issue.tools_suggested':
     'It suggests tools for some steps. Importing grants none of them.',
+  'portability.issue.same_name':
+    '{count} configurations here have this name: reusing or replacing applies to the first one saved.',
+  'portability.issue.workflow_running':
+    'This workflow has a run in progress, so it cannot be replaced now. Import it as a new one, use the one here, or skip it.',
   'portability.issue.permissions_lowered':
     'Imported able only to read (the file asked for {requested}).',
   'portability.reason.name_required': 'it has no name',

@@ -1,6 +1,6 @@
 # ADR 0032 — Compartilhar configurações: exportar e importar como arquivo
 
-Status: aceito. Baseia-se na [ADR 0002](0002-ports-and-adapters.md) (portas e adaptadores), na
+Status: aceito e implementado. Baseia-se na [ADR 0002](0002-ports-and-adapters.md) (portas e adaptadores), na
 [ADR 0004](0004-runtimes.md) (runtimes e modelos) e na [ADR 0030](0030-workflow-templates-and-tools.md) (templates
 salvos); não muda nenhuma das suas invariantes.
 
@@ -43,7 +43,12 @@ format: "atlas-config", schemaVersion, exportedAt, source, roots, items, externa
    significa a mesma coisa em todo lugar). Conteúdo igual ao que existe aqui tem como padrão `use_existing` (então
    importar um arquivo duas vezes não acrescenta nada); um casamento de nome com outro conteúdo tem como padrão `create`;
    nada é sobrescrito sem `replace`, que a UI faz a pessoa confirmar item por item. Um casamento sem decisão é recusado
-   (`decision_required`).
+   (`decision_required`). Quando duas ou mais configurações daqui têm o mesmo nome no mesmo escopo, o casamento é sempre
+   a primeira salva, e a prévia avisa (`same_name`, com a contagem) antes de a pessoa reaproveitar ou substituir. Um
+   workflow com uma execução em andamento ou interrompida não pode ser substituído: a prévia não oferece `replace` para
+   ele e diz por quê (`workflow_running`), deixando `create`, `use_existing` e `skip`; pedido assim mesmo, a importação
+   recusa. Testes: `two_configurations_with_the_same_name_here_are_matched_to_the_first_and_the_person_is_told` e
+   `a_workflow_with_a_run_in_progress_cannot_be_replaced`.
 7. **Dependências.** Um arquivo carrega o que os seus itens precisam (a personalidade de um agente, os agentes de um
    workflow) a menos que seja exportado sem isso, caso em que `external` os nomeia e quem importa vincula cada um a um
    dos seus (`bindings`). O candidato de mesmo nome é sugerido e pré-selecionado na prévia, mas só é aplicado quando a
@@ -59,7 +64,9 @@ format: "atlas-config", schemaVersion, exportedAt, source, roots, items, externa
    runtime primeiro). O original é mantido a menos que a pessoa escolha uma alternativa; os quatro primeiros podem ser
    importados com o original e configurados depois (o agente aparece como indisponível como qualquer outro cujo runtime
    não está pronto); os dois últimos precisam de outro runtime ou o item é pulado. O relatório guarda o runtime e o
-   modelo originais ao lado do que foi aplicado.
+   modelo originais ao lado do que foi aplicado. Quando a pessoa escolhe uma alternativa, o agente também guarda o que o
+   arquivo pedia (`Agent.imported_model`), salvo com ele e mostrado no formulário do agente; some quando a pessoa muda o
+   runtime ou o modelo do agente. Teste: `the_original_model_stays_on_the_agent_until_the_person_changes_where_it_runs`.
 9. **Importar não concede nada e não executa nada.** Nenhuma execução, concessão, conexão ou segredo é criado. Os agentes
    são importados com o perfil de permissão `read_only`, a menos que a pessoa marque "manter a permissão de editar
    arquivos" na prévia (a prévia diz quais agentes pedem isso e avisa quando o runtime deles não consegue editar). Os
@@ -75,7 +82,10 @@ format: "atlas-config", schemaVersion, exportedAt, source, roots, items, externa
 11. **Os arquivos são escolhidos em diálogos nativos abertos pelo núcleo** (`pick_config_file`, `save_config_file`, com o
     `tauri-plugin-dialog` já em uso). A webview nunca nomeia um caminho: ela guarda o texto do arquivo.
     `save_config_file` só grava texto que é lido como um arquivo do Atlas, e grava por um arquivo temporário e uma
-    renomeação. Nenhum plugin de sistema de arquivos nem capability foi adicionado.
+    renomeação. Nenhum plugin de sistema de arquivos nem capability foi adicionado. Um arquivo também pode ser **solto
+    no diálogo de importação**: o webview lê o texto do arquivo (nunca um caminho), recusa sem ler um arquivo acima de
+    2 MiB e segue a mesma prévia. A janela usa `dragDropEnabled: false` para o webview receber o arquivo, e uma soltura
+    fora do diálogo não faz nada.
 12. **Credenciais nunca viajam.** Agentes não têm nenhuma; as conexões MCP (executáveis, argumentos, segredos) não são
     exportadas de modo algum: o MCP Hub tem sua própria importação/exportação para arquivos de configuração das CLIs. Um
     texto que _parece_ uma credencial (o detector de segredos do Harness) gera um aviso ao exportar e de novo ao
@@ -96,14 +106,18 @@ format: "atlas-config", schemaVersion, exportedAt, source, roots, items, externa
 | _Não_ exportado: rules                                      | Ainda sem editor para o usuário; as rules de projeto vivem em `.atlas/` |
 | _Não_ exportado: harness (`.atlas/`)                        | Já vive no projeto e viaja com o seu Git                                |
 
+## Descartado
+
+- **Importar por URL** (decisão do usuário, 2026-11-12). O núcleo não tem cliente HTTP, e construir isso traria uma
+  dependência nova e uma superfície de rede (SSRF, tamanho, tipo, redirecionamentos) para um caso que baixar o arquivo e
+  soltá-lo no diálogo já cobre, sem rede.
+
 ## Limites
 
-- Um agente importado com um modelo que o seu runtime não lista mantém esse id; nada registra que ele está "pendente"
-  além da disponibilidade do runtime do agente e do relatório de importação. Depois de escolher uma alternativa, o
-  original só está no relatório.
-- Um arquivo não pode ser importado para um workflow que tem uma execução em andamento (`replace` é recusado); é
-  preciso outra decisão.
-- `use_existing` e `replace` casam só pelo nome; duas coisas com o mesmo nome no mesmo escopo são casadas com a
-  primeira.
 - Templates de workflow embutidos são código e não são exportados.
-- Arrastar e soltar um arquivo na janela, e uma importação a partir de uma URL, não foram construídos.
+
+## Não verificado
+
+- Soltar um arquivo na **janela real** do app. O caminho é testado no componente (`ImportDialog.test.tsx`, "dropping a
+  file"), mas o efeito de `dragDropEnabled: false` no webview de cada SO (macOS, Windows, Linux) não foi visto. Para
+  fechar: abrir o app, arrastar um `.atlas.json` para o diálogo de importação e ver a prévia.

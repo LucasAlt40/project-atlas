@@ -211,6 +211,25 @@ describe('AgentsPage', () => {
     expect(await screen.findByText('Renamed')).toBeInTheDocument();
   });
 
+  it('says what an imported agent first asked to run on, until another model is chosen', async () => {
+    const user = userEvent.setup();
+    show({}, [
+      {
+        ...architect,
+        importedModel: { runtimeId: 'opencode', modelId: 'opencode/retired' },
+      },
+    ]);
+
+    await user.click(await screen.findByRole('button', { name: 'Edit Architecture Expert' }));
+    const form = await screen.findByRole('form', { name: 'Edit Architecture Expert' });
+
+    expect(
+      within(form).getByText(
+        'Imported asking for opencode · opencode/retired. Choosing another model here dismisses this.',
+      ),
+    ).toBeInTheDocument();
+  });
+
   it('deletes an agent only after confirmation, and explains why a delete failed', async () => {
     const user = userEvent.setup();
     show({}, [architect, agent('agent-2', 'Second')]);

@@ -1091,6 +1091,11 @@ export interface AgentDto {
   worktreeIsolation: boolean;
   /** Agents saved before contracts existed are `general`: no outcome is required of them. */
   resultContract: ResultContractDto;
+  /**
+   * What a configuration file asked this agent to run on, when it was imported with another
+   * runtime or model. Gone once the person changes the agent's runtime or model.
+   */
+  importedModel?: { runtimeId: string; modelId: string } | null;
   createdAt: number;
 }
 

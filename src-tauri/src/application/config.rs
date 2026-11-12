@@ -431,6 +431,7 @@ mod tests {
             permission_profile_id: None,
             worktree_isolation: true,
             result_contract: crate::domain::result_contract::ResultContract::default(),
+            imported_model: None,
             created_at: 1,
         }
     }

@@ -320,15 +320,18 @@ ADRs: 0033, 0043.
 
 ADR: 0032. Onde: `application/portability/` (`format.rs`, `apply.rs`, `inspect.rs`, `kinds/`).
 
-- [ ] **I1. Arrastar e soltar um arquivo.** — passa pelo mesmo preview + decisões + importação atômica; nada aplica sem
+- [x] **I1. Arrastar e soltar um arquivo.** (0032) — 2026-11-12: soltar no diálogo de importação; a janela real não foi
+      vista (0032, Não verificado). — passa pelo mesmo preview + decisões + importação atômica; nada aplica sem
       decisão.
-- [ ] **I2. Importar por URL.** — só com política de rede (SSRF, tamanho, tipo), **confirmação explícita** e o mesmo
+- [x] **I2. Importar por URL.** (0032) — 2026-11-12: descartado pelo usuário; baixar e soltar cobre o caso (0032). — só com política de rede (SSRF, tamanho, tipo), **confirmação explícita** e o mesmo
       fluxo de preview. Nunca seguir URL vinda de conteúdo observado.
-- [ ] **I3. Duplicatas por nome.** — `use_existing` e `replace` casam pela primeira; passar a avisar/escolher de forma
+- [x] **I3. Duplicatas por nome.** (0032) — 2026-11-12: casa com a primeira salva e a prévia avisa (`same_name`). — `use_existing` e `replace` casam pela primeira; passar a avisar/escolher de forma
       determinística.
-- [ ] **I4. Modelo "pendente" no agente importado.** — registrar além do relatório de importação, para sobreviver à
+- [x] **I4. Modelo "pendente" no agente importado.** (0032) — 2026-11-12: `Agent.imported_model`, até a pessoa mudar o
+      modelo. — registrar além do relatório de importação, para sobreviver à
       escolha de alternativa.
-- [ ] **I5. Importar para workflow com execução em andamento.** — `replace` é recusado; oferecer a outra decisão no
+- [x] **I5. Importar para workflow com execução em andamento.** (0032) — 2026-11-12: a prévia não oferece `replace` e
+      diz por quê. — `replace` é recusado; oferecer a outra decisão no
       próprio fluxo, com explicação.
 
 ## Bloco 8 · Plataformas e verificação real
