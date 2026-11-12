@@ -551,6 +551,19 @@ mod tests {
         assert_eq!(ceiling.git.read, Permission::Allowed);
     }
 
+    /// ADR 0038, decision of 2026-11-11: the sandbox stays off by default until the Codex escape
+    /// test has run. A configuration that never mentioned it, or mentioned only the caches, reads off.
+    #[test]
+    fn the_sandbox_is_off_unless_the_person_switches_it_on() {
+        assert_eq!(SandboxMode::default(), SandboxMode::Off);
+        let silent: SandboxSettings = serde_json::from_str("{}").unwrap();
+        assert_eq!(silent.mode, SandboxMode::Off);
+        let caches_only: SandboxSettings = serde_json::from_str(r#"{"devCaches":false}"#).unwrap();
+        assert_eq!(caches_only.mode, SandboxMode::Off);
+        let chosen: SandboxSettings = serde_json::from_str(r#"{"mode":"auto"}"#).unwrap();
+        assert_eq!(chosen.mode, SandboxMode::Auto);
+    }
+
     #[test]
     fn reports_what_a_runtime_can_do_beyond_the_policy() {
         let open = ToolAccess {

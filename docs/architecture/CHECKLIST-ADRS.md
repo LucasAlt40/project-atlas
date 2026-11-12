@@ -106,6 +106,8 @@ ADRs: 0038, 0039, 0044, 0026, 0027, 0025.
     padrão feita **só nesta decisão**, com teste que prova o padrão e o desligar.
   - Atenção: decisão do usuário, não da sessão. **Perguntar** antes de mudar o padrão.
   - Depende de: S1, S2, S3.
+  - 2026-11-11: decidido pelo usuário: **continua `off`**. Critério para rever registrado na 0038 (teste do Codex e
+    uso de `auto` por um tempo); teste do padrão `the_sandbox_is_off_unless_the_person_switches_it_on`.
 - [ ] **S5. Claude com o sandbox do Atlas ligado e Linux/Windows.** (0044)
   - Pronto quando: o Claude com sandbox do Atlas ligado foi medido (a troca "segue a do Codex por analogia" hoje não foi
     medida) e o comportamento em Linux/Windows (onde o Claude segue sem shell) está testado ou registrado como limite.

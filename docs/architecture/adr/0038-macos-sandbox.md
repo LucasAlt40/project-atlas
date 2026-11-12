@@ -209,5 +209,8 @@ o arquivo tem de chegar ao Git) e, para as ferramentas de build, pelo teste do S
 ## Plano para ligar por padrão
 
 1. Rodar uma tarefa real por CLI com `required`: feito, o trabalho normal funciona nas quatro.
-2. Decidir o padrão `auto` (a pessoa liga primeiro nas configurações e usa por um tempo).
+2. Decidir o padrão `auto`. **Decidido em 2026-11-11: continua `off`.** Critério para rever: o teste de fuga do Codex
+   (`sandbox_real_bare_codex_cannot_escape`) passou, e a pessoa usou `auto` nas configurações por um tempo sem
+   quebrar o trabalho. Só então o padrão muda, numa decisão própria registrada aqui. Teste do padrão:
+   `the_sandbox_is_off_unless_the_person_switches_it_on`.
 3. Fechar a fuga com a CLI real: feito para Claude e Copilot até onde elas deixam (acima); falta o Codex.
