@@ -164,10 +164,26 @@ Testes: `the_system_channel_sends_the_instructions_in_a_file_and_off_changes_not
 tem as instruções enquanto a CLI roda e some depois, a mensagem não as repete, os hashes diferem) e
 `the_system_channel_switch_reaches_the_runtime_and_one_without_a_channel_gets_one_text`.
 
-**Não verificado:** a economia. O teste real `application::executions::system_channel_real_tests::system_channel_real_cache`
-(`#[ignore]`, nome exato) roda a mesma tarefa três vezes com o canal desligado e três com ele ligado e imprime os tokens
-servidos do cache; ainda não foi rodado. Também não verificado: o canal no Windows, e se o texto no canal de sistema muda
-o comportamento do modelo em relação ao mesmo texto no corpo.
+**Medido (2026-11-12, haiku, autorizado pelo usuário):** o teste real
+`application::executions::system_channel_real_tests::system_channel_real_cache` (`#[ignore]`, nome exato) rodou a mesma
+tarefa três vezes com o canal desligado e três com ele ligado. Custo total: cerca de US$ 0,011.
+
+| canal     | execução | entrada | servido do cache | custo (US$) |
+| --------- | -------- | ------- | ---------------- | ----------- |
+| desligado | 1        | 27 074  | 18 722           | 0,0019      |
+| desligado | 2        | 27 152  | 20 186           | 0,0017      |
+| desligado | 3        | 27 172  | 20 192           | 0,0017      |
+| ligado    | 1        | 27 124  | 13 453           | 0,0030      |
+| ligado    | 2        | 27 112  | 20 951           | 0,0015      |
+| ligado    | 3        | 27 239  | 20 963           | 0,0016      |
+
+Com o canal ligado, a partir da segunda execução cerca de 770 tokens a mais são servidos do cache (≈3% da entrada, ≈10%
+mais barato por execução). A primeira execução paga para escrever o prefixo novo. Num prompt de ~27 mil tokens, o
+ganho é pequeno e está perto do ruído de uma amostra de três: **a flag continua desligada por padrão**. Pode valer mais
+num prompt de spec, em que as instruções do Atlas são uma parte maior, mas isso não foi medido.
+
+Não verificado: o canal no Windows, e se o texto no canal de sistema muda o comportamento do modelo em relação ao mesmo
+texto no corpo.
 
 ## Descartado
 

@@ -225,7 +225,8 @@ ADRs: 0036, 0021, 0020, 0012, 0011.
 - [x] **C2. Estimativa de custo antes de executar.** (0036) — 2026-11-11: descartado pelo usuário ("Descartado" na 0036).
   - Pronto quando: a estimativa aparece só quando há dado confiável (histórico) e **marca a precisão**
     (`Precision`/`TokenSource`); sem dado, não mostra número inventado.
-- [ ] **C3. Prompt em blocos para caching.** (0036, 0026) — 2026-11-11: construído desligado
+- [x] **C3. Prompt em blocos para caching.** (0036, 0026) — 2026-11-12: medido com haiku (~770 tokens a mais do
+      cache por execução, ganho pequeno); a flag segue desligada (0036). — 2026-11-11: construído desligado
       (`optimization.systemChannel`, Claude por `--append-system-prompt-file`); falta a medição real
       `system_channel_real_cache` (pedir autorização).
   - Onde: `ModelRuntime::delivery()` (única fonte do payload) e `manifest.promptHash`.
