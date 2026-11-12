@@ -137,6 +137,7 @@ fn engine(decisions: Vec<ContextDecision>) -> ContextEngineMetrics {
         decisions,
         over_budget: None,
         skipped: None,
+        quality: None,
     }
 }
 

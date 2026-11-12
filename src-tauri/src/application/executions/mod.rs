@@ -910,6 +910,9 @@ impl ExecutionService {
                     rules: &inputs.rules,
                     memories: &inputs.memories,
                     budget: &budget,
+                    harness_facts: optimization::context::HarnessFacts::of(
+                        execution.context.as_ref(),
+                    ),
                 },
             );
             if outcome.changed {

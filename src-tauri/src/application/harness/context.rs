@@ -114,6 +114,10 @@ pub struct HarnessContextBuilder {
     /// every pause, and a scan on each would be wasteful; a run uses whatever is this fresh.
     fingerprint_ttl: Duration,
     fingerprints: Mutex<HashMap<String, (Instant, Option<ProjectFingerprint>)>>,
+    /// How often the fingerprint came from the cache and how often the project was scanned
+    /// (ADR 0021, C5): the cache measured, not assumed.
+    fingerprint_hits: std::sync::atomic::AtomicU64,
+    fingerprint_scans: std::sync::atomic::AtomicU64,
 }
 
 impl HarnessContextBuilder {
@@ -124,7 +128,20 @@ impl HarnessContextBuilder {
             budget: HarnessBudget::default(),
             fingerprint_ttl: Duration::ZERO,
             fingerprints: Mutex::default(),
+            fingerprint_hits: std::sync::atomic::AtomicU64::new(0),
+            fingerprint_scans: std::sync::atomic::AtomicU64::new(0),
         }
+    }
+
+    /// `(served from the cache, scanned)` since the builder was made. Read by the tests that measure
+    /// the cache; no screen shows it yet.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub fn fingerprint_cache_stats(&self) -> (u64, u64) {
+        use std::sync::atomic::Ordering;
+        (
+            self.fingerprint_hits.load(Ordering::Relaxed),
+            self.fingerprint_scans.load(Ordering::Relaxed),
+        )
     }
 
     /// The allocation a single project's Harness gets.
@@ -156,10 +173,14 @@ impl HarnessContextBuilder {
                 .and_then(|m| m.get(project_path).cloned())
             {
                 if at.elapsed() < self.fingerprint_ttl {
+                    self.fingerprint_hits
+                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                     return cached;
                 }
             }
         }
+        self.fingerprint_scans
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let current = scanner
             .scan(project_path)
             .ok()

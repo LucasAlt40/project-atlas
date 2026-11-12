@@ -21,7 +21,7 @@ mod engine;
 mod item;
 pub(crate) mod text;
 
-pub use apply::{optimize_prompt_inputs, ContextInputs};
+pub use apply::{optimize_prompt_inputs, ContextInputs, HarnessFacts};
 pub(crate) use apply::{prompt_items, rebuild_task};
 pub use item::{ContextItem, Priority};
 

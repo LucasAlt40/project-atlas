@@ -313,6 +313,7 @@ fn a_mandatory_rule_that_does_not_fit_is_its_own_finding() {
             required_tokens: 90,
         }),
         skipped: None,
+        quality: None,
     };
     let items = vec![
         item("task", SectionKind::Task, "Do the work"),

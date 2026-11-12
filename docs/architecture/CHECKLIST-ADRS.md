@@ -227,10 +227,12 @@ ADRs: 0036, 0021, 0020, 0012, 0011.
   - Pronto quando: nos runtimes que informam cache o prompt é entregue de forma que o prefixo estável seja aproveitado
     e a economia é medida; nos demais nada é declarado. O hash do manifest continua sendo o do payload entregue.
   - Verificação: det (ProcessRunner espião) + real para medir. Depende de: C1.
-- [ ] **C4. `ContextQuality` e relevância por item.** (0021)
+- [x] **C4. `ContextQuality` e relevância por item.** (0021) — 2026-11-11: relevância do Task Context e das skills
+      pedidas, corte por relevância, `ContextQuality` nas métricas (0021).
   - Onde: `application/optimization/context/engine/`, `domain/context` (`ContextItem.relevance` está vazio).
   - Pronto quando: o item carrega relevância e há um sinal sobre o total; sem inventar métrica que o Atlas não mede.
-- [ ] **C5. Cache por fingerprint e obsolescência por item.** (0021)
+- [x] **C5. Cache por fingerprint e obsolescência por item.** (0021) — 2026-11-11: Task Context desatualizado marca o
+      item; cache do fingerprint contado; cache do plano não feito (o engine roda em ms) (0021).
   - Pronto quando: o fingerprint da fase 1 vira cache real **medido** (a ADR 0020 diz que `cacheHits/cacheMisses` são
     `None`) e a obsolescência do Harness entra por item. Há um flag no registro de perf que mostrou "sem efeito" no
     cache; reavaliar antes de religar.

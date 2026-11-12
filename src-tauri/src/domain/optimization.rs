@@ -362,6 +362,25 @@ pub struct ContextEngineMetrics {
     pub over_budget: Option<BudgetOverrun>,
     /// Why the engine left the prompt as it was, when it did (a brief it could not take apart).
     pub skipped: Option<String>,
+    /// What Atlas knows of how relevant and fresh the context is (ADR 0021). Only counts of what is
+    /// measured: nothing is scored that Atlas cannot score.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quality: Option<ContextQuality>,
+}
+
+/// A signal on the context as a whole, from what each item says about itself.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContextQuality {
+    /// Items the prompt is made of.
+    pub items: u32,
+    /// Of them, the ones whose relevance to the task is known (a Task Context, a skill the task
+    /// named). The rest is unknown, not irrelevant.
+    pub with_relevance: u32,
+    /// The mean relevance of those, in thousandths (0 to 1000). `None`: none is known.
+    pub mean_relevance_permille: Option<u32>,
+    /// Items said to be outdated (a Task Context that includes knowledge the project changed under).
+    pub stale_items: u32,
 }
 
 impl ContextEngineMetrics {

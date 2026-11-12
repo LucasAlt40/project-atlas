@@ -24,8 +24,9 @@ pub struct ContextItem {
     pub source: SectionKind,
     pub content: String,
     pub priority: Priority,
-    /// How relevant it is to the task, when something knows (the Task Context's own selection
-    /// reasons are not carried per item yet).
+    /// How relevant it is to the task (0 to 1), when something measured it: a Task Context's share
+    /// of entries chosen for the task, a skill the task named (1). `None`: nobody knows, which is
+    /// not the same as irrelevant.
     pub relevance: Option<f32>,
     /// Said to be outdated by whatever produced it. Left out before fresh items of the same
     /// priority when a budget forces a choice.

@@ -81,6 +81,23 @@ estimados por turno de spec); não foi medida com modelo.
 - A economia disponível hoje é pequena: a maioria dos tokens está em texto obrigatório. A repetição da instrução de
   plano saiu na origem, os avisos de "não concede permissões" ficam por segurança, e a narração é condicionada atrás
   de uma flag (acima).
-- `ContextQuality` (sinal sobre o total) não foi construído: ainda não há sinal de relevância por item
-  (`ContextItem.relevance` está vazio). A redundância removida é a metade que o Atlas consegue medir.
-- Cache (o fingerprint da fase 1 é só um digest do item) e obsolescência por item vinda do Harness não estão ligados.
+- **Relevância por item e o sinal sobre o total (C4, 2026-11-11, decisão do usuário).** Um item carrega relevância só
+  quando algo a mediu: o Task Context, a fatia do que ele incluiu por casar com a tarefa (`ContextRecord.matched_items`
+  ÷ `selected_items`; restrições, decisões e a palavra do usuário entram sempre e não contam como casamento); uma skill
+  que a tarefa pediu pelo nome, 1. Memórias, rules e o resto ficam sem relevância (desconhecida, não irrelevante).
+  Quando um orçamento obriga a cortar, entre itens de uma prioridade sai antes o desatualizado, depois o menos
+  relevante, e um item sem nota conta como meio caminho. `ContextEngineMetrics.quality` (`ContextQuality`) registra
+  quantos itens há, quantos têm relevância, a média dos que têm (em milésimos) e quantos estão desatualizados; nenhuma
+  média é inventada quando nada foi medido. Testes: `a_task_contexts_relevance_is_the_share_it_chose_for_the_task`,
+  `a_budget_leaves_out_the_less_relevant_first_and_an_unscored_item_counts_as_halfway`,
+  `the_context_quality_counts_only_what_is_measured`.
+- **Obsolescência e cache (C5, 2026-11-11).** Um Task Context que inclui conhecimento desatualizado
+  (`ContextRecord.stale_items > 0`) marca o seu item como desatualizado. O cache do fingerprint do projeto
+  (`with_fingerprint_cache`, 5 s no app, para as prévias enquanto a pessoa digita) agora conta o que serve do cache e o
+  que escaneia (`fingerprint_cache_stats`); medido por `the_fingerprint_cache_serves_a_second_build_and_counts_both`.
+  Um cache do plano do engine pelo fingerprint dos itens não foi feito: o engine roda em milissegundos, então não haveria
+  o que ganhar.
+- **Limite da granularidade.** O Harness e o Task Context entram no engine como **um item cada**, com prioridade `High`,
+  que um orçamento nunca corta. A relevância e a obsolescência deles aparecem no sinal de qualidade, mas não mudam um
+  corte; mudam os cortes entre itens abaixo de `High` (skills casadas, memórias, preferências, partes do brief).
+  Quebrar o Harness em itens por entrada seria a próxima etapa, se um uso real mostrar contexto errado por isso.

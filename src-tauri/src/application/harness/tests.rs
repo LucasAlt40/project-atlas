@@ -1994,3 +1994,23 @@ fn the_preview_of_a_project_without_a_harness_says_so_and_an_unknown_workspace_f
     request.workspace_id = "nope".to_owned();
     assert!(f.service.preview_task_context(&request).is_err());
 }
+
+/// ADR 0021, C5: the fingerprint cache, measured. Within its time the project is not scanned
+/// again; without it (the default) every build scans.
+#[test]
+fn the_fingerprint_cache_serves_a_second_build_and_counts_both() {
+    let f = fixture_with(&[], layered_project());
+    init(&f, input(InitMode::Create));
+
+    let cached = HarnessContextBuilder::new(f.store.clone())
+        .with_scanner(f.scanner.clone())
+        .with_fingerprint_cache(std::time::Duration::from_secs(60));
+    let _ = cached.build("/erp");
+    let _ = cached.build("/erp");
+    assert_eq!(cached.fingerprint_cache_stats(), (1, 1));
+
+    let uncached = HarnessContextBuilder::new(f.store.clone()).with_scanner(f.scanner.clone());
+    let _ = uncached.build("/erp");
+    let _ = uncached.build("/erp");
+    assert_eq!(uncached.fingerprint_cache_stats(), (0, 2));
+}

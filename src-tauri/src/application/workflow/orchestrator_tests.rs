@@ -759,6 +759,7 @@ fn a_real_brief_says_each_fact_once_and_the_context_engine_keeps_every_one() {
         memories: &[],
         rules: &[],
         budget: &ExecutionBudget::resolve(ModelLimits::unknown("rt", "m"), &[]),
+        harness_facts: crate::application::optimization::context::HarnessFacts::default(),
     });
 
     // The brief says the artifact and the decision once (in the workflow context; the handoff
