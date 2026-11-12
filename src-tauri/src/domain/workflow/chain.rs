@@ -248,6 +248,114 @@ impl ProjectChain {
     }
 }
 
+/// How much of an earlier run's diff is read to summarize it for the next one.
+pub const MAX_CHAIN_DIFF_READ: usize = 200_000;
+/// The least each file of a summarized diff gets of its own changes.
+const MIN_FILE_SHARE: usize = 240;
+
+/// One file of a unified diff: its path, how many lines it adds and removes, and its hunks.
+struct DiffFile<'a> {
+    path: String,
+    added: usize,
+    removed: usize,
+    hunks: Vec<&'a str>,
+}
+
+fn diff_files(diff: &str) -> Vec<DiffFile<'_>> {
+    let mut files: Vec<DiffFile<'_>> = Vec::new();
+    for line in diff.lines() {
+        if let Some(rest) = line.strip_prefix("diff --git ") {
+            // `a/x b/x`: the new name, after the last ` b/`.
+            let path = rest
+                .rsplit_once(" b/")
+                .map_or(rest, |(_, path)| path)
+                .to_owned();
+            files.push(DiffFile {
+                path,
+                added: 0,
+                removed: 0,
+                hunks: Vec::new(),
+            });
+            continue;
+        }
+        let Some(file) = files.last_mut() else {
+            continue;
+        };
+        if line.starts_with("+++") || line.starts_with("---") {
+            continue;
+        }
+        if line.starts_with('+') {
+            file.added += 1;
+        } else if line.starts_with('-') {
+            file.removed += 1;
+        }
+        if line.starts_with("@@") || !file.hunks.is_empty() {
+            file.hunks.push(line);
+        }
+    }
+    files
+}
+
+/// An earlier run's diff as the next run of the chain gets it (ADR 0043, P3), at most `budget`
+/// characters. A diff that fits is given whole, exactly as before. A larger one becomes a summary:
+/// every file with what it adds and removes, and, while the budget lasts, the start of each file's
+/// own changes (an equal share each, instead of the first files only); the files the budget does
+/// not reach are named at the end with their counts.
+pub fn summarize_diff(diff: &str, budget: usize) -> String {
+    if diff.chars().count() <= budget {
+        return diff.to_owned();
+    }
+    let files = diff_files(diff);
+    if files.is_empty() {
+        let mut cut: String = diff.chars().take(budget).collect();
+        cut.push_str("\n[cut]");
+        return cut;
+    }
+    let added: usize = files.iter().map(|f| f.added).sum();
+    let removed: usize = files.iter().map(|f| f.removed).sum();
+    let mut out = format!(
+        "Diff summary: {} file(s), +{added} -{removed}. The whole diff is longer than this brief \
+allows: each file shows the start of its own changes.\n",
+        files.len()
+    );
+    let share = (budget.saturating_sub(out.len()) / files.len()).max(MIN_FILE_SHARE);
+    let mut left_out: Vec<String> = Vec::new();
+    for file in &files {
+        let header = format!("\n### {} (+{} -{})\n", file.path, file.added, file.removed);
+        if out.chars().count() + header.chars().count() + 40 > budget {
+            left_out.push(format!("{} (+{} -{})", file.path, file.added, file.removed));
+            continue;
+        }
+        out.push_str(&header);
+        let room = share
+            .saturating_sub(header.chars().count())
+            .min(budget.saturating_sub(out.chars().count() + 40));
+        let body = file.hunks.join("\n");
+        if body.chars().count() <= room {
+            out.push_str(&body);
+            out.push('\n');
+        } else {
+            out.extend(body.chars().take(room));
+            out.push_str("\n[rest of this file cut]\n");
+        }
+    }
+    if !left_out.is_empty() {
+        let mut tail = format!("\n[{} more file(s):", left_out.len());
+        for name in &left_out {
+            if out.chars().count() + tail.chars().count() + name.chars().count() + 4 > budget {
+                tail.push_str(" …");
+                break;
+            }
+            tail.push(' ');
+            tail.push_str(name);
+            tail.push(',');
+        }
+        let tail = tail.trim_end_matches(',').to_owned() + "]";
+        out.push_str(&tail);
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -362,5 +470,67 @@ mod tests {
         assert_eq!(chain.project_named("web").unwrap().id, "front");
         assert_eq!(chain.project_named("back").unwrap().id, "back");
         assert!(chain.project_named("nope").is_none());
+    }
+
+    fn file_diff(path: &str, lines: usize) -> String {
+        let mut text = format!(
+            "diff --git a/{path} b/{path}\n--- a/{path}\n+++ b/{path}\n@@ -1,{lines} +1,{lines} @@\n"
+        );
+        for n in 0..lines {
+            use std::fmt::Write as _;
+            let _ = write!(text, "-old line {n} of {path}\n+new line {n} of {path}\n");
+        }
+        text
+    }
+
+    /// ADR 0043, P3: a diff that fits is given whole; a larger one names every file with its
+    /// counts and gives each one the start of its own changes, within the budget.
+    #[test]
+    fn a_large_diff_becomes_a_summary_where_every_file_has_its_share() {
+        let small = file_diff("api/users.ts", 2);
+        assert_eq!(summarize_diff(&small, 6_000), small);
+
+        let big: String = ["api/users.ts", "api/orders.ts", "web/cart.tsx"]
+            .iter()
+            .map(|p| file_diff(p, 200))
+            .collect();
+        let summary = summarize_diff(&big, 6_000);
+
+        assert!(
+            summary.chars().count() <= 6_000,
+            "{}",
+            summary.chars().count()
+        );
+        assert!(summary.starts_with("Diff summary: 3 file(s), +600 -600."));
+        for path in ["api/users.ts", "api/orders.ts", "web/cart.tsx"] {
+            assert!(
+                summary.contains(&format!("### {path} (+200 -200)")),
+                "{path}"
+            );
+            // Each file shows the start of its own changes, not only the first file.
+            assert!(
+                summary.contains(&format!("+new line 0 of {path}")),
+                "{path}"
+            );
+        }
+    }
+
+    #[test]
+    fn files_the_budget_cannot_reach_are_still_named_with_their_counts() {
+        let many: String = (0..60)
+            .map(|i| file_diff(&format!("src/f{i}.ts"), 30))
+            .collect();
+
+        let summary = summarize_diff(&many, 6_000);
+
+        assert!(
+            summary.chars().count() <= 6_000,
+            "{}",
+            summary.chars().count()
+        );
+        assert!(summary.starts_with("Diff summary: 60 file(s)"));
+        assert!(summary.contains("### src/f0.ts (+30 -30)"));
+        assert!(summary.contains("more file(s):"));
+        assert!(summary.contains("src/f59.ts (+30 -30)") || summary.contains('…'));
     }
 }

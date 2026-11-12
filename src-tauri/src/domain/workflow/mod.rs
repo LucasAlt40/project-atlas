@@ -13,8 +13,9 @@ mod template;
 mod workflow;
 
 pub use chain::{
-    ChainNote, ChainProject, ChainStep, ChainStepSummary, ChainStop, ProjectChain,
-    MAX_CHAIN_DIFF_CHARS, MAX_CHAIN_FILES, MAX_CHAIN_STEPS, MAX_CHAIN_SUMMARY_CHARS,
+    summarize_diff, ChainNote, ChainProject, ChainStep, ChainStepSummary, ChainStop, ProjectChain,
+    MAX_CHAIN_DIFF_CHARS, MAX_CHAIN_DIFF_READ, MAX_CHAIN_FILES, MAX_CHAIN_STEPS,
+    MAX_CHAIN_SUMMARY_CHARS,
 };
 pub use condition::{Condition, ConditionError, ConditionOperator, Facts};
 pub use edge::WorkflowEdge;

@@ -39,7 +39,7 @@ Escolhido: **A**.
   seguinte, com `needed`, `done` (o que fez que importa lá: endpoints, payloads, tipos, nomes) e `todo` (o que ele
   provavelmente precisa fazer). Vale a última palavra de cada passo sobre cada projeto. A execução seguinte começa com um
   _briefing_: primeiro o que as anteriores disseram que o seu projeto precisa, depois o que cada passo delas fez, as
-  decisões, os arquivos, o começo do diff e a branch (que pode ainda não estar mesclada).
+  decisões, os arquivos, o diff (inteiro, ou um resumo por arquivo quando é grande) e a branch (que pode ainda não estar mesclada).
 - **Só roda se precisar.** Quando uma execução da cadeia **conclui**, o orquestrador vai para o próximo projeto marcado;
   se a última palavra sobre ele foi `needed: false`, ele é pulado (evento `workflow:chain_skipped`, registrado em
   `ProjectChain.skipped` com o motivo) e o seguinte é avaliado. Sem nota, o projeto roda: a falta de passagem nunca pula
@@ -70,7 +70,11 @@ Escolhido: **A**.
 ## Consequências e limites
 
 - O merge continua por projeto. A execução seguinte não vê os arquivos do worktree da anterior, só o que lhe é escrito
-  no prompt; se o diff for grande, só o começo.
+  no prompt. Um diff de até 6 000 caracteres vai inteiro, como antes; um maior vira um **resumo estruturado**
+  (`summarize_diff`, 2026-11-11): todos os arquivos com o que acrescentam e tiram, e o começo das mudanças de cada um, em
+  partes iguais, dentro dos mesmos 6 000 caracteres; os arquivos que não cabem são nomeados no fim com as contagens. O
+  diff é lido até 200 mil caracteres para isso. Testes: `a_large_diff_becomes_a_summary_where_every_file_has_its_share`
+  e `files_the_budget_cannot_reach_are_still_named_with_their_counts`.
 - Se o app fechar entre uma execução que concluiu e o início da próxima, **a próxima é criada e conduzida quando o app
   abre** (decisão do usuário, 2026-11-11): `Orchestrator::chains_ready_to_go_on` acha as execuções concluídas cuja
   cadeia tem um próximo projeto, não foi parada nem seguida nem pulada, e (se espera a entrega) teve o código aplicado

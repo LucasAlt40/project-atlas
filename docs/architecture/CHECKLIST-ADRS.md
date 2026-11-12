@@ -308,7 +308,7 @@ ADRs: 0033, 0043.
       teste de reinício (0043). — após reabrir o app entre duas execuções, a próxima é criada
       automaticamente (hoje só o botão "Continuar"); com confirmação se mudar o comportamento atual. Teste de reinício.
 - [x] **P2. Escopo de workflow por passo.** (0033) — 2026-11-11: descartado pelo usuário (0033). — hoje por execução. Só se houver caso real; senão descartar por escrito.
-- [ ] **P3. Handoff com diff grande.** (0043) — a execução seguinte recebe resumo estruturado do diff (arquivos,
+- [x] **P3. Handoff com diff grande.** (0043) — 2026-11-11: resumo por arquivo dentro do mesmo orçamento (0043). — a execução seguinte recebe resumo estruturado do diff (arquivos,
       trechos relevantes) em vez de só o começo; respeitando o orçamento do contexto.
 - [ ] **P4. Varredura de obsolescência por leitura.** (0033) — a visão geral não escaneia todo projeto a cada leitura
       (cache com invalidação), com teste.

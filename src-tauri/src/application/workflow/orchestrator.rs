@@ -672,9 +672,10 @@ impl Orchestrator {
             .as_deref()
             .and_then(|primary| {
                 self.runner
-                    .workspace_diff(primary, MAX_CHAIN_DIFF_CHARS * 2)
+                    .workspace_diff(primary, crate::domain::workflow::MAX_CHAIN_DIFF_READ)
             })
-            .map(|diff| clip_chars(&diff, MAX_CHAIN_DIFF_CHARS))
+            // Every file with its counts and the start of its own changes, not only the first files.
+            .map(|diff| crate::domain::workflow::summarize_diff(&diff, MAX_CHAIN_DIFF_CHARS))
             .unwrap_or_default();
         // Each node's latest word, in the order the nodes finished.
         let mut finished: Vec<(&String, &NodeAttempt)> = exec
