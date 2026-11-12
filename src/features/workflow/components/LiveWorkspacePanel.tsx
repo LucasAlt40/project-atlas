@@ -120,6 +120,11 @@ export function LiveWorkspaceView({ run, live }: { run: WorkflowRun; live: LiveW
               baseline: state.baselineRevision.slice(0, 7),
             })}
           </p>
+          {state.files.length < state.filesChanged && (
+            <p className={styles.scope} role="note">
+              {t('live.files.cut', { shown: state.files.length, n: state.filesChanged })}
+            </p>
+          )}
           <div className={styles.body}>
             <div className={styles.side}>
               <LiveFileTree

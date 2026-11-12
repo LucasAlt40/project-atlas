@@ -123,6 +123,24 @@ describe('the live workspace: what it says', () => {
     expect(region).toHaveTextContent('abc1234');
   });
 
+  it('says when the list of files was cut, and says nothing when it was not', async () => {
+    show(liveState({ files: FILES, filesChanged: 812 }));
+
+    const region = await panel();
+
+    expect(within(region).getByRole('note')).toHaveTextContent(
+      'Showing the first 2 of 812 changed files',
+    );
+  });
+
+  it('does not speak of a cut when every file is listed', async () => {
+    show(liveState({ files: FILES }));
+
+    const region = await panel();
+
+    expect(within(region).queryByRole('note')).toBeNull();
+  });
+
   it('shows a loading state, then an empty state when the worktree matches the baseline', async () => {
     show(liveState({ files: [] }));
 

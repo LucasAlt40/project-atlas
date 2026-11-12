@@ -1950,6 +1950,8 @@ export const ptBR: Record<TranslationKey, string> = {
   'live.files.all': 'Todas as alterações',
   'live.files.empty':
     'Nenhuma alteração ainda: o worktree está igual ao ponto de partida da execução.',
+  'live.files.cut':
+    'Mostrando os primeiros {shown} de {n} arquivos alterados. A lista para aí; os totais e o worktree têm todos.',
   'live.files.count': '{n} arquivo(s)',
   'live.files.renamedFrom': 'Renomeado de {path}',
   'live.activity': 'Atividade',

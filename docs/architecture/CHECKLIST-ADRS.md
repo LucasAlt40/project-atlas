@@ -261,7 +261,8 @@ ADRs: 0013, 0014, 0018, 0019, 0035, 0009.
   - Onde: `application/live_workspace/` (`mod.rs`, `tracker.rs`).
   - Pronto quando: uma execução existente volta a ser observada ao reabrir o app (sem esperar o retomar), com teste de
     reinício.
-- [ ] **W2. Limites do Live Workspace.** (0018 "Limites")
+- [x] **W2. Limites do Live Workspace.** (0018 "Limites") — 2026-11-11: limites mantidos; o corte em 500 agora é
+      dito no painel (0018).
   - Pronto quando: o corte de 500 arquivos (`MAX_CHANGESET_FILES`) e a leitura de contagens só até 1 MiB têm decisão
     (paginar/avisar na UI ou manter e registrar). Hoje o corte é silencioso na lista.
 - [ ] **W3. Persistir o status de revisão.** (0019)

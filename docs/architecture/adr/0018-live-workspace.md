@@ -101,9 +101,12 @@ contagens de linhas não mudaram.
 
 ## Limites (atuais)
 
-- No máximo 500 arquivos são listados (`MAX_CHANGESET_FILES`); além disso a lista é cortada.
+- No máximo 500 arquivos são listados (`MAX_CHANGESET_FILES`); além disso a lista é cortada. **Mantido, e dito**
+  (2026-11-11): quando `files` tem menos que `filesChanged`, o painel diz "mostrando os primeiros N de M arquivos" e que
+  os totais e o worktree têm todos (teste `says when the list of files was cut…`). Paginar não foi feito: a revisão do
+  diff tem o mesmo corte, e um run que muda mais de 500 arquivos é revisado no editor.
 - As contagens de linhas de arquivos não rastreados só são lidas para arquivos de texto de até 1 MiB; arquivos maiores
-  são listados sem contagens.
+  são listados sem contagens. Mantido: ler mais custaria o que o painel ao vivo não pode gastar a cada evento.
 - Renames só são reconhecidos em uma leitura completa e só para conteúdo idêntico.
 - Um escritor que pausa por mais que a janela de silêncio pode ser lido pela metade; o próximo evento, ou a olhada de
   segurança, corrige.

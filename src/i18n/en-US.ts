@@ -1930,6 +1930,8 @@ export const enUS = {
   'live.files': 'Changed files',
   'live.files.all': 'All changes',
   'live.files.empty': 'No changes yet: the worktree matches where the run started.',
+  'live.files.cut':
+    'Showing the first {shown} of {n} changed files. The list stops there; the totals and the worktree have them all.',
   'live.files.count': '{n} file(s)',
   'live.files.renamedFrom': 'Renamed from {path}',
   'live.activity': 'Activity',
