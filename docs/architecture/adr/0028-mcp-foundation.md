@@ -84,8 +84,9 @@ mcp__<servidor>__<ferramenta>` esconde uma descoberta; uma ferramenta que o serv
 
 ## Consequências
 
-- Só o Claude pode receber servidores MCP. Os outros quatro runtimes são `NotInvestigated`: uma conexão concedida aos
-  seus agentes simplesmente não é dada, com um achado.
+- Nesta fase só o Claude recebia servidores MCP. A [ADR 0029](0029-mcp-for-every-runtime.md) levou o MCP a todo runtime
+  que consegue suportá-lo, por capacidades medidas em cada CLI; um runtime que não consegue continua sem receber a
+  conexão, com um achado que diz por quê.
 - O `keyring` 4 (recurso `v1`) escolhe o cofre por SO: Keychain no macOS, Credential Manager no Windows, Secret Service
   (zbus) no Linux. O crate inteiro compila e passa nos testes no CI nos três SOs. O ciclo gravar/ler/apagar
   (`infrastructure::credential_store::tests::real_keyring_round_trips_and_forgets_a_secret`, ignorado, nome exato) foi

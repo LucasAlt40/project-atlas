@@ -59,10 +59,17 @@ Um teste opt-in (`cargo test real_claude_surface -- --ignored`) repete a mediç�
   execução com os servidores concedidos ([ADR 0028](0028-mcp-foundation.md), [ADR 0029](0029-mcp-for-every-runtime.md)).
   Não há seletor automático de ferramentas; a busca de ferramentas e o carregamento adiado do próprio runtime são a
   capacidade nativa a usar.
-- **OpenCode, Gemini e Antigravity.** A superfície deles não foi medida: o OpenCode lê sua própria configuração e pode
-  carregar os servidores MCP do usuário; Gemini e Antigravity negam shell e escrita de arquivos no modo headless, e o
-  carregamento de MCP e extensões deles não é conhecido. Até serem medidos, nada é afirmado sobre eles e seus fatos no
-  estilo `init` estão ausentes.
+- **OpenCode, Gemini e Antigravity: declarados fora (2026-11-12).** A parte de MCP foi medida na
+  [ADR 0029](0029-mcp-for-every-runtime.md): OpenCode e Gemini recebem os servidores do Atlas por execução, mas também
+  carregam os do usuário (não são estritos); o Antigravity só usa a própria configuração global. O resto da superfície
+  (arquivos de instruções do projeto e do usuário, extensões, quanto contexto isso soma) não é medido, por três motivos:
+  - o OpenCode não roda em teste real nesta máquina, porque trava o terminal do usuário;
+  - a conta do Gemini é recusada pela CLI (ADR 0029, M5);
+  - o Antigravity não tem configuração por execução para isolar.
+
+  O Atlas não afirma nada sobre essa parte da superfície deles, e os fatos no estilo `init` ficam ausentes. Isso vale
+  até haver um jeito de medir sem esses obstáculos.
+
 - **Descartar o `CLAUDE.md`, os hooks e as regras de permissão do usuário** nas execuções do Atlas. Eles ainda se
   aplicam. Fazer isso direito exige antes entender as flags seguras para a autenticação acima, e medir quanto contexto
   eles acrescentam.
