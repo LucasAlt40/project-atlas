@@ -273,7 +273,7 @@ ADRs: 0013, 0014, 0018, 0019, 0035, 0009.
   - Onde: `application/workflow/engine.rs`, `domain/workflow`, UI de configuração.
   - Pronto quando: o valor (hoje fixo em 4) é configurável por execução com limites validados, e execuções antigas sem o
     campo leem o padrão 4 (compatibilidade, como as outras migrações).
-- [ ] **W5. Passos paralelos compartilham a árvore.** (0014)
+- [x] **W5. Passos paralelos compartilham a árvore.** (0014) — 2026-11-11: mantido por decisão do usuário (0014).
   - Pronto quando: há decisão. Hoje o delta por passo pode incluir arquivos do outro; ou isolar por passo ou manter e
     deixar o aviso de sobreposição como o limite documentado.
 - [ ] **W6. Spec: acompanhar/aprovar pelo celular.** (0035; 0034)
@@ -289,12 +289,13 @@ ADRs: 0013, 0014, 0018, 0019, 0035, 0009.
 - [ ] **W10. Agente isolado lê os arquivos publicados.** (0035 tabela)
   - Pronto quando: a spec publicada e ainda não commitada chega ao agente isolado de forma garantida (hoje só o digest;
     o conteúdo vai no brief). Ou documentar como garantia definitiva.
-- [ ] **W11. Merge de deltas em `openspec/specs/` sem a CLI.** (0035)
+- [x] **W11. Merge de deltas em `openspec/specs/` sem a CLI.** (0035) — 2026-11-11: descartado pelo usuário (0035).
   - Pronto quando: decisão. A ADR considera reimplementar o archive do OpenSpec arriscado; se continuar assim, mover
     para "Descartado" com o motivo.
 - [ ] **W12. Detectar o Visual Studio.** (0014) — entrega mostra a opção quando detectado, só Windows (`cfg`).
 - [ ] **W13. Submódulos e sparse checkouts.** (0009) — detecção e tratamento explícito (ou erro claro), com teste.
-- [ ] **W14. Integração automática de mudanças.** (0014 "só o usuário aplica")
+- [x] **W14. Integração automática de mudanças.** (0014 "só o usuário aplica") — 2026-11-11: descartado pelo usuário
+      (0014).
   - Pronto quando: decisão. Provavelmente **manter** (é invariante de segurança): mover para "Descartado" com motivo.
 - [ ] **W15. Política que nega Git deixa trabalho sem commit.** (0014)
   - Pronto quando: o usuário vê claramente que o trabalho está sem commit e como aplicá-lo, ou o fluxo é ajustado.

@@ -124,11 +124,19 @@ A causa raiz acima é corrigida de forma estreita, dentro do modelo de seguranç
 - O prompt diz o que é verdade: a regra de edição para uma execução assim (worktree isolado, só arquivos, nada fora
   dele, revisado antes de chegar ao projeto), a regra de somente leitura para todas as outras.
 
+## Descartado
+
+- **Integração automática das mudanças** (decisão do usuário, 2026-11-11). Só a pessoa aplica o código ao projeto,
+  mesmo quando a política permitiria um merge: é uma invariante de segurança do Atlas ("o usuário decide o que entra no
+  projeto"), não uma lacuna.
+
 ## Limites conhecidos
 
 - Passos de uma mesma execução que rodam em paralelo compartilham uma árvore: seus commits podem se misturar e o delta
-  por passo pode incluir arquivos do outro passo. Os avisos de sobreposição continuam valendo.
-- Só o usuário aplica mudanças; não há integração automática, mesmo para uma política que permitiria um merge.
+  por passo pode incluir arquivos do outro passo. Os avisos de sobreposição continuam valendo. **Mantido por decisão**
+  (usuário, 2026-11-11): isolar cada passo paralelo pediria um worktree por passo e um merge entre eles no fim, com
+  conflitos para resolver; o aviso de sobreposição é a resposta, e quem quer passos sem mistura limita a execução a um
+  passo por vez (`Passos em paralelo` = 1, ADR 0013).
 - Os agentes do OpenCode continuam somente leitura. Agentes não podem executar testes nem um shell (uma decisão
   diferente e maior).
 - As mudanças do passo são commitadas no branch da execução pelo Atlas quando as escritas no Git não são negadas; com uma

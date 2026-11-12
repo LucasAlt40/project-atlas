@@ -123,11 +123,16 @@ O revisor recebe a lista como o que pode usar. Na execução a partir da spec, o
 manda deixar fora de `completedTasks` o que não pôde ser verificado por não ter a ferramenta. Uma conexão desligada fica
 escolhida, aparece como desligada e não é citada a nenhum agente. A proposta não recebe a lista: é sobre por quê e o quê.
 
+## Descartado
+
+- **Mesclar deltas em `openspec/specs/` sem a CLI** (decisão do usuário, 2026-11-11): reimplementar o archive do
+  OpenSpec é arriscado e duplicaria a CLI; com a CLI instalada o Atlas a chama, e sem ela "Encerrar esta spec" só fecha
+  o registro do Atlas e os arquivos do projeto ficam onde estão.
+
 ## O que não foi feito (e por quê)
 
 - **Spec Kit**: fora do escopo desta entrega.
 - **`skip_specs`** (mudança sem comportamento): o fluxo exige ao menos uma capacidade.
-- **Mesclar deltas em `openspec/specs/` sem a CLI**: reimplementar o archive do OpenSpec é arriscado; sem a CLI, "Encerrar esta spec" só fecha o registro do Atlas e os arquivos do projeto ficam onde estão.
 - **Acompanhar/aprovar pelo celular** (ADR 0034): nada impede, nada foi feito.
 - **Diff entre revisões**, edição manual do documento e sincronização de arquivos alterados à mão no projeto.
 - **Garantia de que um agente isolado leia os arquivos publicados**: só o digest é garantido (ver a tabela).
