@@ -101,7 +101,8 @@ ADRs: 0038, 0039, 0044, 0026, 0027, 0025.
   - Verificação: real. Depende de: S1.
   - 2026-11-11: tabela de Claude e Copilot na 0038; o macOS não registra as negações. A regressão fica com os testes
     de trabalho e o do S2. **Falta o Codex**, junto com o S1.
-- [ ] **S4. Decidir `auto` e ligar o sandbox por padrão.** (0038 "Plano para ligar por padrão", passos 2–3)
+- [x] **S4. Decidir `auto` e ligar o sandbox por padrão.** — 2026-11-12: fechado pelo usuário como `off`; rever é uma
+      decisão nova (0038). (0038 "Plano para ligar por padrão", passos 2–3)
   - Pronto quando: decisão registrada na ADR com o critério (uso real por um tempo, S1–S3 fechados) e a mudança do
     padrão feita **só nesta decisão**, com teste que prova o padrão e o desligar.
   - Atenção: decisão do usuário, não da sessão. **Perguntar** antes de mudar o padrão.
@@ -126,7 +127,8 @@ ADRs: 0038, 0039, 0044, 0026, 0027, 0025.
     (b) é escaneado como skill/handoff (alegações sinalizadas, segredo redigido), (c) **não** muda Rule, Permission,
     Approval, Policy, nem decisão de Guardrail, (d) contradizer uma rule obrigatória gera Aviso de que a rule governa.
   - Verificação: det. Depende de: nada (a invariante vale antes do MCP real).
-- [ ] **S8. Escanear tarefa e instruções do agente por alegações de autoridade.** (0027 "Não alterado")
+- [x] **S8. Escanear tarefa e instruções do agente por alegações de autoridade.** — 2026-11-12: descartado pelo usuário
+      (0027). (0027 "Não alterado")
   - Pronto quando: há decisão registrada. A ADR já disse que escanear gera ruído ("o usuário aprovou" é comum numa
     tarefa de workflow). Se não implementar, mover para "Descartado" com o motivo; se implementar, só sinalizar, nunca
     bloquear.
@@ -136,7 +138,7 @@ ADRs: 0038, 0039, 0044, 0026, 0027, 0025.
   - (b) `--restricted` para o Claude (decisão C): precisa de **uma execução real pequena** antes.
   - (c) Ampliar o léxico de conflitos a partir de projetos reais (`application/rules/`).
   - Atenção: (a) é decisão do usuário; **perguntar**. Cada uma vira ADR/emenda própria, não item de código solto.
-- [ ] **S10. Editor de rules.** (0027 "Consequências"; marcado "decidido: não agora")
+- [x] **S10. Editor de rules.** — 2026-11-12: adiado pelo usuário (0027). (0027 "Consequências"; marcado "decidido: não agora")
   - Pronto quando: decisão reconfirmada. Se continuar "não agora", mover para "Descartado/Adiado" com data.
 
 ## Bloco 2 · MCP completo
@@ -285,8 +287,7 @@ ADRs: 0009, 0034, 0028, 0038, 0039, 0044. **O CI já roda `npm run check` em ubu
 
 Os blocos 5, 6 e 7 foram concluídos e apagados (2026-11-12). O que resta:
 
-1. **S1/S3 com o Codex** (cota volta em 2026-11-16; pedir autorização), **S5**; decisões do usuário: **S4**, **S8**,
-   **S10**.
+1. **S1/S3 com o Codex** (cota volta em 2026-11-16; pedir autorização), **S5**.
 2. **M3** (o CI só prova com um push), **M5–M9**; **M2** fica para quando o OAuth for decidido.
 3. **MEM3**; **C3** (medição real, pedir autorização).
 4. **X2–X7** conforme dê acesso a máquinas/celular.

@@ -1,6 +1,6 @@
 # 0027 — Rules, Autoridade de Contexto e o canal de system prompt (Context & Tooling Platform, Fase C)
 
-Status: aceito. Falta o editor de rules ("Não feito").
+Status: aceito e implementado. O editor de rules está adiado; escanear a tarefa por alegações de autoridade foi descartado.
 
 ## Contexto
 
@@ -136,7 +136,7 @@ isolamento da Fase 4 não mudou.
 ## Consequências
 
 - Não há editor de rules nem uma fonte persistida de rules de Task; as rules são escritas no arquivo do projeto ou na
-  configuração do Atlas (decidido: não agora).
+  configuração do Atlas (adiado, ver abaixo).
 - As contradições são encontradas por tópico compartilhado, pelos grupos de escolhas conhecidas e (C.1) pelo vocabulário
   fechado acima; todo o resto fica a cargo do modelo, e o vocabulário vai perder paráfrases.
 - Uma rule obrigatória que não cabe pergunta a uma pessoa em um passo de workflow e, sem uma pessoa, é uma negação (C.1).
@@ -146,7 +146,22 @@ isolamento da Fase 4 não mudou.
 - A Fase D (MCP, [ADR 0028](0028-mcp-foundation.md)) acrescentou um eixo de política e as fontes `Untrusted` acima sem
   mudar nada aqui.
 
-## Não feito
+## Descartado
 
-Um editor de rules e qualquer execução real com modelo. Memory, Chrome DevTools e o armazenamento de credenciais vieram
-depois, nas ADRs 0037 e 0028.
+- **Escanear a tarefa e as instruções do agente por alegações de autoridade** (decisão do usuário, 2026-11-12). Esse
+  texto é escrito pela própria pessoa, e frases como "o usuário aprovou" são comuns numa tarefa de workflow. Um aviso a
+  cada uma seria ruído sem proteção nenhuma: o que vem de agentes, ferramentas e arquivos do projeto já é tratado como
+  dado (ADR 0025).
+
+## Adiado
+
+- **Editor de rules** (decisão do usuário, 2026-11-12). As rules continuam sendo editadas como arquivos do projeto (em
+  `.atlas/`) ou na configuração do Atlas. Volta a ser decidido se aparecer a necessidade de editar rules sem sair do
+  Atlas.
+
+## Não verificado
+
+- Nenhuma execução real com modelo exercitou as rules e o canal de system prompt desta ADR; o que existe é teste
+  determinístico. A medição do canal de sistema com modelo real está na ADR 0036 (C3), ainda não rodada.
+
+Memory, Chrome DevTools e o armazenamento de credenciais vieram depois, nas ADRs 0037 e 0028.

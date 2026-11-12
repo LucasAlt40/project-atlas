@@ -212,5 +212,7 @@ o arquivo tem de chegar ao Git) e, para as ferramentas de build, pelo teste do S
 2. Decidir o padrão `auto`. **Decidido em 2026-11-11: continua `off`.** Critério para rever: o teste de fuga do Codex
    (`sandbox_real_bare_codex_cannot_escape`) passou, e a pessoa usou `auto` nas configurações por um tempo sem
    quebrar o trabalho. Só então o padrão muda, numa decisão própria registrada aqui. Teste do padrão:
-   `the_sandbox_is_off_unless_the_person_switches_it_on`.
+   `the_sandbox_is_off_unless_the_person_switches_it_on`. **Fechado em 2026-11-12** (decisão do usuário): o padrão `off`
+   é a decisão vigente, e não um item pendente. Rever o padrão será uma decisão nova, tomada quando o critério acima for
+   cumprido.
 3. Fechar a fuga com a CLI real: feito para Claude e Copilot até onde elas deixam (acima); falta o Codex.
