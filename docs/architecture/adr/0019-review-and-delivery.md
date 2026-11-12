@@ -48,9 +48,14 @@ ou Open in IDE para um worktree que não existe; uma execução já aplicada man
 **Não adicionado.** Artefatos são mostrados, não abertos (sem novo acesso a arquivos). Nada de commit, push, PR, resumo
 por IA ou nova persistência.
 
+## Por que o status de revisão não tem um campo seu (W3, 2026-11-11)
+
+O status de revisão sobrevive a reabrir o app sem ser gravado: `reviewStateOf` o deriva do status de integração, que é
+gravado com a execução e é a fonte. Um campo próprio poderia divergir dele (dizer "Revisado" de um código que voltou a
+estar em andamento); derivado, não pode. Os testes de `review.test.ts` cobrem cada status de integração. Nada a fazer.
+
 ## Limites
 
-- O status de revisão não é persistido: ao reabrir o app ele é derivado de novo a partir do status de integração.
 - O runtime/modelo da linha do tempo vêm das execuções armazenadas; um passo cuja execução não está mais armazenada
   mostra apenas o seu agente.
 - Nomes de severidade desconhecidos pela Revisão aparecem como _Info_ (a palavra do próprio agente é mantida na linha do
