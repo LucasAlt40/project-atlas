@@ -88,6 +88,8 @@ ADRs: 0038, 0039, 0044, 0026, 0027, 0025.
   - Como: invocar a ferramenta de arquivo da CLI **sem passar pelo modelo**, ou forçar o modelo (se a conta permitir).
     Se não houver como forçar, registrar na ADR como limite permanente, não como pendência.
   - Verificação: real (por nome). Depende de: nada.
+  - 2026-11-11: testes `sandbox_real_bare_*` (a CLI sem o prompt do Atlas). Claude: a própria CLI recusa antes do SO;
+    Copilot: o modelo não tenta. Os dois viraram limite permanente na 0038. **Falta o Codex** (cota até 2026-11-16).
 - [x] **S2. Ferramentas de build e PTY sob o perfil.** (0038) — 2026-11-11: medido sem modelo (tabela e lista de
       caminhos na 0038); faltou `cargo`/`npm` com download de dependências.
   - Pronto quando: `npm` e `cargo` reais (caches de ferramentas) e o modo terminal rodam confinados sem quebrar, com a
@@ -97,6 +99,8 @@ ADRs: 0038, 0039, 0044, 0026, 0027, 0025.
   - Pronto quando: há uma tabela por CLI (Claude engole falhas; as outras não falharam até agora) e um teste que pega
     regressão de escrita negada.
   - Verificação: real. Depende de: S1.
+  - 2026-11-11: tabela de Claude e Copilot na 0038; o macOS não registra as negações. A regressão fica com os testes
+    de trabalho e o do S2. **Falta o Codex**, junto com o S1.
 - [ ] **S4. Decidir `auto` e ligar o sandbox por padrão.** (0038 "Plano para ligar por padrão", passos 2–3)
   - Pronto quando: decisão registrada na ADR com o critério (uso real por um tempo, S1–S3 fechados) e a mudança do
     padrão feita **só nesta decisão**, com teste que prova o padrão e o desligar.

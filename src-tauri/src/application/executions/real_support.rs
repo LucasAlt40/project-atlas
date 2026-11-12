@@ -59,6 +59,8 @@ pub(super) struct RealWorld {
     pub workspace_id: String,
     pub agent_id: String,
     pub first_commit: String,
+    /// The runtimes, through the same guard and sandbox as the service.
+    pub registry: Arc<RuntimeRegistry>,
     _dir: TempDir,
 }
 
@@ -111,6 +113,7 @@ impl RealWorld {
                 .to_vec(),
         ));
         let registry = Arc::new(RuntimeRegistry::with_default_runtimes(&runner));
+        let registry_for_bare = registry.clone();
         let personalities = Arc::new(PersonalityService::new(config.clone()));
         let agents = Arc::new(AgentService::new(
             config.clone(),
@@ -187,6 +190,7 @@ impl RealWorld {
             workspace_id,
             agent_id,
             first_commit,
+            registry: registry_for_bare,
             _dir: dir,
         }
     }
@@ -206,6 +210,66 @@ impl RealWorld {
                 &Quiet,
             )
             .unwrap()
+    }
+
+    /// The runtime's CLI as Atlas launches it (same arguments, same guard, same sandbox, file edits
+    /// granted in the project), but asked `prompt` alone: none of Atlas's own instructions, so a
+    /// model is not told to stay in its folder. What the sandbox must hold is then the only thing
+    /// between the request and the disk (ADR 0038, "Não verificado"). Returns the answer (or the
+    /// error) and every event the runtime reported, tool calls included.
+    pub fn run_bare(
+        &self,
+        runtime_id: &str,
+        model: &str,
+        prompt: &str,
+    ) -> (
+        Result<String, String>,
+        Vec<crate::application::runtimes::RuntimeEvent>,
+    ) {
+        let runtime = self
+            .registry
+            .find(runtime_id)
+            .expect("the runtime is registered");
+        let request = crate::application::runtimes::RuntimeRequest {
+            model_id: model.to_owned(),
+            prompt: crate::application::prompt::Prompt {
+                system: "You are a helpful assistant on the owner's own computer.".to_owned(),
+                harness: None,
+                task_aware: false,
+                skills: None,
+                memories: None,
+                memory_rule: None,
+                rules: None,
+                context: format!("Working directory: {}", self.project.display()),
+                instruction: prompt.to_owned(),
+            },
+            working_dir: self.project.clone(),
+            extra_dirs: Vec::new(),
+            scope: crate::application::process::ExecutionScope {
+                workspace_id: self.workspace_id.clone(),
+                agent_id: self.agent_id.clone(),
+                execution_id: "bare-1".to_owned(),
+                task_id: "t".to_owned(),
+                runtime_access: crate::domain::security::ToolAccess {
+                    filesystem_write: true,
+                    ..crate::domain::security::ToolAccess::NONE
+                },
+                isolated: false,
+                project_id: None,
+            },
+            text_only: false,
+            allow_edits: true,
+            granted_commands: Vec::new(),
+            mcp: None,
+        };
+        let events = std::sync::Mutex::new(Vec::new());
+        let result = runtime.execute(&request, &|event| events.lock().unwrap().push(event));
+        (
+            result
+                .map(|o| o.text)
+                .map_err(|e| format!("{} | {e:?}", e.user_message())),
+            events.into_inner().unwrap(),
+        )
     }
 
     /// Puts the project back as it was at its first commit, so the next run starts from the same
