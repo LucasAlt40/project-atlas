@@ -201,6 +201,38 @@ describe('the Specs overview', () => {
 });
 
 describe('creating a spec', () => {
+  it('makes a change with no behaviour, and then shows no Requirements stage', async () => {
+    backend();
+    vi.mocked(listSpecs).mockResolvedValue([]);
+    const draft = view('draft', {
+      started: true,
+      skipSpecs: true,
+      artifacts: [artifact('proposal'), artifact('design'), artifact('tasks')],
+    });
+    vi.mocked(createSpec).mockResolvedValue(draft);
+    vi.mocked(getSpec).mockResolvedValue(draft);
+    const user = userEvent.setup();
+    renderWithProviders(<SpecsPage />);
+
+    await user.click(first(await screen.findAllByRole('button', { name: 'New specification' })));
+    const dialog = await screen.findByRole('dialog', { name: 'New specification' });
+    await user.type(within(dialog).getByLabelText('Title'), 'Build timing');
+    await user.type(within(dialog).getByLabelText(/What do you want built/), 'Time the build');
+    await user.click(
+      within(dialog).getByRole('checkbox', {
+        name: 'No behaviour change (no specification files)',
+      }),
+    );
+    expect(within(dialog).getByText(/proposal, design and tasks only/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Create' }));
+
+    expect(createSpec).toHaveBeenCalledWith(expect.objectContaining({ skipSpecs: true }));
+    const stages = await screen.findByRole('navigation', { name: 'Stages' });
+    expect(within(stages).queryByRole('button', { name: /Requirements/ })).not.toBeInTheDocument();
+    expect(within(stages).getByRole('button', { name: /Design/ })).toBeInTheDocument();
+    expect(within(stages).getAllByRole('button')).toHaveLength(4);
+  });
+
   it('needs a title and a request, records them, and starts nothing until confirmed', async () => {
     backend();
     vi.mocked(listSpecs).mockResolvedValue([]);
@@ -231,6 +263,7 @@ describe('creating a spec', () => {
       authorAgentId: 'a1',
       reviewerAgentId: 'a1',
       integrations: [],
+      skipSpecs: false,
     });
     expect(await screen.findByRole('heading', { level: 2, name: 'Dark mode' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start specification' })).toBeEnabled();

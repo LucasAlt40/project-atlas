@@ -133,6 +133,22 @@ mesma implementação para a ADR 0036. Testes: os de `domain::spec::diff`,
 `the_core_says_what_changed_between_two_revisions_of_a_document` e
 "shows what changed since another revision, as the core worked it out".
 
+### 13. Mudança sem comportamento (`skip_specs`)
+
+Ao criar a spec, a pessoa pode marcar "mudança sem comportamento" (refatoração, ferramentas, documentação):
+`Spec.skip_specs`, que nunca muda depois e vale `false` para toda spec anterior. A spec então não tem o documento de
+especificações: o grafo perde `specs` e as dependências nele (`rules::without_specs`), ficando proposta → design →
+tarefas. A proposta tem **validação própria** (`validate_artifact_without_specs`): não precisa da seção de capacidades
+e é um erro nomear uma (`capabilities_without_specs`), porque nenhuma ganharia arquivo. O agente recebe outra instrução
+para a proposta e, no design e nas tarefas, um aviso de que não há requisitos a citar; desligado, o prompt é o mesmo de
+antes. Publicar não pede arquivos de especificação, e o archive pela CLI passa `--skip-specs` (nenhuma spec principal
+é atualizada). Testes: `a_change_without_behaviour_goes_through_without_specification_files`,
+`a_spec_from_before_has_its_specification_files`,
+`without_specification_files_a_proposal_names_no_capability_and_needs_no_section`,
+`a_change_without_specification_files_is_archived_without_touching_the_main_specs` e o de criação na tela. Limites:
+importar uma pasta de mudança que não tem `specs/` continua pedindo esses arquivos; e o `openspec validate` da CLI, que é
+só uma segunda opinião, pode reclamar de uma mudança sem deltas.
+
 ## Descartado
 
 - **Mesclar deltas em `openspec/specs/` sem a CLI** (decisão do usuário, 2026-11-11): reimplementar o archive do
@@ -142,7 +158,6 @@ mesma implementação para a ADR 0036. Testes: os de `domain::spec::diff`,
 ## O que não foi feito (e por quê)
 
 - **Spec Kit**: fora do escopo desta entrega.
-- **`skip_specs`** (mudança sem comportamento): o fluxo exige ao menos uma capacidade.
 - **Acompanhar/aprovar pelo celular** (ADR 0034): nada impede, nada foi feito.
 - **Edição manual do documento** e sincronização de arquivos alterados à mão no projeto.
 

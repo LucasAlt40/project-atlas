@@ -762,6 +762,42 @@ pub fn validate_artifact(
     }
 }
 
+/// [`validate_artifact`] for a change with no specification files (`skip_specs`). Only the
+/// proposal differs: it must declare no capability, since none would get a file.
+pub fn validate_artifact_without_specs(
+    kind: ArtifactKind,
+    files: &[SpecFile],
+    project: &ProjectSpecs,
+) -> Vec<ValidationIssue> {
+    if kind != ArtifactKind::Proposal {
+        return validate_artifact(kind, files, project);
+    }
+    match single(files, "proposal.md") {
+        Ok(file) => validate_proposal_without_specs(&file.path, &file.content),
+        Err(issues) => issues,
+    }
+}
+
+fn validate_proposal_without_specs(file: &str, content: &str) -> Vec<ValidationIssue> {
+    let mut issues: Vec<ValidationIssue> = validate_proposal(file, content)
+        .into_iter()
+        .filter(|issue| {
+            !matches!(
+                issue.code.as_str(),
+                "capabilities_missing"
+                    | "no_capabilities"
+                    | "capability_path_invalid"
+                    | "capability_not_kebab"
+            )
+        })
+        .collect();
+    let (new, modified) = proposal_capabilities(content);
+    if !new.is_empty() || !modified.is_empty() {
+        issues.push(error("capabilities_without_specs", file, None, &[]));
+    }
+    issues
+}
+
 /// The requirements the spec files add or modify: `(capability, name)`.
 fn spec_requirements(files: &[SpecFile]) -> Vec<(String, String)> {
     let mut out = Vec::new();
@@ -953,6 +989,43 @@ mod tests {
 
         assert!(has(&issues, "why_too_short", IssueSeverity::Error));
         assert!(has(&issues, "what_changes_missing", IssueSeverity::Error));
+    }
+
+    #[test]
+    fn without_specification_files_a_proposal_names_no_capability_and_needs_no_section() {
+        let bare = "# Proposal\n\n## Why\n\nThe build is slow and nobody can tell which step it is, so it should say.\n\n## What Changes\n\n- Time each step.\n\n## Impact\n\nThe build.\n";
+        let clean = validate_artifact_without_specs(
+            ArtifactKind::Proposal,
+            &[SpecFile {
+                path: "proposal.md".to_owned(),
+                content: bare.to_owned(),
+            }],
+            &ProjectSpecs::default(),
+        );
+        assert!(clean.is_empty(), "{clean:?}");
+        let named = validate_artifact_without_specs(
+            ArtifactKind::Proposal,
+            &[SpecFile {
+                path: "proposal.md".to_owned(),
+                content: PROPOSAL.to_owned(),
+            }],
+            &ProjectSpecs::default(),
+        );
+        assert!(has(
+            &named,
+            "capabilities_without_specs",
+            IssueSeverity::Error
+        ));
+        // Off, nothing changes: the same proposal without capabilities is still an error.
+        let usual = validate_artifact(
+            ArtifactKind::Proposal,
+            &[SpecFile {
+                path: "proposal.md".to_owned(),
+                content: bare.to_owned(),
+            }],
+            &ProjectSpecs::default(),
+        );
+        assert!(has(&usual, "capabilities_missing", IssueSeverity::Error));
     }
 
     #[test]

@@ -3359,6 +3359,9 @@ export const ptBR: Record<TranslationKey, string> = {
   'specs.new.context': 'Contexto adicional (opcional)',
   'specs.new.author': 'Agente que escreve',
   'specs.new.recommended': '{name} (recomendado)',
+  'specs.new.skipSpecs': 'Mudança sem comportamento (sem arquivos de especificação)',
+  'specs.new.skipSpecsHint':
+    'Para refatoração, ferramentas ou documentação: só proposta, design e tarefas. A proposta não nomeia capacidade, e o archive não atualiza nenhuma spec principal.',
   'specs.new.authorHint':
     'Recomendado: um agente com a personalidade Arquiteto de Especificações. Qualquer agente pode escrever.',
   'specs.new.reviewer': 'Agente que revisa',
@@ -3719,6 +3722,8 @@ export const ptBR: Record<TranslationKey, string> = {
   'specs.issue.what_changes_missing': 'A proposta não tem a seção “What Changes”.',
   'specs.issue.what_changes_empty': '“What Changes” está vazio.',
   'specs.issue.capabilities_missing': 'A proposta não tem a seção “Capabilities”.',
+  'specs.issue.capabilities_without_specs':
+    'A proposta nomeia capacidades, mas esta mudança não tem arquivos de especificação. Tire-as, ou crie a spec com especificações.',
   'specs.issue.no_capabilities':
     'A proposta não nomeia nenhuma capacidade. Cada uma vira um arquivo de spec.',
   'specs.issue.capability_path_invalid': '“{capability}” não é um caminho de capacidade válido.',

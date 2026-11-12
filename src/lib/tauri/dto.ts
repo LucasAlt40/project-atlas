@@ -3827,6 +3827,8 @@ export interface SpecDto {
   budgetSteps: number;
   /** The integrations (connection ids) chosen for testing and review. */
   integrations: string[];
+  /** A change with no behaviour to specify: no specification files. Absent on older specs. */
+  skipSpecs?: boolean;
   origin: { kind: 'created' } | { kind: 'imported'; path: string; at: number };
   version: number;
   createdAt: number;
@@ -3966,6 +3968,8 @@ export interface NewSpecRequestDto {
   reviewerAgentId?: string | null;
   /** Connection ids of the workspace's integrations to test and review the spec with. */
   integrations?: string[];
+  /** A change with no behaviour to specify (refactor, tooling, docs): no specification files. */
+  skipSpecs?: boolean;
 }
 
 /** What a decision or an answer did; `launchError` says why an agent meant to start could not. */

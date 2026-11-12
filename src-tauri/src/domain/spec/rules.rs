@@ -140,11 +140,40 @@ pub struct NewSpec {
     pub author_agent_id: String,
     pub reviewer_agent_id: String,
     pub origin: SpecOrigin,
+    /// No specification files: see [`Spec::skip_specs`].
+    pub skip_specs: bool,
+}
+
+/// The framework's graph for a spec that has no specification files: `Specs` is gone, and so is
+/// every dependency on it.
+pub fn without_specs(
+    graph: &[(ArtifactKind, Vec<ArtifactKind>)],
+) -> Vec<(ArtifactKind, Vec<ArtifactKind>)> {
+    graph
+        .iter()
+        .filter(|(kind, _)| *kind != ArtifactKind::Specs)
+        .map(|(kind, deps)| {
+            (
+                *kind,
+                deps.iter()
+                    .copied()
+                    .filter(|d| *d != ArtifactKind::Specs)
+                    .collect(),
+            )
+        })
+        .collect()
 }
 
 /// A spec with its artifacts and none of them started. `graph` is the framework's: each kind and
 /// the kinds it is written from.
 pub fn create(new: NewSpec, graph: &[(ArtifactKind, Vec<ArtifactKind>)], now: u64) -> Spec {
+    let shaped;
+    let graph = if new.skip_specs {
+        shaped = without_specs(graph);
+        &shaped[..]
+    } else {
+        graph
+    };
     let artifacts = graph
         .iter()
         .map(|(kind, depends_on)| SpecArtifact {
@@ -189,6 +218,7 @@ pub fn create(new: NewSpec, graph: &[(ArtifactKind, Vec<ArtifactKind>)], now: u6
         budget_steps: 0,
         integrations: Vec::new(),
         runs: Vec::new(),
+        skip_specs: new.skip_specs,
         origin: new.origin,
         version: 1,
         created_at: now,
@@ -1476,6 +1506,7 @@ pub(crate) mod tests_support {
                 author_agent_id: "a1".to_owned(),
                 reviewer_agent_id: "a2".to_owned(),
                 origin: SpecOrigin::Created,
+                skip_specs: false,
             },
             &graph(),
             1,

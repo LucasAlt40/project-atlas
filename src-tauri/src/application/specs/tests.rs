@@ -294,6 +294,7 @@ fn new_request(w: &World) -> NewSpecRequest {
         author_agent_id: w.agent_id.clone(),
         reviewer_agent_id: Some(w.other_agent_id.clone()),
         integrations: Vec::new(),
+        skip_specs: false,
     }
 }
 
@@ -559,7 +560,13 @@ fn the_core_says_what_changed_between_two_revisions_of_a_document() {
     w.runtime.say(&answer_for("proposal"));
     generate(&w, &id, "proposal");
     w.specs
-        .decide(&id, "proposal", 1, DecisionKind::Revise, Some("Night shift too"))
+        .decide(
+            &id,
+            "proposal",
+            1,
+            DecisionKind::Revise,
+            Some("Night shift too"),
+        )
         .unwrap();
     w.runtime.say(&doc(
         "proposal.md",
@@ -1723,6 +1730,109 @@ fn the_final_approval_records_the_warnings_that_were_showing() {
 }
 
 // ---- publishing --------------------------------------------------------------------------------------------------
+
+/// A proposal for a change with no behaviour to specify: no Capabilities section.
+const PROPOSAL_WITHOUT_SPECS: &str = "# Proposal\n\n## Why\n\nThe build takes ten minutes and nobody can tell which step is slow, so it should say.\n\n## What Changes\n\n- Time each build step and print the slowest.\n\n## Impact\n\nThe build scripts.\n";
+
+#[test]
+fn a_change_without_behaviour_goes_through_without_specification_files() {
+    let w = world();
+    let mut request = new_request(&w);
+    request.skip_specs = true;
+    let view = w.specs.create(request).unwrap();
+    let id = view.spec.id.clone();
+    let shape: Vec<(&str, Vec<&str>)> = view
+        .spec
+        .artifacts
+        .iter()
+        .map(|a| {
+            (
+                a.id.as_str(),
+                a.depends_on.iter().map(String::as_str).collect(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        shape,
+        [
+            ("proposal", vec![]),
+            ("design", vec!["proposal"]),
+            ("tasks", vec!["design"]),
+        ]
+    );
+    w.specs.start(&id).unwrap();
+
+    // The proposal is asked for without capabilities, and one that names them is wrong here.
+    w.runtime.say(&answer_for("proposal"));
+    generate(&w, &id, "proposal");
+    let prompt = w.runtime.last_prompt();
+    assert!(prompt.contains("it has NO specification files"));
+    assert!(!prompt.contains("### New Capabilities"));
+    let codes = |w: &World| -> Vec<String> {
+        w.specs
+            .view(&id)
+            .unwrap()
+            .spec
+            .artifact("proposal")
+            .unwrap()
+            .validation
+            .as_ref()
+            .unwrap()
+            .issues
+            .iter()
+            .map(|i| i.code.clone())
+            .collect()
+    };
+    assert!(codes(&w).contains(&"capabilities_without_specs".to_owned()));
+    w.specs
+        .decide(
+            &id,
+            "proposal",
+            1,
+            DecisionKind::Revise,
+            Some("No capabilities: it is the build"),
+        )
+        .unwrap();
+    w.runtime.say(&doc("proposal.md", PROPOSAL_WITHOUT_SPECS));
+    generate(&w, &id, "proposal");
+    assert!(codes(&w).is_empty(), "{:?}", codes(&w));
+    approve(&w, &id, "proposal");
+
+    w.runtime.say(&answer_for("design"));
+    generate(&w, &id, "design");
+    assert!(w
+        .runtime
+        .last_prompt()
+        .contains("there are no requirements to point to"));
+    approve(&w, &id, "design");
+    w.runtime.say(&doc(
+        "tasks.md",
+        "# Tasks\n\n## 1. Build\n\n- [ ] 1.1 Time each step and verify the slowest is printed\n",
+    ));
+    generate(&w, &id, "tasks");
+    approve(&w, &id, "tasks");
+    w.runtime.say(&review_answer("[]"));
+    w.runner.prepare_review(&id).unwrap().run(&Quiet);
+    w.specs.approve_final(&id).unwrap();
+
+    let published = w.specs.publish(&id, None).unwrap();
+
+    assert_eq!(published.status, SpecStatus::Published);
+    assert!(
+        w.files.paths().iter().all(|p| !p.contains("/specs/")),
+        "{:?}",
+        w.files.paths()
+    );
+    assert_eq!(w.files.paths().len(), 4, "yaml, proposal, design, tasks");
+}
+
+#[test]
+fn a_spec_from_before_has_its_specification_files() {
+    let w = world();
+    let view = w.specs.create(new_request(&w)).unwrap();
+    assert!(!view.spec.skip_specs);
+    assert!(view.spec.artifact("specs").is_some());
+}
 
 #[test]
 fn a_ready_spec_is_published_to_the_project_and_confirmed_by_reading_it_back() {

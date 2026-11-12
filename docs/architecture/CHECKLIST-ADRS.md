@@ -286,7 +286,8 @@ ADRs: 0013, 0014, 0018, 0019, 0035, 0009.
 - [ ] **W8. Spec: edição manual e sincronização de arquivos editados à mão.** (0035)
   - Pronto quando: edição manual é aceita com validação, e a mudança feita fora do Atlas é detectada e reconciliada sem
     sobrescrever silenciosamente. Marca dependentes como desatualizados como já ocorre.
-- [ ] **W9. `skip_specs`.** (0035) — mudança sem comportamento passa sem exigir uma capacidade, com validação própria.
+- [x] **W9. `skip_specs`.** (0035) — 2026-11-12: escolhido na criação; sem o documento de especificações, proposta
+      com validação própria, archive com `--skip-specs` (0035 §13). — mudança sem comportamento passa sem exigir uma capacidade, com validação própria.
 - [x] **W10. Agente isolado lê os arquivos publicados.** (0035 tabela) — 2026-11-12: o brief é a garantia definitiva,
       por decisão do usuário (0035).
   - Pronto quando: a spec publicada e ainda não commitada chega ao agente isolado de forma garantida (hoje só o digest;

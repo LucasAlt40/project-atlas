@@ -162,6 +162,12 @@ pub trait SpecFramework: Send + Sync {
 
     fn instructions(&self, kind: ArtifactKind) -> ArtifactInstructions;
 
+    /// The instructions for a spec with no specification files (`Spec::skip_specs`). The same as
+    /// [`Self::instructions`] unless the format says otherwise.
+    fn instructions_without_specs(&self, kind: ArtifactKind) -> ArtifactInstructions {
+        self.instructions(kind)
+    }
+
     /// How the agent hands a document back, so Atlas reads it with no guessing.
     fn output_protocol(&self, kind: ArtifactKind) -> String;
 
@@ -210,6 +216,17 @@ pub trait SpecFramework: Send + Sync {
         project: &ProjectSpecs,
     ) -> Vec<ValidationIssue>;
 
+    /// [`Self::validate_artifact`] for a spec with no specification files: the format's own rules
+    /// for such a change (an `OpenSpec` proposal then declares no capability).
+    fn validate_artifact_without_specs(
+        &self,
+        kind: ArtifactKind,
+        files: &[SpecFile],
+        project: &ProjectSpecs,
+    ) -> Vec<ValidationIssue> {
+        self.validate_artifact(kind, files, project)
+    }
+
     /// What the rules find across the documents (a requirement no task covers, a task that points
     /// at a requirement that is not there, a marker left in the text).
     fn validate_consistency(&self, documents: &Documents) -> Vec<ValidationIssue>;
@@ -219,10 +236,12 @@ pub trait SpecFramework: Send + Sync {
     /// # Errors
     ///
     /// Names the artifact that has no document.
+    /// `skip_specs`: the spec has no specification files, so none are asked for.
     fn publish_files(
         &self,
         documents: &Documents,
         created_at_ms: u64,
+        skip_specs: bool,
     ) -> Result<Vec<PublishFile>, ArtifactKind>;
 
     /// A change folder read back from the project.

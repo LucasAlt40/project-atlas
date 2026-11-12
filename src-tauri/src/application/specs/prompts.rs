@@ -396,7 +396,11 @@ pub fn generation_prompt(
 ) -> Option<StepPrompt> {
     let artifact = spec.artifact(artifact_id)?;
     let kind = artifact.kind;
-    let instructions = framework.instructions(kind);
+    let instructions = if spec.skip_specs {
+        framework.instructions_without_specs(kind)
+    } else {
+        framework.instructions(kind)
+    };
     let deps: Vec<&str> = artifact.depends_on.iter().map(String::as_str).collect();
     let mut sections: Vec<String> = vec![format!(
         "You are writing ONE document of a specification, for the request below: the {}. Atlas keeps \

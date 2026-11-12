@@ -58,7 +58,7 @@ fn real_openspec_cli_accepts_what_atlas_publishes() {
     .collect();
     let files = FsProjectFiles;
     for file in OpenSpecAdapter
-        .publish_files(&documents, 1_791_849_600_000)
+        .publish_files(&documents, 1_791_849_600_000, false)
         .unwrap()
     {
         files
@@ -79,7 +79,7 @@ fn real_openspec_cli_accepts_what_atlas_publishes() {
     println!("validate: {checked:?}");
     assert!(checked.valid, "{checked:?}");
 
-    let archived = cli.archive(&root, "dark-mode").unwrap();
+    let archived = cli.archive(&root, "dark-mode", false).unwrap();
     println!("archive: {archived:?}");
     let name = archived
         .archived_as

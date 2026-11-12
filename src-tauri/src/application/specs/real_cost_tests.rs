@@ -363,6 +363,7 @@ assumptions instead of asking."
             author_agent_id: w.author.clone(),
             reviewer_agent_id: Some(w.reviewer.clone()),
             integrations: Vec::new(),
+            skip_specs: false,
         })
         .unwrap();
     let id = view.spec.id;

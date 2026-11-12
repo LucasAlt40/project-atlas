@@ -39,6 +39,7 @@ export function NewSpecDialog({ workspace, agents, onClose, onCreated }: Props) 
   const [projects, setProjects] = useState<ProjectInfoDto[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [integrations, setIntegrations] = useState<string[]>([]);
+  const [skipSpecs, setSkipSpecs] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
@@ -97,6 +98,7 @@ export function NewSpecDialog({ workspace, agents, onClose, onCreated }: Props) 
         authorAgentId: author,
         reviewerAgentId: reviewer || author,
         integrations,
+        skipSpecs,
       });
       onCreated(view);
     } catch (failure: unknown) {
@@ -245,6 +247,17 @@ export function NewSpecDialog({ workspace, agents, onClose, onCreated }: Props) 
             onChange={setIntegrations}
             preselect
           />
+          <label className={styles.inline}>
+            <input
+              type="checkbox"
+              checked={skipSpecs}
+              onChange={(event) => {
+                setSkipSpecs(event.target.checked);
+              }}
+            />
+            {t('specs.new.skipSpecs')}
+          </label>
+          {skipSpecs && <small className={styles.hint}>{t('specs.new.skipSpecsHint')}</small>}
         </div>
         {error !== null && (
           <p className={styles.error} role="alert">

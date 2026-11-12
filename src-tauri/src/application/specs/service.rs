@@ -61,6 +61,9 @@ pub struct NewSpecRequest {
     /// The workspace's integrations (connection ids) to test and review the spec with.
     #[serde(default)]
     pub integrations: Vec<String>,
+    /// A change with no behaviour to specify: no specification files (`Spec::skip_specs`).
+    #[serde(default)]
+    pub skip_specs: bool,
 }
 
 /// How a generation ended, as the runner reports it.
@@ -565,7 +568,12 @@ impl SpecService {
             })
             .collect();
         for (id, kind, revision, files) in due {
-            let issues = self.framework.validate_artifact(kind, &files, project);
+            let issues = if spec.skip_specs {
+                self.framework
+                    .validate_artifact_without_specs(kind, &files, project)
+            } else {
+                self.framework.validate_artifact(kind, &files, project)
+            };
             let _ = rules::record_validation(
                 spec,
                 &id,
@@ -729,6 +737,7 @@ impl SpecService {
                 author_agent_id: request.author_agent_id,
                 reviewer_agent_id: reviewer,
                 origin: SpecOrigin::Created,
+                skip_specs: request.skip_specs,
             },
             &self.framework.graph(),
             now,
@@ -1198,7 +1207,7 @@ impl SpecService {
         let documents = latest_documents(&self.require(id)?);
         let planned = self
             .framework
-            .publish_files(&documents, now_ms())
+            .publish_files(&documents, now_ms(), self.require(id)?.skip_specs)
             .map_err(|_| state("document_missing"))?;
         let mut written = Vec::new();
         for file in &planned {
@@ -1446,6 +1455,7 @@ impl SpecService {
                     path: format!("{changes_root}/{change_id}"),
                     at: now,
                 },
+                skip_specs: false,
             },
             &self.framework.graph(),
             now,

@@ -36,7 +36,7 @@ import {
   waiveReview,
 } from '../services/specService';
 import {
-  STAGES,
+  stagesOf,
   type FindingStatus,
   type SpecArtifact,
   type SpecFinding,
@@ -75,7 +75,9 @@ type Dialog = 'revise' | 'redo' | 'answers' | 'agents' | 'delete' | null;
 /** Where the person should be looking: the first document not approved, else the final review. */
 export function defaultStage(view: SpecView): Stage {
   if (!view.spec.started) return 'proposal';
-  const open = STAGES.find((stage) => stage !== 'final' && view.phases[stage] !== 'approved');
+  const open = stagesOf(view).find(
+    (stage) => stage !== 'final' && view.phases[stage] !== 'approved',
+  );
   return open ?? 'final';
 }
 
@@ -116,7 +118,8 @@ export function SpecDetail({ workspace, agents, specId, onBack, onImplement, onD
   const status = statusView(view.status);
   const canArchive =
     view.spec.publication.state === 'published' && view.publicationCurrent && !view.spec.archived;
-  const nextStage = STAGES[STAGES.indexOf(stage) + 1];
+  const stages = stagesOf(view);
+  const nextStage = stages[stages.indexOf(stage) + 1];
   const questions = spec.questions.filter(
     (q) => q.status === 'pending' && q.source === 'artifact' && q.artifactId === stage,
   );
@@ -171,7 +174,7 @@ export function SpecDetail({ workspace, agents, specId, onBack, onImplement, onD
     const targets = answers
       .map((a) => spec.findings.find((f) => f.id === a.findingId)?.artifactId)
       .filter((id): id is string => Boolean(id));
-    const first = STAGES.find((stage) => targets.includes(stage));
+    const first = stagesOf(view).find((stage) => targets.includes(stage));
     const sent = await act(() => answerFindings(specId, answers));
     if (sent && first) go(first);
     return sent;

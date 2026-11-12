@@ -655,6 +655,11 @@ pub struct Spec {
     /// review of this spec. Choosing one grants nothing: grants are the MCP hub's.
     #[serde(default)]
     pub integrations: Vec<String>,
+    /// A change with no behaviour to specify (a refactor, tooling, docs): it has no specification
+    /// files, its proposal declares no capability, and archiving it updates no main spec
+    /// (`OpenSpec`'s `--skip-specs`). Chosen when the spec is created; off for every spec before.
+    #[serde(default)]
+    pub skip_specs: bool,
     pub origin: SpecOrigin,
     /// Bumped on every change, so a screen that read an older state can be told it did.
     pub version: u64,

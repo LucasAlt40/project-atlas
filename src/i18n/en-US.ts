@@ -3320,6 +3320,9 @@ export const enUS = {
   'specs.new.context': 'Extra context (optional)',
   'specs.new.author': 'Agent that writes',
   'specs.new.recommended': '{name} (recommended)',
+  'specs.new.skipSpecs': 'No behaviour change (no specification files)',
+  'specs.new.skipSpecsHint':
+    'For a refactor, tooling or docs: proposal, design and tasks only. The proposal names no capability, and archiving it updates no main spec.',
   'specs.new.authorHint':
     'Recommended: an agent with the Spec Architect personality. Any agent can write.',
   'specs.new.reviewer': 'Agent that reviews',
@@ -3680,6 +3683,8 @@ export const enUS = {
   'specs.issue.what_changes_missing': 'The proposal has no “What Changes” section.',
   'specs.issue.what_changes_empty': '“What Changes” is empty.',
   'specs.issue.capabilities_missing': 'The proposal has no “Capabilities” section.',
+  'specs.issue.capabilities_without_specs':
+    'The proposal names capabilities, but this change has no specification files. Remove them, or create the spec with specifications.',
   'specs.issue.no_capabilities': 'The proposal names no capability. Each one becomes a spec file.',
   'specs.issue.capability_path_invalid': '“{capability}” is not a valid capability path.',
   'specs.issue.capability_not_kebab':
