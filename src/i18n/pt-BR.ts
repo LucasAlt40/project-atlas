@@ -1173,7 +1173,14 @@ export const ptBR: Record<TranslationKey, string> = {
   'git.merge.applied': 'Aplicado (sem commit)',
   'git.merge.conflict': 'Conflito',
   'git.merge.blocked': 'Bloqueado',
-  'git.reason.policy_denied': 'A política do agente não permite escritas no Git.',
+  'git.layout.submodules':
+    'Este repositório tem submódulos. O worktree isolado não os traz: as pastas deles ficam vazias lá, e o Atlas não os baixa.',
+  'git.layout.sparse_checkout':
+    'Este projeto usa checkout esparso. O worktree isolado tem o próprio checkout, que pode ter arquivos que o seu deixa de fora.',
+  'git.reason.policy_denied':
+    'A política do agente não permite escritas no Git, então o Atlas não fez commit nem merge do trabalho.',
+  'git.policyDenied.how':
+    'O trabalho continua na pasta da execução, sem commit: {path}. Abra-a no editor e leve o que precisar, ou permita escritas no Git na política do agente para a próxima execução.',
   'git.reason.execution_not_completed': 'A execução não foi concluída.',
   'git.reason.validation_failed': 'A validação falhou.',
   'git.reason.base_dirty': 'O checkout do projeto tem alterações não commitadas.',

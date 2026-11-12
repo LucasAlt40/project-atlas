@@ -110,8 +110,16 @@ export function GitDetails({ executionId, isolated, running }: Props) {
           {t(`git.merge.${worktree.mergeStatus}` as TranslationKey)}
         </Fact>
       </dl>
+      {(worktree.baseLayout ?? []).map((layout) => (
+        <p key={layout} className={styles.note}>
+          {t(`git.layout.${layout}`)}
+        </p>
+      ))}
       {worktree.blockReason && (
         <p className={styles.note}>{t(`git.reason.${worktree.blockReason}` as TranslationKey)}</p>
+      )}
+      {worktree.blockReason === 'policy_denied' && kept && (
+        <p className={styles.note}>{t('git.policyDenied.how', { path: worktree.workingDir })}</p>
       )}
       {changes && changes.conflicts.length > 0 && (
         <>

@@ -92,7 +92,16 @@ worktrees mesclados mas não removidos são tentados de novo; novos ids de execu
   projeto.
 - As ferramentas próprias de um runtime não têm sandbox (ADR 0006): um agente que escreve em um caminho absoluto fora do
   seu worktree não é parado pelo Atlas. O prompt não informa mais o caminho do checkout.
-- Submódulos, sparse checkouts e repositórios `git worktree` com layouts incomuns não são tratados especificamente.
+- **Submódulos e sparse checkout** são detectados ao criar o worktree e registrados nele (`base_layout`), e a tela os
+  diz (2026-11-12):
+  - **submódulos:** o worktree isolado não os traz, as pastas deles ficam vazias, e o Atlas não os baixa, porque isso
+    iria à rede;
+  - **checkout esparso:** o worktree tem o próprio checkout, que pode ter arquivos que o da pessoa deixa de fora.
+
+  Nada é contornado; o isolamento segue. Teste:
+  `a_repository_with_submodules_or_a_sparse_checkout_is_said_to_differ_in_the_worktree`. Outros layouts incomuns de
+  `git worktree` continuam sem tratamento específico.
+
 - Windows e Linux: os testes de `application/worktree/tests.rs` criam repositórios e worktrees com o `git` real em
   pastas temporárias (com espaço no nome) e rodam no CI nos três SOs; só o do symlink no lugar de um worktree é
   `cfg(unix)`. Não verificado: layouts incomuns (caminhos longos do Windows, locks de arquivo abertos, worktrees em outro

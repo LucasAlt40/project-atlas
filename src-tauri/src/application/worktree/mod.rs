@@ -133,6 +133,8 @@ pub struct BaseInfo {
     pub commit: String,
     /// Uncommitted changes in the checkout. They are not in the worktree.
     pub dirty: bool,
+    /// What the worktree will not reproduce of this repository.
+    pub layout: Vec<crate::domain::worktree::BaseLayout>,
 }
 
 /// Where and what to create. Every field is derived by Atlas ([`WorktreeLayout`], the base from

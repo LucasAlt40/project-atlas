@@ -130,6 +130,12 @@ fn decide(facts: &Facts<'_>) -> Decision {
     if facts.outcome != RunOutcome::Completed {
         return Decision::Blocked(BlockReason::ExecutionNotCompleted, Recommendation::Inspect);
     }
+    // A policy that denies Git writes is why the work is not committed (Atlas does not commit it)
+    // and why it cannot be merged: that is what the person is told, not "changes that could not
+    // be committed". The work stays in the worktree for them to take by hand.
+    if facts.git_write == Permission::Denied {
+        return Decision::Blocked(BlockReason::PolicyDenied, Recommendation::Inspect);
+    }
     if facts.uncommitted {
         return Decision::Blocked(BlockReason::UncommittedChanges, Recommendation::Inspect);
     }
@@ -140,9 +146,6 @@ fn decide(facts: &Facts<'_>) -> Decision {
         Some(false) => return Decision::Conflict,
         None => return Decision::Blocked(BlockReason::Undetermined, Recommendation::Review),
         Some(true) => {}
-    }
-    if facts.git_write == Permission::Denied {
-        return Decision::Blocked(BlockReason::PolicyDenied, Recommendation::Review);
     }
     match facts.readiness {
         Some(BaseReadiness::Ready) => {}
@@ -360,6 +363,7 @@ impl WorktreeService {
             workflow_execution_id: None,
             shared_with: None,
             end_commit: None,
+            base_layout: base.layout.clone(),
         };
         self.config.modify(|config| {
             config.worktrees.push(record.clone());

@@ -15,6 +15,7 @@
 //!
 //! Nothing here resets, cleans, stashes, forces or deletes anything that is not fully merged.
 
+use crate::domain::worktree::BaseLayout;
 use std::ffi::OsStr;
 use std::fs;
 use std::io::Read;
@@ -804,8 +805,17 @@ impl WorktreeManager for GitWorktreeManager {
             ));
         }
         self.require_valid_base(&toplevel, &branch)?;
+        let mut layout = Vec::new();
+        if toplevel.join(".gitmodules").is_file() {
+            layout.push(BaseLayout::Submodules);
+        }
+        let sparse = self.run(&toplevel, ["config", "--bool", "core.sparseCheckout"], None)?;
+        if sparse.ok() && sparse.text() == "true" {
+            layout.push(BaseLayout::SparseCheckout);
+        }
         Ok(BaseInfo {
             dirty: self.is_dirty(&toplevel)?,
+            layout,
             toplevel,
             subdir,
             branch,

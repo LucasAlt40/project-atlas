@@ -1163,7 +1163,14 @@ export const enUS = {
   'git.merge.applied': 'Applied (not committed)',
   'git.merge.conflict': 'Conflict',
   'git.merge.blocked': 'Blocked',
-  'git.reason.policy_denied': 'The agent’s policy does not allow Git writes.',
+  'git.layout.submodules':
+    'This repository has submodules. The isolated worktree does not check them out: their folders are empty there, and Atlas does not fetch them.',
+  'git.layout.sparse_checkout':
+    'This project uses a sparse checkout. The isolated worktree has its own checkout, which can hold files yours leaves out.',
+  'git.reason.policy_denied':
+    'The agent’s policy does not allow Git writes, so Atlas did not commit or merge its work.',
+  'git.policyDenied.how':
+    'The work is still in the execution’s folder, uncommitted: {path}. Open it in your editor and take what you need, or allow Git writes in the agent’s policy for the next run.',
   'git.reason.execution_not_completed': 'The execution did not complete.',
   'git.reason.validation_failed': 'Validation failed.',
   'git.reason.base_dirty': 'The project checkout has uncommitted changes.',

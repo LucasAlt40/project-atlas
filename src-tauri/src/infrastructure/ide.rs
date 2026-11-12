@@ -46,6 +46,11 @@ const KNOWN: &[Known] = &[
     },
 ];
 
+/// Visual Studio (Windows only). It installs no launcher on the `PATH`: its `devenv.exe` is found
+/// in its own install folders, `Microsoft Visual Studio\<version>\<edition>\Common7\IDE`, under
+/// the Program Files folders. It opens a folder given as its one argument ("Open Folder").
+const VISUAL_STUDIO: (&str, &str) = ("visualstudio", "Visual Studio");
+
 /// How a program is started: a program and its arguments, nothing else.
 pub type Spawn = dyn Fn(&OsString, &[OsString]) -> io::Result<()> + Send + Sync;
 
@@ -56,6 +61,8 @@ pub struct SystemIdeLauncher {
     app_dirs: Vec<PathBuf>,
     macos: bool,
     windows: bool,
+    /// The Program Files folders Visual Studio is installed under (Windows).
+    program_files: Vec<PathBuf>,
     spawn: Box<Spawn>,
 }
 
@@ -72,6 +79,11 @@ impl SystemIdeLauncher {
             app_dirs,
             macos: cfg!(target_os = "macos"),
             windows: cfg!(windows),
+            program_files: ["ProgramFiles", "ProgramFiles(x86)"]
+                .iter()
+                .filter_map(std::env::var_os)
+                .map(PathBuf::from)
+                .collect(),
             spawn: Box::new(|program, args| {
                 Command::new(program)
                     .args(args)
@@ -97,8 +109,45 @@ impl SystemIdeLauncher {
             app_dirs,
             macos,
             windows,
+            program_files: Vec::new(),
             spawn,
         }
+    }
+
+    /// Where to look for Visual Studio, for tests.
+    #[cfg(test)]
+    #[must_use]
+    pub fn with_program_files(mut self, dirs: Vec<PathBuf>) -> Self {
+        self.program_files = dirs;
+        self
+    }
+
+    /// The newest Visual Studio's `devenv.exe`, on Windows only.
+    fn devenv(&self) -> Option<PathBuf> {
+        if !self.windows {
+            return None;
+        }
+        let sorted = |dir: &Path| -> Vec<PathBuf> {
+            let mut entries: Vec<PathBuf> = std::fs::read_dir(dir)
+                .map(|read| read.filter_map(Result::ok).map(|e| e.path()).collect())
+                .unwrap_or_default();
+            // Newest version first ("2022" after "2019", "18" read as a number).
+            entries.sort_by_key(|p| {
+                let name = p
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default();
+                (name.parse::<u32>().unwrap_or(0), name)
+            });
+            entries.reverse();
+            entries
+        };
+        self.program_files
+            .iter()
+            .flat_map(|root| sorted(&root.join("Microsoft Visual Studio")))
+            .flat_map(|version| sorted(&version))
+            .map(|edition| edition.join("Common7").join("IDE").join("devenv.exe"))
+            .find(|devenv| devenv.is_file())
     }
 
     fn launcher(&self, ide: &Known) -> Option<PathBuf> {
@@ -144,17 +193,34 @@ impl SystemIdeLauncher {
 
 impl IdeLauncher for SystemIdeLauncher {
     fn available(&self) -> Vec<Ide> {
-        KNOWN
+        let mut found: Vec<Ide> = KNOWN
             .iter()
             .filter(|ide| self.has_app(ide) || self.launcher(ide).is_some())
             .map(|ide| Ide {
                 id: ide.id.to_owned(),
                 name: ide.name.to_owned(),
             })
-            .collect()
+            .collect();
+        if self.devenv().is_some() {
+            found.push(Ide {
+                id: VISUAL_STUDIO.0.to_owned(),
+                name: VISUAL_STUDIO.1.to_owned(),
+            });
+        }
+        found
     }
 
     fn open(&self, ide_id: &str, folder: &Path) -> Result<(), IdeError> {
+        if ide_id == VISUAL_STUDIO.0 {
+            if !folder.is_absolute() || !folder.is_dir() {
+                return Err(IdeError::NotAFolder);
+            }
+            let devenv = self
+                .devenv()
+                .ok_or_else(|| IdeError::NotInstalled(VISUAL_STUDIO.1.to_owned()))?;
+            return (self.spawn)(&devenv.into_os_string(), &[folder.as_os_str().to_owned()])
+                .map_err(|e| IdeError::LaunchFailed(e.to_string()));
+        }
         let ide = KNOWN
             .iter()
             .find(|ide| ide.id == ide_id)
@@ -320,5 +386,62 @@ mod tests {
             broken.open("cursor", folder.path()),
             Err(IdeError::LaunchFailed("no".to_owned()))
         );
+    }
+
+    fn install_visual_studio(program_files: &Path, version: &str) -> PathBuf {
+        let ide = program_files
+            .join("Microsoft Visual Studio")
+            .join(version)
+            .join("Community")
+            .join("Common7")
+            .join("IDE");
+        fs::create_dir_all(&ide).unwrap();
+        fs::write(ide.join("devenv.exe"), "").unwrap();
+        ide.join("devenv.exe")
+    }
+
+    #[test]
+    fn on_windows_visual_studio_is_found_in_its_install_folder_and_opens_the_folder() {
+        let bin = TempDir::new("ide-bin");
+        let apps = TempDir::new("ide-apps");
+        let program_files = TempDir::new("Program Files");
+        let folder = TempDir::new("project");
+        install_visual_studio(program_files.path(), "2019");
+        let newest = install_visual_studio(program_files.path(), "2022");
+        let (windows, calls) = launcher(bin.path(), apps.path(), false, true);
+        let windows = windows.with_program_files(vec![program_files.path().to_path_buf()]);
+
+        let found: Vec<_> = windows.available().into_iter().map(|i| i.id).collect();
+        assert_eq!(found, ["visualstudio"]);
+        windows.open("visualstudio", folder.path()).unwrap();
+
+        let calls = calls.lock().unwrap();
+        assert_eq!(calls[0].0, newest.into_os_string());
+        assert_eq!(calls[0].1, [folder.path().as_os_str().to_owned()]);
+        drop(calls);
+        assert_eq!(
+            windows.open("visualstudio", Path::new("relative")),
+            Err(IdeError::NotAFolder)
+        );
+    }
+
+    #[test]
+    fn visual_studio_is_never_offered_off_windows_or_when_it_is_not_installed() {
+        let bin = TempDir::new("ide-bin");
+        let apps = TempDir::new("ide-apps");
+        let program_files = TempDir::new("Program Files");
+        let folder = TempDir::new("project");
+        let (empty, _) = launcher(bin.path(), apps.path(), false, true);
+        let empty = empty.with_program_files(vec![program_files.path().to_path_buf()]);
+        assert!(empty.available().iter().all(|i| i.id != "visualstudio"));
+        assert_eq!(
+            empty.open("visualstudio", folder.path()),
+            Err(IdeError::NotInstalled("Visual Studio".to_owned()))
+        );
+
+        install_visual_studio(program_files.path(), "2022");
+        let (mac, _) = launcher(bin.path(), apps.path(), true, false);
+        let mac = mac.with_program_files(vec![program_files.path().to_path_buf()]);
+        assert!(mac.available().iter().all(|i| i.id != "visualstudio"));
     }
 }

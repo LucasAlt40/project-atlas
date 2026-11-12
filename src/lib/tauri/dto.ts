@@ -2531,6 +2531,8 @@ export interface ExecutionWorktreeDto {
   branchName: string;
   worktreePath: string;
   workingDir: string;
+  /** What the isolated worktree does not reproduce of the repository (ADR 0009). */
+  baseLayout?: ('submodules' | 'sparse_checkout')[];
   repositoryPath: string;
   status: WorktreeStatusDto;
   mergeStatus: MergeStatusDto;

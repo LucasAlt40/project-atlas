@@ -260,6 +260,7 @@ mod tests {
                 workflow_execution_id: None,
                 shared_with: None,
                 end_commit: None,
+                base_layout: Vec::new(),
             }],
             ..UserConfig::default()
         };

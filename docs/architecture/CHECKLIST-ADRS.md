@@ -297,12 +297,15 @@ ADRs: 0013, 0014, 0018, 0019, 0035, 0009.
 - [x] **W11. Merge de deltas em `openspec/specs/` sem a CLI.** (0035) — 2026-11-11: descartado pelo usuário (0035).
   - Pronto quando: decisão. A ADR considera reimplementar o archive do OpenSpec arriscado; se continuar assim, mover
     para "Descartado" com o motivo.
-- [ ] **W12. Detectar o Visual Studio.** (0014) — entrega mostra a opção quando detectado, só Windows (`cfg`).
-- [ ] **W13. Submódulos e sparse checkouts.** (0009) — detecção e tratamento explícito (ou erro claro), com teste.
+- [x] **W12. Detectar o Visual Studio.** (0014) — 2026-11-12: `devenv.exe` nas pastas de instalação, só no Windows;
+      não verificado num Windows real (0014). — entrega mostra a opção quando detectado, só Windows (`cfg`).
+- [x] **W13. Submódulos e sparse checkouts.** (0009) — 2026-11-12: detectados, registrados no worktree e ditos na
+      tela (0009). — detecção e tratamento explícito (ou erro claro), com teste.
 - [x] **W14. Integração automática de mudanças.** (0014 "só o usuário aplica") — 2026-11-11: descartado pelo usuário
       (0014).
   - Pronto quando: decisão. Provavelmente **manter** (é invariante de segurança): mover para "Descartado" com motivo.
-- [ ] **W15. Política que nega Git deixa trabalho sem commit.** (0014)
+- [x] **W15. Política que nega Git deixa trabalho sem commit.** (0014) — 2026-11-12: o motivo mostrado é a política, com
+      onde o trabalho ficou e como usá-lo (0014).
   - Pronto quando: o usuário vê claramente que o trabalho está sem commit e como aplicá-lo, ou o fluxo é ajustado.
 
 ## Bloco 6 · Multi-projeto

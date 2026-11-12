@@ -129,6 +129,22 @@ pub struct ExecutionWorktree {
     /// For a lease: the commit the worktree was at when the step finished.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub end_commit: Option<String>,
+    /// What about the project's repository makes its isolated worktree differ from the person's
+    /// checkout (ADR 0009). Said, never worked around.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub base_layout: Vec<BaseLayout>,
+}
+
+/// A repository layout an isolated worktree does not reproduce.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BaseLayout {
+    /// The repository has submodules (`.gitmodules`). A new worktree does not check them out: their
+    /// folders are empty there, and Atlas does not fetch them (that would reach the network).
+    Submodules,
+    /// The checkout is sparse (`core.sparseCheckout`). The worktree's own checkout is not the
+    /// person's: it can hold files their checkout leaves out.
+    SparseCheckout,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
