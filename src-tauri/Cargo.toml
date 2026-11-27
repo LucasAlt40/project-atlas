@@ -44,7 +44,7 @@ hyper-util = { version = "0.1", features = ["tokio"] }
 http-body-util = "0.1"
 bytes = "1"
 if-addrs = "0.13"
-qrcode = { version = "0.14", default-features = false, features = ["svg"] }
+qrcode = { version = "0.15", default-features = false, features = ["svg"] }
 getrandom = "0.3"
 # Warnings the core used to print to a stderr nobody sees in an installed app now land in a
 # rotating file in the OS log folder (`~/Library/Logs/<identifier>/` on macOS). Rust-side only:
